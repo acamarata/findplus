@@ -30,12 +30,14 @@ done
 # naming rule itself) are excluded from matching their own rule text.
 # web/app/state.js's one mention is the documented localStorage migration
 # shim (P1-E10-W6-S1-T1) explaining the old `bt.*` key prefix it reads once.
-# cli/src/findplus/cli/doctor.py + its test deliberately detect a legacy
+# cli/src/findplus/cli/doctor.py + its tests deliberately detect a legacy
 # ~/.bike-tracker state directory / bike-tracker.sqlite so `findplus doctor`
 # can tell an upgrading user where their old history is; not a brand leak.
+# The doctor test exclusion is a glob because that module has already been
+# split once for the 300-line cap (test_doctor_legacy.py).
 if git grep -l -I -i 'bike-tracker\|bike_tracker' -- \
    ':!packaging/scripts/pre-push-check.sh' ':!.github/docs/**' ':!.claude/**' \
-   ':!web/app/state.js' ':!cli/src/findplus/cli/doctor.py' ':!cli/tests/service/test_doctor.py' \
+   ':!web/app/state.js' ':!cli/src/findplus/cli/doctor.py' ':!cli/tests/service/test_doctor*.py' \
    2>/dev/null; then
   echo "FAIL: old name 'bike-tracker' found in source files"; FAIL=1
 fi

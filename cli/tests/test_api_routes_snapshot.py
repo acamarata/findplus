@@ -11,7 +11,9 @@ Constraints: Zero behavior change from the pre-split monolith is the bar —
              GET /api/version and GET /api/widget, bringing it to 33; E5-T4
              adds the 7 /api/groups routes, bringing it to 40; E6-T5 adds the
              12 /api/alerts/* routes, bringing it to 52; E13-T5 adds
-             GET/POST /api/settings/app.start_at_login, bringing it to 54.
+             GET/POST /api/settings/app.start_at_login, bringing it to 54;
+             P1-E10-S2's fix loop adds GET/PUT/POST
+             /api/settings/widget.show_map, bringing it to 57.
 """
 
 from __future__ import annotations
@@ -20,7 +22,12 @@ from findplus.api import create_app
 
 #: FastAPI's own schema/docs routes (openapi.json, Swagger UI, its OAuth2
 #: redirect) — not part of the application's route surface this test pins.
-_FASTAPI_BUILTIN_PATHS = {"/openapi.json", "/api/docs", "/docs/oauth2-redirect"}
+#: All three now sit under /api/ so the app lock covers them (security fix 10).
+_FASTAPI_BUILTIN_PATHS = {
+    "/api/openapi.json",
+    "/api/docs",
+    "/api/docs/oauth2-redirect",
+}
 
 
 def _flatten(routes):
@@ -51,7 +58,7 @@ def _app_routes(app):
 def test_route_count():
     app = create_app()
     routes = _app_routes(app)
-    assert len(routes) == 54
+    assert len(routes) == 57
 
 
 def test_route_paths_present():
@@ -69,6 +76,7 @@ def test_route_paths_present():
         "/api/settings",
         "/api/settings/pin",
         "/api/settings/app.start_at_login",
+        "/api/settings/widget.show_map",
         "/api/devices",
         "/api/devices/refresh",
         "/api/devices/track",

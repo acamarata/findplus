@@ -43,6 +43,7 @@ from . import (
     routes_providers,
     routes_settings,
 )
+from .middleware import OriginGuardMiddleware, SecurityHeadersMiddleware
 
 __all__ = ["SessionAuthMiddleware", "create_app"]
 
@@ -68,6 +69,9 @@ SESSION_COOKIE = "findplus_session"
 #: The lock is enforced HERE, server-side — hiding the UI would leave the data
 #: one `curl` away. Corrected to the 8-path set from specs/api-contract.md
 #: (renamed from the legacy 3-entry _UNGATED_PATHS, which was under-enforced).
+#: `/static/*` and `/` were dead entries: this middleware only inspects paths
+#: that start with `/api/`, so neither could ever be compared against, and a
+#: literal `"/static/*"` never equals a real request path anyway.
 _PUBLIC = frozenset(
     {
         "/api/health",
@@ -76,8 +80,6 @@ _PUBLIC = frozenset(
         "/api/lock/unlock",
         "/api/lock/lock",
         "/api/lock/requirements",
-        "/static/*",
-        "/",
     }
 )
 
@@ -157,8 +159,18 @@ def create_app(sessions: SessionStore | None = None) -> FastAPI:
         description="Local Find Hub location history. Not for emergency use.",
         docs_url="/api/docs",
         redoc_url=None,
+        # Schema and docs live under /api/ so the app lock covers them; at the
+        # FastAPI default (/openapi.json) they sat outside the gated prefix and
+        # described every route to anyone who could reach the port.
+        openapi_url="/api/openapi.json",
+        swagger_ui_oauth2_redirect_url="/api/docs/oauth2-redirect",
     )
+    # Registration order is inside-out: the LAST middleware added runs FIRST,
+    # so a foreign Host is refused before the lock, the routers or /static see
+    # it, and the security headers land on that refusal too.
     app.add_middleware(SessionAuthMiddleware, sessions=sessions)
+    app.add_middleware(OriginGuardMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware)
 
     sync_idle_timeout = _sync_idle_timeout(sessions)
 

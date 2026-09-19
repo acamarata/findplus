@@ -11,7 +11,7 @@ from __future__ import annotations
 import subprocess
 from typing import Any
 
-from fastapi import APIRouter, Body, HTTPException, Response
+from fastapi import APIRouter, Body, HTTPException, Request, Response
 
 from findplus.appsettings import (
     clear_pin,
@@ -25,6 +25,8 @@ from findplus.db.session import session_scope
 from findplus.logging_setup import get_logger
 from findplus.security import SessionStore, hash_pin, verify_pin
 from findplus.state import get_setting, set_setting
+
+from .middleware import same_origin_problem
 
 log = get_logger(__name__)
 
@@ -70,6 +72,7 @@ def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeo
 
     @router.post("/pin")
     def set_pin(
+        request: Request,
         response: Response,
         new_pin: str = Body(..., embed=True),
         current_pin: str | None = Body(default=None, embed=True),
@@ -79,13 +82,25 @@ def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeo
         A credential change revokes every existing session, then immediately
         re-issues one to THIS browser. Other devices are signed out; the person
         who just set the PIN is not locked out of the window they set it in.
+
+        The FIRST-time set has no current PIN to prove, so it is the one
+        credential write a foreign page could otherwise perform to take the
+        lock over. It repeats the same-origin check the OriginGuard already
+        applies, so the rule survives any future change to that middleware's
+        path matching. Forgetting the PIN is recovered at the console with
+        `findplus pin reset --yes`, never over HTTP.
         """
         with session_scope() as session:
             existing = load_settings(session)
-            if existing.pin_configured and not verify_pin(
-                current_pin or "", existing.pin_salt or "", existing.pin_hash or ""
-            ):
-                raise HTTPException(status_code=403, detail="Current PIN is incorrect.")
+            if existing.pin_configured:
+                if not verify_pin(
+                    current_pin or "", existing.pin_salt or "", existing.pin_hash or ""
+                ):
+                    raise HTTPException(status_code=403, detail="Current PIN is incorrect.")
+            else:
+                problem = same_origin_problem(request)
+                if problem is not None:
+                    raise HTTPException(status_code=403, detail=problem)
             try:
                 salt, digest = hash_pin(new_pin)
             except ValueError as exc:
@@ -158,5 +173,26 @@ def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeo
             ) from exc
 
         return {"app.start_at_login": value}
+
+    @router.get("/widget.show_map")
+    def get_widget_show_map() -> dict[str, Any]:
+        with session_scope() as session:
+            value = get_setting(session, "widget.show_map", "0")
+        return {"widget.show_map": value == "1"}
+
+    @router.put("/widget.show_map")
+    @router.post("/widget.show_map")
+    def set_widget_show_map(value: bool = Body(..., embed=True)) -> dict[str, Any]:
+        """Persist whether the widget renders a map snapshot.
+
+        Same per-key GET/PUT/POST shape as `app.start_at_login` above. The
+        dashboard's Alerts-tab checkbox (web/app/alerts.js) writes this; the
+        settings-table row it sets is the same one `GET /api/widget` and
+        `findplus widget show-map` read (see `_widget_show_map` in
+        api/_helpers.py — a table row always wins over the config env var).
+        """
+        with session_scope() as session:
+            set_setting(session, "widget.show_map", "1" if value else "0")
+        return {"widget.show_map": value}
 
     return router

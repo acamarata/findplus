@@ -12,9 +12,9 @@ Constraints — read this before trusting it:
       Use FileVault for that.
     - The PIN is never stored. Only a salted scrypt hash is kept, in the same
       `settings` table, and it is never returned by any endpoint.
-    - Verification is constant-time (`hmac.compare_digest`) and rate-limited,
-      because a 4-digit PIN is otherwise trivially brute-forced over the local
-      API.
+    - Verification is constant-time (`hmac.compare_digest`) and rate-limited
+      with an escalating lockout, because a short numeric PIN is otherwise
+      brute-forced over the local API in minutes.
     - Sessions live in memory only. Restarting the service (or rebooting) locks
       the app again, which is the desired default.
 """
@@ -38,11 +38,14 @@ _KEY_LEN = 32
 #: the request, so the limit is raised explicitly rather than weakening the cost.
 _SCRYPT_MAXMEM = 64 * 1024 * 1024
 
-MIN_PIN_LENGTH = 4
+MIN_PIN_LENGTH = 6
 
-#: Brute-force throttling.
+#: Brute-force throttling. Each consecutive lockout doubles the wait, so a
+#: patient guesser pays 60s, 120s, 240s … instead of a flat minute per five
+#: tries, while a person who mistypes once and then gets it right pays nothing.
 MAX_ATTEMPTS = 5
 LOCKOUT_SECONDS = 60.0
+MAX_LOCKOUT_SECONDS = 3600.0
 
 
 def hash_pin(pin: str) -> tuple[str, str]:
@@ -99,6 +102,10 @@ class SessionStore:
     _sessions: dict[str, _Session] = field(default_factory=dict)
     _lock: threading.Lock = field(default_factory=threading.Lock)
     _failures: list[float] = field(default_factory=list)
+    #: monotonic deadline of the lockout in force, and how many consecutive
+    #: lockouts have been served since the last success.
+    _lockout_until: float = 0.0
+    _lockout_rounds: int = 0
 
     # ------------------------------------------------------------- sessions
     def create(self) -> str:
@@ -143,31 +150,45 @@ class SessionStore:
             return len(self._sessions)
 
     # ------------------------------------------------------------ throttling
+    def _current_lockout_seconds(self) -> float:
+        """60s for the first lockout, doubling per consecutive one, capped at an hour."""
+        return min(LOCKOUT_SECONDS * (2**self._lockout_rounds), MAX_LOCKOUT_SECONDS)
+
     def _prune_failures(self, now: float) -> None:
-        cutoff = now - LOCKOUT_SECONDS
+        """Forget failures older than the window the NEXT lockout would cover."""
+        cutoff = now - self._current_lockout_seconds()
         self._failures = [t for t in self._failures if t > cutoff]
 
     def seconds_until_retry(self) -> float:
         """Remaining lockout, or 0 when an attempt is allowed."""
         now = time.monotonic()
         with self._lock:
-            self._prune_failures(now)
-            if len(self._failures) < MAX_ATTEMPTS:
-                return 0.0
-            return max(0.0, LOCKOUT_SECONDS - (now - self._failures[0]))
+            return max(0.0, self._lockout_until - now)
 
     def record_failure(self) -> None:
+        """Count one wrong PIN, opening a longer lockout each time five pile up."""
         now = time.monotonic()
         with self._lock:
+            if now < self._lockout_until:
+                return
             self._prune_failures(now)
             self._failures.append(now)
+            if len(self._failures) >= MAX_ATTEMPTS:
+                self._lockout_until = now + self._current_lockout_seconds()
+                self._lockout_rounds += 1
+                self._failures.clear()
 
     def clear_failures(self) -> None:
+        """A correct PIN resets both the counter and the escalation."""
         with self._lock:
             self._failures.clear()
+            self._lockout_until = 0.0
+            self._lockout_rounds = 0
 
     def attempts_remaining(self) -> int:
         now = time.monotonic()
         with self._lock:
+            if now < self._lockout_until:
+                return 0
             self._prune_failures(now)
             return max(0, MAX_ATTEMPTS - len(self._failures))

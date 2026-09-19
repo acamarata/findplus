@@ -35,6 +35,7 @@ EXPECTED_COMMANDS = {
     "install-watchdog",
     "mcp",
     "open",
+    "pin",
     "places",
     "poll-now",
     "providers",

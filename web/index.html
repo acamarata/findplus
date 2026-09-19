@@ -202,6 +202,7 @@
             </select>
           </label>
           <label>Cooldown (minutes) <input type="number" id="fp-rule-cooldown" value="60" min="0"></label>
+          <p id="fp-rule-error" class="fp-dialog-error"></p>
           <footer>
             <button type="button" id="fp-rule-save">Save</button>
             <button type="button" id="fp-rule-cancel">Cancel</button>
@@ -236,7 +237,7 @@
     <div id="device-list" class="device-list"></div>
     <p class="modal-rate" id="device-rate"></p>
     <footer class="modal-foot">
-      <button class="btn btn-secondary" id="btn-refresh-devices">Refresh from Google</button>
+      <button class="btn btn-secondary" id="btn-refresh-devices">Refresh from your providers</button>
       <span class="spacer"></span>
       <button class="btn btn-secondary" id="btn-track-none">Track none</button>
       <button class="btn btn-secondary" id="btn-track-all">Track all</button>
@@ -280,7 +281,7 @@
         <label class="setting-row">
           <span>New PIN</span>
           <input type="password" id="new-pin" inputmode="numeric" autocomplete="new-password"
-                 placeholder="at least 4 characters">
+                 placeholder="at least 6 characters">
         </label>
         <label class="setting-row">
           <span>Confirm PIN</span>

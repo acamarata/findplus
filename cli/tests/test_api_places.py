@@ -96,7 +96,7 @@ def test_presence_empty(client: TestClient) -> None:
 
 
 def test_locked(client: TestClient) -> None:
-    client.post("/api/settings/pin", json={"new_pin": "8642"})
+    client.post("/api/settings/pin", json={"new_pin": "864213"})
     client.cookies.clear()
     res = client.get("/api/places")
     assert res.status_code == 401

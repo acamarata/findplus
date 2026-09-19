@@ -13,9 +13,12 @@ Constraints: This is the only file that calls click.group(); every command is
 
 from __future__ import annotations
 
+import os
+
 import click
 
 from findplus import __version__
+from findplus.config import PRIVATE_UMASK
 
 from . import cmd_apple, cmd_config, cmd_db, cmd_devices, cmd_diagnostics, cmd_history, cmd_service
 from .alerts import alerts_cmd
@@ -32,6 +35,10 @@ from .widget import widget
 @click.version_option(__version__, prog_name="findplus")
 def main() -> None:
     """Local historical location timeline for a Google Find Hub tracker."""
+    # Every file this process creates — the database, its WAL, the log, the
+    # token store — holds or leaks location history, so none of them may
+    # inherit a permissive shell umask. Set once, before any subcommand runs.
+    os.umask(PRIVATE_UMASK)
 
 
 main.add_command(cmd_service.auth)
@@ -50,6 +57,7 @@ main.add_command(doctor_cmd)
 main.add_command(cmd_diagnostics.watchdog)
 main.add_command(cmd_diagnostics.install_watchdog_cmd)
 main.add_command(cmd_diagnostics.reset_lock)
+main.add_command(cmd_diagnostics.pin_group)
 main.add_command(cmd_diagnostics.theme)
 
 main.add_command(cmd_devices.devices)

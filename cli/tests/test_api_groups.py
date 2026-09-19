@@ -183,7 +183,7 @@ def test_timeline_group_not_found_404(client: TestClient) -> None:
 
 
 def test_locked(client: TestClient) -> None:
-    client.post("/api/settings/pin", json={"new_pin": "8642"})
+    client.post("/api/settings/pin", json={"new_pin": "864213"})
     client.cookies.clear()
     res = client.get("/api/groups")
     assert res.status_code == 401

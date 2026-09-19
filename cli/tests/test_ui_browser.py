@@ -31,7 +31,7 @@ pytest.importorskip("playwright", reason="playwright is not installed")
 from playwright.sync_api import Browser, Page, sync_playwright
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-PIN = "8642"
+PIN = "864213"
 
 
 def _free_port() -> int:
@@ -178,7 +178,7 @@ def test_no_location_data_is_in_the_dom_while_locked(page: Page) -> None:
 
 
 def test_wrong_pin_stays_locked_and_reports_it(page: Page) -> None:
-    page.fill("#lock-pin", "0000")
+    page.fill("#lock-pin", "000000")
     page.click("#lock-submit")
     page.wait_for_timeout(1200)
     assert page.is_visible("#lock-screen")

@@ -47,7 +47,7 @@ class AsgiDaemonClient(DaemonClient):
     """DaemonClient whose transport is the app itself, not a socket."""
 
     def __init__(self, app) -> None:
-        super().__init__(base_url="http://daemon")
+        super().__init__(base_url="http://127.0.0.1:8647")
         self._app = app
 
     async def _send(self, method: str, path: str, timeout: float, **kw: object) -> httpx.Response:
@@ -70,7 +70,7 @@ def locked_app(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator:
     upgrade_to_head()
     app = create_app()
     with TestClient(app) as tc:
-        assert tc.post("/api/settings/pin", json={"new_pin": "0000"}).status_code == 200
+        assert tc.post("/api/settings/pin", json={"new_pin": "000000"}).status_code == 200
         tc.cookies.clear()
         assert tc.get("/api/lock/status").json()["locked"] is True
         yield app
@@ -113,7 +113,7 @@ async def test_no_tool_leaks_coordinates_while_locked(locked_app) -> None:
 
 async def test_unlock_then_data_and_validation_mapping(locked_app) -> None:
     async with Client(_server(locked_app)) as client:
-        assert (await client.call_tool("unlock", {"pin": "0000"})).structured_content["unlocked"]
+        assert (await client.call_tool("unlock", {"pin": "000000"})).structured_content["unlocked"]
         assert "tracked_count" in (await client.call_tool("get_status", {})).structured_content
 
         bad_radius = await client.call_tool(
@@ -151,9 +151,9 @@ async def test_findplus_pin_unlocks_at_startup(locked_app, monkeypatch) -> None:
     """specs/mcp-tools.md: FINDPLUS_PIN, if set, is used once at startup."""
     from findplus.cli.cmd_mcp import _unlock_at_startup
 
-    monkeypatch.setenv("FINDPLUS_PIN", "0000")
+    monkeypatch.setenv("FINDPLUS_PIN", "000000")
     server = _server(locked_app)
-    assert server._startup_pin == "0000"
+    assert server._startup_pin == "000000"
     assert await _unlock_at_startup(server) is None
     assert server._daemon_client.session_cookie
     async with Client(server) as client:

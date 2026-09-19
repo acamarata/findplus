@@ -1,5 +1,8 @@
 """Diagnostics and install commands: watchdog, theme, PIN reset, install-watchdog.
 
+`reset-lock` and `pin reset` are the same recovery path under two names; both
+run only at this console, because the API deliberately has no PIN-reset route.
+
 Purpose    : The watchdog health check, watchdog-job install, and small
              settings-adjacent utilities. The `doctor` command moved to
              cli/doctor.py (P1-E7-W3-S1-T4, 10 pure checks + --repair/--json);
@@ -59,14 +62,12 @@ def install_watchdog_cmd(yes: bool) -> None:
     click.secho("Watchdog installed and started.", fg="green")
 
 
-@click.command("reset-lock")
-@click.option("--yes", is_flag=True, help="Skip the confirmation prompt.")
-def reset_lock(yes: bool) -> None:
-    """Forgot your PIN? Remove the app lock from this machine.
+def _clear_app_lock(yes: bool) -> None:
+    """Delete the stored PIN and clear `lock_enabled`. Console callers only.
 
-    There is no cloud reset for the PIN, by design. Anyone who can run this
-    command already has access to the database file, so this recovery path adds
-    no exposure that did not already exist.
+    Deliberately not reachable over HTTP: an unauthenticated reset endpoint
+    would be a lock bypass. Anyone who can run this command already has the
+    database file, so the recovery path adds no exposure that did not exist.
     """
     _prep()
     from findplus.appsettings import clear_pin, load_settings
@@ -82,8 +83,36 @@ def reset_lock(yes: bool) -> None:
             raise click.Abort
         clear_pin(session)
 
-    click.secho("App lock removed. Set a new PIN from Settings in the dashboard.", fg="green")
+    click.secho(
+        "App lock removed: the PIN is deleted and the lock is now off. "
+        "Anyone at this computer can open the dashboard until you set a new PIN.",
+        fg="yellow",
+    )
+    click.echo("Set a new PIN from Settings in the dashboard.")
     click.echo("Restart the service so running sessions pick this up: findplus start")
+
+
+@click.command("reset-lock")
+@click.option("--yes", is_flag=True, help="Skip the confirmation prompt.")
+def reset_lock(yes: bool) -> None:
+    """Forgot your PIN? Remove the app lock from this machine."""
+    _clear_app_lock(yes)
+
+
+@click.group("pin")
+def pin_group() -> None:
+    """App-lock PIN recovery. Runs at this console only, never over HTTP."""
+
+
+@pin_group.command("reset")
+@click.option("--yes", is_flag=True, help="Skip the confirmation prompt.")
+def pin_reset(yes: bool) -> None:
+    """Delete the PIN and turn the app lock off.
+
+    Same effect as `findplus reset-lock`, named for the thing people search
+    for when they cannot get past the lock screen.
+    """
+    _clear_app_lock(yes)
 
 
 @click.command()

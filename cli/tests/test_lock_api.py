@@ -19,7 +19,7 @@ from findplus.security import MAX_ATTEMPTS, SessionStore
 from findplus.state import track_devices
 from tests.conftest import make_observation
 
-PIN = "8642"
+PIN = "864213"
 
 #: Every endpoint that must refuse to answer while locked.
 GATED = [
@@ -149,7 +149,7 @@ def test_correct_pin_unlocks(client: TestClient) -> None:
 def test_wrong_pin_does_not_unlock(client: TestClient) -> None:
     _set_pin(client)
     client.cookies.clear()
-    assert client.post("/api/lock/unlock", json={"pin": "0000"}).status_code == 401
+    assert client.post("/api/lock/unlock", json={"pin": "000000"}).status_code == 401
     assert client.get("/api/status").status_code == 401
 
 
@@ -167,8 +167,8 @@ def test_brute_force_is_throttled(client: TestClient) -> None:
     _set_pin(client)
     client.cookies.clear()
     for _ in range(MAX_ATTEMPTS):
-        assert client.post("/api/lock/unlock", json={"pin": "0000"}).status_code == 401
-    res = client.post("/api/lock/unlock", json={"pin": "0000"})
+        assert client.post("/api/lock/unlock", json={"pin": "000000"}).status_code == 401
+    res = client.post("/api/lock/unlock", json={"pin": "000000"})
     assert res.status_code == 429
     assert "Try again in" in res.json()["detail"]
 
@@ -178,7 +178,7 @@ def test_throttling_blocks_even_the_correct_pin(client: TestClient) -> None:
     _set_pin(client)
     client.cookies.clear()
     for _ in range(MAX_ATTEMPTS):
-        client.post("/api/lock/unlock", json={"pin": "0000"})
+        client.post("/api/lock/unlock", json={"pin": "000000"})
     assert client.post("/api/lock/unlock", json={"pin": PIN}).status_code == 429
 
 
@@ -230,7 +230,7 @@ def test_changing_the_pin_signs_other_sessions_out(client: TestClient, store: Se
     _set_pin(client)
     other_token = store.create()  # a second browser, already unlocked
 
-    client.post("/api/settings/pin", json={"new_pin": "1357", "current_pin": PIN})
+    client.post("/api/settings/pin", json={"new_pin": "135792", "current_pin": PIN})
 
     assert store.is_valid(other_token) is False, "other devices must be signed out"
     assert client.get("/api/status").status_code == 200, "this browser stays signed in"
@@ -238,16 +238,16 @@ def test_changing_the_pin_signs_other_sessions_out(client: TestClient, store: Se
 
 def test_the_new_pin_is_the_one_that_works(client: TestClient) -> None:
     _set_pin(client)
-    client.post("/api/settings/pin", json={"new_pin": "1357", "current_pin": PIN})
+    client.post("/api/settings/pin", json={"new_pin": "135792", "current_pin": PIN})
     client.cookies.clear()
 
     assert client.post("/api/lock/unlock", json={"pin": PIN}).status_code == 401
-    assert client.post("/api/lock/unlock", json={"pin": "1357"}).status_code == 200
+    assert client.post("/api/lock/unlock", json={"pin": "135792"}).status_code == 200
 
 
 def test_changing_the_pin_requires_the_current_one(client: TestClient) -> None:
     _set_pin(client)
-    res = client.post("/api/settings/pin", json={"new_pin": "1357", "current_pin": "wrong"})
+    res = client.post("/api/settings/pin", json={"new_pin": "135792", "current_pin": "wrong"})
     assert res.status_code == 403
 
 
@@ -283,7 +283,7 @@ def test_lock_cannot_be_enabled_without_a_pin(client: TestClient) -> None:
 
 def test_requirements_endpoint_states_the_caveat_honestly(client: TestClient) -> None:
     body = client.get("/api/lock/requirements").json()
-    assert body["min_pin_length"] == 4
+    assert body["min_pin_length"] == 6
     assert "does NOT encrypt" in body["caveat"] or "NOT encrypt" in body["caveat"]
 
 

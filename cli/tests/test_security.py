@@ -18,34 +18,34 @@ from findplus.security import (
 
 # ------------------------------------------------------------------ hashing
 def test_correct_pin_verifies() -> None:
-    salt, digest = hash_pin("1234")
-    assert verify_pin("1234", salt, digest) is True
+    salt, digest = hash_pin("123456")
+    assert verify_pin("123456", salt, digest) is True
 
 
 def test_wrong_pin_rejected() -> None:
-    salt, digest = hash_pin("1234")
-    assert verify_pin("9999", salt, digest) is False
+    salt, digest = hash_pin("123456")
+    assert verify_pin("999999", salt, digest) is False
 
 
 def test_pin_is_not_recoverable_from_what_is_stored() -> None:
     """The stored material must not contain the PIN in any readable form."""
-    salt, digest = hash_pin("1234")
-    assert "1234" not in salt
-    assert "1234" not in digest
+    salt, digest = hash_pin("123456")
+    assert "123456" not in salt
+    assert "123456" not in digest
     assert len(digest) == 64  # 32-byte key, hex encoded
 
 
 def test_same_pin_hashes_differently_each_time() -> None:
     """A per-PIN random salt defeats rainbow tables and reveals nothing by equality."""
-    first_salt, first_hash = hash_pin("1234")
-    second_salt, second_hash = hash_pin("1234")
+    first_salt, first_hash = hash_pin("123456")
+    second_salt, second_hash = hash_pin("123456")
     assert first_salt != second_salt
     assert first_hash != second_hash
 
 
 def test_short_pins_are_refused() -> None:
     with pytest.raises(ValueError, match=f"at least {MIN_PIN_LENGTH}"):
-        hash_pin("12")
+        hash_pin("12345")
 
 
 def test_passphrases_are_supported() -> None:
@@ -54,7 +54,7 @@ def test_passphrases_are_supported() -> None:
 
 
 def test_malformed_stored_material_does_not_crash() -> None:
-    assert verify_pin("1234", "not-hex", "also-not-hex") is False
+    assert verify_pin("123456", "not-hex", "also-not-hex") is False
 
 
 # ----------------------------------------------------------------- sessions
@@ -127,7 +127,7 @@ def test_attempts_are_allowed_up_to_the_limit() -> None:
 
 
 def test_lockout_after_too_many_failures() -> None:
-    """A 4-digit PIN would otherwise be brute-forced over the local API."""
+    """A short PIN would otherwise be brute-forced over the local API."""
     store = SessionStore()
     for _ in range(MAX_ATTEMPTS):
         store.record_failure()

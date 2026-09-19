@@ -13,6 +13,32 @@ import pytest
 # Point every setting at a throwaway location BEFORE findplus.config is imported.
 os.environ.setdefault("FINDPLUS_STATE_DIR", "/tmp/findplus-tests-state")
 
+#: Where a TestClient pretends to be talking to. Starlette's default is
+#: "http://testserver", which OriginGuardMiddleware answers with 421 because
+#: it is not a loopback name — exactly the DNS-rebinding case it exists to
+#: refuse. Every client in this suite therefore speaks as a loopback browser
+#: does; the guard's own rejections are tested by setting Host explicitly.
+LOOPBACK_BASE_URL = "http://127.0.0.1:8647"
+
+
+def _default_testclient_to_loopback() -> None:
+    """Make LOOPBACK_BASE_URL the default base_url for every TestClient."""
+    from starlette.testclient import TestClient
+
+    original = TestClient.__init__
+    if getattr(original, "_findplus_loopback", False):
+        return
+
+    def patched(self, app, *args, **kwargs):
+        kwargs.setdefault("base_url", LOOPBACK_BASE_URL)
+        original(self, app, *args, **kwargs)
+
+    patched._findplus_loopback = True
+    TestClient.__init__ = patched
+
+
+_default_testclient_to_loopback()
+
 
 @pytest.fixture(autouse=True)
 def _block_non_loopback_sockets(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -9,7 +9,7 @@
     "windows": [],
     "macOSPrivateApi": true,
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; img-src 'self' https://tile.openstreetmap.org data:; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:8647; frame-ancestors 'none'"
     }
   },
   "bundle": {

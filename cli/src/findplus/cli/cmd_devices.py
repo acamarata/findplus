@@ -46,8 +46,8 @@ def devices(
     from sqlalchemy import select as sa_select
 
     from findplus.db.models import Device, LocationObservation
-    from findplus.findhub.client import FindHubClient
     from findplus.ingest import upsert_device
+    from findplus.providers.google_findhub.client import FindHubClient
     from findplus.state import (
         get_tracked_devices,
         set_default_device,

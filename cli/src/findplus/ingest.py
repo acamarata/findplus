@@ -22,10 +22,10 @@ from sqlalchemy.orm import Session
 
 from findplus.config import get_settings
 from findplus.db.models import Device, LocationObservation, PlaceEvent
-from findplus.findhub.types import RawObservation
 from findplus.groups.events import evaluate_group_events as _group_events_evaluate
 from findplus.logging_setup import get_logger
 from findplus.places.events import evaluate as _geofence_evaluate
+from findplus.providers.google_findhub.types import RawObservation
 
 log = get_logger(__name__)
 

@@ -154,8 +154,8 @@ def start(yes: bool, no_open: bool, program_override: str | None) -> None:
     _prep()
     from findplus import service
     from findplus.db.session import session_scope
-    from findplus.findhub.bootstrap import describe_stored_auth
     from findplus.ingest import upsert_device
+    from findplus.providers.google_findhub.bootstrap import describe_stored_auth
     from findplus.state import get_tracked_devices
 
     settings = get_settings()
@@ -169,7 +169,7 @@ def start(yes: bool, no_open: bool, program_override: str | None) -> None:
     with session_scope() as sess:
         tracked = get_tracked_devices(sess)
     if not tracked:
-        from findplus.findhub.client import FindHubClient
+        from findplus.providers.google_findhub.client import FindHubClient
 
         try:
             found = FindHubClient().list_devices()

@@ -22,12 +22,6 @@ from datetime import UTC, datetime
 
 from findplus.config import Settings, get_settings
 from findplus.db.session import session_scope
-from findplus.findhub.types import (
-    AuthRequiredError,
-    DecryptionError,
-    FindHubError,
-    LocationTimeoutError,
-)
 from findplus.ingest import ingest_observations
 from findplus.logging_setup import get_logger
 
@@ -37,6 +31,12 @@ from findplus.poller_outcomes import CycleOutcome as CycleOutcome
 from findplus.poller_outcomes import PollOutcome as PollOutcome
 from findplus.poller_outcomes import _log_outcome, _record
 from findplus.providers.base import LocationProvider, get_provider
+from findplus.providers.google_findhub.types import (
+    AuthRequiredError,
+    DecryptionError,
+    FindHubError,
+    LocationTimeoutError,
+)
 from findplus.state import get_tracked_devices
 
 log = get_logger(__name__)

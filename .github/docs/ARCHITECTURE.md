@@ -100,19 +100,27 @@ Two upstream robustness defects are contained rather than inherited:
 `cli/src/findplus/mcp/` (ADR-P1-06: a thin client of the local HTTP API, never a side door around
 the app lock). Package layout:
 
-- `client.py` — `DaemonClient`, the only module that imports `httpx`. Maps a daemon 401 to
-  `{"error": {"code": "locked", ...}}` and a connection failure to `{"error": {"code":
-  "daemon_down", ...}}` instead of raising, so every tool returns the standard error shape
-  without a per-tool guard. `get_notice()` caches `/api/config`'s `notices.find_hub` and falls
+- `errors.py` — the one place that turns a daemon status into the error shape
+  specs/mcp-tools.md pins: 401 -> `locked`, 404 -> `not_found`, 400/409/422 -> `validation`,
+  429 and every other non-2xx (including a non-JSON body) -> `upstream`. Each call builds a
+  fresh dict, so a caller that adds a `notice` key cannot mutate a shared constant.
+- `client.py` — `DaemonClient`, the only module that imports `httpx`. Routes every reply
+  through `errors.from_status` and maps a connection failure to `daemon_down` and a timeout or
+  other transport error to `upstream` instead of raising, so every tool returns the standard
+  error shape without a per-tool guard and a slow or broken daemon never surfaces as an MCP
+  protocol error. A 204 No Content (DELETE) is a success with an empty body, not an error. `get_notice()` caches `/api/config`'s `notices.find_hub` and falls
   back to `findplus.honesty.FIND_HUB` if the daemon is unreachable.
 - `server.py` — `create_mcp_server(base_url, allow_writes)`. Confirmed SDK import path (mcp
   2.2.0): `from mcp.server.mcpserver import MCPServer`. Registers the 10 read tools always;
   registers the 6 write tools only when `allow_writes=True`. Stores `mcp._startup_pin` from
-  `FINDPLUS_PIN` for the `findplus mcp` CLI command's async runner to consume before the stdio
-  transport starts (the factory itself is synchronous, so it never awaits the unlock).
+  `FINDPLUS_PIN` for the `findplus mcp` CLI command to spend before the stdio transport starts
+  (`cmd_mcp._unlock_at_startup`, one `asyncio.run` before the blocking `server.run`; the factory
+  itself is synchronous, so it never awaits the unlock). A rejected PIN prints one line to
+  stderr, never the PIN, and the server still starts locked.
 - `tools_read.py` / `tools_write.py` — one `@mcp.tool(structured_output=True)` closure per tool,
   every one annotated `-> dict[str, Any]` (mcp 2.2.0 raises `InvalidSignature` at registration on
-  a bare `-> dict`). Tool bodies read `mcp._daemon_client` at call time through a local `_c()`
+  a bare `-> dict`) and carrying a one-line docstring, which mcp 2.2.0 publishes as the tool
+  description a client shows its user. Tool bodies read `mcp._daemon_client` at call time through a local `_c()`
   helper rather than closing over the constructor's `client` argument, so a test (or a future
   reconnect) can swap the daemon client after `create_mcp_server()` returns — matching
   specs/mcp-tools.md's "dependency-injected base client".
@@ -121,7 +129,7 @@ the app lock). Package layout:
 
 CLI: `findplus mcp [--allow-writes] [--url]` (`cli/src/findplus/cli/cmd_mcp.py`), a deferred
 import so `findplus --help` never pays the mcp SDK's import cost. Wiki:
-`.github/wiki/MCP-server.md`.
+`.github/wiki/MCP.md`.
 
 ## Multi-device model
 

@@ -1,4 +1,4 @@
-# MCP server
+# MCP
 
 Find+ ships an [MCP](https://modelcontextprotocol.io) server over the local daemon API.
 It runs over **stdio** and speaks to the daemon at `http://127.0.0.1:8647` by default.
@@ -59,6 +59,24 @@ With write tools: `claude mcp add findplus -- findplus mcp --allow-writes`
 
 Never exposed, on any tool: PIN set/change/reset, history deletion, alert channel credentials.
 
+## Errors
+
+Every tool returns a JSON object. Failures use one shape:
+
+```json
+{"error": {"code": "locked", "message": "Find+ is locked", "hint": "call unlock(pin)"}}
+```
+
+| Code | When |
+|---|---|
+| `daemon_down` | The daemon is not running or cannot be reached. |
+| `locked` | The app lock is on. Call `unlock` first; no tool returns data while locked. |
+| `not_found` | The place, group or device id does not exist. |
+| `validation` | An argument is out of range or the wrong type. |
+| `upstream` | The daemon answered with an error or did not answer in time. |
+
+Without `--allow-writes` the write tools are not registered at all, so a client never sees them.
+
 ## Notices
 
 Find+ is not affiliated with Apple or Google. Find Hub and Find My are their trademarks.
@@ -69,3 +87,6 @@ Every tool response includes a `notice` field with the following text:
 > Moto Tag uses nearby participating Android devices to report its location.
 > Location updates can therefore be delayed, sparse, or unavailable, and this
 > application should not be treated as real-time emergency or child-safety GPS tracking.
+
+---
+[[Home]]

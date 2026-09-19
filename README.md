@@ -119,7 +119,7 @@ Then, once it works, optionally install autostart:
 | `findplus export` | Export CSV / JSON / GPX / KML. `--device-id` narrows to one tracker. |
 | `findplus prune --before YYYY-MM-DD` | Delete old history. Dry run unless `--yes`. |
 | `findplus doctor` | Diagnose the install; report what auth material is stored and where. |
-| `findplus mcp` | Start an [MCP server](.github/wiki/MCP-server.md) over the local API for Claude Desktop/Code. |
+| `findplus mcp` | Start an [MCP server](.github/wiki/MCP.md) over the local API for Claude Desktop/Code. |
 
 ## Where things live
 

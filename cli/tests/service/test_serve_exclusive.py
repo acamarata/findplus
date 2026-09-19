@@ -92,7 +92,7 @@ def test_missing_port_key_returns_false(tmp_db) -> None:
 # ------------------------------------------------------------------------- h
 def test_serve_exits_3_when_already_running(tmp_db, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "findplus.cli.cmd_service._check_exclusive",
+        "findplus.cli.cmd_serve._check_exclusive",
         lambda state_dir: (True, "http://127.0.0.1:8647/"),
     )
     result = CliRunner().invoke(serve, ["--foreground"])

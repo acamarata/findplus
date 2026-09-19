@@ -2,7 +2,8 @@
 
 Purpose : The pure `_make_signal_handler` factory, plus subprocess integration
           tests proving `serve --foreground` cleans up daemon.json on both
-          signals.
+          signals, and that a server thread dying on its own ends serve
+          instead of hanging it.
 Constraints: The subprocess tests use port 8640 (never 8647, the real default)
           and skip cleanly if the `findplus` console script is not on PATH.
 """
@@ -18,7 +19,11 @@ import threading
 import time
 from pathlib import Path
 
-from findplus.cli.cmd_service import _make_signal_handler
+import pytest
+from click.testing import CliRunner
+
+from findplus.cli.cmd_serve import _wait_for_stop
+from findplus.cli.cmd_service import _make_signal_handler, serve
 
 
 # ------------------------------------------------------------------------- a
@@ -94,6 +99,36 @@ def test_poller_join_timeout_is_respected(monkeypatch) -> None:
     t.join(timeout=0.2)
     elapsed = time.monotonic() - started
     assert elapsed < 1.0, "join(timeout=...) must not block past its own timeout"
+
+
+# ------------------------------------------------------------------------- d2
+def test_wait_for_stop_returns_1_when_the_server_thread_dies() -> None:
+    """A uvicorn thread that cannot bind exits at once; serve must not block
+    on the stop event forever while daemon.json claims a live daemon."""
+    stop_event = threading.Event()
+    dead = threading.Thread(target=lambda: None)
+    dead.start()
+    dead.join()
+    started = time.monotonic()
+    assert _wait_for_stop(stop_event, dead) == 1
+    assert time.monotonic() - started < 2.0
+
+
+def test_serve_exits_1_when_the_server_cannot_start(
+    tmp_db, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class _DeadServer:
+        def __init__(self, config: object) -> None:
+            self.should_exit = False
+            self.install_signal_handlers = True
+
+        def run(self) -> None:
+            return  # uvicorn gives up on the bind and the thread ends at once
+
+    monkeypatch.setattr("uvicorn.Server", _DeadServer)
+    result = CliRunner().invoke(serve, ["--foreground", "--no-poller", "--port", "8641"])
+    assert result.exit_code == 1, result.output
+    assert "may already be in use" in result.output
 
 
 # ------------------------------------------------------------------------- e/f

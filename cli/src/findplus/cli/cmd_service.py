@@ -1,17 +1,14 @@
-"""Service lifecycle commands: auth, serve, start/stop/restart/status/uninstall, open.
+"""Service lifecycle commands: auth, start/stop/restart/status/uninstall, open.
 
-Purpose    : Sign-in, run the daemon (foreground or as an installed service),
-             report status, and open the dashboard.
+Purpose    : Sign-in, control the installed daemon, report status, and open the
+             dashboard.
 Inputs     : Command-specific options (mostly --yes confirmation skips).
-Outputs    : Console status tables; the running server (serve); service files.
+Outputs    : Console status tables; service files.
 Constraints: Destructive/system-altering actions confirm before acting, unless
-             --yes is passed. The 'serve' command's create_app import stays
-             function-local (matches the pre-split lazy import, avoiding a
-             module-load-time dependency on the api/ package).
-             Diagnostics/install-adjacent commands (doctor, watchdog,
-             install-watchdog, reset-lock, theme) live in cmd_diagnostics.py —
-             this file alone was 398 lines, over the 300-line/file hard rule,
-             so it was split in two.
+             --yes is passed. The daemon itself (`serve`) lives in cmd_serve.py
+             and diagnostics (doctor, watchdog, install-watchdog, reset-lock,
+             theme) in cmd_diagnostics.py — this file was over the
+             300-line/file hard rule with all three together.
              This module contains zero direct subprocess calls: everything
              platform-specific goes through the findplus.service facade
              (specs/service-package.md — no ServiceManager classes here).
@@ -20,29 +17,34 @@ Constraints: Destructive/system-altering actions confirm before acting, unless
 from __future__ import annotations
 
 import json
-import os
-import signal
 import sys
-import threading
 import webbrowser
-from collections.abc import Callable
 from pathlib import Path
 
 import click
 import httpx
 
-from findplus import __version__
 from findplus.config import get_settings
 
 from ._fmt import _prep, _show_service_plan
 
+# Re-exported so `cmd_service.serve` (main.py, tests) keeps resolving after the split.
+from .cmd_serve import _check_exclusive as _check_exclusive
+from .cmd_serve import _make_signal_handler as _make_signal_handler
+from .cmd_serve import serve as serve
+
 
 @click.command()
-def auth() -> None:
+@click.option(
+    "--provider",
+    default="google-find-hub",
+    help="Provider to authenticate: google-find-hub or apple-find-my",
+)
+def auth(provider: str) -> None:
     """Sign in to Google with Chrome and store the session tokens."""
     _prep()
     settings = get_settings()
-    from findplus.findhub.client import FindHubClient
+    from findplus.providers.base import get_provider
 
     click.echo("")
     click.secho("Google sign-in", bold=True)
@@ -66,7 +68,8 @@ def auth() -> None:
         raise click.Abort
 
     try:
-        email = FindHubClient(settings).authenticate()
+        p = get_provider(provider)
+        email = p.authenticate(interactive=True)
     except Exception as exc:
         click.secho(f"\nAuthentication failed: {exc}", fg="red")
         sys.exit(1)
@@ -74,116 +77,6 @@ def auth() -> None:
     click.secho(f"\nAuthenticated as {email}.", fg="green")
     click.echo(f"Credentials stored at {settings.secrets_file}")
     click.echo("Next: findplus devices")
-
-
-def _check_exclusive(state_dir: Path) -> tuple[bool, str]:
-    """Whether a live findplus daemon already answers on the port in daemon.json.
-
-    A 200 with app=='findplus' OR a 401 (locked, but still a running daemon)
-    both count as "already running". A stale daemon.json (dead pid, refused
-    connection, or a foreign service on that port) is ignored: serve proceeds
-    normally and will overwrite it.
-    """
-    daemon_json = state_dir / "daemon.json"
-    if not daemon_json.exists():
-        return (False, "")
-    try:
-        data = json.loads(daemon_json.read_text())
-        port = int(data["port"])
-        host = str(data.get("host", "127.0.0.1"))
-        url = f"http://{host}:{port}"
-        r = httpx.get(f"{url}/api/health", timeout=2.0)
-        if r.status_code == 401:
-            return (True, f"{url}/")
-        if r.status_code == 200 and r.json().get("app") == "findplus":
-            return (True, f"{url}/")
-    except Exception:
-        pass  # stale daemon.json or unreachable daemon
-    return (False, "")
-
-
-def _make_signal_handler(stop_event: threading.Event) -> Callable[[int, object], None]:
-    """A pure factory: no module-level mutable state, so this is unit-testable
-    without touching a global. `serve()` owns the one `stop_event` it builds."""
-
-    def _handle_signal(sig: int, frame: object) -> None:
-        stop_event.set()
-
-    return _handle_signal
-
-
-@click.command()
-@click.option("--foreground", is_flag=True, help="Run in this terminal (used by the service).")
-@click.option("--no-poller", is_flag=True, help="Serve the UI/API without polling Google.")
-@click.option("--host", default=None)
-@click.option("--port", default=None, type=int)
-def serve(foreground: bool, no_poller: bool, host: str | None, port: int | None) -> None:
-    """Start the local API/UI and (unless disabled) the polling service."""
-    _prep(to_file=True)
-    import uvicorn
-
-    from findplus import service
-    from findplus.api import create_app
-    from findplus.poller import PollerService
-
-    settings = get_settings()
-    bind_host = host or settings.host
-    bind_port = port or settings.port
-
-    already_running, url = _check_exclusive(settings.state_dir)
-    if already_running:
-        click.echo(f"Find+ is already running at {url}")
-        sys.exit(3)
-
-    stop_event = threading.Event()
-    signal.signal(signal.SIGINT, _make_signal_handler(stop_event))
-    if sys.platform != "win32":
-        signal.signal(signal.SIGTERM, _make_signal_handler(stop_event))
-
-    click.secho(f"findplus {__version__}", bold=True)
-    click.echo(f"Dashboard : http://{bind_host}:{bind_port}")
-    click.echo(f"Database  : {settings.database_path}")
-    click.echo(f"Logs      : {settings.log_file}")
-    cadence = "disabled" if no_poller else f"every {settings.effective_poll_interval_minutes:g} min"
-    click.echo(f"Polling   : {cadence}")
-
-    poller: PollerService | None = None
-    poller_thread: threading.Thread | None = None
-    server: uvicorn.Server | None = None
-    server_thread: threading.Thread | None = None
-    try:
-        service.write_daemon_file(
-            pid=os.getpid(), port=bind_port, host=bind_host, version=__version__, argv=sys.argv
-        )
-
-        if not no_poller:
-            poller = PollerService(settings)
-            poller_thread = threading.Thread(target=poller.run_forever, name="poller", daemon=True)
-            poller_thread.start()
-
-        config = uvicorn.Config(
-            create_app(),
-            host=bind_host,
-            port=bind_port,
-            log_level=settings.log_level.lower(),
-            access_log=False,
-        )
-        server = uvicorn.Server(config)
-        server.install_signal_handlers = False
-        server_thread = threading.Thread(target=server.run, name="uvicorn", daemon=True)
-        server_thread.start()
-
-        stop_event.wait()
-    finally:
-        if server is not None:
-            server.should_exit = True
-        if server_thread is not None:
-            server_thread.join(timeout=5.0)
-        if poller is not None:
-            poller.stop()
-        if poller_thread is not None:
-            poller_thread.join(timeout=5.0)
-        (settings.state_dir / "daemon.json").unlink(missing_ok=True)
 
 
 @click.command()

@@ -77,8 +77,15 @@ def test_the_cli_group_sets_a_private_umask() -> None:
 def test_a_nested_secret_is_redacted() -> None:
     """The attack: the key check only looked at the top level, so any secret
     one dict deep was written to the log file verbatim."""
+    event = {"event": "auth", "detail": {"bot_token": "12345678:supersecret"}}
+    assert _redact(None, "", event)["detail"]["bot_token"] == "<redacted>"
+
+
+def test_a_payload_key_is_redacted_whole() -> None:
+    """`payload` carries Apple key material, so it never reaches the log at
+    all, redacted as one value rather than walked into."""
     event = {"event": "auth", "payload": {"bot_token": "12345678:supersecret"}}
-    assert _redact(None, "", event)["payload"]["bot_token"] == "<redacted>"
+    assert _redact(None, "", event)["payload"] == "<redacted>"
 
 
 def test_secrets_in_lists_and_tuples_are_redacted() -> None:

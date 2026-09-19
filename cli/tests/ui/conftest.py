@@ -158,6 +158,17 @@ def live_server(ui_db: Path, ui_env: dict):
         proc.wait()
 
 
+def pytest_collection_modifyitems(items) -> None:
+    # Everything in this directory drives a real browser. CI runs the UI
+    # suite as its own `-m browser` job and excludes it everywhere else, so
+    # the marker has to be on the tests; marking the directory here keeps a
+    # new file from silently escaping both selections.
+    here = Path(__file__).parent
+    for item in items:
+        if here in Path(str(item.path)).parents:
+            item.add_marker(pytest.mark.browser)
+
+
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def browser_session(live_server: str):
     # A session-scoped async fixture needs a matching session-scoped event

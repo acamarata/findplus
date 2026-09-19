@@ -64,7 +64,7 @@ jobs:
           python-version: "3.12"
       - run: pip install '.[dev]'
         working-directory: cli
-      - run: playwright install chrome
+      - run: playwright install chromium
       - run: python -m pytest cli/tests -q -m browser
 
   wheel-smoke:

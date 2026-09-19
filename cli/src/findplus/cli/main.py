@@ -19,6 +19,7 @@ from findplus import __version__
 
 from . import cmd_apple, cmd_config, cmd_db, cmd_devices, cmd_diagnostics, cmd_history, cmd_service
 from .doctor import doctor_cmd
+from .groups import groups_cmd
 from .places import places_cmd
 from .providers import providers_cmd
 
@@ -61,6 +62,7 @@ main.add_command(providers_cmd, name="providers")
 main.add_command(cmd_apple.apple_group, name="apple")
 
 main.add_command(places_cmd)
+main.add_command(groups_cmd)
 
 
 if __name__ == "__main__":

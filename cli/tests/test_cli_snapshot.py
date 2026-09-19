@@ -29,6 +29,7 @@ EXPECTED_COMMANDS = {
     "devices",
     "doctor",
     "export",
+    "groups",
     "install-service",
     "install-watchdog",
     "open",

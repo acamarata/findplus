@@ -18,9 +18,10 @@ from fastapi import APIRouter, Body, HTTPException, Query
 from fastapi.responses import PlainTextResponse
 from sqlalchemy import desc, func, select
 
-from findplus.db.models import Device, LocationObservation, PollRun
+from findplus.db.models import Device, Group, LocationObservation, PollRun
 from findplus.db.session import session_scope
 from findplus.exporters import MEDIA_TYPES, export
+from findplus.groups.repo import list_group_timeline
 from findplus.logging_setup import get_logger
 from findplus.timeline import (
     day_bounds_utc,
@@ -45,17 +46,25 @@ def build_router(*, settings, check_poll_cooldown) -> APIRouter:
     def timeline(
         day: str | None = Query(default=None, description="YYYY-MM-DD, local date"),
         device_id: str | None = Query(default=None, description="Omit for every device"),
+        group_id: int | None = Query(default=None, description="Per-member tracks for a group"),
         movement_threshold_meters: float | None = Query(default=None, ge=0),
         gap_threshold_minutes: float | None = Query(default=None, ge=0),
         timezone: str | None = Query(default=None),
-    ) -> dict[str, Any]:
+    ) -> Any:
         """One day of history, as one INDEPENDENT track per device.
 
         Tracks are never merged: distance and elapsed time between consecutive
-        points are only meaningful within a single tracker.
+        points are only meaningful within a single tracker (PROMPT.md §2
+        invariant 5). `group_id` returns a plain list of one dict per member
+        device instead of the single-device dict shape below — never a
+        cross-device-merged list.
         """
         zone = tz(timezone)
         target = _parse_day(day) or datetime.now(zone).date()
+
+        if group_id is not None:
+            return _group_timeline(group_id, target, zone)
+
         with session_scope() as session:
             tracks = multi_day_timeline(
                 session,
@@ -97,6 +106,20 @@ def build_router(*, settings, check_poll_cooldown) -> APIRouter:
             "tracks": payload,
             "total_observations": sum(len(t["points"]) for t in payload),
         }
+
+    def _group_timeline(group_id: int, target, zone) -> list[dict[str, Any]]:
+        """One dict per group member, each holding only that device's points.
+
+        Never returns a single merged list — one entry in the result carries
+        exactly one device_id's observations (invariant 5). The DB access
+        lives in groups.repo so it is not duplicated between here and
+        routes_groups.py / cli/groups.py.
+        """
+        start_utc, end_utc = day_bounds_utc(target, zone)
+        with session_scope() as session:
+            if session.get(Group, group_id) is None:
+                raise HTTPException(status_code=404, detail=f"group {group_id} not found")
+            return list_group_timeline(session, group_id, start_utc, end_utc)
 
     @router.get("/days")
     def days(

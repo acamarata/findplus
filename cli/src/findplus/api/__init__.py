@@ -34,6 +34,7 @@ from findplus.security import SessionStore
 from . import (
     routes_core,
     routes_devices,
+    routes_groups,
     routes_history,
     routes_lock,
     routes_places,
@@ -182,6 +183,7 @@ def create_app(sessions: SessionStore | None = None) -> FastAPI:
     app.include_router(routes_devices.build_router(settings=settings))
     app.include_router(routes_providers.build_router())
     app.include_router(routes_places.build_router())
+    app.include_router(routes_groups.build_router())
     app.include_router(
         routes_history.build_router(settings=settings, check_poll_cooldown=_check_poll_cooldown)
     )

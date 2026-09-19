@@ -216,3 +216,55 @@ class PlaceState(Base):
     streak_side: Mapped[str | None] = mapped_column(String(8), nullable=True)
     last_observation_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+
+
+class Group(Base):
+    """A named set of devices with quorum/presence settings (migration 0005)."""
+
+    __tablename__ = "groups"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    color: Mapped[str] = mapped_column(String(16), nullable=False, default="#27ae60")
+    quorum: Mapped[str] = mapped_column(String(16), nullable=False, default="majority")
+    cluster_radius_meters: Mapped[int] = mapped_column(Integer, nullable=False, default=150)
+    stale_after_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=90)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+
+
+class DeviceGroup(Base):
+    """Membership: which devices belong to which groups (migration 0005)."""
+
+    __tablename__ = "device_group"
+    __table_args__ = (PrimaryKeyConstraint("device_id", "group_id"),)
+
+    device_id: Mapped[str] = mapped_column(
+        String(128), ForeignKey("devices.device_id", ondelete="CASCADE"), nullable=False
+    )
+    group_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("groups.id", ondelete="CASCADE"), nullable=False
+    )
+
+
+class GroupPlaceEvent(Base):
+    """One group-level ENTER/EXIT crossing that met its group's quorum (migration 0005)."""
+
+    __tablename__ = "group_place_events"
+    __table_args__ = (Index("ix_gpe_group_place_observed", "group_id", "place_id", "observed_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    group_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("groups.id", ondelete="CASCADE"), nullable=False
+    )
+    place_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("places.id", ondelete="CASCADE"), nullable=False
+    )
+    event_type: Mapped[str] = mapped_column(String(5), nullable=False)
+    observed_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+    #: JSON-encoded list of the contributing place_events.id values.
+    member_event_ids: Mapped[str] = mapped_column(Text, nullable=False)
+    members_crossed: Mapped[int] = mapped_column(Integer, nullable=False)
+    members_considered: Mapped[int] = mapped_column(Integer, nullable=False)
+    members_stale: Mapped[int] = mapped_column(Integer, nullable=False)
+    confidence: Mapped[str | None] = mapped_column(String(6), nullable=True)
+    notified_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)

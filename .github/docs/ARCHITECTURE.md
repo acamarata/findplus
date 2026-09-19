@@ -145,6 +145,18 @@ ON DELETE CASCADE from places to both child tables, and from place_events.observ
 location_observations — pruning or clearing location history also removes the place events
 anchored to the deleted observations. Migration: `cli/src/findplus/db/migrations/versions/0004_places.py`.
 
+### Groups and presence (migration 0005)
+
+Five tables: `groups` (quorum, cluster radius, stale threshold), `device_group` (membership),
+`group_place_events` (quorum-gated group crossings), plus `alert_rules`/`alert_deliveries`
+(E6 territory). Two pure engines in `groups/`: `presence.py` classifies each member
+stale/present/moving/unknown then finds the largest mutually-close clique (greedy, seeded from
+the closest pair) to produce an all_together/partial/unknown verdict — a stale member is never
+reported as home or left behind. `quorum.py` applies any/majority/all/`<int>` quorum rules over
+non-stale members; `quorum='all'` never fires while any member is stale. API: `routes_groups.py`
+(CRUD, membership, presence, events) plus a `group_id` filter on `GET /api/timeline` returning
+one track per member, never merged. CLI: `findplus groups`.
+
 ## Timestamps and timezones
 
 All timestamps are stored as **naive UTC** through a `UtcDateTime` `TypeDecorator`

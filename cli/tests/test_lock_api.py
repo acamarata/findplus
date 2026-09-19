@@ -253,9 +253,12 @@ def test_changing_the_pin_requires_the_current_one(client: TestClient) -> None:
 
 def test_removing_the_pin_requires_it_and_disables_the_lock(client: TestClient) -> None:
     _set_pin(client)
-    assert client.delete("/api/settings/pin?current_pin=wrong").status_code == 403
+    assert (
+        client.request("DELETE", "/api/settings/pin", json={"current_pin": "wrong"}).status_code
+        == 403
+    )
 
-    res = client.delete(f"/api/settings/pin?current_pin={PIN}")
+    res = client.request("DELETE", "/api/settings/pin", json={"current_pin": PIN})
     assert res.status_code == 200
     assert res.json()["pin_configured"] is False
     client.cookies.clear()

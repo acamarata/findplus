@@ -31,3 +31,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - E8: version, widget and status endpoints; findplus version --check
 - E9: MCP server over the local API (findplus mcp)
 - E6: geofence alert rules with Telegram and webhook channels, cooldown and group suppression
+- E13: Find+.app macOS menu-bar shell (Tauri 2) — continuous daemon supervisor (attach, kickstart
+  the LaunchAgent, or spawn a sidecar; never two daemons), a 10-item tray menu with a status dot,
+  "Start at login" toggle, PyInstaller onedir sidecar spec, code-signing and DMG build scripts
+  (120 MB budget enforced by verify-dmg.sh), and Intel (x86_64) build inputs

@@ -1,0 +1,55 @@
+body {
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1c1c1e;
+  color: #f2f2f7;
+  font-family: -apple-system, "SF Pro Display", sans-serif;
+}
+
+.splash {
+  text-align: center;
+}
+
+.logo {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.status {
+  font-size: 13px;
+  opacity: 0.7;
+  margin-bottom: 16px;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  margin: 0 auto;
+  border: 2px solid rgba(242, 242, 247, 0.2);
+  border-top-color: #f2f2f7;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.hidden {
+  display: none;
+}
+
+.error {
+  margin-top: 16px;
+  font-size: 13px;
+}
+
+.error a {
+  color: #0a84ff;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

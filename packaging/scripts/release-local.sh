@@ -3,14 +3,21 @@
 # TWINE_PASSWORD_TESTPYPI env vars
 #
 # Purpose    : Local driver for a full findplus release: build, twine check,
-#              TestPyPI, PyPI (with confirmation), then the macOS steps
-#              (Homebrew formula generation now; dmg sign/notarize/upload and
-#              tap update are stubbed until E13/E16 land).
+#              TestPyPI, PyPI (with confirmation), then the macOS desktop
+#              app build-and-sign sequence (specs/desktop-app.md § Build &
+#              sign) and the Homebrew formula.
 # Inputs     : $1 = version, X.Y.Z, must match cli/pyproject.toml.
 # Outputs    : dist/ artifacts, a TestPyPI upload, an optional PyPI upload,
-#              packaging/homebrew/findplus.rb (via gen_formula).
+#              packaging/homebrew/findplus.rb, a signed (if APPLE_SIGNING_
+#              IDENTITY is set) Find+.app and dmg under desktop/src-tauri/
+#              target/aarch64-apple-darwin/release/bundle/.
 # Constraints: step_pypi's confirmation prompt is not bypassable by env var;
 #              SKIP_MACOS=1 or a non-Darwin uname skips the macOS block.
+#              Only the cargo-tauri-build step runs from desktop/src-tauri
+#              (Cargo.toml/tauri.conf.json live there); every other step,
+#              including verification, runs from the repo root and refers
+#              to build outputs via the explicit desktop/src-tauri/target/…
+#              prefix.
 set -euo pipefail
 
 echo "release-local.sh: owner-only; requires TWINE_USERNAME and TWINE_PASSWORD_TESTPYPI env vars"
@@ -21,6 +28,7 @@ if [ $# -ne 1 ]; then
 fi
 
 VERSION="$1"
+BUNDLE_DIR="desktop/src-tauri/target/aarch64-apple-darwin/release/bundle"
 
 PYPROJECT_VER=$(grep -m1 'version = ' cli/pyproject.toml)
 if ! echo "$PYPROJECT_VER" | grep -q "\"$VERSION\""; then
@@ -63,11 +71,47 @@ gen_formula() {
   packaging/scripts/gen-formula.sh dist/*.tar.gz
 }
 
-sign_dmg() { echo "sign_dmg: not yet implemented (E16-T5 / packaging/scripts/sign-sidecar.sh)"; }
-notarize_dmg() { echo "notarize_dmg: not yet implemented (E16-T5)"; }
-package_dmg() { echo "package_dmg: not yet implemented (E13-T6)"; }
-upload_dmg() { echo "upload_dmg: not yet implemented (E13-T6)"; }
-update_tap() { echo "update_tap: not yet implemented (E13-T6)"; }
+# ------------------------------------------------- macOS desktop app (E13-T6)
+macos_step1_sidecar() {
+  echo "==> PyInstaller sidecar"
+  pyinstaller packaging/pyinstaller/findplus-daemon.spec
+}
+
+macos_step2_sign_sidecar() {
+  echo "==> Sign sidecar"
+  bash packaging/scripts/sign-sidecar.sh
+}
+
+macos_step3_widget() {
+  echo "==> Widget build"
+  xcodebuild -project desktop/widget/FindPlusWidget.xcodeproj \
+    -scheme FindPlusWidget -configuration Release -arch arm64 build
+}
+
+macos_step4_tauri_build() {
+  echo "==> cargo tauri build"
+  ( cd desktop/src-tauri && cargo tauri build --target aarch64-apple-darwin )
+}
+
+macos_step5_embed_widget() {
+  echo "==> Embed widget"
+  bash packaging/scripts/embed-widget.sh
+}
+
+macos_step6_verify() {
+  echo "==> Verify"
+  local app="$BUNDLE_DIR/macos/Find+.app"
+  local dmg
+  dmg=$(find "$BUNDLE_DIR/dmg" -name 'Find+_*.dmg' 2>/dev/null | head -1 || true)
+  spctl -a -vv --type install "$app"
+  codesign --verify --deep --strict --verbose=2 "$app"
+  if [ -n "$dmg" ]; then
+    hdiutil verify "$dmg"
+  fi
+  echo "release-local: PASS v$VERSION"
+}
+
+update_tap() { echo "update_tap: not yet implemented (E14-T1, after the main push)"; }
 
 main() {
   step_build
@@ -77,10 +121,12 @@ main() {
 
   if [ "${SKIP_MACOS:-0}" != "1" ] && [ "$(uname)" = Darwin ]; then
     gen_formula
-    package_dmg
-    sign_dmg
-    notarize_dmg
-    upload_dmg
+    macos_step1_sidecar
+    macos_step2_sign_sidecar
+    macos_step3_widget
+    macos_step4_tauri_build
+    macos_step5_embed_widget
+    macos_step6_verify
     update_tap
   else
     echo "Skipping macOS steps (SKIP_MACOS=1 or not on macOS)."

@@ -1,0 +1,23 @@
+[package]
+name = "findplus"
+version = "0.1.0"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = "2"
+
+[dependencies]
+tauri = { version = "2.11", features = ["tray-icon", "image-png", "macos-private-api"] }
+tauri-plugin-shell = "2.3"
+tauri-plugin-single-instance = "2.4"
+tauri-plugin-positioner = "2.3"
+tauri-plugin-dialog = "2"
+reqwest = { version = "0.12", features = ["blocking", "json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+dirs = "6"
+log = "0.4"
+
+[lib]
+name = "findplus_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]

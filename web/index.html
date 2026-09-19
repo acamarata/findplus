@@ -59,6 +59,9 @@
     <option value="">All tracked devices</option>
   </select>
 
+  <label for="fp-group-select">Group:</label>
+  <select id="fp-group-select"></select>
+
   <label for="day-picker">Day</label>
   <input type="date" id="day-picker">
   <button class="btn btn-tiny" id="btn-prev-day" title="Previous day">‹</button>
@@ -89,14 +92,33 @@
   <button class="btn btn-secondary" id="btn-export">Download</button>
 </section>
 
+<nav class="fp-tabs">
+  <button class="fp-tab active" data-tab="dashboard">Dashboard</button>
+  <button class="fp-tab" data-tab="places">Places</button>
+  <button class="fp-tab" data-tab="groups">Groups</button>
+</nav>
+
 <main class="layout">
   <div class="map-pane">
     <div id="map"></div>
     <p class="disclaimer" id="path-disclaimer">Observed path — actual route between detections may differ.</p>
   </div>
 
+  <!-- The map above is shared by every tab (Places crosshair-clicks it,
+       Groups draws member overlays on it); only this side pane switches. -->
   <aside class="timeline-pane">
-    <div id="tracks"></div>
+    <div class="fp-tab-panel" id="tab-dashboard">
+      <div id="tracks"></div>
+    </div>
+    <div class="fp-tab-panel" id="tab-places" hidden>
+      <button id="fp-add-place-btn">Add place</button>
+      <p class="fp-tab-hint">Click the map or use Add place to create a geofence.</p>
+    </div>
+    <div id="tab-groups" class="fp-tab-panel" hidden>
+      <p class="fp-tab-hint">Use the Group selector above the map to choose a group.</p>
+      <div id="fp-group-legend"></div>
+      <div id="fp-presence-panel"></div>
+    </div>
   </aside>
 </main>
 
@@ -149,6 +171,14 @@
           <option value="light">Light</option>
           <option value="system">Match system</option>
         </select>
+      </label>
+    </section>
+
+    <section class="setting-group" id="setting-group-desktop">
+      <h3>Desktop app</h3>
+      <label class="setting-row">
+        <span>Start Find+ at login</span>
+        <input type="checkbox" id="setting-start-at-login">
       </label>
     </section>
 
@@ -222,10 +252,21 @@
       <h3>About</h3>
       <p class="modal-note" id="settings-about"></p>
     </section>
+
+    <section class="setting-group">
+      <h3>Notices</h3>
+      <p class="modal-note" data-notice="find_hub" id="fp-notice-find-hub"></p>
+      <p class="modal-note" data-notice="apple" id="fp-notice-apple"></p>
+      <p class="modal-note" data-notice="alerts_latency" id="fp-notice-alerts-latency"></p>
+      <p class="modal-note" data-notice="presence_stale" id="fp-notice-presence-stale"></p>
+      <p class="modal-note" data-notice="lock_not_encryption" id="fp-notice-lock"></p>
+      <p class="modal-note" data-notice="not_affiliated" id="fp-notice-not-affiliated"></p>
+    </section>
   </div>
 </div>
 
 <script src="/static/vendor/leaflet/leaflet.js"></script>
 <script type="module" src="/static/app/main.js"></script>
+<script type="module" src="/static/app/notices.js"></script>
 </body>
 </html>

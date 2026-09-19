@@ -8,9 +8,10 @@ Constraints: A PIN change revokes every session, then re-issues one to the calle
 
 from __future__ import annotations
 
+import subprocess
 from typing import Any
 
-from fastapi import APIRouter, Body, HTTPException, Query, Response
+from fastapi import APIRouter, Body, HTTPException, Response
 
 from findplus.appsettings import (
     clear_pin,
@@ -23,8 +24,14 @@ from findplus.appsettings import (
 from findplus.db.session import session_scope
 from findplus.logging_setup import get_logger
 from findplus.security import SessionStore, hash_pin, verify_pin
+from findplus.state import get_setting, set_setting
 
 log = get_logger(__name__)
+
+# The desktop app installs into /Applications; --program overrides
+# ProgramArguments[0] so the LaunchAgent points at the bundled sidecar
+# rather than a venv findplus (specs/desktop-app.md § Start at login).
+_APP_PROGRAM = "/Applications/Find+.app/Contents/MacOS/findplus-daemon"
 
 
 def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeout) -> APIRouter:
@@ -100,8 +107,14 @@ def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeo
         return updated.public()
 
     @router.delete("/pin")
-    def remove_pin(current_pin: str = Query(...)) -> dict[str, Any]:
-        """Remove the PIN and disable the lock. Requires the current PIN."""
+    def remove_pin(current_pin: str = Body(..., embed=True)) -> dict[str, Any]:
+        """Remove the PIN and disable the lock. Requires the current PIN.
+
+        `current_pin` travels in the JSON body, never a query parameter, so
+        it can never land in a URL or an access log (carry-forward #1, E1
+        CR-C ruling — applied here since this is the first ticket to touch
+        both this route and web/app/settings.js).
+        """
         with session_scope() as session:
             existing = load_settings(session)
             if not existing.pin_configured:
@@ -113,5 +126,37 @@ def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeo
         sessions.revoke_all()
         log.warning("pin_removed")
         return updated.public()
+
+    @router.get("/app.start_at_login")
+    def get_start_at_login() -> dict[str, Any]:
+        with session_scope() as session:
+            value = get_setting(session, "app.start_at_login", "0")
+        return {"app.start_at_login": value == "1"}
+
+    @router.post("/app.start_at_login")
+    def set_start_at_login(value: bool = Body(..., embed=True)) -> dict[str, Any]:
+        """Toggle the desktop app's LaunchAgent via the shared service code.
+
+        Runs the same `findplus-daemon start`/`uninstall` path the CLI uses
+        (`--program` pointed at the bundled sidecar), so there is exactly one
+        install/uninstall implementation for both surfaces.
+        """
+        with session_scope() as session:
+            set_setting(session, "app.start_at_login", "1" if value else "0")
+
+        cmd = (
+            ["findplus-daemon", "install-service", "--yes", "--program", _APP_PROGRAM]
+            if value
+            else ["findplus-daemon", "uninstall", "--yes"]
+        )
+        try:
+            subprocess.run(cmd, check=True)
+        except (OSError, subprocess.CalledProcessError) as exc:
+            log.error("start_at_login_service_update_failed", extra={"error": str(exc)})
+            raise HTTPException(
+                status_code=500, detail=f"Could not update the background service: {exc}"
+            ) from exc
+
+        return {"app.start_at_login": value}
 
     return router

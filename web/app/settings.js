@@ -56,6 +56,8 @@ export async function openSettings() {
     $("settings-about").textContent =
       `findplus ${health.version} · schema ${health.schema_revision} · ` +
       `timezone ${health.timezone} · polling every ${state.config.poll_interval_minutes} min`;
+    const startAtLogin = await api("/api/settings/app.start_at_login");
+    $("setting-start-at-login").checked = startAtLogin["app.start_at_login"];
     $("settings-modal").classList.remove("hidden");
   } catch (e) {
     showAlert(e.message, "err");
@@ -84,6 +86,15 @@ export function wireSettingsControls() {
   $("setting-lock-enabled").addEventListener("change", async (e) => {
     try { await saveSettings({ lock_enabled: e.target.checked }); }
     catch (err) { showAlert(err.message, "err"); e.target.checked = !e.target.checked; }
+  });
+
+  $("setting-start-at-login").addEventListener("change", async (e) => {
+    try {
+      await postJson("/api/settings/app.start_at_login", { value: e.target.checked });
+    } catch (err) {
+      showAlert(err.message, "err");
+      e.target.checked = !e.target.checked;
+    }
   });
 
   $("btn-set-pin").addEventListener("click", async () => {
@@ -119,10 +130,11 @@ export function wireSettingsControls() {
     if (!current) { showAlert("Enter the current PIN to remove it.", "warn"); return; }
     if (!window.confirm("Remove the PIN and disable the app lock?")) return;
     try {
-      const res = await fetch(`/api/settings/pin?current_pin=${encodeURIComponent(current)}`, {
+      await api("/api/settings/pin", {
         method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ current_pin: current }),
       });
-      if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
       $("current-pin").value = "";
       await loadSettings();
       showAlert("PIN removed. The app no longer locks.", "warn");

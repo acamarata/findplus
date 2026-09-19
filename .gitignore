@@ -54,7 +54,10 @@ Thumbs.db
 .opencode/
 
 # Desktop / packaging
-desktop/target/
+desktop/src-tauri/target/
+desktop/src-tauri/gen/schemas/
+desktop/src-tauri/binaries/findplus-daemon-aarch64-apple-darwin/
+desktop/src-tauri/binaries/findplus-daemon-x86_64-apple-darwin/
 packaging/dist/
 packaging/*.dmg
 packaging/*.pkg

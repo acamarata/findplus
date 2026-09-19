@@ -9,6 +9,8 @@ One-line summary.
 
 ## Widget manual checklist
 
+Deferred to 1.1: PlacesWidget.
+
 - [ ] Gallery shows three sizes (systemSmall, systemMedium, systemLarge)
 - [ ] Locked state shows lock glyph and 'Locked', no device data
 - [ ] Poll Now intent triggers a poll (check daemon log)

@@ -18,7 +18,7 @@ from sqlalchemy import desc, func, select, text
 from sqlalchemy.exc import OperationalError
 
 from findplus.db.models import LocationObservation, PollRun
-from findplus.state import get_tracked_devices
+from findplus.state import get_setting, get_tracked_devices
 from findplus.timeline import day_bounds_utc, observation_count_between
 
 
@@ -280,6 +280,19 @@ def _widget_devices(session, now: datetime) -> list[dict[str, Any]]:
             }
         )
     return out
+
+
+def _widget_show_map(session, settings) -> bool:
+    """Whether the widget should render a map snapshot.
+
+    Per specs/data-model.md: the settings-table key `widget.show_map` wins
+    when a row exists (set from the UI); otherwise fall back to the config
+    field `Settings.widget_show_map` (env `FINDPLUS_WIDGET_SHOW_MAP`).
+    """
+    row_value = get_setting(session, "widget.show_map")
+    if row_value is not None:
+        return row_value == "1"
+    return settings.widget_show_map
 
 
 def _widget_state(

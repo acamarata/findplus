@@ -41,6 +41,30 @@ def test_widget_locked(locked_client: TestClient) -> None:  # noqa: F811
     assert locked_client.get("/api/widget").status_code == 401
 
 
+def test_widget_show_map_falls_back_to_config_env(tmp_db, monkeypatch: pytest.MonkeyPatch) -> None:
+    """No settings-table row: `FINDPLUS_WIDGET_SHOW_MAP=1` (the config field) wins."""
+    from findplus.api import create_app
+
+    monkeypatch.setenv("FINDPLUS_WIDGET_SHOW_MAP", "1")
+    body = TestClient(create_app()).get("/api/widget").json()
+    assert body["show_map"] is True
+
+
+def test_widget_show_map_table_row_wins_over_config_env(
+    tmp_db, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A settings-table row always wins, even when the env disagrees."""
+    from findplus.api import create_app
+    from findplus.db.session import session_scope
+    from findplus.state import set_setting
+
+    monkeypatch.setenv("FINDPLUS_WIDGET_SHOW_MAP", "1")
+    with session_scope() as session:
+        set_setting(session, "widget.show_map", "0")
+    body = TestClient(create_app()).get("/api/widget").json()
+    assert body["show_map"] is False
+
+
 def test_status_new_fields(client: TestClient) -> None:  # noqa: F811
     body = client.get("/api/status").json()
     assert isinstance(body["provider_health"], list)

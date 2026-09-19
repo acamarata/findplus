@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import func, select
@@ -139,8 +139,11 @@ def test_delete_cascade(session):
 def test_list_place_events_filter(session):
     p1 = create_place(session, name="P1", latitude_e7=0, longitude_e7=0, radius_meters=100)
     p2 = create_place(session, name="P2", latitude_e7=1, longitude_e7=1, radius_meters=100)
-    obs1_id = _make_observation(session)
-    obs2_id = _make_observation(session)
+    # Distinct timestamps: Windows clock resolution would otherwise collide on
+    # the (device_id, observed_at, lat, lon) unique key.
+    base = datetime.now(UTC) - timedelta(minutes=2)
+    obs1_id = _make_observation(session, when=base)
+    obs2_id = _make_observation(session, when=base + timedelta(minutes=1))
     session.add(
         PlaceEvent(
             place_id=p1.id,

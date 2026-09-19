@@ -19,7 +19,11 @@ With write tools enabled:
 {"mcpServers": {"findplus": {"command": "findplus", "args": ["mcp", "--allow-writes"]}}}
 ```
 
-Optional: set `FINDPLUS_PIN` in `env` to unlock automatically at startup.
+Optional: unlock automatically at startup. Prefer `FINDPLUS_PIN_FILE` in `env`, pointing at a
+file that contains only the PIN and is readable by you alone (`chmod 600`); an MCP client config
+is usually world-readable and often ends up in a git repository. `FINDPLUS_PIN` still works and
+takes precedence. Either way Find+ reads the value once and removes it from its own environment,
+so no child process inherits it.
 
 ### Claude Code
 

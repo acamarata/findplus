@@ -25,11 +25,11 @@ A failing test in the Tests column is a regression, not a flaky test.
 | Sentence key | Required text (verbatim from specs/honesty.md) | Enforced by |
 |---|---|---|
 | find_hub | "This history consists of locations reported through Google's Find Hub network. Moto Tag uses nearby participating Android devices to report its location. Location updates can therefore be delayed, sparse, or unavailable, and this application should not be treated as real-time emergency or child-safety GPS tracking." | `test_api.py::test_config_exposes_thresholds_and_the_findhub_notice` (substring), `test_ui_browser.py::test_findhub_notice_is_present_after_unlocking` |
-| apple | "Apple Find My locations come from nearby Apple devices and can be delayed, sparse or unavailable. Find+ can only query accessories whose keys you hold; genuine AirTags require extracting pairing keys, which most users cannot do." | no coverage yet (test added in P1-E10-W6-S1-T4) — Apple provider ships in E11 |
-| alerts_latency | "Alerts inherit the network's delay. An arrival or departure may be reported minutes to hours late." | no coverage yet (test added in P1-E10-W6-S1-T4) — alerts ship in E6 |
-| presence_stale | "A tag with no recent fix is stale, not at home and not left behind. Find+ reports it as unknown." | no coverage yet (test added in P1-E10-W6-S1-T4) — groups/presence ship in E5 |
-| lock_not_encryption | "The app lock stops casual browsing. It does not encrypt the database; anyone with access to this user account or the disk can read it. Use FileVault." | no coverage yet (test added in P1-E10-W6-S1-T4) — today's `/api/lock/requirements` caveat text is similar but not this exact sentence; exact wording lands with the honesty-text test in E10 |
-| not_affiliated | "Find+ is not affiliated with Apple or Google. Find Hub and Find My are their trademarks." | no coverage yet (test added in P1-E10-W6-S1-T4) |
+| apple | "Apple Find My locations come from nearby Apple devices and can be delayed, sparse or unavailable. Find+ can only query accessories whose keys you hold; genuine AirTags require extracting pairing keys, which most users cannot do." | `test_honesty_text.py::test_config_notices_present` (exact); the short badge form "Apple Find My (keys you hold)" is asserted by grep in P1-E10-W6-S1-T3 acceptance — no UI test yet |
+| alerts_latency | "Alerts inherit the network's delay. An arrival or departure may be reported minutes to hours late." | `test_honesty_text.py::test_config_notices_present` (exact), `ui/test_alerts.py::test_alerts_latency_disclaimer_present` (rendered) |
+| presence_stale | "A tag with no recent fix is stale, not at home and not left behind. Find+ reports it as unknown." | `test_honesty_text.py::test_config_notices_present` (exact) |
+| lock_not_encryption | "The app lock stops casual browsing. It does not encrypt the database; anyone with access to this user account or the disk can read it. Use FileVault." | `test_honesty_text.py::test_config_notices_present` (exact), `ui/test_lock.py::test_lock_not_encryption_notice_present` (rendered) |
+| not_affiliated | "Find+ is not affiliated with Apple or Google. Find Hub and Find My are their trademarks." | `test_honesty_text.py::test_config_notices_present` (exact) |
 
 ## How to use this file
 

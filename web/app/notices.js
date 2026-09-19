@@ -17,6 +17,10 @@ export async function loadNotices() {
     "fp-notice-find-hub": n.find_hub,
     "fp-notice-apple": n.apple,
     "fp-notice-alerts-latency": n.alerts_latency,
+    // The Alerts tab shows the same sentence. It is populated from here so
+    // /api/config stays the single source; alerts.js only holds a
+    // same-text initialisation fallback for a failed/slow /api/config.
+    "fp-alerts-latency-notice": n.alerts_latency,
     "fp-notice-presence-stale": n.presence_stale,
     "fp-notice-lock": n.lock_not_encryption,
     "fp-notice-not-affiliated": n.not_affiliated,

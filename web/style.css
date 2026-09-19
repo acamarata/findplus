@@ -252,9 +252,9 @@ html[data-theme="light"] .alert.warn { color: #6b4a00; }
   padding: 2px 6px; border-radius: 9999px; }
 
 /* --- alerts tab ------------------------------------------------------------ */
-.fp-disclaimer { font-size: .8rem; color: var(--text-muted, #6b7280); margin: 8px 0; }
+.fp-disclaimer { font-size: .8rem; color: var(--muted); margin: 8px 0; }
 #fp-rules-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-#fp-rules-table td, #fp-rules-table th { padding: 6px 8px; border-bottom: 1px solid #e5e7eb; }
+#fp-rules-table td, #fp-rules-table th { padding: 6px 8px; border-bottom: 1px solid var(--line); }
 .fp-alerts-section { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
 .fp-alerts-section:first-of-type { border-top: 0; padding-top: 0; }
 .fp-alerts-actions { display: flex; gap: 8px; margin: 10px 0; }

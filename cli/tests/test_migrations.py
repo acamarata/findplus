@@ -87,3 +87,37 @@ def test_downgrade_removes_tables(tmp_path: Path) -> None:
         command.downgrade(cfg, "base")
     tables = _names(tmp_path / "m.sqlite", "table")
     assert "location_observations" not in tables
+
+
+# --------------------------------------------------------- package-bundled migrations
+def test_migrate_to_head_from_empty(tmp_path: Path) -> None:
+    from sqlalchemy import create_engine, inspect
+
+    from findplus.db.migrate import run_migrations
+
+    url = f"sqlite:///{tmp_path}/t.db"
+    run_migrations(url, "head")
+    assert "devices" in inspect(create_engine(url)).get_table_names()
+
+
+def test_single_head() -> None:
+    from alembic.script import ScriptDirectory
+
+    from findplus.db.migrate import get_alembic_config
+
+    cfg = get_alembic_config("sqlite://")
+    assert len(ScriptDirectory.from_config(cfg).get_heads()) == 1
+
+
+def test_migrate_down_to_base(tmp_path: Path) -> None:
+    from sqlalchemy import create_engine, inspect
+
+    from findplus.db.migrate import run_migrations
+
+    url = f"sqlite:///{tmp_path}/t.db"
+    run_migrations(url, "head")
+    run_migrations(url, "base")
+    # Alembic keeps its own bookkeeping table (empty) after a downgrade to base;
+    # every schema table must be gone.
+    tables = set(inspect(create_engine(url)).get_table_names()) - {"alembic_version"}
+    assert tables == set()

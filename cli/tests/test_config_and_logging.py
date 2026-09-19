@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 import pytest
 
@@ -101,3 +102,40 @@ def test_logging_configuration_installs_handlers(tmp_path, monkeypatch) -> None:
     assert any(isinstance(h, logging.handlers.RotatingFileHandler) for h in handlers)
     assert settings.log_file.parent.exists()
     reset_settings_cache()
+
+
+# ------------------------------------------------------------- state-dir paths
+def test_default_database_under_home(tmp_path, monkeypatch) -> None:
+    from findplus.config import get_settings
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.delenv("FINDPLUS_STATE_DIR", raising=False)
+    s = get_settings()
+    assert s.database_path == tmp_path / ".findplus" / "findplus.sqlite"
+
+
+def test_cwd_env_overrides(tmp_path, monkeypatch) -> None:
+    from findplus.config import get_settings
+
+    (tmp_path / ".env").write_text("FINDPLUS_DATABASE_PATH=/custom/x.db\n")
+    monkeypatch.chdir(tmp_path)
+    s = get_settings()
+    assert s.database_path == Path("/custom/x.db")
+
+
+def test_env_var_overrides_both(tmp_path, monkeypatch) -> None:
+    from findplus.config import get_settings
+
+    monkeypatch.setenv("FINDPLUS_DATABASE_PATH", str(tmp_path / "y.db"))
+    s = get_settings()
+    assert s.database_path == tmp_path / "y.db"
+
+
+def test_state_dir_mode_0700(tmp_path) -> None:
+    import stat
+
+    from findplus.config import get_settings
+
+    s = get_settings(state_dir=tmp_path / "sd")
+    s.ensure_state_dir()
+    assert stat.S_IMODE((tmp_path / "sd").stat().st_mode) == 0o700

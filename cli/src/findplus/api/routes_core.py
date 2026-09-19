@@ -8,6 +8,7 @@ Constraints: Reading these never queries Google.
 
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -37,7 +38,9 @@ def build_router(*, settings, static_dir: Path, find_hub_notice: str) -> APIRout
     def health() -> dict[str, Any]:
         return {
             "status": "ok",
+            "app": "findplus",
             "version": __version__,
+            "pid": os.getpid(),
             "schema_revision": current_revision(),
             "schema_up_to_date": is_up_to_date(),
             "timezone": str(tz()),

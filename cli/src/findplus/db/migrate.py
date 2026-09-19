@@ -6,6 +6,7 @@ Constraints: Schema changes go through Alembic revisions only. Never hand-edit t
 
 from __future__ import annotations
 
+import importlib.resources as _ir
 import logging
 from pathlib import Path
 
@@ -14,20 +15,17 @@ from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 
-from findplus.config import PROJECT_ROOT, get_settings
+from findplus.config import get_settings
 from findplus.db.session import get_engine
-
-ALEMBIC_INI = PROJECT_ROOT / "alembic.ini"
 
 # Alembic narrates "Context impl SQLiteImpl" on every run; we only want warnings.
 logging.getLogger("alembic").setLevel(logging.WARNING)
 
 
 def _config(database_url: str | None = None) -> Config:
-    cfg = Config(str(ALEMBIC_INI))
-    cfg.set_main_option("script_location", str(PROJECT_ROOT / "migrations"))
-    cfg.set_main_option("sqlalchemy.url", database_url or get_settings().database_url)
-    return cfg
+    # Migrations live inside the package now (D2); locate them via importlib.resources
+    # so this resolves in both editable and installed-wheel modes.
+    return get_alembic_config(database_url or get_settings().database_url)
 
 
 def upgrade_to_head(database_url: str | None = None) -> str:
@@ -55,3 +53,25 @@ def head_revision() -> str | None:
 
 def is_up_to_date(database_url: str | None = None) -> bool:
     return current_revision(database_url) == head_revision()
+
+
+def get_alembic_config(database_url: str) -> Config:
+    """Build Alembic Config pointing at package-bundled migrations.
+    Works from any cwd in both editable and installed-wheel modes."""
+    migrations_path = str(_ir.files("findplus.db").joinpath("migrations"))
+    cfg = Config()
+    cfg.set_main_option("script_location", migrations_path)
+    cfg.set_main_option("sqlalchemy.url", database_url)
+    return cfg
+
+
+def run_migrations(database_url: str, target: str = "head") -> None:
+    """Run Alembic to target revision. Idempotent at head.
+    WARNING: target="base" (or any revision behind current) is a downgrade and is
+    destructive (drops tables) — for tests only. Alembic's upgrade command cannot
+    move backward, so "base" is routed to command.downgrade."""
+    cfg = get_alembic_config(database_url)
+    if target == "base":
+        command.downgrade(cfg, target)
+    else:
+        command.upgrade(cfg, target)

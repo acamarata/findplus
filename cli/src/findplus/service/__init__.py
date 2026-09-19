@@ -24,7 +24,17 @@ from .plan import (
     ServicePlan,
     detect_manager,
 )
-from .runtime import install, is_installed, is_running, plan, restart_service, uninstall
+from .runtime import (
+    daemon_alive,
+    install,
+    is_installed,
+    is_running,
+    plan,
+    read_daemon_file,
+    restart_service,
+    uninstall,
+    write_daemon_file,
+)
 from .watchdog import install_watchdog, uninstall_watchdog, watchdog_installed, watchdog_plan
 
 __all__ = [
@@ -35,15 +45,18 @@ __all__ = [
     "WATCHDOG_SERVICE",
     "WATCHDOG_TIMER",
     "ServicePlan",
+    "daemon_alive",
     "detect_manager",
     "install",
     "install_watchdog",
     "is_installed",
     "is_running",
     "plan",
+    "read_daemon_file",
     "restart_service",
     "uninstall",
     "uninstall_watchdog",
     "watchdog_installed",
     "watchdog_plan",
+    "write_daemon_file",
 ]

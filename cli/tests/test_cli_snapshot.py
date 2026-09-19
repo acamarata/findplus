@@ -23,6 +23,8 @@ def test_help_exits_zero():
 #: The pre-split module had 16; a split that quietly loses one must fail here.
 EXPECTED_COMMANDS = {
     "auth",
+    "config",
+    "db",
     "devices",
     "doctor",
     "export",

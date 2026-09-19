@@ -10,9 +10,13 @@ Constraints: USER-level only. Nothing is written to /Library or /etc; no
 
 from __future__ import annotations
 
+import json
+import os
 import platform
 import shutil
 import subprocess
+from datetime import UTC, datetime
+from typing import Any
 
 from findplus.config import Settings, get_settings
 
@@ -96,3 +100,50 @@ def restart_service() -> bool:
         subprocess.run(["systemctl", "--user", "restart", SYSTEMD_UNIT], check=False)
         return True
     return False
+
+
+def write_daemon_file(pid: int, port: int, host: str, version: str, argv: list[str]) -> None:
+    """Write daemon.json (0600) at Settings.daemon_file on serve start."""
+    settings = get_settings()
+    settings.ensure_state_dir()
+    data = {
+        "pid": pid,
+        "port": port,
+        "host": host,
+        "version": version,
+        "started_at": datetime.now(tz=UTC).isoformat(),
+        "argv": argv,
+    }
+    p = settings.daemon_file
+    p.write_text(json.dumps(data))
+    p.chmod(0o600)
+
+
+def read_daemon_file() -> dict[str, Any] | None:
+    """Return daemon.json contents or None if absent or unreadable."""
+    try:
+        return json.loads(get_settings().daemon_file.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+
+def daemon_alive() -> bool:
+    """Return True only if daemon pid is alive AND /api/health returns app=='findplus'."""
+    info = read_daemon_file()
+    if info is None:
+        return False
+    pid = info.get("pid")
+    if not isinstance(pid, int):
+        return False
+    try:
+        os.kill(pid, 0)
+    except (ProcessLookupError, PermissionError):
+        return False
+    port = info.get("port", 8647)
+    try:
+        import urllib.request
+
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=2) as r:
+            return json.loads(r.read()).get("app") == "findplus"
+    except Exception:
+        return False

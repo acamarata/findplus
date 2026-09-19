@@ -235,6 +235,57 @@ upstream's `create_driver()` runs `os.system("pkill -f chrome")` before launchin
 which closes any Chrome windows you have open. The `auth` command warns about this
 before proceeding.
 
+## State directory
+
+Every path under `~/.findplus` hangs off `Settings`. `database_path` is a real field
+(overridable via `FINDPLUS_DATABASE_PATH`); the rest are computed from `state_dir`:
+
+| Settings property | Path |
+|---|---|
+| `database_path` | `state_dir/findplus.sqlite` (default; env override wins) |
+| `log_dir` | `state_dir/logs` |
+| `alerts_file` | `state_dir/alerts.json` |
+| `daemon_file` | `state_dir/daemon.json` |
+| `apple_dir` | `state_dir/apple` |
+| `task_xml_path` | `state_dir/FindPlus-task.xml` |
+| `secrets_file` | `state_dir/secrets.json` |
+
+`get_settings()` resolves `state_dir` at call time (explicit arg -> `FINDPLUS_STATE_DIR` ->
+`~/.findplus`), never at import time, so test-session isolation and installed-wheel runs both
+work. `ensure_state_dir()` creates `state_dir` and `state_dir/logs` at mode `0700`.
+
+## Database migrations
+
+Alembic migrations live inside the package at `findplus/db/migrations/`, not at the repo
+root, so a wheel install (no repo checkout present) can still find them. `get_alembic_config()`
+locates the migrations directory via `importlib.resources.files("findplus.db")`, which
+resolves correctly in both an editable install and an installed wheel. `cli/alembic.ini` is
+gone; there is no `.ini` file to go stale.
+
+## Vendor dependencies
+
+`cli/vendor/GoogleFindMyTools/` (GPL-3.0, untouched) is bundled into the wheel at
+`findplus/_vendor/GoogleFindMyTools/` via a hatch `force-include` entry, alongside the
+existing `../web` -> `findplus/web/static` entry. `providers/findhub/bootstrap.py`
+resolves it at runtime: the installed-wheel `_vendor` path first, the repo `vendor/` tree
+second — so the same code runs importable from either mode.
+
+## Service: daemon.json
+
+`findplus serve` records `daemon.json` (`0600`, at `Settings.daemon_file`): pid, port, host,
+version, `started_at`, argv. `daemon_alive()` treats it as authoritative only when both the
+pid is a live process this user owns *and* `/api/health` on that port answers
+`app == "findplus"` — a stale or reused pid alone is not enough. `/api/health` now reports
+`app`, `version` and `pid` for exactly this check.
+
+## Build and packaging
+
+`cli/tests/test_wheel_install.py` (`@pytest.mark.slow`) is the integration gate for the
+whole packaging foundation: it builds the wheel, installs it into a throwaway venv, and runs
+`findplus --version`, `findplus db upgrade` and `findplus doctor` against a fake `HOME` —
+proving the bundled migrations and vendor tree actually resolve outside the repo checkout,
+not just under pytest.
+
 ## Licensing
 
 GoogleFindMyTools is GPL-3.0. This project links it as a library, so this project

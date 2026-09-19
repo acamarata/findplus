@@ -21,8 +21,8 @@ def tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
     from findplus.db.session import get_engine, get_sessionmaker
 
     db_path = tmp_path / "test.sqlite"
-    monkeypatch.setenv("DATABASE_PATH", str(db_path))
-    monkeypatch.setenv("STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("FINDPLUS_DATABASE_PATH", str(db_path))
+    monkeypatch.setenv("FINDPLUS_STATE_DIR", str(tmp_path / "state"))
     reset_settings_cache()
     get_engine.cache_clear()
     get_settings()

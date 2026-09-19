@@ -2,7 +2,7 @@
 
 Purpose : Single source of truth for all runtime settings and filesystem paths.
 Inputs  : Environment variables, optionally loaded from a `.env` file in the project root.
-Outputs : A cached `Settings` instance via `get_settings()`.
+Outputs : A `Settings` instance via `get_settings()`, resolved from state_dir at call time.
 Constraints:
     - Nothing secret lives here. Auth material lives in `secrets_file`, which is
       deliberately placed OUTSIDE the repository by default.
@@ -12,10 +12,9 @@ Constraints:
 from __future__ import annotations
 
 import os
-from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field, field_validator
+from pydantic import Field, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -29,6 +28,7 @@ class Settings(BaseSettings):
     """Runtime settings. Every field is overridable via env var of the same name."""
 
     model_config = SettingsConfigDict(
+        env_prefix="FINDPLUS_",
         env_file=str(PROJECT_ROOT / ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
@@ -52,8 +52,15 @@ class Settings(BaseSettings):
     retention_days: int = Field(default=0, description="0 = keep history forever.")
 
     # --- Storage ------------------------------------------------------------
-    database_path: Path = PROJECT_ROOT / "data" / "findplus.sqlite"
+    database_path: Path | None = None
     state_dir: Path = DEFAULT_STATE_DIR
+
+    @model_validator(mode="after")
+    def _default_database_path(self) -> Settings:
+        """Fill database_path from state_dir when unset (D1: env override always wins)."""
+        if self.database_path is None:
+            self.database_path = self.state_dir / "findplus.sqlite"
+        return self
 
     # --- API / UI -----------------------------------------------------------
     host: str = "127.0.0.1"
@@ -98,6 +105,7 @@ class Settings(BaseSettings):
         """GoogleFindMyTools `secrets.json`: AAS token, ADM token, FCM creds, owner key."""
         return self.state_dir / "secrets.json"
 
+    @computed_field
     @property
     def log_dir(self) -> Path:
         return self.state_dir / "logs"
@@ -106,9 +114,25 @@ class Settings(BaseSettings):
     def log_file(self) -> Path:
         return self.log_dir / "findplus.log"
 
+    @computed_field
     @property
-    def pid_file(self) -> Path:
-        return self.state_dir / "findplus.pid"
+    def alerts_file(self) -> Path:
+        return self.state_dir / "alerts.json"
+
+    @computed_field
+    @property
+    def daemon_file(self) -> Path:
+        return self.state_dir / "daemon.json"
+
+    @computed_field
+    @property
+    def apple_dir(self) -> Path:
+        return self.state_dir / "apple"
+
+    @computed_field
+    @property
+    def task_xml_path(self) -> Path:
+        return self.state_dir / "FindPlus-task.xml"
 
     @property
     def database_url(self) -> str:
@@ -125,12 +149,24 @@ class Settings(BaseSettings):
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
 
+    def ensure_state_dir(self) -> None:
+        """Create state_dir (0700) and its logs/ subdir. Narrower than ensure_dirs():
+        no database-path handling, just the state tree every path property hangs off."""
+        self.state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+        (self.state_dir / "logs").mkdir(mode=0o700, exist_ok=True)
 
-@lru_cache(maxsize=1)
-def get_settings() -> Settings:
-    return Settings()
+
+def get_settings(state_dir: Path | None = None) -> Settings:
+    """Build a fresh Settings, resolving state_dir at call time (arg -> FINDPLUS_STATE_DIR ->
+    ~/.findplus) so test-session isolation (FINDPLUS_STATE_DIR set before import) and
+    HOME-monkeypatched tests both work. Not cached: callers that need call-scoped stability
+    should hold onto the returned instance."""
+    _sd = state_dir or Path(os.environ.get("FINDPLUS_STATE_DIR", Path.home() / ".findplus"))
+    return Settings(
+        state_dir=_sd,
+        _env_file=[str(_sd / "config.env"), ".env"],
+    )
 
 
 def reset_settings_cache() -> None:
-    """Test hook: drop the cached Settings so env changes take effect."""
-    get_settings.cache_clear()
+    """No-op: get_settings() no longer caches. Kept so existing callers keep working."""

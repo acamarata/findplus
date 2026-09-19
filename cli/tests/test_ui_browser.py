@@ -71,8 +71,8 @@ def server(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
     port = _free_port()
     env = dict(
         os.environ,
-        DATABASE_PATH=str(tmp / "ui.sqlite"),
-        STATE_DIR=str(tmp / "state"),
+        FINDPLUS_DATABASE_PATH=str(tmp / "ui.sqlite"),
+        FINDPLUS_STATE_DIR=str(tmp / "state"),
         PORT=str(port),
     )
     python = sys.executable

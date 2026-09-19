@@ -12,9 +12,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from findplus.findhub.bootstrap import ensure_gfmt_importable
-from findplus.findhub.client import FindHubClient
-from findplus.findhub.types import DecryptionError
+from findplus.providers.google_findhub.bootstrap import ensure_gfmt_importable
+from findplus.providers.google_findhub.client import FindHubClient
+from findplus.providers.google_findhub.types import DecryptionError
 
 ensure_gfmt_importable()
 
@@ -218,10 +218,33 @@ def test_observation_identity_is_the_dedup_key(patched_crypto) -> None:
 
 
 def test_locate_requires_authentication() -> None:
-    from findplus.findhub.types import AuthRequiredError
+    from findplus.providers.google_findhub.types import AuthRequiredError
 
     client = FindHubClient()
     if client.is_authenticated():
         pytest.skip("real credentials present; the unauthenticated path cannot be exercised")
     with pytest.raises(AuthRequiredError):
         client.locate("TAG-001", "Moto Tag 2")
+
+
+def test_provider_protocol() -> None:
+    from findplus.providers.base import LocationProvider
+    from findplus.providers.google_findhub.provider import GoogleFindHubProvider
+
+    inst = GoogleFindHubProvider()
+    assert isinstance(inst, LocationProvider)
+
+
+def test_vendored_pb2_imports() -> None:
+    """Every vendored protobuf module must import cleanly (no drift from the pin)."""
+    import glob
+    import importlib
+
+    from findplus.config import VENDOR_GFMT
+
+    ensure_gfmt_importable()
+    pb2_files = glob.glob(str(VENDOR_GFMT / "**" / "*_pb2.py"), recursive=True)
+    assert pb2_files, "expected at least one vendored _pb2.py file"
+    for path in pb2_files:
+        rel = path[len(str(VENDOR_GFMT)) + 1 : -3].replace("/", ".")
+        importlib.import_module(rel)

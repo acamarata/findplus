@@ -179,6 +179,36 @@ The watchdog treats `401` as healthy, so turning on the app lock does not send i
 into a restart loop. It never raises: it runs unattended on a timer, where a
 crash would be silent and permanent.
 
+## Providers
+
+Find+ abstracts location providers behind the `LocationProvider` protocol
+(`cli/src/findplus/providers/base.py`). Each provider implements eight members:
+`name`, `display_name`, `is_available`, `is_authenticated`, `authenticate`,
+`describe_auth`, `list_devices`, and `locate`. The poller and the API call these
+methods only — nothing outside `providers/` knows how a given network works.
+
+### Registry
+
+Providers are discovered lazily via the `findplus.providers` importlib
+entry-point group, declared in `cli/pyproject.toml`. Calling
+`get_provider("google-find-hub")` loads the class on first use and caches the
+instance; `available_providers()` returns the names of every installed
+provider. A device row's `provider` column (migration `0003`) records which
+provider owns it, so `poll_device` dispatches without hard-coding a network.
+A device that fails a provider lookup, or whose provider is unavailable or
+unauthenticated, is recorded in `poll_runs` without escalating backoff — the
+same treatment as an unconfigured poller.
+
+### Concrete providers
+
+- **google-find-hub** (`providers/google_findhub/provider.py`): wraps
+  `FindHubClient` over the vendored GoogleFindMyTools library. Requires
+  Chrome-based authentication (`findplus auth`).
+- **apple-find-my** (`providers/apple_findmy/provider.py`): added in a later
+  phase; requires pairing keys and Apple Account credentials.
+
+Find+ is not affiliated with Apple or Google. Find Hub and Find My are their trademarks.
+
 ## Deliberate non-goals
 
 - **No interpolation.** A gap in detections is drawn as a gap. Intermediate

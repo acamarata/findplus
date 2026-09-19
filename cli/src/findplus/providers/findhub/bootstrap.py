@@ -7,8 +7,8 @@ Inputs  : none.
 Outputs : the resolved vendor Path, also inserted at sys.path[0].
 Constraints:
     - sys.path-only. Does not touch credential storage — that is
-      findplus.findhub.bootstrap:ensure_gfmt_importable (the E3 provider
-      entry point, which also redirects secrets.json). The two are
+      findplus.providers.google_findhub.bootstrap:ensure_gfmt_importable (the
+      provider entry point, which also redirects secrets.json). The two are
       intentionally separate; do not merge or delete either.
     - Idempotent: safe to call repeatedly without duplicating sys.path entries.
 """
@@ -20,6 +20,29 @@ import sys
 from pathlib import Path
 
 
+def _candidates() -> tuple[Path, Path]:
+    # Path 1: inside the installed wheel at findplus/_vendor/
+    pkg_vendor = Path(str(_ir.files("findplus").joinpath("_vendor/GoogleFindMyTools")))
+    # Path 2: repo dev tree — 4 parents up from this file lands at cli/
+    repo_vendor = Path(__file__).resolve().parents[4] / "vendor" / "GoogleFindMyTools"
+    return pkg_vendor, repo_vendor
+
+
+def resolve_vendor_path() -> Path:
+    """Best-guess on-disk location of GoogleFindMyTools, no side effects.
+
+    Purpose: give config.py a packaging-aware value for VENDOR_GFMT without
+    mutating sys.path or raising when the tree is absent (e.g. in a test
+    environment that never calls ensure_gfmt_importable).
+    Inputs: none.
+    Outputs: the packaged path if it exists, else the repo dev-tree path — the
+    latter is returned even when absent, matching the previous unconditional
+    VENDOR_GFMT constant so existing "not vendored" checks keep working.
+    """
+    pkg_vendor, repo_vendor = _candidates()
+    return pkg_vendor if pkg_vendor.is_dir() else repo_vendor
+
+
 def ensure_gfmt_importable() -> Path:
     """Add GoogleFindMyTools to sys.path[0] so it can be imported.
     Purpose: Resolve vendor path in both installed-wheel and dev-editable modes.
@@ -27,10 +50,7 @@ def ensure_gfmt_importable() -> Path:
     Outputs: resolved Path that was inserted into sys.path.
     Constraints: idempotent (checks sys.path before inserting); safe to call at module load.
     """
-    # Path 1: inside the installed wheel at findplus/_vendor/
-    pkg_vendor = Path(str(_ir.files("findplus").joinpath("_vendor/GoogleFindMyTools")))
-    # Path 2: repo dev tree — 4 parents up from this file lands at cli/
-    repo_vendor = Path(__file__).resolve().parents[4] / "vendor" / "GoogleFindMyTools"
+    pkg_vendor, repo_vendor = _candidates()
     for candidate in (pkg_vendor, repo_vendor):
         if candidate.is_dir():
             target = str(candidate)

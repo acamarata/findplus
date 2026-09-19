@@ -24,7 +24,6 @@ from datetime import UTC, datetime
 from findplus.config import Settings, get_settings
 from findplus.db.models import PollRun
 from findplus.db.session import session_scope
-from findplus.findhub.client import FindHubClient
 from findplus.findhub.types import (
     AuthRequiredError,
     DecryptionError,
@@ -33,6 +32,7 @@ from findplus.findhub.types import (
 )
 from findplus.ingest import ingest_observations
 from findplus.logging_setup import get_logger
+from findplus.providers.base import get_provider
 from findplus.state import get_tracked_devices
 
 log = get_logger(__name__)
@@ -56,7 +56,15 @@ class PollOutcome:
 
     @property
     def ok(self) -> bool:
-        return self.status in {"ok", "no_location"}
+        # provider_unavailable/provider_unauthenticated are environment state, not
+        # a provider-network failure — same precedent as config_error on
+        # CycleOutcome below — so neither escalates the cycle backoff.
+        return self.status in {
+            "ok",
+            "no_location",
+            "provider_unavailable",
+            "provider_unauthenticated",
+        }
 
 
 @dataclass(slots=True)
@@ -91,44 +99,72 @@ class CycleOutcome:
 def poll_device(
     device_id: str,
     device_name: str,
-    client: FindHubClient | None = None,
+    provider_name: str = "google-find-hub",
     settings: Settings | None = None,
 ) -> PollOutcome:
     """Poll a single device and record the attempt. Never raises on poll failure."""
     settings = settings or get_settings()
-    client = client or FindHubClient(settings)
     started = datetime.now(UTC)
     observations = None
 
     try:
-        observations = client.locate(device_id, device_name)
-    except AuthRequiredError as exc:
+        provider = get_provider(provider_name)
+    except KeyError as exc:
+        provider = None
         outcome = PollOutcome(
-            status="auth_error", error_type="AuthRequiredError", error_message=str(exc)
+            status="provider_unavailable", error_type="unknown_provider", error_message=str(exc)
         )
-    except LocationTimeoutError as exc:
-        outcome = PollOutcome(
-            status="timeout", error_type="LocationTimeoutError", error_message=str(exc)
-        )
-    except DecryptionError as exc:
-        outcome = PollOutcome(status="error", error_type="DecryptionError", error_message=str(exc))
-    except FindHubError as exc:
-        outcome = PollOutcome(status="error", error_type=type(exc).__name__, error_message=str(exc))
-    except Exception as exc:
-        log.exception("poll_unexpected_error", device=device_name)
-        outcome = PollOutcome(status="error", error_type=type(exc).__name__, error_message=str(exc))
-    else:
-        if not observations:
-            outcome = PollOutcome(status="no_location")
-        else:
-            with session_scope() as session:
-                result = ingest_observations(session, observations, fetched_at=datetime.now(UTC))
+
+    if provider is not None:
+        avail, reason = provider.is_available()
+        if not avail:
             outcome = PollOutcome(
-                status="ok",
-                received=result.received,
-                inserted=result.inserted,
-                duplicates=result.duplicates,
+                status="provider_unavailable", error_type="unavailable", error_message=reason
             )
+        elif not provider.is_authenticated():
+            outcome = PollOutcome(
+                status="provider_unauthenticated",
+                error_type="unauthenticated",
+                error_message="provider not authenticated",
+            )
+        else:
+            try:
+                observations = provider.locate(device_id, device_name)
+            except AuthRequiredError as exc:
+                outcome = PollOutcome(
+                    status="auth_error", error_type="AuthRequiredError", error_message=str(exc)
+                )
+            except LocationTimeoutError as exc:
+                outcome = PollOutcome(
+                    status="timeout", error_type="LocationTimeoutError", error_message=str(exc)
+                )
+            except DecryptionError as exc:
+                outcome = PollOutcome(
+                    status="error", error_type="DecryptionError", error_message=str(exc)
+                )
+            except FindHubError as exc:
+                outcome = PollOutcome(
+                    status="error", error_type=type(exc).__name__, error_message=str(exc)
+                )
+            except Exception as exc:
+                log.exception("poll_unexpected_error", device=device_name)
+                outcome = PollOutcome(
+                    status="error", error_type=type(exc).__name__, error_message=str(exc)
+                )
+            else:
+                if not observations:
+                    outcome = PollOutcome(status="no_location")
+                else:
+                    with session_scope() as session:
+                        result = ingest_observations(
+                            session, observations, fetched_at=datetime.now(UTC)
+                        )
+                    outcome = PollOutcome(
+                        status="ok",
+                        received=result.received,
+                        inserted=result.inserted,
+                        duplicates=result.duplicates,
+                    )
 
     outcome.device_id = device_id
     outcome.device_name = device_name
@@ -141,7 +177,6 @@ def poll_device(
 
 
 def poll_once(
-    client: FindHubClient | None = None,
     settings: Settings | None = None,
     *,
     stagger_seconds: float | None = None,
@@ -149,11 +184,10 @@ def poll_once(
 ) -> CycleOutcome:
     """Poll every tracked device once, sequentially."""
     settings = settings or get_settings()
-    client = client or FindHubClient(settings)
     stagger = DEVICE_STAGGER_SECONDS if stagger_seconds is None else stagger_seconds
 
     with session_scope() as session:
-        targets = [(d.device_id, d.name) for d in get_tracked_devices(session)]
+        targets = [(d.device_id, d.name, d.provider) for d in get_tracked_devices(session)]
 
     if not targets:
         outcome = PollOutcome(
@@ -167,7 +201,7 @@ def poll_once(
         return CycleOutcome([outcome], config_error=True)
 
     cycle = CycleOutcome()
-    for index, (device_id, device_name) in enumerate(targets):
+    for index, (device_id, device_name, provider_name) in enumerate(targets):
         if stop_event is not None and stop_event.is_set():
             log.info("poll_cycle_interrupted", completed=index, total=len(targets))
             break
@@ -177,7 +211,7 @@ def poll_once(
                 stop_event.wait(stagger)
             else:
                 threading.Event().wait(stagger)
-        cycle.outcomes.append(poll_device(device_id, device_name, client, settings))
+        cycle.outcomes.append(poll_device(device_id, device_name, provider_name, settings))
 
     log.info(
         "poll_cycle_complete",
@@ -239,7 +273,6 @@ class PollerService:
 
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
-        self.client = FindHubClient(self.settings)
         self._stop = threading.Event()
         self._consecutive_failures = 0
         self.last_cycle: CycleOutcome | None = None
@@ -277,7 +310,7 @@ class PollerService:
         )
 
         while not self._stop.is_set():
-            cycle = poll_once(self.client, self.settings, stop_event=self._stop)
+            cycle = poll_once(self.settings, stop_event=self._stop)
             self.last_cycle = cycle
             if cycle.ok or cycle.config_error:
                 # A config error means "nothing to do yet", not "Google is failing".

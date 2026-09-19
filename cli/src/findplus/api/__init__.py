@@ -31,7 +31,14 @@ from findplus.config import PROJECT_ROOT, get_settings
 from findplus.db.session import session_scope
 from findplus.security import SessionStore
 
-from . import routes_core, routes_devices, routes_history, routes_lock, routes_settings
+from . import (
+    routes_core,
+    routes_devices,
+    routes_history,
+    routes_lock,
+    routes_providers,
+    routes_settings,
+)
 
 __all__ = ["SessionAuthMiddleware", "create_app"]
 
@@ -172,6 +179,7 @@ def create_app(sessions: SessionStore | None = None) -> FastAPI:
         )
     )
     app.include_router(routes_devices.build_router(settings=settings))
+    app.include_router(routes_providers.build_router())
     app.include_router(
         routes_history.build_router(settings=settings, check_poll_cooldown=_check_poll_cooldown)
     )

@@ -39,12 +39,17 @@ class Device(Base):
     """A Find Hub device/tracker visible to the authenticated account."""
 
     __tablename__ = "devices"
-    __table_args__ = (Index("ix_devices_tracked", "is_tracked"),)
+    __table_args__ = (
+        Index("ix_devices_tracked", "is_tracked"),
+        Index("ix_devices_provider", "provider"),
+    )
 
     device_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
     #: Polled by the daemon. Any number of devices may be tracked at once.
     is_tracked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    #: Which LocationProvider owns this row (registry key, e.g. google-find-hub).
+    provider: Mapped[str] = mapped_column(String(32), nullable=False, default="google-find-hub")
     first_seen_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
     last_seen_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
 

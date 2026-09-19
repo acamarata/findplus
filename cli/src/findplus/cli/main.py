@@ -19,6 +19,7 @@ from findplus import __version__
 
 from . import cmd_config, cmd_db, cmd_devices, cmd_diagnostics, cmd_history, cmd_service
 from .doctor import doctor_cmd
+from .providers import providers_cmd
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -53,6 +54,8 @@ main.add_command(cmd_history.prune)
 
 main.add_command(cmd_config.config_cmd)
 main.add_command(cmd_db.db_cmd)
+
+main.add_command(providers_cmd, name="providers")
 
 
 if __name__ == "__main__":

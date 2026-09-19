@@ -47,9 +47,21 @@ class IngestResult:
 
 
 def upsert_device(
-    session: Session, device_id: str, name: str, *, now: datetime | None = None
+    session: Session,
+    device_id: str,
+    name: str,
+    *,
+    provider: str = "google-find-hub",
+    now: datetime | None = None,
 ) -> Device:
-    """Create or refresh a device row. Never changes the `is_tracked` flag."""
+    """Create or refresh a device row. Never changes the `is_tracked` flag.
+
+    `provider` is set only when the row is first created — a device's provider
+    is fixed at discovery time (which client/protocol it belongs to), so a
+    later refresh (e.g. every successful poll calls this through
+    `ingest_observations`) must never reassign it, or a device polled under
+    one provider would flip back to the default on its very next poll.
+    """
     now = now or datetime.now(UTC)
     device = session.get(Device, device_id)
     if device is None:
@@ -57,6 +69,7 @@ def upsert_device(
             device_id=device_id,
             name=name,
             is_tracked=False,
+            provider=provider,
             first_seen_at=now,
             last_seen_at=now,
         )

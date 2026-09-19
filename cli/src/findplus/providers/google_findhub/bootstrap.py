@@ -1,7 +1,10 @@
 """Import-time wiring for the vendored GoogleFindMyTools.
 
-Purpose : Put GFMT on `sys.path` and redirect its credential store to our state
-          directory, WITHOUT editing any vendored cryptographic or protocol code.
+Purpose : Redirect GFMT's credential store to our state directory, WITHOUT
+          editing any vendored cryptographic or protocol code. Path resolution
+          (sys.path, installed-wheel vs. repo dev tree) is delegated to
+          findplus.providers.findhub.bootstrap — the E2 packaging resolver —
+          so there is exactly one place that knows where the vendor tree lives.
 Constraints:
     - Upstream resolves `secrets.json` relative to its own package directory
       (`Auth/token_cache._get_secrets_file`). We rebind that one function so the
@@ -15,11 +18,11 @@ from __future__ import annotations
 
 import contextlib
 import os
-import sys
 import threading
 from pathlib import Path
 
-from findplus.config import VENDOR_GFMT, get_settings
+from findplus.config import get_settings
+from findplus.providers.findhub.bootstrap import ensure_gfmt_importable as _resolve_path
 
 _lock = threading.Lock()
 _ready = False
@@ -29,17 +32,9 @@ def ensure_gfmt_importable() -> Path:
     """Make GFMT importable and point its secret store at our state dir. Idempotent."""
     global _ready
     with _lock:
+        vendor_path = _resolve_path()  # raises RuntimeError if GFMT is missing
         if _ready:
-            return VENDOR_GFMT
-
-        if not (VENDOR_GFMT / "NovaApi").is_dir():
-            raise RuntimeError(
-                f"Vendored GoogleFindMyTools not found at {VENDOR_GFMT}. "
-                "Run `findplus doctor` for repair instructions."
-            )
-
-        if str(VENDOR_GFMT) not in sys.path:
-            sys.path.insert(0, str(VENDOR_GFMT))
+            return vendor_path
 
         settings = get_settings()
         settings.ensure_dirs()
@@ -66,7 +61,7 @@ def ensure_gfmt_importable() -> Path:
         token_cache.set_cached_value = _set_and_harden
 
         _ready = True
-        return VENDOR_GFMT
+        return vendor_path
 
 
 def secrets_exist() -> bool:

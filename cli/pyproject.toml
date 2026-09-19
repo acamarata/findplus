@@ -68,6 +68,10 @@ bundle = ["pyinstaller>=6.22,<7"]
 [project.scripts]
 findplus = "findplus.cli.main:main"
 
+[project.entry-points."findplus.providers"]
+# registered by E3-T2
+google-find-hub = "findplus.providers.google_findhub.provider:GoogleFindHubProvider"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

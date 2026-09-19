@@ -44,6 +44,7 @@ def build_router(*, settings) -> APIRouter:
                         "device_id": d.device_id,
                         "name": d.name,
                         "is_tracked": d.is_tracked,
+                        "provider": d.provider,
                         "observation_count": int(
                             session.scalar(
                                 select(func.count(LocationObservation.id)).where(

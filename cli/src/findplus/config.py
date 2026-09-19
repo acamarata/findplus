@@ -17,8 +17,15 @@ from pathlib import Path
 from pydantic import Field, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from findplus.providers.findhub.bootstrap import resolve_vendor_path
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-VENDOR_GFMT = PROJECT_ROOT / "vendor" / "GoogleFindMyTools"
+#: Packaging-aware: the packaged findplus/_vendor copy if installed, else the
+#: repo dev-tree path (which may not exist — checked by callers, e.g. `findplus
+#: doctor`'s "GoogleFindMyTools vendored" row). Resolved once at import time via
+#: the same lookup ensure_gfmt_importable() uses, so an installed wheel reports
+#: correctly instead of always pointing at a repo path that does not exist there.
+VENDOR_GFMT = resolve_vendor_path()
 
 #: Default home for auth material + logs. Outside the repo on purpose.
 DEFAULT_STATE_DIR = Path(os.environ.get("FINDPLUS_STATE_DIR", Path.home() / ".findplus"))

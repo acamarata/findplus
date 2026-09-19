@@ -32,6 +32,7 @@ EXPECTED_COMMANDS = {
     "install-watchdog",
     "open",
     "poll-now",
+    "providers",
     "prune",
     "reset-lock",
     "restart",

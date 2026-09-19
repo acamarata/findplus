@@ -36,8 +36,20 @@ BAG = ("TAG-BAG", "Backpack Tag")
 def three_devices(tmp_db):
     with session_scope() as session:
         for device_id, name in (BIKE, KEYS, BAG):
-            upsert_device(session, device_id, name)
+            upsert_device(session, device_id, name, provider="test-multi")
     return [BIKE, KEYS, BAG]
+
+
+@pytest.fixture
+def register_provider(monkeypatch: pytest.MonkeyPatch):
+    """Inject a fake provider into the registry, undone automatically after the test."""
+
+    def _register(name: str, provider) -> None:
+        from findplus.providers import base
+
+        monkeypatch.setitem(base._REGISTRY, name, provider)
+
+    return _register
 
 
 # ------------------------------------------------------------- selection
@@ -101,7 +113,12 @@ def test_default_is_none_when_nothing_is_tracked(three_devices) -> None:
 
 # ---------------------------------------------------------------- polling
 class MultiFakeClient:
-    """Returns a different observation per device; records call order."""
+    """Returns a different observation per device; records call order.
+
+    Registered into the provider registry under "test-multi" (rather than
+    passed to poll_once directly — E3-T4 made poll_once provider-aware and it
+    no longer takes a client argument) so it stands in for a LocationProvider.
+    """
 
     def __init__(self, per_device: dict[str, list], errors: dict | None = None) -> None:
         self.per_device = per_device
@@ -114,8 +131,23 @@ class MultiFakeClient:
             raise self.errors[device_id]
         return self.per_device.get(device_id, [])
 
+    def is_available(self) -> tuple[bool, str]:
+        return (True, "")
 
-def test_every_tracked_device_is_polled(three_devices) -> None:
+    def is_authenticated(self) -> bool:
+        return True
+
+    def authenticate(self, interactive: bool = True) -> str:
+        return "ok"
+
+    def describe_auth(self) -> dict:
+        return {}
+
+    def list_devices(self) -> list:
+        return []
+
+
+def test_every_tracked_device_is_polled(three_devices, register_provider) -> None:
     with session_scope() as session:
         track_all(session)
 
@@ -126,23 +158,25 @@ def test_every_tracked_device_is_polled(three_devices) -> None:
             BAG[0]: [make_observation(device_id=BAG[0], device_name=BAG[1], lat=43.30)],
         }
     )
-    cycle = poll_once(client, stagger_seconds=0)
+    register_provider("test-multi", client)
+    cycle = poll_once(stagger_seconds=0)
 
     assert sorted(client.calls) == sorted([BIKE[0], KEYS[0], BAG[0]])
     assert cycle.inserted == 3
     assert len(cycle.outcomes) == 3
 
 
-def test_untracked_devices_are_not_polled(three_devices) -> None:
+def test_untracked_devices_are_not_polled(three_devices, register_provider) -> None:
     with session_scope() as session:
         track_devices(session, [BIKE[0]], exclusive=True)
 
     client = MultiFakeClient({BIKE[0]: [make_observation(device_id=BIKE[0])]})
-    poll_once(client, stagger_seconds=0)
+    register_provider("test-multi", client)
+    poll_once(stagger_seconds=0)
     assert client.calls == [BIKE[0]]
 
 
-def test_one_device_failing_does_not_stop_the_others(three_devices) -> None:
+def test_one_device_failing_does_not_stop_the_others(three_devices, register_provider) -> None:
     from findplus.findhub.types import LocationTimeoutError
 
     with session_scope() as session:
@@ -155,7 +189,8 @@ def test_one_device_failing_does_not_stop_the_others(three_devices) -> None:
         },
         errors={KEYS[0]: LocationTimeoutError("no push response")},
     )
-    cycle = poll_once(client, stagger_seconds=0)
+    register_provider("test-multi", client)
+    cycle = poll_once(stagger_seconds=0)
 
     statuses = {o.device_id: o.status for o in cycle.outcomes}
     assert statuses[KEYS[0]] == "timeout"
@@ -165,10 +200,11 @@ def test_one_device_failing_does_not_stop_the_others(three_devices) -> None:
     assert cycle.ok is True, "a partial failure is still a usable cycle"
 
 
-def test_a_poll_run_is_recorded_per_device(three_devices) -> None:
+def test_a_poll_run_is_recorded_per_device(three_devices, register_provider) -> None:
     with session_scope() as session:
         track_all(session)
-    poll_once(MultiFakeClient({}), stagger_seconds=0)
+    register_provider("test-multi", MultiFakeClient({}))
+    poll_once(stagger_seconds=0)
 
     with session_scope() as session:
         runs = list(session.scalars(select(PollRun)))
@@ -176,27 +212,29 @@ def test_a_poll_run_is_recorded_per_device(three_devices) -> None:
         assert {r.device_id for r in runs} == {BIKE[0], KEYS[0], BAG[0]}
 
 
-def test_cycle_fails_only_when_every_device_fails(three_devices) -> None:
+def test_cycle_fails_only_when_every_device_fails(three_devices, register_provider) -> None:
     from findplus.findhub.types import FindHubError
 
     with session_scope() as session:
         track_all(session)
     client = MultiFakeClient({}, errors={d[0]: FindHubError("down") for d in three_devices})
-    assert poll_once(client, stagger_seconds=0).ok is False
+    register_provider("test-multi", client)
+    assert poll_once(stagger_seconds=0).ok is False
 
 
-def test_observations_are_attributed_to_the_right_device(three_devices) -> None:
+def test_observations_are_attributed_to_the_right_device(three_devices, register_provider) -> None:
     with session_scope() as session:
         track_all(session)
-    poll_once(
+    register_provider(
+        "test-multi",
         MultiFakeClient(
             {
                 BIKE[0]: [make_observation(device_id=BIKE[0], device_name=BIKE[1], lat=41.10)],
                 KEYS[0]: [make_observation(device_id=KEYS[0], device_name=KEYS[1], lat=42.20)],
             }
         ),
-        stagger_seconds=0,
     )
+    poll_once(stagger_seconds=0)
     with session_scope() as session:
         rows = {o.device_id: o for o in session.scalars(select(LocationObservation))}
         assert round(rows[BIKE[0]].latitude, 2) == 41.10

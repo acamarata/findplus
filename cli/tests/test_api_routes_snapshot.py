@@ -5,7 +5,8 @@ Purpose    : Catch a route silently dropped or renamed when the api/ package
 Inputs     : A freshly built FastAPI app via create_app().
 Outputs    : Assertions on the route count and path set.
 Constraints: Zero behavior change from the pre-split monolith is the bar —
-             this pins the exact 24-route surface at the end of E1-T4.
+             this pinned the exact 24-route surface at the end of E1-T4;
+             E3-T5 adds GET /api/providers, bringing it to 25.
 """
 
 from __future__ import annotations
@@ -45,7 +46,7 @@ def _app_routes(app):
 def test_route_count():
     app = create_app()
     routes = _app_routes(app)
-    assert len(routes) == 24
+    assert len(routes) == 25
 
 
 def test_route_paths_present():
@@ -74,5 +75,6 @@ def test_route_paths_present():
         "/api/export",
         "/api/history/delete-before",
         "/api/history/clear",
+        "/api/providers",
     }
     assert expected.issubset(paths)

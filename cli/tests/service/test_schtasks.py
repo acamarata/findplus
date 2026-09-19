@@ -25,6 +25,14 @@ def _patch_manager(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
     monkeypatch.setattr("findplus.service.watchdog.detect_manager", lambda: name)
 
 
+@pytest.fixture(autouse=True)
+def _pretend_schtasks_is_installed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """service._proc skips a command whose binary is not installed, and
+    schtasks.exe only exists on Windows. These tests assert the argv that
+    would be issued, so the lookup is stubbed and subprocess.run mocked."""
+    monkeypatch.setattr("findplus.service._proc.shutil.which", lambda name: f"/usr/bin/{name}")
+
+
 # ------------------------------------------------------------------------- a
 def test_plan_schtasks_unit_path_is_the_task_xml(tmp_db) -> None:
     settings = get_settings()

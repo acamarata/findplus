@@ -9,11 +9,11 @@ Purpose    : Build the exact plist ServicePlan for each job. No installation
 from __future__ import annotations
 
 import plistlib
-import subprocess
 from pathlib import Path
 
 from findplus.config import PROJECT_ROOT, Settings
 
+from ._proc import run as _run
 from .plan import (
     LAUNCHD_LABEL,
     WATCHDOG_INTERVAL_SECONDS,
@@ -91,25 +91,20 @@ def watchdog_plan_launchd(settings: Settings, *, program: str | None = None) -> 
 
 def bootstrap(plan: ServicePlan) -> None:
     """Load a launchd job (`launchctl bootstrap gui/<uid> <plist>`)."""
-    subprocess.run(plan.load_command, check=False)
+    _run(plan.load_command)
 
 
 def bootout(plan: ServicePlan) -> None:
     """Unload a launchd job. Keeps the plist file on disk."""
-    subprocess.run(plan.unload_command, check=False)
+    _run(plan.unload_command)
 
 
 def kickstart(label: str) -> None:
     """Force-restart a loaded launchd job."""
-    subprocess.run(["launchctl", "kickstart", "-k", f"gui/{_uid()}/{label}"], check=False)
+    _run(["launchctl", "kickstart", "-k", f"gui/{_uid()}/{label}"])
 
 
 def is_loaded(label: str) -> bool:
     """Whether `label` is currently loaded in the user's launchd domain."""
-    out = subprocess.run(
-        ["launchctl", "print", f"gui/{_uid()}/{label}"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    out = _run(["launchctl", "print", f"gui/{_uid()}/{label}"], capture=True)
     return out.returncode == 0

@@ -74,8 +74,9 @@ def test_uninstall_removes_plist_and_unloads(
     assert plan.unit_path.exists()
 
     unload_calls: list[list[str]] = []
+    monkeypatch.setattr("findplus.service._proc.shutil.which", lambda n: f"/usr/bin/{n}")
     monkeypatch.setattr(
-        "findplus.service.runtime.subprocess.run",
+        "findplus.service._proc.subprocess.run",
         lambda cmd, **k: unload_calls.append(cmd),
     )
 

@@ -13,10 +13,9 @@ Constraints: Windows cannot use launchd or systemd (D13). Every function here
 
 from __future__ import annotations
 
-import subprocess
-
 from findplus.config import Settings
 
+from ._proc import run as _run
 from .plan import ServicePlan, _python
 
 TASK_NAME = "FindPlus"
@@ -113,21 +112,21 @@ def watchdog_plan_schtasks(settings: Settings, *, program: str | None = None) ->
 
 
 def create(plan: ServicePlan) -> None:
-    subprocess.run(plan.load_command, check=False)
+    _run(plan.load_command)
 
 
 def delete(name: str) -> None:
-    subprocess.run(["schtasks", "/Delete", "/TN", name, "/F"], check=False)
+    _run(["schtasks", "/Delete", "/TN", name, "/F"])
 
 
 def run(name: str) -> None:
-    subprocess.run(["schtasks", "/Run", "/TN", name], check=False)
+    _run(["schtasks", "/Run", "/TN", name])
 
 
 def end(name: str) -> None:
-    subprocess.run(["schtasks", "/End", "/TN", name], check=False)
+    _run(["schtasks", "/End", "/TN", name])
 
 
 def is_registered(name: str) -> bool:
-    out = subprocess.run(["schtasks", "/Query", "/TN", name], capture_output=True, check=False)
+    out = _run(["schtasks", "/Query", "/TN", name], capture=True)
     return out.returncode == 0

@@ -14,13 +14,13 @@ import json
 import os
 import platform
 import shutil
-import subprocess
 from datetime import UTC, datetime
 from typing import Any
 
 from findplus.config import Settings, get_settings
 
 from . import launchd, schtasks, systemd
+from ._proc import run as _run
 from .plan import LAUNCHD_LABEL, SYSTEMD_UNIT, ServicePlan, _uid, detect_manager
 
 
@@ -66,8 +66,8 @@ def install(
     p.unit_path.write_text(p.unit_text, encoding="utf-8")
 
     if p.manager.startswith("systemd"):
-        subprocess.run(["systemctl", "--user", "daemon-reload"], check=False)
-    subprocess.run(p.load_command, check=False)
+        _run(["systemctl", "--user", "daemon-reload"])
+    _run(p.load_command)
     return p
 
 
@@ -80,7 +80,7 @@ def uninstall(settings: Settings | None = None) -> ServicePlan:
         s = settings or get_settings()
         s.task_xml_path.unlink(missing_ok=True)
         return p
-    subprocess.run(p.unload_command, check=False)
+    _run(p.unload_command)
     if p.unit_path.exists():
         p.unit_path.unlink()
     return p
@@ -97,15 +97,10 @@ def is_running(settings: Settings | None = None) -> bool:
     """Ask the platform service manager whether our job is loaded."""
     manager = detect_manager()
     if manager == "launchd" and shutil.which("launchctl"):
-        out = subprocess.run(["launchctl", "list"], capture_output=True, text=True, check=False)
+        out = _run(["launchctl", "list"], capture=True)
         return LAUNCHD_LABEL in out.stdout
     if manager == "systemd" and shutil.which("systemctl"):
-        out = subprocess.run(
-            ["systemctl", "--user", "is-active", SYSTEMD_UNIT],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        out = _run(["systemctl", "--user", "is-active", SYSTEMD_UNIT], capture=True)
         return out.stdout.strip() == "active"
     return False
 
@@ -114,12 +109,10 @@ def restart_service() -> bool:
     """Force the main service to restart. Returns True if the command was issued."""
     manager = detect_manager()
     if manager == "launchd" and shutil.which("launchctl"):
-        subprocess.run(
-            ["launchctl", "kickstart", "-k", f"gui/{_uid()}/{LAUNCHD_LABEL}"], check=False
-        )
+        _run(["launchctl", "kickstart", "-k", f"gui/{_uid()}/{LAUNCHD_LABEL}"])
         return True
     if manager == "systemd" and shutil.which("systemctl"):
-        subprocess.run(["systemctl", "--user", "restart", SYSTEMD_UNIT], check=False)
+        _run(["systemctl", "--user", "restart", SYSTEMD_UNIT])
         return True
     return False
 

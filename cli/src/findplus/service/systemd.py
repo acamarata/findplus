@@ -9,11 +9,11 @@ Purpose    : Build the exact unit-file ServicePlan for each job, plus the
 
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 
 from findplus.config import PROJECT_ROOT, Settings
 
+from ._proc import run as _run
 from .plan import SYSTEMD_UNIT, WATCHDOG_INTERVAL_SECONDS, WATCHDOG_TIMER, ServicePlan, _python
 
 
@@ -84,28 +84,23 @@ ExecStart={exec_start}
 
 def enable_now(unit: str) -> None:
     """`systemctl --user enable --now <unit>`."""
-    subprocess.run(["systemctl", "--user", "enable", "--now", unit], check=False)
+    _run(["systemctl", "--user", "enable", "--now", unit])
 
 
 def stop(unit: str) -> None:
     """`systemctl --user stop <unit>`. Keeps the unit enabled."""
-    subprocess.run(["systemctl", "--user", "stop", unit], check=False)
+    _run(["systemctl", "--user", "stop", unit])
 
 
 def disable(unit: str) -> None:
     """`systemctl --user disable <unit>`."""
-    subprocess.run(["systemctl", "--user", "disable", unit], check=False)
+    _run(["systemctl", "--user", "disable", unit])
 
 
 def is_active(unit: str) -> bool:
-    out = subprocess.run(
-        ["systemctl", "--user", "is-active", unit],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    out = _run(["systemctl", "--user", "is-active", unit], capture=True)
     return out.stdout.strip() == "active"
 
 
 def daemon_reload() -> None:
-    subprocess.run(["systemctl", "--user", "daemon-reload"], check=False)
+    _run(["systemctl", "--user", "daemon-reload"])

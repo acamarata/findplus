@@ -65,7 +65,8 @@ def test_install_still_creates_the_state_dir(tmp_path, monkeypatch) -> None:
     from findplus import service
 
     _patch_manager(monkeypatch, "launchd")
-    monkeypatch.setattr("findplus.service.runtime.subprocess.run", lambda *a, **k: None)
+    monkeypatch.setattr("findplus.service._proc.shutil.which", lambda n: f"/usr/bin/{n}")
+    monkeypatch.setattr("findplus.service._proc.subprocess.run", lambda *a, **k: None)
     s = _settings(tmp_path)
     monkeypatch.setattr(
         "findplus.service.launchd.plan_launchd",

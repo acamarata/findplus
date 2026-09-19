@@ -35,4 +35,5 @@ class DashboardHook(BuildHookInterface):
             if "__pycache__" in rel_parts or any(p.startswith(".") for p in rel_parts):
                 continue
             rel = file.relative_to(web_dir).as_posix()
-            build_data["force_include"][str(file)] = f"findplus/web/static/{rel}"
+            prefix = "web" if self.target_name == "sdist" else "findplus/web/static"
+            build_data["force_include"][str(file)] = f"{prefix}/{rel}"

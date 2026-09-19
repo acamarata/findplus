@@ -137,6 +137,14 @@ def test_wheel_builds_from_sdist(tmp_path):
     with tarfile.open(tarballs[0]) as tf:
         tf.extractall(extracted)
 
+    with tarfile.open(tarballs[0]) as tf:
+        sdist_names = tf.getnames()
+    # The sdist is published to PyPI: it must never carry per-app AI instruction
+    # directories (web/.claude, web/.opencode) that the force-included web/ tree
+    # would otherwise drag in, since force-include bypasses the VCS ignore rules.
+    leaked = [n for n in sdist_names if "/.claude/" in n or "/.opencode/" in n]
+    assert not leaked, f"dotfile directories leaked into the sdist: {leaked}"
+
     sdist_dirs = [p for p in extracted.iterdir() if p.is_dir()]
     assert len(sdist_dirs) == 1, f"Expected 1 extracted sdist dir, got {sdist_dirs}"
     sdist_root = sdist_dirs[0]
@@ -158,3 +166,6 @@ def test_wheel_builds_from_sdist(tmp_path):
     assert "findplus/web/static/index.html" in names
     assert "findplus/web/static/app/main.js" in names
     assert any(n.startswith("findplus/_vendor/GoogleFindMyTools/") for n in names)
+    dashboard = [n for n in names if n.startswith("findplus/web/static/")]
+    hidden = [n for n in dashboard if any(part.startswith(".") for part in n.split("/"))]
+    assert not hidden, f"dotfiles leaked into the wheel dashboard: {hidden}"

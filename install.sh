@@ -29,7 +29,7 @@ parse_args() {
         shift
         ;;
       --version)
-        VERSION_PIN="$2"
+        VERSION_PIN="${2:?install.sh: --version needs a value, e.g. --version 1.0.0}"
         shift 2
         ;;
       *)
@@ -57,12 +57,13 @@ PREFIX="${FINDPLUS_PREFIX:-$HOME/.local/share/findplus}"
 BIN="${FINDPLUS_BIN:-$HOME/.local/bin}"
 VENV="$PREFIX/venv"
 SYMLINK="$BIN/findplus"
+STATE_DIR="${FINDPLUS_STATE_DIR:-$HOME/.findplus}"
 
 uninstall() {
   echo "Removing $VENV and $SYMLINK"
   rm -rf "$VENV"
   rm -f "$SYMLINK"
-  echo "State directory $PREFIX/state left intact."
+  echo "State directory $STATE_DIR left intact."
   exit 0
 }
 
@@ -103,7 +104,7 @@ main() {
   print_plan
   if [ "$YES" != "1" ]; then
     printf "Continue? [y/N] "
-    read -r answer
+    if [ -r /dev/tty ]; then read -r answer </dev/tty; else read -r answer; fi
     case "$answer" in
       y | Y) ;;
       *)

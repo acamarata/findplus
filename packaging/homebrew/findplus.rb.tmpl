@@ -1,0 +1,30 @@
+class Findplus < Formula
+  include Language::Python::Virtualenv
+
+  desc "Local location history, places and alerts for Google Find Hub and Apple Find My trackers"
+  homepage "https://github.com/acamarata/findplus"
+  url "__URL__"
+  sha256 "__SHA256__"
+  license "GPL-3.0-or-later"
+
+  depends_on "python@3.12"
+
+__RESOURCES__
+
+  def install
+    virtualenv_install_with_resources
+  end
+
+  def caveats
+    <<~EOS
+      Chrome is required for Google sign-in.
+      State directory: ~/.findplus/
+      `findplus start` installs a user LaunchAgent.
+      Run `findplus auth` to begin.
+    EOS
+  end
+
+  test do
+    assert_match version.to_s, shell_output("#{bin}/findplus --version")
+  end
+end

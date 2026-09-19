@@ -26,3 +26,4 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - `GET/POST /api/places`, `PUT/DELETE /api/places/{id}`, `GET /api/places/events`,
   `GET /api/places/presence` API routes.
 - Alembic migration 0004 adds `places`, `place_events`, `place_states` tables.
+- E12: PyPI packaging, curl installer and Homebrew formula

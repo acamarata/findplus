@@ -2,31 +2,49 @@
 
 Purpose : Prove the wheel installs and works standalone — bundled migrations,
           bundled vendor tree, and the CLI commands all resolve from
-          site-packages with no dependency on the repo checkout.
+          site-packages with no dependency on the repo checkout. Also prove
+          the dashboard and vendor tree survive an sdist round trip, since
+          "../web" does not exist once an sdist is unpacked.
 Constraints: @pytest.mark.slow (builds a wheel + venv); never touches the
-             real HOME or the real Google/Apple account.
+             real HOME or the real Google/Apple account; uses tmp_path (no
+             manually created /tmp paths) and a sysconfig-derived scripts
+             directory (no hardcoded POSIX "bin").
 """
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
-import uuid
+import tarfile
 import zipfile
 from pathlib import Path
 
 import pytest
 
+_SCRIPTS_NAME = "Scripts" if sys.platform == "win32" else "bin"
+_PY_NAME = "python.exe" if sys.platform == "win32" else "python"
+
+
+def _venv_scripts_dir(venv: Path) -> Path:
+    """Ask the venv's own interpreter where it puts scripts (sysconfig)."""
+    venv_python = venv / _SCRIPTS_NAME / _PY_NAME
+    out = subprocess.run(
+        [str(venv_python), "-c", "import sysconfig; print(sysconfig.get_path('scripts'))"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return Path(out.stdout.strip())
+
 
 @pytest.mark.slow
 def test_wheel_installs_and_migrates(tmp_path):
     """Build wheel, install into throwaway venv, run db upgrade + doctor + version."""
-    smoke_dir = Path(f"/tmp/findplus-smoke-{uuid.uuid4().hex[:8]}")
-    smoke_dir.mkdir()
-    fake_home = smoke_dir / "home"
+    fake_home = tmp_path / "home"
     fake_home.mkdir()
 
-    # Build wheel into smoke_dir/dist/ — parents[0]=cli/tests, parents[1]=cli (build root)
+    # Build wheel into tmp_path/dist/ — parents[0]=cli/tests, parents[1]=cli (build root)
     subprocess.run(
         [
             sys.executable,
@@ -34,14 +52,14 @@ def test_wheel_installs_and_migrates(tmp_path):
             "build",
             "--wheel",
             "--outdir",
-            str(smoke_dir / "dist"),
+            str(tmp_path / "dist"),
             str(Path(__file__).parents[1]),  # cli/ dir, where cli/pyproject.toml lives
         ],
         check=True,
         capture_output=True,
         text=True,
     )
-    wheels = list((smoke_dir / "dist").glob("*.whl"))
+    wheels = list((tmp_path / "dist").glob("*.whl"))
     assert len(wheels) == 1, f"Expected 1 wheel, got {wheels}"
     wheel = wheels[0]
 
@@ -52,15 +70,16 @@ def test_wheel_installs_and_migrates(tmp_path):
     assert any("_vendor/GoogleFindMyTools/LICENSE" in n for n in names), "vendor not in wheel"
 
     # Create venv
-    venv = smoke_dir / "venv"
+    venv = tmp_path / "venv"
     subprocess.run([sys.executable, "-m", "venv", str(venv)], check=True)
-    pip = venv / "bin" / "pip"
-    findplus_bin = venv / "bin" / "findplus"
+    scripts_dir = _venv_scripts_dir(venv)
+    pip = scripts_dir / ("pip.exe" if sys.platform == "win32" else "pip")
+    findplus_bin = scripts_dir / ("findplus.exe" if sys.platform == "win32" else "findplus")
 
     # Install wheel
     subprocess.run([str(pip), "install", "--quiet", str(wheel)], check=True)
 
-    env = {"HOME": str(fake_home), "PATH": str(venv / "bin") + ":/usr/bin:/bin"}
+    env = {"HOME": str(fake_home), "PATH": str(scripts_dir) + os.pathsep + "/usr/bin:/bin"}
 
     # findplus --version
     r = subprocess.run([str(findplus_bin), "--version"], capture_output=True, text=True, env=env)
@@ -81,3 +100,61 @@ def test_wheel_installs_and_migrates(tmp_path):
     r = subprocess.run([str(findplus_bin), "doctor"], capture_output=True, text=True, env=env)
     assert r.returncode in (0, 1), f"doctor crashed: {r.stderr}\n{r.stdout}"
     assert str(fake_home) in r.stdout
+
+
+@pytest.mark.slow
+def test_wheel_builds_from_sdist(tmp_path):
+    """Build an sdist, unpack it, then build a wheel from the unpacked tree.
+
+    Proves cli/hatch_build.py's sdist-case branch (Path(self.root) / "web")
+    actually runs: the sdist carries the dashboard as web/ per
+    [tool.hatch.build.targets.sdist.force-include], and "../web" does not
+    exist once the sdist is unpacked, so this exercises a different code
+    path than the repo-checkout build above.
+    """
+    repo_root = Path(__file__).parents[2]
+    sdist_out = tmp_path / "sdist"
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "build",
+            "--sdist",
+            "--outdir",
+            str(sdist_out),
+            "cli",
+        ],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    tarballs = list(sdist_out.glob("*.tar.gz"))
+    assert len(tarballs) == 1, f"Expected 1 sdist, got {tarballs}"
+
+    extracted = tmp_path / "extracted"
+    extracted.mkdir()
+    with tarfile.open(tarballs[0]) as tf:
+        tf.extractall(extracted)
+
+    sdist_dirs = [p for p in extracted.iterdir() if p.is_dir()]
+    assert len(sdist_dirs) == 1, f"Expected 1 extracted sdist dir, got {sdist_dirs}"
+    sdist_root = sdist_dirs[0]
+    assert (sdist_root / "pyproject.toml").is_file()
+
+    wheel_out = tmp_path / "wheel"
+    subprocess.run(
+        [sys.executable, "-m", "build", "--wheel", "--outdir", str(wheel_out)],
+        cwd=sdist_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    wheels = list(wheel_out.glob("*.whl"))
+    assert len(wheels) == 1, f"Expected 1 wheel, got {wheels}"
+
+    with zipfile.ZipFile(wheels[0]) as zf:
+        names = zf.namelist()
+    assert "findplus/web/static/index.html" in names
+    assert "findplus/web/static/app/main.js" in names
+    assert any(n.startswith("findplus/_vendor/GoogleFindMyTools/") for n in names)

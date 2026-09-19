@@ -9,6 +9,47 @@ chronological timeline in your browser.
 
 Everything runs on this computer. Nothing is uploaded anywhere.
 
+## Installation
+
+### curl installer (recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/acamarata/findplus/main/install.sh | bash
+```
+
+Installs Find+ into `~/.local/share/findplus/` and links `findplus` into `~/.local/bin/`.
+Requires Python 3.12–3.14. Pass `--yes` to skip the confirmation prompt.
+
+### Homebrew (macOS)
+
+```bash
+brew install acamarata/tap/findplus
+```
+
+### pip / pipx
+
+```bash
+pipx install findplus
+```
+
+Or: `pip install findplus` into an existing virtualenv.
+
+### macOS app (dmg)
+
+Download `FindPlus-<version>-arm64.dmg` from the [Releases](https://github.com/acamarata/findplus/releases)
+page. Open the dmg and drag Find+ to Applications.
+
+### First run
+
+```bash
+findplus auth
+findplus start
+```
+
+`findplus auth` opens a Chrome window to sign in with your Google account.
+`findplus start` installs a user-level LaunchAgent (macOS) or systemd service (Linux) and
+opens the dashboard at http://localhost:8647.
+
 ---
 
 ## What this is not

@@ -9,7 +9,8 @@ Constraints: Zero behavior change from the pre-split monolith is the bar —
              E3-T5 adds GET /api/providers, bringing it to 25; E4-T5 adds the
              6 /api/places routes, bringing it to 31; E8-T2 adds
              GET /api/version and GET /api/widget, bringing it to 33; E5-T4
-             adds the 7 /api/groups routes, bringing it to 40.
+             adds the 7 /api/groups routes, bringing it to 40; E6-T5 adds the
+             12 /api/alerts/* routes, bringing it to 52.
 """
 
 from __future__ import annotations
@@ -49,7 +50,7 @@ def _app_routes(app):
 def test_route_count():
     app = create_app()
     routes = _app_routes(app)
-    assert len(routes) == 40
+    assert len(routes) == 52
 
 
 def test_route_paths_present():
@@ -90,5 +91,13 @@ def test_route_paths_present():
         "/api/groups/{group_id}/members",
         "/api/groups/{group_id}/presence",
         "/api/groups/events",
+        "/api/alerts/channels",
+        "/api/alerts/channels/telegram",
+        "/api/alerts/channels/telegram/setup",
+        "/api/alerts/channels/webhook",
+        "/api/alerts/test",
+        "/api/alerts/rules",
+        "/api/alerts/rules/{rule_id}",
+        "/api/alerts/deliveries",
     }
     assert expected.issubset(paths)

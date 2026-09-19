@@ -1,0 +1,167 @@
+"""Alert channel routes: Telegram/webhook credential management and test sends.
+
+Purpose    : Let the dashboard and CLI configure and test the two alert
+             channels without ever exposing a full bot token or secret back
+             to the browser.
+Outputs    : Masked channel status dicts. ValueError from telegram/_get_me
+             maps to 400; TimeoutError from the long-poll setup maps to 408;
+             a webhook conflict (bot already has one) maps to 409.
+Constraints: Gated by SessionAuthMiddleware like every /api/ path not in
+             _PUBLIC (routes_alerts is never in that set).
+"""
+
+from __future__ import annotations
+
+import asyncio
+import functools
+import re
+from datetime import UTC, datetime
+from typing import Any, Literal
+
+from fastapi import APIRouter, HTTPException, Response
+from pydantic import BaseModel
+
+from findplus.alerts.channels.telegram import _get_me, send, telegram_setup
+from findplus.alerts.channels.webhook import build_payload, send_webhook
+from findplus.alerts.store import (
+    AlertsChannels,
+    TelegramCreds,
+    WebhookCreds,
+    load_alerts,
+    mask_token,
+    save_alerts,
+)
+
+_WEBHOOK_URL_RE = re.compile(r"^https://|^http://(127\.|localhost)")
+
+
+class TelegramPutBody(BaseModel):
+    bot_token: str
+    chat_id: str | None = None
+
+
+class TelegramSetupBody(BaseModel):
+    bot_token: str
+
+
+class WebhookPutBody(BaseModel):
+    url: str
+    secret: str | None = None
+
+
+class AlertTestBody(BaseModel):
+    channel: Literal["telegram", "webhook"]
+
+
+def _channels_response() -> dict[str, Any]:
+    ch = load_alerts()
+    tg, wh = ch.telegram, ch.webhook
+    return {
+        "telegram": {
+            "configured": tg is not None,
+            "bot_username": tg.bot_username if tg else None,
+            "chat_title": tg.chat_title if tg else None,
+            "bot_token_masked": mask_token(tg.bot_token) if tg else None,
+        },
+        "webhook": {
+            "configured": wh is not None,
+            "url": wh.url if wh else None,
+            "has_secret": bool(wh and wh.secret),
+        },
+    }
+
+
+def build_router() -> APIRouter:
+    router = APIRouter(prefix="/api/alerts", tags=["alerts"])
+
+    @router.get("/channels")
+    def get_channels() -> dict[str, Any]:
+        return _channels_response()
+
+    @router.put("/channels/telegram")
+    def put_telegram(body: TelegramPutBody) -> dict[str, Any]:
+        import httpx
+
+        with httpx.Client(timeout=10.0) as client:
+            try:
+                me_result = _get_me(body.bot_token, client)
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        existing = load_alerts()
+        creds = TelegramCreds(
+            bot_token=body.bot_token,
+            chat_id=body.chat_id or (existing.telegram.chat_id if existing.telegram else ""),
+            chat_title=existing.telegram.chat_title if existing.telegram else "",
+            bot_username=me_result["username"],
+            captured_at=datetime.now(UTC).isoformat(),
+        )
+        save_alerts(AlertsChannels(telegram=creds, webhook=existing.webhook))
+        return _channels_response()
+
+    @router.post("/channels/telegram/setup")
+    async def post_telegram_setup(body: TelegramSetupBody, wait: int = 120) -> dict[str, Any]:
+        loop = asyncio.get_event_loop()
+        try:
+            result = await loop.run_in_executor(
+                None, functools.partial(telegram_setup, body.bot_token, wait_seconds=wait, poll=2)
+            )
+        except TimeoutError as exc:
+            raise HTTPException(
+                status_code=408, detail=f"no message received within {wait} s"
+            ) from exc
+        except RuntimeError as exc:
+            status = 409 if "webhook" in str(exc).lower() else 500
+            raise HTTPException(status_code=status, detail=str(exc)) from exc
+        return result
+
+    @router.delete("/channels/telegram", status_code=204)
+    def delete_telegram() -> Response:
+        ch = load_alerts()
+        save_alerts(AlertsChannels(telegram=None, webhook=ch.webhook))
+        return Response(status_code=204)
+
+    @router.put("/channels/webhook")
+    def put_webhook(body: WebhookPutBody) -> dict[str, Any]:
+        if not _WEBHOOK_URL_RE.match(body.url):
+            raise HTTPException(status_code=422, detail="url must be https or http loopback")
+        ch = load_alerts()
+        new_webhook = WebhookCreds(url=body.url, secret=body.secret)
+        save_alerts(AlertsChannels(telegram=ch.telegram, webhook=new_webhook))
+        return _channels_response()
+
+    @router.delete("/channels/webhook", status_code=204)
+    def delete_webhook() -> Response:
+        ch = load_alerts()
+        save_alerts(AlertsChannels(telegram=ch.telegram, webhook=None))
+        return Response(status_code=204)
+
+    @router.post("/test")
+    def post_test(body: AlertTestBody) -> dict[str, Any]:
+        ch = load_alerts()
+        if body.channel == "telegram":
+            if not ch.telegram:
+                raise HTTPException(status_code=422, detail="Telegram not configured")
+            result = send(
+                "Find+ test alert from the dashboard", ch.telegram.bot_token, ch.telegram.chat_id
+            )
+        else:
+            if not ch.webhook:
+                raise HTTPException(status_code=422, detail="Webhook not configured")
+            payload = build_payload(
+                "ENTER",
+                "device",
+                "test",
+                "Test Tag",
+                0,
+                "Test Place",
+                datetime.now(UTC),
+                None,
+                0,
+                "high",
+                "This is a test alert.",
+            )
+            result = send_webhook(payload, ch.webhook.url, ch.webhook.secret)
+        return {"status": "sent" if result.success else "failed", "error": result.error}
+
+    return router

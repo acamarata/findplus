@@ -41,10 +41,16 @@ _SENSITIVE_KEYS = {
     "fcm_credentials",
     "android_id",
     "api_key",
+    "bot_token",
+    "chat_id",
+    "webhook_url",
+    # "secret" is already a member above (ruff B033 forbids a literal duplicate).
 }
 
 #: Defensive catch for tokens pasted into free-text messages.
-_TOKEN_PATTERN = re.compile(r"\b(?:aas_et|ya29|oauth2_4|AIzaSy)[A-Za-z0-9._\-/]{10,}")
+_TOKEN_PATTERN = re.compile(
+    r"\b(?:aas_et|ya29|oauth2_4|AIzaSy)[A-Za-z0-9._\-/]{10,}|\d{8,10}:[A-Za-z0-9_-]{35}\b"
+)
 
 
 def _redact(_logger: Any, _name: str, event_dict: dict[str, Any]) -> dict[str, Any]:

@@ -88,7 +88,7 @@ def _resolve_provider(provider_name: str) -> tuple[LocationProvider | None, Poll
 
 
 def _locate_and_ingest(
-    provider: LocationProvider, device_id: str, device_name: str
+    provider: LocationProvider, device_id: str, device_name: str, settings: Settings
 ) -> tuple[PollOutcome, list | None]:
     """Ask the provider for fixes and persist them. Returns (outcome, observations)."""
     try:
@@ -120,6 +120,18 @@ def _locate_and_ingest(
 
     with session_scope() as session:
         result = ingest_observations(session, observations, fetched_at=datetime.now(UTC))
+
+    # Alert dispatch runs in its own session, after the ingest transaction has
+    # already committed (dispatch.process() reads place_events/group_place_events
+    # rows that ingest just wrote). Never let a dispatch failure crash the poller.
+    try:
+        with session_scope() as session:
+            from findplus.alerts import dispatch as _alert_dispatch
+
+            _alert_dispatch.process(_alert_dispatch.load_pending_events(session), session, settings)
+    except Exception:
+        log.exception("alert_dispatch_failed", device=device_name)
+
     return PollOutcome(
         status="ok",
         received=result.received,
@@ -141,7 +153,7 @@ def poll_device(
 
     provider, outcome = _resolve_provider(provider_name)
     if provider is not None:
-        outcome, observations = _locate_and_ingest(provider, device_id, device_name)
+        outcome, observations = _locate_and_ingest(provider, device_id, device_name, settings)
 
     outcome.device_id = device_id
     outcome.device_name = device_name

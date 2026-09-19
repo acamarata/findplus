@@ -30,3 +30,4 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - E12: PyPI packaging, curl installer and Homebrew formula
 - E8: version, widget and status endpoints; findplus version --check
 - E9: MCP server over the local API (findplus mcp)
+- E6: geofence alert rules with Telegram and webhook channels, cooldown and group suppression

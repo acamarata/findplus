@@ -90,6 +90,8 @@ path = "hatch_build.py"
 
 [tool.hatch.build.targets.sdist]
 include = ["src","vendor","tests","hatch_build.py","README.md","LICENSE","CHANGELOG.md"]
+# .gitignore is dropped in hatch_build.py, not here: hatchling force-includes
+# the VCS exclusion files, and force_include beats any `exclude` pattern.
 
 [tool.hatch.build.targets.sdist.force-include]
 "../CHANGELOG.md" = "CHANGELOG.md"

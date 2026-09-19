@@ -8,9 +8,13 @@ Inputs     : self.root (the directory holding this pyproject.toml at build
              time); either <root>/web (sdist case) or <root>/../web (repo
              case) must exist.
 Outputs    : build_data["force_include"] entries mapping each source file to
-             findplus/web/static/<relative path>.
+             findplus/web/static/<relative path>; the sdist's .gitignore entry
+             removed.
 Constraints: raises RuntimeError if neither web/ location exists, so a wheel
-             can never ship silently without the dashboard.
+             can never ship silently without the dashboard. Hatchling
+             force-includes the repo's VCS exclusion files in every sdist and
+             force_include beats `exclude`, so dropping .gitignore has to
+             happen here rather than in pyproject.toml.
 SPORT      : master-inventories.md § config-files (P1-E12-W5-S1-T1).
 """
 
@@ -37,3 +41,6 @@ class DashboardHook(BuildHookInterface):
             rel = file.relative_to(web_dir).as_posix()
             prefix = "web" if self.target_name == "sdist" else "findplus/web/static"
             build_data["force_include"][str(file)] = f"{prefix}/{rel}"
+        for source, dest in list(build_data["force_include"].items()):
+            if dest == ".gitignore":
+                del build_data["force_include"][source]

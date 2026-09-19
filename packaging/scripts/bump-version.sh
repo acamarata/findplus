@@ -3,8 +3,12 @@
 #
 # Purpose    : Update the version string in cli/pyproject.toml and add/refresh
 #              its matching CHANGELOG.md header.
-# Inputs     : $1 = new version, X.Y.Z.
-# Outputs    : cli/pyproject.toml, CHANGELOG.md updated in place.
+# Inputs     : $1 = new version, X.Y.Z. FINDPLUS_YES=1 skips the confirmation
+#              prompt (same convention as install.sh), so the script can run
+#              unattended; without it an interactive confirmation is required.
+# Outputs    : cli/pyproject.toml, CHANGELOG.md updated in place. The desktop
+#              app picks the version up automatically: desktop/src-tauri/
+#              build.rs writes its semver form into tauri.conf.json.
 # Constraints: refuses on a dirty git working tree; never git-commits or tags
 #              (release-local.sh does that); owner-run only, never invoked by CI.
 set -euo pipefail
@@ -31,12 +35,16 @@ fi
 OLD_VER=$(grep -m1 '^version = ' cli/pyproject.toml | sed 's/version = "\(.*\)"/\1/')
 
 echo "Bumping $OLD_VER -> $NEW_VER in:  cli/pyproject.toml  CHANGELOG.md"
-printf "Continue? [y/N] "
-read -r ans
-[ "$ans" = y ] || [ "$ans" = Y ] || {
-  echo "Aborted."
-  exit 1
-}
+if [ "${FINDPLUS_YES:-0}" = 1 ]; then
+  echo "FINDPLUS_YES=1; continuing without a prompt."
+else
+  printf "Continue? [y/N] "
+  read -r ans
+  [ "$ans" = y ] || [ "$ans" = Y ] || {
+    echo "Aborted."
+    exit 1
+  }
+fi
 
 sed -i.bak "s/^version = \"$OLD_VER\"/version = \"$NEW_VER\"/" cli/pyproject.toml && rm cli/pyproject.toml.bak
 

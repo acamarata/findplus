@@ -6,10 +6,12 @@ set -euo pipefail
 # Purpose    : Step 5 of the release build (specs/desktop-app.md § Build &
 #              sign): without this the widget never appears in the
 #              Notification Center gallery on an end-user machine.
-# Inputs     : dist/macos/Find+.app (from `cargo tauri build`);
-#              APPLE_SIGNING_IDENTITY, APPLE_API_KEY, APPLE_API_KEY_ID,
-#              APPLE_API_ISSUER env vars; cli/pyproject.toml (for VERSION).
-# Outputs    : Signed, embedded Find+.app; rebuilt dist/FindPlus-*.dmg.
+# Inputs     : $APP_PATH (default: the bundle `cargo tauri build
+#              --target aarch64-apple-darwin` emits, the same BUNDLE_DIR
+#              release-local.sh uses); APPLE_SIGNING_IDENTITY and, for
+#              notarisation, APPLE_API_KEY_P8_BASE64 + APPLE_API_KEY_ID +
+#              APPLE_API_ISSUER_ID; cli/pyproject.toml (for VERSION).
+# Outputs    : Signed, embedded Find+.app; dist/FindPlus-<ver>-aarch64.dmg.
 # Constraints: Idempotent (safe to re-run); sign inner-to-outer, never
 #              --deep; no credentials logged.
 
@@ -20,13 +22,17 @@ if [ -z "$IDENTITY" ]; then
   exit 1
 fi
 
+# Same credential names and decoding as release-local.sh: the App Store Connect
+# key arrives base64-encoded in the environment, never as a file on disk.
 NOTARISE=false
-if [ -n "${APPLE_API_KEY:-}" ] && [ -n "${APPLE_API_KEY_ID:-}" ] && [ -n "${APPLE_API_ISSUER:-}" ]; then
+API_KEY_FILE=""
+if [ -n "${APPLE_API_KEY_P8_BASE64:-}" ] && [ -n "${APPLE_API_KEY_ID:-}" ] &&
+  [ -n "${APPLE_API_ISSUER_ID:-}" ]; then
   NOTARISE=true
 fi
 
 # --- LOCATE_APP ---------------------------------------------------------------
-APP_PATH="${APP_PATH:-dist/macos/Find+.app}"
+APP_PATH="${APP_PATH:-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Find+.app}"
 if [ ! -d "$APP_PATH" ]; then
   echo "FAIL: $APP_PATH not found. Run cargo tauri build first." >&2
   exit 1
@@ -82,9 +88,14 @@ codesign --force --options runtime --timestamp \
 
 # --- NOTARISE -----------------------------------------------------------------
 if [ "$NOTARISE" = true ]; then
+  API_KEY_FILE=$(mktemp -t findplus-api-key)
+  trap 'rm -f "$API_KEY_FILE"' EXIT
+  echo "$APPLE_API_KEY_P8_BASE64" | base64 -d >"$API_KEY_FILE"
   xcrun notarytool submit "$APP_PATH" \
-    --key "$APPLE_API_KEY" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER" --wait
+    --key "$API_KEY_FILE" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID" --wait
   xcrun stapler staple "$APP_PATH"
+else
+  echo "APPLE_API_KEY_P8_BASE64 not set; skipping notarisation."
 fi
 
 # --- REBUILD_DMG --------------------------------------------------------------
@@ -93,7 +104,10 @@ if ! command -v create-dmg >/dev/null 2>&1; then
 fi
 
 VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('cli/pyproject.toml','rb'))['project']['version'])")
-DMG_NAME="FindPlus-${VERSION}-arm64.dmg"
+# One canonical dmg name for the whole project: FindPlus-<ver>-<arch>.dmg
+# (findplus PRI § Names). No -arm64 spelling anywhere.
+DMG_NAME="FindPlus-${VERSION}-aarch64.dmg"
+mkdir -p dist
 rm -f "dist/$DMG_NAME"
 create-dmg --volname "Find+" \
   --background desktop/src-tauri/icons/dmg-background.png \
@@ -104,5 +118,12 @@ create-dmg --volname "Find+" \
 
 # --- VERIFY -------------------------------------------------------------------
 codesign --verify --deep --strict --verbose=2 "$APP_PATH" 2>&1
-spctl -a -vv --type install "$APP_PATH" 2>&1
+# spctl --type install only passes on a notarised, stapled bundle, so it is a
+# real check after notarisation and a guaranteed failure without it.
+if [ "$NOTARISE" = true ]; then
+  spctl -a -vv --type install "$APP_PATH" 2>&1
+else
+  echo "Not notarised; skipping spctl --type install (it would reject by design)."
+fi
+echo "dmg: dist/$DMG_NAME"
 echo "Run 'pluginkit -m -p com.apple.widgetkit-extension | grep findplus' after first launch."

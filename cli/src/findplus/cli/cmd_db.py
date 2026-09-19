@@ -13,7 +13,7 @@ from __future__ import annotations
 import click
 
 from findplus.config import get_settings
-from findplus.db.migrate import run_migrations
+from findplus.db.migrate import current_revision, run_migrations
 
 
 @click.group("db")
@@ -26,22 +26,14 @@ def db_upgrade() -> None:
     """Run Alembic migrations to head. Safe to run repeatedly (idempotent)."""
     settings = get_settings()
     settings.ensure_state_dir()
-    url = f"sqlite:///{settings.database_path}"
-    run_migrations(url, "head")
+    run_migrations(settings.database_url, "head")
     click.echo(f"Database upgraded to head: {settings.database_path}")
 
 
 @db_cmd.command("current")
 def db_current() -> None:
     """Print the current Alembic revision of the database."""
-    from alembic.runtime.migration import MigrationContext
-    from sqlalchemy import create_engine
-
-    settings = get_settings()
-    engine = create_engine(f"sqlite:///{settings.database_path}")
-    with engine.connect() as conn:
-        ctx = MigrationContext.configure(conn)
-        rev = ctx.get_current_revision()
+    rev = current_revision(get_settings().database_url)
     click.echo(rev or "(base — no migrations applied)")
 
 

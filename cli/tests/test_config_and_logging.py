@@ -94,7 +94,7 @@ def test_logging_configuration_installs_handlers(tmp_path, monkeypatch) -> None:
     from findplus.config import get_settings, reset_settings_cache
     from findplus.logging_setup import configure_logging
 
-    monkeypatch.setenv("STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("FINDPLUS_STATE_DIR", str(tmp_path / "state"))
     reset_settings_cache()
     settings = get_settings()
     configure_logging(settings, to_file=True)

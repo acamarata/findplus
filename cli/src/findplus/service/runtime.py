@@ -123,7 +123,7 @@ def read_daemon_file() -> dict[str, Any] | None:
     """Return daemon.json contents or None if absent or unreadable."""
     try:
         return json.loads(get_settings().daemon_file.read_text())
-    except (FileNotFoundError, json.JSONDecodeError):
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
         return None
 
 

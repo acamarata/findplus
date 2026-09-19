@@ -50,7 +50,20 @@ def auth(provider: str) -> None:
         _auth_apple(settings)
         return
 
+    from findplus.cli.doctor import check_chrome
     from findplus.providers.base import get_provider
+
+    # Checked before anything is printed or confirmed: the upstream driver
+    # needs a real Chrome, so without one the whole flow is a dead end and
+    # saying so now beats failing halfway through a sign-in.
+    if not check_chrome().passed:
+        click.secho("Google Chrome was not found on this machine.", fg="red", err=True)
+        click.echo(
+            "Google sign-in drives Chrome directly and cannot run without it.\n"
+            "Install it from https://www.google.com/chrome/ and run `findplus auth` again.",
+            err=True,
+        )
+        sys.exit(1)
 
     click.echo("")
     click.secho("Google sign-in", bold=True)

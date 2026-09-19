@@ -165,7 +165,7 @@ Run Alembic migrations to head. Safe to run repeatedly (idempotent).
 **Usage:** `findplus db upgrade [OPTIONS]`
 
 ## findplus devices
-List Find Hub devices and choose which ones to track.
+List every tracker Find+ knows about and choose which ones to track.
 
 **Usage:** `findplus devices [OPTIONS]`
 
@@ -314,6 +314,15 @@ Start the Find+ MCP server (stdio transport).
 Open the dashboard in the default browser.
 
 **Usage:** `findplus open [OPTIONS]`
+
+## findplus pin reset
+Delete the PIN and turn the app lock off.
+
+**Usage:** `findplus pin reset [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --yes |  | Skip the confirmation prompt. |
 
 ## findplus places add
 Save a new place.

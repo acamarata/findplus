@@ -1,9 +1,9 @@
 """`findplus doctor [--repair] [--json]`: self-service installation diagnostics.
 
-Purpose    : Ten independent checks (python, state-dir/file permissions, DB
+Purpose    : Eleven independent checks (python, state-dir/file permissions, DB
              schema head, provider auth, service units, port health, Chrome,
-             alerts.json validity, optional desktop app) with permission and
-             migration repair via --repair.
+             alerts.json validity, legacy pre-rename database, optional desktop
+             app) with permission and migration repair via --repair.
 Inputs     : Settings (state dir, port); nothing here mutates unless --repair.
 Outputs    : A DoctorCheck per check, printed as text or --json; exit 1 if any
              check still fails after an optional repair pass.
@@ -62,10 +62,22 @@ def check_state_dir_perms(state_dir: Path) -> DoctorCheck:
     )
 
 
+def _sensitive_files(state_dir: Path) -> list[Path]:
+    """Credential stores plus the history database, its WAL siblings and the log.
+
+    The database is the point of the app, so it belongs in this check as much
+    as secrets.json does: SQLite creates `-wal`/`-shm` itself and a daemon
+    started from a shell with a permissive umask leaves all three readable.
+    """
+    from findplus.config import get_settings
+
+    files = [state_dir / name for name in ("secrets.json", "alerts.json", "apple-account.json")]
+    files.extend(get_settings().sensitive_paths())
+    return files
+
+
 def check_sensitive_file_perms(state_dir: Path) -> DoctorCheck:
-    names = ("secrets.json", "alerts.json", "apple-account.json")
-    for name in names:
-        p = state_dir / name
+    for p in _sensitive_files(state_dir):
         if not p.exists():
             continue
         mode = os.stat(p).st_mode & 0o777
@@ -77,6 +89,15 @@ def check_sensitive_file_perms(state_dir: Path) -> DoctorCheck:
                 f"{p} mode {oct(mode)} (want 0o600)",
                 repairable=True,
             )
+    logs = state_dir / "logs"
+    if logs.is_dir() and (os.stat(logs).st_mode & 0o777) != 0o700:
+        return DoctorCheck(
+            "sensitive_file_perms",
+            "Sensitive file permissions",
+            False,
+            f"{logs} mode {oct(os.stat(logs).st_mode & 0o777)} (want 0o700)",
+            repairable=True,
+        )
     return DoctorCheck(
         "sensitive_file_perms", "Sensitive file permissions", True, "all 0600", repairable=True
     )
@@ -156,6 +177,47 @@ def check_alerts_json(state_dir: Path) -> DoctorCheck:
         return DoctorCheck("alerts_json", "alerts.json", False, str(e)[:80])
 
 
+def legacy_database_paths() -> list[Path]:
+    """Where an install from before the rename and the E2 state-dir move can
+    still be holding history: the old `PROJECT_ROOT/data/` file under either
+    name, and anything in the old `~/.bike-tracker` state directory."""
+    from findplus.config import PROJECT_ROOT
+
+    paths = [
+        PROJECT_ROOT / "data" / "findplus.sqlite",
+        PROJECT_ROOT / "data" / "bike-tracker.sqlite",
+    ]
+    legacy_state = Path.home() / ".bike-tracker"
+    if legacy_state.is_dir():
+        paths.extend(sorted(legacy_state.glob("*.sqlite")))
+    return paths
+
+
+def check_legacy_database(current_db: Path) -> DoctorCheck:
+    """Warn when readable history sits at a pre-rename path and is not in use.
+
+    Find+ deliberately ships no automatic migration (PROMPT.md §1), so the
+    check prints the two commands instead of moving anyone's data: copy the
+    file into the state directory, or point FINDPLUS_DATABASE_PATH at it.
+    """
+    current = current_db.resolve() if current_db else None
+    found = [
+        p
+        for p in legacy_database_paths()
+        if p.is_file() and os.access(p, os.R_OK) and p.resolve() != current
+    ]
+    if not found:
+        return DoctorCheck("legacy_database", "Legacy database", True, "none found")
+    old = found[0]
+    detail = (
+        f"history found at {old} but Find+ is using {current_db}. "
+        f"To keep it: cp '{old}' '{current_db}' "
+        f"(or run with FINDPLUS_DATABASE_PATH='{old}'), then findplus db upgrade. "
+        "Nothing is moved for you."
+    )
+    return DoctorCheck("legacy_database", "Legacy database", False, detail)
+
+
 def check_desktop_app() -> DoctorCheck:
     if sys.platform != "darwin":
         return DoctorCheck("desktop_app", "Find+.app", True, "not applicable on this platform")
@@ -170,10 +232,12 @@ def repair_state_dir_perms(state_dir: Path) -> None:
 
 
 def repair_sensitive_file_perms(state_dir: Path) -> None:
-    for name in ("secrets.json", "alerts.json", "apple-account.json"):
-        p = state_dir / name
+    for p in _sensitive_files(state_dir):
         if p.exists():
             os.chmod(p, 0o600)
+    logs = state_dir / "logs"
+    if logs.is_dir():
+        os.chmod(logs, 0o700)
 
 
 def repair_db_head() -> None:
@@ -212,6 +276,7 @@ def doctor_cmd(repair: bool, json_flag: bool) -> None:
         check_port(settings.state_dir, settings.port),
         check_chrome(),
         check_alerts_json(settings.state_dir),
+        check_legacy_database(settings.database_path),
         check_desktop_app(),
     ]
 

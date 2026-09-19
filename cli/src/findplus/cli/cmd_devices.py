@@ -33,10 +33,13 @@ def devices(
     default_id: str | None,
     refresh: bool,
 ) -> None:
-    """List Find Hub devices and choose which ones to track.
+    """List every tracker Find+ knows about and choose which ones to track.
 
+    The table covers all providers, because an Apple accessory that has
+    reported once has a device row too. `--refresh` re-reads the Google Find
+    Hub account only; Apple accessories are added with `findplus apple`.
     Any number of devices can be tracked at once. Tracking N devices costs N
-    Google requests per poll cycle, so the effective request rate is shown.
+    provider requests per poll cycle, so the effective request rate is shown.
     """
     _prep()
     from sqlalchemy import func

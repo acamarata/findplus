@@ -37,6 +37,10 @@ _SENSITIVE_KEYS = {
     "owner_key",
     "identity_key",
     "eik",
+    # `apple/<device_id>.json` stores the accessory plist or raw private key
+    # under `payload`. Redacted globally: an alert/webhook body logged under the
+    # same key is not worth the risk of leaking Apple key material.
+    "payload",
     "credentials",
     "fcm_credentials",
     "android_id",

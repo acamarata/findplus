@@ -63,6 +63,39 @@ def test_check_sensitive_file_perms(tmp_path) -> None:
     assert check_sensitive_file_perms(tmp_path).passed is True
 
 
+# ------------------------------------------------------------------------ c2
+def test_apple_key_store_is_covered(tmp_path) -> None:
+    """PRI hard rule 9 / E11 review carry-forward #26: `apple/` is 0700 and each
+    `apple/<device_id>.json` (a plist or a raw private key) is 0600."""
+    apple = tmp_path / "apple"
+    apple.mkdir(mode=0o700)
+    key_file = apple / "apple-abc123.json"
+    key_file.write_text("{}")
+    os.chmod(key_file, 0o644)
+
+    c = check_sensitive_file_perms(tmp_path)
+    assert c.passed is False
+    assert "apple-abc123.json" in c.detail
+
+    repair_sensitive_file_perms(tmp_path)
+    assert check_sensitive_file_perms(tmp_path).passed is True
+    assert os.stat(key_file).st_mode & 0o777 == 0o600
+
+
+def test_apple_directory_mode_is_checked_and_repaired(tmp_path) -> None:
+    apple = tmp_path / "apple"
+    apple.mkdir()
+    os.chmod(apple, 0o755)
+
+    c = check_sensitive_file_perms(tmp_path)
+    assert c.passed is False
+    assert "0o700" in c.detail
+
+    repair_sensitive_file_perms(tmp_path)
+    assert os.stat(apple).st_mode & 0o777 == 0o700
+    assert check_sensitive_file_perms(tmp_path).passed is True
+
+
 # ------------------------------------------------------------------------- d
 def test_check_db_head(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("findplus.db.migrate.current_revision", lambda: "0002")

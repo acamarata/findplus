@@ -212,6 +212,34 @@ def test_status_json_with_daemon_down_parses(tmp_db, monkeypatch: pytest.MonkeyP
     assert out["lock_state"] == "unknown"
 
 
+def test_status_falls_back_to_daemon_json_for_version(
+    tmp_db, tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Build-notes carry-forward #16: `port` fell back to daemon.json and
+    `version` did not, so an unreachable daemon printed `version None` even
+    with a daemon.json on disk recording the version it was started with."""
+
+    def _raise(*a, **k):
+        raise ConnectionError("refused")
+
+    monkeypatch.setattr("httpx.get", _raise)
+    from findplus.config import get_settings
+
+    daemon_file = get_settings().daemon_file
+    daemon_file.parent.mkdir(parents=True, exist_ok=True)
+    daemon_file.write_text(
+        json.dumps({"pid": 1, "port": 9999, "host": "127.0.0.1", "version": "1.0.0.dev0"})
+    )
+    try:
+        result = CliRunner().invoke(main, ["status", "--json"])
+        assert result.exit_code == 0, result.output
+        out = json.loads(result.output)
+        assert out["version"] == "1.0.0.dev0"
+        assert out["port"] == 9999
+    finally:
+        daemon_file.unlink(missing_ok=True)
+
+
 def test_status_text_has_service_and_watchdog_lines(
     tmp_db, monkeypatch: pytest.MonkeyPatch
 ) -> None:

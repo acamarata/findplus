@@ -5,8 +5,8 @@
 from __future__ import annotations
 
 from findplus.providers.base import ProviderDevice, RawObservation
+from findplus.providers.findhub.bootstrap import vendor_available
 
-from .bootstrap import ensure_gfmt_importable
 from .client import FindHubClient
 
 
@@ -26,12 +26,16 @@ class GoogleFindHubProvider:
 
     def is_available(self) -> tuple[bool, str]:
         # No ping() on FindHubClient; the offline vendor check is the availability
-        # probe (importing GoogleFindMyTools does no network I/O).
+        # probe (importing GoogleFindMyTools does no network I/O). Uses the PURE
+        # probe, not ensure_gfmt_importable(): this is called by read-only status
+        # surfaces (/api/providers, `findplus providers`, the poll-loop guard) and
+        # must not create ~/.findplus or rebind the vendored credential store as a
+        # side effect. client.py calls ensure_gfmt_importable() on every path that
+        # really reaches Google, so the wiring still happens before any real use.
         try:
-            ensure_gfmt_importable()
-        except Exception as exc:
+            return vendor_available()
+        except Exception as exc:  # pragma: no cover - defensive; probe never raises
             return (False, str(exc))
-        return (True, "")
 
     def is_authenticated(self) -> bool:
         return self._client.is_authenticated()

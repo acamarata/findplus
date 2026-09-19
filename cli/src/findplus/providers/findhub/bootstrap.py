@@ -43,6 +43,27 @@ def resolve_vendor_path() -> Path:
     return pkg_vendor if pkg_vendor.is_dir() else repo_vendor
 
 
+def vendor_available() -> tuple[bool, str]:
+    """Pure "could GoogleFindMyTools be imported?" probe.
+
+    Purpose: let a read-only status query (`GET /api/providers`, `findplus
+    providers`, `findplus doctor`) report availability without the side effects
+    of `ensure_gfmt_importable()` — no sys.path mutation, no state-directory
+    creation, no rebinding of the vendored credential store. Those belong to
+    the code paths that actually talk to Google.
+    Inputs: none.
+    Outputs: (True, "") when a vendor tree exists, else (False, <reason>).
+    """
+    pkg_vendor, repo_vendor = _candidates()
+    if any(candidate.is_dir() for candidate in (pkg_vendor, repo_vendor)):
+        return (True, "")
+    return (
+        False,
+        f"GoogleFindMyTools not found at {pkg_vendor} or {repo_vendor}. "
+        "Run: pip install -e 'cli/[dev]' from the repo root.",
+    )
+
+
 def ensure_gfmt_importable() -> Path:
     """Add GoogleFindMyTools to sys.path[0] so it can be imported.
     Purpose: Resolve vendor path in both installed-wheel and dev-editable modes.

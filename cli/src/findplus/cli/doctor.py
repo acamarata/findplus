@@ -18,7 +18,6 @@ import json
 import os
 import shutil
 import sys
-from dataclasses import dataclass
 from pathlib import Path
 
 import click
@@ -26,81 +25,27 @@ import httpx
 
 from findplus.config import get_settings
 
+from .doctor_perms import (
+    DoctorCheck,
+    check_sensitive_file_perms,
+    check_state_dir_perms,
+    repair_sensitive_file_perms,
+    repair_state_dir_perms,
+)
 
-@dataclass
-class DoctorCheck:
-    name: str
-    label: str
-    passed: bool
-    detail: str
-    repaired: bool = False
-    repairable: bool = False
+__all__ = [
+    "DoctorCheck",
+    "check_sensitive_file_perms",
+    "check_state_dir_perms",
+    "doctor_cmd",
+    "repair_sensitive_file_perms",
+    "repair_state_dir_perms",
+]
 
 
 def check_python() -> DoctorCheck:
     ok = sys.version_info >= (3, 12)
     return DoctorCheck("python_version", "Python >= 3.12", ok, f"Python {sys.version}")
-
-
-def check_state_dir_perms(state_dir: Path) -> DoctorCheck:
-    if not state_dir.exists():
-        return DoctorCheck(
-            "state_dir_perms",
-            "State directory permissions",
-            False,
-            f"{state_dir} missing",
-            repairable=False,
-        )
-    mode = os.stat(state_dir).st_mode
-    ok = (mode & 0o777) == 0o700
-    return DoctorCheck(
-        "state_dir_perms",
-        "State directory permissions",
-        ok,
-        f"{state_dir} mode {oct(mode & 0o777)}",
-        repairable=True,
-    )
-
-
-def _sensitive_files(state_dir: Path) -> list[Path]:
-    """Credential stores plus the history database, its WAL siblings and the log.
-
-    The database is the point of the app, so it belongs in this check as much
-    as secrets.json does: SQLite creates `-wal`/`-shm` itself and a daemon
-    started from a shell with a permissive umask leaves all three readable.
-    """
-    from findplus.config import get_settings
-
-    files = [state_dir / name for name in ("secrets.json", "alerts.json", "apple-account.json")]
-    files.extend(get_settings().sensitive_paths())
-    return files
-
-
-def check_sensitive_file_perms(state_dir: Path) -> DoctorCheck:
-    for p in _sensitive_files(state_dir):
-        if not p.exists():
-            continue
-        mode = os.stat(p).st_mode & 0o777
-        if mode != 0o600:
-            return DoctorCheck(
-                "sensitive_file_perms",
-                "Sensitive file permissions",
-                False,
-                f"{p} mode {oct(mode)} (want 0o600)",
-                repairable=True,
-            )
-    logs = state_dir / "logs"
-    if logs.is_dir() and (os.stat(logs).st_mode & 0o777) != 0o700:
-        return DoctorCheck(
-            "sensitive_file_perms",
-            "Sensitive file permissions",
-            False,
-            f"{logs} mode {oct(os.stat(logs).st_mode & 0o777)} (want 0o700)",
-            repairable=True,
-        )
-    return DoctorCheck(
-        "sensitive_file_perms", "Sensitive file permissions", True, "all 0600", repairable=True
-    )
 
 
 def check_db_head() -> DoctorCheck:
@@ -225,19 +170,6 @@ def check_desktop_app() -> DoctorCheck:
     return DoctorCheck(
         "desktop_app", "Find+.app", True, "installed" if installed else "not installed (optional)"
     )
-
-
-def repair_state_dir_perms(state_dir: Path) -> None:
-    os.chmod(state_dir, 0o700)
-
-
-def repair_sensitive_file_perms(state_dir: Path) -> None:
-    for p in _sensitive_files(state_dir):
-        if p.exists():
-            os.chmod(p, 0o600)
-    logs = state_dir / "logs"
-    if logs.is_dir():
-        os.chmod(logs, 0o700)
 
 
 def repair_db_head() -> None:

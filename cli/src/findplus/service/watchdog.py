@@ -29,8 +29,10 @@ log = get_logger(__name__)
 
 
 def watchdog_plan(settings: Settings | None = None, *, program: str | None = None) -> ServicePlan:
+    """Describe the watchdog job. Performs no changes — `watchdog_installed()`
+    and `service.status()` call this, and a query must not create the state dir
+    (same rule as `runtime.plan()`)."""
     settings = settings or get_settings()
-    settings.ensure_dirs()
     manager = detect_manager()
 
     if manager == "launchd":
@@ -45,9 +47,11 @@ def watchdog_plan(settings: Settings | None = None, *, program: str | None = Non
 def install_watchdog(
     settings: Settings | None = None, *, confirmed: bool = False, program: str | None = None
 ) -> ServicePlan:
+    settings = settings or get_settings()
     p = watchdog_plan(settings, program=program)
     if not confirmed:
         raise PermissionError("Refusing to install the watchdog without explicit confirmation.")
+    settings.ensure_dirs()  # the unit's log paths must exist before it loads
     if p.manager.startswith("Task Scheduler"):
         schtasks.create(p)
         return p

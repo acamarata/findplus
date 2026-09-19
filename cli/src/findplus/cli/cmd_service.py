@@ -263,7 +263,10 @@ def status(json_flag: bool) -> None:
         "watchdog_loaded": sd.watchdog_loaded,
         "pid": sd.pid,
         "port": op.get("port", sd.port),
-        "version": op.get("version"),
+        # Same daemon.json fallback as `port`: with the daemon unreachable the
+        # live /api/status call gives nothing, but daemon.json still records the
+        # version the running process was started with.
+        "version": op.get("version", sd.version),
         "last_poll_at": op.get("last_poll_at"),
         "lock_state": op.get("lock_state", "unknown"),
         "providers": op.get("providers", []),

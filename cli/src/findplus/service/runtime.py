@@ -25,9 +25,13 @@ from .plan import LAUNCHD_LABEL, SYSTEMD_UNIT, ServicePlan, _uid, detect_manager
 
 
 def plan(settings: Settings | None = None, *, program: str | None = None) -> ServicePlan:
-    """Describe the service that would be installed. Performs no changes."""
+    """Describe the service that would be installed. Performs no changes.
+
+    Deliberately does NOT call `settings.ensure_dirs()`: `is_installed()` and
+    `status()` go through here, and a pure query must not create `~/.findplus`
+    as a side effect. `install()` creates the tree before it writes anything.
+    """
     settings = settings or get_settings()
-    settings.ensure_dirs()
     manager = detect_manager()
 
     if manager == "launchd":
@@ -43,14 +47,17 @@ def install(
     settings: Settings | None = None, *, confirmed: bool = False, program: str | None = None
 ) -> ServicePlan:
     """Write and load the service. Refuses without explicit confirmation."""
+    settings = settings or get_settings()
     p = plan(settings, program=program)
     if not confirmed:
         raise PermissionError(
             "Refusing to install a background service without explicit confirmation."
         )
+    # The state tree is created HERE, not in plan(): the unit text points the
+    # job's stdout/stderr at ~/.findplus/logs, which launchd/systemd need to
+    # exist, and the schtasks XML is itself written into the state dir.
+    settings.ensure_dirs()
     if p.manager.startswith("Task Scheduler"):
-        s = settings or get_settings()
-        s.ensure_state_dir()
         p.unit_path.write_text(p.unit_text, encoding="utf-16")
         schtasks.create(p)
         return p

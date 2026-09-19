@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 
 import pytest
 
@@ -77,6 +76,9 @@ def test_secrets_live_outside_the_repository() -> None:
         "fcm_credentials",
         "android_id",
         "api_key",
+        # `apple/<device_id>.json` stores the accessory plist / raw private key
+        # under `payload` (E11 review, carry-forward #27).
+        "payload",
     ],
 )
 def test_sensitive_keys_are_redacted(key: str) -> None:
@@ -129,13 +131,32 @@ def test_default_database_under_home(tmp_path, monkeypatch) -> None:
     assert s.database_path == tmp_path / ".findplus" / "findplus.sqlite"
 
 
-def test_cwd_env_overrides(tmp_path, monkeypatch) -> None:
+def test_cwd_env_is_ignored(tmp_path, monkeypatch) -> None:
+    """A `.env` in the process working directory must NOT configure findplus.
+
+    Build-notes carry-forward #9: `get_settings()` passed a bare `".env"` to
+    pydantic-settings, which resolves it against the cwd — so running
+    `findplus` from any unrelated checkout that happened to contain a `.env`
+    silently repointed the daemon's database. Only the dev checkout's own
+    `PROJECT_ROOT/.env` and `FINDPLUS_STATE_DIR/config.env` may configure it.
+    """
     from findplus.config import get_settings
 
     (tmp_path / ".env").write_text("FINDPLUS_DATABASE_PATH=/custom/x.db\n")
     monkeypatch.chdir(tmp_path)
-    s = get_settings()
-    assert s.database_path == Path("/custom/x.db")
+    s = get_settings(state_dir=tmp_path / "sd")
+    assert s.database_path == tmp_path / "sd" / "findplus.sqlite"
+
+
+def test_config_env_beats_a_project_root_env(tmp_path, monkeypatch) -> None:
+    """The state dir's config.env is the user's own configuration and wins."""
+    from findplus.config import get_settings
+
+    sd = tmp_path / "sd"
+    sd.mkdir()
+    (sd / "config.env").write_text("LOG_LEVEL=DEBUG\n")
+    monkeypatch.delenv("FINDPLUS_LOG_LEVEL", raising=False)
+    assert get_settings(state_dir=sd).log_level == "DEBUG"
 
 
 def test_env_var_overrides_both(tmp_path, monkeypatch) -> None:

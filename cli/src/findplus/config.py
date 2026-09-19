@@ -275,9 +275,16 @@ def get_settings(state_dir: Path | None = None) -> Settings:
     HOME-monkeypatched tests both work. Not cached: callers that need call-scoped stability
     should hold onto the returned instance."""
     _sd = state_dir or Path(os.environ.get("FINDPLUS_STATE_DIR", Path.home() / ".findplus"))
+    # Dotenv sources, lowest precedence first (pydantic-settings lets a later
+    # file win). Both are ABSOLUTE on purpose: a bare ".env" is resolved against
+    # the process working directory, so running `findplus` from any checkout
+    # that happened to contain a .env silently rewrote the daemon's database
+    # path, state dir or log level. The only two files that may configure
+    # findplus are the dev checkout's own .env and the state dir's config.env,
+    # and the user's config.env wins over the dev tree.
     return Settings(
         state_dir=_sd,
-        _env_file=[str(_sd / "config.env"), ".env"],
+        _env_file=[str(PROJECT_ROOT / ".env"), str(_sd / "config.env")],
         **_unprefixed_config_env(_sd),
     )
 

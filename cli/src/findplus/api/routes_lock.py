@@ -13,6 +13,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body, Cookie, HTTPException, Response
 
+from findplus import honesty
 from findplus.logging_setup import get_logger
 from findplus.security import MIN_PIN_LENGTH, SessionStore, verify_pin
 
@@ -99,12 +100,11 @@ def build_router(
     def lock_requirements() -> dict[str, Any]:
         return {
             "min_pin_length": MIN_PIN_LENGTH,
-            "caveat": (
-                "The app lock stops someone from browsing this dashboard. It does "
-                "NOT encrypt the database — anyone with access to this user account "
-                "or the disk can still read the history file directly. Use FileVault "
-                "for protection at rest."
-            ),
+            # The specs/honesty.md sentence, not a second wording of it. The
+            # Settings dialog renders this (#lock-caveat) directly above
+            # /api/config.notices.lock_not_encryption (#fp-notice-lock), so a
+            # paraphrase here put two different lock caveats on one screen.
+            "caveat": honesty.LOCK_NOT_ENCRYPTION,
         }
 
     return router

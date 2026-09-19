@@ -25,7 +25,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from findplus import __version__
+from findplus import __version__, honesty
 from findplus.appsettings import load_settings
 from findplus.config import PROJECT_ROOT, get_settings
 from findplus.db.session import session_scope
@@ -56,12 +56,12 @@ def _static_dir() -> Path:
 
 STATIC_DIR = _static_dir()
 
-FIND_HUB_NOTICE = (
-    "This history consists of locations reported through Google's Find Hub network. "
-    "Moto Tag uses nearby participating Android devices to report its location. "
-    "Location updates can therefore be delayed, sparse, or unavailable, and this "
-    "application should not be treated as real-time emergency or child-safety GPS tracking."
-)
+#: The Find Hub sentence `/api/health`, `/api/config` and `/api/status` carry.
+#: Aliased, never re-typed: a second literal copy of an honesty sentence is a
+#: copy that can drift from specs/honesty.md while `test_honesty.py` (which
+#: only diffs `findplus.honesty`) keeps passing. Every surface reads
+#: honesty.py — PROMPT.md §6.
+FIND_HUB_NOTICE = honesty.FIND_HUB
 
 SESSION_COOKIE = "findplus_session"
 

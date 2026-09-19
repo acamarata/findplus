@@ -14,12 +14,41 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import desc, func, select, text
-from sqlalchemy.exc import OperationalError
+from sqlalchemy import desc, func, select
 
 from findplus.db.models import LocationObservation, PollRun
-from findplus.state import get_setting, get_tracked_devices
 from findplus.timeline import day_bounds_utc, observation_count_between
+
+# Re-exported so the routers keep their single `from ._helpers import ...`
+# line. `_iso_z` moved to _time.py and the widget block to _widget.py when
+# this module outgrew the 300-line file cap (PRI hard rule 7).
+from ._time import _iso_z
+from ._widget import (
+    WIDGET_STALE_AFTER_MINUTES,
+    _group_rows,
+    _widget_devices,
+    _widget_show_map,
+    _widget_state,
+)
+
+__all__ = [
+    "WIDGET_STALE_AFTER_MINUTES",
+    "_alerts_configured",
+    "_consecutive_failures",
+    "_device_summary",
+    "_group_rows",
+    "_iso_z",
+    "_newest",
+    "_parse_day",
+    "_poller_appears_live",
+    "_provider_health",
+    "_resolve_range",
+    "_serialize_latest",
+    "_serialize_run",
+    "_widget_devices",
+    "_widget_show_map",
+    "_widget_state",
+]
 
 
 def _device_summary(session, device, zone, now, settings) -> dict[str, Any]:
@@ -140,17 +169,6 @@ def _poller_appears_live(last_run, settings) -> bool:
     return (datetime.now(UTC) - last_run.started_at).total_seconds() < window
 
 
-def _iso_z(dt: datetime | None) -> str | None:
-    """UTC instant with a literal Z suffix.
-
-    Built with strftime, never by concatenating "Z" onto an already
-    offset-suffixed `isoformat()` string (that doubles up as "+00:00Z").
-    """
-    if dt is None:
-        return None
-    return dt.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
 def _consecutive_failures(session, limit: int = 50) -> int:
     """Trailing PollRuns with a non-ok status, newest first, stopping at the first ok."""
     runs = session.scalars(select(PollRun).order_by(desc(PollRun.started_at)).limit(limit))
@@ -195,134 +213,3 @@ def _alerts_configured(settings) -> bool:
     return bool(channels.get("telegram", {}).get("bot_token")) or bool(
         channels.get("webhook", {}).get("url")
     )
-
-
-def _place_by_device(session) -> dict[str, str]:
-    """Lowest-`place_id` 'inside' place name per device; `{}` before places exist."""
-    from findplus.places.repo import current_presence
-
-    try:
-        rows = current_presence(session)
-    except OperationalError:
-        return {}
-    inside = sorted((r for r in rows if r["state"] == "inside"), key=lambda r: r["place_id"])
-    out: dict[str, str] = {}
-    for row in inside:
-        out.setdefault(row["device_id"], row["place_name"])
-    return out
-
-
-def _group_by_device(session) -> dict[str, str]:
-    """Lowest-`group_id` member group name per device; `{}` before groups exist.
-
-    Raw SQL against the pinned migration-0005 schema (data-model.md), not an
-    ORM import: the groups package (E5) is landing concurrently with this
-    ticket and had not defined its ORM class names yet when this was written.
-    """
-    try:
-        rows = session.execute(
-            text(
-                "SELECT dg.device_id AS device_id, g.name AS name "
-                "FROM device_group dg JOIN groups g ON g.id = dg.group_id "
-                "ORDER BY g.id"
-            )
-        ).all()
-    except OperationalError:
-        return {}
-    out: dict[str, str] = {}
-    for row in rows:
-        out.setdefault(row.device_id, row.name)
-    return out
-
-
-def _group_rows(session) -> list[dict[str, Any]]:
-    """`[{id, name, verdict, note}]` for every group; `[]` before groups exist.
-
-    Real presence verdicts come from groups/presence.py (E5) behind
-    `GET /api/groups/{id}/presence`; this widget feed reports the honest,
-    non-committal "unknown" rather than duplicating that engine here.
-    """
-    try:
-        rows = session.execute(text("SELECT id, name FROM groups ORDER BY id")).all()
-    except OperationalError:
-        return []
-    return [
-        {"id": row.id, "name": row.name, "verdict": "unknown", "note": "Not yet evaluated."}
-        for row in rows
-    ]
-
-
-#: Widget staleness threshold in minutes (D18, the same number groups default to).
-#: Served as `stale_after_minutes` on GET /api/widget so the Swift views read one
-#: agreed figure instead of hardcoding a second, looser one of their own.
-WIDGET_STALE_AFTER_MINUTES = 90
-
-
-def _widget_devices(
-    session, now: datetime, stale_after_minutes: int = WIDGET_STALE_AFTER_MINUTES
-) -> list[dict[str, Any]]:
-    """One row per tracked device that has at least one fix.
-
-    A device whose newest fix is older than `stale_after_minutes` is served
-    with `place: null`. honesty.PRESENCE_STALE pins the rule and
-    groups/presence.py already applies it: a tag with no recent fix is stale,
-    not at a place, so its last known place must never be handed to a caller
-    as if the tag were still there.
-    """
-    places = _place_by_device(session)
-    device_groups = _group_by_device(session)
-    out: list[dict[str, Any]] = []
-    for device in get_tracked_devices(session):
-        latest = session.scalar(
-            select(LocationObservation)
-            .where(LocationObservation.device_id == device.device_id)
-            .order_by(desc(LocationObservation.observed_at))
-            .limit(1)
-        )
-        if latest is None:
-            continue
-        age_minutes = int((now - latest.observed_at).total_seconds() // 60)
-        stale = age_minutes > stale_after_minutes
-        out.append(
-            {
-                "device_id": device.device_id,
-                "name": device.name,
-                "provider": device.provider,
-                "last_observed_at": _iso_z(latest.observed_at),
-                "age_minutes": age_minutes,
-                "latitude": latest.latitude,
-                "longitude": latest.longitude,
-                "place": None if stale else places.get(device.device_id),
-                "group": device_groups.get(device.device_id),
-            }
-        )
-    return out
-
-
-def _widget_show_map(session, settings) -> bool:
-    """Whether the widget should render a map snapshot.
-
-    Per specs/data-model.md: the settings-table key `widget.show_map` wins
-    when a row exists (set from the UI); otherwise fall back to the config
-    field `Settings.widget_show_map` (env `FINDPLUS_WIDGET_SHOW_MAP`).
-    """
-    row_value = get_setting(session, "widget.show_map")
-    if row_value is not None:
-        return row_value == "1"
-    return settings.widget_show_map
-
-
-def _widget_state(
-    last_error_type: str | None,
-    consecutive_failures: int,
-    last_poll_at: datetime | None,
-    poll_interval_seconds: float,
-) -> str:
-    """Exactly `ok`|`stale`|`error` — `down` is rendered client-side, never here."""
-    if last_error_type in {"auth", "decrypt"} or consecutive_failures >= 3:
-        return "error"
-    if last_poll_at is not None:
-        stale_after = 2 * poll_interval_seconds
-        if (datetime.now(UTC) - last_poll_at).total_seconds() > stale_after:
-            return "stale"
-    return "ok"

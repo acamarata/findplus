@@ -46,7 +46,7 @@ def test_widget_hides_the_place_of_a_stale_device(session, monkeypatch) -> None:
     The last known place must not be served as if the tag were still there, so
     a device past `stale_after_minutes` comes back with `place: null`.
     """
-    from findplus.api import _helpers
+    from findplus.api import _widget
     from findplus.ingest import ingest_observations
     from findplus.state import track_all
     from tests.conftest import make_observation
@@ -54,13 +54,13 @@ def test_widget_hides_the_place_of_a_stale_device(session, monkeypatch) -> None:
     observed = datetime(2026, 9, 18, 12, 0, tzinfo=UTC)
     ingest_observations(session, [make_observation(observed_at=observed)])
     track_all(session)
-    monkeypatch.setattr(_helpers, "_place_by_device", lambda s: {"TAG-001": "Home"})
+    monkeypatch.setattr(_widget, "_place_by_device", lambda s: {"TAG-001": "Home"})
 
-    fresh = _helpers._widget_devices(session, observed + timedelta(minutes=90), 90)
+    fresh = _widget._widget_devices(session, observed + timedelta(minutes=90), 90)
     assert fresh[0]["age_minutes"] == 90
     assert fresh[0]["place"] == "Home"
 
-    stale = _helpers._widget_devices(session, observed + timedelta(minutes=91), 90)
+    stale = _widget._widget_devices(session, observed + timedelta(minutes=91), 90)
     assert stale[0]["age_minutes"] == 91
     assert stale[0]["place"] is None
     # Everything else still reports honestly: the tag is known, just not placed.
@@ -150,3 +150,36 @@ def test_widget_state_never_returns_down() -> None:
     for error_type in (None, "auth", "decrypt", "network", "down"):
         for failures in (0, 3, 99):
             assert _widget_state(error_type, failures, None, 300) in {"ok", "stale", "error"}
+
+
+@pytest.mark.parametrize("error_type", ["AuthRequiredError", "DecryptionError", "unauthenticated"])
+def test_widget_state_flags_the_error_types_the_poller_really_writes(error_type) -> None:
+    """The widget must show `error` on the FIRST auth/decrypt failure.
+
+    api-contract.md spells the trigger set `{auth, decrypt}`, but poller.py has
+    never stored those two words — it stores the exception class name or the
+    provider's verdict. Matching the spec's words alone meant a revoked Google
+    session (the one failure a user must act on) read `ok` or `stale` until
+    `consecutive_failures >= 3` finally fired, three poll cycles later.
+    """
+    assert _widget_state(error_type, 0, datetime.now(UTC), 5 * 60) == "error"
+
+
+def test_error_state_types_covers_every_auth_or_decrypt_error_the_poller_stores() -> None:
+    """Guard the coupling: poller.py is the only writer of `PollRun.error_type`.
+
+    If a new auth/decrypt failure path adds another literal there, this test
+    fails and ERROR_STATE_TYPES has to be widened with it, instead of the
+    widget silently under-reporting again.
+    """
+    import re
+    from pathlib import Path
+
+    from findplus import poller
+    from findplus.api._widget import ERROR_STATE_TYPES
+
+    source = Path(poller.__file__).read_text(encoding="utf-8")
+    literals = set(re.findall(r'error_type="([A-Za-z_]+)"', source))
+    auth_or_decrypt = {name for name in literals if re.search(r"auth|decrypt", name, re.I)}
+    assert auth_or_decrypt, "poller.py stores no auth/decrypt error_type literal any more"
+    assert auth_or_decrypt <= ERROR_STATE_TYPES, sorted(auth_or_decrypt - ERROR_STATE_TYPES)

@@ -21,11 +21,13 @@ from findplus.appsettings import (
     save_theme,
     set_lock_enabled,
 )
+from findplus.config import get_settings
 from findplus.db.session import session_scope
 from findplus.logging_setup import get_logger
 from findplus.security import SessionStore, hash_pin, verify_pin
 from findplus.state import get_setting, set_setting
 
+from ._widget import _widget_show_map
 from .middleware import same_origin_problem
 
 log = get_logger(__name__)
@@ -176,9 +178,16 @@ def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeo
 
     @router.get("/widget.show_map")
     def get_widget_show_map() -> dict[str, Any]:
+        """The effective value, resolved exactly as `GET /api/widget` resolves it.
+
+        Reading the settings row alone and defaulting to "0" made the Alerts-tab
+        checkbox disagree with the widget whenever the row did not exist yet and
+        `FINDPLUS_WIDGET_SHOW_MAP=1` was set: the box read off while the widget
+        drew the map. `_widget_show_map` is the one resolver (row wins, config
+        is the fallback), so both surfaces now answer the same question.
+        """
         with session_scope() as session:
-            value = get_setting(session, "widget.show_map", "0")
-        return {"widget.show_map": value == "1"}
+            return {"widget.show_map": _widget_show_map(session, get_settings())}
 
     @router.put("/widget.show_map")
     @router.post("/widget.show_map")
@@ -189,7 +198,7 @@ def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeo
         dashboard's Alerts-tab checkbox (web/app/alerts.js) writes this; the
         settings-table row it sets is the same one `GET /api/widget` and
         `findplus widget show-map` read (see `_widget_show_map` in
-        api/_helpers.py — a table row always wins over the config env var).
+        api/_widget.py — a table row always wins over the config env var).
         """
         with session_scope() as session:
             set_setting(session, "widget.show_map", "1" if value else "0")

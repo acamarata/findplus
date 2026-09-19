@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 import pytest
 from fastapi.testclient import TestClient
 
+from findplus import honesty
 from findplus.appsettings import load_settings
 from findplus.db.session import session_scope
 from findplus.ingest import ingest_observations, upsert_device
@@ -284,7 +285,9 @@ def test_lock_cannot_be_enabled_without_a_pin(client: TestClient) -> None:
 def test_requirements_endpoint_states_the_caveat_honestly(client: TestClient) -> None:
     body = client.get("/api/lock/requirements").json()
     assert body["min_pin_length"] == 6
-    assert "does NOT encrypt" in body["caveat"] or "NOT encrypt" in body["caveat"]
+    # The verbatim specs/honesty.md sentence — the route used to serve its own
+    # paraphrase, which the Settings dialog showed beside the canonical one.
+    assert body["caveat"] == honesty.LOCK_NOT_ENCRYPTION
 
 
 # ----------------------------------------------------------------- settings

@@ -61,3 +61,45 @@ def test_notices_dict_matches_named_constants() -> None:
         "lock_not_encryption": honesty.LOCK_NOT_ENCRYPTION,
         "not_affiliated": honesty.NOT_AFFILIATED,
     }
+
+
+def test_no_module_re_types_an_honesty_sentence() -> None:
+    """Every surface must reference honesty.py, never carry its own copy.
+
+    `api/__init__.py` held a second, hand-typed literal of the Find Hub
+    paragraph that `/api/health`, `/api/config` and `/api/status` served. It
+    happened to match, but nothing compared the two: an edit to
+    specs/honesty.md would have updated honesty.py (which
+    test_every_constant_matches_the_spec_verbatim checks) and left three API
+    surfaces quietly serving the old wording. This asserts the alias, and
+    catches any new copy pasted into cli/src.
+    """
+    import re
+    from pathlib import Path
+
+    from findplus.api import FIND_HUB_NOTICE
+
+    assert FIND_HUB_NOTICE is honesty.FIND_HUB
+
+    # The distinctive tail of each sentence, so a copy anywhere in cli/src is found.
+    fingerprints = {
+        "find_hub": "child-safety GPS tracking",
+        "apple": "which most users cannot do",
+        "lock_not_encryption": "Use FileVault",
+        "presence_stale": "reports it as unknown",
+        "not_affiliated": "are their trademarks",
+    }
+    src = Path(honesty.__file__).parent
+    allowed = {src / "honesty.py"}
+    offenders: list[str] = []
+    for path in src.rglob("*.py"):
+        if path in allowed or "_vendor" in path.parts or "vendor" in path.parts:
+            continue
+        body = path.read_text(encoding="utf-8")
+        # Strip docstrings/comments: prose ABOUT a rule is not a second copy of it.
+        code = re.sub(r'""".*?"""', "", body, flags=re.S)
+        code = "\n".join(line.split("#", 1)[0] for line in code.splitlines())
+        for key, tail in fingerprints.items():
+            if tail in code:
+                offenders.append(f"{path.relative_to(src)}: {key}")
+    assert not offenders, f"honesty sentence re-typed instead of imported: {offenders}"

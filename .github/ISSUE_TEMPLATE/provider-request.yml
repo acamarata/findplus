@@ -1,0 +1,40 @@
+name: Provider request
+description: Request support for a new tracker provider
+labels: ["provider"]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Provider name
+    validations:
+      required: true
+  - type: input
+    id: manufacturer
+    attributes:
+      label: Manufacturer
+    validations:
+      required: true
+  - type: dropdown
+    id: protocol
+    attributes:
+      label: Protocol
+      options:
+        - Bluetooth LE
+        - UWB
+        - GPS
+        - Unknown/Other
+    validations:
+      required: true
+  - type: textarea
+    id: tools
+    attributes:
+      label: Open-source tools available
+      description: Links to any existing reverse-engineering or client libraries.
+    validations:
+      required: false
+  - type: textarea
+    id: why
+    attributes:
+      label: Why Find+ should support it
+    validations:
+      required: true

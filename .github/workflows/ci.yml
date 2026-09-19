@@ -1,0 +1,158 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install '.[dev]'
+        working-directory: cli
+      - run: ruff check cli/src cli/tests
+      - run: ruff format --check cli/src cli/tests
+      - run: find web -name '*.js' -exec node --check {} +
+      - run: shellcheck install.sh
+      - run: bash packaging/scripts/lint-prose.sh README.md .github/wiki/*.md
+
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.12", "3.13"]
+        include:
+          - os: ubuntu-latest
+            python-version: "3.14"
+            experimental: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install '.[dev]'
+        working-directory: cli
+        continue-on-error: ${{ matrix.experimental == true }}
+      - run: python -m pytest cli/tests -q -m "not browser and not slow"
+        continue-on-error: ${{ matrix.experimental == true }}
+
+  test-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install '.[dev]'
+        working-directory: cli
+      - run: python -m pytest cli/tests -q -m "not browser and not slow"
+
+  browser:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install '.[dev]'
+        working-directory: cli
+      - run: playwright install chrome
+      - run: python -m pytest cli/tests -q -m browser
+
+  wheel-smoke:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install build
+      - run: python -m build --wheel
+        working-directory: cli
+      - run: pip install cli/dist/*.whl
+      - run: findplus --version
+
+  sidecar-smoke:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install '.[dev,bundle]'
+        working-directory: cli
+      - run: pyinstaller packaging/pyinstaller/findplus-daemon.spec --noconfirm
+      - run: dist/findplus-daemon/findplus-daemon --version
+      - run: |
+          trap 'kill %1 2>/dev/null || true' EXIT
+          dist/findplus-daemon/findplus-daemon serve --no-poller --port 18647 &
+          sleep 3
+          curl -sf http://127.0.0.1:18647/api/health
+
+  desktop:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo clippy --manifest-path desktop/src-tauri/Cargo.toml -- -D warnings
+      - run: cargo test --manifest-path desktop/src-tauri/Cargo.toml
+      - run: xcodebuild -scheme FindPlusWidgetExtension -destination "generic/platform=macOS" build CODE_SIGNING_ALLOWED=NO
+        working-directory: desktop/widget
+
+  docs-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install '.[dev]'
+        working-directory: cli
+      - run: |
+          python packaging/scripts/gen-cli-docs.py
+          git diff --exit-code .github/wiki/CLI-reference.md || (echo 'CLI-reference.md is stale' && exit 1)
+      - run: |
+          python packaging/scripts/gen-api-docs.py
+          git diff --exit-code .github/wiki/API-reference.md || (echo 'API-reference.md is stale' && exit 1)
+      - run: bash packaging/scripts/lint-prose.sh README.md
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install '.[dev]'
+        working-directory: cli
+      - run: python -m pytest cli/tests -q --cov=findplus --cov-report=lcov:coverage/lcov.info --cov-report=term
+      - run: coverage report --fail-under=95 --include='cli/src/findplus/places/geofence.py,cli/src/findplus/groups/presence.py,cli/src/findplus/groups/quorum.py,cli/src/findplus/alerts/dispatch.py'
+      - uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
+  ci-gate:
+    needs: [lint, test, test-windows, browser, wheel-smoke, sidecar-smoke, desktop, docs-drift, coverage]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          set -eu
+          for r in ${{ join(needs.*.result, ' ') }}; do
+            if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then
+              echo "ci-gate: a required lane did not succeed ($r)"; exit 1
+            fi
+          done
+          echo "ci-gate: all lanes green"

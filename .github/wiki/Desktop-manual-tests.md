@@ -1,7 +1,7 @@
 # Desktop manual test checklist
 
 These five edge cases (PLAN.md § E13-T8) need a real signed or locally-built
-`Find+.app` and a real macOS session — they are not exercised by `cargo
+`Find+.app` and a real macOS session. They are not exercised by `cargo
 test` (which covers the pure `decide()`/`from_api()` branching instead).
 
 - [ ] CLI daemon on port 8647 → tray shows a "CLI daemon v&lt;old&gt;" warning

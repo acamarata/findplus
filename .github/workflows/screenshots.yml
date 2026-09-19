@@ -1,0 +1,33 @@
+name: Regenerate Screenshots
+
+on: {workflow_dispatch: {}}
+
+jobs:
+  screenshots:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install .[dev] && playwright install chrome
+        working-directory: cli
+      - run: |
+          .venv/bin/python -m findplus serve --no-poller --port 8647 --foreground &
+          DAEMON_PID=$!
+          trap 'kill $DAEMON_PID 2>/dev/null || true' EXIT
+          sleep 4
+          curl -sf http://127.0.0.1:8647/api/health
+      - run: python packaging/scripts/screenshots.py
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          BRANCH="screenshots/$(date +%Y%m%d-%H%M%S)"
+          git checkout -b "$BRANCH"
+          git add .github/docs/screenshots/
+          git diff --cached --quiet && echo 'No changes' && exit 0
+          git commit -m "screenshots: regenerate $(date +%Y-%m-%d)"
+          git push origin "$BRANCH"
+          gh pr create --title "screenshots: regenerate $(date +%Y-%m-%d)" --body "Automated screenshot regeneration. Review and merge if the UI changes are expected." --base main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

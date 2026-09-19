@@ -21,7 +21,7 @@ Overall health plus a per-device summary.
 | timezone | query | False | string |
 
 ### GET /api/version
-Public — feeds the lock sweep and `findplus version --check`.
+Public: feeds the lock sweep and `findplus version --check`.
 
 ### GET /api/widget
 Compact, lock-aware feed for the Tauri menu-bar widget (E16).
@@ -68,12 +68,51 @@ Exchange a correct PIN for a session cookie. Rate-limited.
 ### DELETE /api/settings/pin
 Remove the PIN and disable the lock. Requires the current PIN.
 
-| name | in | required | type |
-|---|---|---|---|
-| current_pin | query | True | string |
+**Request body:**
+```json
+{
+  "properties": {
+    "current_pin": {
+      "type": "string",
+      "title": "Current Pin"
+    }
+  },
+  "type": "object",
+  "required": [
+    "current_pin"
+  ],
+  "title": "Body_remove_pin_api_settings_pin_delete"
+}
+```
 
 ### GET /api/settings
 Read Settings
+
+### GET /api/settings/app.start_at_login
+Get Start At Login
+
+### GET /api/settings/widget.show_map
+Get Widget Show Map
+
+### POST /api/settings/app.start_at_login
+Toggle the desktop app's LaunchAgent via the shared service code.
+
+**Request body:**
+```json
+{
+  "properties": {
+    "value": {
+      "type": "boolean",
+      "title": "Value"
+    }
+  },
+  "type": "object",
+  "required": [
+    "value"
+  ],
+  "title": "Body_set_start_at_login_api_settings_app_start_at_login_post"
+}
+```
 
 ### POST /api/settings/pin
 Set or change the PIN. Changing it requires the existing one.
@@ -103,6 +142,26 @@ Set or change the PIN. Changing it requires the existing one.
     "new_pin"
   ],
   "title": "Body_set_pin_api_settings_pin_post"
+}
+```
+
+### POST /api/settings/widget.show_map
+Persist whether the widget renders a map snapshot.
+
+**Request body:**
+```json
+{
+  "properties": {
+    "value": {
+      "type": "boolean",
+      "title": "Value"
+    }
+  },
+  "type": "object",
+  "required": [
+    "value"
+  ],
+  "title": "Body_set_widget_show_map_api_settings_widget_show_map_post"
 }
 ```
 
@@ -149,6 +208,26 @@ Write Settings
   },
   "type": "object",
   "title": "Body_write_settings_api_settings_put"
+}
+```
+
+### PUT /api/settings/widget.show_map
+Persist whether the widget renders a map snapshot.
+
+**Request body:**
+```json
+{
+  "properties": {
+    "value": {
+      "type": "boolean",
+      "title": "Value"
+    }
+  },
+  "type": "object",
+  "required": [
+    "value"
+  ],
+  "title": "Body_set_widget_show_map_api_settings_widget_show_map_put"
 }
 ```
 
@@ -780,10 +859,16 @@ Post Rule
     },
     "channel": {
       "type": "string",
+      "enum": [
+        "telegram",
+        "webhook"
+      ],
       "title": "Channel"
     },
     "cooldown_minutes": {
       "type": "integer",
+      "maximum": 1440.0,
+      "minimum": 0.0,
       "title": "Cooldown Minutes",
       "default": 30
     },
@@ -951,7 +1036,11 @@ Put Rule
     "channel": {
       "anyOf": [
         {
-          "type": "string"
+          "type": "string",
+          "enum": [
+            "telegram",
+            "webhook"
+          ]
         },
         {
           "type": "null"
@@ -962,7 +1051,9 @@ Put Rule
     "cooldown_minutes": {
       "anyOf": [
         {
-          "type": "integer"
+          "type": "integer",
+          "maximum": 1440.0,
+          "minimum": 0.0
         },
         {
           "type": "null"

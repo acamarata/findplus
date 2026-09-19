@@ -38,7 +38,7 @@ sends the alert as soon as the fix arrives; the delay is in the network, not in 
 1. In Telegram, message [@BotFather](https://t.me/BotFather), send `/newbot`, and follow the
    prompts to get a bot token.
 2. Open the dashboard's Alerts tab, paste the token into **Bot token**, and click **Connect**.
-3. Send any message to your new bot within 120 seconds — the dashboard waits for it and
+3. Send any message to your new bot within 120 seconds. The dashboard waits for it and
    confirms the chat once it arrives.
 4. Click **Send test** to confirm delivery. The bot token is never shown again in full: the
    field only ever displays its last four characters.

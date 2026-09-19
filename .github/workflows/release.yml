@@ -1,0 +1,183 @@
+name: Release
+
+on: {push: {tags: ["v*"]}}
+
+jobs:
+  build-python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install build
+      - run: python -m build --outdir dist cli
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-dist
+          path: dist/
+
+  publish-pypi:
+    needs: build-python
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    continue-on-error: true
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-dist
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  build-dmg:
+    needs: build-python
+    runs-on: macos-latest
+    env:
+      APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_API_KEY_P8_BASE64: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
+      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-dist
+          path: dist
+      - run: pip install '.[dev,bundle]'
+        working-directory: cli
+      - run: pyinstaller packaging/pyinstaller/findplus-daemon.spec --noconfirm
+      - name: Sign sidecar
+        if: env.APPLE_CERTIFICATE_P12_BASE64 != ''
+        run: |
+          echo "$APPLE_CERTIFICATE_P12_BASE64" | base64 -d > /tmp/cert.p12
+          security import /tmp/cert.p12 -P "$APPLE_CERTIFICATE_PASSWORD" -A
+          bash packaging/scripts/sign-sidecar.sh
+      - run: |
+          cd desktop/src-tauri
+          cargo tauri build --target aarch64-apple-darwin
+      - name: Build widget (signed path only)
+        if: env.APPLE_SIGNING_IDENTITY != ''
+        run: |
+          xcodebuild -project desktop/widget/FindPlusWidget.xcodeproj \
+            -scheme FindPlusWidgetExtension -configuration Release -arch arm64 build \
+            -derivedDataPath desktop/widget/build ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO
+      - name: Embed widget, sign, notarise, rebuild dmg
+        if: env.APPLE_SIGNING_IDENTITY != ''
+        run: |
+          APP_PATH="desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Find+.app"
+          if [ -n "$APPLE_API_KEY_P8_BASE64" ]; then
+            echo "$APPLE_API_KEY_P8_BASE64" | base64 -d > /tmp/api-key.p8
+            export APPLE_API_KEY=/tmp/api-key.p8
+            export APPLE_API_ISSUER="$APPLE_API_ISSUER_ID"
+          fi
+          APP_PATH="$APP_PATH" bash packaging/scripts/embed-widget.sh
+      - name: Rename dmg (unsigned path, no widget)
+        if: env.APPLE_SIGNING_IDENTITY == ''
+        run: |
+          mkdir -p dist
+          DMG=$(find desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg -name 'Find+_*.dmg' | head -1)
+          cp "$DMG" "dist/FindPlus-unsigned.dmg"
+      - name: Finalise artefact
+        run: |
+          VERSION=$(git describe --tags --abbrev=0 | sed 's/^v//')
+          SUFFIX=""
+          if [ -z "$APPLE_SIGNING_IDENTITY" ]; then SUFFIX="-UNSIGNED"; fi
+          DMG=$(find dist -maxdepth 1 -name 'FindPlus-*.dmg' | head -1)
+          cp "$DMG" "FindPlus-${VERSION}-aarch64${SUFFIX}.dmg"
+          shasum -a 256 "FindPlus-${VERSION}-aarch64${SUFFIX}.dmg" > "FindPlus-${VERSION}-aarch64${SUFFIX}.dmg.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: |
+            FindPlus-*.dmg
+            FindPlus-*.dmg.sha256
+
+  github-release:
+    needs: [build-python, publish-pypi, build-dmg]
+    if: always() && needs.build-python.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for an existing published release
+        id: existing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          IS_DRAFT=$(gh release view "$GITHUB_REF_NAME" --json isDraft -q .isDraft 2>/dev/null || echo "absent")
+          if [ "$IS_DRAFT" = "false" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/download-artifact@v4
+        if: steps.existing.outputs.skip != 'true'
+        with:
+          name: python-dist
+          path: dist
+      - uses: actions/download-artifact@v4
+        if: steps.existing.outputs.skip != 'true'
+        with:
+          name: macos-dmg
+          path: .
+        continue-on-error: true
+      - name: Extract CHANGELOG section
+        id: notes
+        if: steps.existing.outputs.skip != 'true'
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          BODY=$(awk "/^## \[${TAG}\]/,/^## \[/" CHANGELOG.md | head -n -1)
+          if [ -z "$BODY" ]; then BODY="See CHANGELOG.md"; fi
+          {
+            echo "body<<EOF"
+            echo "$BODY"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - uses: softprops/action-gh-release@v2
+        if: steps.existing.outputs.skip != 'true'
+        with:
+          body: ${{ steps.notes.outputs.body }}
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+            install.sh
+            FindPlus-*.dmg
+            FindPlus-*.dmg.sha256
+          draft: true
+          fail_on_unmatched_files: false
+
+  update-tap:
+    needs: github-release
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-dist
+          path: dist
+      - run: bash packaging/scripts/gen-formula.sh dist/findplus-*.tar.gz
+      - uses: actions/checkout@v4
+        with:
+          repository: acamarata/homebrew-tap
+          token: ${{ secrets.TAP_PUSH_TOKEN }}
+          path: homebrew-tap
+      - run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          cp packaging/homebrew/findplus.rb homebrew-tap/Formula/findplus.rb
+          cd homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "release-${VERSION}"
+          git add Formula/findplus.rb
+          git commit -m "findplus ${VERSION}"
+          git push origin "release-${VERSION}"
+          gh pr create --title "findplus ${VERSION}" --body "Automated release PR" --base main
+        env:
+          GH_TOKEN: ${{ secrets.TAP_PUSH_TOKEN }}

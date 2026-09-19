@@ -109,7 +109,7 @@ def build_router(*, settings, static_dir: Path, find_hub_notice: str) -> APIRout
 
     @router.get("/api/version")
     def version() -> dict[str, Any]:
-        """Public — feeds the lock sweep and `findplus version --check`."""
+        """Public: feeds the lock sweep and `findplus version --check`."""
         apple_installed = importlib.util.find_spec("findmy") is not None
         return {
             "version": __version__,

@@ -22,6 +22,7 @@ def test_help_exits_zero():
 #: Every command the pre-split cli.py registered on the group, by its click name.
 #: The pre-split module had 16; a split that quietly loses one must fail here.
 EXPECTED_COMMANDS = {
+    "apple",
     "auth",
     "config",
     "db",

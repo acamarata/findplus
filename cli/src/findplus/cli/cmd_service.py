@@ -37,13 +37,19 @@ from .cmd_serve import serve as serve
 @click.command()
 @click.option(
     "--provider",
+    type=click.Choice(["google-find-hub", "apple-find-my"]),
     default="google-find-hub",
     help="Provider to authenticate: google-find-hub or apple-find-my",
 )
 def auth(provider: str) -> None:
-    """Sign in to Google with Chrome and store the session tokens."""
+    """Sign in to a provider (Google via Chrome, or Apple interactively)."""
     _prep()
     settings = get_settings()
+
+    if provider == "apple-find-my":
+        _auth_apple(settings)
+        return
+
     from findplus.providers.base import get_provider
 
     click.echo("")
@@ -77,6 +83,44 @@ def auth(provider: str) -> None:
     click.secho(f"\nAuthenticated as {email}.", fg="green")
     click.echo(f"Credentials stored at {settings.secrets_file}")
     click.echo("Next: findplus devices")
+
+
+def _auth_apple(settings) -> None:
+    """The apple-find-my branch of `auth`: availability guard, then interactive sign-in.
+
+    Split out of `auth()` because the Google flow's Chrome-specific messaging
+    does not apply here; `auth --provider apple-find-my` still shares the same
+    command and the same --provider option (specs/cli-reference.md § auth).
+    """
+    from findplus.providers.apple_findmy import is_available
+
+    avail, hint = is_available()
+    if not avail:
+        click.echo(f"Apple provider not installed. {hint}", err=True)
+        sys.exit(1)
+
+    from findplus.providers.apple_findmy.auth import sign_in_interactive
+
+    click.echo("")
+    click.secho("Apple Find My sign-in", bold=True)
+    click.echo(
+        "You will be prompted for your Apple ID and password, then a 2FA code\n"
+        "(trusted device or SMS). Apple's own 2FA runs unmodified.\n"
+    )
+    click.echo("What gets stored, and where:")
+    click.echo(f"  {settings.state_dir / 'apple-account.json'}  (mode 0600)")
+    click.echo("  It contains an opaque, signed-in session token. Your Apple")
+    click.echo("  PASSWORD is never seen, stored, or transmitted by this app beyond")
+    click.echo("  the login call itself.\n")
+
+    try:
+        sign_in_interactive(settings)
+    except Exception as exc:
+        click.secho(f"\nAuthentication failed: {exc}", fg="red")
+        sys.exit(1)
+
+    click.secho("\nApple Find My authentication saved.", fg="green")
+    click.echo("Next: findplus apple add-accessory")
 
 
 @click.command()

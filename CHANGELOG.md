@@ -15,3 +15,6 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - E2: wheel-install smoke test proves the packaging foundation end-to-end
 - E7: user-level service management (install/start/stop/status/uninstall, watchdog, SIGTERM handling)
 - E3: provider abstraction (LocationProvider protocol, registry, devices.provider column)
+- E11: Apple Find My provider as an optional extra (`pip install 'findplus[apple]'`).
+  Register accessories via `findplus apple add-accessory`; authenticate via
+  `findplus auth --provider apple-find-my`; polls alongside Find Hub automatically.

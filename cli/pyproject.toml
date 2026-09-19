@@ -71,6 +71,8 @@ findplus = "findplus.cli.main:main"
 [project.entry-points."findplus.providers"]
 # registered by E3-T2
 google-find-hub = "findplus.providers.google_findhub.provider:GoogleFindHubProvider"
+# registered by E11-T4
+apple-find-my = "findplus.providers.apple_findmy.provider:AppleFindMyProvider"
 
 [build-system]
 requires = ["hatchling"]

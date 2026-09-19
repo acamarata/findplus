@@ -79,6 +79,13 @@ class Settings(BaseSettings):
     log_max_bytes: int = 5_000_000
     log_backup_count: int = 5
 
+    # --- Apple Find My provider ---------------------------------------------
+    apple_anisette_url: str | None = Field(
+        default=None,
+        description="Remote anisette-server URL. Unset uses FindMy.py's "
+        "LocalAnisetteProvider (a local anisette daemon) instead.",
+    )
+
     @field_validator("poll_interval_minutes")
     @classmethod
     def _floor_poll_interval(cls, v: float) -> float:

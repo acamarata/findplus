@@ -43,6 +43,8 @@ python3.12 -m venv .venv
 The vendored `vendor/GoogleFindMyTools/` directory is required. If it is missing,
 run `findplus doctor` for repair instructions.
 
+Apple Find My support is an optional extra: `./.venv/bin/pip install -e ".[apple]"`.
+
 ## First run
 
 ```bash
@@ -107,6 +109,23 @@ so **any Chrome windows you have open will be closed** during sign-in. The `auth
 command tells you this before it starts.
 
 If the session expires, re-run `findplus auth`.
+
+## Apple Find My
+
+Apple Find My locations come from nearby Apple devices and can be delayed,
+sparse or unavailable. Find+ can only query accessories whose keys you hold;
+genuine AirTags require extracting pairing keys, which most users cannot do.
+
+Find+ is not affiliated with Apple or Google. Find Hub and Find My are their
+trademarks.
+
+Install the extra, register an accessory, then authenticate:
+
+```bash
+./.venv/bin/pip install -e ".[apple]"
+./.venv/bin/findplus apple add-accessory "Wallet Tag" --private-key <base64>
+./.venv/bin/findplus auth --provider apple-find-my
+```
 
 ## Configuration
 

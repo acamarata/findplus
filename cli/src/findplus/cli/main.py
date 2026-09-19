@@ -17,7 +17,7 @@ import click
 
 from findplus import __version__
 
-from . import cmd_config, cmd_db, cmd_devices, cmd_diagnostics, cmd_history, cmd_service
+from . import cmd_apple, cmd_config, cmd_db, cmd_devices, cmd_diagnostics, cmd_history, cmd_service
 from .doctor import doctor_cmd
 from .providers import providers_cmd
 
@@ -56,6 +56,8 @@ main.add_command(cmd_config.config_cmd)
 main.add_command(cmd_db.db_cmd)
 
 main.add_command(providers_cmd, name="providers")
+
+main.add_command(cmd_apple.apple_group, name="apple")
 
 
 if __name__ == "__main__":

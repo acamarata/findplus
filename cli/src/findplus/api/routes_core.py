@@ -57,6 +57,20 @@ def build_router(*, settings, static_dir: Path, find_hub_notice: str) -> APIRout
             "ui_refresh_seconds": settings.ui_refresh_seconds,
             "timezone": str(tz()),
             "notice": find_hub_notice,
+            # Partial per specs/api-contract.md § /api/config: the remaining keys
+            # (find_hub, alerts_latency, presence_stale, lock_not_encryption) are
+            # added by later epics that own those honesty sentences (E8 W5+).
+            "notices": {
+                "apple": (
+                    "Apple Find My locations come from nearby Apple devices and can be delayed, "
+                    "sparse or unavailable. Find+ can only query accessories whose keys you hold; "
+                    "genuine AirTags require extracting pairing keys, which most users cannot do."
+                ),
+                "not_affiliated": (
+                    "Find+ is not affiliated with Apple or Google. "
+                    "Find Hub and Find My are their trademarks."
+                ),
+            },
             "auth": describe_stored_auth(),
         }
 

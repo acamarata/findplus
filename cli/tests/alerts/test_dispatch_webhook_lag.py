@@ -19,8 +19,7 @@ from unittest.mock import patch
 
 from findplus.alerts.dispatch import Rule, _send
 
-from .test_dispatch import NOW, _device_event
-from .test_dispatch_cooldown import _group_event
+from ._helpers import NOW, _device_event, _group_event
 
 
 def _webhook_configured():

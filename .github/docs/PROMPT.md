@@ -292,7 +292,7 @@ registry with an entry-point group `findplus.providers`, and migration `0003` ad
 `devices.provider`. The Google client moves to `providers/google_findhub/` unchanged.
 The Apple provider (`providers/apple_findmy/`) uses FindMy.py per D10/D11:
 `findplus auth --provider apple-find-my`, accessories registered from a pairing
-`.plist` or an OpenHaystack private key, `device_id = "apple:" + sha256(pubkey)[:24]`.
+`.plist` or an OpenHaystack private key, `device_id = "apple:" + sha256(raw private-key bytes).hexdigest()[:24]` (the private key is what both the .plist and the OpenHaystack export carry; hashing its raw bytes is stable across encodings).
 State the limits everywhere: keys you hold; DIY tags work well; real AirTags require
 extracting pairing keys, which most users cannot do; Apple may act against accounts
 used this way. Ship Google-only if Apple overruns its two-day budget, and say so.

@@ -74,7 +74,10 @@ def test_wheel_installs_and_migrates(tmp_path):
     assert r.returncode == 0, f"db upgrade failed: {r.stderr}\n{r.stdout}"
     assert (fake_home / ".findplus" / "findplus.sqlite").exists()
 
-    # findplus doctor (E7 adds checks; here we just confirm it exits 0 with paths under fake_home)
+    # findplus doctor: a fresh, unauthenticated, service-less install legitimately
+    # fails the provider/units/port checks (exit 1) — that is correct diagnostic
+    # behavior (P1-E7-W3-S1-T4), not a smoke-test failure. Confirm it ran to
+    # completion (didn't crash) and reported paths under fake_home.
     r = subprocess.run([str(findplus_bin), "doctor"], capture_output=True, text=True, env=env)
-    assert r.returncode == 0, f"doctor failed: {r.stderr}\n{r.stdout}"
+    assert r.returncode in (0, 1), f"doctor crashed: {r.stderr}\n{r.stdout}"
     assert str(fake_home) in r.stdout

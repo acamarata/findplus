@@ -13,3 +13,4 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - E2: daemon runtime file I/O; `/api/health` gains `app`/`version`/`pid`
 - E2: `findplus config get|set|unset|list|path` and `findplus db upgrade|current|path` added
 - E2: wheel-install smoke test proves the packaging foundation end-to-end
+- E7: user-level service management (install/start/stop/status/uninstall, watchdog, SIGTERM handling)

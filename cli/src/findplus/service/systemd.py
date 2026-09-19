@@ -9,6 +9,7 @@ Purpose    : Build the exact unit-file ServicePlan for each job, plus the
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 from findplus.config import PROJECT_ROOT, Settings
@@ -16,8 +17,10 @@ from findplus.config import PROJECT_ROOT, Settings
 from .plan import SYSTEMD_UNIT, WATCHDOG_INTERVAL_SECONDS, WATCHDOG_TIMER, ServicePlan, _python
 
 
-def plan_systemd(settings: Settings) -> ServicePlan:
+def plan_systemd(settings: Settings, *, program: str | None = None) -> ServicePlan:
     path = Path.home() / ".config" / "systemd" / "user" / SYSTEMD_UNIT
+    base = [program] if program else [_python(), "-m", "findplus.cli"]
+    exec_start = " ".join([*base, "serve", "--foreground"])
     text = f"""[Unit]
 Description=findplus — local Find Hub location history
 After=network-online.target
@@ -26,7 +29,7 @@ After=network-online.target
 Type=simple
 WorkingDirectory={PROJECT_ROOT}
 Environment=FINDPLUS_STATE_DIR={settings.state_dir}
-ExecStart={_python()} -m findplus.cli serve --foreground
+ExecStart={exec_start}
 Restart=on-failure
 RestartSec=30
 
@@ -43,7 +46,7 @@ WantedBy=default.target
     )
 
 
-def watchdog_plan_systemd(settings: Settings) -> ServicePlan:
+def watchdog_plan_systemd(settings: Settings, *, program: str | None = None) -> ServicePlan:
     path = Path.home() / ".config" / "systemd" / "user" / WATCHDOG_TIMER
     text = f"""[Unit]
 Description=findplus watchdog
@@ -65,13 +68,44 @@ WantedBy=timers.target
     )
 
 
-def watchdog_service_unit_text(settings: Settings) -> str:
+def watchdog_service_unit_text(settings: Settings, *, program: str | None = None) -> str:
     """The oneshot `findplus-watchdog.service` content the timer above triggers."""
+    base = [program] if program else [_python(), "-m", "findplus.cli"]
+    exec_start = " ".join([*base, "watchdog"])
     return f"""[Unit]
 Description=findplus watchdog check
 
 [Service]
 Type=oneshot
 Environment=FINDPLUS_STATE_DIR={settings.state_dir}
-ExecStart={_python()} -m findplus.cli watchdog
+ExecStart={exec_start}
 """
+
+
+def enable_now(unit: str) -> None:
+    """`systemctl --user enable --now <unit>`."""
+    subprocess.run(["systemctl", "--user", "enable", "--now", unit], check=False)
+
+
+def stop(unit: str) -> None:
+    """`systemctl --user stop <unit>`. Keeps the unit enabled."""
+    subprocess.run(["systemctl", "--user", "stop", unit], check=False)
+
+
+def disable(unit: str) -> None:
+    """`systemctl --user disable <unit>`."""
+    subprocess.run(["systemctl", "--user", "disable", unit], check=False)
+
+
+def is_active(unit: str) -> bool:
+    out = subprocess.run(
+        ["systemctl", "--user", "is-active", unit],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return out.stdout.strip() == "active"
+
+
+def daemon_reload() -> None:
+    subprocess.run(["systemctl", "--user", "daemon-reload"], check=False)

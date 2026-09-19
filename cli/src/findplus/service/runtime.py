@@ -24,28 +24,37 @@ from . import launchd, schtasks, systemd
 from .plan import LAUNCHD_LABEL, SYSTEMD_UNIT, ServicePlan, _uid, detect_manager
 
 
-def plan(settings: Settings | None = None) -> ServicePlan:
+def plan(settings: Settings | None = None, *, program: str | None = None) -> ServicePlan:
     """Describe the service that would be installed. Performs no changes."""
     settings = settings or get_settings()
     settings.ensure_dirs()
     manager = detect_manager()
 
     if manager == "launchd":
-        return launchd.plan_launchd(settings)
+        return launchd.plan_launchd(settings, program=program)
     if manager == "systemd":
-        return systemd.plan_systemd(settings)
+        return systemd.plan_systemd(settings, program=program)
     if manager == "schtasks":
-        return schtasks.plan_schtasks(settings)
+        return schtasks.plan_schtasks(settings, program=program)
     raise RuntimeError(f"Autostart is not supported on {platform.system()}.")
 
 
-def install(settings: Settings | None = None, *, confirmed: bool = False) -> ServicePlan:
+def install(
+    settings: Settings | None = None, *, confirmed: bool = False, program: str | None = None
+) -> ServicePlan:
     """Write and load the service. Refuses without explicit confirmation."""
-    p = plan(settings)
+    p = plan(settings, program=program)
     if not confirmed:
         raise PermissionError(
             "Refusing to install a background service without explicit confirmation."
         )
+    if p.manager.startswith("Task Scheduler"):
+        s = settings or get_settings()
+        s.ensure_state_dir()
+        p.unit_path.write_text(p.unit_text, encoding="utf-16")
+        schtasks.create(p)
+        return p
+
     p.unit_path.parent.mkdir(parents=True, exist_ok=True)
     p.unit_path.write_text(p.unit_text, encoding="utf-8")
 
@@ -58,8 +67,14 @@ def install(settings: Settings | None = None, *, confirmed: bool = False) -> Ser
 def uninstall(settings: Settings | None = None) -> ServicePlan:
     """Unload and remove the service unit."""
     p = plan(settings)
+    if p.manager.startswith("Task Scheduler"):
+        schtasks.delete(schtasks.TASK_NAME)
+        schtasks.delete(schtasks.WATCHDOG_TASK_NAME)
+        s = settings or get_settings()
+        s.task_xml_path.unlink(missing_ok=True)
+        return p
     subprocess.run(p.unload_command, check=False)
-    if p.unit_path.exists() and p.manager != "Task Scheduler (current user, at logon)":
+    if p.unit_path.exists():
         p.unit_path.unlink()
     return p
 
@@ -103,7 +118,13 @@ def restart_service() -> bool:
 
 
 def write_daemon_file(pid: int, port: int, host: str, version: str, argv: list[str]) -> None:
-    """Write daemon.json (0600) at Settings.daemon_file on serve start."""
+    """Write daemon.json (0600) at Settings.daemon_file on serve start.
+
+    Written atomically and with no umask window: the JSON is written to a
+    sibling temp file created with O_EXCL and mode 0600 from the first byte
+    (never briefly world/group-readable the way write-then-chmod would be),
+    then renamed into place with os.replace (atomic on POSIX and Windows).
+    """
     settings = get_settings()
     settings.ensure_state_dir()
     data = {
@@ -114,15 +135,24 @@ def write_daemon_file(pid: int, port: int, host: str, version: str, argv: list[s
         "started_at": datetime.now(tz=UTC).isoformat(),
         "argv": argv,
     }
-    p = settings.daemon_file
-    p.write_text(json.dumps(data))
-    p.chmod(0o600)
-
-
-def read_daemon_file() -> dict[str, Any] | None:
-    """Return daemon.json contents or None if absent or unreadable."""
+    target = settings.daemon_file
+    tmp = target.with_name(f".{target.name}.{os.getpid()}.tmp")
+    tmp.unlink(missing_ok=True)
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     try:
-        return json.loads(get_settings().daemon_file.read_text())
+        with os.fdopen(fd, "w") as f:
+            json.dump(data, f)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+    os.replace(tmp, target)
+
+
+def read_daemon_file(settings: Settings | None = None) -> dict[str, Any] | None:
+    """Return daemon.json contents or None if absent or unreadable."""
+    settings = settings or get_settings()
+    try:
+        return json.loads(settings.daemon_file.read_text())
     except (OSError, json.JSONDecodeError, UnicodeDecodeError):
         return None
 

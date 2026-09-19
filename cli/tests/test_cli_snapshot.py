@@ -34,11 +34,13 @@ EXPECTED_COMMANDS = {
     "poll-now",
     "prune",
     "reset-lock",
+    "restart",
     "serve",
     "start",
     "status",
     "stop",
     "theme",
+    "uninstall",
     "watchdog",
 }
 

@@ -18,6 +18,7 @@ import click
 from findplus import __version__
 
 from . import cmd_config, cmd_db, cmd_devices, cmd_diagnostics, cmd_history, cmd_service
+from .doctor import doctor_cmd
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -30,15 +31,19 @@ main.add_command(cmd_service.auth)
 main.add_command(cmd_service.serve)
 main.add_command(cmd_service.start)
 main.add_command(cmd_service.stop)
+main.add_command(cmd_service.restart)
 main.add_command(cmd_service.status)
+main.add_command(cmd_service.uninstall)
 main.add_command(cmd_service.open)
+# install-service is kept as a named alias of `start` (same --yes/--program/
+# --no-open options) per specs/cli-reference.md — no separate implementation.
+main.add_command(cmd_service.start, name="install-service")
 
-main.add_command(cmd_diagnostics.doctor)
+main.add_command(doctor_cmd)
 main.add_command(cmd_diagnostics.watchdog)
 main.add_command(cmd_diagnostics.install_watchdog_cmd)
 main.add_command(cmd_diagnostics.reset_lock)
 main.add_command(cmd_diagnostics.theme)
-main.add_command(cmd_diagnostics.install_service)
 
 main.add_command(cmd_devices.devices)
 main.add_command(cmd_devices.poll_now)

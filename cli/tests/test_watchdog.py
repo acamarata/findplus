@@ -11,8 +11,12 @@ from findplus.cli.main import main
 
 
 class _Response:
-    def __init__(self, status: int) -> None:
+    def __init__(self, status: int, body: bytes = b'{"app": "findplus"}') -> None:
         self.status = status
+        self._body = body
+
+    def read(self) -> bytes:
+        return self._body
 
     def __enter__(self):
         return self
@@ -62,7 +66,7 @@ def test_unreachable_service_is_restarted(
 
     output = _run(monkeypatch, refuse)
     assert restarts == [True]
-    assert "restart requested" in output
+    assert "restarted" in output
 
 
 def test_server_error_is_restarted(

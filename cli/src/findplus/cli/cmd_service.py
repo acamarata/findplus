@@ -1,4 +1,4 @@
-"""Service lifecycle commands: auth, serve, start/stop, status, open.
+"""Service lifecycle commands: auth, serve, start/stop/restart/status/uninstall, open.
 
 Purpose    : Sign-in, run the daemon (foreground or as an installed service),
              report status, and open the dashboard.
@@ -9,25 +9,32 @@ Constraints: Destructive/system-altering actions confirm before acting, unless
              function-local (matches the pre-split lazy import, avoiding a
              module-load-time dependency on the api/ package).
              Diagnostics/install-adjacent commands (doctor, watchdog,
-             install-watchdog, reset-lock, theme, install-service) live in
-             cmd_diagnostics.py — this file alone was 398 lines, over the
-             300-line/file hard rule, so it was split in two.
+             install-watchdog, reset-lock, theme) live in cmd_diagnostics.py —
+             this file alone was 398 lines, over the 300-line/file hard rule,
+             so it was split in two.
+             This module contains zero direct subprocess calls: everything
+             platform-specific goes through the findplus.service facade
+             (specs/service-package.md — no ServiceManager classes here).
 """
 
 from __future__ import annotations
 
+import json
+import os
+import signal
 import sys
 import threading
-from datetime import UTC, datetime
+import webbrowser
+from collections.abc import Callable
+from pathlib import Path
 
 import click
+import httpx
 
 from findplus import __version__
 from findplus.config import get_settings
-from findplus.db.migrate import current_revision
-from findplus.db.session import session_scope
 
-from ._fmt import _prep, _row, _show_service_plan
+from ._fmt import _prep, _show_service_plan
 
 
 @click.command()
@@ -69,6 +76,42 @@ def auth() -> None:
     click.echo("Next: findplus devices")
 
 
+def _check_exclusive(state_dir: Path) -> tuple[bool, str]:
+    """Whether a live findplus daemon already answers on the port in daemon.json.
+
+    A 200 with app=='findplus' OR a 401 (locked, but still a running daemon)
+    both count as "already running". A stale daemon.json (dead pid, refused
+    connection, or a foreign service on that port) is ignored: serve proceeds
+    normally and will overwrite it.
+    """
+    daemon_json = state_dir / "daemon.json"
+    if not daemon_json.exists():
+        return (False, "")
+    try:
+        data = json.loads(daemon_json.read_text())
+        port = int(data["port"])
+        host = str(data.get("host", "127.0.0.1"))
+        url = f"http://{host}:{port}"
+        r = httpx.get(f"{url}/api/health", timeout=2.0)
+        if r.status_code == 401:
+            return (True, f"{url}/")
+        if r.status_code == 200 and r.json().get("app") == "findplus":
+            return (True, f"{url}/")
+    except Exception:
+        pass  # stale daemon.json or unreachable daemon
+    return (False, "")
+
+
+def _make_signal_handler(stop_event: threading.Event) -> Callable[[int, object], None]:
+    """A pure factory: no module-level mutable state, so this is unit-testable
+    without touching a global. `serve()` owns the one `stop_event` it builds."""
+
+    def _handle_signal(sig: int, frame: object) -> None:
+        stop_event.set()
+
+    return _handle_signal
+
+
 @click.command()
 @click.option("--foreground", is_flag=True, help="Run in this terminal (used by the service).")
 @click.option("--no-poller", is_flag=True, help="Serve the UI/API without polling Google.")
@@ -79,6 +122,7 @@ def serve(foreground: bool, no_poller: bool, host: str | None, port: int | None)
     _prep(to_file=True)
     import uvicorn
 
+    from findplus import service
     from findplus.api import create_app
     from findplus.poller import PollerService
 
@@ -86,11 +130,15 @@ def serve(foreground: bool, no_poller: bool, host: str | None, port: int | None)
     bind_host = host or settings.host
     bind_port = port or settings.port
 
-    poller: PollerService | None = None
-    if not no_poller:
-        poller = PollerService(settings)
-        thread = threading.Thread(target=poller.run_forever, name="poller", daemon=True)
-        thread.start()
+    already_running, url = _check_exclusive(settings.state_dir)
+    if already_running:
+        click.echo(f"Find+ is already running at {url}")
+        sys.exit(3)
+
+    stop_event = threading.Event()
+    signal.signal(signal.SIGINT, _make_signal_handler(stop_event))
+    if sys.platform != "win32":
+        signal.signal(signal.SIGTERM, _make_signal_handler(stop_event))
 
     click.secho(f"findplus {__version__}", bold=True)
     click.echo(f"Dashboard : http://{bind_host}:{bind_port}")
@@ -98,116 +146,214 @@ def serve(foreground: bool, no_poller: bool, host: str | None, port: int | None)
     click.echo(f"Logs      : {settings.log_file}")
     cadence = "disabled" if no_poller else f"every {settings.effective_poll_interval_minutes:g} min"
     click.echo(f"Polling   : {cadence}")
+
+    poller: PollerService | None = None
+    poller_thread: threading.Thread | None = None
+    server: uvicorn.Server | None = None
+    server_thread: threading.Thread | None = None
     try:
-        uvicorn.run(
+        service.write_daemon_file(
+            pid=os.getpid(), port=bind_port, host=bind_host, version=__version__, argv=sys.argv
+        )
+
+        if not no_poller:
+            poller = PollerService(settings)
+            poller_thread = threading.Thread(target=poller.run_forever, name="poller", daemon=True)
+            poller_thread.start()
+
+        config = uvicorn.Config(
             create_app(),
             host=bind_host,
             port=bind_port,
             log_level=settings.log_level.lower(),
             access_log=False,
         )
+        server = uvicorn.Server(config)
+        server.install_signal_handlers = False
+        server_thread = threading.Thread(target=server.run, name="uvicorn", daemon=True)
+        server_thread.start()
+
+        stop_event.wait()
     finally:
-        if poller:
+        if server is not None:
+            server.should_exit = True
+        if server_thread is not None:
+            server_thread.join(timeout=5.0)
+        if poller is not None:
             poller.stop()
+        if poller_thread is not None:
+            poller_thread.join(timeout=5.0)
+        (settings.state_dir / "daemon.json").unlink(missing_ok=True)
 
 
 @click.command()
-def start() -> None:
-    """Start the background service (installing it first if needed)."""
+@click.option("--yes", is_flag=True, help="Write and load the service files without asking.")
+@click.option("--no-open", is_flag=True, help="Do not open the dashboard in a browser.")
+@click.option(
+    "--program",
+    "-P",
+    "program_override",
+    default=None,
+    metavar="PATH",
+    help="Path to the daemon executable. The desktop app passes "
+    "/Applications/Find+.app/Contents/MacOS/findplus-daemon here.",
+)
+def start(yes: bool, no_open: bool, program_override: str | None) -> None:
+    """Start the background service (D15): auth check, then tracked-devices
+    check, then install/start — installing it first if needed."""
     _prep()
     from findplus import service
+    from findplus.db.session import session_scope
+    from findplus.findhub.bootstrap import describe_stored_auth
+    from findplus.ingest import upsert_device
+    from findplus.state import get_tracked_devices
 
-    if not service.is_installed():
-        click.echo("The background service is not installed yet.")
-        _show_service_plan(service.plan())
-        if not click.confirm("Install and start it now?", default=False):
-            click.echo("Nothing was installed. Run `findplus serve` to start in this terminal.")
-            raise click.Abort
-        service.install(confirmed=True)
+    settings = get_settings()
+    auth_info = describe_stored_auth()
+    if not auth_info["exists"]:
+        click.echo("Find+ is not authenticated yet. Run these two commands:")
+        click.echo("  findplus auth")
+        click.echo("  findplus start")
+        sys.exit(0)
+
+    with session_scope() as sess:
+        tracked = get_tracked_devices(sess)
+    if not tracked:
+        from findplus.findhub.client import FindHubClient
+
+        try:
+            found = FindHubClient().list_devices()
+        except Exception as exc:
+            click.secho(f"Could not list devices: {exc}", fg="red")
+            sys.exit(1)
+        with session_scope() as sess:
+            for d in found:
+                upsert_device(sess, d.device_id, d.name)
+        webbrowser.open(f"{settings.base_url}/#devices")
+        click.echo(
+            f"No devices are tracked yet. Pick the ones to track at {settings.base_url}/#devices"
+        )
+        click.echo("Then run `findplus start` again to install the background service.")
+        sys.exit(0)
+
+    program = None
+    if program_override:
+        program = str(Path(program_override).resolve())
     else:
-        service.install(confirmed=True)  # rewrites + reloads the existing unit
-    click.secho("Service started.", fg="green")
-    click.echo(f"Dashboard: {get_settings().base_url}")
+        import shutil as _shutil
+
+        found_bin = _shutil.which("findplus") or sys.argv[0]
+        program = str(Path(found_bin).resolve())
+
+    if service.is_installed():
+        service.start()
+        click.echo("Service already installed; started.")
+    else:
+        _show_service_plan(service.plan(program=program))
+        _show_service_plan(service.watchdog_plan(program=program))
+        if not yes:
+            click.echo("Pass --yes to write these files and load the service.")
+            return
+        service.install(confirmed=True, program=program)
+        service.install_watchdog(confirmed=True, program=program)
+        click.secho("Service started.", fg="green")
+
+    click.echo(f"Dashboard: {settings.base_url}")
+    if not no_open:
+        webbrowser.open(settings.base_url)
 
 
 @click.command()
 def stop() -> None:
-    """Stop and remove the background service."""
+    """Stop the background service. Unit files are kept; the next login (or
+    `findplus start`) brings it back. Use `findplus uninstall` to remove it."""
     _prep()
     from findplus import service
 
-    if not service.is_installed():
-        click.echo("No background service is installed.")
-        return
-    p = service.uninstall()
-    click.secho(f"Stopped and removed {p.unit_path}", fg="green")
+    service.stop()
+    click.echo("Stopped. The unit files are kept and the service returns at the next login.")
+    click.echo("Run `findplus uninstall --yes` to remove the unit files and daemon.json.")
 
 
 @click.command()
-def status() -> None:
-    """Show tracker, service and history status."""
+def restart() -> None:
+    """Restart the background service."""
     _prep()
-    from sqlalchemy import desc, func
-    from sqlalchemy import select as sa_select
-
     from findplus import service
-    from findplus.db.models import LocationObservation, PollRun
-    from findplus.findhub.bootstrap import describe_stored_auth
-    from findplus.state import get_tracked_devices
-    from findplus.timeline import day_bounds_utc, local_zone, observation_count_between
+
+    service.restart()
+    click.echo("Restarted.")
+
+
+@click.command()
+@click.option("--json", "json_flag", is_flag=True, help="Print machine-readable JSON.")
+def status(json_flag: bool) -> None:
+    """Show service, watchdog and daemon status."""
+    _prep()
+    from findplus import service
 
     settings = get_settings()
-    tz = local_zone()
-    auth_info = describe_stored_auth()
+    sd = service.status()
 
-    with session_scope() as session:
-        tracked = get_tracked_devices(session)
-        device_id = None
-        total = session.scalar(sa_select(func.count(LocationObservation.id))) or 0
-        latest = session.scalar(
-            sa_select(LocationObservation).order_by(desc(LocationObservation.observed_at)).limit(1)
-        )
-        last_run = session.scalar(sa_select(PollRun).order_by(desc(PollRun.started_at)).limit(1))
-        start_utc, end_utc = day_bounds_utc(datetime.now(tz).date(), tz)
-        today = observation_count_between(session, device_id, start_utc, end_utc)
+    op: dict = {}
+    try:
+        r = httpx.get(f"{settings.base_url}/api/status", timeout=2.0)
+        if r.status_code == 200:
+            op = r.json()
+        elif r.status_code == 401:
+            op = {"lock_state": "locked"}
+    except Exception:
+        pass
 
-        click.echo("")
-        click.secho("findplus status", bold=True)
-        _row("version", __version__)
-        if tracked:
-            _row("tracking", f"{len(tracked)} device(s)")
-            for d in tracked:
-                _row("", f"- {d.name}  ({d.device_id})")
-            rate = len(tracked) * 60 / settings.effective_poll_interval_minutes
-            _row("request rate", f"~{rate:.0f} Google requests/hour")
-        else:
-            _row("tracking", "nothing — run `findplus devices --track-all`")
-        _row("authenticated", "yes" if auth_info["exists"] else "no — run `findplus auth`")
-        _row("service installed", "yes" if service.is_installed() else "no")
-        _row("service running", "yes" if service.is_running() else "no")
-        _row("watchdog installed", "yes" if service.watchdog_installed() else "no")
-        _row("poll interval", f"{settings.effective_poll_interval_minutes:g} min")
-        _row("database", f"{settings.database_path} (schema {current_revision()})")
-        _row("observations", f"{total} total, {today} today")
-        if latest:
-            age = (datetime.now(UTC) - latest.observed_at).total_seconds()
-            seen = f"{latest.observed_at.astimezone(tz):%Y-%m-%d %H:%M:%S %Z}"
-            got = f"{latest.first_fetched_at.astimezone(tz):%Y-%m-%d %H:%M:%S %Z}"
-            _row("last observed", f"{seen} ({age / 60:.0f} min ago)")
-            _row("last retrieved", got)
-        if last_run:
-            ran = f"{last_run.started_at.astimezone(tz):%Y-%m-%d %H:%M:%S %Z}"
-            _row("last poll", f"{ran} -> {last_run.status}")
-            if last_run.error_message:
-                _row("last error", last_run.error_message[:120])
-        click.echo("")
+    out = {
+        "installed": sd.installed,
+        "loaded": sd.loaded,
+        "running": sd.running,
+        "watchdog_installed": sd.watchdog_installed,
+        "watchdog_loaded": sd.watchdog_loaded,
+        "pid": sd.pid,
+        "port": op.get("port", sd.port),
+        "version": op.get("version"),
+        "last_poll_at": op.get("last_poll_at"),
+        "lock_state": op.get("lock_state", "unknown"),
+        "providers": op.get("providers", []),
+        "alerts_configured": op.get("alerts_configured", False),
+    }
+
+    if json_flag:
+        click.echo(json.dumps(out))
+        return
+
+    click.echo(
+        f"service   installed={sd.installed} loaded={sd.loaded} "
+        f"running={sd.running} pid={sd.pid if sd.pid is not None else '-'}"
+    )
+    click.echo(f"watchdog  installed={sd.watchdog_installed} loaded={sd.watchdog_loaded}")
+    click.echo(f"port      {out['port']}")
+    click.echo(f"version   {out['version']}")
+    click.echo(f"lock      {out['lock_state']}")
+
+
+@click.command()
+@click.option("--yes", is_flag=True, help="Unload and delete the unit files without asking.")
+def uninstall(yes: bool) -> None:
+    """Unload and delete the service and watchdog unit files, and daemon.json."""
+    _prep()
+    from findplus import service
+
+    if not yes:
+        click.echo("Pass --yes to unload and delete the unit files and remove daemon.json.")
+        return
+
+    service.uninstall()
+    service.uninstall_watchdog()
+    (get_settings().state_dir / "daemon.json").unlink(missing_ok=True)
+    click.echo("Uninstalled. Run `findplus start --yes` to reinstall.")
 
 
 @click.command()
 def open() -> None:
     """Open the dashboard in the default browser."""
-    import webbrowser
-
     url = get_settings().base_url
     click.echo(f"Opening {url}")
     webbrowser.open(url)

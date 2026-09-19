@@ -9,6 +9,7 @@ Purpose    : Build the exact plist ServicePlan for each job. No installation
 from __future__ import annotations
 
 import plistlib
+import subprocess
 from pathlib import Path
 
 from findplus.config import PROJECT_ROOT, Settings
@@ -23,11 +24,12 @@ from .plan import (
 )
 
 
-def plan_launchd(settings: Settings) -> ServicePlan:
+def plan_launchd(settings: Settings, *, program: str | None = None) -> ServicePlan:
     path = Path.home() / "Library" / "LaunchAgents" / f"{LAUNCHD_LABEL}.plist"
+    base = [program] if program else [_python(), "-m", "findplus.cli"]
     payload = {
         "Label": LAUNCHD_LABEL,
-        "ProgramArguments": [_python(), "-m", "findplus.cli", "serve", "--foreground"],
+        "ProgramArguments": [*base, "serve", "--foreground"],
         "WorkingDirectory": str(PROJECT_ROOT),
         "RunAtLoad": True,
         "KeepAlive": {"SuccessfulExit": False},
@@ -53,7 +55,7 @@ def plan_launchd(settings: Settings) -> ServicePlan:
     )
 
 
-def watchdog_plan_launchd(settings: Settings) -> ServicePlan:
+def watchdog_plan_launchd(settings: Settings, *, program: str | None = None) -> ServicePlan:
     """A second, independent job that restarts the poller if it stops answering.
 
     `KeepAlive` already restarts the service when the process *dies*. This covers
@@ -61,9 +63,10 @@ def watchdog_plan_launchd(settings: Settings) -> ServicePlan:
     KeepAlive cannot see.
     """
     path = Path.home() / "Library" / "LaunchAgents" / f"{WATCHDOG_LABEL}.plist"
+    base = [program] if program else [_python(), "-m", "findplus.cli"]
     payload = {
         "Label": WATCHDOG_LABEL,
-        "ProgramArguments": [_python(), "-m", "findplus.cli", "watchdog"],
+        "ProgramArguments": [*base, "watchdog"],
         "WorkingDirectory": str(PROJECT_ROOT),
         "RunAtLoad": True,
         "StartInterval": WATCHDOG_INTERVAL_SECONDS,
@@ -84,3 +87,29 @@ def watchdog_plan_launchd(settings: Settings) -> ServicePlan:
         load_command=["launchctl", "bootstrap", f"gui/{uid}", str(path)],
         unload_command=["launchctl", "bootout", f"gui/{uid}/{WATCHDOG_LABEL}"],
     )
+
+
+def bootstrap(plan: ServicePlan) -> None:
+    """Load a launchd job (`launchctl bootstrap gui/<uid> <plist>`)."""
+    subprocess.run(plan.load_command, check=False)
+
+
+def bootout(plan: ServicePlan) -> None:
+    """Unload a launchd job. Keeps the plist file on disk."""
+    subprocess.run(plan.unload_command, check=False)
+
+
+def kickstart(label: str) -> None:
+    """Force-restart a loaded launchd job."""
+    subprocess.run(["launchctl", "kickstart", "-k", f"gui/{_uid()}/{label}"], check=False)
+
+
+def is_loaded(label: str) -> bool:
+    """Whether `label` is currently loaded in the user's launchd domain."""
+    out = subprocess.run(
+        ["launchctl", "print", f"gui/{_uid()}/{label}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return out.returncode == 0

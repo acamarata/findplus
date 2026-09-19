@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from findplus.db.models import PollRun
+from findplus.db.session import session_scope
 from findplus.logging_setup import get_logger
 
 log = get_logger(__name__)
@@ -122,3 +123,20 @@ def _record(session, device_id: str | None, started: datetime, outcome: PollOutc
             error_message=(outcome.error_message or "")[:2000] or None,
         )
     )
+
+
+def record_config_error_cycle(
+    error_type: str, message: str, log_event: str, *, config_error: bool = False, **log_extra
+) -> CycleOutcome:
+    """Build, record and log a single-outcome cycle for a pre-poll configuration failure.
+
+    Shared by `poll_once`'s "nothing tracked" and "unknown --device-id" cases —
+    neither ever reaches `poll_device`, so there is no per-device outcome to
+    build from a real attempt. Lives here, not in poller.py, to keep that
+    module inside the 300-line file budget (see this module's own docstring).
+    """
+    outcome = PollOutcome(status="error", error_type=error_type, error_message=message)
+    with session_scope() as session:
+        _record(session, None, datetime.now(UTC), outcome)
+    log.error(log_event, **log_extra)
+    return CycleOutcome([outcome], config_error=config_error)

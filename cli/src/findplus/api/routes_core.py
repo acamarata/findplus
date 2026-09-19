@@ -24,7 +24,7 @@ from findplus import __version__, honesty
 from findplus.db.migrate import current_revision, is_up_to_date
 from findplus.db.models import Device, PollRun
 from findplus.db.session import session_scope
-from findplus.findhub.bootstrap import describe_stored_auth
+from findplus.providers.google_findhub.bootstrap import describe_stored_auth
 from findplus.state import get_default_device, get_tracked_devices
 from findplus.timeline import local_zone
 

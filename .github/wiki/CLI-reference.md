@@ -390,6 +390,10 @@ Run a single Find Hub poll immediately.
 
 **Usage:** `findplus poll-now [OPTIONS]`
 
+| option | default | help |
+|---|---|---|
+| --device-id |  | Poll only this device id (repeatable). Default: every tracked device. |
+
 ## findplus providers
 List installed location providers and whether they are ready to poll.
 

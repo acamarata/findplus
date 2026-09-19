@@ -63,8 +63,8 @@ def build_router(*, settings) -> APIRouter:
     @router.post("/devices/refresh")
     def refresh_devices() -> dict[str, Any]:
         """Re-query Find Hub for the account's device list."""
-        from findplus.findhub.client import FindHubClient
         from findplus.ingest import upsert_device
+        from findplus.providers.google_findhub.client import FindHubClient
 
         try:
             found = FindHubClient(settings).list_devices()

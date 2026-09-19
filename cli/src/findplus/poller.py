@@ -29,7 +29,7 @@ from findplus.logging_setup import get_logger
 # monkeypatch targets keep resolving after the outcome types moved out.
 from findplus.poller_outcomes import CycleOutcome as CycleOutcome
 from findplus.poller_outcomes import PollOutcome as PollOutcome
-from findplus.poller_outcomes import _log_outcome, _record
+from findplus.poller_outcomes import _log_outcome, _record, record_config_error_cycle
 from findplus.providers.base import LocationProvider, get_provider
 from findplus.providers.google_findhub.types import (
     AuthRequiredError,
@@ -170,26 +170,43 @@ def poll_device(
 def poll_once(
     settings: Settings | None = None,
     *,
+    device_ids: set[str] | None = None,
     stagger_seconds: float | None = None,
     stop_event: threading.Event | None = None,
 ) -> CycleOutcome:
-    """Poll every tracked device once, sequentially."""
+    """Poll every tracked device once, sequentially.
+
+    `device_ids`, when given (findplus poll-now --device-id), narrows the
+    cycle to just those tracked devices. A requested id that is not currently
+    tracked is reported as a single `UnknownDevice` outcome instead of either
+    silently polling everything else or raising — `poll_device` never raises,
+    and this path keeps that contract.
+    """
     settings = settings or get_settings()
     stagger = DEVICE_STAGGER_SECONDS if stagger_seconds is None else stagger_seconds
 
     with session_scope() as session:
         targets = [(d.device_id, d.name, d.provider) for d in get_tracked_devices(session)]
 
+    if device_ids:
+        known_ids = {device_id for device_id, _name, _provider in targets}
+        unknown = set(device_ids) - known_ids
+        if unknown:
+            return record_config_error_cycle(
+                "UnknownDevice",
+                "Not tracked or does not exist: " + ", ".join(sorted(unknown)),
+                "poll_unknown_device",
+                requested=sorted(unknown),
+            )
+        targets = [t for t in targets if t[0] in device_ids]
+
     if not targets:
-        outcome = PollOutcome(
-            status="error",
-            error_type="NoDeviceTracked",
-            error_message="No devices are being tracked. Run `findplus devices --track-all`.",
+        return record_config_error_cycle(
+            "NoDeviceTracked",
+            "No devices are being tracked. Run `findplus devices --track-all`.",
+            "poll_no_devices_tracked",
+            config_error=True,
         )
-        with session_scope() as session:
-            _record(session, None, datetime.now(UTC), outcome)
-        log.error("poll_no_devices_tracked")
-        return CycleOutcome([outcome], config_error=True)
 
     cycle = CycleOutcome()
     for index, (device_id, device_name, provider_name) in enumerate(targets):

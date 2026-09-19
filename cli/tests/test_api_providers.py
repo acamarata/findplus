@@ -32,6 +32,19 @@ def test_get_providers_returns_list(client: TestClient) -> None:
             assert key in item, f"missing key {key!r}"
 
 
+def test_limits_are_per_provider_not_a_constant(client: TestClient) -> None:
+    """E11 review (build-notes carry-forward #21): `limits` described every
+    provider with one hardcoded sentence; it now comes from the provider."""
+    data = client.get("/api/providers").json()
+    limits = {item["name"]: item["limits"] for item in data}
+    assert limits, "no providers registered"
+    assert all(value for value in limits.values())
+    if "apple-find-my" in limits:
+        assert "Fetch-on-demand" in limits["apple-find-my"]
+    if "google-find-hub" in limits:
+        assert limits["google-find-hub"] != limits.get("apple-find-my")
+
+
 def test_devices_response_has_provider(client: TestClient) -> None:
     resp = client.get("/api/devices")
     assert resp.status_code in (200, 401)

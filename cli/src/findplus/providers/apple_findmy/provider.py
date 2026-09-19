@@ -32,6 +32,11 @@ class AppleFindMyProvider:
 
     name = "apple-find-my"
     display_name = "Apple Find My"
+    #: Shown by /api/providers and `findplus providers`; per-provider, not generic.
+    limits = (
+        "Fetch-on-demand per accessory. Reports come from nearby Apple devices "
+        "and can be delayed, sparse or unavailable."
+    )
 
     def __init__(self) -> None:
         # get_settings() (not bare Settings()) so FINDPLUS_STATE_DIR / test
@@ -79,8 +84,6 @@ class AppleFindMyProvider:
         if not avail:
             return []
 
-        import datetime
-
         from findplus.providers.apple_findmy.accessories import list_accessories
         from findplus.providers.apple_findmy.auth import restore_account
 
@@ -101,32 +104,36 @@ class AppleFindMyProvider:
             log.warning("skipping corrupt accessory %s: %s", device_id, exc)
             return []
 
-        reports = account.fetch_last_reports(acc_obj)
-        results = []
-        for r in reports:
-            obs_at = r.timestamp
-            if obs_at.tzinfo is None:
-                obs_at = obs_at.replace(tzinfo=datetime.UTC)
-            confidence = getattr(r, "confidence", None)
-            acc_m = CONFIDENCE_TO_ACCURACY.get(confidence or "poor", 150.0)
-            results.append(
-                RawObservation(
-                    provider="apple-find-my",
-                    device_id=device_id,
-                    device_name=name,
-                    latitude_e7=round(r.latitude * 1e7),
-                    longitude_e7=round(r.longitude * 1e7),
-                    observed_at=obs_at,
-                    altitude_meters=getattr(r, "altitude", None),
-                    accuracy_meters=acc_m,
-                    source="apple-find-my",
-                    metadata={
-                        "confidence": confidence,
-                        "status": getattr(r, "status", None),
-                    },
-                )
-            )
-        return results
+        return [_to_observation(r, device_id, name) for r in account.fetch_last_reports(acc_obj)]
+
+
+def _to_observation(report, device_id: str, name: str) -> RawObservation:
+    """Map one findmy Report onto a RawObservation row.
+
+    Every Report attribute is read with getattr and a default: the installed
+    FindMy.py version may not expose all of them.
+    """
+    import datetime
+
+    obs_at = report.timestamp
+    if obs_at.tzinfo is None:
+        obs_at = obs_at.replace(tzinfo=datetime.UTC)
+    confidence = getattr(report, "confidence", None)
+    return RawObservation(
+        provider="apple-find-my",
+        device_id=device_id,
+        device_name=name,
+        latitude_e7=round(report.latitude * 1e7),
+        longitude_e7=round(report.longitude * 1e7),
+        observed_at=obs_at,
+        altitude_meters=getattr(report, "altitude", None),
+        accuracy_meters=CONFIDENCE_TO_ACCURACY.get(confidence or "poor", 150.0),
+        source="apple-find-my",
+        metadata={
+            "confidence": confidence,
+            "status": getattr(report, "status", None),
+        },
+    )
 
 
 def _load_accessory_obj(record: dict):

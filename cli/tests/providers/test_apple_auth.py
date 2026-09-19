@@ -99,6 +99,18 @@ def test_file_mode_0600(tmp_path, monkeypatch) -> None:
     assert mode == 0o600
 
 
+def test_resave_narrows_a_wide_mode_before_writing(tmp_path, monkeypatch) -> None:
+    """E11 review: the file is chmodded 0600 before the session token is written,
+    so a re-save over a world-readable file never exposes the token."""
+    settings = _settings(tmp_path)
+    monkeypatch.setattr(auth_mod, "make_account", lambda s: FakeAccount())
+    auth_mod.save_account(FakeAccount(), settings)
+    path = tmp_path / "apple-account.json"
+    path.chmod(0o644)
+    auth_mod.save_account(FakeAccount(), settings)
+    assert path.stat().st_mode & 0o777 == 0o600
+
+
 def test_login_failure_propagates_unwrapped(tmp_path, monkeypatch) -> None:
     """QA-B boundary: a login() failure is not wrapped in AppleAuthRequiredError
     (only restore_session() failures are, since login() has an interactive user

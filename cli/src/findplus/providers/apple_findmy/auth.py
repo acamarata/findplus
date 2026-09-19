@@ -46,8 +46,12 @@ def save_account(account, settings) -> None:
     path.parent.mkdir(mode=0o700, exist_ok=True)
     data = account.to_json()
     data["saved_at"] = datetime.datetime.now(tz=datetime.UTC).isoformat()
-    path.write_text(json.dumps(data), encoding="utf-8")
+    # Narrow the mode BEFORE the session token is written: write_text() creates
+    # the file 0644 under the usual umask, which would leave a window in which
+    # another local user can read the token.
+    path.touch(mode=0o600, exist_ok=True)
     path.chmod(0o600)
+    path.write_text(json.dumps(data), encoding="utf-8")
 
 
 def restore_account(settings):

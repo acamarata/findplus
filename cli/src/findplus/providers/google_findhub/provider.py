@@ -15,6 +15,11 @@ class GoogleFindHubProvider:
 
     name = "google-find-hub"
     display_name = "Google Find Hub"
+    #: Shown by /api/providers and `findplus providers`; per-provider, not generic.
+    limits = (
+        "Polled on the configured interval (5 minutes or slower by default). "
+        "Reports come from nearby Android devices and can be delayed or sparse."
+    )
 
     def __init__(self) -> None:
         self._client = FindHubClient()

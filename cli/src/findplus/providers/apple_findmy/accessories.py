@@ -21,6 +21,9 @@ VALID_KEY_LENGTHS = {28, 32, 48, 66}
 def _accessories_dir(settings) -> pathlib.Path:
     d = pathlib.Path(settings.state_dir) / "apple"
     d.mkdir(mode=0o700, exist_ok=True)
+    # mkdir(mode=) applies only on creation; enforce 0700 on a directory that
+    # already existed with a wider mode (PRI hard rule 9).
+    d.chmod(0o700)
     return d
 
 
@@ -76,8 +79,10 @@ def add_accessory(
         "added_at": datetime.datetime.now(tz=datetime.UTC).isoformat(),
     }
     path = _accessories_dir(settings) / f"{device_id.replace(':', '_')}.json"
-    path.write_text(json.dumps(record, indent=2), encoding="utf-8")
+    # 0600 before the key payload is written (see save_account for the why).
+    path.touch(mode=0o600, exist_ok=True)
     path.chmod(0o600)
+    path.write_text(json.dumps(record, indent=2), encoding="utf-8")
     return record
 
 

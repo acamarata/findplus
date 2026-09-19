@@ -16,6 +16,9 @@ from fastapi import APIRouter
 
 from findplus.providers.base import available_providers, get_provider
 
+#: Used for a provider that declares no `limits` attribute of its own.
+_DEFAULT_LIMITS = "standard polling limits apply"
+
 
 def build_router() -> APIRouter:
     router = APIRouter(prefix="/api")
@@ -31,9 +34,12 @@ def build_router() -> APIRouter:
                 auth_info = p.describe_auth() if authed else {}
             except Exception as exc:
                 avail, reason, authed, auth_info = False, str(exc), False, {}
-                p_name, p_display = name, name
+                p_name, p_display, limits = name, name, _DEFAULT_LIMITS
             else:
                 p_name, p_display = p.name, p.display_name
+                # Optional attribute: a provider that does not declare its own
+                # limits (including a third-party one) keeps the generic text.
+                limits = getattr(p, "limits", _DEFAULT_LIMITS)
             result.append(
                 {
                     "name": p_name,
@@ -42,7 +48,7 @@ def build_router() -> APIRouter:
                     "reason": reason,
                     "authenticated": authed,
                     "account": auth_info.get("account"),
-                    "limits": "standard polling limits apply",
+                    "limits": limits,
                 }
             )
         return result

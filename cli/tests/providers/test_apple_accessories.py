@@ -79,6 +79,20 @@ def test_file_mode_0600(tmp_path) -> None:
     assert mode == 0o600
 
 
+def test_rewrite_narrows_a_wide_mode_before_writing(tmp_path) -> None:
+    """E11 review: the record is chmodded 0600 before the key payload is written,
+    so a pre-existing world-readable file is never widened by a re-register."""
+    settings = _settings(tmp_path)
+    key_b64 = base64.b64encode(KEY_28).decode()
+    record = add_accessory("Tag", settings, private_key_b64=key_b64)
+    path = tmp_path / "apple" / f"{record['device_id'].replace(':', '_')}.json"
+    path.chmod(0o644)
+    (tmp_path / "apple").chmod(0o755)
+    add_accessory("Tag renamed", settings, private_key_b64=key_b64)
+    assert path.stat().st_mode & 0o777 == 0o600
+    assert (tmp_path / "apple").stat().st_mode & 0o777 == 0o700
+
+
 def test_missing_key_material_rejected(tmp_path) -> None:
     settings = _settings(tmp_path)
     with pytest.raises(ValueError, match="plist or --private-key"):

@@ -169,3 +169,22 @@ export async function refreshPresence() {
   if (selectedGroupId) await selectGroup(selectedGroupId);
   else await loadGroups();
 }
+
+/**
+ * Destroy every member circle, the presence panel, the legend, the cached
+ * group names and the group-select options.
+ *
+ * Called from lock.js's purgeRenderedData() on every lock — `clearGroup()`
+ * alone left `#fp-group-select`'s option list (group names) and the
+ * `groupsById` cache behind, both real data surviving behind the lock
+ * screen (PROMPT.md §2). Bumping `generation` also discards any in-flight
+ * `selectGroup()` response that would otherwise repopulate the panel right
+ * after this purge runs.
+ */
+export function purge() {
+  generation++;
+  clearGroup();
+  groupsById = new Map();
+  const select = document.getElementById("fp-group-select");
+  if (select) while (select.firstChild) select.removeChild(select.firstChild);
+}

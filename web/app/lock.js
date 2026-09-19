@@ -23,7 +23,7 @@ import { closeModals, bootDashboard } from "./main.js";
  * not a cosmetic overlay that a determined person could scroll behind.
  * The current view is captured first so unlocking returns to exactly it.
  */
-export function showLock() {
+export async function showLock() {
   if (!state.locked) {
     // Only non-sensitive view state is remembered — a date, a device filter and
     // a row id. No coordinates are retained anywhere once locked.
@@ -38,7 +38,7 @@ export function showLock() {
   state.locked = true;
   stopIdleTimer();
   closeModals();
-  purgeRenderedData();
+  await purgeRenderedData();
   $("app-shell").classList.add("hidden");
   $("lock-screen").classList.remove("hidden");
   $("lock-error").textContent = "";
@@ -54,7 +54,7 @@ export function showLock() {
  * The API refusing to answer is not enough on its own — what was already
  * delivered has to be destroyed too.
  */
-export function purgeRenderedData() {
+export async function purgeRenderedData() {
   state.timeline = null;
   state.devices = [];
   state.selectedId = null;
@@ -72,6 +72,31 @@ export function purgeRenderedData() {
    "card-poll", "card-poll-status", "card-today", "card-total"].forEach((id) => {
     $(id).textContent = "—";
   });
+
+  await purgeTabModules();
+}
+
+/**
+ * Purge the Places, Groups and Alerts tabs' own rendered state.
+ *
+ * Each of those modules keeps a Leaflet overlay layer and/or DOM (place
+ * circles, group-member circles, the presence panel, the group legend and
+ * select, the alerts rules table) outside anything the code above already
+ * clears — reviewer-E10 measured real coordinates and names still present
+ * in `.leaflet-overlay-pane` and those elements after a lock. Dynamic
+ * import reaches the already-loaded module instances (matching
+ * refreshTabsAfterUnlock()'s pattern below); each purge is independent so
+ * one module throwing never leaves another module's data behind.
+ */
+async function purgeTabModules() {
+  const results = await Promise.allSettled([
+    import("./places.js").then((m) => m.purge()),
+    import("./groups.js").then((m) => m.purge()),
+    import("./alerts.js").then((m) => m.purge()),
+  ]);
+  results.forEach((r) => {
+    if (r.status === "rejected") console.error("post-lock purge failed", r.reason);
+  });
 }
 
 /** Hide the lock screen and restore the exact view the user was on. */
@@ -86,6 +111,36 @@ export async function hideLockAndRestore() {
   // Full boot, not a partial refresh: after an unlock the session may never
   // have loaded config/settings at all.
   await bootDashboard(resume);
+  await refreshTabsAfterUnlock();
+}
+
+/**
+ * Reload the Places, Groups, Alerts tabs and the honesty notices after an
+ * unlock.
+ *
+ * Those four modules load their data once, at page-parse time, via a
+ * dynamic import in main.js (places.js, groups.js) or their own top-level
+ * `<script type="module">` tag (alerts.js, notices.js) — before this
+ * session's lock state is known. A session that boots locked never
+ * repopulates them once unlocked (notices.js's six #fp-notice-* paragraphs
+ * would stay blank all session — PROMPT.md §2 invariant 4 requires honesty
+ * text actually render, not just be fetchable), since nothing else calls
+ * their loaders again. Dynamic import here (matching main.js's own "keeps
+ * it optional at parse time" pattern) reaches the already-loaded module
+ * instances without re-running their one-time init() — ES modules are
+ * singletons per URL — and each loader is independent so one tab's failure
+ * never blocks the others.
+ */
+async function refreshTabsAfterUnlock() {
+  const results = await Promise.allSettled([
+    import("./places.js").then((m) => m.refreshAll()),
+    import("./groups.js").then((m) => m.refreshPresence()),
+    import("./alerts.js").then((m) => m.refreshAll()),
+    import("./notices.js").then((m) => m.loadNotices()),
+  ]);
+  results.forEach((r) => {
+    if (r.status === "rejected") console.error("post-unlock tab refresh failed", r.reason);
+  });
 }
 
 export async function refreshLockState() {
@@ -94,7 +149,7 @@ export async function refreshLockState() {
     state.idleMinutes = st.idle_minutes;
     $("btn-lock").classList.toggle("hidden", !st.lock_configured || !st.lock_enabled);
     if (st.theme) applyTheme(st.theme);
-    if (st.locked) { showLock(); return true; }
+    if (st.locked) { await showLock(); return true; }
     return false;
   } catch (_) {
     return false;
@@ -120,7 +175,7 @@ export async function submitPin(pin) {
 
 export async function lockNow() {
   try { await postJson("/api/lock/lock"); } catch (_) {}
-  showLock();
+  await showLock();
 }
 
 /* ------------------------------------------------------------ idle timer */

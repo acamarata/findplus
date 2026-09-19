@@ -205,6 +205,10 @@ html[data-theme="light"] .alert.warn { color: #6b4a00; }
 
 #app-shell.hidden { display: none; }
 
+/* --- dialog errors (places, alerts add-rule) ----------------------------- */
+.fp-dialog-error { color: var(--err); font-size: 12.5px; min-height: 18px; margin: 10px 0 0; }
+.fp-dialog-error:empty { margin: 0; min-height: 0; }
+
 /* --- settings ----------------------------------------------------------- */
 .setting-group { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
 .setting-group:first-of-type { border-top: 0; padding-top: 8px; }

@@ -6,14 +6,11 @@
  *              state.devices, GET /api/groups (rule dialog).
  * Outputs    : The two channel sections, rules table and add-rule dialog
  *              inside #tab-alerts (static markup in index.html).
- * Constraints: textContent only, never raw markup — API strings
- *              (chat_title, bot_username) can never run as script. The
- *              bot token lives only in the fetch body; the masked field
- *              clears on focus. Widget toggle uses the per-key
- *              /api/settings/widget.show_map shape (matches the existing
- *              app.start_at_login route) instead of the ticket's literal
- *              generic PUT /api/settings {key,value}, which the real PUT
- *              does not accept — see build-notes.md § E10-S2.
+ * Constraints: textContent only, never raw markup — API strings can never
+ *              run as script. Bot token lives only in the fetch body, masked
+ *              field clears on focus. Widget toggle: per-key GET/PUT/POST
+ *              /api/settings/widget.show_map (matches app.start_at_login;
+ *              build-notes.md § E10-S2); GET returns `{"widget.show_map": bool}`.
  */
 "use strict";
 import { $, state } from "./state.js";
@@ -22,22 +19,17 @@ const WIDGET_SETTING = "/api/settings/widget.show_map";
 export function init() {
   wireStaticControls();
   injectLatencyFallback();
-  loadWidgetToggle();
   refreshAll();
 }
 export async function refreshAll() {
-  try {
-    await loadChannels();
-    await loadRules();
-  } catch (_) {
-    // Locked or unreachable at boot; the lock screen / next refresh handles it.
-  }
+  // A 401 here already showed the lock screen; loadWidgetToggle() runs either way.
+  try { await loadChannels(); await loadRules(); } catch (_) { /* locked or unreachable */ }
+  await loadWidgetToggle();
 }
 function injectLatencyFallback() {
   const el = $("fp-alerts-latency-notice");
   if (el && !el.textContent) {
-    el.textContent =
-      "Alerts inherit the network's delay. An arrival or departure may be reported minutes to hours late.";
+    el.textContent = "Alerts inherit the network's delay. An arrival or departure may be reported minutes to hours late.";
   }
 }
 function wireStaticControls() {
@@ -130,7 +122,7 @@ async function errorDetail(res) {
   try {
     const body = await res.json();
     if (body.detail) return body.detail;
-  } catch (_) { /* no JSON body */ }
+  } catch (_) { /* no body */ }
   return `${res.status} ${res.statusText}`;
 }
 async function sendTelegramTest() {
@@ -241,6 +233,7 @@ async function openAddRuleDialog() {
   $("fp-rule-cooldown").value = "60";
   $("fp-rule-target-device").checked = true;
   updateRuleTargetVisibility();
+  $("fp-rule-error").textContent = "";
   $("fp-add-rule-dialog").showModal();
 }
 async function saveRule() {
@@ -264,15 +257,18 @@ async function saveRule() {
     });
     dlg.close();
     await loadRules();
-  } catch (_) { /* dialog stays open with the user's input so nothing is lost */ }
+  } catch (err) {
+    // api() shows the lock screen for a 401; anything else is shown here.
+    if (err.message !== "Locked") $("fp-rule-error").textContent = err.message;
+  }
 }
 /* widget toggle */
 async function loadWidgetToggle() {
   const toggle = $("fp-widget-map-toggle");
   if (!toggle) return;
   try {
-    toggle.checked = (await api(WIDGET_SETTING)).value === true;
-  } catch (_) { /* route not registered yet (defect #36) or locked */ }
+    toggle.checked = (await api(WIDGET_SETTING))["widget.show_map"] === true;
+  } catch (_) { /* locked at boot; a later refreshAll() after unlock repopulates it */ }
 }
 function wireWidgetToggle() {
   const toggle = $("fp-widget-map-toggle");
@@ -286,5 +282,15 @@ function wireWidgetToggle() {
       });
     } catch (_) { /* best-effort; the checkbox already reflects the choice */ }
   });
+}
+/** lock.js purgeRenderedData() hook: device/place names must not survive the lock screen. */
+export function purge() {
+  renderRulesTable([]);
+  renderTelegramSection({ configured: false });
+  renderWebhookSection({ configured: false });
+  $("fp-tg-status").textContent = "";
+  ["fp-rule-place", "fp-rule-device", "fp-rule-group"].forEach((id) => fillOptions($(id), [], () => []));
+  const dlg = $("fp-add-rule-dialog");
+  if (dlg && dlg.open) dlg.close();
 }
 init();

@@ -43,6 +43,16 @@ export async function refreshAll() {
   }
 }
 
+/** lock.js purgeRenderedData() hook: a circle or chip left behind is real location data. */
+export function purge() {
+  if (placeLayer) placeLayer.clearLayers();
+  removePreviewCircle();
+  if (dialogEl && dialogEl.open) dialogEl.close();
+  placesById = new Map();
+  circlesById.clear();
+  document.querySelectorAll(".fp-presence-chip").forEach((chip) => chip.remove());
+}
+
 export async function loadPlaces() {
   const places = await api("/api/places");
   placeLayer.clearLayers();
@@ -121,16 +131,20 @@ function ensureDialog() {
     labeled("Exit confirmations", exit),
   );
 
+  const errorEl = document.createElement("p");
+  errorEl.className = "fp-dialog-error";
+  errorEl.id = "fp-place-dialog-error";
+
   const footer = document.createElement("footer");
   const saveBtn = button("Save", onSave);
   const cancelBtn = button("Cancel", onCancel);
   footer.append(saveBtn, cancelBtn);
-  form.appendChild(footer);
+  form.append(errorEl, footer);
 
   dlg.appendChild(form);
   document.body.appendChild(dlg);
 
-  fields = { name, lat, lon, radius, radiusOut, color, enter, exit };
+  fields = { name, lat, lon, radius, radiusOut, color, enter, exit, error: errorEl };
   dialogEl = dlg;
 
   radius.addEventListener("input", () => {
@@ -173,6 +187,7 @@ function fillDialog(mode, id, place, latlng) {
   fields.color.value = place ? place.color : "#3b82f6";
   fields.enter.value = String(place ? place.enter_confirmations : 2);
   fields.exit.value = String(place ? place.exit_confirmations : 2);
+  fields.error.textContent = "";
   drawPreview(latlng, radius);
   dlg.showModal();
 }
@@ -221,9 +236,9 @@ async function onSave() {
     }
     dlg.close();
     await loadPlaces();
-  } catch (_) {
-    // api() already surfaced the lock screen or left an error on screen;
-    // the dialog stays open with the user's input so nothing is lost.
+  } catch (err) {
+    // api() shows the lock screen for a 401; anything else (409, 422) is shown here.
+    if (err.message !== "Locked") fields.error.textContent = err.message;
   }
 }
 

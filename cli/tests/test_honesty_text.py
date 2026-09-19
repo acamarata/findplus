@@ -9,10 +9,14 @@ Constraints: Copied character-for-character from specs/honesty.md — never
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
 from findplus.api import create_app
+
+REPO_ROOT = Path(__file__).parent.parent.parent
 
 EXPECTED = {
     "find_hub": (
@@ -65,3 +69,18 @@ def test_config_notices_no_extra_keys(client):
     resp = client.get("/api/config")
     notices = resp.json()["notices"]
     assert set(notices.keys()) == set(EXPECTED.keys())
+
+
+def test_alerts_js_latency_fallback_matches_honesty_sentence():
+    """web/app/alerts.js:injectLatencyFallback() hardcodes this sentence as a
+    same-text initialisation fallback for a failed/slow /api/config (the
+    server-sourced value from notices.js:loadNotices() always wins once it
+    lands — see the comment in notices.js). A literal, not a fetch, so a
+    drift here would show honesty text that disagrees with honesty.py and
+    never get caught by test_config_notices_present above, which only
+    exercises the server side.
+    """
+    text = (REPO_ROOT / "web" / "app" / "alerts.js").read_text(encoding="utf-8")
+    assert EXPECTED["alerts_latency"] in text, (
+        "alerts.js's hardcoded latency fallback no longer matches honesty.ALERTS_LATENCY"
+    )

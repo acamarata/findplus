@@ -39,7 +39,7 @@ export function renderDeviceModal() {
   const host = $("device-list");
   host.innerHTML = "";
   if (!state.devices.length) {
-    host.innerHTML = `<div class="empty">No devices known yet. Use "Refresh from Google".</div>`;
+    host.innerHTML = `<div class="empty">No devices known yet. Use "Refresh from your providers".</div>`;
   }
   state.devices.forEach((d) => {
     const row = document.createElement("label");
@@ -129,7 +129,7 @@ export function wireDeviceControls() {
   $("btn-refresh-devices").addEventListener("click", async () => {
     const btn = $("btn-refresh-devices");
     btn.disabled = true;
-    btn.textContent = "Asking Google…";
+    btn.textContent = "Asking your providers…";
     try {
       const r = await postJson("/api/devices/refresh");
       await loadDevices();
@@ -139,7 +139,7 @@ export function wireDeviceControls() {
       showAlert(`Could not refresh devices: ${err.message}`, "err");
     } finally {
       btn.disabled = false;
-      btn.textContent = "Refresh from Google";
+      btn.textContent = "Refresh from your providers";
     }
   });
 

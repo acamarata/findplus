@@ -30,7 +30,7 @@ from findplus.appsettings import (
     save_theme,
     set_lock_enabled,
 )
-from findplus.config import get_settings
+from findplus.config import PROJECT_ROOT, get_settings
 from findplus.db.migrate import current_revision, is_up_to_date
 from findplus.db.models import Device, LocationObservation, PollRun
 from findplus.db.session import session_scope
@@ -56,7 +56,15 @@ from findplus.timeline import (
 )
 
 log = get_logger(__name__)
-STATIC_DIR = Path(__file__).parent / "web" / "static"
+
+
+def _static_dir() -> Path:
+    """Dashboard assets: packaged copy inside the wheel, else the monorepo `web/` folder."""
+    packaged = Path(__file__).parent / "web" / "static"
+    return packaged if packaged.exists() else PROJECT_ROOT.parent / "web"
+
+
+STATIC_DIR = _static_dir()
 
 FIND_HUB_NOTICE = (
     "This history consists of locations reported through Google's Find Hub network. "

@@ -48,3 +48,7 @@ htmlcov/
 .idea/
 .DS_Store
 Thumbs.db
+
+# --- AI working memory (never committed) ------------------------------------
+.claude/
+.opencode/

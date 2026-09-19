@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import signal
 import socket
 import subprocess
@@ -74,7 +75,7 @@ def server(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
         STATE_DIR=str(tmp / "state"),
         PORT=str(port),
     )
-    python = str(PROJECT_ROOT / ".venv" / "bin" / "python")
+    python = sys.executable
 
     seed = subprocess.run(
         [python, "-c", _SEED_SCRIPT],

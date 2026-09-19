@@ -50,6 +50,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/findplus"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"../web" = "findplus/web/static"
+
 [tool.ruff]
 target-version = "py312"
 line-length = 100
@@ -61,5 +64,6 @@ ignore = ["B008"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 asyncio_mode = "auto"
 filterwarnings = ["ignore::DeprecationWarning"]

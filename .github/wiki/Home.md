@@ -18,6 +18,7 @@ Apple's own network.
 - [CLI reference](CLI-reference)
 - [API reference](API-reference)
 - [MCP](MCP): connect Find+ to Claude Desktop or Claude Code.
+- Fresh-machine rehearsal: `.github/docs/REHEARSAL.md` in the repo records the install, reinstall and uninstall run that was verified before release.
 
 ## Notices
 

@@ -39,6 +39,21 @@ def test_retention_zero_means_forever() -> None:
     assert Settings().retention_days == 0
 
 
+# ------------------------------------------------------------- groups/alerts
+def test_group_and_presence_window_defaults() -> None:
+    settings = Settings()
+    assert settings.presence_window_minutes == 60
+    assert settings.group_window_minutes == 30
+    assert settings.geofence_default_accuracy_meters == 100.0
+    assert settings.alerts_enabled is True
+    assert settings.widget_show_map is False
+
+
+def test_group_window_minutes_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FINDPLUS_GROUP_WINDOW_MINUTES", "45")
+    assert Settings().group_window_minutes == 45
+
+
 def test_secrets_live_outside_the_repository() -> None:
     settings = Settings()
     from findplus.config import PROJECT_ROOT

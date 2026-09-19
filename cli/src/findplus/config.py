@@ -54,6 +54,36 @@ class Settings(BaseSettings):
     # --- Analysis -----------------------------------------------------------
     movement_threshold_meters: float = 25.0
     gap_threshold_minutes: float = 20.0
+    geofence_default_accuracy_meters: float = Field(
+        default=100.0,
+        description="Fallback accuracy used when a fix has no accuracy_meters value, "
+        "for geofence classification and group-presence clustering.",
+    )
+
+    # --- Groups / presence ---------------------------------------------------
+    presence_window_minutes: int = Field(
+        default=60,
+        description="How far back a member's last fix can be and still count as "
+        "reporting for group presence and staleness checks.",
+    )
+    group_window_minutes: int = Field(
+        default=30,
+        description="Half-width, in minutes, of the window used to match member "
+        "place-events into one group_place_events row.",
+    )
+
+    # --- Alerts ---------------------------------------------------------------
+    alerts_enabled: bool = Field(
+        default=True,
+        description="Master switch: when false, alert dispatch is skipped entirely.",
+    )
+
+    # --- Widget -----------------------------------------------------------------
+    widget_show_map: bool = Field(
+        default=False,
+        description="Default for whether the macOS widget shows a map. The "
+        "settings-table key `widget.show_map` wins over this when set from the UI.",
+    )
 
     # --- Retention ----------------------------------------------------------
     retention_days: int = Field(default=0, description="0 = keep history forever.")

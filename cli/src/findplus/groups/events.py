@@ -44,9 +44,6 @@ from findplus.logging_setup import get_logger
 
 log = get_logger(__name__)
 
-_DEFAULT_GROUP_WINDOW_MINUTES = 30
-_DEFAULT_PRESENCE_WINDOW_MINUTES = 60
-
 
 @dataclass(frozen=True)
 class GroupCandidate:
@@ -240,8 +237,8 @@ def evaluate_group_events(
     wall clock (matches `alerts.dispatch.process`'s own override hook); tests
     pass a fixed value so staleness checks are deterministic.
     """
-    group_window = getattr(settings, "group_window_minutes", _DEFAULT_GROUP_WINDOW_MINUTES)
-    presence_window = getattr(settings, "presence_window_minutes", _DEFAULT_PRESENCE_WINDOW_MINUTES)
+    group_window = settings.group_window_minutes
+    presence_window = settings.presence_window_minutes
     now = now or datetime.now(UTC)
 
     group_ids = list(

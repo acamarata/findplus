@@ -43,10 +43,7 @@ struct SmallView: View {
                 }
             }
             Spacer()
-            Text(entry.response?.notice ?? "Locations can be minutes to hours late.")
-                .font(.system(size: 9))
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
+            NoticeFooter(entry: entry)
         }
     }
 }

@@ -18,7 +18,7 @@ struct LargeView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            MediumView(entry: entry)
+            MediumView(entry: entry, embedded: true)
             ForEach(entry.response?.groups ?? [], id: \.id) { g in
                 HStack {
                     Text(g.verdict).bold()
@@ -42,6 +42,8 @@ struct LargeView: View {
                     Label("Open", systemImage: "arrow.up.right.square")
                 }
             }
+            Spacer()
+            NoticeFooter(entry: entry)
         }
     }
 }

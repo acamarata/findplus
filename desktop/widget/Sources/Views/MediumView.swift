@@ -5,12 +5,17 @@
 // Inputs     : WidgetEntry.
 // Outputs    : A SwiftUI View for the medium widget family.
 // Constraints: Locked/Down states show a full-width message, no device rows.
+//              `embedded` is set by LargeView, which supplies its own action
+//              row and its own footer notice: without it the large family
+//              renders Poll now/Open twice and prints the notice mid-layout
+//              instead of in the footer (widget.md § Behaviour).
 
 import SwiftUI
 import WidgetKit
 
 struct MediumView: View {
     let entry: WidgetEntry
+    var embedded: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -31,13 +36,15 @@ struct MediumView: View {
                         if let device = entry.response?.devices.first {
                             Text(formatAge(minutes: device.age_minutes)).font(.caption)
                         }
-                        HStack {
-                            Button(intent: PollNowIntent()) {
-                                Label("Poll now", systemImage: "arrow.clockwise")
-                            }
-                            .disabled(entry.state == .locked || entry.state == .down)
-                            Button(intent: OpenFindPlusIntent()) {
-                                Label("Open", systemImage: "arrow.up.right.square")
+                        if !embedded {
+                            HStack {
+                                Button(intent: PollNowIntent()) {
+                                    Label("Poll now", systemImage: "arrow.clockwise")
+                                }
+                                .disabled(entry.state == .locked || entry.state == .down)
+                                Button(intent: OpenFindPlusIntent()) {
+                                    Label("Open", systemImage: "arrow.up.right.square")
+                                }
                             }
                         }
                     }
@@ -49,11 +56,10 @@ struct MediumView: View {
                     }
                 }
             }
-            Spacer()
-            Text(entry.response?.notice ?? "Locations can be minutes to hours late.")
-                .font(.system(size: 9))
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
+            if !embedded {
+                Spacer()
+                NoticeFooter(entry: entry)
+            }
         }
     }
 

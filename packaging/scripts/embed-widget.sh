@@ -55,15 +55,25 @@ mkdir -p "$PLUGINS_DIR"
 rm -rf "${PLUGINS_DIR:?}/$APPEX_NAME"
 cp -R "$APPEX_PATH" "$PLUGINS_DIR/"
 
+# The helper is gitignored build output: build it when it is absent, rather
+# than silently shipping an app whose findplus://refresh-widget does nothing.
 RELOAD_HELPER="desktop/widget/reload-widgets"
-if [ -f "$RELOAD_HELPER" ]; then
-  cp "$RELOAD_HELPER" "$APP_PATH/Contents/MacOS/"
+if [ ! -f "$RELOAD_HELPER" ]; then
+  swiftc "$RELOAD_HELPER.swift" -framework WidgetKit -o "$RELOAD_HELPER"
 fi
+cp "$RELOAD_HELPER" "$APP_PATH/Contents/MacOS/"
 
 # --- SIGN_INNER -----------------------------------------------------------
 codesign --force --options runtime --timestamp \
   --entitlements desktop/widget/FindPlusWidget.entitlements \
   --sign "$IDENTITY" "$PLUGINS_DIR/$APPEX_NAME"
+
+# --- SIGN_HELPER --------------------------------------------------------------
+# Every Mach-O inside the bundle must carry its own hardened-runtime signature
+# or notarisation rejects the app; --deep is never used, so the outer sign does
+# not cover this one. No entitlements: the helper only talks to widgetkitd.
+codesign --force --options runtime --timestamp \
+  --sign "$IDENTITY" "$APP_PATH/Contents/MacOS/reload-widgets"
 
 # --- SIGN_OUTER -------------------------------------------------------------
 codesign --force --options runtime --timestamp \

@@ -95,6 +95,34 @@ Two upstream robustness defects are contained rather than inherited:
 
 - `findplus places` — list, add, edit, remove, events.
 
+## MCP server
+
+`cli/src/findplus/mcp/` (ADR-P1-06: a thin client of the local HTTP API, never a side door around
+the app lock). Package layout:
+
+- `client.py` — `DaemonClient`, the only module that imports `httpx`. Maps a daemon 401 to
+  `{"error": {"code": "locked", ...}}` and a connection failure to `{"error": {"code":
+  "daemon_down", ...}}` instead of raising, so every tool returns the standard error shape
+  without a per-tool guard. `get_notice()` caches `/api/config`'s `notices.find_hub` and falls
+  back to `findplus.honesty.FIND_HUB` if the daemon is unreachable.
+- `server.py` — `create_mcp_server(base_url, allow_writes)`. Confirmed SDK import path (mcp
+  2.2.0): `from mcp.server.mcpserver import MCPServer`. Registers the 10 read tools always;
+  registers the 6 write tools only when `allow_writes=True`. Stores `mcp._startup_pin` from
+  `FINDPLUS_PIN` for the `findplus mcp` CLI command's async runner to consume before the stdio
+  transport starts (the factory itself is synchronous, so it never awaits the unlock).
+- `tools_read.py` / `tools_write.py` — one `@mcp.tool(structured_output=True)` closure per tool,
+  every one annotated `-> dict[str, Any]` (mcp 2.2.0 raises `InvalidSignature` at registration on
+  a bare `-> dict`). Tool bodies read `mcp._daemon_client` at call time through a local `_c()`
+  helper rather than closing over the constructor's `client` argument, so a test (or a future
+  reconnect) can swap the daemon client after `create_mcp_server()` returns — matching
+  specs/mcp-tools.md's "dependency-injected base client".
+- `unlock` stores the session cookie on `DaemonClient` via `post_with_cookie`; every other tool
+  reuses that cookie automatically through `DaemonClient._headers()`.
+
+CLI: `findplus mcp [--allow-writes] [--url]` (`cli/src/findplus/cli/cmd_mcp.py`), a deferred
+import so `findplus --help` never pays the mcp SDK's import cost. Wiki:
+`.github/wiki/MCP-server.md`.
+
 ## Multi-device model
 
 `devices.is_tracked` drives polling; any number may be set. The poller walks the
@@ -361,3 +389,32 @@ detection does not re-filter repeats. The engine itself
 returns the next state plus any ENTER/EXIT event. Hysteresis
 (`enter_confirmations`/`exit_confirmations`) and an accuracy-scaled confidence
 band are what stop crowdsourced jitter from flapping events.
+
+## Alerts
+
+Credentials live in `~/.findplus/alerts.json` (0600).
+Telegram sends through `api.telegram.org`; webhooks POST JSON with an optional `X-FindPlus-Signature` HMAC-SHA256 header.
+`alerts/dispatch.py` (pure core in `dispatch_core.py`) matches, suppresses and cools down before sending.
+The poller calls `process()` in its own session right after each device's ingest commits, so a channel failure never blocks polling.
+Rules and deliveries live in `alert_rules` and `alert_deliveries` (migration 0005).
+No new migration: 0005 already created both tables (P1-E5-W5-S1-T1).
+
+## Desktop
+
+**Tauri 2 shell, no JS build.** The macOS app is a Rust binary that loads the existing
+daemon dashboard via `WebviewUrl::External("http://127.0.0.1:8647/")` after a health probe
+succeeds. No separate frontend build step; desktop/ui/ holds only a static splash page
+(logo + spinner) displayed while the daemon starts.
+
+**PyInstaller onedir sidecar.** The Python daemon is bundled as a PyInstaller onedir
+(`findplus-daemon` directory) rather than onefile. Onefile extracts ~150 MB per launch,
+triggers Gatekeeper on every run, and complicates library validation. Onedir extracts once
+at install time and is signed in place.
+
+**Tray via tray-icon feature.** Status is shown through four dot PNGs (green/amber/red/grey
+at 12 px @1x/@2x) set as the tray icon via the Tauri `tray-icon` feature. A coloured `●`
+Unicode fallback is used only when the PNG cannot be loaded at runtime.
+
+**Window created from Rust.** `app.windows` in tauri.conf.json is empty; `open_main()` in
+windows.rs creates the WebviewWindow programmatically after the health gate, so the Dock
+icon and splash window are controlled from Rust rather than config.

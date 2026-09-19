@@ -29,3 +29,4 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - E5: device groups with partial-presence detection and quorum-based group crossing events
 - E12: PyPI packaging, curl installer and Homebrew formula
 - E8: version, widget and status endpoints; findplus version --check
+- E9: MCP server over the local API (findplus mcp)

@@ -92,7 +92,7 @@ Read Settings
 Get Start At Login
 
 ### GET /api/settings/widget.show_map
-Get Widget Show Map
+The effective value, resolved exactly as `GET /api/widget` resolves it.
 
 ### POST /api/settings/app.start_at_login
 Toggle the desktop app's LaunchAgent via the shared service code.

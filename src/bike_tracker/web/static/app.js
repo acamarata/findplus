@@ -323,6 +323,8 @@ function highlightSelection() {
  */
 function showLock() {
   if (!state.locked) {
+    // Only non-sensitive view state is remembered — a date, a device filter and
+    // a row id. No coordinates are retained anywhere once locked.
     state.resume = {
       day: state.day,
       deviceFilter: state.deviceFilter,
@@ -334,11 +336,40 @@ function showLock() {
   state.locked = true;
   stopIdleTimer();
   closeModals();
+  purgeRenderedData();
   $("app-shell").classList.add("hidden");
   $("lock-screen").classList.remove("hidden");
   $("lock-error").textContent = "";
   $("lock-pin").value = "";
   $("lock-pin").focus();
+}
+
+/**
+ * Remove every rendered coordinate from the page.
+ *
+ * Hiding `#app-shell` stops it being *displayed*, but the markup would still sit
+ * in the DOM where View Source or DevTools could read the last-viewed history.
+ * The API refusing to answer is not enough on its own — what was already
+ * delivered has to be destroyed too.
+ */
+function purgeRenderedData() {
+  state.timeline = null;
+  state.devices = [];
+  state.selectedId = null;
+  state.markers.clear();
+  if (state.layer) state.layer.clearLayers();
+  if (state.map) state.map.setView([39.5, -98.35], 4);
+
+  $("tracks").innerHTML = "";
+  $("device-list").innerHTML = "";
+  $("device-filter").innerHTML = '<option value="">All tracked devices</option>';
+  $("device-name").textContent = "";
+  $("alert").classList.add("hidden");
+  $("alert").textContent = "";
+  ["card-observed", "card-observed-ago", "card-fetched", "card-lag",
+   "card-poll", "card-poll-status", "card-today", "card-total"].forEach((id) => {
+    $(id).textContent = "—";
+  });
 }
 
 /** Hide the lock screen and restore the exact view the user was on. */
@@ -350,21 +381,9 @@ async function hideLockAndRestore() {
   const resume = state.resume;
   state.resume = null;
 
-  if (resume) {
-    state.deviceFilter = resume.deviceFilter;
-    state.movementOnly = resume.movementOnly;
-    $("device-filter").value = resume.deviceFilter || "";
-    $("toggle-movement").checked = resume.movementOnly;
-  }
-
-  await loadDevices();
-  await loadStatus();
-  await loadDay((resume && resume.day) || todayLocal());
-
-  if (resume && resume.selectedId) selectPoint(resume.selectedId, true);
-  if (resume) window.scrollTo(0, resume.scrollY);
-
-  startIdleTimer();
+  // Full boot, not a partial refresh: after an unlock the session may never
+  // have loaded config/settings at all.
+  await bootDashboard(resume);
 }
 
 async function refreshLockState() {
@@ -889,6 +908,48 @@ async function applyHashRoute() {
   else closeModals();
 }
 
+/**
+ * Load everything the dashboard needs and start its timers.
+ *
+ * Called both on a normal (unlocked) start AND after an unlock. Starting locked
+ * used to skip this entirely, which left `state.config` null (breaking the
+ * Settings dialog), the Find Hub notice blank, and the auto-refresh timer never
+ * created for the rest of the session.
+ */
+async function bootDashboard(resume) {
+  const config = await loadConfig();
+  await loadSettings();
+  await loadDevices();
+
+  if (resume) {
+    state.deviceFilter = resume.deviceFilter;
+    state.movementOnly = resume.movementOnly;
+    $("device-filter").value = resume.deviceFilter || "";
+    $("toggle-movement").checked = resume.movementOnly;
+  }
+
+  await loadStatus();
+  await loadDay((resume && resume.day) || todayLocal());
+
+  if (resume && resume.selectedId) selectPoint(resume.selectedId, true);
+  if (resume) window.scrollTo(0, resume.scrollY);
+
+  startIdleTimer();
+  await applyHashRoute();
+
+  // Polls the LOCAL API only. Google is queried server-side on its own interval.
+  // Guarded so repeated lock/unlock cycles cannot stack duplicate timers.
+  if (state.refreshTimer) clearInterval(state.refreshTimer);
+  const seconds = Math.max(30, config.ui_refresh_seconds || 45);
+  state.refreshTimer = setInterval(async () => {
+    if (state.locked) return;  // never poll the API from behind the lock screen
+    try {
+      await loadStatus();
+      if (state.day === todayLocal()) await loadDay(state.day);
+    } catch (_) { /* a lock mid-refresh is handled by api() */ }
+  }, seconds * 1000);
+}
+
 async function main() {
   // Paint the cached theme before anything else so there is no flash.
   applyTheme(localStorage.getItem("bt.theme") || "dark");
@@ -899,23 +960,7 @@ async function main() {
   // Ask about the lock BEFORE requesting any location data.
   if (await refreshLockState()) return;
 
-  const config = await loadConfig();
-  await loadSettings();
-  await loadDevices();
-  await loadStatus();
-  await loadDay(todayLocal());
-  startIdleTimer();
-  await applyHashRoute();
-
-  // Polls the LOCAL API only. Google is queried server-side on its own interval.
-  const seconds = Math.max(30, config.ui_refresh_seconds || 45);
-  state.refreshTimer = setInterval(async () => {
-    if (state.locked) return;  // never poll the API from behind the lock screen
-    try {
-      await loadStatus();
-      if (state.day === todayLocal()) await loadDay(state.day);
-    } catch (_) { /* a lock mid-refresh is handled by api() */ }
-  }, seconds * 1000);
+  await bootDashboard(null);
 }
 
 main();

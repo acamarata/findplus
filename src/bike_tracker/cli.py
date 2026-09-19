@@ -116,6 +116,17 @@ def devices(
 
     mutating = bool(track_ids or track_all_flag or untrack_ids or default_id)
 
+    # --track-all with an empty local table means the list was never fetched.
+    # Refresh first rather than silently "tracking all 0 devices".
+    if track_all_flag:
+        from sqlalchemy import select as _sel
+
+        with session_scope() as session:
+            known = len(list(session.scalars(_sel(Device))))
+        if known == 0:
+            refresh = True
+            mutating = False
+
     if refresh and not mutating:
         try:
             found = FindHubClient().list_devices()
@@ -126,6 +137,9 @@ def devices(
         with session_scope() as session:
             for d in found:
                 upsert_device(session, d.device_id, d.name)
+
+    if track_all_flag:
+        mutating = True
 
     if mutating:
         with session_scope() as session:

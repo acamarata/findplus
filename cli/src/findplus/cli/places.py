@@ -59,7 +59,7 @@ def _event_values(r) -> tuple:
         getattr(r, "_place_name", ""),
         getattr(r, "_device_name", ""),
         r.event_type,
-        r.observed_at.isoformat() + "Z",
+        r.observed_at.isoformat(),
         r.confidence,
     )
 

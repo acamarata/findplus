@@ -114,6 +114,29 @@ def classify(place: PlaceSpec, fix: Fix, default_accuracy: float = 100.0) -> Cla
     )
 
 
+def _crossing(
+    event_type: Literal["ENTER", "EXIT"], cls: Classification, fix: Fix
+) -> tuple[GeofenceState, GeofenceEvent]:
+    """Build the post-crossing state (streak reset) and its event."""
+    new_state = GeofenceState(
+        state="inside" if event_type == "ENTER" else "outside",
+        since_observed_at=fix.observed_at,
+        streak=0,
+        streak_side=None,
+        last_observation_id=fix.observation_id,
+    )
+    event = GeofenceEvent(
+        event_type=event_type,
+        observation_id=fix.observation_id,
+        observed_at=fix.observed_at,
+        fetched_at=fix.fetched_at,
+        confidence=cls.confidence,
+        distance_meters=cls.distance_meters,
+        accuracy_meters=cls.accuracy_meters,
+    )
+    return new_state, event
+
+
 def advance(
     state: GeofenceState, cls: Classification, fix: Fix, place: PlaceSpec
 ) -> tuple[GeofenceState, GeofenceEvent | None]:
@@ -139,42 +162,10 @@ def advance(
         return new_state, None
 
     if state.state == "outside" and cls.side == "inside" and streak >= place.enter_confirmations:
-        new_state = GeofenceState(
-            state="inside",
-            since_observed_at=fix.observed_at,
-            streak=0,
-            streak_side=None,
-            last_observation_id=fix.observation_id,
-        )
-        event = GeofenceEvent(
-            event_type="ENTER",
-            observation_id=fix.observation_id,
-            observed_at=fix.observed_at,
-            fetched_at=fix.fetched_at,
-            confidence=cls.confidence,
-            distance_meters=cls.distance_meters,
-            accuracy_meters=cls.accuracy_meters,
-        )
-        return new_state, event
+        return _crossing("ENTER", cls, fix)
 
     if state.state == "inside" and cls.side == "outside" and streak >= place.exit_confirmations:
-        new_state = GeofenceState(
-            state="outside",
-            since_observed_at=fix.observed_at,
-            streak=0,
-            streak_side=None,
-            last_observation_id=fix.observation_id,
-        )
-        event = GeofenceEvent(
-            event_type="EXIT",
-            observation_id=fix.observation_id,
-            observed_at=fix.observed_at,
-            fetched_at=fix.fetched_at,
-            confidence=cls.confidence,
-            distance_meters=cls.distance_meters,
-            accuracy_meters=cls.accuracy_meters,
-        )
-        return new_state, event
+        return _crossing("EXIT", cls, fix)
 
     new_state = GeofenceState(
         state=state.state,

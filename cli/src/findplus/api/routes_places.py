@@ -58,8 +58,8 @@ def _place_to_dict(p: Place) -> dict[str, Any]:
         "color": p.color,
         "enter_confirmations": p.enter_confirmations,
         "exit_confirmations": p.exit_confirmations,
-        "created_at": p.created_at.isoformat() + "Z",
-        "updated_at": p.updated_at.isoformat() + "Z",
+        "created_at": p.created_at.isoformat(),
+        "updated_at": p.updated_at.isoformat(),
         "devices_inside": getattr(p, "_devices_inside", []),
     }
 
@@ -73,13 +73,13 @@ def _event_to_dict(e: PlaceEvent) -> dict[str, Any]:
         "device_id": e.device_id,
         "device_name": getattr(e, "_device_name", ""),
         "event_type": e.event_type,
-        "observed_at": e.observed_at.isoformat() + "Z",
-        "fetched_at": e.fetched_at.isoformat() + "Z",
+        "observed_at": e.observed_at.isoformat(),
+        "fetched_at": e.fetched_at.isoformat(),
         "lag_minutes": lag,
         "confidence": e.confidence,
         "distance_meters": e.distance_meters,
         "accuracy_meters": e.accuracy_meters,
-        "notified_at": e.notified_at.isoformat() + "Z" if e.notified_at else None,
+        "notified_at": e.notified_at.isoformat() if e.notified_at else None,
     }
 
 
@@ -173,7 +173,7 @@ def build_router() -> APIRouter:
             rows = current_presence(s, device_id=device_id)
             for r in rows:
                 if r["since_observed_at"] is not None:
-                    r["since_observed_at"] = r["since_observed_at"].isoformat() + "Z"
+                    r["since_observed_at"] = r["since_observed_at"].isoformat()
             return rows
 
     return router

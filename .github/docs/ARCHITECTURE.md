@@ -118,7 +118,7 @@ block.
 
 ## Data model
 
-Four tables, migrated by Alembic (revisions `0001`, `0002`).
+Seven tables, migrated by Alembic (revisions `0001`–`0004`).
 
 **`location_observations`** is the core. Its design encodes three requirements:
 
@@ -339,11 +339,13 @@ GoogleFindMyTools is GPL-3.0. This project links it as a library, so this projec
 is licensed **GPL-3.0-or-later**. Upstream attribution and its `LICENSE` are
 preserved under `cli/vendor/GoogleFindMyTools/`.
 
-## Extension point: geofences (not in v1)
+## Geofences: where evaluation runs
 
-Alert zones were designed for but not built. The intended shape: a `zones` table
-(`name`, `center_lat_e7`, `center_lon_e7`, `radius_meters`) plus a `zone_events`
-table, with evaluation running in `ingest.py` immediately after a new observation
-is inserted — the single point where new sightings are known to be genuinely new.
+Geofence evaluation runs in `ingest.py` immediately after the new observations are
+flushed — the single point where new sightings are known to be genuinely new.
 Because deduplication already guarantees "new row means new sighting", enter/exit
-detection does not need to re-filter repeats.
+detection does not re-filter repeats. The engine itself
+(`places/geofence.py`) is pure: it takes a place, a fix and the prior state, and
+returns the next state plus any ENTER/EXIT event. Hysteresis
+(`enter_confirmations`/`exit_confirmations`) and an accuracy-scaled confidence
+band are what stop crowdsourced jitter from flapping events.

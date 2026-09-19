@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -36,6 +38,14 @@ def test_create(client: TestClient) -> None:
     assert isinstance(body["latitude"], float)
     assert isinstance(body["longitude"], float)
     assert body["devices_inside"] == []
+
+
+def test_create_timestamps_are_parseable_iso(client: TestClient) -> None:
+    """Regression: UtcDateTime returns aware datetimes, so no trailing 'Z' is added."""
+    body = client.post("/api/places", json=_create_body()).json()
+    for field in ("created_at", "updated_at"):
+        parsed = datetime.fromisoformat(body[field])
+        assert parsed.tzinfo is not None
 
 
 def test_create_duplicate(client: TestClient) -> None:

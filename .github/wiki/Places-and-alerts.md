@@ -33,6 +33,16 @@ Google Find Hub and Apple Find My report locations through nearby participating 
 tag that has not passed near a participating device will not report until it does. Find+
 sends the alert as soon as the fix arrives; the delay is in the network, not in Find+.
 
+## Webhook payload
+
+A webhook alert POSTs a JSON body with `event`, `kind`, `subject`, `place`, `observed_at`,
+`fetched_at`, `lag_minutes`, `confidence`, `note`, and `sent_at`. `lag_minutes` is the delay
+between `observed_at` and `fetched_at` in minutes -- it is `null`, never `0`, whenever the
+fetch time isn't known (every group alert, since a group crossing has no single fetch time,
+and any device alert whose fetch time wasn't recorded). Treat `null` as "delay unknown," not
+as "delivered instantly." A `X-FindPlus-Signature` header (HMAC-SHA256 of the body) is added
+when a webhook secret is configured.
+
 ## Telegram setup walkthrough
 
 1. In Telegram, message [@BotFather](https://t.me/BotFather), send `/newbot`, and follow the

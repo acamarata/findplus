@@ -190,7 +190,7 @@ def _send(rule: Rule, event: DeviceEvent | GroupEvent, kind: str, text_msg: str,
         subject_name = event.device_name if isinstance(event, DeviceEvent) else event.group_name
         observed_at = as_utc(event.observed_at)
         fetched_at = as_utc(getattr(event, "fetched_at", None))
-        lag = round((fetched_at - observed_at).total_seconds() / 60) if fetched_at else 0
+        lag = round((fetched_at - observed_at).total_seconds() / 60) if fetched_at else None
         payload = build_payload(
             event.event_type,
             kind,

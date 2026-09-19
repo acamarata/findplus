@@ -46,7 +46,7 @@ def build_payload(
     place_name: str,
     observed_at: datetime.datetime,
     fetched_at: datetime.datetime | None,
-    lag_minutes: int,
+    lag_minutes: int | None,
     confidence: str,
     note: str,
 ) -> dict:

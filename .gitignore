@@ -56,8 +56,9 @@ Thumbs.db
 # Desktop / packaging
 desktop/src-tauri/target/
 desktop/src-tauri/gen/schemas/
-desktop/src-tauri/binaries/findplus-daemon-aarch64-apple-darwin/
-desktop/src-tauri/binaries/findplus-daemon-x86_64-apple-darwin/
+# binaries/findplus-daemon-<triple> are committed launcher scripts; the
+# PyInstaller onedir they exec is build output and ships as a bundle resource.
+desktop/src-tauri/resources/
 desktop/widget/build/
 desktop/widget/reload-widgets
 desktop/widget/*.xcodeproj/xcuserdata/

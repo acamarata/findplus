@@ -1,0 +1,30 @@
+#!/bin/sh
+# Tauri sidecar launcher for the PyInstaller onedir daemon (arm64).
+#
+# Purpose    : bundle.externalBin needs ONE file named findplus-daemon-<triple>,
+#              but the daemon ships as a PyInstaller onedir (specs/desktop-app.md
+#              ADR-P1-03: onefile re-extracts ~90 MB and starts in 2.3-3.4 s,
+#              measured, against 0.38 s for onedir). This launcher is that file;
+#              it execs the real binary inside the onedir.
+# Inputs     : $@ (forwarded verbatim); FINDPLUS_DAEMON_BIN overrides the search.
+# Outputs    : Replaces itself with the daemon process, so the pid Tauri tracks
+#              is the daemon's own pid and Quit kills the right process.
+# Constraints: POSIX sh, no bashisms; must stay exec-based (never a child).
+set -eu
+
+DIR=$(cd -- "$(dirname -- "$0")" && pwd)
+
+# Contents/MacOS/ -> Contents/Resources/... (bundled app) first, then the two
+# layouts `cargo tauri dev` and a direct repo run produce.
+for candidate in \
+  "${FINDPLUS_DAEMON_BIN:-}" \
+  "$DIR/../Resources/resources/findplus-daemon/findplus-daemon" \
+  "$DIR/resources/findplus-daemon/findplus-daemon" \
+  "$DIR/../resources/findplus-daemon/findplus-daemon"; do
+  if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+    exec "$candidate" "$@"
+  fi
+done
+
+echo "findplus-daemon: bundled daemon not found next to $DIR" >&2
+exit 1

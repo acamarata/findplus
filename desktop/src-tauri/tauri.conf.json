@@ -1,7 +1,7 @@
 {
   "productName": "Find+",
   "identifier": "com.acamarata.findplus",
-  "version": "0.0.0",
+  "version": "1.0.0-dev0",
   "build": {
     "frontendDist": "../ui"
   },
@@ -20,6 +20,9 @@
     ],
     "externalBin": [
       "binaries/findplus-daemon"
+    ],
+    "resources": [
+      "resources/findplus-daemon/**/*"
     ],
     "icon": [
       "icons/32x32.png",

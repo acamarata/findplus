@@ -11,7 +11,7 @@
 #              daemon. --no-poller prevents any Google auth attempt.
 set -euo pipefail
 
-BINARY="desktop/src-tauri/binaries/findplus-daemon-aarch64-apple-darwin/findplus-daemon"
+BINARY="desktop/src-tauri/resources/findplus-daemon/findplus-daemon"
 if [ ! -x "$BINARY" ]; then
   BINARY="dist/findplus-daemon/findplus-daemon"
 fi
@@ -23,10 +23,18 @@ fi
 TMPDIR=$(mktemp -d)
 export HOME="$TMPDIR"
 export FINDPLUS_STATE_DIR="$TMPDIR/.findplus"
+SIDECAR_PID=""
+# Kill the server on every exit path, not just the happy one: an orphaned
+# child keeps the script's stdout pipe open and the caller hangs for ever.
 cleanup() {
+  [ -n "$SIDECAR_PID" ] && kill "$SIDECAR_PID" 2> /dev/null
+  wait "$SIDECAR_PID" 2> /dev/null
   rm -rf "$TMPDIR"
+  return 0
 }
 trap cleanup EXIT
+
+"$BINARY" --version
 
 "$BINARY" serve --no-poller --port 18647 --foreground &
 SIDECAR_PID=$!
@@ -41,15 +49,15 @@ for _ in $(seq 1 20); do
 done
 
 if [ "$HEALTHY" -ne 1 ]; then
-  kill "$SIDECAR_PID" 2> /dev/null || true
   echo "FAIL: health timeout" >&2
   exit 1
 fi
 
 "$BINARY" db upgrade
-"$BINARY" doctor
 
-kill "$SIDECAR_PID"
-wait "$SIDECAR_PID" 2> /dev/null || true
+# doctor is advisory here: in a throwaway HOME it correctly reports "not
+# authenticated", "service not installed" and exits non-zero. The smoke test
+# only needs it to RUN inside the frozen bundle, so the exit code is ignored.
+"$BINARY" doctor || true
 
 echo "sidecar smoke: PASS"

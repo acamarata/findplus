@@ -5,14 +5,15 @@
 # Purpose    : Pre-sign the sidecar before `cargo tauri build` — Gatekeeper
 #              rejects the outer .app if any embedded Mach-O is unsigned,
 #              even when the outer bundle itself is properly signed.
-# Inputs     : $1 = onedir path (default: the arm64 Tauri sidecar location).
-#              APPLE_SIGNING_IDENTITY env var.
+# Inputs     : $1 = onedir path (default: desktop/src-tauri/resources/
+#              findplus-daemon, where the PyInstaller spec puts it so the Tauri
+#              bundler ships it as a resource). APPLE_SIGNING_IDENTITY env var.
 # Outputs    : Signed binaries in place; "sign-sidecar: PASS" on success.
 # Constraints: No identity -> skip cleanly (exit 0), never fail the build.
 set -euo pipefail
 
 IDENTITY="${APPLE_SIGNING_IDENTITY:-}"
-SIDECAR_DIR="${1:-desktop/src-tauri/binaries/findplus-daemon-aarch64-apple-darwin}"
+SIDECAR_DIR="${1:-desktop/src-tauri/resources/findplus-daemon}"
 
 if [ -z "$IDENTITY" ]; then
   echo "No APPLE_SIGNING_IDENTITY; skipping signing"

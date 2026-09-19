@@ -1,14 +1,21 @@
-# x86_64 (Intel) build — see findplus-daemon.spec for arm64.
-# PyInstaller spec — findplus-daemon onedir sidecar (arm64).
+# x86_64 (Intel) build — the arm64 spec is findplus-daemon.spec; the two differ
+# only in target_arch. Both write the same resources/findplus-daemon output, so
+# build the one matching the arch you are bundling for; the second run wins.
+# PyInstaller spec — findplus-daemon onedir sidecar (x86_64).
 #
 # Purpose    : Bundle the Python daemon so the Tauri desktop app can spawn it
-#              without a system Python or venv. Onedir (not onefile): onefile
-#              extracts ~150 MB per launch, triggers Gatekeeper every run, and
-#              complicates library validation (specs/desktop-app.md ADR-P1-03).
-# Inputs     : Run from the repo root: `pyinstaller
-#              packaging/pyinstaller/findplus-daemon.spec`.
-# Outputs    : dist/findplus-daemon/ (onedir), copied to
-#              desktop/src-tauri/binaries/findplus-daemon-x86_64-apple-darwin/.
+#              without a system Python or venv. Onedir (not onefile): measured
+#              on this machine, onefile re-extracts ~90 MB and answers
+#              `--version` in 2.3-3.4 s against 0.38 s for onedir
+#              (specs/desktop-app.md ADR-P1-03).
+# Inputs     : `pyinstaller packaging/pyinstaller/findplus-daemon-x86_64.spec`
+#              from any directory. Every path below derives from SPECPATH, because
+#              PyInstaller resolves relative paths in a spec against the spec's
+#              own directory, not the current one.
+# Outputs    : <distpath>/findplus-daemon/ (onedir), copied to
+#              desktop/src-tauri/resources/findplus-daemon/ (shipped as a Tauri
+#              bundle resource; binaries/findplus-daemon-<triple> is a small
+#              launcher that execs it).
 # Constraints: codesign_identity=None — packaging/scripts/sign-sidecar.sh signs
 #              every Mach-O afterwards. See specs/packaging-and-release.md §
 #              PyInstaller spec (binding: datas, hiddenimports, excludes).
@@ -19,10 +26,13 @@ from PyInstaller.utils.hooks import collect_submodules
 
 block_cipher = None
 
+# SPECPATH is injected by PyInstaller: <repo>/packaging/pyinstaller.
+ROOT = Path(SPECPATH).resolve().parents[1]  # noqa: F821
+
 datas = [
-    ("web", "findplus/web/static"),
-    ("cli/src/findplus/db/migrations", "findplus/db/migrations"),
-    ("cli/vendor/GoogleFindMyTools", "findplus/_vendor/GoogleFindMyTools"),
+    (str(ROOT / "web"), "findplus/web/static"),
+    (str(ROOT / "cli/src/findplus/db/migrations"), "findplus/db/migrations"),
+    (str(ROOT / "cli/vendor/GoogleFindMyTools"), "findplus/_vendor/GoogleFindMyTools"),
 ]
 
 hiddenimports = [
@@ -45,8 +55,8 @@ hiddenimports = [
 excludes = ["tests", "playwright", "frida", "tkinter"]
 
 a = Analysis(
-    ["packaging/pyinstaller/entry.py"],
-    pathex=[],
+    [str(ROOT / "packaging/pyinstaller/entry.py")],
+    pathex=[str(ROOT / "cli/src")],
     binaries=[],
     datas=datas,
     hiddenimports=hiddenimports,
@@ -86,8 +96,14 @@ coll = COLLECT(
     name="findplus-daemon",
 )
 
-# Post-build: copy the onedir output next to the Tauri sidecar externalBin path
-# so `cargo tauri build` can pick it up without a manual copy step.
-_dest = Path("desktop/src-tauri/binaries/findplus-daemon-x86_64-apple-darwin")
-_dest.mkdir(parents=True, exist_ok=True)
-shutil.copytree("dist/findplus-daemon", _dest, dirs_exist_ok=True)
+# Post-build: place the onedir where the Tauri bundler picks it up.
+# externalBin entries must be a single FILE named <name>-<triple>, so the
+# onedir ships under bundle.resources and binaries/findplus-daemon-<triple> is
+# a launcher script that execs findplus-daemon inside it.
+_dest = ROOT / "desktop/src-tauri/resources/findplus-daemon"
+if _dest.exists():
+    shutil.rmtree(_dest)
+_dest.parent.mkdir(parents=True, exist_ok=True)
+# symlinks=True keeps the .framework symlink layout intact (and stops the copy
+# from doubling in size by dereferencing every Versions/Current link).
+shutil.copytree(Path(DISTPATH) / "findplus-daemon", _dest, symlinks=True)  # noqa: F821

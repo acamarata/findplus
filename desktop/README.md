@@ -36,13 +36,16 @@ sidecar to produce an Intel binary locally.
 cd /Volumes/UG/Sites/acamarata/findplus && pyinstaller packaging/pyinstaller/findplus-daemon.spec
 ```
 
-Copies output to `desktop/src-tauri/binaries/findplus-daemon-aarch64-apple-darwin/`.
+Copies the PyInstaller onedir to `desktop/src-tauri/resources/findplus-daemon/`, which
+Tauri ships inside `Find+.app/Contents/Resources/`. The `externalBin` entry
+`binaries/findplus-daemon-<triple>` is a committed launcher script that execs the
+binary in there, because `externalBin` takes one file and the daemon is a directory.
 
 ## Signing
 
 Run `packaging/scripts/sign-sidecar.sh` before `cargo tauri build`. Set
-`APPLE_SIGNING_IDENTITY`, `APPLE_API_KEY`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER` for
-notarisation.
+`APPLE_SIGNING_IDENTITY`, and `APPLE_API_KEY_P8_BASE64`, `APPLE_API_KEY_ID`,
+`APPLE_API_ISSUER_ID` for notarisation.
 
 ## Local unsigned build
 

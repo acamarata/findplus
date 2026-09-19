@@ -16,6 +16,7 @@
     <span class="device" id="device-name">no tracker selected</span>
   </div>
   <div class="topbar-actions">
+    <button id="btn-devices" class="btn btn-secondary">Devices</button>
     <button id="btn-latest" class="btn">Latest Location</button>
     <button id="btn-poll" class="btn btn-secondary" title="Queries Google once, now">Poll Now</button>
   </div>
@@ -31,6 +32,11 @@
 <div id="alert" class="alert hidden"></div>
 
 <section class="controls">
+  <label for="device-filter">Show</label>
+  <select id="device-filter">
+    <option value="">All tracked devices</option>
+  </select>
+
   <label for="day-picker">Day</label>
   <input type="date" id="day-picker">
   <button class="btn btn-tiny" id="btn-prev-day" title="Previous day">‹</button>
@@ -50,8 +56,14 @@
   </select>
   <select id="export-scope">
     <option value="day">This day</option>
+    <option value="range">Date range…</option>
     <option value="all">All history</option>
   </select>
+  <span id="range-inputs" class="hidden">
+    <input type="date" id="range-start" title="Range start">
+    <span class="range-sep">to</span>
+    <input type="date" id="range-end" title="Range end">
+  </span>
   <button class="btn btn-secondary" id="btn-export">Download</button>
 </section>
 
@@ -62,9 +74,7 @@
   </div>
 
   <aside class="timeline-pane">
-    <div class="stats" id="stats"></div>
-    <h2>Timeline</h2>
-    <ol class="timeline" id="timeline"></ol>
+    <div id="tracks"></div>
   </aside>
 </main>
 
@@ -75,6 +85,29 @@
     Map tiles are fetched from OpenStreetMap, which necessarily sees the tile coordinates being viewed.
   </p>
 </footer>
+
+<div id="device-modal" class="modal hidden">
+  <div class="modal-box">
+    <header class="modal-head">
+      <h2>Devices on this Google account</h2>
+      <button class="btn btn-tiny" id="btn-close-devices">Close</button>
+    </header>
+    <p class="modal-note">
+      Tick every tracker you want polled. Each tracked device costs one Google
+      request per poll cycle, so the request rate rises with the number you tick.
+      Untracking keeps a device's existing history — it just stops being polled.
+    </p>
+    <div id="device-list" class="device-list"></div>
+    <p class="modal-rate" id="device-rate"></p>
+    <footer class="modal-foot">
+      <button class="btn btn-secondary" id="btn-refresh-devices">Refresh from Google</button>
+      <span class="spacer"></span>
+      <button class="btn btn-secondary" id="btn-track-none">Track none</button>
+      <button class="btn btn-secondary" id="btn-track-all">Track all</button>
+      <button class="btn" id="btn-save-devices">Save</button>
+    </footer>
+  </div>
+</div>
 
 <script src="/static/vendor/leaflet/leaflet.js"></script>
 <script src="/static/app.js"></script>

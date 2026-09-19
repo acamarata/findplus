@@ -1,7 +1,7 @@
 # bike-tracker
 
 A local application that builds a Google Maps Timeline-style location history for
-a Google Find Hub tracker (Moto Tag 2) attached to a bicycle.
+your Google Find Hub trackers — one, several, or all of them.
 
 Find Hub shows you the tag's *latest* position. This polls it on a schedule,
 stores every distinct sighting in a local SQLite database, and serves a map and
@@ -46,12 +46,15 @@ run `bike-tracker doctor` for repair instructions.
 ## First run
 
 ```bash
-./.venv/bin/bike-tracker auth        # sign in with Chrome (one time)
-./.venv/bin/bike-tracker devices     # list trackers on the account
-./.venv/bin/bike-tracker devices --select <DEVICE ID>
-./.venv/bin/bike-tracker poll-now    # confirm a real observation is saved
-./.venv/bin/bike-tracker serve       # dashboard at http://127.0.0.1:8477
+./.venv/bin/bike-tracker auth               # sign in with Chrome (one time)
+./.venv/bin/bike-tracker devices            # list trackers on the account
+./.venv/bin/bike-tracker devices --track-all # or --track <ID> --track <ID>
+./.venv/bin/bike-tracker poll-now           # confirm real observations are saved
+./.venv/bin/bike-tracker serve              # dashboard at http://127.0.0.1:8477
 ```
+
+You can also pick trackers from the dashboard itself — the **Devices** button
+opens a checklist of everything on the account.
 
 Then, once it works, optionally install autostart:
 
@@ -64,13 +67,13 @@ Then, once it works, optionally install autostart:
 | Command | What it does |
 |---|---|
 | `bike-tracker auth` | Interactive Google sign-in via Chrome. Re-run if the session expires. |
-| `bike-tracker devices` | List Find Hub devices. `--select <id>` chooses the tracked one. |
-| `bike-tracker poll-now` | Query Find Hub once, immediately. |
+| `bike-tracker devices` | List devices. `--track-all`, `--track <id>` (repeatable), `--untrack <id>`, `--default <id>`. |
+| `bike-tracker poll-now` | Query Find Hub once for every tracked device. |
 | `bike-tracker serve` | Run the API, UI and poller in this terminal. |
 | `bike-tracker start` / `stop` | Install/start, or stop/remove, the background service. |
 | `bike-tracker status` | Tracker, service, schema and history summary. |
 | `bike-tracker open` | Open the dashboard in your browser. |
-| `bike-tracker export` | Export CSV / JSON / GPX / KML. |
+| `bike-tracker export` | Export CSV / JSON / GPX / KML. `--device-id` narrows to one tracker. |
 | `bike-tracker prune --before YYYY-MM-DD` | Delete old history. Dry run unless `--yes`. |
 | `bike-tracker doctor` | Diagnose the install; report what auth material is stored and where. |
 
@@ -125,6 +128,27 @@ The browser dashboard refreshes from the *local* API every ~45 seconds. That
 never causes a Google query; Google is polled only by the server on its own
 schedule.
 
+## Tracking several devices
+
+Any number of trackers can be polled at once — a bike tag, keys, a backpack.
+Tick them in the dashboard's **Devices** dialog, or use `--track-all`.
+
+**Each tracked device costs one Google request per poll cycle.** Three devices on
+the default 5-minute interval is ~36 requests/hour. The dashboard and
+`bike-tracker devices` both show the effective rate so it is never a surprise.
+Devices are polled **sequentially with a 10-second stagger**, never as a burst.
+
+One device failing never stops the others: each gets its own `poll_runs` row, and
+a cycle counts as successful if at least one device reported.
+
+**Timelines are never merged across devices.** Distance and elapsed time between
+consecutive points are only meaningful within a single tracker — interleaving two
+tags would invent hops between unrelated objects. The map draws one coloured
+track per device and the sidebar shows independent per-device statistics. Filter
+to a single tracker with the **Show** dropdown.
+
+Untracking a device stops polling it but **keeps all of its history**.
+
 ## Deduplication
 
 Google repeatedly returns the same last-known fix. Polling every five minutes
@@ -158,7 +182,7 @@ even that, point the tile URL in `web/static/app.js` at a local tile server.
 ## Development
 
 ```bash
-./.venv/bin/python -m pytest tests/ -q     # 156 tests
+./.venv/bin/python -m pytest tests/ -q     # 185 tests
 ./.venv/bin/ruff check src tests migrations
 ./.venv/bin/ruff format src tests migrations
 ```

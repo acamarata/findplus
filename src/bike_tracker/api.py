@@ -29,13 +29,20 @@ from bike_tracker.db.session import session_scope
 from bike_tracker.exporters import MEDIA_TYPES, export
 from bike_tracker.findhub.bootstrap import describe_stored_auth
 from bike_tracker.logging_setup import get_logger
-from bike_tracker.state import get_selected_device, select_device
+from bike_tracker.state import (
+    get_default_device,
+    get_tracked_devices,
+    set_default_device,
+    track_all,
+    track_devices,
+    untrack_devices,
+)
 from bike_tracker.timeline import (
     day_bounds_utc,
-    day_timeline,
     days_with_data,
     fetch_observations,
     local_zone,
+    multi_day_timeline,
     observation_count_between,
 )
 
@@ -98,14 +105,26 @@ def create_app() -> FastAPI:
     def devices() -> dict[str, Any]:
         with session_scope() as session:
             rows = list(session.scalars(select(Device).order_by(Device.name)))
-            selected = get_selected_device(session)
+            default = get_default_device(session)
+            tracked = [d for d in rows if d.is_tracked]
+            interval = settings.effective_poll_interval_minutes
             return {
-                "selected_device_id": selected.device_id if selected else None,
+                "default_device_id": default.device_id if default else None,
+                "tracked_count": len(tracked),
+                "requests_per_hour": round(len(tracked) * 60 / interval, 1) if interval else None,
                 "devices": [
                     {
                         "device_id": d.device_id,
                         "name": d.name,
-                        "is_selected": d.is_selected,
+                        "is_tracked": d.is_tracked,
+                        "observation_count": int(
+                            session.scalar(
+                                select(func.count(LocationObservation.id)).where(
+                                    LocationObservation.device_id == d.device_id
+                                )
+                            )
+                            or 0
+                        ),
                         "first_seen_at": d.first_seen_at.isoformat(),
                         "last_seen_at": d.last_seen_at.isoformat(),
                     }
@@ -113,34 +132,78 @@ def create_app() -> FastAPI:
                 ],
             }
 
-    @app.post("/api/devices/select")
-    def choose_device(device_id: str = Body(..., embed=True)) -> dict[str, Any]:
+    @app.post("/api/devices/refresh")
+    def refresh_devices() -> dict[str, Any]:
+        """Re-query Find Hub for the account's device list."""
+        from bike_tracker.findhub.client import FindHubClient
+        from bike_tracker.ingest import upsert_device
+
+        try:
+            found = FindHubClient(settings).list_devices()
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        with session_scope() as session:
+            for d in found:
+                upsert_device(session, d.device_id, d.name)
+        return {"found": len(found)}
+
+    @app.post("/api/devices/track")
+    def set_tracked(
+        device_ids: list[str] | None = Body(default=None, embed=True),
+        all_devices: bool = Body(default=False, embed=True),
+    ) -> dict[str, Any]:
+        """Replace the tracked set. `all_devices=true` tracks everything."""
         with session_scope() as session:
             try:
-                device = select_device(session, device_id)
+                tracked = (
+                    track_all(session)
+                    if all_devices
+                    else track_devices(session, device_ids or [], exclusive=True)
+                )
             except LookupError as exc:
                 raise HTTPException(status_code=404, detail=str(exc)) from exc
-            return {"selected_device_id": device.device_id, "name": device.name}
+            if not all_devices and not device_ids:
+                untrack_devices(session, [d.device_id for d in get_tracked_devices(session)])
+                tracked = []
+            interval = settings.effective_poll_interval_minutes
+            return {
+                "tracked": [{"device_id": d.device_id, "name": d.name} for d in tracked],
+                "tracked_count": len(tracked),
+                "requests_per_hour": round(len(tracked) * 60 / interval, 1) if interval else None,
+            }
+
+    @app.post("/api/devices/default")
+    def choose_default(device_id: str | None = Body(default=None, embed=True)) -> dict[str, Any]:
+        """Set which device the dashboard focuses on first."""
+        with session_scope() as session:
+            set_default_device(session, device_id)
+            return {"default_device_id": device_id}
 
     # ----------------------------------------------------------- status
     @app.get("/api/status")
-    def status(timezone: str | None = Query(default=None)) -> dict[str, Any]:
+    def status(
+        device_id: str | None = Query(default=None),
+        timezone: str | None = Query(default=None),
+    ) -> dict[str, Any]:
+        """Overall health plus a per-device summary.
+
+        `device_id` narrows the headline figures to one tracker; without it they
+        aggregate across every device that has history.
+        """
         zone = tz(timezone)
         now = datetime.now(UTC)
         with session_scope() as session:
-            device = get_selected_device(session)
-            device_id = device.device_id if device else None
+            tracked = get_tracked_devices(session)
+            default = get_default_device(session)
+            all_devices = list(session.scalars(select(Device).order_by(Device.name)))
 
-            latest = session.scalar(
-                select(LocationObservation)
-                .where(
-                    LocationObservation.device_id == device_id
-                    if device_id
-                    else LocationObservation.id.isnot(None)
-                )
-                .order_by(desc(LocationObservation.observed_at))
-                .limit(1)
-            )
+            per_device = [
+                _device_summary(session, device, zone, now, settings) for device in all_devices
+            ]
+
+            scoped = [d for d in per_device if device_id is None or d["device_id"] == device_id]
+            latest = _newest(scoped)
+
             last_run = session.scalar(select(PollRun).order_by(desc(PollRun.started_at)).limit(1))
             last_ok = session.scalar(
                 select(PollRun)
@@ -148,27 +211,21 @@ def create_app() -> FastAPI:
                 .order_by(desc(PollRun.started_at))
                 .limit(1)
             )
-            total = session.scalar(
-                select(func.count(LocationObservation.id)).where(
-                    LocationObservation.device_id == device_id
-                    if device_id
-                    else LocationObservation.id.isnot(None)
-                )
-            )
-            start_utc, end_utc = day_bounds_utc(datetime.now(zone).date(), zone)
-            today_count = observation_count_between(session, device_id, start_utc, end_utc)
 
+            interval = settings.effective_poll_interval_minutes
             return {
-                "device": (
-                    {"device_id": device.device_id, "name": device.name} if device else None
-                ),
-                "latest_observation": _serialize_latest(latest, zone, now),
+                "devices": per_device,
+                "tracked_count": len(tracked),
+                "requests_per_hour": round(len(tracked) * 60 / interval, 1) if interval else None,
+                "default_device_id": default.device_id if default else None,
+                "scope_device_id": device_id,
+                "latest_observation": latest,
                 "last_poll": _serialize_run(last_run, zone),
                 "last_successful_poll": _serialize_run(last_ok, zone),
                 "poller_running": _poller_appears_live(last_run, settings),
-                "observations_today": today_count,
-                "observations_total": int(total or 0),
-                "poll_interval_minutes": settings.effective_poll_interval_minutes,
+                "observations_today": sum(d["observations_today"] for d in scoped),
+                "observations_total": sum(d["observations_total"] for d in scoped),
+                "poll_interval_minutes": interval,
                 "timezone": str(zone),
                 "server_time": now.astimezone(zone).isoformat(),
                 "notice": FIND_HUB_NOTICE,
@@ -178,18 +235,22 @@ def create_app() -> FastAPI:
     @app.get("/api/timeline")
     def timeline(
         day: str | None = Query(default=None, description="YYYY-MM-DD, local date"),
-        device_id: str | None = Query(default=None),
+        device_id: str | None = Query(default=None, description="Omit for every device"),
         movement_threshold_meters: float | None = Query(default=None, ge=0),
         gap_threshold_minutes: float | None = Query(default=None, ge=0),
         timezone: str | None = Query(default=None),
     ) -> dict[str, Any]:
+        """One day of history, as one INDEPENDENT track per device.
+
+        Tracks are never merged: distance and elapsed time between consecutive
+        points are only meaningful within a single tracker.
+        """
         zone = tz(timezone)
         target = _parse_day(day) or datetime.now(zone).date()
         with session_scope() as session:
-            resolved = device_id or _selected_id(session)
-            result = day_timeline(
+            tracks = multi_day_timeline(
                 session,
-                resolved,
+                [device_id] if device_id else None,
                 target,
                 tz=zone,
                 movement_threshold_meters=(
@@ -203,34 +264,53 @@ def create_app() -> FastAPI:
                     else gap_threshold_minutes
                 ),
             )
-            return result.to_dict()
+            names = {d.device_id: d.name for d in session.scalars(select(Device))}
+
+        payload = [t.to_dict() for t in tracks]
+        for track in payload:
+            track["device_name"] = names.get(track["device_id"]) or track["device_name"]
+
+        return {
+            "day": target.isoformat(),
+            "timezone": str(zone),
+            "device_id": device_id,
+            "movement_threshold_meters": (
+                settings.movement_threshold_meters
+                if movement_threshold_meters is None
+                else movement_threshold_meters
+            ),
+            "gap_threshold_minutes": (
+                settings.gap_threshold_minutes
+                if gap_threshold_minutes is None
+                else gap_threshold_minutes
+            ),
+            "path_disclaimer": "Observed path — actual route between detections may differ.",
+            "tracks": payload,
+            "total_observations": sum(len(t["points"]) for t in payload),
+        }
 
     @app.get("/api/days")
     def days(
         device_id: str | None = Query(default=None), timezone: str | None = Query(default=None)
     ) -> dict[str, Any]:
+        """Local dates holding data. Omit `device_id` for every device."""
         zone = tz(timezone)
         with session_scope() as session:
-            resolved = device_id or _selected_id(session)
-            return {"days": days_with_data(session, resolved, zone), "timezone": str(zone)}
+            return {"days": days_with_data(session, device_id, zone), "timezone": str(zone)}
 
     @app.get("/api/latest")
-    def latest(timezone: str | None = Query(default=None)) -> dict[str, Any]:
+    def latest(
+        device_id: str | None = Query(default=None),
+        timezone: str | None = Query(default=None),
+    ) -> dict[str, Any]:
         """Newest stored observation. Reads local history; does not query Google."""
         zone = tz(timezone)
         now = datetime.now(UTC)
         with session_scope() as session:
-            device_id = _selected_id(session)
-            obs = session.scalar(
-                select(LocationObservation)
-                .where(
-                    LocationObservation.device_id == device_id
-                    if device_id
-                    else LocationObservation.id.isnot(None)
-                )
-                .order_by(desc(LocationObservation.observed_at))
-                .limit(1)
-            )
+            stmt = select(LocationObservation)
+            if device_id:
+                stmt = stmt.where(LocationObservation.device_id == device_id)
+            obs = session.scalar(stmt.order_by(desc(LocationObservation.observed_at)).limit(1))
             if obs is None:
                 raise HTTPException(status_code=404, detail="No observations recorded yet.")
             return _serialize_latest(obs, zone, now) or {}
@@ -260,13 +340,24 @@ def create_app() -> FastAPI:
 
         from bike_tracker.poller import poll_once
 
-        outcome = poll_once()
+        cycle = poll_once()
         return {
-            "status": outcome.status,
-            "observations_returned": outcome.received,
-            "observations_new": outcome.inserted,
-            "duplicates": outcome.duplicates,
-            "error": outcome.error_message,
+            "status": "ok" if cycle.ok else "error",
+            "devices_polled": len(cycle.outcomes),
+            "observations_returned": cycle.received,
+            "observations_new": cycle.inserted,
+            "duplicates": cycle.duplicates,
+            "results": [
+                {
+                    "device_id": o.device_id,
+                    "device_name": o.device_name,
+                    "status": o.status,
+                    "observations_new": o.inserted,
+                    "duplicates": o.duplicates,
+                    "error": o.error_message,
+                }
+                for o in cycle.outcomes
+            ],
         }
 
     # ---------------------------------------------------------- exports
@@ -281,10 +372,15 @@ def create_app() -> FastAPI:
     ):
         zone = tz(timezone)
         with session_scope() as session:
-            resolved = device_id or _selected_id(session)
             start_utc, end_utc, label = _resolve_range(day, start, end, zone)
-            rows = fetch_observations(session, resolved, start_utc, end_utc)
-            body = export(fmt, rows, zone, name=f"Bike history {label}")
+            rows = fetch_observations(session, device_id, start_utc, end_utc)
+            name = "Bike history"
+            if device_id:
+                device = session.get(Device, device_id)
+                if device:
+                    name = device.name
+                    label = f"{device.name.replace(' ', '-')}-{label}"
+            body = export(fmt, rows, zone, name=f"{name} {label}")
         filename = f"bike-history-{label}.{fmt}"
         return PlainTextResponse(
             content=body,
@@ -340,9 +436,44 @@ def create_app() -> FastAPI:
 
 
 # ------------------------------------------------------------ helpers
-def _selected_id(session) -> str | None:
-    device = get_selected_device(session)
-    return device.device_id if device else None
+def _device_summary(session, device, zone, now, settings) -> dict[str, Any]:
+    """Per-device headline figures for the dashboard."""
+    latest = session.scalar(
+        select(LocationObservation)
+        .where(LocationObservation.device_id == device.device_id)
+        .order_by(desc(LocationObservation.observed_at))
+        .limit(1)
+    )
+    total = session.scalar(
+        select(func.count(LocationObservation.id)).where(
+            LocationObservation.device_id == device.device_id
+        )
+    )
+    start_utc, end_utc = day_bounds_utc(now.astimezone(zone).date(), zone)
+    today = observation_count_between(session, device.device_id, start_utc, end_utc)
+    last_run = session.scalar(
+        select(PollRun)
+        .where(PollRun.device_id == device.device_id)
+        .order_by(desc(PollRun.started_at))
+        .limit(1)
+    )
+    return {
+        "device_id": device.device_id,
+        "name": device.name,
+        "is_tracked": device.is_tracked,
+        "latest_observation": _serialize_latest(latest, zone, now),
+        "observations_today": today,
+        "observations_total": int(total or 0),
+        "last_poll": _serialize_run(last_run, zone),
+    }
+
+
+def _newest(summaries: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """The most recent observation across a set of device summaries."""
+    candidates = [s["latest_observation"] for s in summaries if s["latest_observation"]]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda o: o["observed_at_utc"])
 
 
 def _parse_day(value: str | None) -> date | None:

@@ -49,14 +49,14 @@ class IngestResult:
 def upsert_device(
     session: Session, device_id: str, name: str, *, now: datetime | None = None
 ) -> Device:
-    """Create or refresh a device row. Does not change the selection flag."""
+    """Create or refresh a device row. Never changes the `is_tracked` flag."""
     now = now or datetime.now(UTC)
     device = session.get(Device, device_id)
     if device is None:
         device = Device(
             device_id=device_id,
             name=name,
-            is_selected=False,
+            is_tracked=False,
             first_seen_at=now,
             last_seen_at=now,
         )

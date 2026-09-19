@@ -80,26 +80,43 @@ def auth() -> None:
 
 # ------------------------------------------------------------------ devices
 @main.command()
-@click.option("--select", "select_id", default=None, help="Select this device id and exit.")
-@click.option("--refresh/--no-refresh", default=True, help="Re-query Find Hub for the device list.")
-def devices(select_id: str | None, refresh: bool) -> None:
-    """List Find Hub devices and choose which one to track."""
+@click.option("--track", "track_ids", multiple=True, help="Track this device id (repeatable).")
+@click.option(
+    "--track-all", "track_all_flag", is_flag=True, help="Track every device on the account."
+)
+@click.option("--untrack", "untrack_ids", multiple=True, help="Stop tracking a device id.")
+@click.option("--default", "default_id", default=None, help="Device the dashboard opens on.")
+@click.option("--refresh/--no-refresh", default=True, help="Re-query Find Hub for the list.")
+def devices(
+    track_ids: tuple[str, ...],
+    track_all_flag: bool,
+    untrack_ids: tuple[str, ...],
+    default_id: str | None,
+    refresh: bool,
+) -> None:
+    """List Find Hub devices and choose which ones to track.
+
+    Any number of devices can be tracked at once. Tracking N devices costs N
+    Google requests per poll cycle, so the effective request rate is shown.
+    """
     _prep()
+    from sqlalchemy import func
+    from sqlalchemy import select as sa_select
+
+    from bike_tracker.db.models import Device, LocationObservation
     from bike_tracker.findhub.client import FindHubClient
     from bike_tracker.ingest import upsert_device
-    from bike_tracker.state import get_selected_device, select_device
+    from bike_tracker.state import (
+        get_tracked_devices,
+        set_default_device,
+        track_all,
+        track_devices,
+        untrack_devices,
+    )
 
-    if select_id:
-        with session_scope() as session:
-            try:
-                device = select_device(session, select_id)
-            except LookupError as exc:
-                click.secho(str(exc), fg="red")
-                sys.exit(1)
-            click.secho(f"Now tracking: {device.name} ({device.device_id})", fg="green")
-        return
+    mutating = bool(track_ids or track_all_flag or untrack_ids or default_id)
 
-    if refresh:
+    if refresh and not mutating:
         try:
             found = FindHubClient().list_devices()
         except Exception as exc:
@@ -110,27 +127,61 @@ def devices(select_id: str | None, refresh: bool) -> None:
             for d in found:
                 upsert_device(session, d.device_id, d.name)
 
-    from sqlalchemy import select as sa_select
+    if mutating:
+        with session_scope() as session:
+            try:
+                if track_all_flag:
+                    tracked = track_all(session)
+                    click.secho(f"Now tracking all {len(tracked)} device(s).", fg="green")
+                elif track_ids:
+                    tracked = track_devices(session, track_ids, exclusive=True)
+                    click.secho(
+                        f"Now tracking {len(tracked)}: " + ", ".join(d.name for d in tracked),
+                        fg="green",
+                    )
+                if untrack_ids:
+                    removed = untrack_devices(session, untrack_ids)
+                    click.secho(f"Stopped tracking {removed} device(s).", fg="yellow")
+                    click.echo("Their history is kept; they are simply no longer polled.")
+                if default_id:
+                    set_default_device(session, default_id)
+                    click.echo(f"Dashboard will open on {default_id}.")
+            except LookupError as exc:
+                click.secho(str(exc), fg="red")
+                sys.exit(1)
 
-    from bike_tracker.db.models import Device
-
+    settings = get_settings()
     with session_scope() as session:
         rows = list(session.scalars(sa_select(Device).order_by(Device.name)))
-        selected = get_selected_device(session)
+        tracked = get_tracked_devices(session)
         if not rows:
             click.echo("No devices found on this account.")
             return
+
         click.echo("")
-        click.secho(f"{'':2} {'NAME':<34} DEVICE ID", bold=True)
+        click.secho(f"{'':4} {'NAME':<30} {'OBS':>7}  DEVICE ID", bold=True)
         for d in rows:
-            mark = "->" if selected and d.device_id == selected.device_id else "  "
-            click.echo(f"{mark} {d.name:<34} {d.device_id}")
+            count = session.scalar(
+                sa_select(func.count(LocationObservation.id)).where(
+                    LocationObservation.device_id == d.device_id
+                )
+            )
+            mark = click.style(" [x]", fg="green") if d.is_tracked else " [ ]"
+            click.echo(f"{mark} {d.name:<30} {count or 0:>7}  {d.device_id}")
         click.echo("")
-        if selected:
-            click.echo(f"Currently tracking: {selected.name}")
+
+        interval = settings.effective_poll_interval_minutes
+        if tracked:
+            rate = len(tracked) * 60 / interval
+            click.echo(f"Tracking {len(tracked)} of {len(rows)} device(s).")
+            click.echo(
+                f"That is about {rate:.0f} Google requests/hour "
+                f"({len(tracked)} device(s) every {interval:g} min), polled sequentially."
+            )
         else:
-            click.echo("Nothing selected yet. Choose your tag with:")
-            click.echo("  bike-tracker devices --select <DEVICE ID>")
+            click.echo("Nothing is being tracked yet. Choose what to poll:")
+            click.echo("  bike-tracker devices --track-all")
+            click.echo("  bike-tracker devices --track <ID> --track <ID>")
 
 
 # --------------------------------------------------------------------- poll
@@ -140,15 +191,20 @@ def poll_now() -> None:
     _prep()
     from bike_tracker.poller import poll_once
 
-    outcome = poll_once()
-    colour = {"ok": "green", "no_location": "yellow"}.get(outcome.status, "red")
-    click.secho(f"status: {outcome.status}", fg=colour)
+    cycle = poll_once()
+    for o in cycle.outcomes:
+        colour = {"ok": "green", "no_location": "yellow"}.get(o.status, "red")
+        label = o.device_name or "(no device)"
+        click.secho(f"{label:<28} {o.status}", fg=colour, nl=False)
+        click.echo(f"   returned: {o.received}  new: {o.inserted}  dup: {o.duplicates}")
+        if o.error_message:
+            click.secho(f"    {o.error_message}", fg="red")
+    click.echo("")
     click.echo(
-        f"returned: {outcome.received}  new: {outcome.inserted}  duplicate: {outcome.duplicates}"
+        f"{len(cycle.outcomes)} device(s) polled  |  "
+        f"{cycle.inserted} new observation(s)  |  {cycle.duplicates} duplicate(s)"
     )
-    if outcome.error_message:
-        click.secho(outcome.error_message, fg="red")
-    sys.exit(0 if outcome.ok else 1)
+    sys.exit(0 if cycle.ok else 1)
 
 
 # -------------------------------------------------------------------- serve
@@ -236,7 +292,7 @@ def status() -> None:
     from bike_tracker import service
     from bike_tracker.db.models import LocationObservation, PollRun
     from bike_tracker.findhub.bootstrap import describe_stored_auth
-    from bike_tracker.state import get_selected_device
+    from bike_tracker.state import get_tracked_devices
     from bike_tracker.timeline import day_bounds_utc, local_zone, observation_count_between
 
     settings = get_settings()
@@ -244,8 +300,8 @@ def status() -> None:
     auth_info = describe_stored_auth()
 
     with session_scope() as session:
-        device = get_selected_device(session)
-        device_id = device.device_id if device else None
+        tracked = get_tracked_devices(session)
+        device_id = None
         total = session.scalar(sa_select(func.count(LocationObservation.id))) or 0
         latest = session.scalar(
             sa_select(LocationObservation).order_by(desc(LocationObservation.observed_at)).limit(1)
@@ -257,7 +313,14 @@ def status() -> None:
         click.echo("")
         click.secho("bike-tracker status", bold=True)
         _row("version", __version__)
-        _row("tracker", f"{device.name} ({device.device_id})" if device else "none selected")
+        if tracked:
+            _row("tracking", f"{len(tracked)} device(s)")
+            for d in tracked:
+                _row("", f"- {d.name}  ({d.device_id})")
+            rate = len(tracked) * 60 / settings.effective_poll_interval_minutes
+            _row("request rate", f"~{rate:.0f} Google requests/hour")
+        else:
+            _row("tracking", "nothing — run `bike-tracker devices --track-all`")
         _row("authenticated", "yes" if auth_info["exists"] else "no — run `bike-tracker auth`")
         _row("service installed", "yes" if service.is_installed() else "no")
         _row("service running", "yes" if service.is_running() else "no")
@@ -285,6 +348,7 @@ def status() -> None:
 @click.option("--start", default=None, help="Range start, YYYY-MM-DD.")
 @click.option("--end", default=None, help="Range end, YYYY-MM-DD.")
 @click.option("--all", "all_history", is_flag=True, help="Export the entire history.")
+@click.option("--device-id", default=None, help="Limit to one device. Omit for all devices.")
 @click.option("--output", "-o", type=click.Path(path_type=Path), default=None)
 def export(
     fmt: str,
@@ -292,12 +356,12 @@ def export(
     start: str | None,
     end: str | None,
     all_history: bool,
+    device_id: str | None,
     output: Path | None,
 ) -> None:
     """Export history to CSV, JSON, GPX or KML."""
     _prep()
     from bike_tracker.exporters import export as render
-    from bike_tracker.state import get_selected_device
     from bike_tracker.timeline import day_bounds_utc, fetch_observations, local_zone
 
     tz = local_zone()
@@ -321,8 +385,7 @@ def export(
         label = target.isoformat()
 
     with session_scope() as session:
-        device = get_selected_device(session)
-        rows = fetch_observations(session, device.device_id if device else None, start_utc, end_utc)
+        rows = fetch_observations(session, device_id, start_utc, end_utc)
         body = render(fmt, rows, tz, name=f"Bike history {label}")
 
     if output:
@@ -432,19 +495,22 @@ def doctor() -> None:
     _row("bind address", f"{settings.host}:{settings.port}")
     _check("local-only bind", settings.host in {"127.0.0.1", "localhost", "::1"}, settings.host)
 
-    click.secho("\nSelection", bold=True)
-    from bike_tracker.state import get_selected_device
+    click.secho("\nTracking", bold=True)
+    from bike_tracker.state import get_tracked_devices
 
     with session_scope() as session:
-        device = get_selected_device(session)
+        tracked = get_tracked_devices(session)
     _check(
-        "tracker selected",
-        device is not None,
-        f"{device.name} ({device.device_id})" if device else "run `bike-tracker devices`",
+        "device(s) tracked",
+        bool(tracked),
+        ", ".join(d.name for d in tracked) if tracked else "run `bike-tracker devices --track-all`",
     )
+    if tracked:
+        rate = len(tracked) * 60 / settings.effective_poll_interval_minutes
+        _row("request rate", f"~{rate:.0f} Google requests/hour")
 
     click.echo("")
-    if ok and device is not None and info["exists"]:
+    if ok and tracked and info["exists"]:
         click.secho("All checks passed.", fg="green")
     else:
         click.secho("Some checks need attention (see above).", fg="yellow")

@@ -282,6 +282,54 @@ def day_timeline(
     )
 
 
+def multi_day_timeline(
+    session: Session,
+    device_ids: list[str] | None,
+    day: date,
+    *,
+    tz: ZoneInfo,
+    movement_threshold_meters: float,
+    gap_threshold_minutes: float,
+) -> list[DayTimeline]:
+    """One INDEPENDENT timeline per device.
+
+    Timelines are never merged across devices: distance and elapsed time between
+    consecutive points are only meaningful within a single tracker. Interleaving
+    two trackers would produce distances that jump between unrelated objects.
+    """
+    start_utc, end_utc = day_bounds_utc(day, tz)
+    if device_ids is None:
+        device_ids = devices_with_data_between(session, start_utc, end_utc)
+
+    return [
+        day_timeline(
+            session,
+            device_id,
+            day,
+            tz=tz,
+            movement_threshold_meters=movement_threshold_meters,
+            gap_threshold_minutes=gap_threshold_minutes,
+        )
+        for device_id in device_ids
+    ]
+
+
+def devices_with_data_between(
+    session: Session, start_utc: datetime, end_utc: datetime
+) -> list[str]:
+    """Device ids that have at least one observation in the interval."""
+    stmt = (
+        select(LocationObservation.device_id)
+        .where(
+            LocationObservation.observed_at >= start_utc,
+            LocationObservation.observed_at < end_utc,
+        )
+        .distinct()
+        .order_by(LocationObservation.device_id)
+    )
+    return list(session.scalars(stmt))
+
+
 def days_with_data(session: Session, device_id: str | None, tz: ZoneInfo) -> list[str]:
     """Local calendar dates that contain at least one observation."""
     stmt = select(LocationObservation.observed_at)

@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 
 from bike_tracker.db.session import session_scope
 from bike_tracker.ingest import ingest_observations, upsert_device
-from bike_tracker.state import select_device
+from bike_tracker.state import track_devices
 from tests.conftest import make_observation
 
 
@@ -22,7 +22,7 @@ def client(tmp_db):
 
     with session_scope() as session:
         upsert_device(session, "TAG-001", "Moto Tag 2")
-        select_device(session, "TAG-001")
+        track_devices(session, ["TAG-001"], exclusive=True)
         ingest_observations(
             session,
             [
@@ -68,12 +68,13 @@ def test_status_separates_observed_from_retrieved(client: TestClient) -> None:
 def test_status_counts_todays_observations(client: TestClient) -> None:
     body = client.get("/api/status?timezone=UTC").json()
     assert body["observations_total"] == 3
-    assert body["device"]["name"] == "Moto Tag 2"
+    assert body["devices"][0]["name"] == "Moto Tag 2"
 
 
 def test_timeline_returns_ordered_annotated_points(client: TestClient) -> None:
     body = client.get("/api/timeline?day=2026-09-18&timezone=UTC").json()
-    points = body["points"]
+    assert len(body["tracks"]) == 1
+    points = body["tracks"][0]["points"]
     assert [p["sequence"] for p in points] == [1, 2, 3]
     assert points[0]["meters_from_previous"] is None
     assert points[1]["meters_from_previous"] > 0
@@ -81,7 +82,7 @@ def test_timeline_returns_ordered_annotated_points(client: TestClient) -> None:
 
 
 def test_timeline_flags_the_gap(client: TestClient) -> None:
-    points = client.get("/api/timeline?day=2026-09-18&timezone=UTC").json()["points"]
+    points = client.get("/api/timeline?day=2026-09-18&timezone=UTC").json()["tracks"][0]["points"]
     assert points[1]["gap_before"] is False
     assert points[2]["gap_before"] is True
     assert points[2]["seconds_since_previous"] == 46 * 60
@@ -91,11 +92,11 @@ def test_timeline_thresholds_are_overridable_per_request(client: TestClient) -> 
     loose = client.get(
         "/api/timeline?day=2026-09-18&timezone=UTC&movement_threshold_meters=100000"
     ).json()
-    assert all(p["is_movement"] is False for p in loose["points"][1:])
+    assert all(p["is_movement"] is False for p in loose["tracks"][0]["points"][1:])
 
 
 def test_timeline_stats_label_distance_as_approximate(client: TestClient) -> None:
-    stats = client.get("/api/timeline?day=2026-09-18&timezone=UTC").json()["stats"]
+    stats = client.get("/api/timeline?day=2026-09-18&timezone=UTC").json()["tracks"][0]["stats"]
     assert stats["observation_count"] == 3
     assert stats["longest_gap_seconds"] == 46 * 60
     assert stats["distance_label"] == "Approximate distance between observed locations"
@@ -103,8 +104,8 @@ def test_timeline_stats_label_distance_as_approximate(client: TestClient) -> Non
 
 def test_empty_day_returns_an_empty_timeline_not_an_error(client: TestClient) -> None:
     body = client.get("/api/timeline?day=2020-01-01&timezone=UTC").json()
-    assert body["points"] == []
-    assert body["stats"]["observation_count"] == 0
+    assert body["tracks"] == []
+    assert body["total_observations"] == 0
 
 
 def test_invalid_date_is_rejected(client: TestClient) -> None:
@@ -121,14 +122,15 @@ def test_latest_endpoint_reads_history_without_querying_google(client: TestClien
     assert "fetched_at_local" in body and "observed_at_local" in body
 
 
-def test_devices_endpoint_reports_the_selection(client: TestClient) -> None:
+def test_devices_endpoint_reports_tracking_state(client: TestClient) -> None:
     body = client.get("/api/devices").json()
-    assert body["selected_device_id"] == "TAG-001"
-    assert body["devices"][0]["is_selected"] is True
+    assert body["tracked_count"] == 1
+    assert body["devices"][0]["is_tracked"] is True
+    assert body["devices"][0]["observation_count"] == 3
 
 
-def test_selecting_an_unknown_device_is_a_404(client: TestClient) -> None:
-    res = client.post("/api/devices/select", json={"device_id": "NOPE"})
+def test_tracking_an_unknown_device_is_a_404(client: TestClient) -> None:
+    res = client.post("/api/devices/track", json={"device_ids": ["NOPE"]})
     assert res.status_code == 404
 
 
@@ -192,7 +194,9 @@ def test_manual_poll_is_rate_limited(client: TestClient, monkeypatch) -> None:
     monkeypatch.setattr(
         poller_module,
         "poll_once",
-        lambda *a, **k: poller_module.PollOutcome(status="no_location"),
+        lambda *a, **k: poller_module.CycleOutcome(
+            [poller_module.PollOutcome(status="no_location", device_id="TAG-001")]
+        ),
     )
     assert client.post("/api/poll-now").status_code == 200
     assert client.post("/api/poll-now").status_code == 429

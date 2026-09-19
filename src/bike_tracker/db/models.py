@@ -39,10 +39,12 @@ class Device(Base):
     """A Find Hub device/tracker visible to the authenticated account."""
 
     __tablename__ = "devices"
+    __table_args__ = (Index("ix_devices_tracked", "is_tracked"),)
 
     device_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
-    is_selected: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    #: Polled by the daemon. Any number of devices may be tracked at once.
+    is_tracked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     first_seen_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
     last_seen_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
 

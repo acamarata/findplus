@@ -87,9 +87,30 @@ Two upstream robustness defects are contained rather than inherited:
 
 `cli.py` drives all of it; `service.py` handles launchd/systemd/Task Scheduler.
 
+## Multi-device model
+
+`devices.is_tracked` drives polling; any number may be set. The poller walks the
+tracked set **sequentially with a stagger** rather than firing N concurrent
+requests, and records one `poll_runs` row per device so a single tracker failing
+is visible without masking the others. A cycle is "ok" if at least one device
+reported.
+
+One case is handled specially: "no devices tracked" sets `CycleOutcome.config_error`
+and deliberately does **not** escalate the exponential backoff. It is a
+configuration state, not a Google failure — escalating would leave a freshly
+installed daemon asleep for an hour at exactly the moment the user finishes
+selecting their trackers.
+
+`timeline.multi_day_timeline()` returns one **independent** `DayTimeline` per
+device. Merging is not offered, because `meters_from_previous` and
+`seconds_since_previous` are only meaningful within a single tracker; an
+interleaved list would report distances between unrelated objects. The UI assigns
+each device a colour and renders a separate polyline, marker set and statistics
+block.
+
 ## Data model
 
-Four tables, migrated by Alembic (revision `0001`).
+Four tables, migrated by Alembic (revisions `0001`, `0002`).
 
 **`location_observations`** is the core. Its design encodes three requirements:
 

@@ -20,6 +20,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    PrimaryKeyConstraint,
     String,
     Text,
     UniqueConstraint,
@@ -145,4 +146,73 @@ class Setting(Base):
 
     key: Mapped[str] = mapped_column(String(128), primary_key=True)
     value: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+
+
+class Place(Base):
+    """A named circular geofence area (migration 0004)."""
+
+    __tablename__ = "places"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    latitude_e7: Mapped[int] = mapped_column(Integer, nullable=False)
+    longitude_e7: Mapped[int] = mapped_column(Integer, nullable=False)
+    radius_meters: Mapped[int] = mapped_column(Integer, nullable=False)
+    color: Mapped[str] = mapped_column(String(16), nullable=False, default="#2f80ed")
+    enter_confirmations: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    exit_confirmations: Mapped[int] = mapped_column(Integer, nullable=False, default=2)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+
+
+class PlaceEvent(Base):
+    """One ENTER/EXIT crossing of a place by a device (migration 0004)."""
+
+    __tablename__ = "place_events"
+    __table_args__ = (
+        Index("ix_place_events_place_device_observed", "place_id", "device_id", "observed_at"),
+        Index("ix_place_events_observed", "observed_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    place_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("places.id", ondelete="CASCADE"), nullable=False
+    )
+    device_id: Mapped[str] = mapped_column(
+        String(128), ForeignKey("devices.device_id"), nullable=False
+    )
+    #: Set once group alerts land (migration 0005). No FK yet.
+    group_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    event_type: Mapped[str] = mapped_column(String(5), nullable=False)
+    observed_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+    fetched_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+    observation_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("location_observations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    confidence: Mapped[str] = mapped_column(String(6), nullable=False)
+    distance_meters: Mapped[float] = mapped_column(Float, nullable=False)
+    accuracy_meters: Mapped[float | None] = mapped_column(Float, nullable=True)
+    notified_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+
+
+class PlaceState(Base):
+    """Current geofence state (with hysteresis streak) per (place, device)."""
+
+    __tablename__ = "place_states"
+    __table_args__ = (PrimaryKeyConstraint("place_id", "device_id"),)
+
+    place_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("places.id", ondelete="CASCADE"), nullable=False
+    )
+    device_id: Mapped[str] = mapped_column(
+        String(128), ForeignKey("devices.device_id"), nullable=False
+    )
+    state: Mapped[str] = mapped_column(String(8), nullable=False, default="unknown")
+    since_observed_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    streak: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    streak_side: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    last_observation_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)

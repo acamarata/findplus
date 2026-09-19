@@ -32,6 +32,7 @@ EXPECTED_COMMANDS = {
     "install-service",
     "install-watchdog",
     "open",
+    "places",
     "poll-now",
     "providers",
     "prune",

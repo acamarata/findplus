@@ -36,6 +36,7 @@ from . import (
     routes_devices,
     routes_history,
     routes_lock,
+    routes_places,
     routes_providers,
     routes_settings,
 )
@@ -180,6 +181,7 @@ def create_app(sessions: SessionStore | None = None) -> FastAPI:
     )
     app.include_router(routes_devices.build_router(settings=settings))
     app.include_router(routes_providers.build_router())
+    app.include_router(routes_places.build_router())
     app.include_router(
         routes_history.build_router(settings=settings, check_poll_cooldown=_check_poll_cooldown)
     )

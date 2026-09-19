@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from findplus.db.models import Device, LocationObservation
 from findplus.findhub.types import RawObservation
 from findplus.logging_setup import get_logger
+from findplus.places.events import evaluate as _geofence_evaluate
 
 log = get_logger(__name__)
 
@@ -99,6 +100,7 @@ def ingest_observations(
     inserted = duplicates = 0
     # Collapse duplicates inside the batch itself before touching the DB.
     seen_in_batch: set[tuple] = set()
+    new_rows: list[LocationObservation] = []
 
     for obs in observations:
         if obs.identity in seen_in_batch:
@@ -133,28 +135,32 @@ def ingest_observations(
             duplicates += 1
             continue
 
-        session.add(
-            LocationObservation(
-                device_id=obs.device_id,
-                device_name=obs.device_name,
-                latitude_e7=obs.latitude_e7,
-                longitude_e7=obs.longitude_e7,
-                altitude_meters=obs.altitude_meters,
-                accuracy_meters=obs.accuracy_meters,
-                observed_at=obs.observed_at,
-                first_fetched_at=fetched_at,
-                last_fetched_at=fetched_at,
-                times_returned=1,
-                source=obs.source,
-                is_own_report=obs.is_own_report,
-                semantic_name=obs.semantic_name,
-                battery_level=obs.battery_level,
-                raw_metadata=_encode_metadata(obs),
-            )
+        lo = LocationObservation(
+            device_id=obs.device_id,
+            device_name=obs.device_name,
+            latitude_e7=obs.latitude_e7,
+            longitude_e7=obs.longitude_e7,
+            altitude_meters=obs.altitude_meters,
+            accuracy_meters=obs.accuracy_meters,
+            observed_at=obs.observed_at,
+            first_fetched_at=fetched_at,
+            last_fetched_at=fetched_at,
+            times_returned=1,
+            source=obs.source,
+            is_own_report=obs.is_own_report,
+            semantic_name=obs.semantic_name,
+            battery_level=obs.battery_level,
+            raw_metadata=_encode_metadata(obs),
         )
+        session.add(lo)
+        new_rows.append(lo)
         inserted += 1
 
     session.flush()
+
+    for lo in sorted(new_rows, key=lambda o: o.observed_at):
+        _geofence_evaluate(session, lo)
+
     result = IngestResult(received=len(observations), inserted=inserted, duplicates=duplicates)
     log.info(
         "ingest_complete",

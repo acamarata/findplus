@@ -185,6 +185,52 @@ def test_delete_before_keeps_newer_history(client: TestClient) -> None:
     assert client.get("/api/status?timezone=UTC").json()["observations_total"] == 3
 
 
+def test_delete_before_cascades_place_events(client: TestClient) -> None:
+    """A place_event anchored to a pruned observation is deleted, not orphaned."""
+    from sqlalchemy import func, select
+
+    from findplus.db.models import LocationObservation, Place, PlaceEvent
+
+    with session_scope() as session:
+        obs = session.scalars(
+            select(LocationObservation).order_by(LocationObservation.observed_at)
+        ).first()
+        place = Place(
+            name="P1",
+            latitude_e7=411000000,
+            longitude_e7=-806400000,
+            radius_meters=100,
+            color="#2f80ed",
+            enter_confirmations=1,
+            exit_confirmations=2,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+        session.add(place)
+        session.flush()
+        session.add(
+            PlaceEvent(
+                place_id=place.id,
+                device_id="TAG-001",
+                event_type="ENTER",
+                observed_at=obs.observed_at,
+                fetched_at=obs.last_fetched_at,
+                observation_id=obs.id,
+                confidence="high",
+                distance_meters=42.0,
+            )
+        )
+        place_id = place.id
+
+    res = client.post("/api/history/delete-before", json={"before": "2026-09-19", "confirm": True})
+    assert res.status_code == 200
+    assert res.json()["deleted"] == 3
+
+    with session_scope() as session:
+        assert session.scalar(select(func.count()).select_from(PlaceEvent)) == 0
+        assert session.get(Place, place_id) is not None
+
+
 # ---------------------------------------------------------------- privacy
 def test_manual_poll_is_rate_limited(client: TestClient, monkeypatch) -> None:
     import findplus.api as api_module

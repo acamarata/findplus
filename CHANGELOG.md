@@ -18,3 +18,11 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - E11: Apple Find My provider as an optional extra (`pip install 'findplus[apple]'`).
   Register accessories via `findplus apple add-accessory`; authenticate via
   `findplus auth --provider apple-find-my`; polls alongside Find Hub automatically.
+- Places and geofences: save circular geofence areas, track ENTER/EXIT events per device with
+  configurable hysteresis (`enter_confirmations`, `exit_confirmations`), and query current presence.
+  Pruning or clearing location history also removes the place events anchored to the deleted
+  observations.
+- `findplus places` CLI subcommand: list, add, edit, remove, events.
+- `GET/POST /api/places`, `PUT/DELETE /api/places/{id}`, `GET /api/places/events`,
+  `GET /api/places/presence` API routes.
+- Alembic migration 0004 adds `places`, `place_events`, `place_states` tables.

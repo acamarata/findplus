@@ -87,6 +87,14 @@ Two upstream robustness defects are contained rather than inherited:
 
 `cli.py` drives all of it; `service.py` handles launchd/systemd/Task Scheduler.
 
+## API surface
+
+- `/api/places` — CRUD for saved places, event log, and presence.
+
+## CLI
+
+- `findplus places` — list, add, edit, remove, events.
+
 ## Multi-device model
 
 `devices.is_tracked` drives polling; any number may be set. The poller walks the
@@ -127,6 +135,15 @@ Four tables, migrated by Alembic (revisions `0001`, `0002`).
 
 `poll_runs` records health separately, so "we polled 200 times today and the tag
 was seen 6 times" is expressible without polluting the location history.
+
+### Places (migration 0004)
+
+Three tables: `places` (name, location e7, radius, confirmation
+counts), `place_events` (ENTER/EXIT events per device per place, with confidence and distance),
+`place_states` (current geofence state per device per place with streak counter for hysteresis).
+ON DELETE CASCADE from places to both child tables, and from place_events.observation_id to
+location_observations — pruning or clearing location history also removes the place events
+anchored to the deleted observations. Migration: `cli/src/findplus/db/migrations/versions/0004_places.py`.
 
 ## Timestamps and timezones
 

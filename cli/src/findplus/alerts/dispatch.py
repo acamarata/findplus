@@ -134,13 +134,39 @@ def _load_rules(session) -> list[Rule]:
     ]
 
 
+def _delivery_place_ids(session, rows) -> dict[tuple[str, int], int | None]:
+    """Derived place_id per (event_kind, event_id), via an ORM join -- never text() SQL.
+
+    place_events/group_place_events carry place_id; alert_deliveries does not
+    (no 0006 migration), so cooldown scoping by place is resolved here, once
+    per load, instead of a stored column.
+    """
+    from findplus.db.models import GroupPlaceEvent, PlaceEvent
+
+    out: dict[tuple[str, int], int | None] = {}
+    for kind, model in (("device", PlaceEvent), ("group", GroupPlaceEvent)):
+        ids = {d.event_id for d in rows if d.event_kind == kind}
+        if not ids:
+            continue
+        for event_id, place_id in session.query(model.id, model.place_id).filter(model.id.in_(ids)):
+            out[(kind, event_id)] = place_id
+    return out
+
+
 def _load_recent_deliveries(session, now: datetime.datetime) -> list[Delivery]:
     from findplus.db.models_alerts import AlertDelivery as AlertDeliveryORM
 
     cutoff = now - datetime.timedelta(hours=24)
     rows = session.query(AlertDeliveryORM).filter(AlertDeliveryORM.sent_at > cutoff).all()
+    place_ids = _delivery_place_ids(session, rows)
     return [
-        Delivery(rule_id=d.rule_id, event_kind=d.event_kind, event_id=d.event_id, sent_at=d.sent_at)
+        Delivery(
+            rule_id=d.rule_id,
+            event_kind=d.event_kind,
+            event_id=d.event_id,
+            sent_at=d.sent_at,
+            place_id=place_ids.get((d.event_kind, d.event_id)),
+        )
         for d in rows
     ]
 
@@ -215,7 +241,9 @@ def _deliver_one(
         # Another poller won the race between the dedup SELECT and this commit.
         session.rollback()
         return None
-    return Delivery(rule_id=rule.id, event_kind=kind, event_id=eid, sent_at=now)
+    return Delivery(
+        rule_id=rule.id, event_kind=kind, event_id=eid, sent_at=now, place_id=event.place_id
+    )
 
 
 def _mark_notified(session, events: list, now: datetime.datetime) -> None:

@@ -65,6 +65,11 @@ class Delivery:
     event_kind: str
     event_id: int
     sent_at: datetime.datetime | None
+    #: Derived, never a stored column: the place of the source place_event /
+    #: group_place_event row. process() fills it via an ORM join so cooldown
+    #: can be scoped per place (a rule with place_id=None must cool down
+    #: separately at each place, never across all of them).
+    place_id: int | None = None
 
 
 def match(rules: list[Rule], event: DeviceEvent | GroupEvent) -> list[Rule]:
@@ -115,6 +120,14 @@ def in_cooldown(
     deliveries: list[Delivery],
     now: datetime.datetime,
 ) -> bool:
+    """Key = (rule.id, event.place_id, subject) per engines.md.
+
+    `subject` (device_id, or str(group_id) for a group) is not compared
+    directly: `match()` already guarantees any delivery under this same
+    `rule.id` was sent for this rule's own fixed device_id/group_id (the
+    alert_rules XOR CHECK pins exactly one per rule), so filtering on
+    rule.id + place_id is equivalent to also filtering on subject.
+    """
     if rule.cooldown_minutes == 0:
         return False
     kind = "device" if isinstance(event, DeviceEvent) else "group"
@@ -122,6 +135,7 @@ def in_cooldown(
     return any(
         d.rule_id == rule.id
         and d.event_kind == kind
+        and d.place_id == event.place_id
         and d.sent_at is not None
         and d.sent_at > limit
         for d in deliveries

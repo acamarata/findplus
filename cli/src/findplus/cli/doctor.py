@@ -65,17 +65,46 @@ def check_db_head() -> DoctorCheck:
     )
 
 
-def check_providers(state_dir: Path) -> DoctorCheck:
-    p = state_dir / "secrets.json"
-    if not p.exists():
-        return DoctorCheck("providers", "Provider authentication", False, "not authenticated")
-    try:
-        data = json.loads(p.read_text())
-        valid = bool(data.get("token") or data.get("session"))
-    except Exception:
-        valid = False
-    detail = "authenticated" if valid else "not authenticated"
-    return DoctorCheck("providers", "Provider authentication", valid, detail)
+def check_providers() -> DoctorCheck:
+    """One line per registered provider: not configured / not signed-in / signed-in.
+
+    Goes through the `findplus.providers` registry instead of grepping
+    secrets.json for a Google-specific `token`/`session` key (that check was
+    blind to Apple Find My, which stores nothing under either name — CF23,
+    E9 review carry-forward #23). Never raises: a provider whose is_available()
+    or is_authenticated() throws is reported as an error line, not a 500.
+    """
+    from findplus import honesty
+    from findplus.providers.base import available_providers, get_provider
+
+    names = available_providers()
+    if not names:
+        return DoctorCheck("providers", "Provider authentication", False, "no providers registered")
+
+    lines: list[str] = []
+    any_signed_in = False
+    for name in names:
+        try:
+            p = get_provider(name)
+            avail, reason = p.is_available()
+            if not avail:
+                status = f"not configured ({reason})"
+            else:
+                signed_in = p.is_authenticated()
+                any_signed_in = any_signed_in or signed_in
+                if not signed_in:
+                    status = "not signed-in"
+                else:
+                    account = p.describe_auth().get("account")
+                    status = f"signed-in ({account})" if account else "signed-in"
+        except Exception as exc:
+            status = f"error ({exc})"
+        line = f"{name}: {status}"
+        if name == "apple-find-my":
+            line = f"{line} — {honesty.APPLE}"
+        lines.append(line)
+
+    return DoctorCheck("providers", "Provider authentication", any_signed_in, "; ".join(lines))
 
 
 def check_units() -> DoctorCheck:
@@ -203,7 +232,7 @@ def doctor_cmd(repair: bool, json_flag: bool) -> None:
         check_state_dir_perms(settings.state_dir),
         check_sensitive_file_perms(settings.state_dir),
         check_db_head(),
-        check_providers(settings.state_dir),
+        check_providers(),
         check_units(),
         check_port(settings.state_dir, settings.port),
         check_chrome(),

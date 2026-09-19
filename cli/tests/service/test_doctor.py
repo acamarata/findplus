@@ -117,12 +117,16 @@ def test_check_db_head(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # ------------------------------------------------------------------------- e
-def test_check_providers(tmp_path) -> None:
+def test_check_providers_not_signed_in(tmp_db) -> None:
+    """No secrets.json anywhere: every registered provider is not signed-in.
+
+    CF23: rewritten to go through the provider registry; the rest of this
+    check's coverage (account reporting, the Apple honesty line) lives in
+    test_doctor_providers.py to keep this file under the line cap."""
     from findplus.cli.doctor import check_providers
 
-    assert check_providers(tmp_path).passed is False
-    (tmp_path / "secrets.json").write_text(json.dumps({"token": "x"}))
-    assert check_providers(tmp_path).passed is True
+    c = check_providers()
+    assert c.passed is False
 
 
 # ------------------------------------------------------------------------- f
@@ -201,7 +205,7 @@ def test_doctor_cmd_json_all_pass(monkeypatch: pytest.MonkeyPatch, tmp_db) -> No
     monkeypatch.setattr(doctor_module, "check_state_dir_perms", lambda sd: ok)
     monkeypatch.setattr(doctor_module, "check_sensitive_file_perms", lambda sd: ok)
     monkeypatch.setattr(doctor_module, "check_db_head", lambda: ok)
-    monkeypatch.setattr(doctor_module, "check_providers", lambda sd: ok)
+    monkeypatch.setattr(doctor_module, "check_providers", lambda: ok)
     monkeypatch.setattr(doctor_module, "check_units", lambda: ok)
     monkeypatch.setattr(doctor_module, "check_port", lambda sd, port: ok)
     monkeypatch.setattr(doctor_module, "check_chrome", lambda: ok)
@@ -223,7 +227,7 @@ def test_doctor_cmd_json_one_failing_exits_1(monkeypatch: pytest.MonkeyPatch, tm
     monkeypatch.setattr(doctor_module, "check_state_dir_perms", lambda sd: ok)
     monkeypatch.setattr(doctor_module, "check_sensitive_file_perms", lambda sd: ok)
     monkeypatch.setattr(doctor_module, "check_db_head", lambda: ok)
-    monkeypatch.setattr(doctor_module, "check_providers", lambda sd: ok)
+    monkeypatch.setattr(doctor_module, "check_providers", lambda: ok)
     monkeypatch.setattr(doctor_module, "check_units", lambda: ok)
     monkeypatch.setattr(doctor_module, "check_port", lambda sd, port: bad)
     monkeypatch.setattr(doctor_module, "check_chrome", lambda: ok)

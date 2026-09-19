@@ -7,6 +7,7 @@ from __future__ import annotations
 from findplus.providers.base import ProviderDevice, RawObservation
 from findplus.providers.findhub.bootstrap import vendor_available
 
+from .bootstrap import stored_account_email
 from .client import FindHubClient
 
 
@@ -46,8 +47,9 @@ class GoogleFindHubProvider:
         return self._client.authenticate()
 
     def describe_auth(self) -> dict:
-        # FindHubClient has no account_email(); return no account key.
-        return {"provider": "google-find-hub"}
+        # secrets.json's "username" key is the signed-in account email (CF22);
+        # None when it is missing (never signed in, or wiped) or unreadable.
+        return {"provider": "google-find-hub", "account": stored_account_email()}
 
     def list_devices(self) -> list[ProviderDevice]:
         # FindHubDevice carries only device_id and name (no kind, no raw).

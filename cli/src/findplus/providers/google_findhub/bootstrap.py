@@ -95,3 +95,27 @@ def describe_stored_auth() -> dict[str, object]:
     except (OSError, json.JSONDecodeError):
         info["keys_present"] = ["<unreadable>"]
     return info
+
+
+def stored_account_email() -> str | None:
+    """Return the signed-in Google account email, or None.
+
+    GoogleFindMyTools' `Auth.token_cache` persists a plain `username` key
+    alongside the AAS/ADM tokens (see `Auth/username_provider.get_username`).
+    This is the one value in secrets.json safe to surface (CF22, E9 review):
+    an email address is an identifier, not a credential. Reads the file
+    directly instead of importing the vendored `Auth.token_cache` module, so
+    this never requires `ensure_gfmt_importable()` and has no import-time
+    side effect on read-only status surfaces (/api/providers, `doctor`).
+    """
+    import json
+
+    path = get_settings().secrets_file
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    value = data.get("username")
+    return value or None

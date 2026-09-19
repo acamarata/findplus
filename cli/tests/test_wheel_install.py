@@ -145,6 +145,12 @@ def test_wheel_builds_from_sdist(tmp_path):
     leaked = [n for n in sdist_names if "/.claude/" in n or "/.opencode/" in n]
     assert not leaked, f"dotfile directories leaked into the sdist: {leaked}"
 
+    # LICENSE ships via the sdist's own `include` list (cli/LICENSE lives inside
+    # the sdist build root); CHANGELOG.md ships via force-include from the repo
+    # root, since it is not inside cli/.
+    assert any(n.endswith("/LICENSE") for n in sdist_names), "LICENSE missing from sdist"
+    assert any(n.endswith("/CHANGELOG.md") for n in sdist_names), "CHANGELOG.md missing from sdist"
+
     sdist_dirs = [p for p in extracted.iterdir() if p.is_dir()]
     assert len(sdist_dirs) == 1, f"Expected 1 extracted sdist dir, got {sdist_dirs}"
     sdist_root = sdist_dirs[0]
@@ -169,3 +175,6 @@ def test_wheel_builds_from_sdist(tmp_path):
     dashboard = [n for n in names if n.startswith("findplus/web/static/")]
     hidden = [n for n in dashboard if any(part.startswith(".") for part in n.split("/"))]
     assert not hidden, f"dotfiles leaked into the wheel dashboard: {hidden}"
+    assert any(n.endswith("dist-info/licenses/LICENSE") for n in names), (
+        f"LICENSE missing from wheel dist-info: {names}"
+    )

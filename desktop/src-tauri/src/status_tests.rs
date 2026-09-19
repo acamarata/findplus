@@ -1,6 +1,5 @@
 use super::*;
 
-
 #[test]
 fn down_when_probe_failed() {
     let s = from_api(&serde_json::json!({"http_status": 0}), 5);
@@ -56,4 +55,35 @@ fn epoch_to_iso(epoch: i64) -> String {
     let month = m + 3 - 12 * (m / 10);
     let year = 100 * b + d - 4800 + m / 10;
     format!("{year:04}-{month:02}-{day:02}T{h:02}:{mi:02}:{se:02}Z")
+}
+
+#[test]
+fn ok_line_carries_the_next_poll_segment() {
+    let now = now_epoch();
+    let json = serde_json::json!({
+        "last_poll_at": epoch_to_iso(now - 120),
+        "next_poll_at": epoch_to_iso(now + 180),
+    });
+    let s = from_api(&json, 5);
+    assert_eq!(s.state, DotState::Ok);
+    assert!(
+        s.line.starts_with("Polling normally · last poll 2m ago"),
+        "{}",
+        s.line
+    );
+    assert!(s.line.ends_with("· next in 4 min"), "{}", s.line);
+}
+
+#[test]
+fn ok_line_omits_next_poll_when_the_daemon_reports_none() {
+    let json = serde_json::json!({"last_poll_at": epoch_to_iso(now_epoch() - 60)});
+    assert!(!from_api(&json, 5).line.contains("next in"));
+}
+
+#[test]
+fn stale_follows_the_daemons_own_interval_not_a_hardcoded_five() {
+    // 25 min old: stale at a 5-minute interval, still fine at a 60-minute one.
+    let json = serde_json::json!({"last_poll_at": epoch_to_iso(now_epoch() - 25 * 60)});
+    assert_eq!(from_api(&json, 5).state, DotState::Stale);
+    assert_eq!(from_api(&json, 60).state, DotState::Ok);
 }

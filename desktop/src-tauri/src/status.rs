@@ -119,8 +119,9 @@ pub fn from_api(json: &Value, interval_min: u64) -> Status {
     Status {
         state: DotState::Ok,
         line: format!(
-            "Polling normally · last poll {} ago",
-            age_string(last_poll_at)
+            "Polling normally · last poll {} ago{}",
+            age_string(last_poll_at),
+            next_poll_suffix(json)
         ),
         latest: latest_line(json),
         tracked,
@@ -138,7 +139,10 @@ fn latest_line(json: &Value) -> Option<String> {
     if obs.is_null() {
         return None;
     }
-    let name = obs.get("device_name").and_then(|v| v.as_str()).unwrap_or("Device");
+    let name = obs
+        .get("device_name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("Device");
     let age = obs
         .get("age_seconds")
         .and_then(|v| v.as_f64())
@@ -151,6 +155,24 @@ fn latest_line(json: &Value) -> Option<String> {
         _ => "an unknown location".to_string(),
     };
     Some(format!("{name}: seen {age} ago near {place}"))
+}
+
+/// The spec's Ok line ends "· next in 3 min", from /api/status's
+/// `next_poll_at`; empty when the daemon reports none (never polled, poller
+/// off) rather than inventing a time.
+fn next_poll_suffix(json: &Value) -> String {
+    let Some(ts) = json
+        .get("next_poll_at")
+        .and_then(|v| v.as_str())
+        .and_then(parse_iso)
+    else {
+        return String::new();
+    };
+    let remaining = ts - now_epoch();
+    if remaining <= 0 {
+        return " · next poll due".to_string();
+    }
+    format!(" · next in {} min", remaining.div_euclid(60) + 1)
 }
 
 fn age_from_seconds(elapsed: i64) -> String {
@@ -219,12 +241,39 @@ fn age_string(last_poll_at: Option<&str>) -> String {
 }
 
 /// Poll /api/status every 45 s and emit "status-update" to every window.
+///
+/// Also pushes a WidgetKit timeline reload (via the reload-widgets helper,
+/// E16) whenever `last_poll_at` changes, so the widget follows the daemon's
+/// poll cadence rather than waiting on WidgetKit's own ~15-minute budget.
 pub fn start(app: tauri::AppHandle) {
-    std::thread::spawn(move || loop {
-        let json = fetch_status();
-        let status = from_api(&json, 5);
-        let _ = app.emit("status-update", &status);
-        std::thread::sleep(Duration::from_secs(45));
+    std::thread::spawn(move || {
+        let mut prev_last_poll_at: Option<String> = None;
+        loop {
+            let json = fetch_status();
+            // Stale = 2 x the daemon's OWN interval (specs/desktop-app.md
+            // § Status mapping); 5 is only a fallback for an older payload.
+            let interval = json
+                .get("poll_interval_minutes")
+                .and_then(|v| v.as_u64())
+                .filter(|v| *v > 0)
+                .unwrap_or(5);
+            let status = from_api(&json, interval);
+            let _ = app.emit("status-update", &status);
+
+            let last_poll_at = json
+                .get("last_poll_at")
+                .and_then(|v| v.as_str())
+                .map(String::from);
+            if last_poll_at.is_some() && last_poll_at != prev_last_poll_at {
+                if let Ok(exe) = std::env::current_exe() {
+                    let helper = crate::urlscheme::reload_widgets_path(&exe);
+                    crate::urlscheme::reload_widget_timelines(&helper);
+                }
+                prev_last_poll_at = last_poll_at;
+            }
+
+            std::thread::sleep(Duration::from_secs(45));
+        }
     });
 }
 
@@ -238,9 +287,9 @@ fn fetch_status() -> Value {
     };
     match client.get("http://127.0.0.1:8647/api/status").send() {
         Ok(resp) if resp.status().as_u16() == 401 => serde_json::json!({"http_status": 401}),
-        Ok(resp) if resp.status().is_success() => {
-            resp.json::<Value>().unwrap_or_else(|_| serde_json::json!({"http_status": 0}))
-        }
+        Ok(resp) if resp.status().is_success() => resp
+            .json::<Value>()
+            .unwrap_or_else(|_| serde_json::json!({"http_status": 0})),
         _ => serde_json::json!({"http_status": 0}),
     }
 }

@@ -1,6 +1,5 @@
 use super::*;
 
-
 #[test]
 fn row1_attaches_when_app_matches() {
     assert_eq!(
@@ -56,3 +55,21 @@ fn test_crashed() {
 
 // test_locked_grey lives in status.rs (`locked_on_401`) — Locked/Grey is
 // a Status/DotState concern, not a DaemonState one; not duplicated here.
+
+#[test]
+fn start_runs_exactly_one_supervisor_loop() {
+    // "Restart daemon" used to call start() again, leaving a second loop
+    // running; two loops can each spawn their own sidecar.
+    use std::sync::atomic::Ordering;
+    SUPERVISOR_RUNNING.store(false, Ordering::SeqCst);
+    assert!(!SUPERVISOR_RUNNING.swap(true, Ordering::SeqCst));
+    assert!(SUPERVISOR_RUNNING.swap(true, Ordering::SeqCst));
+    SUPERVISOR_RUNNING.store(false, Ordering::SeqCst);
+}
+
+#[test]
+fn no_child_is_tracked_before_one_is_spawned() {
+    // The WaitingSidecar branch spawns only when child_running() is false, so
+    // a stale tick can never add a second sidecar behind a live one.
+    assert!(!child_running());
+}

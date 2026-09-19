@@ -16,12 +16,17 @@
 
 use serde_json::Value;
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 use tauri::Emitter;
 
 #[path = "daemon_util.rs"]
 mod daemon_util;
+
+#[path = "daemon_child.rs"]
+mod daemon_child;
+pub use daemon_child::{child_running, spawn_sidecar, stop_child};
 
 const PORT: u16 = 8647;
 const APP_VERSION: &str = env!("FINDPLUS_VERSION");
@@ -53,7 +58,10 @@ pub enum DaemonDownReason {
 
 static DOWN_REASON: OnceLock<Mutex<DaemonDownReason>> = OnceLock::new();
 static ANOTHER_APP_LINE: OnceLock<Mutex<Option<String>>> = OnceLock::new();
-static CHILD_PID: OnceLock<Mutex<Option<u32>>> = OnceLock::new();
+/// One supervisor loop per process. "Restart daemon" re-runs a single
+/// supervise tick instead of calling start() again, which would leave a
+/// second loop running and let two ticks each spawn their own sidecar.
+static SUPERVISOR_RUNNING: AtomicBool = AtomicBool::new(false);
 
 fn down_reason_cell() -> &'static Mutex<DaemonDownReason> {
     DOWN_REASON.get_or_init(|| Mutex::new(DaemonDownReason::Normal))
@@ -82,7 +90,10 @@ pub fn another_app_line() -> Option<String> {
 }
 
 fn set_another_app_line(line: Option<String>) {
-    *ANOTHER_APP_LINE.get_or_init(|| Mutex::new(None)).lock().unwrap() = line;
+    *ANOTHER_APP_LINE
+        .get_or_init(|| Mutex::new(None))
+        .lock()
+        .unwrap() = line;
 }
 
 /// Probe GET /api/health with a 2 s timeout. Returns (app, version) on 200,
@@ -131,65 +142,6 @@ pub fn kickstart() {
         .status();
 }
 
-/// Spawn `findplus-daemon serve --foreground` as a child, logging to
-/// ~/.findplus/logs/app-sidecar.log. FINDPLUS_STATE_DIR is left unset so the
-/// sidecar defaults to the real state dir, matching the CLI's own default.
-pub fn spawn_sidecar(app: &tauri::AppHandle) {
-    use std::fs::OpenOptions;
-    use tauri_plugin_shell::ShellExt;
-
-    let Some(home) = dirs::home_dir() else {
-        log::error!("spawn_sidecar: no home directory");
-        return;
-    };
-    let log_dir = home.join(".findplus/logs");
-    if let Err(e) = std::fs::create_dir_all(&log_dir) {
-        log::error!("spawn_sidecar: could not create log dir: {e}");
-        return;
-    }
-    let log_path = log_dir.join("app-sidecar.log");
-    let _log_file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&log_path);
-
-    let shell = app.shell();
-    let command = match shell.sidecar("findplus-daemon") {
-        Ok(cmd) => cmd,
-        Err(e) => {
-            log::error!("spawn_sidecar: sidecar() failed: {e}");
-            return;
-        }
-    };
-    match command.args(["serve", "--foreground"]).spawn() {
-        Ok((_receiver, child)) => {
-            CHILD_PID
-                .get_or_init(|| Mutex::new(None))
-                .lock()
-                .unwrap()
-                .replace(child.pid());
-        }
-        Err(e) => log::error!("spawn_sidecar: failed to spawn: {e}"),
-    }
-}
-
-/// True when a child sidecar PID is tracked and the process is still alive.
-pub fn child_running() -> bool {
-    let pid = *CHILD_PID.get_or_init(|| Mutex::new(None)).lock().unwrap();
-    match pid {
-        Some(p) => daemon_util::pid_alive(p),
-        None => false,
-    }
-}
-
-/// Kill the tracked child sidecar, if any, and clear CHILD_PID.
-pub fn stop_child() {
-    let mut guard = CHILD_PID.get_or_init(|| Mutex::new(None)).lock().unwrap();
-    if let Some(pid) = guard.take() {
-        let _ = Command::new("/bin/kill").arg(pid.to_string()).status();
-    }
-}
-
 /// Pure decision function over the 5-row table in specs/desktop-app.md.
 /// `probe_result`: Some((app_name, version)) on a 200 health response.
 /// `daemon_json_pid`: the pid recorded in daemon.json, if the file exists
@@ -217,54 +169,75 @@ pub fn decide(
 /// after a successful attach is detected (DaemonDownReason::Crashed) rather
 /// than only checked once at launch.
 pub fn start(app: tauri::AppHandle) {
+    if SUPERVISOR_RUNNING.swap(true, Ordering::SeqCst) {
+        return;
+    }
     std::thread::spawn(move || {
         let mut was_attached = false;
         loop {
-            let probed = probe(PORT);
-            let probe_tuple = probed.as_ref().map(|(a, v)| (a.as_str(), v.as_str()));
-            let pid_alive_now = daemon_util::read_daemon_json_pid().filter(|p| daemon_util::pid_alive(*p));
-            let agent = launch_agent_installed();
-
-            match decide(probe_tuple, pid_alive_now, agent) {
-                DaemonState::Attached => {
-                    if let Some((_app_name, version)) = &probed {
-                        if version != APP_VERSION && !version.is_empty() {
-                            log::warn!("daemon: CLI daemon v{version} (app is v{APP_VERSION})");
-                        }
-                    }
-                    was_attached = true;
-                    set_down_reason(DaemonDownReason::Normal);
-                    set_another_app_line(None);
-                }
-                DaemonState::AnotherApp => {
-                    let line = "Port 8647 is used by another program".to_string();
-                    set_another_app_line(Some(line));
-                    let _ = app.emit("daemon-another-app", ());
-                }
-                DaemonState::WaitingLaunchAgent => {
-                    kickstart();
-                    reprobe(PORT);
-                }
-                DaemonState::WaitingSidecar => {
-                    spawn_sidecar(&app);
-                    reprobe(PORT);
-                }
-                DaemonState::WaitingPid => {
-                    std::thread::sleep(Duration::from_secs(20));
-                    if probe(PORT).is_none() {
-                        if was_attached {
-                            set_down_reason(DaemonDownReason::Crashed);
-                            let _ = app.emit("daemon-crashed", ());
-                        }
-                        log::warn!("daemon: Down after waiting for a live pid");
-                    }
-                }
-                DaemonState::Down => {}
-            }
-
+            was_attached = supervise_once(&app, was_attached);
             std::thread::sleep(Duration::from_secs(45));
         }
     });
+}
+
+/// Re-run one supervise tick after stopping any child we own. Used by the
+/// tray's "Restart daemon" item: calling start() again would add a second
+/// permanent loop, and two loops can each spawn a sidecar.
+pub fn restart(app: &tauri::AppHandle) {
+    stop_child();
+    supervise_once(app, true);
+}
+
+/// One pass of the decision table. Returns the new `was_attached` flag.
+fn supervise_once(app: &tauri::AppHandle, was_attached: bool) -> bool {
+    let probed = probe(PORT);
+    let probe_tuple = probed.as_ref().map(|(a, v)| (a.as_str(), v.as_str()));
+    let pid_alive_now = daemon_util::read_daemon_json_pid().filter(|p| daemon_util::pid_alive(*p));
+    let agent = launch_agent_installed();
+
+    match decide(probe_tuple, pid_alive_now, agent) {
+        DaemonState::Attached => {
+            if let Some((_app_name, version)) = &probed {
+                if version != APP_VERSION && !version.is_empty() {
+                    log::warn!("daemon: CLI daemon v{version} (app is v{APP_VERSION})");
+                }
+            }
+            set_down_reason(DaemonDownReason::Normal);
+            set_another_app_line(None);
+            return true;
+        }
+        DaemonState::AnotherApp => {
+            let line = "Port 8647 is used by another program".to_string();
+            set_another_app_line(Some(line));
+            let _ = app.emit("daemon-another-app", ());
+        }
+        DaemonState::WaitingLaunchAgent => {
+            kickstart();
+            reprobe(PORT);
+        }
+        DaemonState::WaitingSidecar => {
+            // Never spawn a second sidecar: a previous tick may already own a
+            // live child that has not bound the port yet (slow first-run
+            // migration), in which case we only wait for it.
+            if !child_running() {
+                spawn_sidecar(app);
+            }
+            reprobe(PORT);
+        }
+        DaemonState::WaitingPid => {
+            std::thread::sleep(Duration::from_secs(20));
+            if probe(PORT).is_none() {
+                if was_attached {
+                    set_down_reason(DaemonDownReason::Crashed);
+                    let _ = app.emit("daemon-crashed", ());
+                }
+                log::warn!("daemon: Down after waiting for a live pid");
+            }
+        }
+        DaemonState::Down => {}
+    }
+    was_attached
 }
 
 fn reprobe(port: u16) {

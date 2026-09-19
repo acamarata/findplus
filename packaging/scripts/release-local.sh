@@ -106,7 +106,10 @@ macos_step6_verify() {
   spctl -a -vv --type install "$app"
   codesign --verify --deep --strict --verbose=2 "$app"
   if [ -n "$dmg" ]; then
-    hdiutil verify "$dmg"
+    # verify-dmg.sh runs hdiutil verify AND enforces the 120 MB budget
+    # (specs/desktop-app.md § Build & sign step 6); calling hdiutil directly
+    # here would skip the size gate the CHANGELOG promises.
+    bash packaging/scripts/verify-dmg.sh "$dmg"
   fi
   echo "release-local: PASS v$VERSION"
 }

@@ -45,7 +45,10 @@ fn last_status_cell() -> &'static Mutex<Status> {
 }
 
 fn chrome_missing() -> bool {
-    *CHROME_MISSING.get_or_init(|| Mutex::new(false)).lock().unwrap()
+    *CHROME_MISSING
+        .get_or_init(|| Mutex::new(false))
+        .lock()
+        .unwrap()
 }
 
 pub fn setup(app: &mut tauri::App) -> tauri::Result<()> {
@@ -107,7 +110,10 @@ fn effective_status() -> Status {
 fn refresh_chrome_missing() {
     std::thread::spawn(|| {
         let missing = probe_chrome_missing();
-        *CHROME_MISSING.get_or_init(|| Mutex::new(false)).lock().unwrap() = missing;
+        *CHROME_MISSING
+            .get_or_init(|| Mutex::new(false))
+            .lock()
+            .unwrap() = missing;
     });
 }
 
@@ -131,16 +137,34 @@ fn probe_chrome_missing() -> bool {
     list.iter().any(|p| {
         p.get("name").and_then(|v| v.as_str()) == Some("google-find-hub")
             && p.get("available").and_then(|v| v.as_bool()) == Some(false)
-            && p
-                .get("reason")
+            && p.get("reason")
                 .and_then(|v| v.as_str())
                 .map(|r| r.to_lowercase().contains("chrome"))
                 .unwrap_or(false)
     })
 }
 
-/// Rebuild the menu and swap the tray icon to the matching dot PNG.
+/// Rebuild the menu and swap the tray icon on the MAIN thread. The callers
+/// are `app.listen` handlers, which run on the event-loop's worker thread;
+/// NSMenu/NSStatusItem must only be touched from the main thread, and doing
+/// the menu swap and the icon swap in one main-thread hop also stops the two
+/// racing against each other.
 pub fn build_menu(
+    app: &AppHandle,
+    tray_id: &tauri::tray::TrayIconId,
+    status: &Status,
+) -> tauri::Result<()> {
+    let app = app.clone();
+    let tray_id = tray_id.clone();
+    let status = status.clone();
+    app.clone().run_on_main_thread(move || {
+        if let Err(e) = apply_menu(&app, &tray_id, &status) {
+            log::error!("tray: menu refresh failed: {e}");
+        }
+    })
+}
+
+fn apply_menu(
     app: &AppHandle,
     tray_id: &tauri::tray::TrayIconId,
     status: &Status,
@@ -171,7 +195,7 @@ fn handle_menu_event(app: &AppHandle, id: &str) {
         "lock" => {
             std::thread::spawn(|| {
                 let _ = reqwest::blocking::Client::new()
-                    .post("http://127.0.0.1:8647/api/lock")
+                    .post("http://127.0.0.1:8647/api/lock/lock")
                     .send();
             });
         }
@@ -188,7 +212,7 @@ fn handle_menu_event(app: &AppHandle, id: &str) {
         }
         "restart_daemon" => {
             let app = app.clone();
-            std::thread::spawn(move || daemon::start(app));
+            std::thread::spawn(move || daemon::restart(&app));
         }
         "quit" => handle_quit(app),
         _ => {}
@@ -210,12 +234,17 @@ fn handle_quit(app: &AppHandle) {
         ))
         .show_with_result(move |result| match result {
             MessageDialogResult::Yes => {
+                // Exit only AFTER the install has run: exiting straight after
+                // the spawn killed the installer before it could finish. Stop
+                // our own sidecar first so the freshly installed LaunchAgent
+                // can bind port 8647.
                 std::thread::spawn(|| {
                     let _ = std::process::Command::new("findplus-daemon")
                         .args(["start", "--yes"])
                         .status();
+                    daemon::stop_child();
+                    std::process::exit(0);
                 });
-                std::process::exit(0);
             }
             MessageDialogResult::No => {
                 daemon::stop_child();

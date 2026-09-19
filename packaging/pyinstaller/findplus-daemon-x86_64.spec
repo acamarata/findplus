@@ -8,7 +8,7 @@
 # Inputs     : Run from the repo root: `pyinstaller
 #              packaging/pyinstaller/findplus-daemon.spec`.
 # Outputs    : dist/findplus-daemon/ (onedir), copied to
-#              desktop/src-tauri/binaries/findplus-daemon-aarch64-apple-darwin/.
+#              desktop/src-tauri/binaries/findplus-daemon-x86_64-apple-darwin/.
 # Constraints: codesign_identity=None — packaging/scripts/sign-sidecar.sh signs
 #              every Mach-O afterwards. See specs/packaging-and-release.md §
 #              PyInstaller spec (binding: datas, hiddenimports, excludes).
@@ -88,6 +88,6 @@ coll = COLLECT(
 
 # Post-build: copy the onedir output next to the Tauri sidecar externalBin path
 # so `cargo tauri build` can pick it up without a manual copy step.
-_dest = Path("desktop/src-tauri/binaries/findplus-daemon-aarch64-apple-darwin")
+_dest = Path("desktop/src-tauri/binaries/findplus-daemon-x86_64-apple-darwin")
 _dest.mkdir(parents=True, exist_ok=True)
 shutil.copytree("dist/findplus-daemon", _dest, dirs_exist_ok=True)

@@ -231,3 +231,79 @@ def _raw_obs(device_id: str, observed_at: datetime):
         source="crowdsourced",
         is_own_report=False,
     )
+
+
+def test_group_event_reaches_dispatch_in_the_same_poll(tmp_db, monkeypatch):
+    """One poll must ingest the fix, fire the quorum AND deliver the group alert.
+
+    The two hooks live in different sessions (ingest commits first, dispatch
+    runs after), so nothing but an end-to-end poll proves a group_place_events
+    row written at ingest is visible to `load_pending_events` before the poll
+    returns. Anything less and group rules silently wait for the next cycle.
+    """
+    from unittest.mock import patch
+
+    from findplus.alerts.channels.telegram import DeliveryResult
+    from findplus.alerts.store import AlertsChannels, TelegramCreds
+    from findplus.config import get_settings
+    from findplus.db.models_alerts import AlertDelivery, AlertRule
+    from findplus.db.session import session_scope
+    from findplus.poller import _locate_and_ingest
+
+    now = datetime.now(UTC)
+    with session_scope() as s:
+        group, place = _seed_group(s, quorum="any")
+        for device_id in ("a", "b", "c"):
+            _add_fix(s, device_id, now - timedelta(minutes=5))
+        s.add(
+            PlaceState(
+                place_id=place.id,
+                device_id="a",
+                state="outside",
+                streak=0,
+                streak_side=None,
+                since_observed_at=None,
+                last_observation_id=None,
+                updated_at=now,
+            )
+        )
+        s.add(
+            AlertRule(
+                name="family-home",
+                place_id=place.id,
+                group_id=group.id,
+                device_id=None,
+                on_enter=True,
+                on_exit=True,
+                channel="telegram",
+                cooldown_minutes=30,
+                enabled=True,
+                also_notify_members=False,
+                created_at=now,
+            )
+        )
+
+    creds = TelegramCreds("123:abc", "42", "Family", "findplus_bot", now.isoformat())
+
+    class _Provider:
+        def locate(self, device_id, device_name):
+            return [_raw_obs(device_id, now)]
+
+    with (
+        patch(
+            "findplus.alerts.store.load_alerts",
+            return_value=AlertsChannels(telegram=creds, webhook=None),
+        ),
+        patch(
+            "findplus.alerts.channels.telegram.send",
+            return_value=DeliveryResult(success=True, status_code=200, error=None),
+        ) as send_mock,
+    ):
+        outcome, _ = _locate_and_ingest(_Provider(), "a", "a", get_settings())
+
+    assert outcome.status == "ok"
+    with session_scope() as s:
+        assert s.scalar(select(GroupPlaceEvent)) is not None
+        delivered = s.query(AlertDelivery).filter_by(event_kind="group", status="sent").all()
+        assert len(delivered) == 1
+    assert any("tags entered Home" in call[0][0] for call in send_mock.call_args_list)

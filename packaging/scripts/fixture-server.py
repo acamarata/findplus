@@ -3,22 +3,20 @@
 
 Purpose    : Serve /api/health, /api/status and /api/widget with a payload the
              caller picks at run time, so Find+.app can be screenshotted in
-             each tray state without a real account or poller.
-Inputs     : POST /set-state {"mode": ok|stale|error|locked|down} and POST
-             /set-widget <widget payload>.
-Outputs    : JSON on the GET routes; 401 on /api/status when locked, 503 on
-             /api/health when down, read by the client as Locked and Down.
-Constraints: binds 127.0.0.1:8647, keeps nothing on disk, uses the field names
-             in specs/api-contract.md, and invents no top-level "state" key.
+             every tray state with no account and no poller.
+Inputs     : POST /set-state {"mode": ...} and POST /set-widget <payload>.
+Outputs    : JSON on the GET routes; 401 when locked and 503 when down, which
+             the client reads as Locked and Down.
+Constraints: binds 127.0.0.1:8647, keeps nothing on disk, uses the api-contract
+             field names, invents no top-level "state" key, and fails both
+             probes when down because the tray reads /api/status, not health.
 """
-
-from __future__ import annotations
 
 import http.server
 import json
 from datetime import UTC, datetime, timedelta
 
-MODE, PAYLOAD, WIDGET = "ok", {}, {}
+MODE, WIDGET = "ok", {}
 HEALTH = {"status": "ok", "app": "findplus", "version": "1.0.0"}
 
 
@@ -38,16 +36,24 @@ def build_payload(mode: str) -> dict:
     }
 
 
+PAYLOAD = build_payload(MODE)
+
+
 class H(http.server.BaseHTTPRequestHandler):
     def do_GET(self) -> None:
-        if self.path == "/api/health" and MODE != "down":
+        if MODE == "down" and self.path in ("/api/health", "/api/status"):
+            return self._bare(503)
+        if self.path == "/api/health":
             return self._json(HEALTH)
-        if self.path == "/api/status" and MODE != "locked":
-            return self._json(PAYLOAD)
+        if self.path == "/api/status":
+            return self._bare(401) if MODE == "locked" else self._json(PAYLOAD)
         if self.path == "/api/widget":
             return self._json(WIDGET)
-        codes = {"/api/health": 503, "/api/status": 401}
-        self.send_response(codes.get(self.path, 404))
+        self._bare(404)
+
+    def _bare(self, code: int) -> None:
+        """Answer with a status line and no body."""
+        self.send_response(code)
         self.end_headers()
 
     def do_POST(self) -> None:
@@ -58,8 +64,7 @@ class H(http.server.BaseHTTPRequestHandler):
             PAYLOAD = build_payload(MODE)
         elif self.path == "/set-widget":
             WIDGET = data
-        self.send_response(204)
-        self.end_headers()
+        self._bare(204)
 
     def _json(self, obj: dict) -> None:
         body = json.dumps(obj).encode()
@@ -74,5 +79,4 @@ class H(http.server.BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    PAYLOAD = build_payload(MODE)
     http.server.HTTPServer(("127.0.0.1", 8647), H).serve_forever()

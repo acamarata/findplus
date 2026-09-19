@@ -1,0 +1,19 @@
+name: Sync Wiki
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/wiki/**'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync wiki
+        uses: nickg/github-wikis@v1
+        with:
+          path: .github/wiki
+          token: ${{ secrets.GITHUB_TOKEN }}

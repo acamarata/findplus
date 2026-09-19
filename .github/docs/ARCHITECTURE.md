@@ -435,3 +435,10 @@ Unicode fallback is used only when the PNG cannot be loaded at runtime.
 **Window created from Rust.** `app.windows` in tauri.conf.json is empty; `open_main()` in
 windows.rs creates the WebviewWindow programmatically after the health gate, so the Dock
 icon and splash window are controlled from Rust rather than config.
+
+## Git hooks
+
+Run `bash packaging/scripts/install-hook.sh` to install the pre-push gate, or
+`findplus doctor --repair` (after E7-T5 lands). The hook runs
+`packaging/scripts/pre-push-check.sh` which enforces clean root, no bike-tracker,
+no Co-Authored-By, no Find My+, planning docs under .github/docs/, and gitleaks clean.

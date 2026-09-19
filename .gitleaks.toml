@@ -1,0 +1,27 @@
+title = "findplus gitleaks config"
+
+# Extend the default ruleset; only add allowlist entries below.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known false positives, reviewed 2026-09-19"
+regexTarget = "match"
+
+# GoogleFindMyTools (vendored, never modified per PRI hard rule 8) ships a
+# public Firebase Cloud Messaging sender key used by its FCM registration
+# flow. Firebase/FCM client keys are designed to be embedded in clients and
+# are not treated as secrets by Google; restriction happens server-side.
+# This key is part of the upstream GPL-3.0 project, unchanged since vendoring.
+# Matched by path across history: pre-E1 commits have it at
+# vendor/GoogleFindMyTools/..., post-E1 at cli/vendor/GoogleFindMyTools/....
+paths = [
+  '''(^|/)vendor/GoogleFindMyTools/Auth/fcm_receiver\.py$''',
+]
+
+# generic-api-key false positives: these are option/variable NAMES
+# ("--private-key", "private_key_b64"), not secret values.
+regexes = [
+  '''--private-key.*private_key_b64''',
+  '''private_key_b64=private_key_b64''',
+]

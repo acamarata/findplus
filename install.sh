@@ -3,9 +3,9 @@
 #
 # Purpose    : Install findplus into an isolated venv under FINDPLUS_PREFIX
 #              and symlink its entry point into FINDPLUS_BIN, with no sudo.
-# Inputs     : env FINDPLUS_YES, FINDPLUS_VERSION, FINDPLUS_WHEEL,
-#              FINDPLUS_PREFIX, FINDPLUS_BIN; flags --yes, --uninstall,
-#              --version X.
+# Inputs     : env FINDPLUS_YES, FINDPLUS_VERSION (overrides the baked-in
+#              VERSION_PIN default, the one line the release sed-replaces),
+#              FINDPLUS_WHEEL, FINDPLUS_PREFIX, FINDPLUS_BIN; --yes, --uninstall, --version X.
 # Outputs    : $FINDPLUS_PREFIX/venv (installed package), a symlink at
 #              $FINDPLUS_BIN/findplus.
 # Constraints: idempotent (existing venv upgrades in place); never sudo;
@@ -15,7 +15,7 @@ set -euo pipefail
 
 YES="${FINDPLUS_YES:-0}"
 UNINSTALL=0
-VERSION_PIN="${FINDPLUS_VERSION:-}"
+VERSION_PIN="${FINDPLUS_VERSION:-1.0.0.dev0}"
 
 parse_args() {
   while [ $# -gt 0 ]; do
@@ -60,6 +60,23 @@ SYMLINK="$BIN/findplus"
 STATE_DIR="${FINDPLUS_STATE_DIR:-$HOME/.findplus}"
 
 uninstall() {
+  # The service and watchdog must be unloaded BEFORE the venv goes: launchd and
+  # systemd keep restarting a program whose file has just been deleted, and
+  # once `findplus` is gone there is nothing left that knows the unit paths.
+  if [ -x "$VENV/bin/findplus" ]; then
+    echo "Unloading the service and watchdog"
+    "$VENV/bin/findplus" uninstall --yes || echo "install.sh: service uninstall reported an error; removing files anyway" >&2
+  else
+    echo "install.sh: $VENV/bin/findplus is missing, so no service could be unloaded." >&2
+    echo "  If a service is still installed, remove it by hand:" >&2
+    echo "    macOS:   launchctl bootout gui/\$(id -u)/com.acamarata.findplus" >&2
+    echo "             launchctl bootout gui/\$(id -u)/com.acamarata.findplus.watchdog" >&2
+    echo "             rm -f ~/Library/LaunchAgents/com.acamarata.findplus*.plist" >&2
+    echo "    Linux:   systemctl --user disable --now findplus.service findplus-watchdog.timer" >&2
+    echo "             rm -f ~/.config/systemd/user/findplus*" >&2
+    echo "    Windows: schtasks /delete /tn FindPlus /f" >&2
+    echo "             schtasks /delete /tn FindPlusWatchdog /f" >&2
+  fi
   echo "Removing $VENV and $SYMLINK"
   rm -rf "$VENV"
   rm -f "$SYMLINK"

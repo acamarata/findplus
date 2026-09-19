@@ -19,10 +19,28 @@ from xml.sax.saxutils import escape
 from findplus.db.models import LocationObservation
 from findplus.geo import haversine_meters
 
+#: Names both networks, never just Google: Find+ exports Apple Find My
+#: observations from the same table, and a file that blames one network for
+#: rows that came from the other is not honest about where its data came from.
 DISCLAIMER = (
-    "Observed locations reported via Google's Find Hub network. "
+    "Observed locations reported via the Find Hub and Find My networks. "
     "Straight lines between points are not the route actually travelled."
 )
+
+#: The CSV carries the disclaimer as a leading comment line, so the warning
+#: travels with the file the way it already does in JSON, GPX and KML.
+#: `csv_table()` strips it back off for any caller that re-parses the output.
+CSV_COMMENT = f"# {DISCLAIMER}"
+
+
+def csv_table(body: str) -> str:
+    """`body` without its leading `#` comment lines — header row first."""
+    lines = body.split("\n")
+    start = 0
+    while start < len(lines) and lines[start].startswith("#"):
+        start += 1
+    return "\n".join(lines[start:])
+
 
 CSV_COLUMNS = [
     "observation_id",
@@ -39,8 +57,28 @@ CSV_COLUMNS = [
     "is_own_report",
     "battery_level",
     "times_returned",
-    "meters_from_previous",
+    # "approx_" is not decoration: PROMPT.md §2 invariant 7 requires the
+    # distance to read as approximate everywhere, exports included. It is the
+    # straight-line gap between two observed fixes, not distance travelled.
+    "approx_meters_from_previous",
 ]
+
+
+#: Characters a spreadsheet treats as the start of a formula.
+_FORMULA_LEAD = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _csv_safe(value: object) -> object:
+    """Prefix a formula-leading cell with `'` so Excel/Sheets treat it as text.
+
+    Device names come from the provider and from the user, so a name like
+    `=HYPERLINK("http://…")` would otherwise execute the moment someone opened
+    the export. The apostrophe is the documented spreadsheet escape and is not
+    shown in the cell.
+    """
+    if isinstance(value, str) and value.startswith(_FORMULA_LEAD):
+        return "'" + value
+    return value
 
 
 def _local(ts: datetime, tz) -> str:
@@ -70,14 +108,15 @@ def _with_deltas(
 
 def to_csv(observations: list[LocationObservation], tz) -> str:
     buf = io.StringIO()
+    buf.write(CSV_COMMENT + "\n")
     writer = csv.DictWriter(buf, fieldnames=CSV_COLUMNS, lineterminator="\n")
     writer.writeheader()
     for obs, meters in _with_deltas(observations):
         writer.writerow(
             {
                 "observation_id": obs.id,
-                "device_id": obs.device_id,
-                "device_name": obs.device_name,
+                "device_id": _csv_safe(obs.device_id),
+                "device_name": _csv_safe(obs.device_name),
                 "observed_at_utc": obs.observed_at.isoformat(),
                 "observed_at_local": _local(obs.observed_at, tz),
                 "fetched_at_utc": obs.first_fetched_at.isoformat(),
@@ -85,11 +124,11 @@ def to_csv(observations: list[LocationObservation], tz) -> str:
                 "longitude": f"{obs.longitude:.7f}",
                 "accuracy_meters": "" if obs.accuracy_meters is None else obs.accuracy_meters,
                 "altitude_meters": "" if obs.altitude_meters is None else obs.altitude_meters,
-                "source": obs.source or "",
+                "source": _csv_safe(obs.source or ""),
                 "is_own_report": "" if obs.is_own_report is None else int(obs.is_own_report),
                 "battery_level": "" if obs.battery_level is None else obs.battery_level,
                 "times_returned": obs.times_returned,
-                "meters_from_previous": "" if meters is None else f"{meters:.1f}",
+                "approx_meters_from_previous": "" if meters is None else f"{meters:.1f}",
             }
         )
     return buf.getvalue()
@@ -125,7 +164,7 @@ def to_json(observations: list[LocationObservation], tz) -> str:
     return json.dumps(payload, indent=2)
 
 
-def to_gpx(observations: list[LocationObservation], tz, track_name: str = "Bike history") -> str:
+def to_gpx(observations: list[LocationObservation], tz, track_name: str = "Find+ history") -> str:
     """GPX 1.1 with a single track segment of timestamped points."""
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
@@ -160,7 +199,7 @@ def to_gpx(observations: list[LocationObservation], tz, track_name: str = "Bike 
     return "\n".join(lines)
 
 
-def to_kml(observations: list[LocationObservation], tz, doc_name: str = "Bike history") -> str:
+def to_kml(observations: list[LocationObservation], tz, doc_name: str = "Find+ history") -> str:
     """KML with numbered placemarks plus a LineString of the observed path."""
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
@@ -212,7 +251,7 @@ MEDIA_TYPES = {
 
 
 def export(
-    fmt: str, observations: list[LocationObservation], tz, name: str = "Bike history"
+    fmt: str, observations: list[LocationObservation], tz, name: str = "Find+ history"
 ) -> str:
     fmt = fmt.lower()
     if fmt not in EXPORTERS:

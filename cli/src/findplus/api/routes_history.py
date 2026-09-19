@@ -32,6 +32,7 @@ from findplus.timeline import (
 )
 
 from ._helpers import _parse_day, _resolve_range, _serialize_latest, _serialize_run
+from .downloads import content_disposition
 
 log = get_logger(__name__)
 
@@ -43,7 +44,7 @@ def build_router(*, settings, check_poll_cooldown) -> APIRouter:
         return local_zone(name)
 
     def _download(body: str, fmt: str, filename: str) -> PlainTextResponse:
-        headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+        headers = {"Content-Disposition": content_disposition(filename)}
         return PlainTextResponse(content=body, media_type=MEDIA_TYPES[fmt], headers=headers)
 
     @router.get("/timeline")
@@ -209,7 +210,7 @@ def build_router(*, settings, check_poll_cooldown) -> APIRouter:
         with session_scope() as session:
             start_utc, end_utc, label = _resolve_range(day, start, end, zone)
             rows = fetch_observations(session, device_id, start_utc, end_utc)
-            name = "Bike history"
+            name = "Find+ history"
             if device_id:
                 device = session.get(Device, device_id)
                 if device:

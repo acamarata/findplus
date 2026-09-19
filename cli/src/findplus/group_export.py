@@ -25,7 +25,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from findplus.db.models import Device, DeviceGroup, Group, LocationObservation
-from findplus.exporters import to_csv, to_json
+from findplus.exporters import CSV_COMMENT, csv_table, to_csv, to_json
 from findplus.timeline import fetch_observations
 
 
@@ -103,10 +103,13 @@ def _csv(blocks, zone) -> str:
     """device_id-first CSV. Reuses `to_csv()` per member; the column it already
     emits for device_id is dropped so the leading one isn't duplicated."""
     buf = io.StringIO()
+    buf.write(CSV_COMMENT + "\n")
     writer = csv.writer(buf, lineterminator="\n")
     header_written = False
     for device_id, obs in blocks:
-        reader = csv.reader(io.StringIO(to_csv(obs, zone)))
+        # csv_table() drops to_csv()'s own disclaimer line; this file carries
+        # one copy of it, written above, not one per member block.
+        reader = csv.reader(io.StringIO(csv_table(to_csv(obs, zone))))
         header = next(reader)
         dup = header.index("device_id")
         if not header_written:

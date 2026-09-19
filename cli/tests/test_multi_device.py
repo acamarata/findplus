@@ -358,9 +358,15 @@ def test_export_can_be_filtered_by_device(two_tracks: TestClient) -> None:
     import csv
     import io
 
-    everything = list(csv.DictReader(io.StringIO(two_tracks.get("/api/export?fmt=csv").text)))
+    from findplus.exporters import csv_table
+
+    everything = list(
+        csv.DictReader(io.StringIO(csv_table(two_tracks.get("/api/export?fmt=csv").text)))
+    )
     one = list(
-        csv.DictReader(io.StringIO(two_tracks.get(f"/api/export?fmt=csv&device_id={BIKE[0]}").text))
+        csv.DictReader(
+            io.StringIO(csv_table(two_tracks.get(f"/api/export?fmt=csv&device_id={BIKE[0]}").text))
+        )
     )
     assert len(everything) == 4
     assert len(one) == 2
@@ -375,8 +381,10 @@ def test_export_accepts_a_date_range(two_tracks: TestClient) -> None:
     outside = two_tracks.get(
         "/api/export?fmt=csv&start=2026-09-01&end=2026-09-02&timezone=UTC"
     ).text
-    assert len(list(csv.DictReader(io.StringIO(inside)))) == 4
-    assert len(list(csv.DictReader(io.StringIO(outside)))) == 0
+    from findplus.exporters import csv_table
+
+    assert len(list(csv.DictReader(io.StringIO(csv_table(inside))))) == 4
+    assert len(list(csv.DictReader(io.StringIO(csv_table(outside))))) == 0
 
 
 def test_devices_with_data_ignores_devices_that_never_reported(two_tracks: TestClient) -> None:

@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from findplus.db.session import session_scope
+from findplus.exporters import csv_table
 from findplus.ingest import ingest_observations, upsert_device
 from findplus.state import track_devices
 from tests.conftest import make_observation
@@ -43,7 +44,7 @@ def locked_client(client: TestClient):
     re-signs-in whoever just set it), so the cookie jar is cleared afterwards to
     make this client an anonymous, locked-out caller for the rest of the test.
     """
-    pin = "0000"
+    pin = "000000"
     resp = client.post("/api/settings/pin", json={"new_pin": pin})
     assert resp.status_code == 200, resp.text
     client.cookies.clear()
@@ -159,7 +160,7 @@ def test_csv_export_downloads_with_a_filename(client: TestClient) -> None:
     res = client.get("/api/export?fmt=csv&day=2026-09-18&timezone=UTC")
     assert res.status_code == 200
     assert "attachment" in res.headers["content-disposition"]
-    rows = list(csv.DictReader(io.StringIO(res.text)))
+    rows = list(csv.DictReader(io.StringIO(csv_table(res.text))))
     assert len(rows) == 3
 
 
@@ -176,7 +177,7 @@ def test_all_export_formats_respond(client: TestClient, fmt: str) -> None:
 
 
 def test_export_all_history_works(client: TestClient) -> None:
-    rows = list(csv.DictReader(io.StringIO(client.get("/api/export?fmt=csv").text)))
+    rows = list(csv.DictReader(io.StringIO(csv_table(client.get("/api/export?fmt=csv").text))))
     assert len(rows) == 3
 
 

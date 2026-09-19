@@ -13,7 +13,16 @@ import pytest
 from sqlalchemy import select
 
 from findplus.db.models import LocationObservation
-from findplus.exporters import export, to_csv, to_gpx, to_json, to_kml
+from findplus.exporters import (
+    CSV_COLUMNS,
+    DISCLAIMER,
+    csv_table,
+    export,
+    to_csv,
+    to_gpx,
+    to_json,
+    to_kml,
+)
 from findplus.ingest import ingest_observations
 from tests.conftest import make_observation
 
@@ -37,14 +46,19 @@ def rows(session):
 
 
 # ------------------------------------------------------------------- CSV
+def _parsed(body: str) -> list[dict[str, str]]:
+    """Rows of a CSV export, past its leading `#` disclaimer comment."""
+    return list(csv.DictReader(io.StringIO(csv_table(body))))
+
+
 def test_csv_has_a_header_and_one_row_per_observation(rows) -> None:
-    parsed = list(csv.DictReader(io.StringIO(to_csv(rows, EASTERN))))
+    parsed = _parsed(to_csv(rows, EASTERN))
     assert len(parsed) == 3
     assert parsed[0]["device_name"] == "Moto Tag 2"
 
 
 def test_csv_separates_observed_and_fetched_columns(rows) -> None:
-    parsed = list(csv.DictReader(io.StringIO(to_csv(rows, EASTERN))))
+    parsed = _parsed(to_csv(rows, EASTERN))
     first = parsed[0]
     assert first["observed_at_utc"] == "2026-09-18T12:00:00+00:00"
     assert first["observed_at_local"].startswith("2026-09-18T08:00:00")
@@ -52,20 +66,52 @@ def test_csv_separates_observed_and_fetched_columns(rows) -> None:
 
 
 def test_csv_first_row_has_no_previous_distance(rows) -> None:
-    parsed = list(csv.DictReader(io.StringIO(to_csv(rows, EASTERN))))
-    assert parsed[0]["meters_from_previous"] == ""
-    assert float(parsed[1]["meters_from_previous"]) > 0
+    parsed = _parsed(to_csv(rows, EASTERN))
+    assert parsed[0]["approx_meters_from_previous"] == ""
+    assert float(parsed[1]["approx_meters_from_previous"]) > 0
+
+
+def test_csv_distance_column_says_it_is_approximate(rows) -> None:
+    """Invariant 7: the export must not present a straight-line gap between
+    two observed fixes as an exact distance."""
+    header = csv_table(to_csv(rows, EASTERN)).splitlines()[0]
+    assert "approx_meters_from_previous" in header
+    assert ",meters_from_previous" not in header
+
+
+def test_csv_opens_with_the_disclaimer_as_a_comment(rows) -> None:
+    body = to_csv(rows, EASTERN)
+    first_line = body.splitlines()[0]
+    assert first_line == f"# {DISCLAIMER}"
+    assert csv_table(body).splitlines()[0].startswith("observation_id,")
+
+
+def test_disclaimer_names_both_networks_not_only_google() -> None:
+    """A Find My observation exported under a Google-only disclaimer would
+    misdescribe where the data came from."""
+    assert "Find Hub and Find My networks" in DISCLAIMER
+    assert "Google" not in DISCLAIMER
+    # Every format carries the same sentence.
+    assert DISCLAIMER in to_json([], EASTERN)
+    assert DISCLAIMER in to_gpx([], EASTERN)
+    assert DISCLAIMER in to_kml([], EASTERN)
+
+
+def test_default_export_name_is_not_the_old_bike_wording() -> None:
+    assert "<name>Find+ history</name>" in to_gpx([], EASTERN)
+    assert "<name>Find+ history</name>" in to_kml([], EASTERN)
+    assert "Bike" not in to_gpx([], EASTERN)
+    assert "Bike" not in to_kml([], EASTERN)
 
 
 def test_csv_preserves_seven_decimal_places(rows) -> None:
-    parsed = list(csv.DictReader(io.StringIO(to_csv(rows, EASTERN))))
+    parsed = _parsed(to_csv(rows, EASTERN))
     assert parsed[0]["latitude"] == "41.1000000"
 
 
-def test_csv_of_empty_history_is_header_only(session) -> None:
+def test_csv_of_empty_history_is_a_comment_and_a_header(session) -> None:
     body = to_csv([], EASTERN)
-    assert body.strip().count("\n") == 0
-    assert body.startswith("observation_id,")
+    assert body.splitlines() == [f"# {DISCLAIMER}", ",".join(CSV_COLUMNS)]
 
 
 # ------------------------------------------------------------------ JSON

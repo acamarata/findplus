@@ -58,7 +58,7 @@ def _export_body(fmt: str, device_id, group_id, start_utc, end_utc, tz, label: s
         return body, body.count("\n")
     with session_scope() as session:
         rows = fetch_observations(session, device_id, start_utc, end_utc)
-        return render(fmt, rows, tz, name=f"Bike history {label}"), len(rows)
+        return render(fmt, rows, tz, name=f"Find+ history {label}"), len(rows)
 
 
 @click.command()

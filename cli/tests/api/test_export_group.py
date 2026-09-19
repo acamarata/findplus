@@ -45,9 +45,11 @@ def test_export_group_csv_has_device_id_first(group_client) -> None:
     resp = client.get(f"/api/export?group_id={group_id}&fmt=csv")
     assert resp.status_code == 200
     lines = resp.text.strip().splitlines()
-    header = lines[0].split(",")
+    # One disclaimer comment for the whole file, then the header.
+    assert lines[0].startswith("# Observed locations")
+    header = lines[1].split(",")
     assert header[0] == "device_id"
-    device_ids = {line.split(",")[0] for line in lines[1:]}
+    device_ids = {line.split(",")[0] for line in lines[2:]}
     assert device_ids == {"TAG-A", "TAG-B"}
 
 

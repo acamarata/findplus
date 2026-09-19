@@ -5,15 +5,20 @@ on: {workflow_dispatch: {}}
 jobs:
   screenshots:
     runs-on: macos-latest
+    # The repository's default workflow permission is read; pushing the branch
+    # and opening the PR both need more than that.
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install .[dev] && playwright install chrome
+      - run: pip install '.[dev]' && playwright install chrome
         working-directory: cli
       - run: |
-          .venv/bin/python -m findplus serve --no-poller --port 8647 --foreground &
+          python -m findplus serve --no-poller --port 8647 --foreground &
           DAEMON_PID=$!
           trap 'kill $DAEMON_PID 2>/dev/null || true' EXIT
           sleep 4

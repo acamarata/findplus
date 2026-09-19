@@ -103,6 +103,10 @@ jobs:
     needs: [build-python, publish-pypi, build-dmg]
     if: always() && needs.build-python.result == 'success'
     runs-on: ubuntu-latest
+    # The repository's default workflow permission is read, so creating the
+    # release needs this explicitly or action-gh-release fails with a 403.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Check for an existing published release

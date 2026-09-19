@@ -1,14 +1,17 @@
 /*
- * Places tab: geofence circles, add/edit/delete dialog, presence chips.
+ * Places tab: geofence circles + presence chips. The add/edit dialog and
+ * crosshair-click flow live in places_dialog.js (split out at the PRI
+ * rule-7 300-line file cap).
  *
  * Purpose    : Surface E5's places/geofence engine — draw saved places as
- *              L.Circle layers, let the user create/edit them via a
- *              crosshair-click dialog, and inject a presence chip into each
- *              device row showing which place a tracker is inside.
- * Inputs     : GET /api/places, GET /api/places/presence; POST/PUT/DELETE
- *              /api/places(/{id}) on save/edit/delete.
- * Outputs    : A Leaflet layer group of place circles; a reused <dialog>;
- *              .fp-presence-chip spans appended to device rows.
+ *              L.Circle layers, own the place/circle registries, and inject
+ *              a presence chip into each device row showing which place a
+ *              tracker is inside.
+ * Inputs     : GET /api/places, GET /api/places/presence; DELETE
+ *              /api/places/{id} on delete (add/edit POST/PUT is
+ *              places_dialog.js's).
+ * Outputs    : A Leaflet layer group of place circles; .fp-presence-chip
+ *              spans appended to device rows.
  * Constraints: Every element below is built with createElement/textContent,
  *              never raw markup assignment, so API-sourced strings can never
  *              run as script. Acyclic: imports nothing from devices.js or
@@ -17,18 +20,17 @@
 "use strict";
 
 import { api } from "./api.js";
+import { activateCrosshairMode, initDialog, openEditDialog, purgeDialog } from "./places_dialog.js";
 
 let map = null;
 let placeLayer = null;
-let previewCircle = null;
 let placesById = new Map();
 let circlesById = new Map();
-let dialogEl = null;
-let fields = null;
 
 export function init(mapArg, _deviceListEl) {
   map = mapArg;
   placeLayer = L.layerGroup().addTo(map);
+  initDialog(map, { onSaved: loadPlaces });
   const addBtn = document.getElementById("fp-add-place-btn");
   if (addBtn) addBtn.addEventListener("click", activateCrosshairMode);
   refreshAll();
@@ -46,39 +48,10 @@ export async function refreshAll() {
 /** lock.js purgeRenderedData() hook: a circle or chip left behind is real location data. */
 export function purge() {
   if (placeLayer) placeLayer.clearLayers();
-  removePreviewCircle();
-  if (dialogEl && dialogEl.open) dialogEl.close();
-  clearDialogFields();
+  purgeDialog();
   placesById = new Map();
   circlesById.clear();
   document.querySelectorAll(".fp-presence-chip").forEach((chip) => chip.remove());
-}
-
-/**
- * Blank the add/edit dialog's inputs.
- *
- * Closing the <dialog> only stops it being displayed. Its inputs keep their
- * values, and fields.lat/fields.lon hold the exact coordinates of the last
- * place the user opened — readable from DevTools the moment the lock screen
- * is up, which is precisely what purgeRenderedData()'s invariant forbids
- * (PROMPT.md §2 invariant 11). The dataset entries go too: editId names a
- * real place row.
- */
-function clearDialogFields() {
-  if (!fields) return;
-  fields.name.value = "";
-  fields.lat.value = "";
-  fields.lon.value = "";
-  fields.radius.value = "200";
-  fields.radiusOut.textContent = "200";
-  fields.color.value = "#3b82f6";
-  fields.enter.value = "2";
-  fields.exit.value = "2";
-  fields.error.textContent = "";
-  if (dialogEl) {
-    delete dialogEl.dataset.editId;
-    delete dialogEl.dataset.mode;
-  }
 }
 
 export async function loadPlaces() {
@@ -114,123 +87,13 @@ function buildPlacePopup(place) {
   return box;
 }
 
-/* --------------------------------------------------------------- dialog */
-
-function field(type, attrs) {
-  const el = document.createElement("input");
-  el.type = type;
-  Object.assign(el, attrs);
-  return el;
-}
-
-function labeled(text, input) {
-  const label = document.createElement("label");
-  label.textContent = text;
-  label.appendChild(input);
-  return label;
-}
-
-function ensureDialog() {
-  if (dialogEl) return dialogEl;
-
-  const dlg = document.createElement("dialog");
-  dlg.id = "fp-place-dialog";
-  const form = document.createElement("form");
-  form.method = "dialog";
-
-  const name = field("text", { required: true });
-  const lat = field("hidden", {});
-  const lon = field("hidden", {});
-  const radius = field("range", { min: "50", max: "5000", step: "10", value: "200" });
-  const color = field("color", { value: "#3b82f6" });
-  const enter = field("number", { min: "1", value: "2" });
-  const exit = field("number", { min: "1", value: "2" });
-  const radiusOut = document.createElement("output");
-  radiusOut.textContent = radius.value;
-
-  form.append(labeled("Name", name), lat, lon);
-  const radiusLabel = document.createElement("label");
-  radiusLabel.textContent = "Radius (m)";
-  radiusLabel.append(radius, radiusOut);
-  form.append(
-    radiusLabel,
-    labeled("Color", color),
-    labeled("Enter confirmations", enter),
-    labeled("Exit confirmations", exit),
-  );
-
-  const errorEl = document.createElement("p");
-  errorEl.className = "fp-dialog-error";
-  errorEl.id = "fp-place-dialog-error";
-
-  const footer = document.createElement("footer");
-  const saveBtn = button("Save", onSave);
-  const cancelBtn = button("Cancel", onCancel);
-  footer.append(saveBtn, cancelBtn);
-  form.append(errorEl, footer);
-
-  dlg.appendChild(form);
-  document.body.appendChild(dlg);
-
-  fields = { name, lat, lon, radius, radiusOut, color, enter, exit, error: errorEl };
-  dialogEl = dlg;
-
-  radius.addEventListener("input", () => {
-    radiusOut.textContent = radius.value;
-    updatePreviewCircle();
-  });
-  dlg.addEventListener("close", removePreviewCircle);
-
-  return dlg;
-}
-
-function drawPreview(latlng, radiusMeters) {
-  removePreviewCircle();
-  previewCircle = L.circle([latlng.lat, latlng.lng], { radius: radiusMeters, color: "#94a3b8" }).addTo(map);
-}
-
-function updatePreviewCircle() {
-  if (!previewCircle) return;
-  drawPreview(previewCircle.getLatLng(), Number(fields.radius.value));
-}
-
-function removePreviewCircle() {
-  if (previewCircle) {
-    map.removeLayer(previewCircle);
-    previewCircle = null;
-  }
-}
-
-function fillDialog(mode, id, place, latlng) {
-  const dlg = ensureDialog();
-  dlg.dataset.mode = mode;
-  if (mode === "edit") dlg.dataset.editId = String(id);
-  else delete dlg.dataset.editId;
-  fields.name.value = place ? place.name : "";
-  fields.lat.value = String(latlng.lat);
-  fields.lon.value = String(latlng.lng);
-  const radius = place ? place.radius_meters : 200;
-  fields.radius.value = String(radius);
-  fields.radiusOut.textContent = String(radius);
-  fields.color.value = place ? place.color : "#3b82f6";
-  fields.enter.value = String(place ? place.enter_confirmations : 2);
-  fields.exit.value = String(place ? place.exit_confirmations : 2);
-  fields.error.textContent = "";
-  drawPreview(latlng, radius);
-  dlg.showModal();
-}
-
-export function showAddDialog(latlng) {
-  fillDialog("add", null, null, latlng);
-}
-
-export async function editPlace(id) {
+async function editPlace(id) {
   const place = placesById.get(String(id));
   if (!place) return;
-  fillDialog("edit", id, place, { lat: place.latitude, lng: place.longitude });
+  openEditDialog(id, place);
 }
 
-export async function deletePlace(id) {
+async function deletePlace(id) {
   const place = placesById.get(String(id));
   if (!window.confirm(`Delete place "${place ? place.name : id}"?`)) return;
   const res = await fetch(`/api/places/${id}`, { method: "DELETE" });
@@ -242,51 +105,6 @@ export async function deletePlace(id) {
   }
   placesById.delete(String(id));
   await loadPresence();
-}
-
-async function onSave() {
-  const dlg = dialogEl;
-  const body = {
-    name: fields.name.value,
-    latitude: Number(fields.lat.value),
-    longitude: Number(fields.lon.value),
-    radius_meters: Number(fields.radius.value),
-    color: fields.color.value,
-    enter_confirmations: Number(fields.enter.value),
-    exit_confirmations: Number(fields.exit.value),
-  };
-  const opts = { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
-  try {
-    if (dlg.dataset.mode === "edit") {
-      await api(`/api/places/${dlg.dataset.editId}`, { ...opts, method: "PUT" });
-    } else {
-      await api("/api/places", { ...opts, method: "POST" });
-    }
-    dlg.close();
-    await loadPlaces();
-  } catch (err) {
-    // api() shows the lock screen for a 401; anything else (409, 422) is shown here.
-    if (err.message !== "Locked") fields.error.textContent = err.message;
-  }
-}
-
-function onCancel() {
-  dialogEl.close();
-  deactivateCrosshairMode();
-}
-
-/* ----------------------------------------------------------- crosshair */
-
-export function activateCrosshairMode() {
-  document.getElementById("map").classList.add("fp-crosshair-mode");
-  map.once("click", (e) => {
-    deactivateCrosshairMode();
-    showAddDialog(e.latlng);
-  });
-}
-
-function deactivateCrosshairMode() {
-  document.getElementById("map").classList.remove("fp-crosshair-mode");
 }
 
 /* ------------------------------------------------------------- presence */

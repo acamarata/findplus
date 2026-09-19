@@ -1,11 +1,14 @@
 /*
- * Alerts tab: Telegram setup, webhook config, rules table, widget toggle.
+ * Alerts tab: Telegram setup, webhook config, widget toggle.
  *
- * Purpose    : Surface E6's alerts backend in the dashboard.
- * Inputs     : GET/POST/PUT/DELETE under /api/alerts/*; GET /api/places,
- *              state.devices, GET /api/groups (rule dialog).
- * Outputs    : The two channel sections, rules table and add-rule dialog
- *              inside #tab-alerts (static markup in index.html).
+ * Purpose    : Surface E6's alerts backend in the dashboard. The rules table
+ *              and add-rule dialog live in alerts_rules.js (split out at the
+ *              PRI rule-7 300-line file cap); this module owns wiring them
+ *              in, plus the two channel sections and the widget toggle.
+ * Inputs     : GET/POST/PUT/DELETE under /api/alerts/*; GET /api/settings/
+ *              widget.show_map.
+ * Outputs    : The two channel sections inside #tab-alerts (static markup
+ *              in index.html); rules table/dialog via alerts_rules.js.
  * Constraints: textContent only, never raw markup — API strings can never
  *              run as script. Bot token lives only in the fetch body, masked
  *              field clears on focus. Widget toggle: per-key GET/PUT/POST
@@ -13,8 +16,16 @@
  *              build-notes.md § E10-S2); GET returns `{"widget.show_map": bool}`.
  */
 "use strict";
-import { $, state } from "./state.js";
+import { $ } from "./state.js";
 import { api } from "./api.js";
+import {
+  fillOptions,
+  loadRules,
+  openAddRuleDialog,
+  renderRulesTable,
+  saveRule,
+  updateRuleTargetVisibility,
+} from "./alerts_rules.js";
 const WIDGET_SETTING = "/api/settings/widget.show_map";
 export function init() {
   wireStaticControls();
@@ -160,107 +171,6 @@ async function saveWebhook() {
 async function removeWebhook() {
   await fetch("/api/alerts/channels/webhook", { method: "DELETE" });
   await loadChannels();
-}
-/* rules */
-export async function loadRules() {
-  renderRulesTable(await api("/api/alerts/rules"));
-}
-function ruleTargetLabel(rule) {
-  if (rule.group_id) return rule.group_name || `group ${rule.group_id}`;
-  return rule.device_name || rule.device_id || "—";
-}
-function cell(text) {
-  const td = document.createElement("td");
-  td.textContent = text;
-  return td;
-}
-function buildRuleRow(rule) {
-  const tr = document.createElement("tr");
-  tr.append(
-    cell(rule.name), cell(rule.place_name || "—"), cell(ruleTargetLabel(rule)),
-    cell(rule.on_enter ? "yes" : "no"), cell(rule.on_exit ? "yes" : "no"), cell(rule.channel),
-  );
-  const actions = document.createElement("td");
-  const delBtn = document.createElement("button");
-  delBtn.type = "button";
-  delBtn.textContent = "Delete";
-  delBtn.addEventListener("click", () => deleteRule(rule.id, rule.name));
-  actions.appendChild(delBtn);
-  tr.appendChild(actions);
-  return tr;
-}
-function renderRulesTable(rules) {
-  const tbody = $("fp-rules-tbody");
-  if (!tbody) return;
-  while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
-  rules.forEach((rule) => tbody.appendChild(buildRuleRow(rule)));
-}
-async function deleteRule(id, name) {
-  if (!window.confirm(`Delete rule "${name}"?`)) return;
-  await fetch(`/api/alerts/rules/${id}`, { method: "DELETE" });
-  await loadRules();
-}
-/* add-rule dialog */
-function fillOptions(select, items, mapFn) {
-  while (select.firstChild) select.removeChild(select.firstChild);
-  items.forEach((item) => {
-    const [value, label] = mapFn(item);
-    const opt = document.createElement("option");
-    opt.value = value;
-    opt.textContent = label;
-    select.appendChild(opt);
-  });
-}
-async function populateRuleSelects() {
-  fillOptions($("fp-rule-place"), await api("/api/places"), (p) => [String(p.id), p.name]);
-  fillOptions($("fp-rule-device"), state.devices, (d) => [d.device_id, d.name]);
-  let groups = [];
-  try {
-    groups = await api("/api/groups");
-  } catch (_) { /* unreachable too; an empty group select is harmless */ }
-  fillOptions($("fp-rule-group"), groups, (g) => [String(g.id), g.name]);
-}
-function updateRuleTargetVisibility() {
-  const isDevice = $("fp-rule-target-device").checked;
-  $("fp-rule-device").classList.toggle("hidden", !isDevice);
-  $("fp-rule-group").classList.toggle("hidden", isDevice);
-}
-async function openAddRuleDialog() {
-  await populateRuleSelects();
-  $("fp-rule-name").value = "";
-  $("fp-rule-on-enter").checked = true;
-  $("fp-rule-on-exit").checked = false;
-  $("fp-rule-cooldown").value = "60";
-  $("fp-rule-target-device").checked = true;
-  updateRuleTargetVisibility();
-  $("fp-rule-error").textContent = "";
-  $("fp-add-rule-dialog").showModal();
-}
-async function saveRule() {
-  const dlg = $("fp-add-rule-dialog");
-  const isDevice = $("fp-rule-target-device").checked;
-  const body = {
-    name: $("fp-rule-name").value,
-    place_id: Number($("fp-rule-place").value),
-    device_id: isDevice ? $("fp-rule-device").value : null,
-    group_id: isDevice ? null : Number($("fp-rule-group").value),
-    on_enter: $("fp-rule-on-enter").checked,
-    on_exit: $("fp-rule-on-exit").checked,
-    channel: $("fp-rule-channel").value,
-    cooldown_minutes: Number($("fp-rule-cooldown").value),
-  };
-  try {
-    await api("/api/alerts/rules", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    dlg.close();
-    await loadRules();
-  } catch (err) {
-    // api() shows the lock screen for a 401; anything else is shown here.
-    if (err.message !== "Locked") $("fp-rule-error").textContent = err.message;
-  }
 }
 /* widget toggle */
 async function loadWidgetToggle() {

@@ -5,16 +5,16 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import desc, func, select
 
-from bike_tracker.db.models import LocationObservation, PollRun
-from bike_tracker.findhub.types import (
+from findplus.db.models import LocationObservation, PollRun
+from findplus.findhub.types import (
     AuthRequiredError,
     DecryptionError,
     FindHubError,
     LocationTimeoutError,
 )
-from bike_tracker.ingest import upsert_device
-from bike_tracker.poller import PollerService, poll_once
-from bike_tracker.state import track_devices
+from findplus.ingest import upsert_device
+from findplus.poller import PollerService, poll_once
+from findplus.state import track_devices
 from tests.conftest import make_observation
 
 
@@ -35,7 +35,7 @@ class FakeClient:
 
 @pytest.fixture
 def selected(tmp_db):
-    from bike_tracker.db.session import session_scope
+    from findplus.db.session import session_scope
 
     with session_scope() as session:
         upsert_device(session, "TAG-001", "Moto Tag 2")
@@ -44,14 +44,14 @@ def selected(tmp_db):
 
 
 def _last_run():
-    from bike_tracker.db.session import session_scope
+    from findplus.db.session import session_scope
 
     with session_scope() as session:
         return session.scalar(select(PollRun).order_by(desc(PollRun.started_at)).limit(1))
 
 
 def _obs_count() -> int:
-    from bike_tracker.db.session import session_scope
+    from findplus.db.session import session_scope
 
     with session_scope() as session:
         return int(session.scalar(select(func.count(LocationObservation.id))) or 0)
@@ -162,7 +162,7 @@ def test_success_resets_the_backoff(selected) -> None:
 
 def test_poll_interval_floor_is_five_minutes(monkeypatch: pytest.MonkeyPatch) -> None:
     """Guards the account against rate-limiting/flagging."""
-    from bike_tracker.config import Settings
+    from findplus.config import Settings
 
     assert Settings(poll_interval_minutes=1).effective_poll_interval_minutes == 5.0
     assert Settings(poll_interval_minutes=0.5).effective_poll_interval_minutes == 5.0

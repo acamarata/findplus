@@ -1,13 +1,13 @@
-"""Alembic environment. Reads the database URL from bike_tracker settings."""
+"""Alembic environment. Reads the database URL from findplus settings."""
 
 from __future__ import annotations
 
 from alembic import context
 from sqlalchemy import pool
 
-from bike_tracker.config import get_settings
-from bike_tracker.db.models import Base
-from bike_tracker.db.session import get_engine
+from findplus.config import get_settings
+from findplus.db.models import Base
+from findplus.db.session import get_engine
 
 config = context.config
 target_metadata = Base.metadata

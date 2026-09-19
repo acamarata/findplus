@@ -19,7 +19,7 @@ import sys
 import threading
 from pathlib import Path
 
-from bike_tracker.config import VENDOR_GFMT, get_settings
+from findplus.config import VENDOR_GFMT, get_settings
 
 _lock = threading.Lock()
 _ready = False
@@ -35,7 +35,7 @@ def ensure_gfmt_importable() -> Path:
         if not (VENDOR_GFMT / "NovaApi").is_dir():
             raise RuntimeError(
                 f"Vendored GoogleFindMyTools not found at {VENDOR_GFMT}. "
-                "Run `bike-tracker doctor` for repair instructions."
+                "Run `findplus doctor` for repair instructions."
             )
 
         if str(VENDOR_GFMT) not in sys.path:

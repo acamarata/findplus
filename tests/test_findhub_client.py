@@ -12,9 +12,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from bike_tracker.findhub.bootstrap import ensure_gfmt_importable
-from bike_tracker.findhub.client import FindHubClient
-from bike_tracker.findhub.types import DecryptionError
+from findplus.findhub.bootstrap import ensure_gfmt_importable
+from findplus.findhub.client import FindHubClient
+from findplus.findhub.types import DecryptionError
 
 ensure_gfmt_importable()
 
@@ -218,7 +218,7 @@ def test_observation_identity_is_the_dedup_key(patched_crypto) -> None:
 
 
 def test_locate_requires_authentication() -> None:
-    from bike_tracker.findhub.types import AuthRequiredError
+    from findplus.findhub.types import AuthRequiredError
 
     client = FindHubClient()
     if client.is_authenticated():

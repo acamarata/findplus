@@ -16,7 +16,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from bike_tracker.db.models import Device, Setting
+from findplus.db.models import Device, Setting
 
 DEFAULT_DEVICE_ID = "default_device_id"
 
@@ -52,7 +52,7 @@ def track_devices(
     if missing:
         raise LookupError(
             f"Unknown device id(s): {', '.join(missing)}. "
-            "Run `bike-tracker devices` to refresh the list."
+            "Run `findplus devices` to refresh the list."
         )
 
     if exclusive:

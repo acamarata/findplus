@@ -21,8 +21,8 @@ from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import desc, func, select
 
-from bike_tracker import __version__
-from bike_tracker.appsettings import (
+from findplus import __version__
+from findplus.appsettings import (
     clear_pin,
     load_settings,
     save_idle_minutes,
@@ -30,15 +30,15 @@ from bike_tracker.appsettings import (
     save_theme,
     set_lock_enabled,
 )
-from bike_tracker.config import get_settings
-from bike_tracker.db.migrate import current_revision, is_up_to_date
-from bike_tracker.db.models import Device, LocationObservation, PollRun
-from bike_tracker.db.session import session_scope
-from bike_tracker.exporters import MEDIA_TYPES, export
-from bike_tracker.findhub.bootstrap import describe_stored_auth
-from bike_tracker.logging_setup import get_logger
-from bike_tracker.security import MIN_PIN_LENGTH, SessionStore, hash_pin, verify_pin
-from bike_tracker.state import (
+from findplus.config import get_settings
+from findplus.db.migrate import current_revision, is_up_to_date
+from findplus.db.models import Device, LocationObservation, PollRun
+from findplus.db.session import session_scope
+from findplus.exporters import MEDIA_TYPES, export
+from findplus.findhub.bootstrap import describe_stored_auth
+from findplus.logging_setup import get_logger
+from findplus.security import MIN_PIN_LENGTH, SessionStore, hash_pin, verify_pin
+from findplus.state import (
     get_default_device,
     get_tracked_devices,
     set_default_device,
@@ -46,7 +46,7 @@ from bike_tracker.state import (
     track_devices,
     untrack_devices,
 )
-from bike_tracker.timeline import (
+from findplus.timeline import (
     day_bounds_utc,
     days_with_data,
     fetch_observations,
@@ -65,7 +65,7 @@ FIND_HUB_NOTICE = (
     "application should not be treated as real-time emergency or child-safety GPS tracking."
 )
 
-SESSION_COOKIE = "bike_tracker_session"
+SESSION_COOKIE = "findplus_session"
 
 #: Endpoints reachable while the app is locked. Everything else 401s.
 #: The lock is enforced HERE, server-side — hiding the UI would leave the data
@@ -82,7 +82,7 @@ def create_app(sessions: SessionStore | None = None) -> FastAPI:
     settings = get_settings()
     sessions = sessions or SessionStore()
     app = FastAPI(
-        title="bike-tracker",
+        title="findplus",
         version=__version__,
         description="Local Find Hub location history. Not for emergency use.",
         docs_url="/api/docs",
@@ -351,8 +351,8 @@ def create_app(sessions: SessionStore | None = None) -> FastAPI:
     @app.post("/api/devices/refresh")
     def refresh_devices() -> dict[str, Any]:
         """Re-query Find Hub for the account's device list."""
-        from bike_tracker.findhub.client import FindHubClient
-        from bike_tracker.ingest import upsert_device
+        from findplus.findhub.client import FindHubClient
+        from findplus.ingest import upsert_device
 
         try:
             found = FindHubClient(settings).list_devices()
@@ -554,7 +554,7 @@ def create_app(sessions: SessionStore | None = None) -> FastAPI:
                 )
             _last_manual_poll = now
 
-        from bike_tracker.poller import poll_once
+        from findplus.poller import poll_once
 
         cycle = poll_once()
         return {
@@ -597,7 +597,7 @@ def create_app(sessions: SessionStore | None = None) -> FastAPI:
                     name = device.name
                     label = f"{device.name.replace(' ', '-')}-{label}"
             body = export(fmt, rows, zone, name=f"{name} {label}")
-        filename = f"bike-history-{label}.{fmt}"
+        filename = f"findplus-{label}.{fmt}"
         return PlainTextResponse(
             content=body,
             media_type=MEDIA_TYPES[fmt],

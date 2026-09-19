@@ -18,13 +18,13 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from bike_tracker.config import PROJECT_ROOT, Settings, get_settings
+from findplus.config import PROJECT_ROOT, Settings, get_settings
 
-LAUNCHD_LABEL = "com.acamarata.bike-tracker"
-WATCHDOG_LABEL = "com.acamarata.bike-tracker.watchdog"
-SYSTEMD_UNIT = "bike-tracker.service"
-WATCHDOG_TIMER = "bike-tracker-watchdog.timer"
-WATCHDOG_SERVICE = "bike-tracker-watchdog.service"
+LAUNCHD_LABEL = "com.acamarata.findplus"
+WATCHDOG_LABEL = "com.acamarata.findplus.watchdog"
+SYSTEMD_UNIT = "findplus.service"
+WATCHDOG_TIMER = "findplus-watchdog.timer"
+WATCHDOG_SERVICE = "findplus-watchdog.service"
 
 #: How often the watchdog checks that the API is answering.
 WATCHDOG_INTERVAL_SECONDS = 300
@@ -68,7 +68,7 @@ def plan(settings: Settings | None = None) -> ServicePlan:
         path = Path.home() / "Library" / "LaunchAgents" / f"{LAUNCHD_LABEL}.plist"
         payload = {
             "Label": LAUNCHD_LABEL,
-            "ProgramArguments": [_python(), "-m", "bike_tracker.cli", "serve", "--foreground"],
+            "ProgramArguments": [_python(), "-m", "findplus.cli", "serve", "--foreground"],
             "WorkingDirectory": str(PROJECT_ROOT),
             "RunAtLoad": True,
             "KeepAlive": {"SuccessfulExit": False},
@@ -76,7 +76,7 @@ def plan(settings: Settings | None = None) -> ServicePlan:
             "StandardErrorPath": str(settings.log_dir / "service.err.log"),
             "EnvironmentVariables": {
                 "PATH": "/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin",
-                "BIKE_TRACKER_STATE_DIR": str(settings.state_dir),
+                "FINDPLUS_STATE_DIR": str(settings.state_dir),
             },
             "ProcessType": "Background",
             # Wake from sleep should not stampede; the poller applies its own interval.
@@ -96,14 +96,14 @@ def plan(settings: Settings | None = None) -> ServicePlan:
     if manager == "systemd":
         path = Path.home() / ".config" / "systemd" / "user" / SYSTEMD_UNIT
         text = f"""[Unit]
-Description=bike-tracker — local Find Hub location history
+Description=findplus — local Find Hub location history
 After=network-online.target
 
 [Service]
 Type=simple
 WorkingDirectory={PROJECT_ROOT}
-Environment=BIKE_TRACKER_STATE_DIR={settings.state_dir}
-ExecStart={_python()} -m bike_tracker.cli serve --foreground
+Environment=FINDPLUS_STATE_DIR={settings.state_dir}
+ExecStart={_python()} -m findplus.cli serve --foreground
 Restart=on-failure
 RestartSec=30
 
@@ -120,8 +120,8 @@ WantedBy=default.target
         )
 
     if manager == "schtasks":
-        path = PROJECT_ROOT / "deploy" / "bike-tracker-task.xml"
-        command = f'"{_python()}" -m bike_tracker.cli serve --foreground'
+        path = PROJECT_ROOT / "deploy" / "findplus-task.xml"
+        command = f'"{_python()}" -m findplus.cli serve --foreground'
         return ServicePlan(
             platform="Windows",
             manager="Task Scheduler (current user, at logon)",
@@ -131,14 +131,14 @@ WantedBy=default.target
                 "schtasks",
                 "/Create",
                 "/TN",
-                "BikeTracker",
+                "FindPlus",
                 "/SC",
                 "ONLOGON",
                 "/TR",
                 command,
                 "/F",
             ],
-            unload_command=["schtasks", "/Delete", "/TN", "BikeTracker", "/F"],
+            unload_command=["schtasks", "/Delete", "/TN", "FindPlus", "/F"],
         )
 
     raise RuntimeError(f"Autostart is not supported on {platform.system()}.")
@@ -215,7 +215,7 @@ def watchdog_plan(settings: Settings | None = None) -> ServicePlan:
         path = Path.home() / "Library" / "LaunchAgents" / f"{WATCHDOG_LABEL}.plist"
         payload = {
             "Label": WATCHDOG_LABEL,
-            "ProgramArguments": [_python(), "-m", "bike_tracker.cli", "watchdog"],
+            "ProgramArguments": [_python(), "-m", "findplus.cli", "watchdog"],
             "WorkingDirectory": str(PROJECT_ROOT),
             "RunAtLoad": True,
             "StartInterval": WATCHDOG_INTERVAL_SECONDS,
@@ -223,7 +223,7 @@ def watchdog_plan(settings: Settings | None = None) -> ServicePlan:
             "StandardErrorPath": str(settings.log_dir / "watchdog.err.log"),
             "EnvironmentVariables": {
                 "PATH": "/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin",
-                "BIKE_TRACKER_STATE_DIR": str(settings.state_dir),
+                "FINDPLUS_STATE_DIR": str(settings.state_dir),
             },
             "ProcessType": "Background",
         }
@@ -240,7 +240,7 @@ def watchdog_plan(settings: Settings | None = None) -> ServicePlan:
     if manager == "systemd":
         path = Path.home() / ".config" / "systemd" / "user" / WATCHDOG_TIMER
         text = f"""[Unit]
-Description=bike-tracker watchdog
+Description=findplus watchdog
 
 [Timer]
 OnBootSec=2min
@@ -272,12 +272,12 @@ def install_watchdog(settings: Settings | None = None, *, confirmed: bool = Fals
         service_path = Path.home() / ".config" / "systemd" / "user" / WATCHDOG_SERVICE
         service_path.write_text(
             f"""[Unit]
-Description=bike-tracker watchdog check
+Description=findplus watchdog check
 
 [Service]
 Type=oneshot
-Environment=BIKE_TRACKER_STATE_DIR={settings.state_dir}
-ExecStart={_python()} -m bike_tracker.cli watchdog
+Environment=FINDPLUS_STATE_DIR={settings.state_dir}
+ExecStart={_python()} -m findplus.cli watchdog
 """,
             encoding="utf-8",
         )

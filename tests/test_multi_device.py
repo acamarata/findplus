@@ -13,11 +13,11 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from bike_tracker.db.models import LocationObservation, PollRun
-from bike_tracker.db.session import session_scope
-from bike_tracker.ingest import ingest_observations, upsert_device
-from bike_tracker.poller import poll_once
-from bike_tracker.state import (
+from findplus.db.models import LocationObservation, PollRun
+from findplus.db.session import session_scope
+from findplus.ingest import ingest_observations, upsert_device
+from findplus.poller import poll_once
+from findplus.state import (
     get_default_device,
     get_tracked_devices,
     set_default_device,
@@ -143,7 +143,7 @@ def test_untracked_devices_are_not_polled(three_devices) -> None:
 
 
 def test_one_device_failing_does_not_stop_the_others(three_devices) -> None:
-    from bike_tracker.findhub.types import LocationTimeoutError
+    from findplus.findhub.types import LocationTimeoutError
 
     with session_scope() as session:
         track_all(session)
@@ -177,7 +177,7 @@ def test_a_poll_run_is_recorded_per_device(three_devices) -> None:
 
 
 def test_cycle_fails_only_when_every_device_fails(three_devices) -> None:
-    from bike_tracker.findhub.types import FindHubError
+    from findplus.findhub.types import FindHubError
 
     with session_scope() as session:
         track_all(session)
@@ -235,7 +235,7 @@ def two_tracks(three_devices):
             ],
             fetched_at=datetime(2026, 9, 18, 13, 0, tzinfo=UTC),
         )
-    from bike_tracker.api import create_app
+    from findplus.api import create_app
 
     return TestClient(create_app())
 

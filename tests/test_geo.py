@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from bike_tracker.geo import haversine_meters, is_meaningful_movement, meters_to_miles
+from findplus.geo import haversine_meters, is_meaningful_movement, meters_to_miles
 
 
 def test_zero_distance_for_identical_points() -> None:

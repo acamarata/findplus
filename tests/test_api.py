@@ -10,15 +10,15 @@ from xml.etree import ElementTree
 import pytest
 from fastapi.testclient import TestClient
 
-from bike_tracker.db.session import session_scope
-from bike_tracker.ingest import ingest_observations, upsert_device
-from bike_tracker.state import track_devices
+from findplus.db.session import session_scope
+from findplus.ingest import ingest_observations, upsert_device
+from findplus.state import track_devices
 from tests.conftest import make_observation
 
 
 @pytest.fixture
 def client(tmp_db):
-    from bike_tracker.api import create_app
+    from findplus.api import create_app
 
     with session_scope() as session:
         upsert_device(session, "TAG-001", "Moto Tag 2")
@@ -187,8 +187,8 @@ def test_delete_before_keeps_newer_history(client: TestClient) -> None:
 
 # ---------------------------------------------------------------- privacy
 def test_manual_poll_is_rate_limited(client: TestClient, monkeypatch) -> None:
-    import bike_tracker.api as api_module
-    import bike_tracker.poller as poller_module
+    import findplus.api as api_module
+    import findplus.poller as poller_module
 
     monkeypatch.setattr(api_module, "_last_manual_poll", None)
     monkeypatch.setattr(

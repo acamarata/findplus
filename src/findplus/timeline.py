@@ -21,8 +21,8 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from bike_tracker.db.models import LocationObservation
-from bike_tracker.geo import haversine_meters, is_meaningful_movement, meters_to_miles
+from findplus.db.models import LocationObservation
+from findplus.geo import haversine_meters, is_meaningful_movement, meters_to_miles
 
 
 def local_zone(tz_name: str | None = None) -> ZoneInfo:

@@ -5,8 +5,8 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from bike_tracker.db.migrate import current_revision, head_revision, is_up_to_date, upgrade_to_head
-from bike_tracker.db.session import get_engine
+from findplus.db.migrate import current_revision, head_revision, is_up_to_date, upgrade_to_head
+from findplus.db.session import get_engine
 
 
 def _url(tmp_path: Path) -> str:
@@ -75,7 +75,7 @@ def test_unique_constraint_on_observation_identity_exists(tmp_path: Path) -> Non
 def test_downgrade_removes_tables(tmp_path: Path) -> None:
     from alembic import command
 
-    from bike_tracker.db.migrate import _config
+    from findplus.db.migrate import _config
 
     get_engine.cache_clear()
     url = _url(tmp_path)

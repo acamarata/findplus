@@ -12,7 +12,7 @@ cookies.txt
 Auth/secrets.json
 vendor/GoogleFindMyTools/Auth/secrets.json
 vendor/GoogleFindMyTools/example_data.json
-.bike-tracker/
+.findplus/
 token_cache*
 *.token
 

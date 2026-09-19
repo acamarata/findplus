@@ -12,9 +12,9 @@ from zoneinfo import ZoneInfo
 import pytest
 from sqlalchemy import select
 
-from bike_tracker.db.models import LocationObservation
-from bike_tracker.exporters import export, to_csv, to_gpx, to_json, to_kml
-from bike_tracker.ingest import ingest_observations
+from findplus.db.models import LocationObservation
+from findplus.exporters import export, to_csv, to_gpx, to_json, to_kml
+from findplus.ingest import ingest_observations
 from tests.conftest import make_observation
 
 EASTERN = ZoneInfo("America/New_York")

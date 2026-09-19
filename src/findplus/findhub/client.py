@@ -27,9 +27,9 @@ import threading
 from datetime import UTC, datetime
 from typing import Any
 
-from bike_tracker.config import Settings, get_settings
-from bike_tracker.findhub.bootstrap import ensure_gfmt_importable, secrets_exist
-from bike_tracker.findhub.types import (
+from findplus.config import Settings, get_settings
+from findplus.findhub.bootstrap import ensure_gfmt_importable, secrets_exist
+from findplus.findhub.types import (
     STATUS_NAMES,
     AuthRequiredError,
     DecryptionError,
@@ -38,7 +38,7 @@ from bike_tracker.findhub.types import (
     LocationTimeoutError,
     RawObservation,
 )
-from bike_tracker.logging_setup import get_logger
+from findplus.logging_setup import get_logger
 
 log = get_logger(__name__)
 
@@ -61,7 +61,7 @@ class FindHubClient:
         if not self.is_authenticated():
             raise AuthRequiredError(
                 f"No Google credentials found at {self.settings.secrets_file}. "
-                "Run `bike-tracker auth` to sign in with Chrome."
+                "Run `findplus auth` to sign in with Chrome."
             )
 
     def authenticate(self) -> str:
@@ -97,7 +97,7 @@ class FindHubClient:
         if not hex_result:
             raise FindHubError(
                 "Find Hub returned no device list. The session may have expired; "
-                "try `bike-tracker auth`."
+                "try `findplus auth`."
             )
 
         device_list = parse_device_list_protobuf(hex_result)
@@ -184,7 +184,7 @@ class FindHubClient:
             raise DecryptionError(
                 "Could not decrypt this tracker's identity key. This normally means "
                 "the account's end-to-end-encrypted data was reset. Delete "
-                f"{self.settings.secrets_file} and run `bike-tracker auth` again."
+                f"{self.settings.secrets_file} and run `findplus auth` again."
             ) from exc
         except Exception as exc:
             raise DecryptionError(f"Identity key retrieval failed: {exc}") from exc

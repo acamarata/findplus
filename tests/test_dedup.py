@@ -6,8 +6,8 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 
-from bike_tracker.db.models import LocationObservation
-from bike_tracker.ingest import ingest_observations
+from findplus.db.models import LocationObservation
+from findplus.ingest import ingest_observations
 from tests.conftest import make_observation
 
 
@@ -96,7 +96,7 @@ def test_empty_batch_is_harmless(session) -> None:
 
 
 def test_device_row_is_created_and_refreshed(session) -> None:
-    from bike_tracker.db.models import Device
+    from findplus.db.models import Device
 
     ingest_observations(session, [make_observation(minutes=0)])
     device = session.get(Device, "TAG-001")

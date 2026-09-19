@@ -70,7 +70,7 @@ class FindHubError(RuntimeError):
 
 
 class AuthRequiredError(FindHubError):
-    """No usable credentials. The user must run `bike-tracker auth`."""
+    """No usable credentials. The user must run `findplus auth`."""
 
 
 class LocationTimeoutError(FindHubError):

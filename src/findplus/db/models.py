@@ -26,7 +26,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from bike_tracker.db.types import UtcDateTime
+from findplus.db.types import UtcDateTime
 
 E7 = 1e7
 

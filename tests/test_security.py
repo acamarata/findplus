@@ -6,7 +6,7 @@ import time
 
 import pytest
 
-from bike_tracker.security import (
+from findplus.security import (
     LOCKOUT_SECONDS,
     MAX_ATTEMPTS,
     MIN_PIN_LENGTH,

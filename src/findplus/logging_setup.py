@@ -18,7 +18,7 @@ from typing import Any
 
 import structlog
 
-from bike_tracker.config import Settings
+from findplus.config import Settings
 
 #: Event-dict keys whose values must never reach a log sink.
 _SENSITIVE_KEYS = {
@@ -100,5 +100,5 @@ def configure_logging(settings: Settings, *, to_file: bool = False, console: boo
     )
 
 
-def get_logger(name: str = "bike_tracker") -> Any:
+def get_logger(name: str = "findplus") -> Any:
     return structlog.get_logger(name)

@@ -87,7 +87,7 @@ def server(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
         pytest.skip(f"could not seed the UI fixture: {seed.stderr[-400:]}")
 
     proc = subprocess.Popen(
-        [python, "-m", "bike_tracker.cli", "serve", "--no-poller", "--port", str(port)],
+        [python, "-m", "findplus.cli", "serve", "--no-poller", "--port", str(port)],
         env=env,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -116,12 +116,12 @@ def server(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
 
 _SEED_SCRIPT = """
 from datetime import UTC, datetime
-from bike_tracker.db.migrate import upgrade_to_head
-from bike_tracker.db.session import session_scope
-from bike_tracker.ingest import ingest_observations, upsert_device
-from bike_tracker.state import track_all
-from bike_tracker.findhub.types import RawObservation
-from bike_tracker.timeline import local_zone
+from findplus.db.migrate import upgrade_to_head
+from findplus.db.session import session_scope
+from findplus.ingest import ingest_observations, upsert_device
+from findplus.state import track_all
+from findplus.findhub.types import RawObservation
+from findplus.timeline import local_zone
 
 upgrade_to_head()
 tz = local_zone()

@@ -7,7 +7,7 @@ import urllib.error
 import pytest
 from click.testing import CliRunner
 
-from bike_tracker.cli import main
+from findplus.cli import main
 
 
 class _Response:
@@ -24,7 +24,7 @@ class _Response:
 @pytest.fixture
 def restarts(monkeypatch: pytest.MonkeyPatch) -> list[bool]:
     calls: list[bool] = []
-    monkeypatch.setattr("bike_tracker.service.restart_service", lambda: calls.append(True) or True)
+    monkeypatch.setattr("findplus.service.restart_service", lambda: calls.append(True) or True)
     return calls
 
 

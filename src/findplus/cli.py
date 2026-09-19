@@ -16,13 +16,13 @@ from pathlib import Path
 
 import click
 
-from bike_tracker import __version__
-from bike_tracker.config import VENDOR_GFMT, get_settings
-from bike_tracker.db.migrate import current_revision, head_revision, upgrade_to_head
-from bike_tracker.db.session import session_scope
-from bike_tracker.logging_setup import configure_logging, get_logger
+from findplus import __version__
+from findplus.config import VENDOR_GFMT, get_settings
+from findplus.db.migrate import current_revision, head_revision, upgrade_to_head
+from findplus.db.session import session_scope
+from findplus.logging_setup import configure_logging, get_logger
 
-log = get_logger("bike_tracker.cli")
+log = get_logger("findplus.cli")
 
 
 def _prep(to_file: bool = False) -> None:
@@ -33,7 +33,7 @@ def _prep(to_file: bool = False) -> None:
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
-@click.version_option(__version__, prog_name="bike-tracker")
+@click.version_option(__version__, prog_name="findplus")
 def main() -> None:
     """Local historical location timeline for a Google Find Hub tracker."""
 
@@ -44,7 +44,7 @@ def auth() -> None:
     """Sign in to Google with Chrome and store the session tokens."""
     _prep()
     settings = get_settings()
-    from bike_tracker.findhub.client import FindHubClient
+    from findplus.findhub.client import FindHubClient
 
     click.echo("")
     click.secho("Google sign-in", bold=True)
@@ -75,7 +75,7 @@ def auth() -> None:
 
     click.secho(f"\nAuthenticated as {email}.", fg="green")
     click.echo(f"Credentials stored at {settings.secrets_file}")
-    click.echo("Next: bike-tracker devices")
+    click.echo("Next: findplus devices")
 
 
 # ------------------------------------------------------------------ devices
@@ -103,10 +103,10 @@ def devices(
     from sqlalchemy import func
     from sqlalchemy import select as sa_select
 
-    from bike_tracker.db.models import Device, LocationObservation
-    from bike_tracker.findhub.client import FindHubClient
-    from bike_tracker.ingest import upsert_device
-    from bike_tracker.state import (
+    from findplus.db.models import Device, LocationObservation
+    from findplus.findhub.client import FindHubClient
+    from findplus.ingest import upsert_device
+    from findplus.state import (
         get_tracked_devices,
         set_default_device,
         track_all,
@@ -132,7 +132,7 @@ def devices(
             found = FindHubClient().list_devices()
         except Exception as exc:
             click.secho(f"Could not list devices: {exc}", fg="red")
-            click.echo("If the session expired, run: bike-tracker auth")
+            click.echo("If the session expired, run: findplus auth")
             sys.exit(1)
         with session_scope() as session:
             for d in found:
@@ -194,8 +194,8 @@ def devices(
             )
         else:
             click.echo("Nothing is being tracked yet. Choose what to poll:")
-            click.echo("  bike-tracker devices --track-all")
-            click.echo("  bike-tracker devices --track <ID> --track <ID>")
+            click.echo("  findplus devices --track-all")
+            click.echo("  findplus devices --track <ID> --track <ID>")
 
 
 # --------------------------------------------------------------------- poll
@@ -203,7 +203,7 @@ def devices(
 def poll_now() -> None:
     """Run a single Find Hub poll immediately."""
     _prep()
-    from bike_tracker.poller import poll_once
+    from findplus.poller import poll_once
 
     cycle = poll_once()
     for o in cycle.outcomes:
@@ -232,8 +232,8 @@ def serve(foreground: bool, no_poller: bool, host: str | None, port: int | None)
     _prep(to_file=True)
     import uvicorn
 
-    from bike_tracker.api import create_app
-    from bike_tracker.poller import PollerService
+    from findplus.api import create_app
+    from findplus.poller import PollerService
 
     settings = get_settings()
     bind_host = host or settings.host
@@ -245,7 +245,7 @@ def serve(foreground: bool, no_poller: bool, host: str | None, port: int | None)
         thread = threading.Thread(target=poller.run_forever, name="poller", daemon=True)
         thread.start()
 
-    click.secho(f"bike-tracker {__version__}", bold=True)
+    click.secho(f"findplus {__version__}", bold=True)
     click.echo(f"Dashboard : http://{bind_host}:{bind_port}")
     click.echo(f"Database  : {settings.database_path}")
     click.echo(f"Logs      : {settings.log_file}")
@@ -268,13 +268,13 @@ def serve(foreground: bool, no_poller: bool, host: str | None, port: int | None)
 def start() -> None:
     """Start the background service (installing it first if needed)."""
     _prep()
-    from bike_tracker import service
+    from findplus import service
 
     if not service.is_installed():
         click.echo("The background service is not installed yet.")
         _show_service_plan(service.plan())
         if not click.confirm("Install and start it now?", default=False):
-            click.echo("Nothing was installed. Run `bike-tracker serve` to start in this terminal.")
+            click.echo("Nothing was installed. Run `findplus serve` to start in this terminal.")
             raise click.Abort
         service.install(confirmed=True)
     else:
@@ -287,7 +287,7 @@ def start() -> None:
 def stop() -> None:
     """Stop and remove the background service."""
     _prep()
-    from bike_tracker import service
+    from findplus import service
 
     if not service.is_installed():
         click.echo("No background service is installed.")
@@ -303,11 +303,11 @@ def status() -> None:
     from sqlalchemy import desc, func
     from sqlalchemy import select as sa_select
 
-    from bike_tracker import service
-    from bike_tracker.db.models import LocationObservation, PollRun
-    from bike_tracker.findhub.bootstrap import describe_stored_auth
-    from bike_tracker.state import get_tracked_devices
-    from bike_tracker.timeline import day_bounds_utc, local_zone, observation_count_between
+    from findplus import service
+    from findplus.db.models import LocationObservation, PollRun
+    from findplus.findhub.bootstrap import describe_stored_auth
+    from findplus.state import get_tracked_devices
+    from findplus.timeline import day_bounds_utc, local_zone, observation_count_between
 
     settings = get_settings()
     tz = local_zone()
@@ -325,7 +325,7 @@ def status() -> None:
         today = observation_count_between(session, device_id, start_utc, end_utc)
 
         click.echo("")
-        click.secho("bike-tracker status", bold=True)
+        click.secho("findplus status", bold=True)
         _row("version", __version__)
         if tracked:
             _row("tracking", f"{len(tracked)} device(s)")
@@ -334,8 +334,8 @@ def status() -> None:
             rate = len(tracked) * 60 / settings.effective_poll_interval_minutes
             _row("request rate", f"~{rate:.0f} Google requests/hour")
         else:
-            _row("tracking", "nothing — run `bike-tracker devices --track-all`")
-        _row("authenticated", "yes" if auth_info["exists"] else "no — run `bike-tracker auth`")
+            _row("tracking", "nothing — run `findplus devices --track-all`")
+        _row("authenticated", "yes" if auth_info["exists"] else "no — run `findplus auth`")
         _row("service installed", "yes" if service.is_installed() else "no")
         _row("service running", "yes" if service.is_running() else "no")
         _row("watchdog installed", "yes" if service.watchdog_installed() else "no")
@@ -376,8 +376,8 @@ def export(
 ) -> None:
     """Export history to CSV, JSON, GPX or KML."""
     _prep()
-    from bike_tracker.exporters import export as render
-    from bike_tracker.timeline import day_bounds_utc, fetch_observations, local_zone
+    from findplus.exporters import export as render
+    from findplus.timeline import day_bounds_utc, fetch_observations, local_zone
 
     tz = local_zone()
     if all_history:
@@ -420,8 +420,8 @@ def prune(before: str, yes: bool) -> None:
     from sqlalchemy import func
     from sqlalchemy import select as sa_select
 
-    from bike_tracker.db.models import LocationObservation
-    from bike_tracker.timeline import day_bounds_utc, local_zone
+    from findplus.db.models import LocationObservation
+    from findplus.timeline import day_bounds_utc, local_zone
 
     tz = local_zone()
     cutoff_utc, _ = day_bounds_utc(date.fromisoformat(before), tz)
@@ -462,8 +462,8 @@ def open() -> None:
 def doctor() -> None:
     """Diagnose the installation and report what is stored where."""
     _prep()
-    from bike_tracker import service
-    from bike_tracker.findhub.bootstrap import describe_stored_auth
+    from findplus import service
+    from findplus.findhub.bootstrap import describe_stored_auth
 
     settings = get_settings()
     ok = True
@@ -479,7 +479,7 @@ def doctor() -> None:
     _check("GoogleFindMyTools vendored", vendored, str(VENDOR_GFMT))
     ok &= vendored
     try:
-        from bike_tracker.findhub.bootstrap import ensure_gfmt_importable
+        from findplus.findhub.bootstrap import ensure_gfmt_importable
 
         ensure_gfmt_importable()
         import NovaApi  # noqa: F401
@@ -492,7 +492,7 @@ def doctor() -> None:
     click.secho("\nAuthentication material", bold=True)
     info = describe_stored_auth()
     _row("path", str(info["path"]))
-    _row("exists", "yes" if info["exists"] else "no — run `bike-tracker auth`")
+    _row("exists", "yes" if info["exists"] else "no — run `findplus auth`")
     if info["exists"]:
         _row("permissions", str(info["permissions"]))
         _row("stored keys", ", ".join(info["keys_present"]) or "(none)")
@@ -511,14 +511,14 @@ def doctor() -> None:
     _check("local-only bind", settings.host in {"127.0.0.1", "localhost", "::1"}, settings.host)
 
     click.secho("\nTracking", bold=True)
-    from bike_tracker.state import get_tracked_devices
+    from findplus.state import get_tracked_devices
 
     with session_scope() as session:
         tracked = get_tracked_devices(session)
     _check(
         "device(s) tracked",
         bool(tracked),
-        ", ".join(d.name for d in tracked) if tracked else "run `bike-tracker devices --track-all`",
+        ", ".join(d.name for d in tracked) if tracked else "run `findplus devices --track-all`",
     )
     if tracked:
         rate = len(tracked) * 60 / settings.effective_poll_interval_minutes
@@ -541,7 +541,7 @@ def watchdog() -> None:
     import urllib.error
     import urllib.request
 
-    from bike_tracker import service
+    from findplus import service
 
     settings = get_settings()
     configure_logging(settings, to_file=True, console=False)
@@ -564,9 +564,9 @@ def watchdog() -> None:
 
     log.error("watchdog_restarting", url=url, problem=problem)
     if service.restart_service():
-        click.echo(f"bike-tracker was not answering ({problem}); restart requested.")
+        click.echo(f"findplus was not answering ({problem}); restart requested.")
     else:
-        click.echo(f"bike-tracker was not answering ({problem}), and no service is installed.")
+        click.echo(f"findplus was not answering ({problem}), and no service is installed.")
 
 
 @main.command("install-watchdog")
@@ -574,7 +574,7 @@ def watchdog() -> None:
 def install_watchdog_cmd(yes: bool) -> None:
     """Show, then optionally install, the watchdog job."""
     _prep()
-    from bike_tracker import service
+    from findplus import service
 
     p = service.watchdog_plan()
     _show_service_plan(p)
@@ -599,7 +599,7 @@ def reset_lock(yes: bool) -> None:
     no exposure that did not already exist.
     """
     _prep()
-    from bike_tracker.appsettings import clear_pin, load_settings
+    from findplus.appsettings import clear_pin, load_settings
 
     with session_scope() as session:
         current = load_settings(session)
@@ -613,7 +613,7 @@ def reset_lock(yes: bool) -> None:
         clear_pin(session)
 
     click.secho("App lock removed. Set a new PIN from Settings in the dashboard.", fg="green")
-    click.echo("Restart the service so running sessions pick this up: bike-tracker start")
+    click.echo("Restart the service so running sessions pick this up: findplus start")
 
 
 @main.command()
@@ -621,7 +621,7 @@ def reset_lock(yes: bool) -> None:
 def theme(theme: str) -> None:
     """Set the dashboard theme without opening the UI."""
     _prep()
-    from bike_tracker.appsettings import save_theme
+    from findplus.appsettings import save_theme
 
     with session_scope() as session:
         save_theme(session, theme)
@@ -633,7 +633,7 @@ def theme(theme: str) -> None:
 def install_service(yes: bool) -> None:
     """Show, then optionally install, the autostart service."""
     _prep()
-    from bike_tracker import service
+    from findplus import service
 
     p = service.plan()
     _show_service_plan(p)

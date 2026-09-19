@@ -1,4 +1,4 @@
-# bike-tracker
+# Find+ (findplus)
 
 A local application that builds a Google Maps Timeline-style location history for
 your Google Find Hub trackers — one, several, or all of them.
@@ -34,23 +34,23 @@ throughout the app.
 ## Install
 
 ```bash
-git clone <this repo> bike-tracker
-cd bike-tracker
+git clone <this repo> findplus
+cd findplus
 python3.12 -m venv .venv
 ./.venv/bin/pip install -e ".[dev]"
 ```
 
 The vendored `vendor/GoogleFindMyTools/` directory is required. If it is missing,
-run `bike-tracker doctor` for repair instructions.
+run `findplus doctor` for repair instructions.
 
 ## First run
 
 ```bash
-./.venv/bin/bike-tracker auth               # sign in with Chrome (one time)
-./.venv/bin/bike-tracker devices            # list trackers on the account
-./.venv/bin/bike-tracker devices --track-all # or --track <ID> --track <ID>
-./.venv/bin/bike-tracker poll-now           # confirm real observations are saved
-./.venv/bin/bike-tracker serve              # dashboard at http://127.0.0.1:8477
+./.venv/bin/findplus auth               # sign in with Chrome (one time)
+./.venv/bin/findplus devices            # list trackers on the account
+./.venv/bin/findplus devices --track-all # or --track <ID> --track <ID>
+./.venv/bin/findplus poll-now           # confirm real observations are saved
+./.venv/bin/findplus serve              # dashboard at http://127.0.0.1:8647
 ```
 
 You can also pick trackers from the dashboard itself — the **Devices** button
@@ -59,38 +59,38 @@ opens a checklist of everything on the account.
 Then, once it works, optionally install autostart:
 
 ```bash
-./.venv/bin/bike-tracker install-service   # shows the exact file first, then asks
+./.venv/bin/findplus install-service   # shows the exact file first, then asks
 ```
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `bike-tracker auth` | Interactive Google sign-in via Chrome. Re-run if the session expires. |
-| `bike-tracker devices` | List devices. `--track-all`, `--track <id>` (repeatable), `--untrack <id>`, `--default <id>`. |
-| `bike-tracker poll-now` | Query Find Hub once for every tracked device. |
-| `bike-tracker serve` | Run the API, UI and poller in this terminal. |
-| `bike-tracker start` / `stop` | Install/start, or stop/remove, the background service. |
-| `bike-tracker status` | Tracker, service, schema and history summary. |
-| `bike-tracker open` | Open the dashboard in your browser. |
-| `bike-tracker export` | Export CSV / JSON / GPX / KML. `--device-id` narrows to one tracker. |
-| `bike-tracker prune --before YYYY-MM-DD` | Delete old history. Dry run unless `--yes`. |
-| `bike-tracker doctor` | Diagnose the install; report what auth material is stored and where. |
+| `findplus auth` | Interactive Google sign-in via Chrome. Re-run if the session expires. |
+| `findplus devices` | List devices. `--track-all`, `--track <id>` (repeatable), `--untrack <id>`, `--default <id>`. |
+| `findplus poll-now` | Query Find Hub once for every tracked device. |
+| `findplus serve` | Run the API, UI and poller in this terminal. |
+| `findplus start` / `stop` | Install/start, or stop/remove, the background service. |
+| `findplus status` | Tracker, service, schema and history summary. |
+| `findplus open` | Open the dashboard in your browser. |
+| `findplus export` | Export CSV / JSON / GPX / KML. `--device-id` narrows to one tracker. |
+| `findplus prune --before YYYY-MM-DD` | Delete old history. Dry run unless `--yes`. |
+| `findplus doctor` | Diagnose the install; report what auth material is stored and where. |
 
 ## Where things live
 
 | What | Path |
 |---|---|
-| Location history | `data/bike-history.sqlite` |
-| Auth material | `~/.bike-tracker/secrets.json` (mode `0600`, dir `0700`) |
-| Logs (rotating) | `~/.bike-tracker/logs/bike-tracker.log` |
+| Location history | `data/findplus.sqlite` |
+| Auth material | `~/.findplus/secrets.json` (mode `0600`, dir `0700`) |
+| Logs (rotating) | `~/.findplus/logs/findplus.log` |
 | Configuration | `.env` (copy from `.env.example`) |
 
 Both the database and the secrets file are gitignored.
 
 ## Authentication, explicitly
 
-`bike-tracker auth` opens Chrome at Google's own account-setup page. You sign in
+`findplus auth` opens Chrome at Google's own account-setup page. You sign in
 normally, including 2FA. The app then stores:
 
 - your Google account email
@@ -106,7 +106,7 @@ One warning: the upstream Chrome driver runs `pkill -f chrome` before launching,
 so **any Chrome windows you have open will be closed** during sign-in. The `auth`
 command tells you this before it starts.
 
-If the session expires, re-run `bike-tracker auth`.
+If the session expires, re-run `findplus auth`.
 
 ## Configuration
 
@@ -135,7 +135,7 @@ Tick them in the dashboard's **Devices** dialog, or use `--track-all`.
 
 **Each tracked device costs one Google request per poll cycle.** Three devices on
 the default 5-minute interval is ~36 requests/hour. The dashboard and
-`bike-tracker devices` both show the effective rate so it is never a surprise.
+`findplus devices` both show the effective rate so it is never a surprise.
 Devices are polled **sequentially with a 10-second stagger**, never as a burst.
 
 One device failing never stops the others: each gets its own `poll_runs` row, and
@@ -182,11 +182,11 @@ position.
   a 60-second lockout, which applies to the correct PIN too.
 - Changing the PIN signs out every other browser but keeps you signed in where
   you changed it.
-- Forgot it? `bike-tracker reset-lock`. There is no cloud reset by design.
+- Forgot it? `findplus reset-lock`. There is no cloud reset by design.
 
 **Be clear about what this does.** The lock stops another person at this computer
 from browsing your history. It does **not** encrypt the database — anyone with
-access to this user account or the disk can read `data/bike-history.sqlite`
+access to this user account or the disk can read `data/findplus.sqlite`
 directly. Use FileVault if you need protection at rest.
 
 ## Deleting history
@@ -198,13 +198,13 @@ History is never deleted silently. Settings → **Delete history** offers:
 - **Clear ALL history** — shows the count, asks for confirmation, then requires
   you to type `DELETE`.
 
-From the CLI, `bike-tracker prune --before YYYY-MM-DD` is a dry run unless you
+From the CLI, `findplus prune --before YYYY-MM-DD` is a dry run unless you
 pass `--yes`.
 
 ## Themes
 
 Dark (default), Light, or Match system. Set it in Settings, or with
-`bike-tracker theme light`. The choice is stored server-side, so it follows you
+`findplus theme light`. The choice is stored server-side, so it follows you
 across browsers, and is cached locally so there is no flash on load.
 
 ## Keeping it running
@@ -213,19 +213,19 @@ Two independent jobs, both user-level:
 
 | Job | Role |
 |---|---|
-| `com.acamarata.bike-tracker` | The service. `RunAtLoad` starts it at login; `KeepAlive` restarts it if the process dies. |
-| `com.acamarata.bike-tracker.watchdog` | Every 5 minutes, asks the local API whether it is alive. If not, restarts the service. |
+| `com.acamarata.findplus` | The service. `RunAtLoad` starts it at login; `KeepAlive` restarts it if the process dies. |
+| `com.acamarata.findplus.watchdog` | Every 5 minutes, asks the local API whether it is alive. If not, restarts the service. |
 
 `KeepAlive` only sees a process that has *died*. The watchdog covers the other
 failure mode: a process that is alive but wedged. A `401` from the app lock
 counts as healthy, so enabling the lock does not cause restart loops.
 
-Check both with `bike-tracker status`.
+Check both with `findplus status`.
 
 ## Privacy
 
 - Binds to `127.0.0.1` only. Any other bind address is refused unless you set
-  `BIKE_TRACKER_ALLOW_PUBLIC_BIND=1` deliberately.
+  `FINDPLUS_ALLOW_PUBLIC_BIND=1` deliberately.
 - No analytics, telemetry, cookies, cloud database, or third-party scripts.
   Leaflet is served from disk, not a CDN.
 - Logs redact tokens, cookies and keys.

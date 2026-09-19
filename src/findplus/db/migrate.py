@@ -14,8 +14,8 @@ from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 
-from bike_tracker.config import PROJECT_ROOT, get_settings
-from bike_tracker.db.session import get_engine
+from findplus.config import PROJECT_ROOT, get_settings
+from findplus.db.session import get_engine
 
 ALEMBIC_INI = PROJECT_ROOT / "alembic.ini"
 

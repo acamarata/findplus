@@ -7,9 +7,9 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from bike_tracker.db.models import LocationObservation
-from bike_tracker.ingest import ingest_observations
-from bike_tracker.timeline import (
+from findplus.db.models import LocationObservation
+from findplus.ingest import ingest_observations
+from findplus.timeline import (
     build_timeline,
     compute_stats,
     day_bounds_utc,

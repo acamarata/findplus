@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from bike_tracker.state import get_setting, set_setting
+from findplus.state import get_setting, set_setting
 
 THEME = "ui_theme"
 LOCK_ENABLED = "lock_enabled"

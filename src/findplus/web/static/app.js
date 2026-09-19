@@ -1,5 +1,5 @@
 /*
- * bike-tracker dashboard.
+ * findplus dashboard.
  *
  * Purpose : Render Find Hub observation history for one or many trackers as a
  *           map plus per-device chronological timelines.
@@ -576,7 +576,7 @@ async function loadStatus() {
     } else if (!s.tracked_count) {
       showAlert('No devices are being tracked. Click "Devices" to choose which trackers to poll.', "warn");
     } else if (!s.poller_running) {
-      showAlert("The polling service does not appear to be running. Start it with: bike-tracker start", "warn");
+      showAlert("The polling service does not appear to be running. Start it with: findplus start", "warn");
     } else {
       showAlert(null);
     }
@@ -884,7 +884,7 @@ async function openSettings() {
     $("lock-caveat").textContent = req.caveat;
     const health = await api("/api/health");
     $("settings-about").textContent =
-      `bike-tracker ${health.version} · schema ${health.schema_revision} · ` +
+      `findplus ${health.version} · schema ${health.schema_revision} · ` +
       `timezone ${health.timezone} · polling every ${state.config.poll_interval_minutes} min`;
     $("settings-modal").classList.remove("hidden");
   } catch (e) {

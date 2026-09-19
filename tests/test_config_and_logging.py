@@ -6,8 +6,8 @@ import logging
 
 import pytest
 
-from bike_tracker.config import Settings
-from bike_tracker.logging_setup import _redact
+from findplus.config import Settings
+from findplus.logging_setup import _redact
 
 
 # ------------------------------------------------------------------ binding
@@ -18,13 +18,13 @@ def test_default_bind_is_loopback_only() -> None:
 @pytest.mark.parametrize("host", ["0.0.0.0", "192.168.1.50", "::"])
 def test_non_loopback_bind_is_refused(host: str, monkeypatch: pytest.MonkeyPatch) -> None:
     """This app holds a child's location history; it must not reach the LAN by accident."""
-    monkeypatch.delenv("BIKE_TRACKER_ALLOW_PUBLIC_BIND", raising=False)
+    monkeypatch.delenv("FINDPLUS_ALLOW_PUBLIC_BIND", raising=False)
     with pytest.raises(ValueError, match="local-only by design"):
         Settings(host=host)
 
 
 def test_public_bind_requires_an_explicit_opt_in(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("BIKE_TRACKER_ALLOW_PUBLIC_BIND", "1")
+    monkeypatch.setenv("FINDPLUS_ALLOW_PUBLIC_BIND", "1")
     assert Settings(host="0.0.0.0").host == "0.0.0.0"
 
 
@@ -40,7 +40,7 @@ def test_retention_zero_means_forever() -> None:
 
 def test_secrets_live_outside_the_repository() -> None:
     settings = Settings()
-    from bike_tracker.config import PROJECT_ROOT
+    from findplus.config import PROJECT_ROOT
 
     assert PROJECT_ROOT not in settings.secrets_file.parents
 
@@ -90,8 +90,8 @@ def test_ordinary_messages_survive_redaction() -> None:
 
 
 def test_logging_configuration_installs_handlers(tmp_path, monkeypatch) -> None:
-    from bike_tracker.config import get_settings, reset_settings_cache
-    from bike_tracker.logging_setup import configure_logging
+    from findplus.config import get_settings, reset_settings_cache
+    from findplus.logging_setup import configure_logging
 
     monkeypatch.setenv("STATE_DIR", str(tmp_path / "state"))
     reset_settings_cache()

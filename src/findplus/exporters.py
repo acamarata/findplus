@@ -16,8 +16,8 @@ import json
 from datetime import datetime
 from xml.sax.saxutils import escape
 
-from bike_tracker.db.models import LocationObservation
-from bike_tracker.geo import haversine_meters
+from findplus.db.models import LocationObservation
+from findplus.geo import haversine_meters
 
 DISCLAIMER = (
     "Observed locations reported via Google's Find Hub network. "
@@ -129,7 +129,7 @@ def to_gpx(observations: list[LocationObservation], tz, track_name: str = "Bike 
     """GPX 1.1 with a single track segment of timestamped points."""
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
-        '<gpx version="1.1" creator="bike-tracker" '
+        '<gpx version="1.1" creator="findplus" '
         'xmlns="http://www.topografix.com/GPX/1/1" '
         'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
         'xsi:schemaLocation="http://www.topografix.com/GPX/1/1 '

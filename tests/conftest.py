@@ -9,16 +9,16 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-# Point every setting at a throwaway location BEFORE bike_tracker.config is imported.
-os.environ.setdefault("BIKE_TRACKER_STATE_DIR", "/tmp/bike-tracker-tests-state")
+# Point every setting at a throwaway location BEFORE findplus.config is imported.
+os.environ.setdefault("FINDPLUS_STATE_DIR", "/tmp/findplus-tests-state")
 
 
 @pytest.fixture
 def tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
     """A migrated, empty SQLite database scoped to one test."""
-    from bike_tracker.config import get_settings, reset_settings_cache
-    from bike_tracker.db.migrate import upgrade_to_head
-    from bike_tracker.db.session import get_engine, get_sessionmaker
+    from findplus.config import get_settings, reset_settings_cache
+    from findplus.db.migrate import upgrade_to_head
+    from findplus.db.session import get_engine, get_sessionmaker
 
     db_path = tmp_path / "test.sqlite"
     monkeypatch.setenv("DATABASE_PATH", str(db_path))
@@ -35,7 +35,7 @@ def tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
 
 @pytest.fixture
 def session(tmp_db: str):
-    from bike_tracker.db.session import session_scope
+    from findplus.db.session import session_scope
 
     with session_scope() as s:
         yield s
@@ -64,7 +64,7 @@ def make_observation(
     source: str = "crowdsourced",
 ):
     """Build a RawObservation. `minutes` offsets from a fixed 2026-09-18 12:00 UTC base."""
-    from bike_tracker.findhub.types import RawObservation
+    from findplus.findhub.types import RawObservation
 
     when = observed_at or (datetime(2026, 9, 18, 12, 0, 0, tzinfo=UTC) + timedelta(minutes=minutes))
     return RawObservation(

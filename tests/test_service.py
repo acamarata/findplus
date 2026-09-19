@@ -6,7 +6,7 @@ import plistlib
 
 import pytest
 
-from bike_tracker import service
+from findplus import service
 
 
 def test_manager_is_detected_for_this_platform() -> None:
@@ -40,7 +40,7 @@ def test_launchd_plist_is_valid_and_runs_our_entry_point() -> None:
     payload = plistlib.loads(service.plan().unit_text.encode())
     assert payload["Label"] == service.LAUNCHD_LABEL
     assert payload["RunAtLoad"] is True
-    assert "bike_tracker.cli" in payload["ProgramArguments"]
+    assert "findplus.cli" in payload["ProgramArguments"]
     assert "serve" in payload["ProgramArguments"]
 
 

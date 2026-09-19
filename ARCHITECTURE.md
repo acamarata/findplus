@@ -158,12 +158,12 @@ the history readable with `curl` from the same machine.
 - Changing the PIN revokes every session, then immediately re-issues one to the
   calling browser. Other devices are signed out; the person who just set the PIN
   is not locked out of the window they set it in.
-- Recovery is `bike-tracker reset-lock`, which requires local filesystem access —
+- Recovery is `findplus reset-lock`, which requires local filesystem access —
   the same access that would let someone read the SQLite file anyway, so the
   recovery path adds no exposure that did not already exist.
 
 **Threat model, stated plainly:** this is deterrence against another person using
-this computer. It is not encryption at rest. `data/bike-history.sqlite` is a
+this computer. It is not encryption at rest. `data/findplus.sqlite` is a
 plain file readable by this user account. FileVault is the answer to the other
 problem, and the UI says so rather than implying more than it delivers.
 
@@ -194,7 +194,7 @@ crash would be silent and permanent.
 ## Privacy and network posture
 
 - Binds to `127.0.0.1`. `Settings` raises on any other host unless
-  `BIKE_TRACKER_ALLOW_PUBLIC_BIND=1` is set explicitly.
+  `FINDPLUS_ALLOW_PUBLIC_BIND=1` is set explicitly.
 - Leaflet is vendored locally; the page loads no third-party scripts. A test
   asserts every `<script src>` is same-origin.
 - No analytics, telemetry, cookies, or cloud database.
@@ -207,7 +207,7 @@ crash would be silent and permanent.
 
 ## Authentication material
 
-`bike-tracker auth` opens real Chrome at Google's own
+`findplus auth` opens real Chrome at Google's own
 `accounts.google.com/EmbeddedSetup` and waits for the `oauth_token` cookie Google
 sets after a normal login, including 2FA. Nothing bypasses Google's security.
 
@@ -217,7 +217,7 @@ owner key — is written to a single `secrets.json`.
 
 Upstream resolves that file relative to its own package directory. `bootstrap.py`
 rebinds `Auth.token_cache._get_secrets_file` so it lands in
-`~/.bike-tracker/` (mode `0700`, file mode `0600`) instead of inside `vendor/`.
+`~/.findplus/` (mode `0700`, file mode `0600`) instead of inside `vendor/`.
 That monkeypatch replaces a path resolver only; it does not touch key derivation,
 decryption, or request signing.
 

@@ -1,4 +1,4 @@
-"""Configuration for bike-tracker.
+"""Configuration for findplus.
 
 Purpose : Single source of truth for all runtime settings and filesystem paths.
 Inputs  : Environment variables, optionally loaded from a `.env` file in the project root.
@@ -22,7 +22,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 VENDOR_GFMT = PROJECT_ROOT / "vendor" / "GoogleFindMyTools"
 
 #: Default home for auth material + logs. Outside the repo on purpose.
-DEFAULT_STATE_DIR = Path(os.environ.get("BIKE_TRACKER_STATE_DIR", Path.home() / ".bike-tracker"))
+DEFAULT_STATE_DIR = Path(os.environ.get("FINDPLUS_STATE_DIR", Path.home() / ".findplus"))
 
 
 class Settings(BaseSettings):
@@ -52,12 +52,12 @@ class Settings(BaseSettings):
     retention_days: int = Field(default=0, description="0 = keep history forever.")
 
     # --- Storage ------------------------------------------------------------
-    database_path: Path = PROJECT_ROOT / "data" / "bike-history.sqlite"
+    database_path: Path = PROJECT_ROOT / "data" / "findplus.sqlite"
     state_dir: Path = DEFAULT_STATE_DIR
 
     # --- API / UI -----------------------------------------------------------
     host: str = "127.0.0.1"
-    port: int = 8477
+    port: int = 8647
     ui_refresh_seconds: int = 45
 
     # --- Logging ------------------------------------------------------------
@@ -77,11 +77,11 @@ class Settings(BaseSettings):
     @classmethod
     def _warn_on_public_bind(cls, v: str) -> str:
         if v not in {"127.0.0.1", "localhost", "::1"} and not os.environ.get(
-            "BIKE_TRACKER_ALLOW_PUBLIC_BIND"
+            "FINDPLUS_ALLOW_PUBLIC_BIND"
         ):
             raise ValueError(
                 f"Refusing to bind to {v!r}. This app holds a child's location history "
-                "and is local-only by design. Set BIKE_TRACKER_ALLOW_PUBLIC_BIND=1 to override."
+                "and is local-only by design. Set FINDPLUS_ALLOW_PUBLIC_BIND=1 to override."
             )
         return v
 
@@ -104,11 +104,11 @@ class Settings(BaseSettings):
 
     @property
     def log_file(self) -> Path:
-        return self.log_dir / "bike-tracker.log"
+        return self.log_dir / "findplus.log"
 
     @property
     def pid_file(self) -> Path:
-        return self.state_dir / "bike-tracker.pid"
+        return self.state_dir / "findplus.pid"
 
     @property
     def database_url(self) -> str:

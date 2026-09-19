@@ -20,9 +20,9 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from bike_tracker.db.models import Device, LocationObservation
-from bike_tracker.findhub.types import RawObservation
-from bike_tracker.logging_setup import get_logger
+from findplus.db.models import Device, LocationObservation
+from findplus.findhub.types import RawObservation
+from findplus.logging_setup import get_logger
 
 log = get_logger(__name__)
 

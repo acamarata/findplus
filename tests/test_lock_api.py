@@ -12,11 +12,11 @@ from datetime import UTC, datetime
 import pytest
 from fastapi.testclient import TestClient
 
-from bike_tracker.appsettings import load_settings
-from bike_tracker.db.session import session_scope
-from bike_tracker.ingest import ingest_observations, upsert_device
-from bike_tracker.security import MAX_ATTEMPTS, SessionStore
-from bike_tracker.state import track_devices
+from findplus.appsettings import load_settings
+from findplus.db.session import session_scope
+from findplus.ingest import ingest_observations, upsert_device
+from findplus.security import MAX_ATTEMPTS, SessionStore
+from findplus.state import track_devices
 from tests.conftest import make_observation
 
 PIN = "8642"
@@ -42,7 +42,7 @@ def store() -> SessionStore:
 
 @pytest.fixture
 def client(tmp_db, store):
-    from bike_tracker.api import create_app
+    from findplus.api import create_app
 
     with session_scope() as session:
         upsert_device(session, "TAG-001", "Moto Tag 2")
@@ -344,7 +344,7 @@ def test_reset_lock_cli_clears_a_forgotten_pin(client: TestClient) -> None:
     """The only PIN recovery path, and it requires local filesystem access."""
     from click.testing import CliRunner
 
-    from bike_tracker.cli import main
+    from findplus.cli import main
 
     _set_pin(client)
     client.cookies.clear()
@@ -361,7 +361,7 @@ def test_reset_lock_cli_clears_a_forgotten_pin(client: TestClient) -> None:
 def test_reset_lock_is_harmless_when_no_pin_is_set(tmp_db) -> None:
     from click.testing import CliRunner
 
-    from bike_tracker.cli import main
+    from findplus.cli import main
 
     result = CliRunner().invoke(main, ["reset-lock", "--yes"])
     assert result.exit_code == 0

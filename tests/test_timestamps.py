@@ -8,8 +8,8 @@ from zoneinfo import ZoneInfo
 import pytest
 from sqlalchemy import select
 
-from bike_tracker.db.models import LocationObservation
-from bike_tracker.ingest import ingest_observations
+from findplus.db.models import LocationObservation
+from findplus.ingest import ingest_observations
 from tests.conftest import make_observation
 
 
@@ -31,7 +31,7 @@ def test_non_utc_input_is_normalised_to_utc(session) -> None:
 
 def test_naive_datetimes_are_rejected() -> None:
     """Storing a naive datetime would silently corrupt day grouping."""
-    from bike_tracker.db.types import UtcDateTime
+    from findplus.db.types import UtcDateTime
 
     with pytest.raises(ValueError, match="naive datetime"):
         UtcDateTime().process_bind_param(datetime(2026, 9, 18, 12, 0), None)

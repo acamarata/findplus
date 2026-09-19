@@ -21,19 +21,19 @@ import threading
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-from bike_tracker.config import Settings, get_settings
-from bike_tracker.db.models import PollRun
-from bike_tracker.db.session import session_scope
-from bike_tracker.findhub.client import FindHubClient
-from bike_tracker.findhub.types import (
+from findplus.config import Settings, get_settings
+from findplus.db.models import PollRun
+from findplus.db.session import session_scope
+from findplus.findhub.client import FindHubClient
+from findplus.findhub.types import (
     AuthRequiredError,
     DecryptionError,
     FindHubError,
     LocationTimeoutError,
 )
-from bike_tracker.ingest import ingest_observations
-from bike_tracker.logging_setup import get_logger
-from bike_tracker.state import get_tracked_devices
+from findplus.ingest import ingest_observations
+from findplus.logging_setup import get_logger
+from findplus.state import get_tracked_devices
 
 log = get_logger(__name__)
 
@@ -159,7 +159,7 @@ def poll_once(
         outcome = PollOutcome(
             status="error",
             error_type="NoDeviceTracked",
-            error_message="No devices are being tracked. Run `bike-tracker devices --track-all`.",
+            error_message="No devices are being tracked. Run `findplus devices --track-all`.",
         )
         with session_scope() as session:
             _record(session, None, datetime.now(UTC), outcome)

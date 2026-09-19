@@ -95,6 +95,11 @@ include = ["src","vendor","tests","hatch_build.py","README.md","LICENSE","CHANGE
 
 [tool.hatch.build.targets.sdist.force-include]
 "../CHANGELOG.md" = "CHANGELOG.md"
+# The repo .gitignore carries `token_cache*` for the user's real cache file,
+# and the sdist file walk drops that name from the vendored upstream tree.
+# Without this line the sdist ships an Auth package that cannot be imported,
+# and so does every wheel built from that sdist.
+"vendor/GoogleFindMyTools/Auth/token_cache.py" = "vendor/GoogleFindMyTools/Auth/token_cache.py"
 
 [tool.hatch.build.targets.sdist.hooks.custom]
 path = "hatch_build.py"

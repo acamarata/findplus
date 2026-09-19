@@ -22,6 +22,15 @@ from pathlib import Path
 
 import pytest
 
+# The modules ensure_gfmt_importable() imports. token_cache.py is listed by
+# name because the repo .gitignore carries `token_cache*` for the user's real
+# cache file, and it has been dropped from a built artefact once already.
+VENDOR_BOOTSTRAP_MODULES = (
+    "Auth/__init__.py",
+    "Auth/token_cache.py",
+    "Auth/username_provider.py",
+)
+
 _SCRIPTS_NAME = "Scripts" if sys.platform == "win32" else "bin"
 _PY_NAME = "python.exe" if sys.platform == "win32" else "python"
 
@@ -68,6 +77,10 @@ def test_wheel_installs_and_migrates(tmp_path):
         names = zf.namelist()
     assert any("migrations/versions/0001" in n for n in names), "migrations not in wheel"
     assert any("_vendor/GoogleFindMyTools/LICENSE" in n for n in names), "vendor not in wheel"
+    for mod in VENDOR_BOOTSTRAP_MODULES:
+        assert f"findplus/_vendor/GoogleFindMyTools/{mod}" in names, (
+            f"{mod} missing from the wheel; ensure_gfmt_importable imports it"
+        )
 
     # Create venv
     venv = tmp_path / "venv"
@@ -172,6 +185,10 @@ def test_wheel_builds_from_sdist(tmp_path):
     assert "findplus/web/static/index.html" in names
     assert "findplus/web/static/app/main.js" in names
     assert any(n.startswith("findplus/_vendor/GoogleFindMyTools/") for n in names)
+    for mod in VENDOR_BOOTSTRAP_MODULES:
+        assert f"findplus/_vendor/GoogleFindMyTools/{mod}" in names, (
+            f"{mod} lost on the sdist round trip; ensure_gfmt_importable imports it"
+        )
     dashboard = [n for n in names if n.startswith("findplus/web/static/")]
     hidden = [n for n in dashboard if any(part.startswith(".") for part in n.split("/"))]
     assert not hidden, f"dotfiles leaked into the wheel dashboard: {hidden}"

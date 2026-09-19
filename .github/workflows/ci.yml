@@ -104,6 +104,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - run: bash packaging/scripts/stage-sidecar-stub.sh
       - run: cargo clippy --manifest-path desktop/src-tauri/Cargo.toml -- -D warnings
       - run: cargo test --manifest-path desktop/src-tauri/Cargo.toml
       - run: xcodebuild -scheme FindPlusWidgetExtension -destination "generic/platform=macOS" build CODE_SIGNING_ALLOWED=NO
@@ -133,10 +134,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install '.[dev]'
+      - run: pip install -e '.[dev]'
         working-directory: cli
       - run: python -m pytest cli/tests -q --cov=findplus --cov-report=lcov:coverage/lcov.info --cov-report=term
-      - run: coverage report --fail-under=95 --include='cli/src/findplus/places/geofence.py,cli/src/findplus/groups/presence.py,cli/src/findplus/groups/quorum.py,cli/src/findplus/alerts/dispatch.py,cli/src/findplus/alerts/dispatch_core.py'
+      - run: coverage report --fail-under=95 --include='*/findplus/places/geofence.py,*/findplus/groups/presence.py,*/findplus/groups/quorum.py,*/findplus/alerts/dispatch.py,*/findplus/alerts/dispatch_core.py'
       - uses: codecov/codecov-action@v4
         with:
           files: ./coverage/lcov.info

@@ -27,7 +27,7 @@ from pathlib import Path
 import pytest
 
 pytest.importorskip("playwright", reason="playwright is not installed")
-from playwright.sync_api import Browser, Page, sync_playwright  # noqa: E402
+from playwright.sync_api import Browser, Page, sync_playwright
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PIN = "8642"
@@ -55,11 +55,11 @@ def browser() -> Iterator[Browser]:
         with sync_playwright() as pw:
             try:
                 instance = pw.chromium.launch(channel="chrome", headless=True)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 pytest.skip(f"Chrome unavailable: {exc}")
             yield instance
             instance.close()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         pytest.skip(f"Playwright unavailable: {exc}")
 
 
@@ -99,7 +99,7 @@ def server(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
             try:
                 urllib.request.urlopen(f"{base}/api/health", timeout=2)
                 break
-            except Exception:  # noqa: BLE001
+            except Exception:
                 time.sleep(0.25)
         else:
             pytest.skip("the test server never came up")

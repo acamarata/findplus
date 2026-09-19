@@ -129,3 +129,92 @@ def test_http_error_never_echoes_the_token(monkeypatch: pytest.MonkeyPatch) -> N
         server.server_close()
     assert token not in str(excinfo.value)
     assert "500" in str(excinfo.value)
+
+
+# ------------------------------------------------- group / channel setup (E12)
+@pytest.mark.parametrize(
+    ("key", "chat"),
+    [
+        ("my_chat_member", {"id": -100123, "type": "supergroup", "title": "Family"}),
+        ("channel_post", {"id": -100777, "type": "channel", "title": "Alerts"}),
+    ],
+)
+def test_setup_accepts_group_and_channel_updates(
+    monkeypatch: pytest.MonkeyPatch, key: str, chat: dict
+) -> None:
+    """A group with privacy mode on sends only `my_chat_member`; a channel only
+    sends `channel_post`. Ignoring either leaves setup hanging to the timeout."""
+    monkeypatch.setattr("findplus.alerts.channels.telegram.save_alerts", MagicMock())
+
+    update = {"update_id": 1, key: {"chat": chat}}
+    with patch("findplus.alerts.channels.telegram.httpx.Client") as mock_client:
+        instance = mock_client.return_value.__enter__.return_value
+        instance.get.side_effect = [
+            _response(200, {"result": {"username": "testbot"}}),
+            _response(200, {"result": [update]}),
+        ]
+        instance.post.return_value = _response(200)
+        result = telegram_setup("tok", wait_seconds=120, poll=2)
+
+    assert result["chat_id"] == str(chat["id"])
+    assert result["chat_title"] == chat["title"]
+    assert result["chat_type"] == chat["type"]
+
+
+def test_setup_tells_group_users_about_start_and_privacy_mode(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr("findplus.alerts.channels.telegram.save_alerts", MagicMock())
+
+    update = {"update_id": 1, "message": {"chat": {"id": 99, "type": "private"}}}
+    with patch("findplus.alerts.channels.telegram.httpx.Client") as mock_client:
+        instance = mock_client.return_value.__enter__.return_value
+        instance.get.side_effect = [
+            _response(200, {"result": {"username": "testbot"}}),
+            _response(200, {"result": [update]}),
+        ]
+        instance.post.return_value = _response(200)
+        telegram_setup("tok", wait_seconds=120, poll=2)
+
+    out = capsys.readouterr().out
+    assert "/start@testbot" in out
+    assert "privacy" in out.lower()
+    assert "BotFather" in out
+
+
+# ------------------------------------------------------ supergroup migration
+def test_send_follows_migrate_to_chat_id() -> None:
+    """Telegram renumbers a group when it becomes a supergroup. The old id is
+    dead, so the message is re-sent to the id it hands back."""
+    migrated = _response(
+        400,
+        {
+            "ok": False,
+            "description": "Bad Request: group chat was upgraded to a supergroup chat",
+            "parameters": {"migrate_to_chat_id": -1001234567890},
+        },
+    )
+    with patch("findplus.alerts.channels.telegram.httpx.Client") as mock_client:
+        instance = mock_client.return_value.__enter__.return_value
+        instance.post.side_effect = [migrated, _response(200)]
+        result = send("hi", "tok", "-4242")
+
+    assert result == DeliveryResult(True, 200, None)
+    assert instance.post.call_count == 2
+    assert instance.post.call_args_list[1].kwargs["json"]["chat_id"] == "-1001234567890"
+
+
+def test_send_400_without_migration_still_raises() -> None:
+    plain = _response(400, {"ok": False, "description": "Bad Request: chat not found"}, "nope")
+    with patch("findplus.alerts.channels.telegram.httpx.Client") as mock_client:
+        mock_client.return_value.__enter__.return_value.post.return_value = plain
+        with pytest.raises(ValueError, match="bad request"):
+            send("hi", "tok", "1")
+
+
+def test_send_does_not_loop_when_telegram_repeats_the_same_id() -> None:
+    same = _response(400, {"parameters": {"migrate_to_chat_id": 1}}, "loop")
+    with patch("findplus.alerts.channels.telegram.httpx.Client") as mock_client:
+        mock_client.return_value.__enter__.return_value.post.return_value = same
+        with pytest.raises(ValueError, match="bad request"):
+            send("hi", "tok", "1")

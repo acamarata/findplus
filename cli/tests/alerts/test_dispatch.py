@@ -204,6 +204,45 @@ def test_lag_in_message() -> None:
     assert "5 min late" in msg
 
 
+def test_unknown_lag_is_not_reported_as_zero() -> None:
+    """No fetched_at means the delay is unknown, never instant."""
+    from findplus.alerts.dispatch import render_message
+
+    msg = render_message(_device_event(fetched_at=None), NOW)
+    assert "lag unknown" in msg
+    assert "0 min late" not in msg
+    assert "reported unknown" in msg
+
+
+def test_message_omits_the_date_for_a_same_day_observation() -> None:
+    from findplus.alerts.dispatch import render_message
+
+    msg = render_message(_device_event(), NOW)
+    observed_local = NOW.astimezone()
+    assert f"Observed {observed_local:%H:%M} ·" in msg
+    assert f"{observed_local:%Y-%m-%d}" not in msg
+
+
+def test_message_spells_out_the_date_when_the_observation_is_not_today() -> None:
+    """A bare "Observed 14:20" in a notification reads as today."""
+    from findplus.alerts.dispatch import render_message
+
+    observed = NOW - timedelta(days=2)
+    msg = render_message(_device_event(observed_at=observed, fetched_at=NOW), NOW)
+    assert f"Observed {observed.astimezone():%Y-%m-%d %H:%M %Z} ·" in msg
+    assert len(msg) <= 400
+
+
+def test_message_with_a_date_and_a_note_still_fits_the_limit() -> None:
+    from findplus.alerts.dispatch import render_message
+
+    msg = render_message(
+        _device_event(observed_at=NOW - timedelta(days=400), place_name="P" * 600), NOW
+    )
+    assert len(msg) <= 400
+    assert msg.endswith("Find Hub and Find My locations can be minutes to hours late.")
+
+
 def test_alerts_disabled(rule_row, session) -> None:
     settings = types.SimpleNamespace(alerts_enabled=False)
     process([_device_event()], session, settings, now=NOW)

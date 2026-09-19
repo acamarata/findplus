@@ -35,8 +35,27 @@ class DeliveryResult:
     error: str | None
 
 
+def _migrated_chat_id(response: httpx.Response) -> str | None:
+    """`parameters.migrate_to_chat_id` from a 400 body, when Telegram sent one.
+
+    Telegram answers 400 when a group has been upgraded to a supergroup and
+    hands back the id that replaced it. The old id is dead from then on.
+    """
+    try:
+        params = response.json().get("parameters") or {}
+    except ValueError:
+        return None
+    value = params.get("migrate_to_chat_id")
+    return None if value is None else str(value)
+
+
 def send(text: str, bot_token: str, chat_id: str, timeout: float = 10.0) -> DeliveryResult:
-    """POST a text message. Retries once on a 5xx; raises ValueError on 401/403/400."""
+    """POST a text message. Retries once on a 5xx; raises ValueError on 401/403/400.
+
+    A 400 carrying `migrate_to_chat_id` is followed once to the new supergroup
+    id rather than reported as a failure: the user did nothing wrong, Telegram
+    renumbered their group, and dropping the alert would be the worst outcome.
+    """
     url = f"{TELEGRAM_BASE}{bot_token}/sendMessage"
     payload = {"chat_id": chat_id, "text": text}
     for attempt in range(2):
@@ -52,6 +71,9 @@ def send(text: str, bot_token: str, chat_id: str, timeout: float = 10.0) -> Deli
         if r.status_code == 403:
             raise ValueError("telegram: bot was blocked or kicked (403)")
         if r.status_code == 400:
+            migrated = _migrated_chat_id(r)
+            if migrated is not None and migrated != chat_id:
+                return send(text, bot_token, migrated, timeout=timeout)
             raise ValueError(f"telegram: bad request (400): {r.text[:200]}")
         if r.status_code >= 500 and attempt == 0:
             time.sleep(1)
@@ -85,6 +107,12 @@ def telegram_setup(token: str, wait_seconds: int = 120, poll: int = 2) -> dict:
         me = _get_me(token, client)
         username = me["username"]
         print(f"Bot @{username} verified. Open t.me/{username}, press Start or send any message.")
+        print(
+            f"  For a group or channel: add @{username} to it, then send /start@{username} there. "
+            "A bot with group privacy on only sees commands addressed to it, so if nothing "
+            f"arrives, turn privacy off in BotFather (/setprivacy, pick @{username}, Disable) "
+            "and send the command again."
+        )
         offset = 0
         while time.monotonic() < deadline:
             remaining = int(deadline - time.monotonic())
@@ -100,7 +128,11 @@ def telegram_setup(token: str, wait_seconds: int = 120, poll: int = 2) -> dict:
             _raise_for_status(r, "getUpdates")
             for u in r.json().get("result", []):
                 offset = u["update_id"] + 1
-                msg = u.get("message") or u.get("channel_post")
+                # `my_chat_member` is the only update a group sends when the
+                # bot is added and privacy mode is on, and `channel_post` the
+                # only one a channel sends. Without both, group and channel
+                # setup hangs until the timeout for no visible reason.
+                msg = u.get("message") or u.get("channel_post") or u.get("my_chat_member")
                 if not msg:
                     continue
                 chat = msg["chat"]

@@ -160,17 +160,28 @@ def as_utc(value: datetime.datetime | str | None) -> datetime.datetime | None:
 
 
 def render_message(event: DeviceEvent | GroupEvent, now: datetime.datetime) -> str:
+    """One alert line-set.
+
+    Two honesty rules are load-bearing here, because an alert arrives with no
+    surrounding context:
+      - a bare "Observed 14:20" reads as today, so the date is spelled out
+        whenever the observation fell on a different local day than now;
+      - with no `fetched_at` the lag is unknown, not zero. Printing "0 min
+        late" would claim the report was instant.
+    """
     subject = event.device_name if isinstance(event, DeviceEvent) else event.group_name
     verb = "arrived at" if event.event_type == "ENTER" else "left"
     observed = as_utc(event.observed_at)
     ft = as_utc(getattr(event, "fetched_at", None))
-    obs = observed.astimezone().strftime("%H:%M")
+    observed_local = observed.astimezone()
+    same_day = observed_local.date() == now.astimezone().date()
+    obs = observed_local.strftime("%H:%M" if same_day else "%Y-%m-%d %H:%M %Z")
     rep = ft.astimezone().strftime("%H:%M") if ft else "unknown"
-    lag = round((ft - observed).total_seconds() / 60) if ft else 0
+    lag = f"{round((ft - observed).total_seconds() / 60)} min late" if ft else "lag unknown"
     note = getattr(event, "note", "")
     msg = (
         f"{subject} {verb} {event.place_name}\n"
-        f"Observed {obs} · reported {rep} · {lag} min late\n"
+        f"Observed {obs} · reported {rep} · {lag}\n"
         f"Confidence: {event.confidence}."
     )
     if note:

@@ -55,6 +55,22 @@ if [ ! -d "$APPEX_PATH" ]; then
   exit 1
 fi
 
+# --- REPAIR_SIDECAR -----------------------------------------------------------
+# The Tauri bundler copies bundle.resources with symlinks dereferenced, which
+# turns the sidecar's Python.framework into a plain directory holding a second
+# copy of the binary. The notary service then rejects both copies with "the
+# signature of the binary is invalid", because a framework's seal is only valid
+# inside a correctly linked framework. Restoring the tree with cp -R, from the
+# staged copy sign-sidecar.sh already signed, keeps the symlinks and the
+# signatures and drops about 12 MB of duplicated binary.
+SIDECAR_SRC="desktop/src-tauri/resources/findplus-daemon"
+SIDECAR_DEST="$APP_PATH/Contents/Resources/resources"
+if [ -d "$SIDECAR_SRC" ] && [ -d "$SIDECAR_DEST/findplus-daemon" ]; then
+  echo "Restoring the sidecar tree with its symlinks"
+  rm -rf "${SIDECAR_DEST:?}/findplus-daemon"
+  cp -R "$SIDECAR_SRC" "$SIDECAR_DEST/"
+fi
+
 # --- EMBED --------------------------------------------------------------------
 PLUGINS_DIR="$APP_PATH/Contents/PlugIns"
 mkdir -p "$PLUGINS_DIR"
@@ -129,6 +145,17 @@ create-dmg --volname "Find+" \
 if [ ! -f "dist/$DMG_NAME" ]; then
   echo "FAIL: create-dmg did not produce dist/$DMG_NAME" >&2
   exit 1
+fi
+
+# --- SIGN_AND_NOTARISE_DMG ----------------------------------------------------
+# The app inside is stapled, but the disk image itself carried no signature, so
+# Gatekeeper rejected the download with "no usable signature" before the user
+# ever reached the app. Sign, notarise and staple the image too.
+codesign --force --timestamp --sign "$IDENTITY" "dist/$DMG_NAME"
+if [ "$NOTARISE" = true ]; then
+  xcrun notarytool submit "dist/$DMG_NAME" \
+    --key "$API_KEY_FILE" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID" --wait
+  xcrun stapler staple "dist/$DMG_NAME"
 fi
 
 # --- VERIFY -------------------------------------------------------------------

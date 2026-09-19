@@ -20,8 +20,10 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from findplus.db.models import Device, LocationObservation
+from findplus.config import get_settings
+from findplus.db.models import Device, LocationObservation, PlaceEvent
 from findplus.findhub.types import RawObservation
+from findplus.groups.events import evaluate_group_events as _group_events_evaluate
 from findplus.logging_setup import get_logger
 from findplus.places.events import evaluate as _geofence_evaluate
 
@@ -87,13 +89,17 @@ def ingest_observations(
     observations: list[RawObservation],
     *,
     fetched_at: datetime | None = None,
+    settings: object | None = None,
 ) -> IngestResult:
     """Persist a batch, skipping sightings already on record.
 
     `fetched_at` is when THIS COMPUTER retrieved the batch, which is unrelated to
-    `observed_at` — when Find Hub says the tag was actually seen.
+    `observed_at` — when Find Hub says the tag was actually seen. `settings`
+    defaults to `get_settings()`; callers that already hold a Settings instance
+    (poller.py) can pass it through instead of re-loading it here.
     """
     fetched_at = fetched_at or datetime.now(UTC)
+    settings = settings or get_settings()
     if not observations:
         return IngestResult(received=0, inserted=0, duplicates=0)
 
@@ -158,7 +164,7 @@ def ingest_observations(
 
     session.flush()
 
-    _run_post_ingest_hooks(session, new_rows)
+    _run_post_ingest_hooks(session, new_rows, settings)
 
     result = IngestResult(received=len(observations), inserted=inserted, duplicates=duplicates)
     log.info(
@@ -170,7 +176,9 @@ def ingest_observations(
     return result
 
 
-def _run_post_ingest_hooks(session: Session, new_rows: list[LocationObservation]) -> None:
+def _run_post_ingest_hooks(
+    session: Session, new_rows: list[LocationObservation], settings: object
+) -> None:
     """Run the per-observation hooks, never letting one lose the batch.
 
     The observations themselves are the irreplaceable data: a hook that raises
@@ -178,7 +186,9 @@ def _run_post_ingest_hooks(session: Session, new_rows: list[LocationObservation]
     evaluator) must not roll back rows the provider will not hand us again, and
     must not break `poller.poll_device`'s "never raises on poll failure"
     contract. Each observation is guarded on its own so one bad fix does not
-    skip the rest of the batch.
+    skip the rest of the batch. The group-quorum hook runs in its own SAVEPOINT,
+    after geofence's, so it can only see place_events geofence actually
+    committed -- and a failure in it never rolls back the geofence hook's work.
     """
     for lo in sorted(new_rows, key=lambda o: o.observed_at):
         try:
@@ -194,6 +204,26 @@ def _run_post_ingest_hooks(session: Session, new_rows: list[LocationObservation]
                 device=lo.device_id,
                 observation_id=lo.id,
             )
+
+        try:
+            with session.begin_nested():
+                _run_group_events_hook(session, lo, settings)
+        except Exception:
+            log.exception(
+                "post_ingest_hook_failed",
+                hook="group_events",
+                device=lo.device_id,
+                observation_id=lo.id,
+            )
+
+
+def _run_group_events_hook(session: Session, lo: LocationObservation, settings: object) -> None:
+    """Evaluate group quorum for every place_event geofence just wrote for `lo`."""
+    place_events = session.scalars(
+        select(PlaceEvent).where(PlaceEvent.observation_id == lo.id)
+    ).all()
+    for place_event in place_events:
+        _group_events_evaluate(session, place_event, settings)
 
 
 def _encode_metadata(obs: RawObservation) -> str | None:

@@ -89,9 +89,15 @@ codesign --force --options runtime --timestamp \
 # --- NOTARISE -----------------------------------------------------------------
 if [ "$NOTARISE" = true ]; then
   API_KEY_FILE=$(mktemp -t findplus-api-key)
-  trap 'rm -f "$API_KEY_FILE"' EXIT
+  NOTARISE_ZIP=$(mktemp -d)/FindPlus.zip
+  trap 'rm -f "$API_KEY_FILE" "$NOTARISE_ZIP"' EXIT
   echo "$APPLE_API_KEY_P8_BASE64" | base64 -d >"$API_KEY_FILE"
-  xcrun notarytool submit "$APP_PATH" \
+  # notarytool accepts only .zip, .dmg and .pkg. Handing it a .app bundle
+  # directory fails with "Unable to process file: invalid file type", so the
+  # bundle is zipped with ditto (which preserves the signature and symlinks)
+  # and the ticket is stapled back onto the original .app afterwards.
+  ditto -c -k --keepParent "$APP_PATH" "$NOTARISE_ZIP"
+  xcrun notarytool submit "$NOTARISE_ZIP" \
     --key "$API_KEY_FILE" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID" --wait
   xcrun stapler staple "$APP_PATH"
 else
@@ -109,12 +115,21 @@ VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('cli/pyproject.tom
 DMG_NAME="FindPlus-${VERSION}-aarch64.dmg"
 mkdir -p dist
 rm -f "dist/$DMG_NAME"
+# --icon takes the item's name as it appears in the mounted volume, which for
+# an app bundle includes the .app suffix; without it create-dmg's AppleScript
+# cannot find the item and the positioning step fails.
+# create-dmg exits 2 when it cannot detach the scratch volume even though the
+# dmg is written, so its status is checked rather than left to `set -e`.
 create-dmg --volname "Find+" \
   --background desktop/src-tauri/icons/dmg-background.png \
   --window-size 660 400 \
-  --icon "Find+" 180 170 \
+  --icon "Find+.app" 180 170 \
   --app-drop-link 480 170 \
-  "dist/$DMG_NAME" "$APP_PATH"
+  "dist/$DMG_NAME" "$APP_PATH" || true
+if [ ! -f "dist/$DMG_NAME" ]; then
+  echo "FAIL: create-dmg did not produce dist/$DMG_NAME" >&2
+  exit 1
+fi
 
 # --- VERIFY -------------------------------------------------------------------
 codesign --verify --deep --strict --verbose=2 "$APP_PATH" 2>&1

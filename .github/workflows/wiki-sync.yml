@@ -5,6 +5,10 @@ on:
     branches: [main]
     paths:
       - '.github/wiki/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   sync:
@@ -12,8 +16,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Sync wiki
-        uses: nickg/github-wikis@v1
-        with:
-          path: .github/wiki
-          token: ${{ secrets.GITHUB_TOKEN }}
+      # Pushed straight to the wiki's own git remote. The previously used
+      # third-party action (nickg/github-wikis) does not exist on GitHub, so
+      # every run of this workflow failed at that step.
+      - name: Sync .github/wiki to the GitHub Wiki
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          WIKI_URL="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git"
+          if ! git clone --quiet "$WIKI_URL" wiki 2>/dev/null; then
+            echo "Could not clone ${GITHUB_REPOSITORY}.wiki.git."
+            echo "A repository wiki only exists once its first page has been"
+            echo "created in the web UI. Create any page there, then re-run."
+            exit 1
+          fi
+          rsync -a --delete --exclude '.git' .github/wiki/ wiki/
+          cd wiki
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Wiki already matches .github/wiki; nothing to push."
+            exit 0
+          fi
+          git commit -m "Sync wiki from .github/wiki (${GITHUB_SHA})"
+          git push origin HEAD

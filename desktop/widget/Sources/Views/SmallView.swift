@@ -21,6 +21,12 @@ struct SmallView: View {
                 Text("Locked")
             } else if entry.state == .down {
                 Text("Find+ is not running")
+                // widget.md § Behaviour: "Down shows 'Find+ is not running'
+                // and the Open intent" — without it a stopped daemon leaves
+                // the widget with no way back into the app.
+                Button(intent: OpenFindPlusIntent()) {
+                    Label("Open", systemImage: "arrow.up.right.square")
+                }
             } else {
                 HStack {
                     Circle().fill(dotColour(entry.state)).frame(width: 10, height: 10)

@@ -127,13 +127,26 @@ jobs:
           name: macos-dmg
           path: .
         continue-on-error: true
+      - name: Bake the released version into install.sh
+        if: steps.existing.outputs.skip != 'true'
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          sed -i "s|^VERSION_PIN=.*|VERSION_PIN=\"\${FINDPLUS_VERSION:-${TAG}}\"|" install.sh
+          grep -n '^VERSION_PIN=' install.sh
       - name: Extract CHANGELOG section
         id: notes
         if: steps.existing.outputs.skip != 'true'
         run: |
           TAG="${GITHUB_REF_NAME#v}"
-          BODY=$(awk "/^## \[${TAG}\]/,/^## \[/" CHANGELOG.md | head -n -1)
-          if [ -z "$BODY" ]; then BODY="See CHANGELOG.md"; fi
+          # A `/start/,/end/` awk range collapses to a single record when the
+          # start line also matches the end pattern, which "## [x.y.z]" always
+          # does. A flag is the only correct form here.
+          BODY=$(awk -v tag="$TAG" '
+            $0 ~ "^## \\[" tag "\\]" { inblock = 1; next }
+            inblock && /^## \[/ { exit }
+            inblock { print }
+          ' CHANGELOG.md)
+          if [ -z "$(echo "$BODY" | tr -d '[:space:]')" ]; then BODY="See CHANGELOG.md"; fi
           {
             echo "body<<EOF"
             echo "$BODY"

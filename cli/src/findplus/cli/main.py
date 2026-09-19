@@ -34,7 +34,7 @@ from .widget import widget
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option(__version__, prog_name="findplus")
 def main() -> None:
-    """Local historical location timeline for a Google Find Hub tracker."""
+    """Local location history for Google Find Hub and Apple Find My trackers."""
     # Every file this process creates — the database, its WAL, the log, the
     # token store — holds or leaks location history, so none of them may
     # inherit a permissive shell umask. Set once, before any subcommand runs.

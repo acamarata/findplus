@@ -31,6 +31,14 @@ sparse or unavailable. Find+ can only query accessories whose keys you
 hold; genuine AirTags require extracting pairing keys, which most users
 cannot do.
 
+### Accuracy values
+
+Apple reports a confidence label rather than a radius in metres. Find+ maps
+each label to a fixed figure so the accuracy column has something to show:
+excellent 10 m, good 30 m, medium 65 m, poor 150 m. An unrecognised or
+missing label is treated as poor. These figures are estimates chosen for
+display. They are not measured, and Apple publishes no metre equivalent.
+
 ## Checking provider status
 
 ```

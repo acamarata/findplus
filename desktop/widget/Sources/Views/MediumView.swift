@@ -27,6 +27,13 @@ struct MediumView: View {
                 }
             } else if entry.state == .down {
                 Text("Find+ is not running")
+                // widget.md § Behaviour: Down carries the Open intent. Not
+                // when embedded: LargeView renders its own Open button.
+                if !embedded {
+                    Button(intent: OpenFindPlusIntent()) {
+                        Label("Open", systemImage: "arrow.up.right.square")
+                    }
+                }
             } else {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 4) {

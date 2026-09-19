@@ -85,6 +85,15 @@ macos_step6_finish() {
   [ -n "$suffix" ] || bash packaging/scripts/verify-dmg.sh "FindPlus-${VERSION}-aarch64.dmg"
 }
 
+bake_installer_version() {
+  # install.sh is uploaded as a release asset, so its VERSION_PIN default must
+  # be the version being released; without this the published one-liner keeps
+  # installing whatever placeholder was committed.
+  echo "==> bake $VERSION into install.sh"
+  perl -pi -e "s/^VERSION_PIN=.*/VERSION_PIN=\"\\\${FINDPLUS_VERSION:-$VERSION}\"/" install.sh
+  grep -n '^VERSION_PIN=' install.sh
+}
+
 print_instructions() {
   echo "Release $VERSION built locally. To finish:"
   echo "  $TWINE upload dist/*"
@@ -92,6 +101,7 @@ print_instructions() {
 }
 
 main() {
+  bake_installer_version
   step_build
 
   if [ "${SKIP_MACOS:-0}" != "1" ] && [ "$(uname)" = Darwin ]; then

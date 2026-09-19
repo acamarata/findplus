@@ -1,9 +1,9 @@
-"""D15 start/stop/restart/status/uninstall commands + facade dispatch + plan
-snapshots (P1-E7-W3-S1-T1).
+"""D15 start/stop/restart/status/uninstall commands (P1-E7-W3-S1-T1).
 
-Purpose : Exercise the D15 state machine (auth -> tracked -> install/start),
-          the thin stop/restart/status/uninstall commands, and the pinned
-          plan()/watchdog_plan() shapes for launchd/systemd/schtasks.
+Purpose : Exercise the D15 state machine (auth -> tracked -> install/start) and
+          the thin stop/restart/status/uninstall commands. Facade dispatch and
+          the plan snapshots live in test_service_plans.py, `auth` in
+          test_auth_cmd.py — this file was 378 lines with all three.
 Constraints: Tests never touch the real ~/.findplus or the network;
              webbrowser.open is always monkeypatched.
 """
@@ -11,23 +11,13 @@ Constraints: Tests never touch the real ~/.findplus or the network;
 from __future__ import annotations
 
 import json
-import plistlib
 
 import pytest
 from click.testing import CliRunner
 
-from findplus import service
 from findplus.cli.main import main
 from findplus.config import get_settings
-
-
-def _patch_manager(monkeypatch: pytest.MonkeyPatch, name: str) -> None:
-    """Patch detect_manager everywhere it was bound at import time (defect #3:
-    runtime.py/watchdog.py import it by reference, so the facade-level name
-    alone does not control their dispatch)."""
-    monkeypatch.setattr("findplus.service.detect_manager", lambda: name)
-    monkeypatch.setattr("findplus.service.runtime.detect_manager", lambda: name)
-    monkeypatch.setattr("findplus.service.watchdog.detect_manager", lambda: name)
+from tests.service._helpers import patch_manager as _patch_manager
 
 
 @pytest.fixture(autouse=True)
@@ -275,104 +265,3 @@ def test_uninstall_yes_calls_both_facades(tmp_db, monkeypatch: pytest.MonkeyPatc
     result = CliRunner().invoke(main, ["uninstall", "--yes"])
     assert result.exit_code == 0, result.output
     assert calls == ["uninstall", "watchdog"]
-
-
-# --------------------------------------------------- o: unsupported-platform raise
-# NOTE deviation from the ticket text: as literally written, case (o) monkeypatches
-# detect_manager -> "schtasks" and expects RuntimeError. That held only before
-# P1-E7-W3-S1-T2 landed; since T1 and T2 were built in the same pass here, schtasks
-# is fully implemented by the time this suite runs. The still-real RuntimeError
-# branch is the genuinely-unsupported-platform case, so it is tested here instead;
-# schtasks dispatch itself is covered by test_schtasks.py (T2).
-def test_facade_raises_on_unsupported_platform(tmp_db, monkeypatch: pytest.MonkeyPatch) -> None:
-    _patch_manager(monkeypatch, "unsupported")
-    with pytest.raises(RuntimeError):
-        service.stop()
-    with pytest.raises(RuntimeError):
-        service.start()
-    with pytest.raises(RuntimeError):
-        service.restart()
-    with pytest.raises(RuntimeError):
-        service.status()
-
-
-# ----------------------------------------------------------------- p/s: launchd
-def test_plan_snapshot_launchd(tmp_db, monkeypatch: pytest.MonkeyPatch) -> None:
-    _patch_manager(monkeypatch, "launchd")
-    settings = get_settings()
-    payload = plistlib.loads(service.plan(settings).unit_text.encode())
-    assert payload["Label"] == "com.acamarata.findplus"
-    assert payload["RunAtLoad"] is True
-    assert "KeepAlive" in payload
-
-
-def test_watchdog_plan_snapshot_launchd(tmp_db, monkeypatch: pytest.MonkeyPatch) -> None:
-    _patch_manager(monkeypatch, "launchd")
-    settings = get_settings()
-    payload = plistlib.loads(service.watchdog_plan(settings).unit_text.encode())
-    assert payload["StartInterval"] == 300
-
-
-# ------------------------------------------------------------------- q: systemd
-def test_plan_snapshot_systemd(tmp_db, monkeypatch: pytest.MonkeyPatch) -> None:
-    _patch_manager(monkeypatch, "systemd")
-    settings = get_settings()
-    text = service.plan(settings).unit_text
-    assert "Type=simple" in text
-    assert "WantedBy=default.target" in text
-
-
-# ------------------------------------------------------------------ r: schtasks
-def test_plan_snapshot_schtasks(tmp_db, monkeypatch: pytest.MonkeyPatch) -> None:
-    _patch_manager(monkeypatch, "schtasks")
-    settings = get_settings()
-    text = service.plan(settings).unit_text
-    assert "serve --foreground" in text
-
-
-# --------------------------------------------------------------- t: path-home
-def test_plan_paths_are_under_home(tmp_db, monkeypatch: pytest.MonkeyPatch) -> None:
-    from pathlib import Path
-
-    settings = get_settings()
-    for name in ("launchd", "systemd"):
-        _patch_manager(monkeypatch, name)
-        assert str(service.plan(settings).unit_path).startswith(str(Path.home()))
-        assert str(service.watchdog_plan(settings).unit_path).startswith(str(Path.home()))
-
-
-# ----------------------------------------------------- auth: Chrome precheck
-def test_auth_stops_early_when_chrome_is_missing(tmp_db, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Google sign-in drives a real Chrome. Without one the flow cannot work,
-    so it must say so and stop instead of asking to open a browser."""
-    from findplus.cli import doctor as doctor_module
-
-    monkeypatch.setattr(
-        doctor_module,
-        "check_chrome",
-        lambda: doctor_module.DoctorCheck("chrome", "Google Chrome", False, "not found"),
-    )
-    result = CliRunner().invoke(main, ["auth"], input="y\n")
-
-    assert result.exit_code == 1, result.output
-    assert "Google Chrome was not found" in result.output
-    assert "https://www.google.com/chrome/" in result.output
-    # The confirm prompt is never reached.
-    assert "Open Chrome and sign in now?" not in result.output
-
-
-def test_auth_reaches_the_confirm_prompt_when_chrome_is_present(
-    tmp_db, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    from findplus.cli import doctor as doctor_module
-
-    monkeypatch.setattr(
-        doctor_module,
-        "check_chrome",
-        lambda: doctor_module.DoctorCheck("chrome", "Google Chrome", True, "found"),
-    )
-    # Answer "no" at the prompt so no provider is ever contacted.
-    result = CliRunner().invoke(main, ["auth"], input="n\n")
-
-    assert "Open Chrome and sign in now?" in result.output
-    assert "Google Chrome was not found" not in result.output

@@ -41,15 +41,20 @@ parse_args() {
 }
 
 find_python() {
+  # Debian and Ubuntu split venv and pip bootstrapping into a separate
+  # python3-venv package, so an interpreter of the right version can still be
+  # unable to create the venv. Check for that here and move to the next
+  # candidate rather than failing the whole install on the first one.
   for candidate in python3.13 python3.12 python3; do
     if command -v "$candidate" >/dev/null 2>&1; then
-      if "$candidate" -c 'import sys; assert (3, 12) <= sys.version_info < (3, 15)' 2>/dev/null; then
+      if "$candidate" -c 'import sys; assert (3, 12) <= sys.version_info < (3, 15)' 2>/dev/null &&
+        "$candidate" -c 'import venv, ensurepip' 2>/dev/null; then
         PYTHON="$candidate"
         return 0
       fi
     fi
   done
-  echo "find+: Python 3.12-3.14 required" >&2
+  echo "find+: Python 3.12-3.14 with the venv module required" >&2
   exit 1
 }
 
@@ -80,6 +85,7 @@ uninstall() {
   echo "Removing $VENV and $SYMLINK"
   rm -rf "$VENV"
   rm -f "$SYMLINK"
+  rmdir "$PREFIX" 2>/dev/null || true
   echo "State directory $STATE_DIR left intact."
   exit 0
 }
@@ -100,6 +106,7 @@ install() {
   local package
   package="$(package_spec)"
   if [ -d "$VENV" ]; then
+    echo "Existing venv found, running pip install --upgrade"
     "$VENV/bin/pip" install --upgrade --quiet "$package"
   else
     "$PYTHON" -m venv "$VENV"

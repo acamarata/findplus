@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import json
 import platform
-import subprocess
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -22,6 +21,7 @@ from findplus.config import Settings, get_settings
 from findplus.logging_setup import get_logger
 
 from . import launchd, schtasks, systemd
+from ._proc import run as _run
 from .plan import WATCHDOG_SERVICE, ServicePlan, detect_manager
 from .runtime import read_daemon_file
 
@@ -63,8 +63,8 @@ def install_watchdog(
         service_path.write_text(
             systemd.watchdog_service_unit_text(settings, program=program), encoding="utf-8"
         )
-        subprocess.run(["systemctl", "--user", "daemon-reload"], check=False)
-    subprocess.run(p.load_command, check=False)
+        _run(["systemctl", "--user", "daemon-reload"])
+    _run(p.load_command)
     return p
 
 
@@ -73,7 +73,7 @@ def uninstall_watchdog(settings: Settings | None = None) -> ServicePlan:
     if p.manager.startswith("Task Scheduler"):
         schtasks.delete(schtasks.WATCHDOG_TASK_NAME)
         return p
-    subprocess.run(p.unload_command, check=False)
+    _run(p.unload_command)
     if p.unit_path.exists():
         p.unit_path.unlink()
     return p

@@ -1,14 +1,15 @@
-"""Service lifecycle commands: auth, start/stop/restart/status/uninstall, open.
+"""Service lifecycle commands: start/stop/restart/status/uninstall, open.
 
-Purpose    : Sign-in, control the installed daemon, report status, and open the
-             dashboard.
+Purpose    : Control the installed daemon, report status, and open the dashboard.
 Inputs     : Command-specific options (mostly --yes confirmation skips).
 Outputs    : Console status tables; service files.
 Constraints: Destructive/system-altering actions confirm before acting, unless
-             --yes is passed. The daemon itself (`serve`) lives in cmd_serve.py
-             and diagnostics (doctor, watchdog, install-watchdog, reset-lock,
-             theme) in cmd_diagnostics.py — this file was over the
-             300-line/file hard rule with all three together.
+             --yes is passed. The daemon itself (`serve`) lives in cmd_serve.py,
+             sign-in (`auth`) in cmd_auth.py and diagnostics (doctor, watchdog,
+             install-watchdog, reset-lock, theme) in cmd_diagnostics.py — this
+             file was over the 300-line/file hard rule with all four together.
+             All three are re-exported below, so `cmd_service.auth` /
+             `cmd_service.serve` still resolve for main.py and for tests.
              This module contains zero direct subprocess calls: everything
              platform-specific goes through the findplus.service facade
              (specs/service-package.md — no ServiceManager classes here).
@@ -28,112 +29,13 @@ from findplus.config import get_settings
 
 from ._fmt import _prep, _show_service_plan
 
-# Re-exported so `cmd_service.serve` (main.py, tests) keeps resolving after the split.
+# Re-exported so `cmd_service.auth` / `cmd_service.serve` (main.py, tests) keep
+# resolving after the splits.
+from .cmd_auth import _auth_apple as _auth_apple
+from .cmd_auth import auth as auth
 from .cmd_serve import _check_exclusive as _check_exclusive
 from .cmd_serve import _make_signal_handler as _make_signal_handler
 from .cmd_serve import serve as serve
-
-
-@click.command()
-@click.option(
-    "--provider",
-    type=click.Choice(["google-find-hub", "apple-find-my"]),
-    default="google-find-hub",
-    help="Provider to authenticate: google-find-hub or apple-find-my",
-)
-def auth(provider: str) -> None:
-    """Sign in to a provider (Google via Chrome, or Apple interactively)."""
-    _prep()
-    settings = get_settings()
-
-    if provider == "apple-find-my":
-        _auth_apple(settings)
-        return
-
-    from findplus.cli.doctor import check_chrome
-    from findplus.providers.base import get_provider
-
-    # Checked before anything is printed or confirmed: the upstream driver
-    # needs a real Chrome, so without one the whole flow is a dead end and
-    # saying so now beats failing halfway through a sign-in.
-    if not check_chrome().passed:
-        click.secho("Google Chrome was not found on this machine.", fg="red", err=True)
-        click.echo(
-            "Google sign-in drives Chrome directly and cannot run without it.\n"
-            "Install it from https://www.google.com/chrome/ and run `findplus auth` again.",
-            err=True,
-        )
-        sys.exit(1)
-
-    click.echo("")
-    click.secho("Google sign-in", bold=True)
-    click.echo(
-        "Chrome will open at Google's own account setup page. Sign in normally,\n"
-        "including any 2-factor prompt. Nothing here bypasses Google's security.\n"
-    )
-    click.secho("Heads up: ", fg="yellow", nl=False)
-    click.echo(
-        "the upstream driver runs `pkill -f chrome` first, so any\n"
-        "Chrome windows you currently have open will be closed. Save your work.\n"
-    )
-    click.echo("What gets stored, and where:")
-    click.echo(f"  {settings.secrets_file}  (mode 0600, outside the git repository)")
-    click.echo("  It contains: your Google account email, a long-lived Android (AAS)")
-    click.echo("  token, a device-manager token, FCM push credentials, and the")
-    click.echo("  end-to-end-encryption owner key needed to decrypt tag locations.")
-    click.echo("  Your Google PASSWORD is never seen, stored, or transmitted by this app.\n")
-
-    if not click.confirm("Open Chrome and sign in now?", default=True):
-        raise click.Abort
-
-    try:
-        p = get_provider(provider)
-        email = p.authenticate(interactive=True)
-    except Exception as exc:
-        click.secho(f"\nAuthentication failed: {exc}", fg="red")
-        sys.exit(1)
-
-    click.secho(f"\nAuthenticated as {email}.", fg="green")
-    click.echo(f"Credentials stored at {settings.secrets_file}")
-    click.echo("Next: findplus devices")
-
-
-def _auth_apple(settings) -> None:
-    """The apple-find-my branch of `auth`: availability guard, then interactive sign-in.
-
-    Split out of `auth()` because the Google flow's Chrome-specific messaging
-    does not apply here; `auth --provider apple-find-my` still shares the same
-    command and the same --provider option (specs/cli-reference.md § auth).
-    """
-    from findplus.providers.apple_findmy import is_available
-
-    avail, hint = is_available()
-    if not avail:
-        click.echo(f"Apple provider not installed. {hint}", err=True)
-        sys.exit(1)
-
-    from findplus.providers.apple_findmy.auth import sign_in_interactive
-
-    click.echo("")
-    click.secho("Apple Find My sign-in", bold=True)
-    click.echo(
-        "You will be prompted for your Apple ID and password, then a 2FA code\n"
-        "(trusted device or SMS). Apple's own 2FA runs unmodified.\n"
-    )
-    click.echo("What gets stored, and where:")
-    click.echo(f"  {settings.state_dir / 'apple-account.json'}  (mode 0600)")
-    click.echo("  It contains an opaque, signed-in session token. Your Apple")
-    click.echo("  PASSWORD is never seen, stored, or transmitted by this app beyond")
-    click.echo("  the login call itself.\n")
-
-    try:
-        sign_in_interactive(settings)
-    except Exception as exc:
-        click.secho(f"\nAuthentication failed: {exc}", fg="red")
-        sys.exit(1)
-
-    click.secho("\nApple Find My authentication saved.", fg="green")
-    click.echo("Next: findplus apple add-accessory")
 
 
 @click.command()

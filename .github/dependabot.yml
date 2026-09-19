@@ -7,7 +7,7 @@ updates:
       python-dependencies:
         patterns: ["*"]
   - package-ecosystem: cargo
-    directory: "/desktop"
+    directory: "/desktop/src-tauri"
     schedule: {interval: weekly}
     groups:
       rust-dependencies:

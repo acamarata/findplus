@@ -7,7 +7,7 @@ Two upstream projects were audited before any code was written.
 ### `leonboe1/GoogleFindMyTools` — adopted as a vendored dependency
 
 GPL-3.0, 1,171 stars, actively maintained, pinned here at commit
-`d46e9528578015b51d3b84dd91bf8f16e9ab850f` (2026-02-07) under `vendor/GoogleFindMyTools/`.
+`d46e9528578015b51d3b84dd91bf8f16e9ab850f` (2026-02-07) under `cli/vendor/GoogleFindMyTools/`.
 
 This project solves the genuinely hard problem: Google's Nova/Spot protocol, the
 FMDN end-to-end-encryption scheme, owner-key retrieval, and the Android
@@ -61,7 +61,7 @@ Two upstream robustness defects are contained rather than inherited:
         ▲                                     │
         │                                (FCM push)
         │                                     ▼
- vendor/GoogleFindMyTools  ◀── auth, crypto, protobuf
+ cli/vendor/GoogleFindMyTools  ◀── auth, crypto, protobuf
         ▲
         │  typed RawObservation[]
  findhub/client.py  ── structured adapter (the only Google-aware module)
@@ -239,7 +239,7 @@ before proceeding.
 
 GoogleFindMyTools is GPL-3.0. This project links it as a library, so this project
 is licensed **GPL-3.0-or-later**. Upstream attribution and its `LICENSE` are
-preserved under `vendor/GoogleFindMyTools/`.
+preserved under `cli/vendor/GoogleFindMyTools/`.
 
 ## Extension point: geofences (not in v1)
 

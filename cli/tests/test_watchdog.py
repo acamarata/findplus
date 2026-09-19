@@ -7,7 +7,7 @@ import urllib.error
 import pytest
 from click.testing import CliRunner
 
-from findplus.cli import main
+from findplus.cli.main import main
 
 
 class _Response:

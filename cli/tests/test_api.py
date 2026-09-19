@@ -206,7 +206,7 @@ def test_dashboard_page_has_no_third_party_scripts(client: TestClient) -> None:
     html = client.get("/").text
     assert "googletagmanager" not in html
     assert "google-analytics" not in html
-    for src in ("/static/vendor/leaflet/leaflet.js", "/static/app.js"):
+    for src in ("/static/vendor/leaflet/leaflet.js", "/static/app/main.js"):
         assert src in html
     # Every script tag must be same-origin.
     import re

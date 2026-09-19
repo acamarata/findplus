@@ -344,7 +344,7 @@ def test_reset_lock_cli_clears_a_forgotten_pin(client: TestClient) -> None:
     """The only PIN recovery path, and it requires local filesystem access."""
     from click.testing import CliRunner
 
-    from findplus.cli import main
+    from findplus.cli.main import main
 
     _set_pin(client)
     client.cookies.clear()
@@ -361,7 +361,7 @@ def test_reset_lock_cli_clears_a_forgotten_pin(client: TestClient) -> None:
 def test_reset_lock_is_harmless_when_no_pin_is_set(tmp_db) -> None:
     from click.testing import CliRunner
 
-    from findplus.cli import main
+    from findplus.cli.main import main
 
     result = CliRunner().invoke(main, ["reset-lock", "--yes"])
     assert result.exit_code == 0

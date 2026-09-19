@@ -5,6 +5,19 @@ description = "Find+: local location history, places, groups and alerts for Goog
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "GPL-3.0-or-later" }
+keywords = ["location","tracking","find-hub","find-my","gps","privacy","sqlite"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: End Users/Desktop",
+  "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: Microsoft :: Windows",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Utilities",
+]
 
 dependencies = [
   # --- our stack ---
@@ -35,13 +48,25 @@ dependencies = [
   "aiohttp>=3.11.8",
   "http_ece>=1.1.0",
   "setuptools>=75.6.0",
+  "mcp>=2.2,<3",
 ]
 
+[project.urls]
+"Homepage" = "https://github.com/acamarata/findplus"
+"Bug Tracker" = "https://github.com/acamarata/findplus/issues"
+"Source" = "https://github.com/acamarata/findplus"
+
 [project.optional-dependencies]
-dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.8", "freezegun>=1.5"]
+dev = [
+  "pytest>=8.3", "pytest-asyncio>=0.24", "pytest-cov>=5",
+  "ruff>=0.8", "freezegun>=1.5", "playwright>=1.63",
+  "build", "twine", "pyyaml", "shellcheck-py",
+]
+apple = ["findmy>=0.10,<0.11"]
+bundle = ["pyinstaller>=6.22,<7"]
 
 [project.scripts]
-findplus = "findplus.cli:main"
+findplus = "findplus.cli.main:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -52,11 +77,15 @@ packages = ["src/findplus"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "../web" = "findplus/web/static"
+"vendor/GoogleFindMyTools" = "findplus/_vendor/GoogleFindMyTools"
+
+[tool.hatch.build.targets.sdist]
+include = ["src","vendor","tests","README.md","LICENSE","CHANGELOG.md"]
 
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-extend-exclude = ["vendor", "migrations/versions"]
+extend-exclude = ["vendor", "migrations/versions", "cli/src/findplus/_vendor"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "RUF"]
@@ -67,3 +96,7 @@ testpaths = ["tests"]
 pythonpath = ["."]
 asyncio_mode = "auto"
 filterwarnings = ["ignore::DeprecationWarning"]
+markers = [
+  "slow: builds or installs a wheel, or takes >10 s",
+  "browser: requires a Playwright browser install",
+]

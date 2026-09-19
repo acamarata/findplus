@@ -52,3 +52,17 @@ Thumbs.db
 # --- AI working memory (never committed) ------------------------------------
 .claude/
 .opencode/
+
+# Desktop / packaging
+desktop/target/
+packaging/dist/
+packaging/*.dmg
+packaging/*.pkg
+
+# AI tooling
+.cursor/
+.aider/
+*.aider*
+
+# macOS
+*.xcuserstate

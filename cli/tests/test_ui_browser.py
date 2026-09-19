@@ -55,7 +55,7 @@ def browser() -> Iterator[Browser]:
     try:
         with sync_playwright() as pw:
             try:
-                instance = pw.chromium.launch(channel="chrome", headless=True)
+                instance = pw.chromium.launch(headless=True)
             except Exception as exc:
                 pytest.skip(f"Chrome unavailable: {exc}")
             yield instance

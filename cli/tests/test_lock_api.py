@@ -252,6 +252,38 @@ def test_changing_the_pin_requires_the_current_one(client: TestClient) -> None:
     assert res.status_code == 403
 
 
+# ------------------------------------------------ padded-PIN rejection (F4)
+def test_setting_a_padded_pin_is_rejected(client: TestClient) -> None:
+    assert client.post("/api/settings/pin", json={"new_pin": PIN + " "}).status_code == 422
+    assert client.post("/api/settings/pin", json={"new_pin": " " + PIN}).status_code == 422
+
+
+def test_changing_the_pin_rejects_a_padded_current_or_new_pin(client: TestClient) -> None:
+    _set_pin(client)
+    res = client.post("/api/settings/pin", json={"new_pin": " 135792", "current_pin": PIN})
+    assert res.status_code == 422
+    res = client.post("/api/settings/pin", json={"new_pin": "135792", "current_pin": PIN + " "})
+    assert res.status_code == 422
+
+
+def test_removing_the_pin_rejects_a_padded_current_pin(client: TestClient) -> None:
+    _set_pin(client)
+    res = client.request("DELETE", "/api/settings/pin", json={"current_pin": PIN + " "})
+    assert res.status_code == 422
+
+
+def test_unlock_rejects_a_padded_pin_even_when_it_would_match_trimmed(client: TestClient) -> None:
+    """A padded PIN was never stored (set is rejected too), but a foreign page or a
+    stale client could still submit one directly -- it must never be treated as a
+    wrong-PIN guess (which would burn a brute-force attempt) nor as a match."""
+    _set_pin(client)
+    client.cookies.clear()
+    res = client.post("/api/lock/unlock", json={"pin": PIN + " "})
+    assert res.status_code == 422
+    # The rejection must not have consumed a brute-force attempt.
+    assert client.post("/api/lock/unlock", json={"pin": PIN}).status_code == 200
+
+
 def test_removing_the_pin_requires_it_and_disables_the_lock(client: TestClient) -> None:
     _set_pin(client)
     assert (

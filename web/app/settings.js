@@ -98,8 +98,8 @@ export function wireSettingsControls() {
   });
 
   $("btn-set-pin").addEventListener("click", async () => {
-    const pin = $("new-pin").value;
-    const confirm = $("confirm-pin").value;
+    const pin = $("new-pin").value.trim();
+    const confirm = $("confirm-pin").value.trim();
     if (pin !== confirm) { showAlert("The two PINs do not match.", "warn"); return; }
     try {
       await postJson("/api/settings/pin", { new_pin: pin });
@@ -112,8 +112,8 @@ export function wireSettingsControls() {
   });
 
   $("btn-change-pin").addEventListener("click", async () => {
-    const current = $("current-pin").value;
-    const next = $("change-pin").value;
+    const current = $("current-pin").value.trim();
+    const next = $("change-pin").value.trim();
     if (!next) { showAlert("Enter the new PIN.", "warn"); return; }
     try {
       await postJson("/api/settings/pin", { new_pin: next, current_pin: current });
@@ -126,7 +126,7 @@ export function wireSettingsControls() {
   });
 
   $("btn-remove-pin").addEventListener("click", async () => {
-    const current = $("current-pin").value;
+    const current = $("current-pin").value.trim();
     if (!current) { showAlert("Enter the current PIN to remove it.", "warn"); return; }
     if (!window.confirm("Remove the PIN and disable the app lock?")) return;
     try {

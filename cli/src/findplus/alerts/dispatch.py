@@ -9,6 +9,11 @@ Constraints:
       dispatch_core.py (re-exported below) and take no DB or network.
     - process() must never raise into the poller: every send is wrapped so a
       channel failure is recorded, not propagated.
+    - Delivery is best-effort: a failed send is recorded in the alert log
+      (alert_deliveries.status="failed") and is never retried -- the source
+      event is still stamped notified_at, and a failed/skipped delivery must
+      not itself start the next cooldown window (dispatch_core.in_cooldown
+      only counts status="sent" rows).
 Reuse: dispatch_core (match/suppressed_by_group/in_cooldown/render_message),
        alerts.channels.telegram.send, alerts.channels.webhook.send_webhook /
        build_payload, alerts.store.load_alerts.
@@ -173,6 +178,7 @@ def _load_recent_deliveries(session, now: datetime.datetime) -> list[Delivery]:
             event_kind=d.event_kind,
             event_id=d.event_id,
             sent_at=d.sent_at,
+            status=d.status,
             place_id=place_ids.get((d.event_kind, d.event_id)),
         )
         for d in rows

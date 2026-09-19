@@ -112,9 +112,14 @@ def member_status(
     age = int((now - m.last_fix.observed_at).total_seconds() / 60)
 
     place: str | None = None
+    #: Both fixes must fall inside window_minutes, not just prev_fix -- a
+    #: last_fix older than the window is stale-adjacent (its age already
+    #: reads unknown-fresh territory) and must fall through to "unknown",
+    #: not report "moving" off a prev_fix that happens to be newer.
     moved = (
         m.prev_fix is not None
         and m.prev_fix.observed_at >= now - timedelta(minutes=window_minutes)
+        and m.last_fix.observed_at >= now - timedelta(minutes=window_minutes)
         and haversine_meters(m.prev_fix.latitude_e7 / 1e7, m.prev_fix.longitude_e7 / 1e7, lat, lon)
         > movement_threshold_meters
     )

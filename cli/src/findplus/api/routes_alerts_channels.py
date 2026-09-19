@@ -178,7 +178,7 @@ def build_router() -> APIRouter:
                 "Test Place",
                 datetime.now(UTC),
                 None,
-                0,
+                None,  # fetched_at is unknown for this sample, so lag_minutes must be null too
                 "high",
                 "This is a test alert.",
             )

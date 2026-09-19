@@ -65,6 +65,11 @@ class Delivery:
     event_kind: str
     event_id: int
     sent_at: datetime.datetime | None
+    #: "sent" | "failed". 1.0 never retries a delivery (events are stamped
+    #: notified_at regardless of outcome, to avoid a resend storm), so a
+    #: failed/skipped send must not itself start a cooldown -- only a
+    #: successful send should suppress the next same-key alert.
+    status: str = "sent"
     #: Derived, never a stored column: the place of the source place_event /
     #: group_place_event row. process() fills it via an ORM join so cooldown
     #: can be scoped per place (a rule with place_id=None must cool down
@@ -99,12 +104,18 @@ def suppressed_by_group(rule: Rule, event: DeviceEvent, rules: list[Rule]) -> bo
     The group rule is checked against THIS event's type, never against the
     device rule's own on_enter/on_exit flags -- a group rule with
     on_enter=False, on_exit=True still suppresses a device EXIT alert at the
-    same place.
+    same place. The place comparison is against the EVENT's place, not the
+    device rule's own place_id: a group rule with place_id=None covers every
+    place (engines.md match()), and a place-scoped group rule must still
+    suppress an any-place device rule at that place -- comparing the two
+    rules' place_id fields against each other missed both crossings.
     """
     for r in rules:
         if not r.enabled or r.group_id is None:
             continue
-        if r.group_id not in event.group_ids or r.place_id != rule.place_id:
+        if r.group_id not in event.group_ids:
+            continue
+        if r.place_id is not None and r.place_id != event.place_id:
             continue
         covers_type = (event.event_type == "ENTER" and r.on_enter) or (
             event.event_type == "EXIT" and r.on_exit
@@ -127,6 +138,10 @@ def in_cooldown(
     `rule.id` was sent for this rule's own fixed device_id/group_id (the
     alert_rules XOR CHECK pins exactly one per rule), so filtering on
     rule.id + place_id is equivalent to also filtering on subject.
+
+    Only a `status == "sent"` delivery starts the cooldown -- a failed or
+    skipped send must not suppress the next attempt at the same key, since
+    1.0 never retries a delivery on its own (see Delivery.status).
     """
     if rule.cooldown_minutes == 0:
         return False
@@ -136,6 +151,7 @@ def in_cooldown(
         d.rule_id == rule.id
         and d.event_kind == kind
         and d.place_id == event.place_id
+        and d.status == "sent"
         and d.sent_at is not None
         and d.sent_at > limit
         for d in deliveries

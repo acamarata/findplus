@@ -187,6 +187,16 @@ def test_moving_status_threshold() -> None:
     assert moved.status == "moving"
 
 
+def test_moving_requires_the_last_fix_inside_the_window_too() -> None:
+    """A prev_fix within window_minutes is not enough on its own (F6): the
+    member's own last fix is 80 min old here -- inside stale_after=90 so it is
+    not stale, but outside window_minutes=60 -- so this must read "unknown",
+    never "moving", even though the (out-of-window) prev_fix moved far enough.
+    """
+    s = member_status(MemberInput("d1", "A", _fix(400, 80), _fix(0, 30), []), NOW, 90, 25.0, 60)
+    assert s.status == "unknown"
+
+
 def test_present_at_place_takes_priority() -> None:
     s = member_status(
         MemberInput("d1", "A", _fix(30, 5), _fix(0, 30), ["Mosque"]), NOW, 90, 25.0, 60

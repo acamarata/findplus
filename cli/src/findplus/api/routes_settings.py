@@ -24,7 +24,7 @@ from findplus.appsettings import (
 from findplus.config import get_settings
 from findplus.db.session import session_scope
 from findplus.logging_setup import get_logger
-from findplus.security import SessionStore, hash_pin, verify_pin
+from findplus.security import SessionStore, hash_pin, reject_padded_pin, verify_pin
 from findplus.state import get_setting, set_setting
 
 from ._widget import _widget_show_map
@@ -92,6 +92,12 @@ def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeo
         path matching. Forgetting the PIN is recovered at the console with
         `findplus pin reset --yes`, never over HTTP.
         """
+        try:
+            reject_padded_pin(new_pin, "new_pin")
+            if current_pin is not None:
+                reject_padded_pin(current_pin, "current_pin")
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         with session_scope() as session:
             existing = load_settings(session)
             if existing.pin_configured:
@@ -132,6 +138,10 @@ def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeo
         CR-C ruling — applied here since this is the first ticket to touch
         both this route and web/app/settings.js).
         """
+        try:
+            reject_padded_pin(current_pin, "current_pin")
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         with session_scope() as session:
             existing = load_settings(session)
             if not existing.pin_configured:

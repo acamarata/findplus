@@ -40,6 +40,20 @@ _SCRYPT_MAXMEM = 64 * 1024 * 1024
 
 MIN_PIN_LENGTH = 6
 
+
+def reject_padded_pin(pin: str, field: str) -> None:
+    """Raise ValueError if `pin` carries leading/trailing whitespace.
+
+    web/app/lock.js trims the unlock field before submitting; if a set/change
+    request were allowed to store a padded PIN, the unlock control could never
+    reproduce it and the owner would be locked out until `findplus pin reset`.
+    Rejecting outright (rather than silently stripping) also keeps
+    MIN_PIN_LENGTH counting what is actually stored.
+    """
+    if pin != pin.strip():
+        raise ValueError(f"{field} must not have leading or trailing whitespace.")
+
+
 #: Brute-force throttling. Each consecutive lockout doubles the wait, so a
 #: patient guesser pays 60s, 120s, 240s … instead of a flat minute per five
 #: tries, while a person who mistypes once and then gets it right pays nothing.

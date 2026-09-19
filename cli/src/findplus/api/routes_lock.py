@@ -15,7 +15,7 @@ from fastapi import APIRouter, Body, Cookie, HTTPException, Response
 
 from findplus import honesty
 from findplus.logging_setup import get_logger
-from findplus.security import MIN_PIN_LENGTH, SessionStore, verify_pin
+from findplus.security import MIN_PIN_LENGTH, SessionStore, reject_padded_pin, verify_pin
 
 log = get_logger(__name__)
 
@@ -50,6 +50,10 @@ def build_router(
     @router.post("/unlock")
     def unlock(response: Response, pin: str = Body(..., embed=True)) -> dict[str, Any]:
         """Exchange a correct PIN for a session cookie. Rate-limited."""
+        try:
+            reject_padded_pin(pin, "pin")
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         wait = sessions.seconds_until_retry()
         if wait > 0:
             raise HTTPException(

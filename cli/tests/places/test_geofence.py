@@ -246,10 +246,16 @@ def test_backfill_does_not_change_state_or_streak() -> None:
 
 # ----------------------------------------------------------------- jitter
 def test_jitter_fixture_one_enter_zero_exit() -> None:
+    """40 alternating fixes (PROMPT.md §4a): the outside side must actually
+    classify as outside, not fall into the indeterminate band -- with
+    radius=100 and acc=30, outside requires d > radius + max(acc, 50) = 150,
+    so the outside leg alternates at 200 m (120 m only ever landed as
+    indeterminate and never exercised the exit-hysteresis branch at all).
+    """
     place = _place()
     fixes = []
     for i in range(40):
-        meters = 80 if i % 2 == 0 else 120
+        meters = 80 if i % 2 == 0 else 200
         fixes.append(_fix(meters, 30.0, T0 + timedelta(minutes=i), obs_id=i))
     state, events = evaluate_batch(_outside_state(since=T0 - timedelta(hours=1)), fixes, place)
     enters = [e for e in events if e.event_type == "ENTER"]

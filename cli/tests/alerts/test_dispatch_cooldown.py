@@ -188,6 +188,37 @@ def test_cooldown_same_place_twice_suppressed(session, settings_enabled) -> None
     assert session.query(AlertDelivery).filter_by(status="sent").count() == 1
 
 
+def test_failed_delivery_does_not_start_the_cooldown(session, settings_enabled) -> None:
+    """A failed send must not suppress the very next crossing at the same key.
+
+    1.0 has no delivery retry (the source event is stamped notified_at either
+    way), so if a failed send also started the cooldown, one transient error
+    would silently drop the tag's next alert too, for the whole window.
+    """
+    _seed_place_and_device(session)
+    session.add(_rule())
+    session.commit()
+
+    _seed_pending_place_event(session, place_id=1, observed_at=NOW)
+    with (
+        patch("findplus.alerts.store.load_alerts", return_value=_telegram_configured()),
+        patch("findplus.alerts.channels.telegram.send", side_effect=RuntimeError("boom")),
+    ):
+        process(load_pending_events(session), session, settings_enabled, now=NOW)
+    assert session.query(AlertDelivery).filter_by(status="failed").count() == 1
+
+    later = NOW + timedelta(minutes=5)
+    _seed_pending_place_event(session, place_id=1, observed_at=later)
+    with (
+        patch("findplus.alerts.store.load_alerts", return_value=_telegram_configured()),
+        patch("findplus.alerts.channels.telegram.send", return_value=_send_ok()) as send_mock,
+    ):
+        process(load_pending_events(session), session, settings_enabled, now=later)
+        assert send_mock.call_count == 1  # not suppressed by the earlier failure
+
+    assert session.query(AlertDelivery).filter_by(status="sent").count() == 1
+
+
 def test_group_cooldown_scoped_per_place(session, settings_enabled) -> None:
     """A group rule's cooldown is keyed per (rule, place) too, same as a device rule."""
     _seed_place_and_device(session)

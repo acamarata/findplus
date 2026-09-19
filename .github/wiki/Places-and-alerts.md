@@ -12,7 +12,8 @@ exit event, which reduces false alerts from location jitter.
 An alert rule ties a place, a device or group, and a notification channel (Telegram or
 webhook). When a qualifying enter or exit event is confirmed, Find+ sends a notification. A
 cooldown period (default 30 minutes) prevents repeated alerts for the same tag at the same
-place.
+place. Delivery is best-effort: a failed send is recorded in the alert log and is not
+retried, and a failed send never starts the cooldown on its own.
 
 ## Privacy: outbound connections
 

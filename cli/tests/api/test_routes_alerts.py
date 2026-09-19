@@ -153,7 +153,7 @@ def test_deliveries_empty(client: TestClient) -> None:
 
 
 def test_401_locked(client: TestClient) -> None:
-    client.post("/api/settings/pin", json={"new_pin": "8642"})
+    client.post("/api/settings/pin", json={"new_pin": "864213"})
     client.cookies.clear()
     res = client.get("/api/alerts/channels")
     assert res.status_code == 401

@@ -16,6 +16,7 @@ import asyncio
 import functools
 from datetime import UTC, datetime
 from typing import Any, Literal
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel
@@ -50,6 +51,24 @@ class AlertTestBody(BaseModel):
     channel: Literal["telegram", "webhook"]
 
 
+def mask_url(url: str) -> str:
+    """`scheme://host/…abcd` — enough to recognise a webhook, not to call it.
+
+    A webhook URL is a bearer credential: the path segment is usually the only
+    thing standing between a stranger and the ability to post fake alerts into
+    someone's chat. The browser gets the host (so the user can tell which
+    endpoint is configured) and the last four characters (so they can tell two
+    endpoints on the same host apart), never the routable path.
+    """
+    parts = urlsplit(url)
+    if not parts.scheme or not parts.netloc:
+        return "***"
+    tail = (parts.path or "") + (f"?{parts.query}" if parts.query else "")
+    if len(tail.strip("/")) <= 4:
+        return f"{parts.scheme}://{parts.netloc}/***"
+    return f"{parts.scheme}://{parts.netloc}/…{tail[-4:]}"
+
+
 def _channels_response() -> dict[str, Any]:
     ch = load_alerts()
     tg, wh = ch.telegram, ch.webhook
@@ -62,7 +81,7 @@ def _channels_response() -> dict[str, Any]:
         },
         "webhook": {
             "configured": wh is not None,
-            "url": wh.url if wh else None,
+            "url": mask_url(wh.url) if wh else None,
             "has_secret": bool(wh and wh.secret),
         },
     }

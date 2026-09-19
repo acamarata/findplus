@@ -53,12 +53,34 @@ _TOKEN_PATTERN = re.compile(
 )
 
 
+def _scrub(value: Any) -> Any:
+    """Redact inside nested containers, not just at the top level.
+
+    A single `log.info("x", payload={"secret": ...})` used to walk straight
+    past the key check, because only the top-level value was inspected and a
+    dict is not a str. Lists and tuples are rebuilt rather than mutated so a
+    caller's own object is never changed by logging it.
+    """
+    if isinstance(value, dict):
+        return {
+            k: ("<redacted>" if str(k).lower() in _SENSITIVE_KEYS else _scrub(v))
+            for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [_scrub(v) for v in value]
+    if isinstance(value, tuple):
+        return tuple(_scrub(v) for v in value)
+    if isinstance(value, str):
+        return _TOKEN_PATTERN.sub("<redacted>", value)
+    return value
+
+
 def _redact(_logger: Any, _name: str, event_dict: dict[str, Any]) -> dict[str, Any]:
     for key in list(event_dict):
         if key.lower() in _SENSITIVE_KEYS:
             event_dict[key] = "<redacted>"
-        elif isinstance(event_dict[key], str):
-            event_dict[key] = _TOKEN_PATTERN.sub("<redacted>", event_dict[key])
+        else:
+            event_dict[key] = _scrub(event_dict[key])
     return event_dict
 
 

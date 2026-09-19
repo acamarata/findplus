@@ -10,11 +10,9 @@ would trip the non-loopback network guard from cli/tests/conftest.py).
 Prerequisite check (ai_instructions step 2): button[data-tab="alerts"] and
 #tab-alerts exist in web/index.html as of P1-E10-W7-S2-T1's corrected
 output, applied in the same dispatch as this file — every test below runs
-against real selectors, none are BLOCKED. The one exception is
-test_widget_map_toggle_persists: /api/settings/widget.show_map is not
-registered server-side (build-notes.md defect #36, § E10-S2), so it is
-skipped with that reason rather than asserted against selectors that do
-not yet round-trip any state.
+against real selectors. test_widget_map_toggle_persists was skipped until
+P1-E10-S2's fix landed GET/PUT/POST /api/settings/widget.show_map
+server-side (build-notes.md defect #36); it now round-trips for real.
 """
 
 from __future__ import annotations
@@ -91,20 +89,24 @@ async def test_alerts_latency_disclaimer_present(page, base_url):
 
 
 async def test_webhook_save(page, base_url):
+    """The saved URL comes back MASKED: a webhook path is a bearer credential,
+    so the browser gets scheme://host plus the last few characters and never
+    the routable path (security review finding 5)."""
     await _open_alerts_tab(page, base_url)
-    await page.fill("#fp-webhook-url", "http://localhost:9999/hook")
+    await page.fill("#fp-webhook-url", "http://localhost:9999/hook-abcd1234")
     await page.click("#fp-webhook-save")
     await page.wait_for_function(
         """async () => {
             const r = await fetch('/api/alerts/channels');
             const body = await r.json();
-            return body.webhook.configured && body.webhook.url === 'http://localhost:9999/hook';
+            return body.webhook.configured && body.webhook.url.startsWith('http://localhost:9999/');
         }"""
     )
     resp = await page.request.get(base_url + "/api/alerts/channels")
     channels = await resp.json()
     assert channels["webhook"]["configured"] is True
-    assert channels["webhook"]["url"] == "http://localhost:9999/hook"
+    assert channels["webhook"]["url"] == "http://localhost:9999/…1234"
+    assert "hook-abcd" not in channels["webhook"]["url"]
 
 
 async def test_add_rule_creates_row(page, base_url):
@@ -150,9 +152,22 @@ async def test_delete_rule_removes_row(page, base_url):
 
 
 async def test_widget_map_toggle_persists(page, base_url):
-    pytest.skip(
-        "BLOCKED: /api/settings/widget.show_map is not registered server-side "
-        "(build-notes.md defect #36; alerts.js's per-key GET/POST calls 404 and "
-        "are swallowed, see P1-E10-W7-S2-T1's recorded deviation). The checkbox "
-        "cannot round-trip any state until that route lands."
+    await _open_alerts_tab(page, base_url)
+    toggle = page.locator("#fp-widget-map-toggle")
+    await toggle.wait_for(state="visible")
+    assert await toggle.is_checked() is False
+
+    await toggle.check()
+    await page.wait_for_function(
+        """async () => {
+            const r = await fetch('/api/settings/widget.show_map');
+            const body = await r.json();
+            return body['widget.show_map'] === true;
+        }"""
     )
+
+    # A fresh load (not a page.reload() + a second goto — that raced the
+    # checkbox's static markup, which is visible before loadWidgetToggle()'s
+    # async GET sets .checked, against is_checked() below).
+    await _open_alerts_tab(page, base_url)
+    await page.wait_for_function("document.getElementById('fp-widget-map-toggle').checked === true")

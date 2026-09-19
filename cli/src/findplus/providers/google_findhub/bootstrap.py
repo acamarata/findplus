@@ -54,6 +54,12 @@ def ensure_gfmt_importable() -> Path:
         _original_set = token_cache.set_cached_value
 
         def _set_and_harden(name: str, value: object) -> None:
+            # Create the file 0600 BEFORE upstream writes it. Chmod-after left
+            # a window in which the tokens sat on disk at the process umask,
+            # which on a shared machine is long enough to copy them.
+            with contextlib.suppress(OSError):
+                secrets_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+                secrets_path.touch(mode=0o600, exist_ok=True)
             _original_set(name, value)
             with contextlib.suppress(OSError):
                 os.chmod(secrets_path, 0o600)

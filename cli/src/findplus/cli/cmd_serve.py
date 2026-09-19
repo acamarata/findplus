@@ -28,7 +28,7 @@ import click
 import httpx
 
 from findplus import __version__
-from findplus.config import get_settings
+from findplus.config import PRIVATE_UMASK, get_settings
 
 from ._fmt import _prep
 
@@ -90,6 +90,9 @@ def _wait_for_stop(stop_event: threading.Event, server_thread: threading.Thread)
 @click.option("--port", default=None, type=int)
 def serve(foreground: bool, no_poller: bool, host: str | None, port: int | None) -> None:
     """Start the local API/UI and (unless disabled) the polling service."""
+    # Set again here, not only in the click group: the packaged daemon and the
+    # LaunchAgent/systemd unit can invoke this command directly.
+    os.umask(PRIVATE_UMASK)
     _prep(to_file=True)
     import uvicorn
 

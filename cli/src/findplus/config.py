@@ -11,6 +11,7 @@ Constraints:
 
 from __future__ import annotations
 
+import contextlib
 import os
 from pathlib import Path
 
@@ -29,6 +30,13 @@ VENDOR_GFMT = resolve_vendor_path()
 
 #: Default home for auth material + logs. Outside the repo on purpose.
 DEFAULT_STATE_DIR = Path(os.environ.get("FINDPLUS_STATE_DIR", Path.home() / ".findplus"))
+
+#: The SQLite file plus the two siblings the engine creates at the process
+#: umask in WAL mode. All three hold (or leak) location history.
+DB_FILE_SUFFIXES = ("", "-wal", "-shm")
+
+#: umask every findplus entry point installs: new files 0600, new dirs 0700.
+PRIVATE_UMASK = 0o077
 
 
 class Settings(BaseSettings):
@@ -192,6 +200,31 @@ class Settings(BaseSettings):
         os.chmod(self.state_dir, 0o700)
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
+        self.harden_permissions()
+
+    def sensitive_paths(self) -> list[Path]:
+        """Every file that must be 0600, whether or not it exists yet."""
+        db = self.database_path
+        paths = [db.with_name(db.name + suffix) for suffix in DB_FILE_SUFFIXES]
+        paths.append(self.log_file)
+        return paths
+
+    def harden_permissions(self) -> None:
+        """chmod the state tree to 0700 and the history/log files to 0600.
+
+        The database holds a child's location history; the default umask on a
+        shared machine leaves it group- and world-readable. Missing files are
+        skipped, and an OSError (a read-only mount, another user's file) is
+        never fatal — `findplus doctor` reports what could not be fixed.
+        """
+        for directory in (self.state_dir, self.log_dir):
+            with contextlib.suppress(OSError):
+                if directory.is_dir():
+                    os.chmod(directory, 0o700)
+        for path in self.sensitive_paths():
+            with contextlib.suppress(OSError):
+                if path.exists():
+                    os.chmod(path, 0o600)
 
     def ensure_state_dir(self) -> None:
         """Create state_dir (0700) and its logs/ subdir. Narrower than ensure_dirs():

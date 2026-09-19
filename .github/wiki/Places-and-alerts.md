@@ -33,6 +33,18 @@ Google Find Hub and Apple Find My report locations through nearby participating 
 tag that has not passed near a participating device will not report until it does. Find+
 sends the alert as soon as the fix arrives; the delay is in the network, not in Find+.
 
+## Telegram setup walkthrough
+
+1. In Telegram, message [@BotFather](https://t.me/BotFather), send `/newbot`, and follow the
+   prompts to get a bot token.
+2. Open the dashboard's Alerts tab, paste the token into **Bot token**, and click **Connect**.
+3. Send any message to your new bot within 120 seconds — the dashboard waits for it and
+   confirms the chat once it arrives.
+4. Click **Send test** to confirm delivery. The bot token is never shown again in full: the
+   field only ever displays its last four characters.
+
+The token lives in `~/.findplus/alerts.json` (mode `0600`), never in the database or logs.
+
 ## WhatsApp
 
 WhatsApp-native alerts are planned for Find+ v1.1. The webhook channel is the interim path

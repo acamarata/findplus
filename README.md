@@ -9,6 +9,14 @@ chronological timeline in your browser.
 
 Everything runs on this computer. Nothing is uploaded anywhere.
 
+## Screenshots
+
+<img src=".github/docs/screenshots/dashboard-light.png" width="49%"> <img src=".github/docs/screenshots/dashboard-dark.png" width="49%">
+
+More views (Places, Groups, Alerts, the lock screen, both themes) are in
+[`.github/docs/screenshots/`](.github/docs/screenshots/). Regenerate them with
+`./.venv/bin/python packaging/scripts/screenshots.py`.
+
 ## Installation
 
 ### curl installer (recommended)

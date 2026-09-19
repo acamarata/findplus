@@ -365,6 +365,15 @@ existing `../web` -> `findplus/web/static` entry. `providers/findhub/bootstrap.p
 resolves it at runtime: the installed-wheel `_vendor` path first, the repo `vendor/` tree
 second — so the same code runs importable from either mode.
 
+## Screenshots
+
+`packaging/scripts/screenshots.py` seeds a throwaway demo database (env-isolated via
+`FINDPLUS_DATABASE_PATH`/`FINDPLUS_STATE_DIR`, never the real `~/.findplus`), starts
+`findplus serve --no-poller` on a free loopback port, and drives it with Playwright at
+1440x900 in both light and dark mode. Output: 12 PNGs (dashboard, day timeline, places
+dialog, group presence, alerts settings, lock screen — each in both schemes) in
+`.github/docs/screenshots/`, optimized under 400 KB each. Re-run before every release.
+
 ## Service: daemon.json
 
 `findplus serve` records `daemon.json` (`0600`, at `Settings.daemon_file`): pid, port, host,

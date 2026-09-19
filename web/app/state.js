@@ -23,7 +23,7 @@ export const state = {
   day: null,
   timeline: null,
   devices: [],
-  deviceFilter: localStorage.getItem("bt.deviceFilter") || "",
+  deviceFilter: migrateLegacyKey("bt.deviceFilter", "findplus.deviceFilter") || "",
   colors: new Map(),
   selectedId: null,
   movementOnly: false,
@@ -40,6 +40,32 @@ export const state = {
 };
 
 export const $ = (id) => document.getElementById(id);
+
+/**
+ * One-time localStorage key migration: the dashboard used to be called
+ * "bike-tracker" (`bt.*` keys). Reads the new key if present, otherwise
+ * copies the legacy key's value across and removes the legacy key. Safe to
+ * call every load — a no-op once migrated.
+ */
+function migrateLegacyKey(oldKey, newKey) {
+  try {
+    const current = localStorage.getItem(newKey);
+    if (current !== null) return current;
+    const legacy = localStorage.getItem(oldKey);
+    if (legacy !== null) {
+      localStorage.setItem(newKey, legacy);
+      localStorage.removeItem(oldKey);
+    }
+    return legacy;
+  } catch (_) {
+    return null;
+  }
+}
+
+/** Resolves the saved theme, migrating the legacy `bt.theme` key if needed. */
+export function getStoredTheme() {
+  return migrateLegacyKey("bt.theme", "findplus.theme") || "dark";
+}
 
 /* ----------------------------------------------------------- formatting */
 
@@ -103,5 +129,5 @@ export function applyTheme(theme) {
       ? (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")
       : theme;
   document.documentElement.setAttribute("data-theme", resolved);
-  localStorage.setItem("bt.theme", theme);
+  localStorage.setItem("findplus.theme", theme);
 }

@@ -10,6 +10,14 @@
 import { $, state, colorFor, showAlert } from "./state.js";
 import { api, postJson } from "./api.js";
 import { reload, applyHashRoute } from "./main.js";
+import { loadPresence } from "./places.js";
+
+/** "google-find-hub" → "Find Hub"; "apple-find-my" → the honesty-spec short form. */
+export function providerLabel(p) {
+  if (p === "google-find-hub") return "Find Hub";
+  if (p === "apple-find-my") return "Apple Find My (keys you hold)";
+  return p || "Unknown";
+}
 
 export function renderDeviceFilter() {
   const select = $("device-filter");
@@ -20,7 +28,7 @@ export function renderDeviceFilter() {
     .forEach((d) => {
       const opt = document.createElement("option");
       opt.value = d.device_id;
-      opt.textContent = d.name + (d.is_tracked ? "" : " (not polled)");
+      opt.textContent = d.name + " (" + providerLabel(d.provider) + ")" + (d.is_tracked ? "" : " (not polled)");
       select.appendChild(opt);
     });
   select.value = current;
@@ -40,10 +48,16 @@ export function renderDeviceModal() {
       `<input type="checkbox" value="${d.device_id}" ${d.is_tracked ? "checked" : ""}>` +
       `<span><span class="d-name">${d.name}</span><br><span class="d-id">${d.device_id}</span></span>` +
       `<span class="d-obs">${d.observation_count} obs</span>`;
+    row.dataset.deviceId = d.device_id;
+    const badge = document.createElement("span");
+    badge.className = "fp-provider-badge fp-provider-badge--" + (d.provider || "unknown");
+    badge.textContent = providerLabel(d.provider);
+    row.appendChild(badge);
     row.querySelector("input").addEventListener("change", updateModalRate);
     host.appendChild(row);
   });
   updateModalRate();
+  loadPresence();
 }
 
 export function updateModalRate() {
@@ -74,7 +88,7 @@ export async function openDevices() {
 export function wireDeviceControls() {
   $("device-filter").addEventListener("change", async (e) => {
     state.deviceFilter = e.target.value;
-    localStorage.setItem("bt.deviceFilter", state.deviceFilter);
+    localStorage.setItem("findplus.deviceFilter", state.deviceFilter);
     await reload();
   });
 

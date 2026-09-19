@@ -12,7 +12,7 @@
  */
 "use strict";
 
-import { $, state, fmtTime, fmtDuration, todayLocal, applyTheme, showAlert } from "./state.js";
+import { $, state, fmtTime, fmtDuration, todayLocal, applyTheme, showAlert, getStoredTheme } from "./state.js";
 import { api } from "./api.js";
 import { initMap } from "./map.js";
 import { loadDay, selectPoint, wireTimelineControls, wireHistoryControls } from "./timeline.js";
@@ -95,7 +95,21 @@ export async function applyHashRoute() {
   else closeModals();
 }
 
+/** Switches the active `.fp-tab` / `.fp-tab-panel` pair. Single source of truth for tab-nav. */
+function wireTabs() {
+  document.querySelectorAll(".fp-tabs .fp-tab").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".fp-tabs .fp-tab").forEach((b) =>
+        b.classList.toggle("active", b === btn));
+      document.querySelectorAll(".fp-tab-panel").forEach((p) => {
+        p.hidden = p.id !== "tab-" + btn.dataset.tab;
+      });
+    });
+  });
+}
+
 function wireControls() {
+  wireTabs();
   wireDeviceControls();
   wireTimelineControls();
   wireHistoryControls();
@@ -147,10 +161,17 @@ export async function bootDashboard(resume) {
 
 async function main() {
   // Paint the cached theme before anything else so there is no flash.
-  applyTheme(localStorage.getItem("bt.theme") || "dark");
+  applyTheme(getStoredTheme());
 
   initMap();
   wireControls();
+  // Places tab: draws saved geofence circles and injects presence chips into
+  // device rows. Dynamic import keeps places.js optional at parse time.
+  import("./places.js").then((m) => m.init(state.map, document.getElementById("device-list")));
+  // Groups tab: coloured member overlays and the presence panel. Wired here
+  // (not in P1-E10-W6-S1-T2's own file list) — without a real map instance
+  // the Groups tab has nothing to bind its selector or overlay layer to.
+  import("./groups.js").then((m) => m.init(state.map, document.getElementById("device-list")));
 
   // Ask about the lock BEFORE requesting any location data.
   if (await refreshLockState()) return;

@@ -50,16 +50,5 @@
         }
       }
     }
-  },
-  "plugins": {
-    "shell": {
-      "scope": [
-        {
-          "name": "binaries/findplus-daemon",
-          "sidecar": true,
-          "args": true
-        }
-      ]
-    }
   }
 }

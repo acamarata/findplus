@@ -5,7 +5,7 @@ Purpose    : Start one real `findplus serve --no-poller` process for the
              database, and hand each test a browser Page pointed at it.
 Inputs     : None — seeding runs a subprocess against the same throwaway
              database before the server starts.
-Outputs    : `live_server` (base URL), `browser_context`, `page`.
+Outputs    : `live_server` (base URL), `browser_session`, `page`.
 Constraints: FINDPLUS_DATABASE_PATH / FINDPLUS_STATE_DIR are the ONLY env
              vars findplus.config reads (env_prefix "FINDPLUS_"); the bare
              names silently target the real ~/.findplus (build-notes.md §
@@ -159,7 +159,7 @@ def live_server(ui_db: Path, ui_env: dict):
 
 
 @pytest_asyncio.fixture(scope="session", loop_scope="session")
-async def browser_context(live_server: str):
+async def browser_session(live_server: str):
     # A session-scoped async fixture needs a matching session-scoped event
     # loop (loop_scope="session"), or the tests that await it under their
     # own per-test loop deadlock waiting on a browser transport owned by a
@@ -170,8 +170,7 @@ async def browser_context(live_server: str):
             browser = await pw.chromium.launch(headless=True)
         except Exception as exc:
             pytest.skip(f"Chrome unavailable: {exc}")
-        ctx = await browser.new_context()
-        yield ctx, live_server
+        yield browser, live_server
         await browser.close()
 
 
@@ -181,8 +180,13 @@ def base_url(live_server: str) -> str:
 
 
 @pytest_asyncio.fixture(loop_scope="session")
-async def page(browser_context):
-    ctx, _ = browser_context
+async def page(browser_session):
+    # One BrowserContext per test. The dashboard persists UI state (open
+    # tab, device selection, widget toggles) in localStorage, so a shared
+    # context leaks that state between tests and makes them order
+    # dependent; a reload inside a single test still sees its own writes.
+    browser, _ = browser_session
+    ctx = await browser.new_context()
     pg = await ctx.new_page()
     yield pg
-    await pg.close()
+    await ctx.close()

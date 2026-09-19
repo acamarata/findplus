@@ -54,8 +54,37 @@ def quorum_needed(quorum: str, considered: int) -> int:
     if quorum == "all":
         return considered
     if quorum.isdigit():
-        return min(int(quorum), considered)
+        # Floor of 1: groups.validation rejects "0" on the way in, but a row
+        # hand-edited in the DB must still not produce needed == 0, which would
+        # fire an alert reading "0 of 3 tags entered" with nobody there.
+        return max(1, min(int(quorum), considered))
     raise ValueError(f"Unknown quorum value: {quorum!r}")
+
+
+def stale_note_for_names(names: list[str]) -> str:
+    """The `; ... have no recent fix.` clause when the stale members are known."""
+    return f"; {', '.join(names)} have no recent fix." if names else "."
+
+
+def stale_note_for_count(count: int) -> str:
+    """The same clause built from a stored count (group_place_events has no names)."""
+    if count <= 0:
+        return "."
+    subject = "1 tag has" if count == 1 else f"{count} tags have"
+    return f"; {subject} no recent fix."
+
+
+def group_event_note(
+    *, crossed: int, considered: int, event_type: str, place: str, stale_note: str = "."
+) -> str:
+    """The honest one-line summary of a group crossing (specs/engines.md § quorum).
+
+    It is the only place an alert says how many tags actually crossed and how
+    many were silent, so "Sarah's group arrived at School" can never read as
+    "everyone arrived" when one member simply had no fix.
+    """
+    verb = "entered" if event_type == "ENTER" else "left"
+    return f"{crossed} of {considered} tags {verb} {place}{stale_note}"
 
 
 def evaluate_quorum(q: QuorumInput) -> QuorumResult:
@@ -96,9 +125,13 @@ def evaluate_quorum(q: QuorumInput) -> QuorumResult:
     observed_at = max((e[2] for e in crossed_events), default=None)
     member_event_ids = [e[1] for e in sorted(crossed_events, key=lambda e: e[2])]
 
-    event_verb = "entered" if q.event_type == "ENTER" else "left"
-    stale_note = f"; {', '.join(q.stale_ids)} have no recent fix." if q.stale_ids else ""
-    note = f"{n_crossed} of {n_considered} tags {event_verb} place {q.place_id}{stale_note}"
+    note = group_event_note(
+        crossed=n_crossed,
+        considered=n_considered,
+        event_type=q.event_type,
+        place=f"place {q.place_id}",
+        stale_note=stale_note_for_names(q.stale_ids),
+    )
 
     return QuorumResult(
         fire=fire,

@@ -197,7 +197,12 @@ def presence_cmd(group_id, window, as_json):
         presence, statuses = build_presence(s, group, window, movement_threshold_meters)
 
     if as_json:
-        click.echo(json.dumps(asdict(presence)))
+        # `members` matches GET /api/groups/{id}/presence (api-contract.md):
+        # a script driving the CLI gets the same per-device rows as the API,
+        # not just the group verdict.
+        click.echo(
+            json.dumps(asdict(presence) | {"members": [asdict(s2) for s2 in statuses]}, default=str)
+        )
         return
 
     click.echo(f"Verdict: {presence.verdict}")

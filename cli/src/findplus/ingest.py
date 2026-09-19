@@ -196,7 +196,11 @@ def _run_post_ingest_hooks(
             # hook's own writes, so the session stays usable and the
             # observations still commit.
             with session.begin_nested():
-                _geofence_evaluate(session, lo)
+                _geofence_evaluate(
+                    session,
+                    lo,
+                    default_accuracy=getattr(settings, "geofence_default_accuracy_meters", 100.0),
+                )
         except Exception:
             log.exception(
                 "post_ingest_hook_failed",

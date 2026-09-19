@@ -205,3 +205,53 @@ def test_hook_failure_never_loses_the_batch(session, monkeypatch) -> None:
     assert result.inserted == 1
     session.flush()
     assert len(list(session.scalars(select(LocationObservation)))) == 1
+
+
+def test_event_accuracy_is_null_when_the_fix_reported_none(session):
+    """A fix with no accuracy must not be stored as a measured 100 m reading.
+
+    classify() substitutes `default_accuracy` to pick a confidence band; that
+    substitution is a judgement, not an observation, so it must never reach
+    `place_events.accuracy_meters` (PROMPT.md §2 invariant 12: never fabricate).
+    """
+    place = session.scalar(select(Place))
+    session.add(
+        PlaceState(
+            place_id=place.id,
+            device_id="dev1",
+            state="outside",
+            since_observed_at=T0 - timedelta(hours=2),
+            streak=0,
+            streak_side=None,
+            last_observation_id=None,
+            updated_at=T0,
+        )
+    )
+    session.flush()
+    # Radius 100 m, so accuracy=None -> default 100.0 -> "medium", not "low".
+    ingest_observations(session, [make_obs(411000000, -806400000, T0, acc=None)])
+    event = session.scalar(select(PlaceEvent))
+    assert event is not None
+    assert event.event_type == "ENTER"
+    assert event.confidence == "medium"
+    assert event.accuracy_meters is None
+
+
+def test_settings_default_accuracy_is_threaded_into_classify(session):
+    """geofence_default_accuracy_meters (data-model.md § Settings) is honoured.
+
+    With a default of 200 m against a 100 m radius the fix is low-confidence,
+    so it is indeterminate and must leave the state machine untouched.
+    """
+    import types
+
+    settings = types.SimpleNamespace(
+        geofence_default_accuracy_meters=200.0,
+        group_window_minutes=30,
+        presence_window_minutes=60,
+    )
+    ingest_observations(session, [make_obs(411000000, -806400000, T0, acc=None)], settings=settings)
+    place = session.scalar(select(Place))
+    state = session.get(PlaceState, (place.id, "dev1"))
+    assert state.state == "unknown"
+    assert session.scalar(select(PlaceEvent).limit(1)) is None

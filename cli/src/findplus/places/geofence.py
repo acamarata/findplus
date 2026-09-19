@@ -132,7 +132,10 @@ def _crossing(
         fetched_at=fix.fetched_at,
         confidence=cls.confidence,
         distance_meters=cls.distance_meters,
-        accuracy_meters=cls.accuracy_meters,
+        # The fix's OWN accuracy, never cls.accuracy_meters: classify() has
+        # already substituted `default_accuracy` there, so copying it would
+        # persist "no accuracy reported" as a measured 100 m reading.
+        accuracy_meters=fix.accuracy_meters,
     )
     return new_state, event
 

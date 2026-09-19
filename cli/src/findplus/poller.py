@@ -119,7 +119,9 @@ def _locate_and_ingest(
         return PollOutcome(status="no_location"), observations
 
     with session_scope() as session:
-        result = ingest_observations(session, observations, fetched_at=datetime.now(UTC))
+        result = ingest_observations(
+            session, observations, fetched_at=datetime.now(UTC), settings=settings
+        )
 
     # Alert dispatch runs in its own session, after the ingest transaction has
     # already committed (dispatch.process() reads place_events/group_place_events

@@ -63,8 +63,18 @@ def _save_state(session: Session, row: PlaceState | None, keys: dict, new: Geofe
     row.updated_at = keys["updated_at"]
 
 
-def evaluate(session: Session, observation: LocationObservation) -> list[GeofenceEvent]:
-    """Classify one new observation against every place, advance state, persist."""
+def evaluate(
+    session: Session,
+    observation: LocationObservation,
+    *,
+    default_accuracy: float = 100.0,
+) -> list[GeofenceEvent]:
+    """Classify one new observation against every place, advance state, persist.
+
+    `default_accuracy` is `Settings.geofence_default_accuracy_meters`, threaded
+    in by ingest.py; a fix that reports no accuracy is treated as this many
+    metres when the confidence band is chosen.
+    """
     places = list(session.scalars(select(Place)).all())
     if not places:
         return []
@@ -78,7 +88,7 @@ def evaluate(session: Session, observation: LocationObservation) -> list[Geofenc
         spec = PlaceSpec(*_spec_of(place))
         row = session.get(PlaceState, (place.id, obs.device_id))
         geo_state = _geo(row)
-        cls = classify(spec, fix)
+        cls = classify(spec, fix, default_accuracy)
         new_state, event = advance(geo_state, cls, fix, spec)
         state_keys = {"place_id": place.id, "device_id": obs.device_id, "updated_at": now}
         _save_state(session, row, state_keys, new_state)

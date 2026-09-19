@@ -38,6 +38,7 @@ from findplus.groups.presence import (
     group_presence,
     member_status,
 )
+from findplus.groups.quorum import group_event_note, stale_note_for_count
 from findplus.groups.timeline import list_group_timeline  # re-exported, see timeline.py
 from findplus.groups.validation import validate_group_fields
 
@@ -159,11 +160,15 @@ def _member_inputs(session: Session, group: Group, window_minutes: int) -> list[
         )
         last_fix = _to_fix(device_id, obs[0]) if obs else None
         prev_fix = _to_fix(device_id, obs[1]) if len(obs) > 1 else None
+        # Smallest circle first: member_status() reports inside_places[0], so
+        # a device standing inside "Home" and inside a wider "Neighbourhood"
+        # must name the more specific place, deterministically, every call.
         inside_places = list(
             session.scalars(
                 select(Place.name)
                 .join(PlaceState, PlaceState.place_id == Place.id)
                 .where(PlaceState.device_id == device_id, PlaceState.state == "inside")
+                .order_by(Place.radius_meters, Place.name)
             ).all()
         )
         members.append(
@@ -259,6 +264,14 @@ def list_group_place_events(
                 "members_considered": e.members_considered,
                 "members_stale": e.members_stale,
                 "confidence": e.confidence,
+                # api-contract.md § routes_groups.py pins `note` on this route.
+                "note": group_event_note(
+                    crossed=e.members_crossed,
+                    considered=e.members_considered,
+                    event_type=e.event_type,
+                    place=row.place_name,
+                    stale_note=stale_note_for_count(e.members_stale),
+                ),
                 "notified_at": e.notified_at,
             }
         )

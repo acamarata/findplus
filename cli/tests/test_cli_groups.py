@@ -73,3 +73,24 @@ def test_groups_edit_rejects_invalid_quorum(tmp_db: str) -> None:
     result = runner.invoke(main, ["groups", "edit", group_id, "--quorum", "banana"])
     assert result.exit_code != 0
     assert "quorum" in result.output
+
+
+def test_groups_presence_json_includes_members(tmp_db: str) -> None:
+    """`--json` must carry the same per-device rows as GET /api/groups/{id}/presence.
+
+    Anyone scripting the CLI otherwise gets a verdict with nothing to show for
+    it: no device, no age, no staleness.
+    """
+    import json
+
+    with session_scope() as s:
+        upsert_device(s, "dev1", "Tag1")
+    runner = CliRunner()
+    group_id = _added_id(runner.invoke(main, ["groups", "add", "Family"]).output)
+    runner.invoke(main, ["groups", "members", group_id, "--set", "dev1"])
+    result = runner.invoke(main, ["groups", "presence", group_id, "--json"])
+    assert result.exit_code == 0
+    body = json.loads(result.output)
+    assert body["verdict"] == "unknown"
+    assert [m["device_id"] for m in body["members"]] == ["dev1"]
+    assert body["members"][0]["status"] == "stale"

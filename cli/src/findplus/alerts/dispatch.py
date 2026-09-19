@@ -31,6 +31,7 @@ from findplus.alerts.dispatch_core import (
     render_message,
     suppressed_by_group,
 )
+from findplus.groups.quorum import group_event_note, stale_note_for_count
 
 __all__ = [
     "Delivery",
@@ -63,8 +64,10 @@ WHERE gpe.notified_at IS NULL ORDER BY gpe.observed_at ASC"""
 def load_pending_events(session) -> list[DeviceEvent | GroupEvent]:
     """Un-notified place_events/group_place_events rows, converted to dataclasses.
 
-    notified_at IS NULL is the hand-off from E4's ingest-time geofence hook.
-    Raw SQL (no ORM classes are pinned for the groups tables).
+    notified_at IS NULL is the hand-off from the ingest-time geofence and
+    group-quorum hooks. A GroupEvent's `note` is rebuilt from the stored counts
+    (group_place_events has no note column) so the alert states how many tags
+    actually crossed and how many were silent.
     """
     from sqlalchemy import text
 
@@ -103,7 +106,13 @@ def load_pending_events(session) -> list[DeviceEvent | GroupEvent]:
                 event_type=row.event_type,
                 observed_at=as_utc(row.observed_at),
                 confidence=row.confidence,
-                note="",
+                note=group_event_note(
+                    crossed=row.members_crossed,
+                    considered=row.members_considered,
+                    event_type=row.event_type,
+                    place=row.place_name,
+                    stale_note=stale_note_for_count(row.members_stale),
+                ),
                 members_crossed=row.members_crossed,
                 members_considered=row.members_considered,
                 members_stale=row.members_stale,
@@ -137,9 +146,8 @@ def _load_rules(session) -> list[Rule]:
 def _delivery_place_ids(session, rows) -> dict[tuple[str, int], int | None]:
     """Derived place_id per (event_kind, event_id), via an ORM join -- never text() SQL.
 
-    place_events/group_place_events carry place_id; alert_deliveries does not
-    (no 0006 migration), so cooldown scoping by place is resolved here, once
-    per load, instead of a stored column.
+    alert_deliveries has no place_id column (no 0006 migration), so cooldown
+    scoping by place is resolved here once per load.
     """
     from findplus.db.models import GroupPlaceEvent, PlaceEvent
 
@@ -249,6 +257,9 @@ def _deliver_one(
 def _mark_notified(session, events: list, now: datetime.datetime) -> None:
     from sqlalchemy import text
 
+    # text() bypasses the UtcDateTime bind hook: normalise here so SQLite
+    # never stores an offset string the reader re-reads as UTC.
+    now = now.astimezone(datetime.UTC).replace(tzinfo=None)
     for event in events:
         if isinstance(event, DeviceEvent):
             session.execute(

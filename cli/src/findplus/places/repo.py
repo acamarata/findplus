@@ -121,12 +121,7 @@ def update_place(
         if session.scalar(select(Place.id).where(Place.name == name)) is not None:
             raise ValueError(f"place name {name!r} already exists")
         place.name = name
-    if radius_meters is not None:
-        place.radius_meters = radius_meters
-    if latitude_e7 is not None:
-        place.latitude_e7 = latitude_e7
-    if longitude_e7 is not None:
-        place.longitude_e7 = longitude_e7
+    moved = _apply_geometry(place, latitude_e7, longitude_e7, radius_meters)
     if color is not None:
         place.color = color
     if enter_confirmations is not None:
@@ -134,8 +129,43 @@ def update_place(
     if exit_confirmations is not None:
         place.exit_confirmations = exit_confirmations
     place.updated_at = datetime.now(UTC)
+    if moved:
+        _reset_streaks(session, place.id)
     session.flush()
     return place
+
+
+def _apply_geometry(
+    place: Place,
+    latitude_e7: int | None,
+    longitude_e7: int | None,
+    radius_meters: int | None,
+) -> bool:
+    """Apply the circle fields; True when any of them actually changed."""
+    moved = False
+    for field, value in (
+        ("radius_meters", radius_meters),
+        ("latitude_e7", latitude_e7),
+        ("longitude_e7", longitude_e7),
+    ):
+        if value is not None and getattr(place, field) != value:
+            setattr(place, field, value)
+            moved = True
+    return moved
+
+
+def _reset_streaks(session: Session, place_id: int) -> None:
+    """Drop the confirmation streaks held against a place whose circle moved.
+
+    The streak counts consecutive fixes on one side of the OLD circle. Keeping
+    it after the place moves across town lets the very next fix satisfy
+    `exit_confirmations` and emit an EXIT anchored to a geometry that no longer
+    exists. The `state` itself is left alone: it is re-derived (and only then
+    allowed to emit an event) once enough fixes agree against the new circle.
+    """
+    for row in session.scalars(select(PlaceState).where(PlaceState.place_id == place_id)).all():
+        row.streak = 0
+        row.streak_side = None
 
 
 def delete_place(session: Session, place_id: int) -> None:

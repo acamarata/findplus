@@ -16,12 +16,20 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from fastapi import Body, FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi import Body, Cookie, FastAPI, HTTPException, Query, Request, Response
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import desc, func, select
 
 from bike_tracker import __version__
+from bike_tracker.appsettings import (
+    clear_pin,
+    load_settings,
+    save_idle_minutes,
+    save_pin,
+    save_theme,
+    set_lock_enabled,
+)
 from bike_tracker.config import get_settings
 from bike_tracker.db.migrate import current_revision, is_up_to_date
 from bike_tracker.db.models import Device, LocationObservation, PollRun
@@ -29,6 +37,7 @@ from bike_tracker.db.session import session_scope
 from bike_tracker.exporters import MEDIA_TYPES, export
 from bike_tracker.findhub.bootstrap import describe_stored_auth
 from bike_tracker.logging_setup import get_logger
+from bike_tracker.security import MIN_PIN_LENGTH, SessionStore, hash_pin, verify_pin
 from bike_tracker.state import (
     get_default_device,
     get_tracked_devices,
@@ -56,14 +65,22 @@ FIND_HUB_NOTICE = (
     "application should not be treated as real-time emergency or child-safety GPS tracking."
 )
 
+SESSION_COOKIE = "bike_tracker_session"
+
+#: Endpoints reachable while the app is locked. Everything else 401s.
+#: The lock is enforced HERE, server-side — hiding the UI would leave the data
+#: one `curl` away.
+_UNGATED_PATHS = frozenset({"/api/lock/status", "/api/lock/unlock", "/api/health"})
+
 #: Guards manual polls so the UI cannot be used to hammer Google.
 _manual_poll_lock = threading.Lock()
 _last_manual_poll: datetime | None = None
 MANUAL_POLL_COOLDOWN = timedelta(seconds=60)
 
 
-def create_app() -> FastAPI:
+def create_app(sessions: SessionStore | None = None) -> FastAPI:
     settings = get_settings()
+    sessions = sessions or SessionStore()
     app = FastAPI(
         title="bike-tracker",
         version=__version__,
@@ -74,6 +91,205 @@ def create_app() -> FastAPI:
 
     def tz(name: str | None = None):
         return local_zone(name)
+
+    def current_lock_state():
+        """(is_locked_overall, AppSettings). Cheap enough to call per request."""
+        with session_scope() as session:
+            app_settings = load_settings(session)
+        return app_settings.lock_active, app_settings
+
+    def sync_idle_timeout(app_settings) -> None:
+        sessions.idle_timeout_seconds = app_settings.idle_minutes * 60
+
+    @app.middleware("http")
+    async def enforce_app_lock(request: Request, call_next):
+        """Return 401 for every gated API path while the app is locked.
+
+        Static assets and the shell page still load — they render the lock
+        screen — but no location data crosses this boundary until unlocked.
+        """
+        path = request.url.path
+        if not path.startswith("/api/") or path in _UNGATED_PATHS:
+            return await call_next(request)
+
+        lock_active, app_settings = current_lock_state()
+        if not lock_active:
+            return await call_next(request)
+
+        sync_idle_timeout(app_settings)
+        token = request.cookies.get(SESSION_COOKIE)
+        if sessions.is_valid(token):
+            return await call_next(request)
+
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Locked. Enter your PIN to continue.", "locked": True},
+        )
+
+    # ------------------------------------------------------------- app lock
+    @app.get("/api/lock/status")
+    def lock_status(
+        session_token: str | None = Cookie(default=None, alias=SESSION_COOKIE),
+    ) -> dict[str, Any]:
+        """Whether the app is locked right now. Always reachable."""
+        lock_active, app_settings = current_lock_state()
+        sync_idle_timeout(app_settings)
+        unlocked = not lock_active or sessions.is_valid(session_token, touch=False)
+        return {
+            "lock_configured": app_settings.pin_configured,
+            "lock_enabled": app_settings.lock_enabled,
+            "locked": bool(lock_active and not unlocked),
+            "idle_minutes": app_settings.idle_minutes,
+            "theme": app_settings.theme,
+            "retry_after_seconds": round(sessions.seconds_until_retry()),
+            "attempts_remaining": sessions.attempts_remaining(),
+        }
+
+    @app.post("/api/lock/unlock")
+    def unlock(response: Response, pin: str = Body(..., embed=True)) -> dict[str, Any]:
+        """Exchange a correct PIN for a session cookie. Rate-limited."""
+        wait = sessions.seconds_until_retry()
+        if wait > 0:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Too many incorrect attempts. Try again in {wait:.0f} seconds.",
+            )
+
+        lock_active, app_settings = current_lock_state()
+        if not lock_active:
+            return {"unlocked": True, "note": "The app lock is not enabled."}
+
+        if not verify_pin(pin, app_settings.pin_salt or "", app_settings.pin_hash or ""):
+            sessions.record_failure()
+            log.warning("unlock_failed", attempts_remaining=sessions.attempts_remaining())
+            raise HTTPException(
+                status_code=401,
+                detail=(
+                    f"Incorrect PIN. {sessions.attempts_remaining()} attempt(s) "
+                    "before a 60-second lockout."
+                ),
+            )
+
+        sessions.clear_failures()
+        sync_idle_timeout(app_settings)
+        token = sessions.create()
+        response.set_cookie(
+            SESSION_COOKIE,
+            token,
+            httponly=True,
+            samesite="strict",
+            max_age=None,
+            path="/",
+        )
+        log.info("unlocked")
+        return {"unlocked": True, "idle_minutes": app_settings.idle_minutes}
+
+    @app.post("/api/lock/lock")
+    def lock_now(
+        response: Response,
+        session_token: str | None = Cookie(default=None, alias=SESSION_COOKIE),
+    ) -> dict[str, Any]:
+        """Lock immediately (manual button, or the client's idle timer)."""
+        sessions.revoke(session_token)
+        response.delete_cookie(SESSION_COOKIE, path="/")
+        return {"locked": True}
+
+    @app.get("/api/lock/requirements")
+    def lock_requirements() -> dict[str, Any]:
+        return {
+            "min_pin_length": MIN_PIN_LENGTH,
+            "caveat": (
+                "The app lock stops someone from browsing this dashboard. It does "
+                "NOT encrypt the database — anyone with access to this user account "
+                "or the disk can still read the history file directly. Use FileVault "
+                "for protection at rest."
+            ),
+        }
+
+    # ------------------------------------------------------------- settings
+    @app.get("/api/settings")
+    def read_settings() -> dict[str, Any]:
+        with session_scope() as session:
+            return load_settings(session).public()
+
+    @app.put("/api/settings")
+    def write_settings(
+        theme: str | None = Body(default=None, embed=True),
+        idle_minutes: int | None = Body(default=None, embed=True),
+        lock_enabled: bool | None = Body(default=None, embed=True),
+    ) -> dict[str, Any]:
+        with session_scope() as session:
+            try:
+                if theme is not None:
+                    save_theme(session, theme)
+                if idle_minutes is not None:
+                    save_idle_minutes(session, idle_minutes)
+                if lock_enabled is not None:
+                    current = load_settings(session)
+                    if lock_enabled and not current.pin_configured:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Set a PIN before enabling the app lock.",
+                        )
+                    set_lock_enabled(session, lock_enabled)
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            updated = load_settings(session)
+        sync_idle_timeout(updated)
+        return updated.public()
+
+    @app.post("/api/settings/pin")
+    def set_pin(
+        response: Response,
+        new_pin: str = Body(..., embed=True),
+        current_pin: str | None = Body(default=None, embed=True),
+    ) -> dict[str, Any]:
+        """Set or change the PIN. Changing it requires the existing one.
+
+        A credential change revokes every existing session, then immediately
+        re-issues one to THIS browser. Other devices are signed out; the person
+        who just set the PIN is not locked out of the window they set it in.
+        """
+        with session_scope() as session:
+            existing = load_settings(session)
+            if existing.pin_configured and not verify_pin(
+                current_pin or "", existing.pin_salt or "", existing.pin_hash or ""
+            ):
+                raise HTTPException(status_code=403, detail="Current PIN is incorrect.")
+            try:
+                salt, digest = hash_pin(new_pin)
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            save_pin(session, salt, digest)
+            updated = load_settings(session)
+
+        sessions.revoke_all()
+        sync_idle_timeout(updated)
+        response.set_cookie(
+            SESSION_COOKIE,
+            sessions.create(),
+            httponly=True,
+            samesite="strict",
+            max_age=None,
+            path="/",
+        )
+        log.info("pin_updated")
+        return updated.public()
+
+    @app.delete("/api/settings/pin")
+    def remove_pin(current_pin: str = Query(...)) -> dict[str, Any]:
+        """Remove the PIN and disable the lock. Requires the current PIN."""
+        with session_scope() as session:
+            existing = load_settings(session)
+            if not existing.pin_configured:
+                return existing.public()
+            if not verify_pin(current_pin, existing.pin_salt or "", existing.pin_hash or ""):
+                raise HTTPException(status_code=403, detail="Current PIN is incorrect.")
+            clear_pin(session)
+            updated = load_settings(session)
+        sessions.revoke_all()
+        log.warning("pin_removed")
+        return updated.public()
 
     # ------------------------------------------------------------- meta
     @app.get("/api/health")
@@ -422,6 +638,40 @@ def create_app() -> FastAPI:
                 "deleted": int(doomed or 0),
                 "cutoff_utc": cutoff_utc.isoformat(),
                 "message": f"Deleted {doomed} observation(s) before {before}.",
+            }
+
+    @app.post("/api/history/clear")
+    def clear_history(
+        confirm: bool = Body(default=False, embed=True),
+        device_id: str | None = Body(default=None, embed=True),
+    ) -> dict[str, Any]:
+        """Delete ALL history, optionally for one device.
+
+        Dry run unless `confirm=true`. History is never deleted silently.
+        """
+        with session_scope() as session:
+            stmt = select(func.count(LocationObservation.id))
+            if device_id:
+                stmt = stmt.where(LocationObservation.device_id == device_id)
+            doomed = int(session.scalar(stmt) or 0)
+
+            if not confirm:
+                return {
+                    "deleted": 0,
+                    "would_delete": doomed,
+                    "device_id": device_id,
+                    "message": "Dry run. Re-send with confirm=true to delete.",
+                }
+
+            query = session.query(LocationObservation)
+            if device_id:
+                query = query.filter(LocationObservation.device_id == device_id)
+            query.delete(synchronize_session=False)
+            log.warning("history_cleared", device_id=device_id, count=doomed)
+            return {
+                "deleted": doomed,
+                "device_id": device_id,
+                "message": f"Deleted {doomed} observation(s).",
             }
 
     # ------------------------------------------------------------- UI

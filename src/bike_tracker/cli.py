@@ -324,6 +324,7 @@ def status() -> None:
         _row("authenticated", "yes" if auth_info["exists"] else "no — run `bike-tracker auth`")
         _row("service installed", "yes" if service.is_installed() else "no")
         _row("service running", "yes" if service.is_running() else "no")
+        _row("watchdog installed", "yes" if service.watchdog_installed() else "no")
         _row("poll interval", f"{settings.effective_poll_interval_minutes:g} min")
         _row("database", f"{settings.database_path} (schema {current_revision()})")
         _row("observations", f"{total} total, {today} today")
@@ -514,6 +515,103 @@ def doctor() -> None:
         click.secho("All checks passed.", fg="green")
     else:
         click.secho("Some checks need attention (see above).", fg="yellow")
+
+
+@main.command()
+def watchdog() -> None:
+    """Check the local API and restart the service if it is not answering.
+
+    Run periodically by the watchdog job. `KeepAlive` already covers a crashed
+    process; this covers a process that is alive but wedged.
+    """
+    import urllib.error
+    import urllib.request
+
+    from bike_tracker import service
+
+    settings = get_settings()
+    configure_logging(settings, to_file=True, console=False)
+    url = f"http://{settings.host}:{settings.port}/api/health"
+
+    try:
+        with urllib.request.urlopen(url, timeout=10) as response:
+            if response.status == 200:
+                log.info("watchdog_ok")
+                return
+            problem = f"HTTP {response.status}"
+    except urllib.error.HTTPError as exc:
+        # 401 means the app lock is on and the API is healthy — not a failure.
+        if exc.code == 401:
+            log.info("watchdog_ok", note="locked but responding")
+            return
+        problem = f"HTTP {exc.code}"
+    except Exception as exc:
+        problem = str(exc)
+
+    log.error("watchdog_restarting", url=url, problem=problem)
+    if service.restart_service():
+        click.echo(f"bike-tracker was not answering ({problem}); restart requested.")
+    else:
+        click.echo(f"bike-tracker was not answering ({problem}), and no service is installed.")
+
+
+@main.command("install-watchdog")
+@click.option("--yes", is_flag=True, help="Skip the confirmation prompt.")
+def install_watchdog_cmd(yes: bool) -> None:
+    """Show, then optionally install, the watchdog job."""
+    _prep()
+    from bike_tracker import service
+
+    p = service.watchdog_plan()
+    _show_service_plan(p)
+    click.echo(
+        f"It runs every {service.WATCHDOG_INTERVAL_SECONDS // 60} minutes, asks the local\n"
+        "API whether it is alive, and restarts the service only if it is not.\n"
+    )
+    if not yes and not click.confirm("Install this now?", default=False):
+        click.echo("Nothing was changed.")
+        return
+    service.install_watchdog(confirmed=True)
+    click.secho("Watchdog installed and started.", fg="green")
+
+
+@main.command("reset-lock")
+@click.option("--yes", is_flag=True, help="Skip the confirmation prompt.")
+def reset_lock(yes: bool) -> None:
+    """Forgot your PIN? Remove the app lock from this machine.
+
+    There is no cloud reset for the PIN, by design. Anyone who can run this
+    command already has access to the database file, so this recovery path adds
+    no exposure that did not already exist.
+    """
+    _prep()
+    from bike_tracker.appsettings import clear_pin, load_settings
+
+    with session_scope() as session:
+        current = load_settings(session)
+        if not current.pin_configured:
+            click.echo("No PIN is set; nothing to reset.")
+            return
+        if not yes and not click.confirm(
+            "Remove the app-lock PIN? The dashboard will open without one.", default=False
+        ):
+            raise click.Abort
+        clear_pin(session)
+
+    click.secho("App lock removed. Set a new PIN from Settings in the dashboard.", fg="green")
+    click.echo("Restart the service so running sessions pick this up: bike-tracker start")
+
+
+@main.command()
+@click.argument("theme", type=click.Choice(["dark", "light", "system"]))
+def theme(theme: str) -> None:
+    """Set the dashboard theme without opening the UI."""
+    _prep()
+    from bike_tracker.appsettings import save_theme
+
+    with session_scope() as session:
+        save_theme(session, theme)
+    click.secho(f"Theme set to {theme}.", fg="green")
 
 
 @main.command("install-service")

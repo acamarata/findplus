@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,6 +9,23 @@
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+<!-- Lock screen. Rendered as a separate full-screen view: while locked the
+     dashboard is not merely hidden, the API refuses to return any data. -->
+<div id="lock-screen" class="lock-screen hidden">
+  <div class="lock-box">
+    <div class="lock-icon">🔒</div>
+    <h1 class="lock-title">Bike Tracker is locked</h1>
+    <p class="lock-sub">Enter your PIN to continue.</p>
+    <form id="lock-form" autocomplete="off">
+      <input type="password" id="lock-pin" inputmode="numeric" autocomplete="off"
+             placeholder="PIN" aria-label="PIN">
+      <button type="submit" class="btn" id="lock-submit">Unlock</button>
+    </form>
+    <p id="lock-error" class="lock-error"></p>
+  </div>
+</div>
+
+<div id="app-shell">
 <header class="topbar">
   <div class="brand">
     <span class="dot" id="live-dot" title="Polling service status"></span>
@@ -17,6 +34,8 @@
   </div>
   <div class="topbar-actions">
     <button id="btn-devices" class="btn btn-secondary">Devices</button>
+    <button id="btn-settings" class="btn btn-secondary" title="Settings">Settings</button>
+    <button id="btn-lock" class="btn btn-secondary hidden" title="Lock now">Lock</button>
     <button id="btn-latest" class="btn">Latest Location</button>
     <button id="btn-poll" class="btn btn-secondary" title="Queries Google once, now">Poll Now</button>
   </div>
@@ -86,6 +105,8 @@
   </p>
 </footer>
 
+</div><!-- /app-shell -->
+
 <div id="device-modal" class="modal hidden">
   <div class="modal-box">
     <header class="modal-head">
@@ -106,6 +127,98 @@
       <button class="btn btn-secondary" id="btn-track-all">Track all</button>
       <button class="btn" id="btn-save-devices">Save</button>
     </footer>
+  </div>
+</div>
+
+<div id="settings-modal" class="modal hidden">
+  <div class="modal-box">
+    <header class="modal-head">
+      <h2>Settings</h2>
+      <button class="btn btn-tiny" id="btn-close-settings">Close</button>
+    </header>
+
+    <section class="setting-group">
+      <h3>Appearance</h3>
+      <label class="setting-row">
+        <span>Theme</span>
+        <select id="setting-theme">
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+          <option value="system">Match system</option>
+        </select>
+      </label>
+    </section>
+
+    <section class="setting-group">
+      <h3>App lock</h3>
+      <p class="modal-note" id="lock-caveat"></p>
+
+      <div id="lock-not-set">
+        <label class="setting-row">
+          <span>New PIN</span>
+          <input type="password" id="new-pin" inputmode="numeric" autocomplete="new-password"
+                 placeholder="at least 4 characters">
+        </label>
+        <label class="setting-row">
+          <span>Confirm PIN</span>
+          <input type="password" id="confirm-pin" inputmode="numeric" autocomplete="new-password">
+        </label>
+        <button class="btn" id="btn-set-pin">Set PIN</button>
+      </div>
+
+      <div id="lock-is-set" class="hidden">
+        <label class="setting-row">
+          <span>Lock enabled</span>
+          <input type="checkbox" id="setting-lock-enabled">
+        </label>
+        <label class="setting-row">
+          <span>Auto-lock after idle</span>
+          <select id="setting-idle">
+            <option value="0">Never</option>
+            <option value="1">1 minute</option>
+            <option value="5">5 minutes</option>
+            <option value="15">15 minutes</option>
+            <option value="30">30 minutes</option>
+            <option value="60">1 hour</option>
+          </select>
+        </label>
+        <label class="setting-row">
+          <span>Current PIN</span>
+          <input type="password" id="current-pin" autocomplete="current-password"
+                 placeholder="required to change or remove">
+        </label>
+        <label class="setting-row">
+          <span>New PIN (optional)</span>
+          <input type="password" id="change-pin" autocomplete="new-password">
+        </label>
+        <div class="setting-actions">
+          <button class="btn" id="btn-change-pin">Change PIN</button>
+          <button class="btn btn-danger" id="btn-remove-pin">Remove PIN</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="setting-group danger-zone">
+      <h3>Delete history</h3>
+      <p class="modal-note">
+        History is never deleted silently. Both actions show you exactly how many
+        observations would go, and ask again before anything is removed.
+      </p>
+      <label class="setting-row">
+        <span>Delete observations before</span>
+        <input type="date" id="delete-before-date">
+      </label>
+      <div class="setting-actions">
+        <button class="btn btn-secondary" id="btn-delete-before">Delete older than…</button>
+        <button class="btn btn-danger" id="btn-clear-all">Clear ALL history</button>
+      </div>
+      <p id="delete-result" class="modal-rate"></p>
+    </section>
+
+    <section class="setting-group">
+      <h3>About</h3>
+      <p class="modal-note" id="settings-about"></p>
+    </section>
   </div>
 </div>
 

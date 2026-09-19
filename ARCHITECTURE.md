@@ -139,6 +139,46 @@ Local time is a presentation concern. Day boundaries are computed as
 `start + 24h` — which is why a spring-forward day correctly spans 23 hours and a
 fall-back day 25. Both are covered by tests.
 
+## App lock
+
+The lock is enforced by a FastAPI middleware, not by the front end. Every path
+under `/api/` except `/api/health`, `/api/lock/status` and `/api/lock/unlock`
+returns `401` while locked. This is the whole point: a UI-only lock would leave
+the history readable with `curl` from the same machine.
+
+- PIN → salted **scrypt** (`n=2**15, r=8, p=1`, ~46 ms per verification).
+  OpenSSL caps `maxmem` at exactly 32 MiB, which this configuration needs, so the
+  limit is raised explicitly rather than weakening the cost parameters.
+- Verification is constant-time and rate-limited: 5 failures trigger a 60-second
+  lockout that also blocks the correct PIN, because a 4-digit PIN is otherwise
+  trivially brute-forced over a local API.
+- Sessions are **in-memory only** — a service restart or reboot re-locks the app,
+  which is the desired default. The token is an `HttpOnly`, `SameSite=Strict`
+  session cookie.
+- Changing the PIN revokes every session, then immediately re-issues one to the
+  calling browser. Other devices are signed out; the person who just set the PIN
+  is not locked out of the window they set it in.
+- Recovery is `bike-tracker reset-lock`, which requires local filesystem access —
+  the same access that would let someone read the SQLite file anyway, so the
+  recovery path adds no exposure that did not already exist.
+
+**Threat model, stated plainly:** this is deterrence against another person using
+this computer. It is not encryption at rest. `data/bike-history.sqlite` is a
+plain file readable by this user account. FileVault is the answer to the other
+problem, and the UI says so rather than implying more than it delivers.
+
+## Keeping the service alive
+
+Two independent user-level jobs, because they cover different failures:
+
+- `KeepAlive` on the main job restarts a process that **died**.
+- A separate watchdog job (`StartInterval` 300 s) restarts a process that is
+  **alive but not answering** — something `KeepAlive` cannot detect.
+
+The watchdog treats `401` as healthy, so turning on the app lock does not send it
+into a restart loop. It never raises: it runs unattended on a timer, where a
+crash would be silent and permanent.
+
 ## Deliberate non-goals
 
 - **No interpolation.** A gap in detections is drawn as a gap. Intermediate

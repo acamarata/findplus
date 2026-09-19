@@ -21,7 +21,13 @@ from pathlib import Path
 from bike_tracker.config import PROJECT_ROOT, Settings, get_settings
 
 LAUNCHD_LABEL = "com.acamarata.bike-tracker"
+WATCHDOG_LABEL = "com.acamarata.bike-tracker.watchdog"
 SYSTEMD_UNIT = "bike-tracker.service"
+WATCHDOG_TIMER = "bike-tracker-watchdog.timer"
+WATCHDOG_SERVICE = "bike-tracker-watchdog.service"
+
+#: How often the watchdog checks that the API is answering.
+WATCHDOG_INTERVAL_SECONDS = 300
 
 
 @dataclass(frozen=True, slots=True)
@@ -191,3 +197,119 @@ def _uid() -> int:
     import os
 
     return os.getuid()
+
+
+# ---------------------------------------------------------------- watchdog
+def watchdog_plan(settings: Settings | None = None) -> ServicePlan:
+    """A second, independent job that restarts the poller if it stops answering.
+
+    `KeepAlive` already restarts the service when the process *dies*. This covers
+    the other failure mode: the process is alive but the API has wedged, which
+    KeepAlive cannot see.
+    """
+    settings = settings or get_settings()
+    settings.ensure_dirs()
+    manager = detect_manager()
+
+    if manager == "launchd":
+        path = Path.home() / "Library" / "LaunchAgents" / f"{WATCHDOG_LABEL}.plist"
+        payload = {
+            "Label": WATCHDOG_LABEL,
+            "ProgramArguments": [_python(), "-m", "bike_tracker.cli", "watchdog"],
+            "WorkingDirectory": str(PROJECT_ROOT),
+            "RunAtLoad": True,
+            "StartInterval": WATCHDOG_INTERVAL_SECONDS,
+            "StandardOutPath": str(settings.log_dir / "watchdog.out.log"),
+            "StandardErrorPath": str(settings.log_dir / "watchdog.err.log"),
+            "EnvironmentVariables": {
+                "PATH": "/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin",
+                "BIKE_TRACKER_STATE_DIR": str(settings.state_dir),
+            },
+            "ProcessType": "Background",
+        }
+        uid = _uid()
+        return ServicePlan(
+            platform="macOS",
+            manager="launchd (user LaunchAgent, watchdog)",
+            unit_path=path,
+            unit_text=plistlib.dumps(payload).decode("utf-8"),
+            load_command=["launchctl", "bootstrap", f"gui/{uid}", str(path)],
+            unload_command=["launchctl", "bootout", f"gui/{uid}/{WATCHDOG_LABEL}"],
+        )
+
+    if manager == "systemd":
+        path = Path.home() / ".config" / "systemd" / "user" / WATCHDOG_TIMER
+        text = f"""[Unit]
+Description=bike-tracker watchdog
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec={WATCHDOG_INTERVAL_SECONDS}s
+
+[Install]
+WantedBy=timers.target
+"""
+        return ServicePlan(
+            platform="Linux",
+            manager="systemd (user timer, watchdog)",
+            unit_path=path,
+            unit_text=text,
+            load_command=["systemctl", "--user", "enable", "--now", WATCHDOG_TIMER],
+            unload_command=["systemctl", "--user", "disable", "--now", WATCHDOG_TIMER],
+        )
+
+    raise RuntimeError(f"The watchdog is not supported on {platform.system()}.")
+
+
+def install_watchdog(settings: Settings | None = None, *, confirmed: bool = False) -> ServicePlan:
+    p = watchdog_plan(settings)
+    if not confirmed:
+        raise PermissionError("Refusing to install the watchdog without explicit confirmation.")
+    p.unit_path.parent.mkdir(parents=True, exist_ok=True)
+    p.unit_path.write_text(p.unit_text, encoding="utf-8")
+    if p.manager.startswith("systemd"):
+        settings = settings or get_settings()
+        service_path = Path.home() / ".config" / "systemd" / "user" / WATCHDOG_SERVICE
+        service_path.write_text(
+            f"""[Unit]
+Description=bike-tracker watchdog check
+
+[Service]
+Type=oneshot
+Environment=BIKE_TRACKER_STATE_DIR={settings.state_dir}
+ExecStart={_python()} -m bike_tracker.cli watchdog
+""",
+            encoding="utf-8",
+        )
+        subprocess.run(["systemctl", "--user", "daemon-reload"], check=False)
+    subprocess.run(p.load_command, check=False)
+    return p
+
+
+def uninstall_watchdog(settings: Settings | None = None) -> ServicePlan:
+    p = watchdog_plan(settings)
+    subprocess.run(p.unload_command, check=False)
+    if p.unit_path.exists():
+        p.unit_path.unlink()
+    return p
+
+
+def watchdog_installed(settings: Settings | None = None) -> bool:
+    try:
+        return watchdog_plan(settings).unit_path.exists()
+    except RuntimeError:
+        return False
+
+
+def restart_service() -> bool:
+    """Force the main service to restart. Returns True if the command was issued."""
+    manager = detect_manager()
+    if manager == "launchd" and shutil.which("launchctl"):
+        subprocess.run(
+            ["launchctl", "kickstart", "-k", f"gui/{_uid()}/{LAUNCHD_LABEL}"], check=False
+        )
+        return True
+    if manager == "systemd" and shutil.which("systemctl"):
+        subprocess.run(["systemctl", "--user", "restart", SYSTEMD_UNIT], check=False)
+        return True
+    return False

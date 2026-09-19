@@ -158,3 +158,70 @@ h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .07em; color: v
 .device-row .d-name { font-weight: 550; }
 .device-row .d-id { color: var(--muted); font-size: 11.5px; font-family: ui-monospace, Menlo, monospace; }
 .device-row .d-obs { margin-left: auto; color: var(--muted); font-size: 12px; white-space: nowrap; }
+
+/* --- light theme ------------------------------------------------------- */
+/* `:root` above holds the dark defaults; this overrides them wholesale so a
+   single attribute flip on <html> retints the entire app. */
+html[data-theme="light"] {
+  --bg: #f4f6fa;
+  --panel: #ffffff;
+  --panel-2: #eef1f6;
+  --line: #d6dce6;
+  --text: #171d26;
+  --muted: #5d6b7e;
+  --accent: #2f6fe6;
+  --ok: #16915a;
+  --warn: #9a6b00;
+  --err: #c53232;
+  --gap: #9a6b00;
+}
+html[data-theme="light"] .leaflet-container { background: #e6eaf0; }
+html[data-theme="light"] .marker-num { box-shadow: 0 1px 4px rgba(0,0,0,.28); }
+html[data-theme="light"] .alert { color: #7d1f1f; }
+html[data-theme="light"] .alert.warn { color: #6b4a00; }
+
+/* --- lock screen -------------------------------------------------------- */
+.lock-screen {
+  position: fixed; inset: 0; z-index: 10000;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+}
+.lock-screen.hidden { display: none; }
+.lock-box {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  padding: 34px 38px; width: min(380px, 90vw); text-align: center;
+}
+.lock-icon { font-size: 34px; line-height: 1; }
+.lock-title { font-size: 18px; margin: 14px 0 4px; }
+.lock-sub { color: var(--muted); font-size: 13px; margin: 0 0 18px; }
+#lock-form { display: flex; flex-direction: column; gap: 10px; }
+#lock-pin {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 8px; padding: 11px 13px; font-size: 19px; text-align: center;
+  letter-spacing: .3em; font-variant-numeric: tabular-nums;
+}
+#lock-pin:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.lock-error { color: var(--err); font-size: 12.5px; min-height: 18px; margin: 12px 0 0; }
+
+#app-shell.hidden { display: none; }
+
+/* --- settings ----------------------------------------------------------- */
+.setting-group { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+.setting-group:first-of-type { border-top: 0; padding-top: 8px; }
+.setting-group h3 {
+  font-size: 12px; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--muted); margin: 0 0 10px;
+}
+.setting-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 7px 0; font-size: 13.5px;
+}
+.setting-row input[type=password],
+.setting-row input[type=date],
+.setting-row select {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 7px; padding: 6px 9px; font-size: 13px; min-width: 190px;
+}
+.setting-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.btn-danger { background: var(--err); color: #fff; }
+.danger-zone { border-top-color: var(--err); }

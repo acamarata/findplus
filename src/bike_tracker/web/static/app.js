@@ -32,6 +32,12 @@ const state = {
   layer: null,
   markers: new Map(),
   refreshTimer: null,
+  settings: null,
+  locked: false,
+  idleTimer: null,
+  idleMinutes: 0,
+  /** View to restore verbatim after an unlock. */
+  resume: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -89,10 +95,28 @@ function showAlert(message, kind) {
   el.className = `alert ${kind === "warn" ? "warn" : ""}`;
 }
 
+/* ---------------------------------------------------------------- theme */
+
+/** Applied before first paint from localStorage, then reconciled with the server. */
+function applyTheme(theme) {
+  const resolved =
+    theme === "system"
+      ? (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")
+      : theme;
+  document.documentElement.setAttribute("data-theme", resolved);
+  localStorage.setItem("bt.theme", theme);
+}
+
 /* ------------------------------------------------------------- fetching */
 
 async function api(path, options) {
   const res = await fetch(path, options);
+  if (res.status === 401) {
+    // The server refused: the app locked underneath us (idle timeout, restart,
+    // or a PIN change). Show the lock screen rather than a confusing error.
+    showLock();
+    throw new Error("Locked");
+  }
   if (!res.ok) {
     let detail = `${res.status} ${res.statusText}`;
     try { const body = await res.json(); if (body.detail) detail = body.detail; } catch (_) {}
@@ -284,6 +308,156 @@ function highlightSelection() {
   document.querySelectorAll(".tl-item").forEach((el) => {
     el.classList.toggle("selected", el.dataset.id === String(state.selectedId));
   });
+}
+
+
+/* ------------------------------------------------------------- app lock */
+
+/**
+ * Show the lock screen.
+ *
+ * The dashboard is removed from the document flow, not merely covered, and the
+ * server independently refuses every gated API call while locked — so this is
+ * not a cosmetic overlay that a determined person could scroll behind.
+ * The current view is captured first so unlocking returns to exactly it.
+ */
+function showLock() {
+  if (!state.locked) {
+    state.resume = {
+      day: state.day,
+      deviceFilter: state.deviceFilter,
+      selectedId: state.selectedId,
+      movementOnly: state.movementOnly,
+      scrollY: window.scrollY,
+    };
+  }
+  state.locked = true;
+  stopIdleTimer();
+  closeModals();
+  $("app-shell").classList.add("hidden");
+  $("lock-screen").classList.remove("hidden");
+  $("lock-error").textContent = "";
+  $("lock-pin").value = "";
+  $("lock-pin").focus();
+}
+
+/** Hide the lock screen and restore the exact view the user was on. */
+async function hideLockAndRestore() {
+  state.locked = false;
+  $("lock-screen").classList.add("hidden");
+  $("app-shell").classList.remove("hidden");
+
+  const resume = state.resume;
+  state.resume = null;
+
+  if (resume) {
+    state.deviceFilter = resume.deviceFilter;
+    state.movementOnly = resume.movementOnly;
+    $("device-filter").value = resume.deviceFilter || "";
+    $("toggle-movement").checked = resume.movementOnly;
+  }
+
+  await loadDevices();
+  await loadStatus();
+  await loadDay((resume && resume.day) || todayLocal());
+
+  if (resume && resume.selectedId) selectPoint(resume.selectedId, true);
+  if (resume) window.scrollTo(0, resume.scrollY);
+
+  startIdleTimer();
+}
+
+async function refreshLockState() {
+  try {
+    const st = await api("/api/lock/status");
+    state.idleMinutes = st.idle_minutes;
+    $("btn-lock").classList.toggle("hidden", !st.lock_configured || !st.lock_enabled);
+    if (st.theme) applyTheme(st.theme);
+    if (st.locked) { showLock(); return true; }
+    return false;
+  } catch (_) {
+    return false;
+  }
+}
+
+async function submitPin(pin) {
+  const err = $("lock-error");
+  const btn = $("lock-submit");
+  btn.disabled = true;
+  try {
+    await postJson("/api/lock/unlock", { pin });
+    err.textContent = "";
+    await hideLockAndRestore();
+  } catch (e) {
+    err.textContent = e.message;
+    $("lock-pin").value = "";
+    $("lock-pin").focus();
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function lockNow() {
+  try { await postJson("/api/lock/lock"); } catch (_) {}
+  showLock();
+}
+
+/* ------------------------------------------------------------ idle timer */
+
+function startIdleTimer() {
+  stopIdleTimer();
+  if (!state.idleMinutes) return;  // 0 = never auto-lock
+  state.idleTimer = setTimeout(lockNow, state.idleMinutes * 60 * 1000);
+}
+
+function stopIdleTimer() {
+  if (state.idleTimer) { clearTimeout(state.idleTimer); state.idleTimer = null; }
+}
+
+function noteActivity() {
+  if (state.locked || !state.idleMinutes) return;
+  startIdleTimer();
+}
+
+function closeModals() {
+  $("device-modal").classList.add("hidden");
+  $("settings-modal").classList.add("hidden");
+}
+
+/* -------------------------------------------------------------- settings */
+
+async function loadSettings() {
+  state.settings = await api("/api/settings");
+  state.idleMinutes = state.settings.idle_minutes;
+  applyTheme(state.settings.theme);
+  $("setting-theme").value = state.settings.theme;
+  $("btn-lock").classList.toggle("hidden", !state.settings.lock_active);
+  renderLockSection();
+  return state.settings;
+}
+
+function renderLockSection() {
+  const configured = state.settings && state.settings.pin_configured;
+  $("lock-not-set").classList.toggle("hidden", !!configured);
+  $("lock-is-set").classList.toggle("hidden", !configured);
+  if (configured) {
+    $("setting-lock-enabled").checked = state.settings.lock_enabled;
+    $("setting-idle").value = String(state.settings.idle_minutes);
+  }
+}
+
+async function saveSettings(patch) {
+  state.settings = await api("/api/settings", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  state.idleMinutes = state.settings.idle_minutes;
+  applyTheme(state.settings.theme);
+  $("btn-lock").classList.toggle("hidden", !state.settings.lock_active);
+  renderLockSection();
+  startIdleTimer();
+  return state.settings;
 }
 
 /* --------------------------------------------------------------- devices */
@@ -506,11 +680,8 @@ function wireControls() {
   });
 
   // --- device manager ---
-  $("btn-devices").addEventListener("click", async () => {
-    await loadDevices();
-    renderDeviceModal();
-    $("device-modal").classList.remove("hidden");
-  });
+  $("btn-devices").addEventListener("click", openDevices);
+  window.addEventListener("hashchange", applyHashRoute);
   $("btn-close-devices").addEventListener("click", () => $("device-modal").classList.add("hidden"));
   $("device-modal").addEventListener("click", (e) => {
     if (e.target.id === "device-modal") $("device-modal").classList.add("hidden");
@@ -542,6 +713,131 @@ function wireControls() {
     }
   });
 
+
+  // --- lock screen ---
+  $("lock-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const pin = $("lock-pin").value.trim();
+    if (pin) submitPin(pin);
+  });
+  $("btn-lock").addEventListener("click", lockNow);
+
+  // Any interaction postpones the idle auto-lock.
+  ["mousemove", "keydown", "click", "scroll", "touchstart"].forEach((evt) => {
+    window.addEventListener(evt, noteActivity, { passive: true });
+  });
+
+  // --- settings ---
+  $("btn-settings").addEventListener("click", openSettings);
+  $("btn-close-settings").addEventListener("click", () => $("settings-modal").classList.add("hidden"));
+  $("settings-modal").addEventListener("click", (e) => {
+    if (e.target.id === "settings-modal") $("settings-modal").classList.add("hidden");
+  });
+
+  $("setting-theme").addEventListener("change", async (e) => {
+    applyTheme(e.target.value);  // instant feedback
+    try { await saveSettings({ theme: e.target.value }); }
+    catch (err) { showAlert(err.message, "err"); }
+  });
+
+  $("setting-idle").addEventListener("change", async (e) => {
+    try { await saveSettings({ idle_minutes: Number(e.target.value) }); }
+    catch (err) { showAlert(err.message, "err"); }
+  });
+
+  $("setting-lock-enabled").addEventListener("change", async (e) => {
+    try { await saveSettings({ lock_enabled: e.target.checked }); }
+    catch (err) { showAlert(err.message, "err"); e.target.checked = !e.target.checked; }
+  });
+
+  $("btn-set-pin").addEventListener("click", async () => {
+    const pin = $("new-pin").value;
+    const confirm = $("confirm-pin").value;
+    if (pin !== confirm) { showAlert("The two PINs do not match.", "warn"); return; }
+    try {
+      await postJson("/api/settings/pin", { new_pin: pin });
+      $("new-pin").value = $("confirm-pin").value = "";
+      await loadSettings();
+      showAlert("PIN set. The app will lock when idle and whenever the service restarts.", "warn");
+    } catch (e) {
+      showAlert(e.message, "err");
+    }
+  });
+
+  $("btn-change-pin").addEventListener("click", async () => {
+    const current = $("current-pin").value;
+    const next = $("change-pin").value;
+    if (!next) { showAlert("Enter the new PIN.", "warn"); return; }
+    try {
+      await postJson("/api/settings/pin", { new_pin: next, current_pin: current });
+      $("current-pin").value = $("change-pin").value = "";
+      showAlert("PIN changed. All existing sessions were signed out.", "warn");
+      showLock();
+    } catch (e) {
+      showAlert(e.message, "err");
+    }
+  });
+
+  $("btn-remove-pin").addEventListener("click", async () => {
+    const current = $("current-pin").value;
+    if (!current) { showAlert("Enter the current PIN to remove it.", "warn"); return; }
+    if (!window.confirm("Remove the PIN and disable the app lock?")) return;
+    try {
+      const res = await fetch(`/api/settings/pin?current_pin=${encodeURIComponent(current)}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+      $("current-pin").value = "";
+      await loadSettings();
+      showAlert("PIN removed. The app no longer locks.", "warn");
+    } catch (e) {
+      showAlert(e.message, "err");
+    }
+  });
+
+  // --- delete history ---
+  $("btn-delete-before").addEventListener("click", async () => {
+    const before = $("delete-before-date").value;
+    if (!before) { showAlert("Pick a date first.", "warn"); return; }
+    try {
+      const dry = await postJson("/api/history/delete-before", { before });
+      if (!dry.would_delete) {
+        $("delete-result").textContent = `Nothing is older than ${before}.`;
+        return;
+      }
+      if (!window.confirm(
+        `Permanently delete ${dry.would_delete} observation(s) recorded before ${before}?\n\n` +
+        `This cannot be undone.`
+      )) return;
+      const done = await postJson("/api/history/delete-before", { before, confirm: true });
+      $("delete-result").textContent = done.message;
+      await reload();
+    } catch (e) {
+      showAlert(e.message, "err");
+    }
+  });
+
+  $("btn-clear-all").addEventListener("click", async () => {
+    try {
+      const dry = await postJson("/api/history/clear", {});
+      if (!dry.would_delete) {
+        $("delete-result").textContent = "There is no history to clear.";
+        return;
+      }
+      if (!window.confirm(
+        `Delete ALL ${dry.would_delete} observation(s) for every device?\n\n` +
+        `This erases the entire location history and cannot be undone.`
+      )) return;
+      const typed = window.prompt('Type DELETE to confirm erasing all history:');
+      if (typed !== "DELETE") { $("delete-result").textContent = "Cancelled — nothing deleted."; return; }
+      const done = await postJson("/api/history/clear", { confirm: true });
+      $("delete-result").textContent = done.message;
+      await reload();
+    } catch (e) {
+      showAlert(e.message, "err");
+    }
+  });
+
   $("btn-save-devices").addEventListener("click", async () => {
     const ids = [...document.querySelectorAll("#device-list input:checked")].map((i) => i.value);
     try {
@@ -561,19 +857,64 @@ function wireControls() {
   });
 }
 
+/** Open the Settings dialog, refreshing everything it displays. */
+async function openSettings() {
+  try {
+    await loadSettings();
+    const req = await api("/api/lock/requirements");
+    $("lock-caveat").textContent = req.caveat;
+    const health = await api("/api/health");
+    $("settings-about").textContent =
+      `bike-tracker ${health.version} · schema ${health.schema_revision} · ` +
+      `timezone ${health.timezone} · polling every ${state.config.poll_interval_minutes} min`;
+    $("settings-modal").classList.remove("hidden");
+  } catch (e) {
+    showAlert(e.message, "err");
+  }
+}
+
+/** Open the Devices dialog. */
+async function openDevices() {
+  await loadDevices();
+  renderDeviceModal();
+  $("device-modal").classList.remove("hidden");
+}
+
+/** `#settings` and `#devices` deep-link straight to a dialog. */
+async function applyHashRoute() {
+  if (state.locked) return;
+  const hash = window.location.hash;
+  if (hash === "#settings") await openSettings();
+  else if (hash === "#devices") await openDevices();
+  else closeModals();
+}
+
 async function main() {
+  // Paint the cached theme before anything else so there is no flash.
+  applyTheme(localStorage.getItem("bt.theme") || "dark");
+
   initMap();
   wireControls();
+
+  // Ask about the lock BEFORE requesting any location data.
+  if (await refreshLockState()) return;
+
   const config = await loadConfig();
+  await loadSettings();
   await loadDevices();
   await loadStatus();
   await loadDay(todayLocal());
+  startIdleTimer();
+  await applyHashRoute();
 
   // Polls the LOCAL API only. Google is queried server-side on its own interval.
   const seconds = Math.max(30, config.ui_refresh_seconds || 45);
   state.refreshTimer = setInterval(async () => {
-    await loadStatus();
-    if (state.day === todayLocal()) await loadDay(state.day);
+    if (state.locked) return;  // never poll the API from behind the lock screen
+    try {
+      await loadStatus();
+      if (state.day === todayLocal()) await loadDay(state.day);
+    } catch (_) { /* a lock mid-refresh is handled by api() */ }
   }, seconds * 1000);
 }
 

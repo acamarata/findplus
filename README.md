@@ -166,6 +166,62 @@ Two timestamps are kept distinct everywhere:
 
 The timeline is built on `observed_at`. The dashboard shows both, plus the lag.
 
+## App lock
+
+Settings → **App lock** sets a PIN (or a passphrase). Once enabled, opening the
+dashboard shows a lock screen; unlocking returns you to exactly the view you
+were on — same day, same device filter, same selected point, same scroll
+position.
+
+- **Enforced on the server, not in the browser.** While locked, every data
+  endpoint returns `401`. The dashboard is not merely hidden behind an overlay —
+  the history cannot be retrieved with `curl` either.
+- Auto-locks after a configurable idle period (default 15 minutes; `Never` is an
+  option), and whenever the service restarts or the machine reboots.
+- The PIN is stored only as a salted **scrypt** hash. Five wrong attempts trigger
+  a 60-second lockout, which applies to the correct PIN too.
+- Changing the PIN signs out every other browser but keeps you signed in where
+  you changed it.
+- Forgot it? `bike-tracker reset-lock`. There is no cloud reset by design.
+
+**Be clear about what this does.** The lock stops another person at this computer
+from browsing your history. It does **not** encrypt the database — anyone with
+access to this user account or the disk can read `data/bike-history.sqlite`
+directly. Use FileVault if you need protection at rest.
+
+## Deleting history
+
+History is never deleted silently. Settings → **Delete history** offers:
+
+- **Delete older than…** — pick a date; it tells you how many observations would
+  go and asks before removing them.
+- **Clear ALL history** — shows the count, asks for confirmation, then requires
+  you to type `DELETE`.
+
+From the CLI, `bike-tracker prune --before YYYY-MM-DD` is a dry run unless you
+pass `--yes`.
+
+## Themes
+
+Dark (default), Light, or Match system. Set it in Settings, or with
+`bike-tracker theme light`. The choice is stored server-side, so it follows you
+across browsers, and is cached locally so there is no flash on load.
+
+## Keeping it running
+
+Two independent jobs, both user-level:
+
+| Job | Role |
+|---|---|
+| `com.acamarata.bike-tracker` | The service. `RunAtLoad` starts it at login; `KeepAlive` restarts it if the process dies. |
+| `com.acamarata.bike-tracker.watchdog` | Every 5 minutes, asks the local API whether it is alive. If not, restarts the service. |
+
+`KeepAlive` only sees a process that has *died*. The watchdog covers the other
+failure mode: a process that is alive but wedged. A `401` from the app lock
+counts as healthy, so enabling the lock does not cause restart loops.
+
+Check both with `bike-tracker status`.
+
 ## Privacy
 
 - Binds to `127.0.0.1` only. Any other bind address is refused unless you set

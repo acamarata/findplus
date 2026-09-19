@@ -82,6 +82,17 @@ sends no analytics or telemetry.
 
 ## Honesty
 
+> This history consists of locations reported through Google's Find Hub
+> network. Moto Tag uses nearby participating Android devices to report its
+> location. Location updates can therefore be delayed, sparse, or
+> unavailable, and this application should not be treated as real-time
+> emergency or child-safety GPS tracking.
+>
+> Apple Find My locations come from nearby Apple devices and can be
+> delayed, sparse or unavailable. Find+ can only query accessories whose
+> keys you hold; genuine AirTags require extracting pairing keys, which
+> most users cannot do.
+>
 > Alerts inherit the network's delay. An arrival or departure may be
 > reported minutes to hours late.
 >

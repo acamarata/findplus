@@ -1,0 +1,44 @@
+name: FindPlusWidget
+options:
+  bundleIdPrefix: com.acamarata.findplus
+  deploymentTarget:
+    macOS: "14.0"
+targets:
+  FindPlusWidgetExtension:
+    type: app-extension
+    platform: macOS
+    sources:
+      - Sources
+    entitlements:
+      path: FindPlusWidget.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+    settings:
+      base:
+        SWIFT_VERSION: "5"
+        PRODUCT_BUNDLE_IDENTIFIER: com.acamarata.findplus.widget
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_STYLE: Manual
+        DEVELOPMENT_TEAM: ""
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_NSExtensionPointIdentifier: com.apple.widgetkit-extension
+  FindPlusWidgetTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - Tests
+      # macOS app-extension bundles do not support the TEST_HOST/
+      # BUNDLE_LOADER hosting mechanism (Xcode 27: "Could not find test
+      # host"), and an app-extension's Swift symbols are not exported for a
+      # separate test bundle to @testable import (undefined symbols at
+      # link time). Compiling Model.swift/Provider.swift directly into this
+      # target — the same pattern used for every other Swift-only,
+      # non-UI-hosted XCTest target — sidesteps both without weakening what
+      # is tested: the exact same source files, compiled once more.
+      - path: Sources/Model.swift
+      - path: Sources/Provider.swift
+    settings:
+      base:
+        SWIFT_VERSION: "5"
+        GENERATE_INFOPLIST_FILE: YES

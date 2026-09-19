@@ -49,6 +49,7 @@ EXPECTED_COMMANDS = {
     "uninstall",
     "version",
     "watchdog",
+    "widget",
 }
 
 

@@ -25,6 +25,7 @@ from .doctor import doctor_cmd
 from .groups import groups_cmd
 from .places import places_cmd
 from .providers import providers_cmd
+from .widget import widget
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
@@ -69,6 +70,7 @@ main.add_command(groups_cmd)
 main.add_command(alerts_cmd)
 main.add_command(version_cmd)
 main.add_command(mcp)
+main.add_command(widget)
 
 
 if __name__ == "__main__":

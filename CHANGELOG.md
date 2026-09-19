@@ -35,3 +35,4 @@ Versioning: [Semantic Versioning](https://semver.org/).
   the LaunchAgent, or spawn a sidecar; never two daemons), a 10-item tray menu with a status dot,
   "Start at login" toggle, PyInstaller onedir sidecar spec, code-signing and DMG build scripts
   (120 MB budget enforced by verify-dmg.sh), and Intel (x86_64) build inputs
+- E16: Find+ WidgetKit widget reading /api/widget

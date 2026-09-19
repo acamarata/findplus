@@ -58,6 +58,10 @@ desktop/src-tauri/target/
 desktop/src-tauri/gen/schemas/
 desktop/src-tauri/binaries/findplus-daemon-aarch64-apple-darwin/
 desktop/src-tauri/binaries/findplus-daemon-x86_64-apple-darwin/
+desktop/widget/build/
+desktop/widget/reload-widgets
+desktop/widget/*.xcodeproj/xcuserdata/
+desktop/widget/*.xcodeproj/project.xcworkspace/xcuserdata/
 packaging/dist/
 packaging/*.dmg
 packaging/*.pkg

@@ -1,0 +1,424 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		24B2C9C0054F3FAEA3A2E698 /* SmallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3739AE583E16BA26C23E1ADE /* SmallView.swift */; };
+		4FC4A2DA7A85CA91E9F725DA /* Colors.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8ED524F4DDB1CA8774C7C12 /* Colors.swift */; };
+		7FCBB7C41D247B2DD20F7585 /* ViewHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14BB763493059AFE63E93B13 /* ViewHelpers.swift */; };
+		923EC2874A9CD6992E88E5DF /* Provider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B8776D40294B3678CD905DC /* Provider.swift */; };
+		A47A139D767AC3E22C63305D /* ModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0EE4CCFC62E1CC11B2D6BA /* ModelTests.swift */; };
+		ADEE2068F173BA95CD3832D9 /* Provider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B8776D40294B3678CD905DC /* Provider.swift */; };
+		B7ED467DA156BC8FB86AA7FE /* Intents.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEDE7330C45850FFB602A774 /* Intents.swift */; };
+		BD4855F54DE7C75FAD8FC02A /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69B2CE0EF79B689DF9673A1C /* Model.swift */; };
+		C7CCBA1BB125EC89B4B7D343 /* ProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F35F6CB26F949C46653E6ADF /* ProviderTests.swift */; };
+		DDD3F10A89F9F2A96BECCC8C /* FindPlusWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD143C8704F73765EEC55B7C /* FindPlusWidget.swift */; };
+		DE7E737119E8590D11F9E89E /* MediumView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20FDC9544BEB85EED21CECB7 /* MediumView.swift */; };
+		E00F2E3E78E6A99347073FA0 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69B2CE0EF79B689DF9673A1C /* Model.swift */; };
+		F083867C01F2F431FA16D443 /* LargeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7241344C30894657FB31F30 /* LargeView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0995D7DAE303A368D63A13D8 /* FindPlusWidgetTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FindPlusWidgetTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		14BB763493059AFE63E93B13 /* ViewHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewHelpers.swift; sourceTree = "<group>"; };
+		20FDC9544BEB85EED21CECB7 /* MediumView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediumView.swift; sourceTree = "<group>"; };
+		3739AE583E16BA26C23E1ADE /* SmallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmallView.swift; sourceTree = "<group>"; };
+		5D0EE4CCFC62E1CC11B2D6BA /* ModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelTests.swift; sourceTree = "<group>"; };
+		69B2CE0EF79B689DF9673A1C /* Model.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Model.swift; sourceTree = "<group>"; };
+		9A4B61AD1AD108A63672C488 /* FindPlusWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FindPlusWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		9B8776D40294B3678CD905DC /* Provider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Provider.swift; sourceTree = "<group>"; };
+		D7241344C30894657FB31F30 /* LargeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargeView.swift; sourceTree = "<group>"; };
+		DEDE7330C45850FFB602A774 /* Intents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Intents.swift; sourceTree = "<group>"; };
+		F35F6CB26F949C46653E6ADF /* ProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderTests.swift; sourceTree = "<group>"; };
+		F8ED524F4DDB1CA8774C7C12 /* Colors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Colors.swift; sourceTree = "<group>"; };
+		FD143C8704F73765EEC55B7C /* FindPlusWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindPlusWidget.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		2454D87920245D4F62C48BF3 = {
+			isa = PBXGroup;
+			children = (
+				3EB695D9C4D8A0E0BFAFE4C4 /* Sources */,
+				D9CC6207B6D79A176B67E4DE /* Tests */,
+				F99784378E356F2B609895AA /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		3EB695D9C4D8A0E0BFAFE4C4 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				F8ED524F4DDB1CA8774C7C12 /* Colors.swift */,
+				FD143C8704F73765EEC55B7C /* FindPlusWidget.swift */,
+				DEDE7330C45850FFB602A774 /* Intents.swift */,
+				69B2CE0EF79B689DF9673A1C /* Model.swift */,
+				9B8776D40294B3678CD905DC /* Provider.swift */,
+				C1C9E16174D3A1DF5EF1AB34 /* Views */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		C1C9E16174D3A1DF5EF1AB34 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				D7241344C30894657FB31F30 /* LargeView.swift */,
+				20FDC9544BEB85EED21CECB7 /* MediumView.swift */,
+				3739AE583E16BA26C23E1ADE /* SmallView.swift */,
+				14BB763493059AFE63E93B13 /* ViewHelpers.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		D9CC6207B6D79A176B67E4DE /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				5D0EE4CCFC62E1CC11B2D6BA /* ModelTests.swift */,
+				F35F6CB26F949C46653E6ADF /* ProviderTests.swift */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		F99784378E356F2B609895AA /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				9A4B61AD1AD108A63672C488 /* FindPlusWidgetExtension.appex */,
+				0995D7DAE303A368D63A13D8 /* FindPlusWidgetTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		B850A16821CF41389DC3F010 /* FindPlusWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C0855DBAB540BF66D7973171 /* Build configuration list for PBXNativeTarget "FindPlusWidgetExtension" */;
+			buildPhases = (
+				B0B901B89CB4BE41ADD8756F /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FindPlusWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = FindPlusWidgetExtension;
+			productReference = 9A4B61AD1AD108A63672C488 /* FindPlusWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		CB0C448C336701F0679E8B0D /* FindPlusWidgetTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 86243DDF91531934DC1FAB9B /* Build configuration list for PBXNativeTarget "FindPlusWidgetTests" */;
+			buildPhases = (
+				F6806E38DF892749FCFE7884 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FindPlusWidgetTests;
+			packageProductDependencies = (
+			);
+			productName = FindPlusWidgetTests;
+			productReference = 0995D7DAE303A368D63A13D8 /* FindPlusWidgetTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		282AC8877974ED19A719DC50 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					B850A16821CF41389DC3F010 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Manual;
+					};
+				};
+			};
+			buildConfigurationList = 4CC0B6FC925D6D7FA03D052D /* Build configuration list for PBXProject "FindPlusWidget" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 2454D87920245D4F62C48BF3;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = F99784378E356F2B609895AA /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				B850A16821CF41389DC3F010 /* FindPlusWidgetExtension */,
+				CB0C448C336701F0679E8B0D /* FindPlusWidgetTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		B0B901B89CB4BE41ADD8756F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4FC4A2DA7A85CA91E9F725DA /* Colors.swift in Sources */,
+				DDD3F10A89F9F2A96BECCC8C /* FindPlusWidget.swift in Sources */,
+				B7ED467DA156BC8FB86AA7FE /* Intents.swift in Sources */,
+				F083867C01F2F431FA16D443 /* LargeView.swift in Sources */,
+				DE7E737119E8590D11F9E89E /* MediumView.swift in Sources */,
+				E00F2E3E78E6A99347073FA0 /* Model.swift in Sources */,
+				ADEE2068F173BA95CD3832D9 /* Provider.swift in Sources */,
+				24B2C9C0054F3FAEA3A2E698 /* SmallView.swift in Sources */,
+				7FCBB7C41D247B2DD20F7585 /* ViewHelpers.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F6806E38DF892749FCFE7884 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BD4855F54DE7C75FAD8FC02A /* Model.swift in Sources */,
+				A47A139D767AC3E22C63305D /* ModelTests.swift in Sources */,
+				923EC2874A9CD6992E88E5DF /* Provider.swift in Sources */,
+				C7CCBA1BB125EC89B4B7D343 /* ProviderTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		3646741C6551066CEB61CE3E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		4573AEB2C8B5D44D61552333 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.acamarata.findplus.FindPlusWidgetTests;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5;
+			};
+			name = Release;
+		};
+		4F99249A9C1CE8156D7C79B8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = FindPlusWidget.entitlements;
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSExtensionPointIdentifier = "com.apple.widgetkit-extension";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.acamarata.findplus.widget;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5;
+			};
+			name = Debug;
+		};
+		8BFE489D54513B0F7F6A1B1C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		C509DC87AF4771D0148A8F53 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = FindPlusWidget.entitlements;
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSExtensionPointIdentifier = "com.apple.widgetkit-extension";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.acamarata.findplus.widget;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5;
+			};
+			name = Release;
+		};
+		F812CCFB8D85CD06F430F74E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.acamarata.findplus.FindPlusWidgetTests;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		4CC0B6FC925D6D7FA03D052D /* Build configuration list for PBXProject "FindPlusWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8BFE489D54513B0F7F6A1B1C /* Debug */,
+				3646741C6551066CEB61CE3E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		86243DDF91531934DC1FAB9B /* Build configuration list for PBXNativeTarget "FindPlusWidgetTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F812CCFB8D85CD06F430F74E /* Debug */,
+				4573AEB2C8B5D44D61552333 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C0855DBAB540BF66D7973171 /* Build configuration list for PBXNativeTarget "FindPlusWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4F99249A9C1CE8156D7C79B8 /* Debug */,
+				C509DC87AF4771D0148A8F53 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 282AC8877974ED19A719DC50 /* Project object */;
+}

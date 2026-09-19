@@ -7,13 +7,8 @@ Outputs : Sent Telegram/webhook messages; alert_deliveries rows; notified_at
 Constraints:
     - The pure matching/suppression/cooldown/render rules live in
       dispatch_core.py (re-exported below) and take no DB or network.
-    - process() must never raise into the poller: every send is wrapped so a
-      channel failure is recorded, not propagated.
-    - Delivery is best-effort: a failed send is recorded in the alert log
-      (alert_deliveries.status="failed") and is never retried -- the source
-      event is still stamped notified_at, and a failed/skipped delivery must
-      not itself start the next cooldown window (dispatch_core.in_cooldown
-      only counts status="sent" rows).
+    - process() must never raise into the poller: every send is wrapped, is
+      never retried, and a failed send must not start the next cooldown.
 Reuse: dispatch_core (match/suppressed_by_group/in_cooldown/render_message),
        alerts.channels.telegram.send, alerts.channels.webhook.send_webhook /
        build_payload, alerts.store.load_alerts.

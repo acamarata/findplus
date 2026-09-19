@@ -21,17 +21,49 @@ def _load(module_name: str, filename: str) -> ModuleType:
     return module
 
 
-def test_gen_api_docs_runs(tmp_db) -> None:
-    module = _load("gen_api_docs", "gen-api-docs.py")
+def _run_into(module: ModuleType, tmp_path: Path, monkeypatch) -> str:
+    """Run a generator with its OUTPUT redirected into `tmp_path`.
+
+    The scripts write to the tracked `.github/wiki/*.md` files by design; a test
+    run must not. Redirecting OUTPUT keeps `pytest` from silently regenerating —
+    and therefore hiding — the very drift the docs-drift gate exists to catch.
+    """
+    out = tmp_path / module.OUTPUT.name
+    monkeypatch.setattr(module, "OUTPUT", out)
     module.main()
-    text = module.OUTPUT.read_text(encoding="utf-8")
+    return out.read_text(encoding="utf-8")
+
+
+def test_gen_api_docs_runs(tmp_db, tmp_path, monkeypatch) -> None:
+    module = _load("gen_api_docs", "gen-api-docs.py")
+    text = _run_into(module, tmp_path, monkeypatch)
     assert "## core" in text
     assert "## devices" in text
+    assert "### GET /api/version" in text
+    assert "### GET /api/widget" in text
 
 
-def test_gen_cli_docs_runs(tmp_db) -> None:
+def test_gen_cli_docs_runs(tmp_db, tmp_path, monkeypatch) -> None:
     module = _load("gen_cli_docs", "gen-cli-docs.py")
-    module.main()
-    text = module.OUTPUT.read_text(encoding="utf-8")
+    text = _run_into(module, tmp_path, monkeypatch)
     assert "## findplus export" in text
     assert "## findplus serve" in text
+    assert "## findplus version" in text
+    assert "--group" in text
+
+
+def test_generators_do_not_touch_the_repo(tmp_db, tmp_path, monkeypatch) -> None:
+    """Regression guard for the redirect above: neither wiki file is rewritten."""
+    stamps = {}
+    for name in ("API-reference.md", "CLI-reference.md"):
+        path = REPO_ROOT / ".github" / "wiki" / name
+        stamps[name] = path.stat().st_mtime_ns if path.exists() else None
+    for module_name, filename in (
+        ("gen_api_docs2", "gen-api-docs.py"),
+        ("gen_cli_docs2", "gen-cli-docs.py"),
+    ):
+        _run_into(_load(module_name, filename), tmp_path, monkeypatch)
+    for name, before in stamps.items():
+        path = REPO_ROOT / ".github" / "wiki" / name
+        after = path.stat().st_mtime_ns if path.exists() else None
+        assert after == before, name

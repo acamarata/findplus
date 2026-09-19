@@ -11,6 +11,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
 from findplus import honesty
 
 _SPEC_PATH = (
@@ -24,6 +26,14 @@ _SPEC_PATH = (
 )
 _LINE_RE = re.compile(r'^- (\w+): "(.+?)"')
 
+#: `.claude/` is gitignored (PRI rule 11), so the spec file is present in a dev
+#: checkout and absent in a clean clone, an sdist and CI. Comparing against it is
+#: the point of this module, so skip rather than fail where it cannot exist —
+#: `test_notices_dict_matches_named_constants` still runs everywhere.
+_needs_spec = pytest.mark.skipif(
+    not _SPEC_PATH.exists(), reason="specs/honesty.md is only present in a dev checkout"
+)
+
 
 def _spec_sentences() -> dict[str, str]:
     sentences: dict[str, str] = {}
@@ -34,6 +44,7 @@ def _spec_sentences() -> dict[str, str]:
     return sentences
 
 
+@_needs_spec
 def test_every_constant_matches_the_spec_verbatim() -> None:
     spec = _spec_sentences()
     assert set(spec) == set(honesty.NOTICES)

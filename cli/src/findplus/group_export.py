@@ -21,6 +21,7 @@ from datetime import datetime
 from xml.sax.saxutils import escape
 
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from findplus.db.models import Device, DeviceGroup, Group, LocationObservation
@@ -33,12 +34,20 @@ class GroupNotFoundError(Exception):
 
 
 def resolve_group(session: Session, group_id: str) -> Group:
-    """The `Group` row for `group_id`, or `GroupNotFoundError` if it isn't one."""
+    """The `Group` row for `group_id`, or `GroupNotFoundError` if it isn't one.
+
+    An `OperationalError` (migration 0005 not applied, so the `groups` table is
+    absent) is reported as "not found" too: a caller asking for a group on a
+    database that has none is answered 404, never a 500 traceback.
+    """
     try:
         numeric_id = int(group_id)
     except (TypeError, ValueError):
         raise GroupNotFoundError(group_id) from None
-    group = session.get(Group, numeric_id)
+    try:
+        group = session.get(Group, numeric_id)
+    except OperationalError as exc:
+        raise GroupNotFoundError(group_id) from exc
     if group is None:
         raise GroupNotFoundError(group_id)
     return group
@@ -135,7 +144,7 @@ def _gpx(blocks, group_name: str) -> str:
             lines.append(f'    <trkpt lat="{o.latitude:.7f}" lon="{o.longitude:.7f}">')
             lines.append(f"      <time>{_zulu(o.observed_at)}</time>")
             lines.append("    </trkpt>")
-        lines.append("  </trk>")
+        lines.append("  </trkseg></trk>")
     lines.append("</gpx>")
     return "\n".join(lines) + "\n"
 

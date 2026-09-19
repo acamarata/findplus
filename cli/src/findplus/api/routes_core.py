@@ -43,6 +43,34 @@ from ._helpers import (
 )
 
 
+def _last_runs(session) -> tuple[Any, Any]:
+    """`(newest PollRun, newest successful PollRun)` — either may be None."""
+    last_run = session.scalar(select(PollRun).order_by(desc(PollRun.started_at)).limit(1))
+    last_ok = session.scalar(
+        select(PollRun)
+        .where(PollRun.status.in_(("ok", "no_location")))
+        .order_by(desc(PollRun.started_at))
+        .limit(1)
+    )
+    return last_run, last_ok
+
+
+def _status_extras(session, settings, last_run, next_poll_at) -> dict[str, Any]:
+    """The seven fields api-contract.md § /api/status adds in P1.
+
+    Split out of the handler so `status()` stays inside the 50-line rule; the
+    values are computed from exactly the sources the rest of the handler uses.
+    """
+    return {
+        "provider_health": _provider_health(),
+        "alerts_configured": _alerts_configured(settings),
+        "last_error_type": last_run.error_type if last_run else None,
+        "consecutive_failures": _consecutive_failures(session),
+        "last_poll_at": _iso_z(last_run.started_at) if last_run else None,
+        "next_poll_at": _iso_z(next_poll_at),
+    }
+
+
 def build_router(*, settings, static_dir: Path, find_hub_notice: str) -> APIRouter:
     router = APIRouter(tags=["core"])
 
@@ -143,14 +171,7 @@ def build_router(*, settings, static_dir: Path, find_hub_notice: str) -> APIRout
             scoped = [d for d in per_device if device_id is None or d["device_id"] == device_id]
             latest = _newest(scoped)
 
-            last_run = session.scalar(select(PollRun).order_by(desc(PollRun.started_at)).limit(1))
-            last_ok = session.scalar(
-                select(PollRun)
-                .where(PollRun.status.in_(("ok", "no_location")))
-                .order_by(desc(PollRun.started_at))
-                .limit(1)
-            )
-
+            last_run, last_ok = _last_runs(session)
             interval = settings.effective_poll_interval_minutes
             next_poll_at = last_run.started_at + timedelta(minutes=interval) if last_run else None
             return {
@@ -169,13 +190,7 @@ def build_router(*, settings, static_dir: Path, find_hub_notice: str) -> APIRout
                 "timezone": str(zone),
                 "server_time": now.astimezone(zone).isoformat(),
                 "notice": find_hub_notice,
-                # E8 W5 additions (api-contract.md § /api/status):
-                "provider_health": _provider_health(),
-                "alerts_configured": _alerts_configured(settings),
-                "last_error_type": last_run.error_type if last_run else None,
-                "consecutive_failures": _consecutive_failures(session),
-                "last_poll_at": _iso_z(last_run.started_at) if last_run else None,
-                "next_poll_at": _iso_z(next_poll_at),
+                **_status_extras(session, settings, last_run, next_poll_at),
             }
 
     if static_dir.is_dir():

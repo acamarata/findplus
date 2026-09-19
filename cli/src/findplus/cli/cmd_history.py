@@ -21,6 +21,46 @@ from findplus.db.session import session_scope
 from ._fmt import _prep
 
 
+def _export_range(all_history: bool, day, start, end, tz):
+    """`(start_utc, end_utc, label)` from the mutually exclusive range options."""
+    from findplus.timeline import day_bounds_utc
+
+    if all_history:
+        return datetime(1970, 1, 1, tzinfo=UTC), datetime.now(UTC) + timedelta(days=1), "all"
+    if day:
+        target = date.fromisoformat(day)
+        s_utc, e_utc = day_bounds_utc(target, tz)
+        return s_utc, e_utc, target.isoformat()
+    if start or end:
+        s_date = date.fromisoformat(start) if start else date(1970, 1, 1)
+        e_date = date.fromisoformat(end) if end else datetime.now(tz).date()
+        s_utc, _ = day_bounds_utc(s_date, tz)
+        _, e_utc = day_bounds_utc(e_date, tz)
+        return s_utc, e_utc, f"{s_date}_to_{e_date}"
+    target = datetime.now(tz).date()
+    s_utc, e_utc = day_bounds_utc(target, tz)
+    return s_utc, e_utc, target.isoformat()
+
+
+def _export_body(fmt: str, device_id, group_id, start_utc, end_utc, tz, label: str):
+    """`(body, count)` — the group branch counts rendered lines, not observations."""
+    from findplus.exporters import export as render
+    from findplus.group_export import GroupNotFoundError, export_group
+    from findplus.timeline import fetch_observations
+
+    if group_id is not None:
+        with session_scope() as session:
+            try:
+                body, _slug = export_group(session, group_id, fmt, start_utc, end_utc, tz)
+            except GroupNotFoundError:
+                click.echo("Error: group not found", err=True)
+                sys.exit(1)
+        return body, body.count("\n")
+    with session_scope() as session:
+        rows = fetch_observations(session, device_id, start_utc, end_utc)
+        return render(fmt, rows, tz, name=f"Bike history {label}"), len(rows)
+
+
 @click.command()
 @click.option("--format", "fmt", type=click.Choice(["csv", "json", "gpx", "kml"]), default="csv")
 @click.option("--day", default=None, help="Single local day, YYYY-MM-DD.")
@@ -48,43 +88,11 @@ def export(
 ) -> None:
     """Export history to CSV, JSON, GPX or KML."""
     _prep()
-    from findplus.exporters import export as render
-    from findplus.group_export import GroupNotFoundError, export_group
-    from findplus.timeline import day_bounds_utc, fetch_observations, local_zone
+    from findplus.timeline import local_zone
 
     tz = local_zone()
-    if all_history:
-        start_utc = datetime(1970, 1, 1, tzinfo=UTC)
-        end_utc = datetime.now(UTC) + timedelta(days=1)
-        label = "all"
-    elif day:
-        target = date.fromisoformat(day)
-        start_utc, end_utc = day_bounds_utc(target, tz)
-        label = target.isoformat()
-    elif start or end:
-        s = date.fromisoformat(start) if start else date(1970, 1, 1)
-        e = date.fromisoformat(end) if end else datetime.now(tz).date()
-        start_utc, _ = day_bounds_utc(s, tz)
-        _, end_utc = day_bounds_utc(e, tz)
-        label = f"{s}_to_{e}"
-    else:
-        target = datetime.now(tz).date()
-        start_utc, end_utc = day_bounds_utc(target, tz)
-        label = target.isoformat()
-
-    if group_id is not None:
-        with session_scope() as session:
-            try:
-                body, _slug = export_group(session, group_id, fmt, start_utc, end_utc, tz)
-            except GroupNotFoundError:
-                click.echo("Error: group not found", err=True)
-                sys.exit(1)
-        count = body.count("\n")
-    else:
-        with session_scope() as session:
-            rows = fetch_observations(session, device_id, start_utc, end_utc)
-            body = render(fmt, rows, tz, name=f"Bike history {label}")
-        count = len(rows)
+    start_utc, end_utc, label = _export_range(all_history, day, start, end, tz)
+    body, count = _export_body(fmt, device_id, group_id, start_utc, end_utc, tz, label)
 
     if output:
         output.write_text(body, encoding="utf-8")

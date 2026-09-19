@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import importlib.metadata
+from datetime import UTC, datetime, timedelta
 
+import pytest
 from fastapi.testclient import TestClient
 
 from findplus import honesty
+from findplus.api._helpers import _widget_state
 from tests.test_api import client, locked_client  # noqa: F401
 
 
@@ -60,3 +63,36 @@ def test_config_notices(client: TestClient) -> None:  # noqa: F811
     for value in notices.values():
         assert isinstance(value, str) and value
     assert notices["find_hub"] == honesty.FIND_HUB
+
+
+@pytest.mark.parametrize(
+    "error_type,failures,age_minutes,expected",
+    [
+        (None, 0, 1, "ok"),
+        (None, 2, 1, "ok"),
+        ("network", 0, 1, "ok"),
+        ("auth", 0, 1, "error"),
+        ("decrypt", 0, 1, "error"),
+        (None, 3, 1, "error"),
+        (None, 0, 11, "stale"),
+        (None, 0, 9, "ok"),  # just inside 2 x the 5-minute interval
+        # Both conditions true at once: api-contract.md orders error first.
+        ("auth", 4, 60, "error"),
+        (None, 4, 60, "error"),
+        (None, None, None, "ok"),
+    ],
+)
+def test_widget_state_priority(error_type, failures, age_minutes, expected) -> None:
+    """`_widget_state` returns only ok|stale|error, error winning over stale."""
+    last_poll_at = (
+        None if age_minutes is None else datetime.now(UTC) - timedelta(minutes=age_minutes)
+    )
+    state = _widget_state(error_type, failures or 0, last_poll_at, 5 * 60)
+    assert state == expected
+
+
+def test_widget_state_never_returns_down() -> None:
+    """`down` is rendered by the widget client on a connection failure (widget.md)."""
+    for error_type in (None, "auth", "decrypt", "network", "down"):
+        for failures in (0, 3, 99):
+            assert _widget_state(error_type, failures, None, 300) in {"ok", "stale", "error"}

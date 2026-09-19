@@ -5,8 +5,8 @@ Inputs  : AlertsChannels dataclass tree; the state-dir path from Settings.alerts
 Outputs : alerts.json on disk, atomic-written.
 Constraints:
     - No findplus.db import here (importable under the network-block test fixture).
-    - Atomic write: .tmp -> os.replace -> chmod, so a crash never leaves a
-      world-readable partial file behind.
+    - Atomic write: .tmp (created 0600) -> os.replace, so the credentials are
+      never on disk at the default umask, not even for one syscall.
 """
 
 from __future__ import annotations
@@ -58,7 +58,8 @@ def load_alerts() -> AlertsChannels:
             telegram=TelegramCreds(**tg) if tg else None,
             webhook=WebhookCreds(**wh) if wh else None,
         )
-    except (KeyError, TypeError, json.JSONDecodeError, AttributeError):
+    except (OSError, ValueError, TypeError, KeyError, AttributeError):
+        # ValueError covers JSONDecodeError and a binary file's UnicodeDecodeError.
         return AlertsChannels()
 
 
@@ -72,9 +73,11 @@ def save_alerts(channels: AlertsChannels) -> None:
     if channels.webhook:
         data["channels"]["webhook"] = dataclasses.asdict(channels.webhook)
     tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, indent=2))
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as handle:
+        handle.write(json.dumps(data, indent=2))
+    os.chmod(tmp, 0o600)
     os.replace(tmp, path)
-    os.chmod(path, 0o600)
 
 
 def mask_token(token: str) -> str:

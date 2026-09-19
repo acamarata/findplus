@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import asyncio
 import functools
-import re
 from datetime import UTC, datetime
 from typing import Any, Literal
 
@@ -22,7 +21,7 @@ from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel
 
 from findplus.alerts.channels.telegram import _get_me, send, telegram_setup
-from findplus.alerts.channels.webhook import build_payload, send_webhook
+from findplus.alerts.channels.webhook import build_payload, is_valid_url, send_webhook
 from findplus.alerts.store import (
     AlertsChannels,
     TelegramCreds,
@@ -31,8 +30,6 @@ from findplus.alerts.store import (
     mask_token,
     save_alerts,
 )
-
-_WEBHOOK_URL_RE = re.compile(r"^https://|^http://(127\.|localhost)")
 
 
 class TelegramPutBody(BaseModel):
@@ -123,7 +120,7 @@ def build_router() -> APIRouter:
 
     @router.put("/channels/webhook")
     def put_webhook(body: WebhookPutBody) -> dict[str, Any]:
-        if not _WEBHOOK_URL_RE.match(body.url):
+        if not is_valid_url(body.url):
             raise HTTPException(status_code=422, detail="url must be https or http loopback")
         ch = load_alerts()
         new_webhook = WebhookCreds(url=body.url, secret=body.secret)
@@ -142,9 +139,14 @@ def build_router() -> APIRouter:
         if body.channel == "telegram":
             if not ch.telegram:
                 raise HTTPException(status_code=422, detail="Telegram not configured")
-            result = send(
-                "Find+ test alert from the dashboard", ch.telegram.bot_token, ch.telegram.chat_id
-            )
+            try:
+                result = send(
+                    "Find+ test alert from the dashboard",
+                    ch.telegram.bot_token,
+                    ch.telegram.chat_id,
+                )
+            except (ValueError, RuntimeError) as exc:
+                return {"status": "failed", "error": str(exc)}
         else:
             if not ch.webhook:
                 raise HTTPException(status_code=422, detail="Webhook not configured")

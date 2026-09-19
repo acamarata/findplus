@@ -137,3 +137,22 @@ def test_send_timeout() -> None:
 def test_json_serializable() -> None:
     payload = _payload()
     assert json.loads(json.dumps(payload, default=str))["event"] == "ENTER"
+
+
+@pytest.mark.parametrize(
+    ("url", "valid"),
+    [
+        ("https://example.com/hook", True),
+        ("http://127.0.0.1:8647/hook", True),
+        ("http://localhost/hook", True),
+        ("http://[::1]:8000/hook", True),
+        ("http://localhost.evil.example/hook", False),
+        ("http://127.0.0.1.evil.example/hook", False),
+        ("http://10.0.0.1/hook", False),
+        ("ftp://bad", False),
+    ],
+)
+def test_is_valid_url(url: str, valid: bool) -> None:
+    from findplus.alerts.channels.webhook import is_valid_url
+
+    assert is_valid_url(url) is valid

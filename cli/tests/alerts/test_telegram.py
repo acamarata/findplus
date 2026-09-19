@@ -98,3 +98,34 @@ def test_setup_timeout() -> None:
         with pytest.raises(TimeoutError):
             telegram_setup("tok", wait_seconds=1, poll=1)
         assert time.monotonic() - start < 4
+
+
+def test_http_error_never_echoes_the_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    """httpx puts the request URL (which carries the token) in HTTPStatusError."""
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    class _Failing(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            self.send_response(500)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def log_message(self, format: str, *args: object) -> None:
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), _Failing)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    token = "9876543210:ABCdefGHIjklMNOpqrSTUvwxyz012345678"
+    monkeypatch.setattr(
+        "findplus.alerts.channels.telegram.TELEGRAM_BASE",
+        f"http://127.0.0.1:{server.server_address[1]}/bot",
+    )
+    try:
+        with pytest.raises(RuntimeError) as excinfo:
+            telegram_setup(token, wait_seconds=1, poll=1)
+    finally:
+        server.shutdown()
+        server.server_close()
+    assert token not in str(excinfo.value)
+    assert "500" in str(excinfo.value)

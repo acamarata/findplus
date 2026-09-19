@@ -76,3 +76,8 @@ def test_alerts_help_lists_subcommands(tmp_db: str) -> None:
     assert result.exit_code == 0
     for name in ("telegram-setup", "webhook-set", "test", "rules", "deliveries"):
         assert name in result.output
+
+
+def test_webhook_set_rejects_lookalike_loopback_host(tmp_db: str) -> None:
+    result = CliRunner().invoke(main, ["alerts", "webhook-set", "http://localhost.evil.example/h"])
+    assert result.exit_code != 0

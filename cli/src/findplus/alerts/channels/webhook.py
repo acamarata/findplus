@@ -14,10 +14,23 @@ import datetime
 import hashlib
 import hmac
 import json
+import re
 
 import httpx
 
 from findplus.alerts.channels.telegram import DeliveryResult
+
+#: https anywhere, or plain http only to a real loopback HOST. The host part is
+#: anchored (\Z, a port, or a path) so "http://localhost.example.com" is rejected.
+_URL_RE = re.compile(
+    r"https://\S+\Z|http://(?:127(?:\.\d{1,3}){3}|localhost|\[::1\])(?::\d+)?(?:/\S*)?\Z",
+    re.IGNORECASE,
+)
+
+
+def is_valid_url(url: str) -> bool:
+    """True for an https URL or an http URL pointing at loopback (api-contract.md)."""
+    return bool(_URL_RE.fullmatch(url.strip()))
 
 
 def _sign(body: bytes, secret: str) -> str:

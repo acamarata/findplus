@@ -10,6 +10,9 @@ Constraints:
     - Never calls deleteWebhook. A 409 from Telegram means the bot already has
       a webhook integration; Find+ must not silently destroy it (ADR-P1-05).
     - No findplus.db import anywhere in this module.
+    - No raised or returned message ever contains the bot token: httpx puts the
+      full request URL (which carries the token) into HTTPStatusError, so every
+      raise_for_status goes through _http_error instead.
 """
 
 from __future__ import annotations
@@ -57,6 +60,12 @@ def send(text: str, bot_token: str, chat_id: str, timeout: float = 10.0) -> Deli
     return DeliveryResult(success=False, status_code=None, error="max retries exceeded")
 
 
+def _raise_for_status(r: httpx.Response, call: str) -> None:
+    """Token-safe replacement for r.raise_for_status() (the URL holds the token)."""
+    if r.status_code >= 400:
+        raise RuntimeError(f"telegram: {call} returned HTTP {r.status_code}")
+
+
 def _get_me(token: str, client: httpx.Client) -> dict:
     r = client.get(f"{TELEGRAM_BASE}{token}/getMe", timeout=10.0)
     if r.status_code == 409:
@@ -65,7 +74,7 @@ def _get_me(token: str, client: httpx.Client) -> dict:
         )
     if r.status_code == 401:
         raise ValueError("telegram: invalid token (401)")
-    r.raise_for_status()
+    _raise_for_status(r, "getMe")
     return r.json()["result"]
 
 
@@ -86,9 +95,9 @@ def telegram_setup(token: str, wait_seconds: int = 120, poll: int = 2) -> dict:
             )
             if r.status_code == 409:
                 raise RuntimeError(
-                    "telegram: webhook conflict (409) — remove the webhook in BotFather"
+                    "telegram: webhook conflict (409), remove the webhook in BotFather"
                 )
-            r.raise_for_status()
+            _raise_for_status(r, "getUpdates")
             for u in r.json().get("result", []):
                 offset = u["update_id"] + 1
                 msg = u.get("message") or u.get("channel_post")

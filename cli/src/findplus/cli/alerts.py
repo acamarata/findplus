@@ -12,21 +12,18 @@ Constraints: Channel commands call alerts.store/channels directly; rules and
 from __future__ import annotations
 
 import json
-import re
 import sys
 from datetime import UTC, datetime
 
 import click
 
 from findplus.alerts.channels.telegram import send, telegram_setup
-from findplus.alerts.channels.webhook import build_payload, send_webhook
+from findplus.alerts.channels.webhook import build_payload, is_valid_url, send_webhook
 from findplus.alerts.store import AlertsChannels, WebhookCreds, load_alerts, save_alerts
 from findplus.db.models_alerts import AlertDelivery, AlertRule
 from findplus.db.session import session_scope
 
 alerts_cmd = click.Group(name="alerts", help="Manage alert channels, rules, and delivery history.")
-
-_WEBHOOK_URL_RE = re.compile(r"^https://|^http://(127\.|localhost)")
 
 
 @alerts_cmd.command("telegram-setup")
@@ -65,7 +62,7 @@ def telegram_clear(yes: bool) -> None:
 @click.option("--secret", "-s", default=None, help="HMAC signing secret (optional).")
 def webhook_set_cmd(url: str, secret: str | None) -> None:
     """Configure the webhook channel."""
-    if not _WEBHOOK_URL_RE.match(url):
+    if not is_valid_url(url):
         raise click.ClickException("URL must be https or http loopback")
     ch = load_alerts()
     save_alerts(AlertsChannels(telegram=ch.telegram, webhook=WebhookCreds(url=url, secret=secret)))

@@ -18,11 +18,14 @@ from __future__ import annotations
 
 import datetime
 
+from sqlalchemy.exc import IntegrityError
+
 from findplus.alerts.dispatch_core import (
     Delivery,
     DeviceEvent,
     GroupEvent,
     Rule,
+    as_utc,
     in_cooldown,
     match,
     render_message,
@@ -34,6 +37,7 @@ __all__ = [
     "DeviceEvent",
     "GroupEvent",
     "Rule",
+    "as_utc",
     "in_cooldown",
     "load_pending_events",
     "match",
@@ -42,24 +46,18 @@ __all__ = [
     "suppressed_by_group",
 ]
 
-_DEVICE_EVENTS_SQL = (
-    "SELECT pe.id, pe.place_id, p.name AS place_name, pe.device_id, "
-    "d.name AS device_name, pe.event_type, pe.observed_at, pe.fetched_at, pe.confidence "
-    "FROM place_events pe "
-    "JOIN places p ON p.id = pe.place_id "
-    "JOIN devices d ON d.device_id = pe.device_id "
-    "WHERE pe.notified_at IS NULL ORDER BY pe.observed_at ASC"
-)
+_DEVICE_EVENTS_SQL = """SELECT pe.id, pe.place_id, p.name AS place_name, pe.device_id,
+       d.name AS device_name, pe.event_type, pe.observed_at, pe.fetched_at, pe.confidence
+FROM place_events pe JOIN places p ON p.id = pe.place_id
+JOIN devices d ON d.device_id = pe.device_id
+WHERE pe.notified_at IS NULL ORDER BY pe.observed_at ASC"""
 
-_GROUP_EVENTS_SQL = (
-    "SELECT gpe.id, gpe.group_id, g.name AS group_name, gpe.place_id, "
-    "p.name AS place_name, gpe.event_type, gpe.observed_at, gpe.confidence, "
-    "gpe.members_crossed, gpe.members_considered, gpe.members_stale "
-    "FROM group_place_events gpe "
-    "JOIN groups g ON g.id = gpe.group_id "
-    "JOIN places p ON p.id = gpe.place_id "
-    "WHERE gpe.notified_at IS NULL ORDER BY gpe.observed_at ASC"
-)
+_GROUP_EVENTS_SQL = """SELECT gpe.id, gpe.group_id, g.name AS group_name, gpe.place_id,
+       p.name AS place_name, gpe.event_type, gpe.observed_at, gpe.confidence,
+       gpe.members_crossed, gpe.members_considered, gpe.members_stale
+FROM group_place_events gpe JOIN groups g ON g.id = gpe.group_id
+JOIN places p ON p.id = gpe.place_id
+WHERE gpe.notified_at IS NULL ORDER BY gpe.observed_at ASC"""
 
 
 def load_pending_events(session) -> list[DeviceEvent | GroupEvent]:
@@ -87,8 +85,8 @@ def load_pending_events(session) -> list[DeviceEvent | GroupEvent]:
                 device_id=row.device_id,
                 device_name=row.device_name,
                 event_type=row.event_type,
-                observed_at=row.observed_at,
-                fetched_at=row.fetched_at,
+                observed_at=as_utc(row.observed_at),
+                fetched_at=as_utc(row.fetched_at),
                 confidence=row.confidence,
                 group_ids=group_ids,
             )
@@ -103,7 +101,7 @@ def load_pending_events(session) -> list[DeviceEvent | GroupEvent]:
                 place_id=row.place_id,
                 place_name=row.place_name,
                 event_type=row.event_type,
-                observed_at=row.observed_at,
+                observed_at=as_utc(row.observed_at),
                 confidence=row.confidence,
                 note="",
                 members_crossed=row.members_crossed,
@@ -156,8 +154,9 @@ def _send(rule: Rule, event: DeviceEvent | GroupEvent, kind: str, text_msg: str,
     if rule.channel == "webhook" and channels_cfg.webhook:
         subject_id = event.device_id if isinstance(event, DeviceEvent) else event.group_id
         subject_name = event.device_name if isinstance(event, DeviceEvent) else event.group_name
-        fetched_at = getattr(event, "fetched_at", None)
-        lag = round((fetched_at - event.observed_at).total_seconds() / 60) if fetched_at else 0
+        observed_at = as_utc(event.observed_at)
+        fetched_at = as_utc(getattr(event, "fetched_at", None))
+        lag = round((fetched_at - observed_at).total_seconds() / 60) if fetched_at else 0
         payload = build_payload(
             event.event_type,
             kind,
@@ -165,7 +164,7 @@ def _send(rule: Rule, event: DeviceEvent | GroupEvent, kind: str, text_msg: str,
             subject_name,
             event.place_id,
             event.place_name,
-            event.observed_at,
+            observed_at,
             fetched_at,
             lag,
             event.confidence or "",
@@ -210,7 +209,12 @@ def _deliver_one(
             error=err,
         )
     )
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError:
+        # Another poller won the race between the dedup SELECT and this commit.
+        session.rollback()
+        return None
     return Delivery(rule_id=rule.id, event_kind=kind, event_id=eid, sent_at=now)
 
 

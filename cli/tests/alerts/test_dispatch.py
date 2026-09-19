@@ -270,3 +270,117 @@ def test_load_pending_events_marks_notified(session, settings_enabled) -> None:
     session.expire_all()
     row = session.query(PlaceEvent).one()
     assert row.notified_at is not None
+
+
+def test_end_to_end_from_db_rows_sends(rule_row, session, settings_enabled) -> None:
+    """The real load -> process path: raw SQL hands back str timestamps, not datetimes."""
+    from findplus.db.models import LocationObservation, PlaceEvent
+
+    session.add(
+        LocationObservation(
+            id=1,
+            device_id="dev1",
+            device_name="Tag",
+            latitude_e7=0,
+            longitude_e7=0,
+            observed_at=NOW,
+            first_fetched_at=NOW,
+            last_fetched_at=NOW,
+            times_returned=1,
+        )
+    )
+    session.add(
+        PlaceEvent(
+            place_id=1,
+            device_id="dev1",
+            event_type="ENTER",
+            observed_at=NOW,
+            fetched_at=NOW + timedelta(minutes=4),
+            observation_id=1,
+            confidence="high",
+            distance_meters=10.0,
+            notified_at=None,
+        )
+    )
+    session.commit()
+
+    with (
+        patch("findplus.alerts.store.load_alerts", return_value=_telegram_configured()),
+        patch("findplus.alerts.channels.telegram.send") as send_mock,
+    ):
+        send_mock.return_value = types.SimpleNamespace(success=True, status_code=200, error=None)
+        process(load_pending_events(session), session, settings_enabled, now=NOW)
+
+    row = session.query(AlertDelivery).one()
+    assert row.status == "sent", row.error
+    assert "4 min late" in send_mock.call_args[0][0]
+
+
+def test_as_utc_parses_sqlite_strings() -> None:
+    from findplus.alerts.dispatch import as_utc
+
+    parsed = as_utc("2026-09-19 12:00:00.000000")
+    assert parsed == NOW
+    assert as_utc(None) is None
+    assert as_utc(NOW) == NOW
+
+
+def test_render_keeps_the_latency_sentence_when_truncating() -> None:
+    from findplus.alerts.dispatch import render_message
+
+    msg = render_message(_device_event(place_name="X" * 600), NOW)
+    assert len(msg) <= 400
+    assert msg.endswith("Find Hub and Find My locations can be minutes to hours late.")
+
+
+def test_concurrent_duplicate_delivery_is_rolled_back(rule_row, session) -> None:
+    """A second poller's insert loses to the UNIQUE constraint instead of raising."""
+    from findplus.alerts.dispatch import Rule, _deliver_one
+
+    rule = Rule(
+        id=rule_row.id,
+        name=rule_row.name,
+        place_id=1,
+        group_id=None,
+        device_id="dev1",
+        on_enter=True,
+        on_exit=True,
+        channel="telegram",
+        cooldown_minutes=30,
+        enabled=True,
+        also_notify_members=False,
+    )
+    session.add(
+        AlertDelivery(rule_id=rule.id, event_kind="device", event_id=1, sent_at=NOW, status="sent")
+    )
+    session.commit()
+
+    class _RacySession:
+        """Delegates to the real session, but the dedup SELECT always misses."""
+
+        def __init__(self, real) -> None:
+            self._real = real
+
+        def __getattr__(self, name):
+            return getattr(self._real, name)
+
+        def query(self, *_args, **_kwargs):
+            return self
+
+        def filter_by(self, **_kwargs):
+            return self
+
+        def first(self):
+            return None
+
+    with (
+        patch("findplus.alerts.store.load_alerts", return_value=_telegram_configured()),
+        patch("findplus.alerts.channels.telegram.send") as send_mock,
+    ):
+        send_mock.return_value = types.SimpleNamespace(success=True, status_code=200, error=None)
+        result = _deliver_one(
+            _RacySession(session), rule, _device_event(), _telegram_configured(), NOW
+        )
+
+    assert result is None
+    assert session.query(AlertDelivery).count() == 1

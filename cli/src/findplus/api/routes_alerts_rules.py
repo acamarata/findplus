@@ -11,10 +11,10 @@ Constraints: Gated by SessionAuthMiddleware like every /api/ path not in
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from findplus.db.models import Device, Group, Place
@@ -29,8 +29,8 @@ class RuleCreate(BaseModel):
     device_id: str | None = None
     on_enter: bool = True
     on_exit: bool = True
-    channel: str
-    cooldown_minutes: int = 30
+    channel: Literal["telegram", "webhook"]
+    cooldown_minutes: int = Field(default=30, ge=0, le=1440)
     enabled: bool = True
     also_notify_members: bool = False
 
@@ -40,8 +40,8 @@ class RuleUpdate(BaseModel):
     place_id: int | None = None
     on_enter: bool | None = None
     on_exit: bool | None = None
-    channel: str | None = None
-    cooldown_minutes: int | None = None
+    channel: Literal["telegram", "webhook"] | None = None
+    cooldown_minutes: int | None = Field(default=None, ge=0, le=1440)
     enabled: bool | None = None
     also_notify_members: bool | None = None
 

@@ -157,3 +157,43 @@ def test_401_locked(client: TestClient) -> None:
     client.cookies.clear()
     res = client.get("/api/alerts/channels")
     assert res.status_code == 401
+
+
+def test_put_webhook_rejects_lookalike_loopback_host(client: TestClient) -> None:
+    res = client.put(
+        "/api/alerts/channels/webhook",
+        json={"url": "http://localhost.evil.example/hook", "secret": None},
+    )
+    assert res.status_code == 422
+
+
+def test_rules_create_rejects_unknown_channel(client: TestClient) -> None:
+    res = client.post(
+        "/api/alerts/rules", json={"name": "bad", "device_id": "dev1", "channel": "email"}
+    )
+    assert res.status_code == 422
+
+
+def test_rules_create_rejects_out_of_range_cooldown(client: TestClient) -> None:
+    res = client.post(
+        "/api/alerts/rules",
+        json={"name": "bad", "device_id": "dev1", "channel": "telegram", "cooldown_minutes": 5000},
+    )
+    assert res.status_code == 422
+
+
+def test_test_endpoint_reports_failure_instead_of_500(client: TestClient) -> None:
+    save_alerts(
+        AlertsChannels(
+            telegram=TelegramCreds(
+                bot_token="tok", chat_id="1", chat_title="t", bot_username="b", captured_at="now"
+            )
+        )
+    )
+    with patch(
+        "findplus.api.routes_alerts_channels.send",
+        side_effect=ValueError("telegram: invalid token (401)"),
+    ):
+        res = client.post("/api/alerts/test", json={"channel": "telegram"})
+    assert res.status_code == 200
+    assert res.json()["status"] == "failed"

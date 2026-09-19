@@ -128,13 +128,31 @@ def in_cooldown(
     )
 
 
+#: The honesty sentence is never truncated away: the variable head is trimmed instead.
+_LATENCY_TAIL = "\nFind Hub and Find My locations can be minutes to hours late."
+
+
+def as_utc(value: datetime.datetime | str | None) -> datetime.datetime | None:
+    """Coerce a timestamp to aware UTC.
+
+    Raw ``text()`` SQL bypasses the UtcDateTime decorator, so SQLite hands back
+    a plain string for a DATETIME column. Pure (no DB import), so it lives here.
+    """
+    if value is None:
+        return None
+    if isinstance(value, str):
+        value = datetime.datetime.fromisoformat(value)
+    return value if value.tzinfo else value.replace(tzinfo=datetime.UTC)
+
+
 def render_message(event: DeviceEvent | GroupEvent, now: datetime.datetime) -> str:
     subject = event.device_name if isinstance(event, DeviceEvent) else event.group_name
     verb = "arrived at" if event.event_type == "ENTER" else "left"
-    ft = getattr(event, "fetched_at", None)
-    obs = event.observed_at.strftime("%H:%M")
-    rep = ft.strftime("%H:%M") if ft else "unknown"
-    lag = round((ft - event.observed_at).total_seconds() / 60) if ft else 0
+    observed = as_utc(event.observed_at)
+    ft = as_utc(getattr(event, "fetched_at", None))
+    obs = observed.astimezone().strftime("%H:%M")
+    rep = ft.astimezone().strftime("%H:%M") if ft else "unknown"
+    lag = round((ft - observed).total_seconds() / 60) if ft else 0
     note = getattr(event, "note", "")
     msg = (
         f"{subject} {verb} {event.place_name}\n"
@@ -143,5 +161,4 @@ def render_message(event: DeviceEvent | GroupEvent, now: datetime.datetime) -> s
     )
     if note:
         msg += f" {note}"
-    msg += "\nFind Hub and Find My locations can be minutes to hours late."
-    return msg[:400]
+    return msg[: 400 - len(_LATENCY_TAIL)] + _LATENCY_TAIL

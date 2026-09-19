@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import socket
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -11,6 +12,46 @@ import pytest
 
 # Point every setting at a throwaway location BEFORE findplus.config is imported.
 os.environ.setdefault("FINDPLUS_STATE_DIR", "/tmp/findplus-tests-state")
+
+
+@pytest.fixture(autouse=True)
+def _block_non_loopback_sockets(monkeypatch: pytest.MonkeyPatch) -> None:
+    """PROMPT.md §2 invariant 3: tests never touch the network.
+
+    Patches both `connect` and `connect_ex` (either can open a real socket) so
+    no test path can reach a real host. Only inspects (host, port)-shaped
+    addresses (AF_INET/AF_INET6): a local AF_UNIX socket (Playwright's own IPC
+    to the browser it launches) is a plain str address, never a tuple, so it
+    is never mistaken for an outbound network call. Loopback (127.0.0.0/8,
+    ::1, "localhost") stays open so Playwright/uvicorn traffic still works.
+    """
+    real_connect = socket.socket.connect
+    real_connect_ex = socket.socket.connect_ex
+
+    def _blocked_host(address: object) -> str | None:
+        if not (isinstance(address, tuple) and address):
+            return None
+        host = address[0]
+        if host in ("::1", "localhost"):
+            return None
+        if isinstance(host, str) and host.startswith("127."):
+            return None
+        return str(host)
+
+    def guarded_connect(self, address):
+        host = _blocked_host(address)
+        if host is not None:
+            raise RuntimeError(f"network access blocked in tests: {host}")
+        return real_connect(self, address)
+
+    def guarded_connect_ex(self, address):
+        host = _blocked_host(address)
+        if host is not None:
+            raise RuntimeError(f"network access blocked in tests: {host}")
+        return real_connect_ex(self, address)
+
+    monkeypatch.setattr(socket.socket, "connect", guarded_connect)
+    monkeypatch.setattr(socket.socket, "connect_ex", guarded_connect_ex)
 
 
 @pytest.fixture

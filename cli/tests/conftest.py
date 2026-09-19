@@ -144,3 +144,32 @@ def make_observation(
         source=source,
         is_own_report=False,
     )
+
+
+@pytest.fixture
+def register_provider(monkeypatch: pytest.MonkeyPatch):
+    """Inject a fake provider into the registry, undone automatically after the test.
+
+    Shared by the poller and multi-device suites, which each had an identical
+    copy before the test_poller.py split.
+    """
+
+    def _register(name: str, provider) -> None:
+        from findplus.providers import base
+
+        monkeypatch.setitem(base._REGISTRY, name, provider)
+
+    return _register
+
+
+@pytest.fixture
+def selected(tmp_db):
+    """One tracked device (TAG-001) on the fake `test-fake` provider."""
+    from findplus.db.session import session_scope
+    from findplus.ingest import upsert_device
+    from findplus.state import track_devices
+
+    with session_scope() as session:
+        upsert_device(session, "TAG-001", "Moto Tag 2", provider="test-fake")
+        track_devices(session, ["TAG-001"], exclusive=True)
+    return "TAG-001"

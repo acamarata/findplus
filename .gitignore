@@ -14,6 +14,8 @@ vendor/GoogleFindMyTools/Auth/secrets.json
 vendor/GoogleFindMyTools/example_data.json
 .findplus/
 token_cache*
+# the vendored upstream module of that name is source code, not a cache file
+!cli/vendor/GoogleFindMyTools/Auth/token_cache.py
 *.token
 
 # --- Location history — private by default --------------------------------

@@ -26,7 +26,7 @@ def build_router(
     current_lock_state,
     sync_idle_timeout,
 ) -> APIRouter:
-    router = APIRouter(prefix="/api/lock")
+    router = APIRouter(prefix="/api/lock", tags=["lock"])
 
     @router.get("/status")
     def lock_status(

@@ -21,7 +21,7 @@ _DEFAULT_LIMITS = "standard polling limits apply"
 
 
 def build_router() -> APIRouter:
-    router = APIRouter(prefix="/api")
+    router = APIRouter(prefix="/api", tags=["providers"])
 
     @router.get("/providers")
     def list_providers() -> list[dict[str, Any]]:

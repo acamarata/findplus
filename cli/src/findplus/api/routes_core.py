@@ -8,8 +8,11 @@ Constraints: Reading these never queries Google.
 
 from __future__ import annotations
 
+import importlib.util
 import os
-from datetime import UTC, datetime
+import platform
+import sys
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -17,19 +20,31 @@ from fastapi import APIRouter, Query
 from fastapi.responses import FileResponse
 from sqlalchemy import desc, select
 
-from findplus import __version__
+from findplus import __version__, honesty
 from findplus.db.migrate import current_revision, is_up_to_date
 from findplus.db.models import Device, PollRun
 from findplus.db.session import session_scope
 from findplus.findhub.bootstrap import describe_stored_auth
-from findplus.state import get_default_device, get_tracked_devices
+from findplus.state import get_default_device, get_setting, get_tracked_devices
 from findplus.timeline import local_zone
 
-from ._helpers import _device_summary, _newest, _poller_appears_live, _serialize_run
+from ._helpers import (
+    _alerts_configured,
+    _consecutive_failures,
+    _device_summary,
+    _group_rows,
+    _iso_z,
+    _newest,
+    _poller_appears_live,
+    _provider_health,
+    _serialize_run,
+    _widget_devices,
+    _widget_state,
+)
 
 
 def build_router(*, settings, static_dir: Path, find_hub_notice: str) -> APIRouter:
-    router = APIRouter()
+    router = APIRouter(tags=["core"])
 
     def tz(name: str | None = None):
         return local_zone(name)
@@ -57,22 +72,52 @@ def build_router(*, settings, static_dir: Path, find_hub_notice: str) -> APIRout
             "ui_refresh_seconds": settings.ui_refresh_seconds,
             "timezone": str(tz()),
             "notice": find_hub_notice,
-            # Partial per specs/api-contract.md § /api/config: the remaining keys
-            # (find_hub, alerts_latency, presence_stale, lock_not_encryption) are
-            # added by later epics that own those honesty sentences (E8 W5+).
-            "notices": {
-                "apple": (
-                    "Apple Find My locations come from nearby Apple devices and can be delayed, "
-                    "sparse or unavailable. Find+ can only query accessories whose keys you hold; "
-                    "genuine AirTags require extracting pairing keys, which most users cannot do."
-                ),
-                "not_affiliated": (
-                    "Find+ is not affiliated with Apple or Google. "
-                    "Find Hub and Find My are their trademarks."
-                ),
-            },
+            # All six honesty.md sentences (E8 W5): find_hub, apple, alerts_latency,
+            # presence_stale, lock_not_encryption, not_affiliated.
+            "notices": honesty.NOTICES,
             "auth": describe_stored_auth(),
         }
+
+    @router.get("/api/version")
+    def version() -> dict[str, Any]:
+        """Public — feeds the lock sweep and `findplus version --check`."""
+        apple_installed = importlib.util.find_spec("findmy") is not None
+        return {
+            "version": __version__,
+            "python": sys.version.split()[0],
+            "platform": platform.platform(),
+            "providers": ["google-find-hub"] + (["apple-find-my"] if apple_installed else []),
+            "apple_extra_installed": apple_installed,
+        }
+
+    @router.get("/api/widget")
+    def widget() -> dict[str, Any]:
+        """Compact, lock-aware feed for the Tauri menu-bar widget (E16)."""
+        now = datetime.now(UTC)
+        interval_seconds = settings.effective_poll_interval_minutes * 60
+        with session_scope() as session:
+            last_run = session.scalar(select(PollRun).order_by(desc(PollRun.started_at)).limit(1))
+            last_poll_at = last_run.started_at if last_run else None
+            next_poll_at = (
+                last_poll_at + timedelta(seconds=interval_seconds) if last_poll_at else None
+            )
+            state = _widget_state(
+                last_run.error_type if last_run else None,
+                _consecutive_failures(session),
+                last_poll_at,
+                interval_seconds,
+            )
+            return {
+                "state": state,
+                "version": __version__,
+                "last_poll_at": _iso_z(last_poll_at),
+                "next_poll_at": _iso_z(next_poll_at),
+                "tracked_count": len(get_tracked_devices(session)),
+                "devices": _widget_devices(session, now),
+                "groups": _group_rows(session),
+                "show_map": get_setting(session, "widget.show_map", "0") == "1",
+                "notice": "Locations can be minutes to hours late.",
+            }
 
     @router.get("/api/status")
     def status(
@@ -107,6 +152,7 @@ def build_router(*, settings, static_dir: Path, find_hub_notice: str) -> APIRout
             )
 
             interval = settings.effective_poll_interval_minutes
+            next_poll_at = last_run.started_at + timedelta(minutes=interval) if last_run else None
             return {
                 "devices": per_device,
                 "tracked_count": len(tracked),
@@ -123,6 +169,13 @@ def build_router(*, settings, static_dir: Path, find_hub_notice: str) -> APIRout
                 "timezone": str(zone),
                 "server_time": now.astimezone(zone).isoformat(),
                 "notice": find_hub_notice,
+                # E8 W5 additions (api-contract.md § /api/status):
+                "provider_health": _provider_health(),
+                "alerts_configured": _alerts_configured(settings),
+                "last_error_type": last_run.error_type if last_run else None,
+                "consecutive_failures": _consecutive_failures(session),
+                "last_poll_at": _iso_z(last_run.started_at) if last_run else None,
+                "next_poll_at": _iso_z(next_poll_at),
             }
 
     if static_dir.is_dir():

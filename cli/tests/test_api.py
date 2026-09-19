@@ -35,6 +35,26 @@ def client(tmp_db):
     return TestClient(create_app())
 
 
+@pytest.fixture
+def locked_client(client: TestClient):
+    """`client` with the app lock engaged (PIN set, session cleared).
+
+    Setting a PIN auto-issues the caller a fresh session cookie (routes_settings.py
+    re-signs-in whoever just set it), so the cookie jar is cleared afterwards to
+    make this client an anonymous, locked-out caller for the rest of the test.
+    """
+    pin = "0000"
+    resp = client.post("/api/settings/pin", json={"new_pin": pin})
+    assert resp.status_code == 200, resp.text
+    client.cookies.clear()
+    status = client.get("/api/lock/status").json()
+    assert status["locked"] is True, f"lock did not activate: {status}"
+    try:
+        yield client
+    finally:
+        client.post("/api/lock/unlock", json={"pin": pin})
+
+
 def test_health_reports_schema_state(client: TestClient) -> None:
     body = client.get("/api/health").json()
     assert body["status"] == "ok"

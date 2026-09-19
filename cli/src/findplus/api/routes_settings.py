@@ -28,7 +28,7 @@ log = get_logger(__name__)
 
 
 def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeout) -> APIRouter:
-    router = APIRouter(prefix="/api/settings")
+    router = APIRouter(prefix="/api/settings", tags=["settings"])
 
     @router.get("")
     def read_settings() -> dict[str, Any]:

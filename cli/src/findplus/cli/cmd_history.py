@@ -10,6 +10,7 @@ Constraints: prune is a dry run unless --yes is given; a second confirmation
 
 from __future__ import annotations
 
+import sys
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
@@ -27,6 +28,13 @@ from ._fmt import _prep
 @click.option("--end", default=None, help="Range end, YYYY-MM-DD.")
 @click.option("--all", "all_history", is_flag=True, help="Export the entire history.")
 @click.option("--device-id", default=None, help="Limit to one device. Omit for all devices.")
+@click.option(
+    "--group",
+    "group_id",
+    default=None,
+    metavar="ID",
+    help="Export every member's track (never merged).",
+)
 @click.option("--output", "-o", type=click.Path(path_type=Path), default=None)
 def export(
     fmt: str,
@@ -35,11 +43,13 @@ def export(
     end: str | None,
     all_history: bool,
     device_id: str | None,
+    group_id: str | None,
     output: Path | None,
 ) -> None:
     """Export history to CSV, JSON, GPX or KML."""
     _prep()
     from findplus.exporters import export as render
+    from findplus.group_export import GroupNotFoundError, export_group
     from findplus.timeline import day_bounds_utc, fetch_observations, local_zone
 
     tz = local_zone()
@@ -62,13 +72,23 @@ def export(
         start_utc, end_utc = day_bounds_utc(target, tz)
         label = target.isoformat()
 
-    with session_scope() as session:
-        rows = fetch_observations(session, device_id, start_utc, end_utc)
-        body = render(fmt, rows, tz, name=f"Bike history {label}")
+    if group_id is not None:
+        with session_scope() as session:
+            try:
+                body, _slug = export_group(session, group_id, fmt, start_utc, end_utc, tz)
+            except GroupNotFoundError:
+                click.echo("Error: group not found", err=True)
+                sys.exit(1)
+        count = body.count("\n")
+    else:
+        with session_scope() as session:
+            rows = fetch_observations(session, device_id, start_utc, end_utc)
+            body = render(fmt, rows, tz, name=f"Bike history {label}")
+        count = len(rows)
 
     if output:
         output.write_text(body, encoding="utf-8")
-        click.secho(f"Wrote {len(rows)} observation(s) to {output}", fg="green")
+        click.secho(f"Wrote {count} observation(s) to {output}", fg="green")
     else:
         click.echo(body)
 

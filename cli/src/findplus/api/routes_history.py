@@ -3,10 +3,9 @@
 Purpose    : Read and export stored location history; trigger a manual poll.
 Inputs     : day/device/timezone filters, export format, delete confirmation.
 Outputs    : Timeline tracks, export files, deletion counts.
-Constraints: `poll-now` is the only route here that queries Google; it is
-             POST-only and rate-limited via the injected `check_poll_cooldown`
-             (process-wide state lives in api/__init__.py, matching the
-             pre-split module-level cooldown state's semantics).
+Constraints: `poll-now` is the only route here that queries Google; POST-only,
+             rate-limited via the injected `check_poll_cooldown` (process-wide
+             state lives in api/__init__.py).
 """
 
 from __future__ import annotations
@@ -21,6 +20,7 @@ from sqlalchemy import desc, func, select
 from findplus.db.models import Device, Group, LocationObservation, PollRun
 from findplus.db.session import session_scope
 from findplus.exporters import MEDIA_TYPES, export
+from findplus.group_export import GroupNotFoundError, export_group
 from findplus.groups.repo import list_group_timeline
 from findplus.logging_setup import get_logger
 from findplus.timeline import (
@@ -37,10 +37,14 @@ log = get_logger(__name__)
 
 
 def build_router(*, settings, check_poll_cooldown) -> APIRouter:
-    router = APIRouter(prefix="/api")
+    router = APIRouter(prefix="/api", tags=["history"])
 
     def tz(name: str | None = None):
         return local_zone(name)
+
+    def _download(body: str, fmt: str, filename: str) -> PlainTextResponse:
+        headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+        return PlainTextResponse(content=body, media_type=MEDIA_TYPES[fmt], headers=headers)
 
     @router.get("/timeline")
     def timeline(
@@ -195,9 +199,13 @@ def build_router(*, settings, check_poll_cooldown) -> APIRouter:
         start: str | None = Query(default=None),
         end: str | None = Query(default=None),
         device_id: str | None = Query(default=None),
+        group_id: str | None = Query(default=None, description="One track per member"),
         timezone: str | None = Query(default=None),
     ):
         zone = tz(timezone)
+        if group_id is not None:
+            return _export_group(group_id, fmt, day, start, end, zone)
+
         with session_scope() as session:
             start_utc, end_utc, label = _resolve_range(day, start, end, zone)
             rows = fetch_observations(session, device_id, start_utc, end_utc)
@@ -208,12 +216,17 @@ def build_router(*, settings, check_poll_cooldown) -> APIRouter:
                     name = device.name
                     label = f"{device.name.replace(' ', '-')}-{label}"
             body = export(fmt, rows, zone, name=f"{name} {label}")
-        filename = f"findplus-{label}.{fmt}"
-        return PlainTextResponse(
-            content=body,
-            media_type=MEDIA_TYPES[fmt],
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-        )
+        return _download(body, fmt, f"findplus-{label}.{fmt}")
+
+    def _export_group(group_id: str, fmt: str, day, start, end, zone):
+        """One track per member, never merged (`group_id` is `str`: see group_export.py)."""
+        start_utc, end_utc, label = _resolve_range(day, start, end, zone)
+        with session_scope() as session:
+            try:
+                body, name_slug = export_group(session, group_id, fmt, start_utc, end_utc, zone)
+            except GroupNotFoundError as exc:
+                raise HTTPException(status_code=404, detail="group not found") from exc
+        return _download(body, fmt, f"findplus-group-{name_slug}-{label}.{fmt}")
 
     @router.post("/history/delete-before")
     def delete_before(

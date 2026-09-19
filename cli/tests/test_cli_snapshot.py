@@ -45,6 +45,7 @@ EXPECTED_COMMANDS = {
     "stop",
     "theme",
     "uninstall",
+    "version",
     "watchdog",
 }
 

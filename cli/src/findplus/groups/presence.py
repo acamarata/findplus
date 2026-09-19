@@ -75,7 +75,7 @@ def _names_joined(names: list[str]) -> str:
 
 
 def _build_stale_clause(stale_names: list[str]) -> str:
-    """Sentence-final clause for the 0/1-reporting notes (engines.md)."""
+    """Standalone sentence closing the 0/1-reporting notes (engines.md)."""
     if not stale_names:
         return ""
     joined = _names_joined(stale_names)
@@ -83,15 +83,12 @@ def _build_stale_clause(stale_names: list[str]) -> str:
 
 
 def _stale_suffix(stale_names: list[str]) -> str:
-    """Clause appended inside the >=2-reporting notes: `; <names> have no recent fix.`
+    """Semicolon-joined suffix engines.md pins for the >=2-reporting notes.
 
-    engines.md pins a semicolon-joined suffix here, not the standalone sentence
-    `_build_stale_clause` builds for the 0/1-reporting branches. Using the
-    latter runs the two statements together ("... near Home Backpack have ...").
+    Reusing `_build_stale_clause` here runs two statements together
+    ("... near Home Backpack have no recent fix ...").
     """
-    if not stale_names:
-        return ""
-    return f"; {_names_joined(stale_names)} have no recent fix."
+    return f"; {_names_joined(stale_names)} have no recent fix." if stale_names else ""
 
 
 def member_status(

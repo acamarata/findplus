@@ -7,8 +7,9 @@ Outputs    : Assertions on the route count and path set.
 Constraints: Zero behavior change from the pre-split monolith is the bar —
              this pinned the exact 24-route surface at the end of E1-T4;
              E3-T5 adds GET /api/providers, bringing it to 25; E4-T5 adds the
-             6 /api/places routes, bringing it to 31; E5-T4 adds the 7
-             /api/groups routes, bringing it to 38.
+             6 /api/places routes, bringing it to 31; E8-T2 adds
+             GET /api/version and GET /api/widget, bringing it to 33; E5-T4
+             adds the 7 /api/groups routes, bringing it to 40.
 """
 
 from __future__ import annotations
@@ -48,7 +49,7 @@ def _app_routes(app):
 def test_route_count():
     app = create_app()
     routes = _app_routes(app)
-    assert len(routes) == 38
+    assert len(routes) == 40
 
 
 def test_route_paths_present():
@@ -82,6 +83,8 @@ def test_route_paths_present():
         "/api/places/{place_id}",
         "/api/places/events",
         "/api/places/presence",
+        "/api/version",
+        "/api/widget",
         "/api/groups",
         "/api/groups/{group_id}",
         "/api/groups/{group_id}/members",

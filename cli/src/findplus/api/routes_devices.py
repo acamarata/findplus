@@ -26,7 +26,7 @@ from findplus.state import (
 
 
 def build_router(*, settings) -> APIRouter:
-    router = APIRouter(prefix="/api")
+    router = APIRouter(prefix="/api", tags=["devices"])
 
     @router.get("/devices")
     def devices() -> dict[str, Any]:

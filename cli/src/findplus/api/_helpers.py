@@ -9,13 +9,16 @@ Constraints: No route decorators here — pure functions only, so each router ca
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, func, select, text
+from sqlalchemy.exc import OperationalError
 
 from findplus.db.models import LocationObservation, PollRun
+from findplus.state import get_tracked_devices
 from findplus.timeline import day_bounds_utc, observation_count_between
 
 
@@ -135,3 +138,161 @@ def _poller_appears_live(last_run, settings) -> bool:
         return False
     window = settings.effective_poll_interval_minutes * 60 * 2.5
     return (datetime.now(UTC) - last_run.started_at).total_seconds() < window
+
+
+def _iso_z(dt: datetime | None) -> str | None:
+    """UTC instant with a literal Z suffix.
+
+    Built with strftime, never by concatenating "Z" onto an already
+    offset-suffixed `isoformat()` string (that doubles up as "+00:00Z").
+    """
+    if dt is None:
+        return None
+    return dt.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _consecutive_failures(session, limit: int = 50) -> int:
+    """Trailing PollRuns with a non-ok status, newest first, stopping at the first ok."""
+    runs = session.scalars(select(PollRun).order_by(desc(PollRun.started_at)).limit(limit))
+    count = 0
+    for run in runs:
+        if run.status in ("ok", "no_location"):
+            break
+        count += 1
+    return count
+
+
+def _provider_health() -> list[dict[str, Any]]:
+    """One `{name, available, authenticated}` row per installed provider.
+
+    Never raises: a broken provider (import error, probe exception) is
+    reported unavailable/unauthenticated instead of 500ing the caller.
+    """
+    from findplus.providers.base import available_providers, get_provider
+
+    rows: list[dict[str, Any]] = []
+    for name in available_providers():
+        try:
+            provider = get_provider(name)
+            available, _reason = provider.is_available()
+            authenticated = provider.is_authenticated() if available else False
+        except Exception:
+            available, authenticated = False, False
+        rows.append({"name": name, "available": available, "authenticated": authenticated})
+    return rows
+
+
+def _alerts_configured(settings) -> bool:
+    """True if a Telegram bot token or webhook URL is saved in alerts.json."""
+    path = settings.alerts_file
+    if not path.exists():
+        return False
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    channels = data.get("channels", {})
+    return bool(channels.get("telegram", {}).get("bot_token")) or bool(
+        channels.get("webhook", {}).get("url")
+    )
+
+
+def _place_by_device(session) -> dict[str, str]:
+    """Lowest-`place_id` 'inside' place name per device; `{}` before places exist."""
+    from findplus.places.repo import current_presence
+
+    try:
+        rows = current_presence(session)
+    except OperationalError:
+        return {}
+    inside = sorted((r for r in rows if r["state"] == "inside"), key=lambda r: r["place_id"])
+    out: dict[str, str] = {}
+    for row in inside:
+        out.setdefault(row["device_id"], row["place_name"])
+    return out
+
+
+def _group_by_device(session) -> dict[str, str]:
+    """Lowest-`group_id` member group name per device; `{}` before groups exist.
+
+    Raw SQL against the pinned migration-0005 schema (data-model.md), not an
+    ORM import: the groups package (E5) is landing concurrently with this
+    ticket and had not defined its ORM class names yet when this was written.
+    """
+    try:
+        rows = session.execute(
+            text(
+                "SELECT dg.device_id AS device_id, g.name AS name "
+                "FROM device_group dg JOIN groups g ON g.id = dg.group_id "
+                "ORDER BY g.id"
+            )
+        ).all()
+    except OperationalError:
+        return {}
+    out: dict[str, str] = {}
+    for row in rows:
+        out.setdefault(row.device_id, row.name)
+    return out
+
+
+def _group_rows(session) -> list[dict[str, Any]]:
+    """`[{id, name, verdict, note}]` for every group; `[]` before groups exist.
+
+    Real presence verdicts come from groups/presence.py (E5) behind
+    `GET /api/groups/{id}/presence`; this widget feed reports the honest,
+    non-committal "unknown" rather than duplicating that engine here.
+    """
+    try:
+        rows = session.execute(text("SELECT id, name FROM groups ORDER BY id")).all()
+    except OperationalError:
+        return []
+    return [
+        {"id": row.id, "name": row.name, "verdict": "unknown", "note": "Not yet evaluated."}
+        for row in rows
+    ]
+
+
+def _widget_devices(session, now: datetime) -> list[dict[str, Any]]:
+    """One row per tracked device that has at least one fix."""
+    places = _place_by_device(session)
+    device_groups = _group_by_device(session)
+    out: list[dict[str, Any]] = []
+    for device in get_tracked_devices(session):
+        latest = session.scalar(
+            select(LocationObservation)
+            .where(LocationObservation.device_id == device.device_id)
+            .order_by(desc(LocationObservation.observed_at))
+            .limit(1)
+        )
+        if latest is None:
+            continue
+        out.append(
+            {
+                "device_id": device.device_id,
+                "name": device.name,
+                "provider": device.provider,
+                "last_observed_at": _iso_z(latest.observed_at),
+                "age_minutes": int((now - latest.observed_at).total_seconds() // 60),
+                "latitude": latest.latitude,
+                "longitude": latest.longitude,
+                "place": places.get(device.device_id),
+                "group": device_groups.get(device.device_id),
+            }
+        )
+    return out
+
+
+def _widget_state(
+    last_error_type: str | None,
+    consecutive_failures: int,
+    last_poll_at: datetime | None,
+    poll_interval_seconds: float,
+) -> str:
+    """Exactly `ok`|`stale`|`error` — `down` is rendered client-side, never here."""
+    if last_error_type in {"auth", "decrypt"} or consecutive_failures >= 3:
+        return "error"
+    if last_poll_at is not None:
+        stale_after = 2 * poll_interval_seconds
+        if (datetime.now(UTC) - last_poll_at).total_seconds() > stale_after:
+            return "stale"
+    return "ok"

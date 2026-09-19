@@ -28,3 +28,4 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - Alembic migration 0004 adds `places`, `place_events`, `place_states` tables.
 - E5: device groups with partial-presence detection and quorum-based group crossing events
 - E12: PyPI packaging, curl installer and Homebrew formula
+- E8: version, widget and status endpoints; findplus version --check

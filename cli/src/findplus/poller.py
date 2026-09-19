@@ -18,11 +18,9 @@ Constraints:
 from __future__ import annotations
 
 import threading
-from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from findplus.config import Settings, get_settings
-from findplus.db.models import PollRun
 from findplus.db.session import session_scope
 from findplus.findhub.types import (
     AuthRequiredError,
@@ -32,7 +30,13 @@ from findplus.findhub.types import (
 )
 from findplus.ingest import ingest_observations
 from findplus.logging_setup import get_logger
-from findplus.providers.base import get_provider
+
+# Re-exported so `from findplus.poller import PollOutcome` and existing
+# monkeypatch targets keep resolving after the outcome types moved out.
+from findplus.poller_outcomes import CycleOutcome as CycleOutcome
+from findplus.poller_outcomes import PollOutcome as PollOutcome
+from findplus.poller_outcomes import _log_outcome, _record
+from findplus.providers.base import LocationProvider, get_provider
 from findplus.state import get_tracked_devices
 
 log = get_logger(__name__)
@@ -41,59 +45,87 @@ log = get_logger(__name__)
 DEVICE_STAGGER_SECONDS = 10.0
 
 
-@dataclass(slots=True)
-class PollOutcome:
-    """Result of polling ONE device."""
+def _resolve_provider(provider_name: str) -> tuple[LocationProvider | None, PollOutcome | None]:
+    """Look the provider up and check it is usable. Returns (provider, failure).
 
-    status: str
-    device_id: str | None = None
-    device_name: str | None = None
-    received: int = 0
-    inserted: int = 0
-    duplicates: int = 0
-    error_type: str | None = None
-    error_message: str | None = None
+    Every failure becomes a PollOutcome instead of an exception. A provider that
+    is missing, half-installed (its entry point imports but the module it names
+    does not), or whose availability probe throws must not kill the poll loop,
+    and the attempt must still reach `poll_runs` through poll_device's tail.
+    """
+    try:
+        provider = get_provider(provider_name)
+    except KeyError as exc:
+        return None, PollOutcome(
+            status="provider_unavailable", error_type="unknown_provider", error_message=str(exc)
+        )
+    except Exception as exc:
+        log.exception("provider_load_failed", provider=provider_name)
+        return None, PollOutcome(
+            status="provider_unavailable", error_type=type(exc).__name__, error_message=str(exc)
+        )
 
-    @property
-    def ok(self) -> bool:
-        # provider_unavailable/provider_unauthenticated are environment state, not
-        # a provider-network failure — same precedent as config_error on
-        # CycleOutcome below — so neither escalates the cycle backoff.
-        return self.status in {
-            "ok",
-            "no_location",
-            "provider_unavailable",
-            "provider_unauthenticated",
-        }
+    try:
+        avail, reason = provider.is_available()
+        if not avail:
+            return None, PollOutcome(
+                status="provider_unavailable", error_type="unavailable", error_message=reason
+            )
+        if not provider.is_authenticated():
+            return None, PollOutcome(
+                status="provider_unauthenticated",
+                error_type="unauthenticated",
+                error_message="provider not authenticated",
+            )
+    except Exception as exc:
+        # A third-party provider's probe is not required to be total; ours is.
+        log.exception("provider_probe_failed", provider=provider_name)
+        return None, PollOutcome(
+            status="provider_unavailable", error_type=type(exc).__name__, error_message=str(exc)
+        )
+
+    return provider, None
 
 
-@dataclass(slots=True)
-class CycleOutcome:
-    """Result of polling every tracked device once."""
+def _locate_and_ingest(
+    provider: LocationProvider, device_id: str, device_name: str
+) -> tuple[PollOutcome, list | None]:
+    """Ask the provider for fixes and persist them. Returns (outcome, observations)."""
+    try:
+        observations = provider.locate(device_id, device_name)
+    except AuthRequiredError as exc:
+        return PollOutcome(
+            status="auth_error", error_type="AuthRequiredError", error_message=str(exc)
+        ), None
+    except LocationTimeoutError as exc:
+        return PollOutcome(
+            status="timeout", error_type="LocationTimeoutError", error_message=str(exc)
+        ), None
+    except DecryptionError as exc:
+        return PollOutcome(
+            status="error", error_type="DecryptionError", error_message=str(exc)
+        ), None
+    except FindHubError as exc:
+        return PollOutcome(
+            status="error", error_type=type(exc).__name__, error_message=str(exc)
+        ), None
+    except Exception as exc:
+        log.exception("poll_unexpected_error", device=device_name)
+        return PollOutcome(
+            status="error", error_type=type(exc).__name__, error_message=str(exc)
+        ), None
 
-    outcomes: list[PollOutcome] = field(default_factory=list)
-    #: True when the cycle did nothing because nothing is configured to be polled.
-    #: This is a configuration state, not a Google failure, so it must NOT escalate
-    #: backoff — otherwise the daemon would still be sleeping for an hour right
-    #: after the user finally selects their devices.
-    config_error: bool = False
+    if not observations:
+        return PollOutcome(status="no_location"), observations
 
-    @property
-    def ok(self) -> bool:
-        """True when at least one device succeeded, or there was nothing to do."""
-        return not self.outcomes or any(o.ok for o in self.outcomes)
-
-    @property
-    def inserted(self) -> int:
-        return sum(o.inserted for o in self.outcomes)
-
-    @property
-    def duplicates(self) -> int:
-        return sum(o.duplicates for o in self.outcomes)
-
-    @property
-    def received(self) -> int:
-        return sum(o.received for o in self.outcomes)
+    with session_scope() as session:
+        result = ingest_observations(session, observations, fetched_at=datetime.now(UTC))
+    return PollOutcome(
+        status="ok",
+        received=result.received,
+        inserted=result.inserted,
+        duplicates=result.duplicates,
+    ), observations
 
 
 def poll_device(
@@ -107,64 +139,9 @@ def poll_device(
     started = datetime.now(UTC)
     observations = None
 
-    try:
-        provider = get_provider(provider_name)
-    except KeyError as exc:
-        provider = None
-        outcome = PollOutcome(
-            status="provider_unavailable", error_type="unknown_provider", error_message=str(exc)
-        )
-
+    provider, outcome = _resolve_provider(provider_name)
     if provider is not None:
-        avail, reason = provider.is_available()
-        if not avail:
-            outcome = PollOutcome(
-                status="provider_unavailable", error_type="unavailable", error_message=reason
-            )
-        elif not provider.is_authenticated():
-            outcome = PollOutcome(
-                status="provider_unauthenticated",
-                error_type="unauthenticated",
-                error_message="provider not authenticated",
-            )
-        else:
-            try:
-                observations = provider.locate(device_id, device_name)
-            except AuthRequiredError as exc:
-                outcome = PollOutcome(
-                    status="auth_error", error_type="AuthRequiredError", error_message=str(exc)
-                )
-            except LocationTimeoutError as exc:
-                outcome = PollOutcome(
-                    status="timeout", error_type="LocationTimeoutError", error_message=str(exc)
-                )
-            except DecryptionError as exc:
-                outcome = PollOutcome(
-                    status="error", error_type="DecryptionError", error_message=str(exc)
-                )
-            except FindHubError as exc:
-                outcome = PollOutcome(
-                    status="error", error_type=type(exc).__name__, error_message=str(exc)
-                )
-            except Exception as exc:
-                log.exception("poll_unexpected_error", device=device_name)
-                outcome = PollOutcome(
-                    status="error", error_type=type(exc).__name__, error_message=str(exc)
-                )
-            else:
-                if not observations:
-                    outcome = PollOutcome(status="no_location")
-                else:
-                    with session_scope() as session:
-                        result = ingest_observations(
-                            session, observations, fetched_at=datetime.now(UTC)
-                        )
-                    outcome = PollOutcome(
-                        status="ok",
-                        received=result.received,
-                        inserted=result.inserted,
-                        duplicates=result.duplicates,
-                    )
+        outcome, observations = _locate_and_ingest(provider, device_id, device_name)
 
     outcome.device_id = device_id
     outcome.device_name = device_name
@@ -221,51 +198,6 @@ def poll_once(
         failures=sum(1 for o in cycle.outcomes if not o.ok),
     )
     return cycle
-
-
-def _log_outcome(device_name: str, outcome: PollOutcome, observations=None) -> None:
-    if outcome.status == "ok" and outcome.inserted:
-        newest = max(o.observed_at for o in observations) if observations else None
-        log.info(
-            "poll successful",
-            device=device_name,
-            observed_at=newest.isoformat() if newest else None,
-            new_observations=outcome.inserted,
-            duplicates=outcome.duplicates,
-        )
-    elif outcome.status == "ok":
-        log.info(
-            "poll successful — same observation as previous, no new location saved",
-            device=device_name,
-            duplicates=outcome.duplicates,
-        )
-    elif outcome.status == "no_location":
-        log.warning("poll successful — Find Hub returned no location", device=device_name)
-    else:
-        log.error(
-            "poll failed",
-            device=device_name,
-            status=outcome.status,
-            error_type=outcome.error_type,
-            error=outcome.error_message,
-        )
-
-
-def _record(session, device_id: str | None, started: datetime, outcome: PollOutcome) -> None:
-    finished = datetime.now(UTC)
-    session.add(
-        PollRun(
-            device_id=device_id,
-            started_at=started,
-            finished_at=finished,
-            status=outcome.status,
-            observations_returned=outcome.received,
-            observations_new=outcome.inserted,
-            duration_ms=int((finished - started).total_seconds() * 1000),
-            error_type=outcome.error_type,
-            error_message=(outcome.error_message or "")[:2000] or None,
-        )
-    )
 
 
 class PollerService:

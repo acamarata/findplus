@@ -106,7 +106,12 @@ def ingest_observations(
             continue
         seen_in_batch.add(obs.identity)
 
-        upsert_device(session, obs.device_id, obs.device_name, now=fetched_at)
+        # provider is applied on INSERT only (see upsert_device): a device first
+        # seen through a poll is tagged with the provider that reported it, and a
+        # device already on record keeps the provider it was discovered under.
+        upsert_device(
+            session, obs.device_id, obs.device_name, provider=obs.provider, now=fetched_at
+        )
 
         existing = session.scalar(
             select(LocationObservation).where(

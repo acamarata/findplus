@@ -13,7 +13,7 @@ from sqlalchemy import desc, func, select
 
 from findplus.db.models import LocationObservation, PollRun
 from findplus.ingest import upsert_device
-from findplus.poller import PollerService, poll_once
+from findplus.poller import PollerService, poll_device, poll_once
 from findplus.state import track_devices
 from tests.conftest import make_observation
 
@@ -311,3 +311,82 @@ def test_real_failures_still_escalate_backoff(selected, register_provider) -> No
         service._consecutive_failures += 0 if (cycle.ok or cycle.config_error) else 1
 
     assert service._next_delay_seconds() > base
+
+
+class _BrokenProbeProvider(FakeProvider):
+    """A provider whose availability probe throws instead of returning a flag."""
+
+    def is_available(self) -> tuple[bool, str]:
+        raise RuntimeError("vendor tree exploded")
+
+
+def test_provider_probe_exception_is_recorded_not_raised(selected, register_provider) -> None:
+    """A third-party provider's probe is not required to be total; the poller is.
+
+    Regression for the E3 review: is_available()/is_authenticated() raising escaped
+    poll_device, killed the PollerService thread, and wrote no poll_runs row.
+    """
+    register_provider("test-fake", _BrokenProbeProvider())
+    cycle = poll_once(stagger_seconds=0)
+
+    assert cycle.ok, "an unusable provider is environment state, not a poll failure"
+    run = _last_run()
+    assert run.status == "provider_unavailable"
+    assert run.error_type == "RuntimeError"
+    assert "exploded" in run.error_message
+
+
+def test_provider_load_failure_is_recorded_not_raised(
+    selected, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A half-installed provider (entry point present, module missing) must not crash."""
+    import findplus.poller as poller_module
+
+    def _boom(name: str):
+        raise ImportError(f"no module for entry point {name!r}")
+
+    monkeypatch.setattr(poller_module, "get_provider", _boom)
+    cycle = poll_once(stagger_seconds=0)
+
+    assert cycle.ok
+    run = _last_run()
+    assert run.status == "provider_unavailable"
+    assert run.error_type == "ImportError"
+
+
+def test_unknown_provider_still_reports_unknown_provider(selected, register_provider) -> None:
+    """KeyError keeps its dedicated error_type; only other exceptions are generic."""
+    from findplus.db.session import session_scope
+
+    with session_scope() as session:
+        upsert_device(session, "TAG-001", "Moto Tag 2", provider="test-fake")
+    register_provider("something-else", FakeProvider())
+    cycle = poll_once(stagger_seconds=0)
+
+    assert cycle.ok
+    assert _last_run().error_type == "unknown_provider"
+
+
+def test_device_first_seen_through_a_poll_keeps_its_reporting_provider(
+    tmp_db, register_provider
+) -> None:
+    """A device first seen through ingest is tagged with the provider that reported it.
+
+    Regression for the E3 review: ingest_observations called upsert_device without
+    a provider, so any device discovered by a poll (rather than by `devices
+    --refresh`) was recorded as google-find-hub whatever reported it.
+    """
+    import dataclasses
+
+    from findplus.db.models import Device
+    from findplus.db.session import session_scope
+
+    obs = dataclasses.replace(make_observation(minutes=0), provider="test-fake")
+    with session_scope() as session:
+        assert session.get(Device, "TAG-001") is None, "no device row exists yet"
+
+    register_provider("test-fake", FakeProvider([obs]))
+    assert poll_device("TAG-001", "Moto Tag 2", "test-fake").status == "ok"
+
+    with session_scope() as session:
+        assert session.get(Device, "TAG-001").provider == "test-fake"

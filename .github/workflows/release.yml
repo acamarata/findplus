@@ -1,6 +1,9 @@
 name: Release
 
-on: {push: {tags: ["v*"]}}
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch: {}
 
 jobs:
   build-python:
@@ -43,6 +46,8 @@ jobs:
       APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -50,6 +55,9 @@ jobs:
         with:
           name: python-dist
           path: dist
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
       - run: pip install '.[dev,bundle]'
         working-directory: cli
       - run: pyinstaller packaging/pyinstaller/findplus-daemon.spec --noconfirm
@@ -59,6 +67,10 @@ jobs:
           echo "$APPLE_CERTIFICATE_P12_BASE64" | base64 -d > /tmp/cert.p12
           security import /tmp/cert.p12 -P "$APPLE_CERTIFICATE_PASSWORD" -A
           bash packaging/scripts/sign-sidecar.sh
+      - name: Install Tauri CLI
+        run: |
+          rustup target add aarch64-apple-darwin
+          cargo install tauri-cli --version '^2.11' --locked
       - run: |
           cd desktop/src-tauri
           cargo tauri build --target aarch64-apple-darwin
@@ -86,7 +98,10 @@ jobs:
           cp "$DMG" "dist/FindPlus-unsigned.dmg"
       - name: Finalise artefact
         run: |
-          VERSION=$(git describe --tags --abbrev=0 | sed 's/^v//')
+          VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || true)
+          if [ -z "$VERSION" ]; then
+            VERSION=$(python3 -c "import tomllib;print(tomllib.load(open('cli/pyproject.toml','rb'))['project']['version'])")
+          fi
           SUFFIX=""
           if [ -z "$APPLE_SIGNING_IDENTITY" ]; then SUFFIX="-UNSIGNED"; fi
           DMG=$(find dist -maxdepth 1 -name 'FindPlus-*.dmg' | head -1)
@@ -101,7 +116,7 @@ jobs:
 
   github-release:
     needs: [build-python, publish-pypi, build-dmg]
-    if: always() && needs.build-python.result == 'success'
+    if: always() && needs.build-python.result == 'success' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     # The repository's default workflow permission is read, so creating the
     # release needs this explicitly or action-gh-release fails with a 403.
@@ -171,6 +186,7 @@ jobs:
 
   update-tap:
     needs: github-release
+    if: startsWith(github.ref, 'refs/tags/') && needs.github-release.result == 'success'
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:

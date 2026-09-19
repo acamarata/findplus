@@ -1,0 +1,141 @@
+"""ORM models.
+
+Purpose : Canonical local schema for Find Hub observation history.
+Constraints:
+    - All timestamps are UTC (see `UtcDateTime`).
+    - Coordinates are stored as integer 1e-7 degrees (`latitude_e7`) because that
+      is the native wire precision Google returns. Integers make deduplication
+      exact and immune to float comparison drift; float degrees are derived.
+    - `observed_at` (Find Hub's sighting time) and `fetched_at` (our query time)
+      are distinct and never conflated.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+
+from sqlalchemy import (
+    Boolean,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+from bike_tracker.db.types import UtcDateTime
+
+E7 = 1e7
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class Device(Base):
+    """A Find Hub device/tracker visible to the authenticated account."""
+
+    __tablename__ = "devices"
+
+    device_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    is_selected: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    first_seen_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+
+    observations: Mapped[list[LocationObservation]] = relationship(
+        back_populates="device", cascade="all, delete-orphan"
+    )
+
+
+class LocationObservation(Base):
+    """One distinct location sighting reported by the Find Hub network.
+
+    A single poll may yield several of these (Google returns a batch of recent
+    network reports), which is why observations are keyed on the sighting itself
+    rather than on the poll that retrieved them.
+    """
+
+    __tablename__ = "location_observations"
+    __table_args__ = (
+        # The deduplication contract: identical sighting => identical row.
+        UniqueConstraint(
+            "device_id",
+            "observed_at",
+            "latitude_e7",
+            "longitude_e7",
+            name="uq_observation_identity",
+        ),
+        Index("ix_obs_device_observed", "device_id", "observed_at"),
+        Index("ix_obs_observed", "observed_at"),
+        Index("ix_obs_device_fetched", "device_id", "first_fetched_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    device_id: Mapped[str] = mapped_column(
+        String(128), ForeignKey("devices.device_id"), nullable=False
+    )
+    device_name: Mapped[str] = mapped_column(String(256), nullable=False)
+
+    latitude_e7: Mapped[int] = mapped_column(Integer, nullable=False)
+    longitude_e7: Mapped[int] = mapped_column(Integer, nullable=False)
+    altitude_meters: Mapped[float | None] = mapped_column(Float, nullable=True)
+    accuracy_meters: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    #: When Find Hub says the tag was actually seen.
+    observed_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+    #: When this computer first retrieved this sighting.
+    first_fetched_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+    #: When this computer most recently saw Find Hub return this same sighting.
+    last_fetched_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+    #: How many polls returned this identical sighting. Poll health, not movement.
+    times_returned: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+    #: Find Hub report class, e.g. crowdsourced / own_report / semantic.
+    source: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    is_own_report: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    semantic_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    battery_level: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    raw_metadata: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    device: Mapped[Device] = relationship(back_populates="observations")
+
+    @property
+    def latitude(self) -> float:
+        return self.latitude_e7 / E7
+
+    @property
+    def longitude(self) -> float:
+        return self.longitude_e7 / E7
+
+
+class PollRun(Base):
+    """One attempt to query Find Hub. Records health independently of location data."""
+
+    __tablename__ = "poll_runs"
+    __table_args__ = (Index("ix_pollrun_started", "started_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    device_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    started_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+    finished_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    #: ok | no_location | error | auth_error | timeout
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    observations_returned: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    observations_new: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class Setting(Base):
+    """Small mutable key/value store (selected device, schema bookkeeping)."""
+
+    __tablename__ = "settings"
+
+    key: Mapped[str] = mapped_column(String(128), primary_key=True)
+    value: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)

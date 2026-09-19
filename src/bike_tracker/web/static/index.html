@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Bike Tracker — location history</title>
+<link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="dot" id="live-dot" title="Polling service status"></span>
+    <h1>Bike Tracker</h1>
+    <span class="device" id="device-name">no tracker selected</span>
+  </div>
+  <div class="topbar-actions">
+    <button id="btn-latest" class="btn">Latest Location</button>
+    <button id="btn-poll" class="btn btn-secondary" title="Queries Google once, now">Poll Now</button>
+  </div>
+</header>
+
+<section class="cards" id="cards">
+  <div class="card"><span class="label">Last observed by Find Hub</span><strong id="card-observed">—</strong><span class="sub" id="card-observed-ago">—</span></div>
+  <div class="card"><span class="label">Retrieved by this computer</span><strong id="card-fetched">—</strong><span class="sub" id="card-lag">—</span></div>
+  <div class="card"><span class="label">Last successful poll</span><strong id="card-poll">—</strong><span class="sub" id="card-poll-status">—</span></div>
+  <div class="card"><span class="label">Observations today</span><strong id="card-today">—</strong><span class="sub" id="card-total">—</span></div>
+</section>
+
+<div id="alert" class="alert hidden"></div>
+
+<section class="controls">
+  <label for="day-picker">Day</label>
+  <input type="date" id="day-picker">
+  <button class="btn btn-tiny" id="btn-prev-day" title="Previous day">‹</button>
+  <button class="btn btn-tiny" id="btn-today">Today</button>
+  <button class="btn btn-tiny" id="btn-next-day" title="Next day">›</button>
+
+  <label class="toggle"><input type="checkbox" id="toggle-movement"> Movement only</label>
+
+  <span class="spacer"></span>
+
+  <label for="export-format">Export</label>
+  <select id="export-format">
+    <option value="csv">CSV</option>
+    <option value="gpx">GPX</option>
+    <option value="json">JSON</option>
+    <option value="kml">KML</option>
+  </select>
+  <select id="export-scope">
+    <option value="day">This day</option>
+    <option value="all">All history</option>
+  </select>
+  <button class="btn btn-secondary" id="btn-export">Download</button>
+</section>
+
+<main class="layout">
+  <div class="map-pane">
+    <div id="map"></div>
+    <p class="disclaimer" id="path-disclaimer">Observed path — actual route between detections may differ.</p>
+  </div>
+
+  <aside class="timeline-pane">
+    <div class="stats" id="stats"></div>
+    <h2>Timeline</h2>
+    <ol class="timeline" id="timeline"></ol>
+  </aside>
+</main>
+
+<footer class="footer">
+  <p id="findhub-notice" class="notice"></p>
+  <p class="notice small">
+    Runs entirely on this computer and binds to 127.0.0.1. No analytics, telemetry or third-party scripts.
+    Map tiles are fetched from OpenStreetMap, which necessarily sees the tile coordinates being viewed.
+  </p>
+</footer>
+
+<script src="/static/vendor/leaflet/leaflet.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

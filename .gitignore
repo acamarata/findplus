@@ -1,0 +1,50 @@
+# --- Authentication material — NEVER COMMIT -------------------------------
+secrets.json
+*secrets*.json
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.cookie
+cookies.txt
+Auth/secrets.json
+vendor/GoogleFindMyTools/Auth/secrets.json
+vendor/GoogleFindMyTools/example_data.json
+.bike-tracker/
+token_cache*
+*.token
+
+# --- Location history — private by default --------------------------------
+data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.db
+exports/
+*.gpx
+*.kml
+
+# --- Logs ------------------------------------------------------------------
+logs/
+*.log
+
+# --- Python ----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Editors / OS ----------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

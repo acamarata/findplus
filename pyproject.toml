@@ -1,0 +1,65 @@
+[project]
+name = "bike-tracker"
+version = "1.0.0"
+description = "Local historical location timeline for a Google Find Hub tracker (Moto Tag 2) on a bicycle."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "GPL-3.0-or-later" }
+
+dependencies = [
+  # --- our stack ---
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.32",
+  "sqlalchemy>=2.0.36",
+  "alembic>=1.14",
+  "pydantic>=2.9",
+  "pydantic-settings>=2.6",
+  "click>=8.1",
+  "structlog>=24.4",
+  "python-dotenv>=1.0",
+  "tzlocal>=5.2",
+  # --- GoogleFindMyTools runtime deps (frida intentionally EXCLUDED: unused upstream) ---
+  "undetected-chromedriver>=3.5.5",
+  "selenium>=4.27.1",
+  "gpsoauth>=1.1.1",
+  "requests>=2.32.3",
+  "beautifulsoup4>=4.12.3",
+  "pyscrypt>=1.6.2",
+  "cryptography>=43.0.3",
+  "pycryptodomex>=3.21.0",
+  "ecdsa>=0.19.0",
+  "pytz>=2024.2",
+  "protobuf>=5.28.3",
+  "httpx>=0.28.0",
+  "h2>=4.1.0",
+  "aiohttp>=3.11.8",
+  "http_ece>=1.1.0",
+  "setuptools>=75.6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.8", "freezegun>=1.5"]
+
+[project.scripts]
+bike-tracker = "bike_tracker.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bike_tracker"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["vendor", "migrations/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "RUF"]
+ignore = ["B008"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = ["ignore::DeprecationWarning"]

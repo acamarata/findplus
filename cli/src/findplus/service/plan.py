@@ -42,9 +42,18 @@ def _python() -> str:
 
 
 def _uid() -> int:
+    """POSIX process UID, used to build the `gui/<uid>` launchd domain target.
+
+    Windows has no such concept and the schtasks builder never calls this —
+    but the launchd/systemd plan builders are also exercised on Windows CI as
+    pure string-generation regression tests (detect_manager monkeypatched to
+    "launchd"/"systemd" regardless of host OS; see test_service_plans.py and
+    test_start_at_login.py), so fall back to 0 rather than raise there. The
+    real value is still used whenever it exists.
+    """
     import os
 
-    return os.getuid()
+    return os.getuid() if hasattr(os, "getuid") else 0
 
 
 def detect_manager() -> str:

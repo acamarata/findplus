@@ -13,11 +13,19 @@ Constraints: Runs the real install.sh in a throwaway prefix. It never touches
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from pathlib import Path
 
 import pytest
+
+# install.sh is a POSIX shell script run via `bash`; it has no Windows
+# equivalent (D13: Windows service management goes through schtasks.py, not
+# a shell installer), so the whole module is not applicable there.
+pytestmark = pytest.mark.skipif(
+    os.name == "nt", reason="POSIX shell service uninstall (install.sh)"
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 INSTALL_SH = REPO_ROOT / "install.sh"

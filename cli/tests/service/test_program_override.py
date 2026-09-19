@@ -7,6 +7,9 @@ Purpose : The resolved program path reaching service.install(), and that the
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 import pytest
 from click.testing import CliRunner
 
@@ -14,6 +17,23 @@ from findplus.cli.main import main
 from findplus.config import get_settings
 from findplus.service import schtasks
 from findplus.service.launchd import plan_launchd
+
+
+def _native_absolute_path(posix_like: str) -> str:
+    """An OS-appropriate absolute path with the same shape as `posix_like`.
+
+    `start`'s `--program` handler does `str(Path(program_override).resolve())`
+    (cmd_service.py) to turn a relative override into an absolute one. A
+    driveless path like "/custom/path/x" IS already absolute on POSIX, so
+    .resolve() is a no-op there — but Windows has no driveless-absolute
+    concept, so the same string resolves against whatever drive the test
+    happens to run from (e.g. "D:\\custom\\path\\x" on a GitHub-hosted
+    runner). Give Windows a real drive-letter path instead, so the fixture
+    input is meaningful on every OS the CI matrix runs.
+    """
+    if os.name == "nt":
+        return "C:\\" + posix_like.lstrip("/").replace("/", "\\")
+    return posix_like
 
 
 def _track_one_device(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -43,11 +63,10 @@ def test_start_custom_program_reaches_install(tmp_db, monkeypatch: pytest.Monkey
     monkeypatch.setattr("findplus.service.install", lambda *a, **k: calls.append(k))
     monkeypatch.setattr("findplus.service.install_watchdog", lambda *a, **k: None)
 
-    result = CliRunner().invoke(
-        main, ["start", "--yes", "--program", "/custom/path/findplus-daemon"]
-    )
+    program = _native_absolute_path("/custom/path/findplus-daemon")
+    result = CliRunner().invoke(main, ["start", "--yes", "--program", program])
     assert result.exit_code == 0, result.output
-    assert calls[0]["program"] == "/custom/path/findplus-daemon"
+    assert calls[0]["program"] == str(Path(program).resolve())
 
 
 # ------------------------------------------------------------------------- b
@@ -71,10 +90,10 @@ def test_start_desktop_app_program_path(tmp_db, monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setattr("findplus.service.install", lambda *a, **k: calls.append(k))
     monkeypatch.setattr("findplus.service.install_watchdog", lambda *a, **k: None)
 
-    program = "/Applications/Find+.app/Contents/MacOS/findplus-daemon"
+    program = _native_absolute_path("/Applications/Find+.app/Contents/MacOS/findplus-daemon")
     result = CliRunner().invoke(main, ["start", "--yes", "--program", program])
     assert result.exit_code == 0, result.output
-    assert calls[0]["program"] == program
+    assert calls[0]["program"] == str(Path(program).resolve())
 
 
 # ------------------------------------------------------------------------- d

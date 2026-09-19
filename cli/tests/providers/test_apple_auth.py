@@ -90,6 +90,7 @@ def test_2fa_trusted_device(tmp_path, monkeypatch) -> None:
     assert (tmp_path / "apple-account.json").exists()
 
 
+@pytest.mark.posix_only
 def test_file_mode_0600(tmp_path, monkeypatch) -> None:
     settings = _settings(tmp_path)
     monkeypatch.setattr(auth_mod, "make_account", lambda s: FakeAccount())
@@ -99,6 +100,7 @@ def test_file_mode_0600(tmp_path, monkeypatch) -> None:
     assert mode == 0o600
 
 
+@pytest.mark.posix_only
 def test_resave_narrows_a_wide_mode_before_writing(tmp_path, monkeypatch) -> None:
     """E11 review: the file is chmodded 0600 before the session token is written,
     so a re-save over a world-readable file never exposes the token."""

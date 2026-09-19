@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import os
 
+import pytest
+
 from findplus.service.runtime import daemon_alive, read_daemon_file, write_daemon_file
 
 
@@ -26,4 +28,10 @@ def test_write_read_roundtrip(tmp_path, monkeypatch) -> None:
     write_daemon_file(pid=os.getpid(), port=18647, host="127.0.0.1", version="test", argv=["test"])
     data = read_daemon_file()
     assert data["pid"] == os.getpid()
+
+
+@pytest.mark.posix_only
+def test_write_daemon_file_mode_0600(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("FINDPLUS_STATE_DIR", str(tmp_path))
+    write_daemon_file(pid=os.getpid(), port=18647, host="127.0.0.1", version="test", argv=["test"])
     assert (tmp_path / "daemon.json").stat().st_mode & 0o777 == 0o600

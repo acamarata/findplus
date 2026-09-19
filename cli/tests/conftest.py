@@ -13,6 +13,25 @@ import pytest
 # Point every setting at a throwaway location BEFORE findplus.config is imported.
 os.environ.setdefault("FINDPLUS_STATE_DIR", "/tmp/findplus-tests-state")
 
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Auto-skip `@pytest.mark.posix_only` tests on Windows.
+
+    Purpose: a single place to skip the tests that assert exact POSIX mode
+    bits (chmod/umask/uid) — Windows has no such concept, and
+    `findplus.cli.doctor_perms` reports those checks as not-applicable there
+    rather than false-failing (E14 Windows CI repair). Declared once here so
+    ~15 call sites across several files don't each repeat their own
+    `skipif(os.name == "nt", ...)`.
+    """
+    if os.name != "nt":
+        return
+    skip_posix = pytest.mark.skip(reason="POSIX permission bits are not enforced on Windows")
+    for item in items:
+        if "posix_only" in item.keywords:
+            item.add_marker(skip_posix)
+
+
 #: Where a TestClient pretends to be talking to. Starlette's default is
 #: "http://testserver", which OriginGuardMiddleware answers with 421 because
 #: it is not a loopback name — exactly the DNS-rebinding case it exists to

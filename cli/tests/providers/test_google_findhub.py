@@ -246,5 +246,8 @@ def test_vendored_pb2_imports() -> None:
     pb2_files = glob.glob(str(VENDOR_GFMT / "**" / "*_pb2.py"), recursive=True)
     assert pb2_files, "expected at least one vendored _pb2.py file"
     for path in pb2_files:
-        rel = path[len(str(VENDOR_GFMT)) + 1 : -3].replace("/", ".")
+        # glob.glob() and str(VENDOR_GFMT) both use os.sep, which is "\" on
+        # Windows — replace both separators, not just "/", before turning the
+        # relative path into a dotted module name.
+        rel = path[len(str(VENDOR_GFMT)) + 1 : -3].replace("\\", "/").replace("/", ".")
         importlib.import_module(rel)

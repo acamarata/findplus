@@ -76,10 +76,16 @@ def _run_serve_and_signal(tmp_path: Path, sig: int) -> None:
             proc.wait(timeout=5)
 
 
+@pytest.mark.skipif(
+    os.name == "nt", reason="POSIX signal delivery (os.kill SIGTERM to a subprocess)"
+)
 def test_sigterm_clean_shutdown(tmp_path: Path) -> None:
     _run_serve_and_signal(tmp_path, signal.SIGTERM)
 
 
+@pytest.mark.skipif(
+    os.name == "nt", reason="POSIX signal delivery (os.kill SIGINT to a subprocess)"
+)
 def test_sigint_clean_shutdown(tmp_path: Path) -> None:
     _run_serve_and_signal(tmp_path, signal.SIGINT)
 

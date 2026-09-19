@@ -65,6 +65,14 @@ def check_state_dir_perms(state_dir: Path) -> DoctorCheck:
             f"{state_dir} missing",
             repairable=False,
         )
+    if os.name == "nt":
+        return DoctorCheck(
+            "state_dir_perms",
+            "State directory permissions",
+            True,
+            "POSIX permission bits are not enforced on Windows",
+            repairable=False,
+        )
     mode = os.stat(state_dir).st_mode
     ok = (mode & 0o777) == 0o700
     return DoctorCheck(
@@ -83,6 +91,14 @@ def _fail(detail: str) -> DoctorCheck:
 
 
 def check_sensitive_file_perms(state_dir: Path) -> DoctorCheck:
+    if os.name == "nt":
+        return DoctorCheck(
+            "sensitive_file_perms",
+            "Sensitive file permissions",
+            True,
+            "POSIX permission bits are not enforced on Windows",
+            repairable=False,
+        )
     for p in _sensitive_files(state_dir):
         if not p.exists():
             continue

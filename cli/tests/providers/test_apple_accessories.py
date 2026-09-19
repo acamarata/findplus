@@ -70,6 +70,7 @@ def test_remove_missing(tmp_path) -> None:
         remove_accessory("apple:0000000000000000000000", settings)
 
 
+@pytest.mark.posix_only
 def test_file_mode_0600(tmp_path) -> None:
     settings = _settings(tmp_path)
     key_b64 = base64.b64encode(KEY_28).decode()
@@ -79,6 +80,7 @@ def test_file_mode_0600(tmp_path) -> None:
     assert mode == 0o600
 
 
+@pytest.mark.posix_only
 def test_rewrite_narrows_a_wide_mode_before_writing(tmp_path) -> None:
     """E11 review: the record is chmodded 0600 before the key payload is written,
     so a pre-existing world-readable file is never widened by a re-register."""

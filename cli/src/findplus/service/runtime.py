@@ -157,6 +157,36 @@ def read_daemon_file(settings: Settings | None = None) -> dict[str, Any] | None:
         return None
 
 
+def _pid_alive(pid: int) -> bool:
+    """Cross-platform "is this pid running", no signal actually sent.
+
+    POSIX: `os.kill(pid, 0)` is the standard trick — it raises
+    ProcessLookupError when the pid is gone, or PermissionError when it
+    exists but is owned by someone else (still alive either way).
+    Windows has no signal-0 convention: `os.kill(pid, 0)` there maps to
+    GenerateConsoleCtrlEvent, which raises OSError ([WinError 87]) for a pid
+    that is not our own console's process group. Open a query handle instead.
+    """
+    if os.name == "nt":
+        import ctypes
+
+        process_query_limited_information = 0x1000
+        handle = ctypes.windll.kernel32.OpenProcess(  # type: ignore[attr-defined]
+            process_query_limited_information, False, pid
+        )
+        if not handle:
+            return False
+        ctypes.windll.kernel32.CloseHandle(handle)  # type: ignore[attr-defined]
+        return True
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
 def daemon_alive() -> bool:
     """Return True only if daemon pid is alive AND /api/health returns app=='findplus'."""
     info = read_daemon_file()
@@ -165,9 +195,7 @@ def daemon_alive() -> bool:
     pid = info.get("pid")
     if not isinstance(pid, int):
         return False
-    try:
-        os.kill(pid, 0)
-    except (ProcessLookupError, PermissionError):
+    if not _pid_alive(pid):
         return False
     port = info.get("port", 8647)
     try:

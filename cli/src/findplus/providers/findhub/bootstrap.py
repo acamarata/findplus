@@ -57,9 +57,11 @@ def vendor_available() -> tuple[bool, str]:
     pkg_vendor, repo_vendor = _candidates()
     if any(candidate.is_dir() for candidate in (pkg_vendor, repo_vendor)):
         return (True, "")
+    # .as_posix(): a human-facing message, and forward slashes read the same
+    # on every OS this reason string is ever printed or asserted on.
     return (
         False,
-        f"GoogleFindMyTools not found at {pkg_vendor} or {repo_vendor}. "
+        f"GoogleFindMyTools not found at {pkg_vendor.as_posix()} or {repo_vendor.as_posix()}. "
         "Run: pip install -e 'cli/[dev]' from the repo root.",
     )
 
@@ -79,6 +81,6 @@ def ensure_gfmt_importable() -> Path:
                 sys.path.insert(0, target)
             return candidate
     raise RuntimeError(
-        f"GoogleFindMyTools not found at {pkg_vendor} or {repo_vendor}. "
+        f"GoogleFindMyTools not found at {pkg_vendor.as_posix()} or {repo_vendor.as_posix()}. "
         "Run: pip install -e 'cli/[dev]' from the repo root."
     )

@@ -40,6 +40,7 @@ def test_check_python_passes_on_test_runner() -> None:
 
 
 # ------------------------------------------------------------------------- b
+@pytest.mark.posix_only
 def test_check_state_dir_perms(tmp_path) -> None:
     os.chmod(tmp_path, 0o700)
     assert check_state_dir_perms(tmp_path).passed is True
@@ -51,6 +52,7 @@ def test_check_state_dir_perms(tmp_path) -> None:
 
 
 # ------------------------------------------------------------------------- c
+@pytest.mark.posix_only
 def test_check_sensitive_file_perms(tmp_path) -> None:
     secrets = tmp_path / "secrets.json"
     secrets.write_text("{}")
@@ -64,6 +66,7 @@ def test_check_sensitive_file_perms(tmp_path) -> None:
 
 
 # ------------------------------------------------------------------------ c2
+@pytest.mark.posix_only
 def test_apple_key_store_is_covered(tmp_path) -> None:
     """PRI hard rule 9 / E11 review carry-forward #26: `apple/` is 0700 and each
     `apple/<device_id>.json` (a plist or a raw private key) is 0600."""
@@ -82,6 +85,7 @@ def test_apple_key_store_is_covered(tmp_path) -> None:
     assert os.stat(key_file).st_mode & 0o777 == 0o600
 
 
+@pytest.mark.posix_only
 def test_apple_directory_mode_is_checked_and_repaired(tmp_path) -> None:
     apple = tmp_path / "apple"
     apple.mkdir()
@@ -183,6 +187,7 @@ def test_check_units(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # ------------------------------------------------------------------------- i
+@pytest.mark.posix_only
 def test_repair_state_dir_perms(tmp_path) -> None:
     os.chmod(tmp_path, 0o755)
     repair_state_dir_perms(tmp_path)
@@ -190,6 +195,7 @@ def test_repair_state_dir_perms(tmp_path) -> None:
 
 
 # ------------------------------------------------------------------------- j
+@pytest.mark.posix_only
 def test_repair_sensitive_file_perms(tmp_path) -> None:
     p = tmp_path / "secrets.json"
     p.write_text("{}")

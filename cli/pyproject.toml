@@ -116,4 +116,5 @@ filterwarnings = ["ignore::DeprecationWarning"]
 markers = [
   "slow: builds/installs a wheel",
   "browser: needs Chrome",
+  "posix_only: asserts exact POSIX mode bits (chmod/umask/uid) — auto-skipped on Windows, see conftest.py",
 ]

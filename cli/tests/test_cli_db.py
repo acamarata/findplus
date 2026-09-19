@@ -9,6 +9,7 @@ from findplus.cli.cmd_db import db_cmd
 
 def test_db_path(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))  # Path.home() on Windows reads this, not HOME
     monkeypatch.delenv("FINDPLUS_STATE_DIR", raising=False)
     result = CliRunner().invoke(db_cmd, ["path"])
     assert result.exit_code == 0
@@ -17,6 +18,7 @@ def test_db_path(tmp_path, monkeypatch) -> None:
 
 def test_db_upgrade_creates_tables(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))  # Path.home() on Windows reads this, not HOME
     monkeypatch.delenv("FINDPLUS_STATE_DIR", raising=False)
     CliRunner().invoke(db_cmd, ["upgrade"], catch_exceptions=False)
 
@@ -29,6 +31,7 @@ def test_db_upgrade_creates_tables(tmp_path, monkeypatch) -> None:
 
 def test_db_current_after_upgrade(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))  # Path.home() on Windows reads this, not HOME
     monkeypatch.delenv("FINDPLUS_STATE_DIR", raising=False)
     runner = CliRunner()
     runner.invoke(db_cmd, ["upgrade"], catch_exceptions=False)

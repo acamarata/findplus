@@ -126,6 +126,10 @@ def test_default_database_under_home(tmp_path, monkeypatch) -> None:
     from findplus.config import get_settings
 
     monkeypatch.setenv("HOME", str(tmp_path))
+    # Path.home() on Windows resolves via USERPROFILE, not HOME (ntpath.expanduser
+    # never consults HOME) — set both so this isolates the real user profile on
+    # every OS instead of quietly falling through to it on Windows.
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
     monkeypatch.delenv("FINDPLUS_STATE_DIR", raising=False)
     s = get_settings()
     assert s.database_path == tmp_path / ".findplus" / "findplus.sqlite"
@@ -167,6 +171,7 @@ def test_env_var_overrides_both(tmp_path, monkeypatch) -> None:
     assert s.database_path == tmp_path / "y.db"
 
 
+@pytest.mark.posix_only
 def test_state_dir_mode_0700(tmp_path) -> None:
     import stat
 

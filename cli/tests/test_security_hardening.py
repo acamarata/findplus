@@ -27,6 +27,7 @@ def _mode(path: Path) -> int:
 
 
 # ------------------------------------------------------ 4. file permissions
+@pytest.mark.posix_only
 def test_the_state_tree_is_private(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("FINDPLUS_STATE_DIR", str(tmp_path / "state"))
     monkeypatch.setenv("FINDPLUS_DATABASE_PATH", str(tmp_path / "state" / "findplus.sqlite"))
@@ -38,6 +39,7 @@ def test_the_state_tree_is_private(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     reset_settings_cache()
 
 
+@pytest.mark.posix_only
 def test_history_files_are_chmodded_even_when_sqlite_made_them_readable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -59,6 +61,7 @@ def test_history_files_are_chmodded_even_when_sqlite_made_them_readable(
     reset_settings_cache()
 
 
+@pytest.mark.posix_only
 def test_the_cli_group_sets_a_private_umask() -> None:
     """The attack: `findplus serve` inherited a 0022 shell umask, so every file
     it created — database, WAL, log — was world-readable."""
@@ -212,6 +215,7 @@ def test_no_pin_configured_is_not_an_error(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 # ------------------------------------------------- 11. secrets.json creation
+@pytest.mark.posix_only
 def test_the_token_store_is_created_private(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

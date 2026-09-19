@@ -21,10 +21,19 @@ def test_plan_describes_the_change_without_making_it() -> None:
 
 
 def test_service_installs_at_user_level_only() -> None:
-    """No sudo, nothing under /Library or /etc."""
+    """No sudo, nothing under /Library or /etc.
+
+    launchd/systemd always park the unit under Path.home() (a fixed OS
+    autostart directory); schtasks has no such directory, so the data model
+    pins its task XML inside the app's own state dir instead (schtasks.py
+    docstring: "no unit_path lives outside the user's state dir"). Either
+    counts as user-level.
+    """
+    from findplus.config import get_settings
+
     plan = service.plan()
     path = str(plan.unit_path)
-    assert str(plan.unit_path.home()) in path
+    assert str(plan.unit_path.home()) in path or str(get_settings().state_dir) in path
     assert not path.startswith("/Library")
     assert not path.startswith("/etc")
     assert "sudo" not in " ".join(plan.load_command)
@@ -46,8 +55,12 @@ def test_launchd_plist_is_valid_and_runs_our_entry_point() -> None:
 
 # ------------------------------------------------------------------ watchdog
 def test_watchdog_plan_is_user_level_and_periodic() -> None:
+    """See test_service_installs_at_user_level_only for the schtasks exception."""
+    from findplus.config import get_settings
+
     plan = service.watchdog_plan()
-    assert str(plan.unit_path.home()) in str(plan.unit_path)
+    path = str(plan.unit_path)
+    assert str(plan.unit_path.home()) in path or str(get_settings().state_dir) in path
     assert "sudo" not in " ".join(plan.load_command)
 
 
@@ -65,6 +78,16 @@ def test_watchdog_install_refuses_without_confirmation() -> None:
 
 
 def test_watchdog_is_a_separate_job_from_the_service() -> None:
-    """Two independent jobs: if one is broken the other still acts."""
+    """Two independent jobs: if one is broken the other still acts.
+
+    Task Scheduler is the one exception: the data model pins exactly one XML
+    file (FindPlus-task.xml) and the watchdog job is registered by switches
+    only, so schtasks.py intentionally returns the same unit_path for both
+    plans (its watchdog_plan_schtasks docstring: "carried for symmetry with
+    the ServicePlan shape").
+    """
     assert service.WATCHDOG_LABEL != service.LAUNCHD_LABEL
-    assert service.watchdog_plan().unit_path != service.plan().unit_path
+    if service.detect_manager() == "schtasks":
+        assert service.watchdog_plan().unit_path == service.plan().unit_path
+    else:
+        assert service.watchdog_plan().unit_path != service.plan().unit_path

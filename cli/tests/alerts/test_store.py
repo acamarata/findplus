@@ -27,6 +27,7 @@ def _isolated_alerts_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Pa
     return alerts_file
 
 
+@pytest.mark.posix_only
 def test_save_creates_file_0600(_isolated_alerts_file: Path) -> None:
     creds = TelegramCreds(
         bot_token="123", chat_id="1", chat_title="t", bot_username="b", captured_at="now"

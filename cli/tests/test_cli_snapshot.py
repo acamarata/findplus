@@ -19,20 +19,39 @@ def test_help_exits_zero():
     assert result.exit_code == 0, result.output
 
 
+#: Every command the pre-split cli.py registered on the group, by its click name.
+#: The pre-split module had 16; a split that quietly loses one must fail here.
+EXPECTED_COMMANDS = {
+    "auth",
+    "devices",
+    "doctor",
+    "export",
+    "install-service",
+    "install-watchdog",
+    "open",
+    "poll-now",
+    "prune",
+    "reset-lock",
+    "serve",
+    "start",
+    "status",
+    "stop",
+    "theme",
+    "watchdog",
+}
+
+
 def test_help_contains_commands():
     result = CliRunner().invoke(main, ["--help"])
-    expected = {
-        "serve",
-        "start",
-        "stop",
-        "status",
-        "devices",
-        "export",
-        "prune",
-        "auth",
-        "poll-now",
-        "install-service",
-        "doctor",
-    }
-    for name in expected:
+    for name in EXPECTED_COMMANDS:
         assert name in result.output, f"missing command: {name}"
+
+
+def test_registered_command_set_is_exact():
+    """Names AND count, so a rename or an accidental extra also fails.
+
+    `--help` output alone cannot catch a command that was renamed to something
+    whose old name still appears elsewhere in the help text, nor an extra
+    command added without a spec change. Read the group's registry instead.
+    """
+    assert set(main.commands) == EXPECTED_COMMANDS

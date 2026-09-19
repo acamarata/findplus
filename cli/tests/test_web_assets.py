@@ -11,6 +11,7 @@ Constraints: No network access; everything is resolved against the repo tree.
 
 from __future__ import annotations
 
+import re
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -67,3 +68,23 @@ def test_no_external_scripts():
     for src in [*parser.script_srcs, *parser.link_hrefs]:
         assert src.startswith("/") or src.startswith("./"), f"external asset reference: {src}"
         assert "://" not in src, f"external asset reference: {src}"
+
+
+#: `import ... from "./x.js"` / `export ... from "./x.js"` inside web/app/*.js.
+_RELATIVE_IMPORT = re.compile(r"""(?:^|\s)(?:import|export)\b[^;]*?from\s+["'](\.[^"']+)["']""")
+
+
+def test_module_imports_resolve_on_disk():
+    """A typo'd relative import is a blank page, and node --check cannot see it.
+
+    `node --check` parses each file in isolation: it validates syntax but never
+    resolves a specifier. Without this, `./lock.js` renamed to `./applock.js`
+    would pass every gate in the suite and only fail in a browser.
+    """
+    app_dir = REPO_ROOT / "web" / "app"
+    modules = sorted(app_dir.glob("*.js"))
+    assert modules, f"no ES modules found under {app_dir}"
+    for module in modules:
+        for specifier in _RELATIVE_IMPORT.findall(module.read_text(encoding="utf-8")):
+            target = (module.parent / specifier).resolve()
+            assert target.is_file(), f"{module.name} imports missing module: {specifier}"

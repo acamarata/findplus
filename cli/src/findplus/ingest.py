@@ -158,8 +158,7 @@ def ingest_observations(
 
     session.flush()
 
-    for lo in sorted(new_rows, key=lambda o: o.observed_at):
-        _geofence_evaluate(session, lo)
+    _run_post_ingest_hooks(session, new_rows)
 
     result = IngestResult(received=len(observations), inserted=inserted, duplicates=duplicates)
     log.info(
@@ -169,6 +168,32 @@ def ingest_observations(
         duplicates=result.duplicates,
     )
     return result
+
+
+def _run_post_ingest_hooks(session: Session, new_rows: list[LocationObservation]) -> None:
+    """Run the per-observation hooks, never letting one lose the batch.
+
+    The observations themselves are the irreplaceable data: a hook that raises
+    (a bad place radius, a malformed group quorum, a bug in a downstream
+    evaluator) must not roll back rows the provider will not hand us again, and
+    must not break `poller.poll_device`'s "never raises on poll failure"
+    contract. Each observation is guarded on its own so one bad fix does not
+    skip the rest of the batch.
+    """
+    for lo in sorted(new_rows, key=lambda o: o.observed_at):
+        try:
+            # SAVEPOINT: a DB-level failure inside the hook rolls back only the
+            # hook's own writes, so the session stays usable and the
+            # observations still commit.
+            with session.begin_nested():
+                _geofence_evaluate(session, lo)
+        except Exception:
+            log.exception(
+                "post_ingest_hook_failed",
+                hook="geofence",
+                device=lo.device_id,
+                observation_id=lo.id,
+            )
 
 
 def _encode_metadata(obs: RawObservation) -> str | None:

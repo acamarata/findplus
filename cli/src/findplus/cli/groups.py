@@ -201,7 +201,9 @@ def presence_cmd(group_id, window, as_json):
     click.echo(presence.note)
     click.echo(f"{'DEVICE':<14}{'NAME':<16}{'STATUS':<18}{'PLACE':<14}{'AGE_MIN':>8}{'STALE':>7}")
     for s2 in statuses:
-        stale = "Y" if s2.name in presence.stale else "N"
+        # Read the member's own status, not a name lookup in presence.stale:
+        # two trackers can share a display name and would both be flagged.
+        stale = "Y" if s2.status == "stale" else "N"
         age = s2.age_minutes if s2.age_minutes is not None else ""
         place = s2.place or ""
         click.echo(f"{s2.device_id:<14}{s2.name:<16}{s2.status:<18}{place:<14}{age!s:>8}{stale:>7}")

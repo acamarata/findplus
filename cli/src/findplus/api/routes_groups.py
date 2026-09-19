@@ -72,7 +72,9 @@ def _group_to_dict(g: Group) -> dict[str, Any]:
 
 def _status_to_dict(s: MemberStatus) -> dict[str, Any]:
     d = asdict(s)
-    d["last_observed_at"] = s.last_observed_at.isoformat() + "Z" if s.last_observed_at else None
+    # UtcDateTime already returns aware UTC: isoformat() emits the offset. Appending
+    # a "Z" on top of it produces "...+00:00Z", which no ISO parser accepts.
+    d["last_observed_at"] = s.last_observed_at.isoformat() if s.last_observed_at else None
     return d
 
 
@@ -163,8 +165,8 @@ def build_router() -> APIRouter:
                 s, group_id=group_id, place_id=place_id, since=since, until=until, limit=limit
             )
             for r in rows:
-                r["observed_at"] = r["observed_at"].isoformat() + "Z"
-                r["notified_at"] = r["notified_at"].isoformat() + "Z" if r["notified_at"] else None
+                r["observed_at"] = r["observed_at"].isoformat()
+                r["notified_at"] = r["notified_at"].isoformat() if r["notified_at"] else None
             return rows
 
     @router.get("/{group_id}/presence")

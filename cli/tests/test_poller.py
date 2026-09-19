@@ -390,3 +390,27 @@ def test_device_first_seen_through_a_poll_keeps_its_reporting_provider(
 
     with session_scope() as session:
         assert session.get(Device, "TAG-001").provider == "test-fake"
+
+
+def test_poll_device_never_raises_when_an_ingest_hook_fails(
+    selected, register_provider, monkeypatch
+) -> None:
+    """poll_device's "never raises" contract covers the post-ingest hooks too.
+
+    A geofence (or, later, groups/alerts) hook that blows up must not roll back
+    the observations or escape as an exception: the fixes are irreplaceable and
+    the poll attempt still has to be recorded.
+    """
+
+    def boom(_session, _lo):
+        raise RuntimeError("hook exploded")
+
+    monkeypatch.setattr("findplus.ingest._geofence_evaluate", boom)
+    register_provider("test-fake", FakeProvider([make_observation(minutes=0)]))
+
+    outcome = poll_device("TAG-001", "Moto Tag 2", provider_name="test-fake")
+
+    assert outcome.status == "ok"
+    assert outcome.inserted == 1
+    assert _obs_count() == 1
+    assert _last_run().status == "ok"

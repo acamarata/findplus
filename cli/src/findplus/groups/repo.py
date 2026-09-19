@@ -283,7 +283,8 @@ def list_group_timeline(
             {
                 "lat": o.latitude_e7 / 1e7,
                 "lon": o.longitude_e7 / 1e7,
-                "observed_at": o.observed_at.isoformat() + "Z",
+                # Aware UTC already carries "+00:00"; a trailing "Z" makes it unparseable.
+                "observed_at": o.observed_at.isoformat(),
                 "accuracy_meters": o.accuracy_meters,
             }
             for o in obs

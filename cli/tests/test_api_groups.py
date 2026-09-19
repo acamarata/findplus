@@ -139,3 +139,35 @@ def test_locked(client: TestClient) -> None:
     res = client.get("/api/groups")
     assert res.status_code == 401
     assert res.json()["locked"] is True
+
+
+def test_group_timestamps_are_parseable(client: TestClient) -> None:
+    """Every timestamp the group routes emit must round-trip through fromisoformat.
+
+    UtcDateTime returns aware UTC, so isoformat() already carries "+00:00";
+    appending a "Z" produced "...+00:00Z", which no ISO parser accepts.
+    """
+    from datetime import UTC, datetime
+
+    group_id = _make_group_with_members(client, ["dev1"])
+    with session_scope() as session:
+        ingest_observations(
+            session,
+            [
+                make_observation(device_id="dev1", minutes=0),
+                # A fresh fix so the member is reporting, not stale, and the
+                # presence route actually renders a last_observed_at.
+                make_observation(device_id="dev1", observed_at=datetime.now(UTC)),
+            ],
+        )
+
+    body = client.get(f"/api/groups/{group_id}/presence").json()
+    stamps = [m["last_observed_at"] for m in body["members"] if m["last_observed_at"]]
+    assert stamps, "expected at least one reporting member"
+
+    points = client.get(f"/api/timeline?group_id={group_id}&day=2026-09-18&timezone=UTC").json()
+    stamps += [p["observed_at"] for item in points for p in item["points"]]
+    assert len(stamps) > 1
+
+    for stamp in stamps:
+        assert datetime.fromisoformat(stamp).tzinfo is not None

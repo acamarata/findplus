@@ -75,10 +75,23 @@ def _names_joined(names: list[str]) -> str:
 
 
 def _build_stale_clause(stale_names: list[str]) -> str:
+    """Sentence-final clause for the 0/1-reporting notes (engines.md)."""
     if not stale_names:
         return ""
     joined = _names_joined(stale_names)
     return f" {joined} have no recent fix, which does not mean they were left behind."
+
+
+def _stale_suffix(stale_names: list[str]) -> str:
+    """Clause appended inside the >=2-reporting notes: `; <names> have no recent fix.`
+
+    engines.md pins a semicolon-joined suffix here, not the standalone sentence
+    `_build_stale_clause` builds for the 0/1-reporting branches. Using the
+    latter runs the two statements together ("... near Home Backpack have ...").
+    """
+    if not stale_names:
+        return ""
+    return f"; {_names_joined(stale_names)} have no recent fix."
 
 
 def member_status(
@@ -193,6 +206,7 @@ def group_presence(
         note = f"Only {r.name} is reporting ({r.age_minutes} min ago).{stale_clause}"
         return result("partial", [], [], 1, note)
 
+    stale_suffix = _stale_suffix(stale_names)
     clique = _greedy_clique(reporting, cluster_radius_meters)
     together = [reporting[i] for i in clique]
     diverged = [s for i, s in enumerate(reporting) if i not in clique]
@@ -202,7 +216,7 @@ def group_presence(
     if not diverged:
         place_names = list({s.place for s in together if s.place})
         location = place_names[0] if len(place_names) == 1 else "each other"
-        note = f"{len(together_names)} tags together near {location}{stale_clause}"
+        note = f"{len(together_names)} tags together near {location}{stale_suffix}"
         return result("all_together", together_names, [], len(reporting), note)
 
     max_div_dist = max(
@@ -214,6 +228,6 @@ def group_presence(
     verb = "is" if len(diverged_names) == 1 else "are"
     note = (
         f"{diverged_str} {verb} away from {together_str} "
-        f"({round(max_div_dist)} m apart){stale_clause}"
+        f"({round(max_div_dist)} m apart){stale_suffix}"
     )
     return result("partial", together_names, diverged_names, len(reporting), note)

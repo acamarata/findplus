@@ -232,3 +232,31 @@ def test_considered_count_includes_stale() -> None:
     members = [_member("d1", "A"), _member("d2", "B"), _member("d3", "C", minutes_ago=240)]
     r = group_presence(1, members, NOW, 90, 150, 25.0, 60)
     assert r.considered_count == 3
+
+
+def test_stale_suffix_is_semicolon_joined_when_together() -> None:
+    """engines.md: `<n> tags together near <place>; <names> have no recent fix.`
+
+    Reusing the 0/1-reporting sentence here ran the two statements together
+    ("... near Home Backpack have no recent fix ...").
+    """
+    members = [
+        _member("d1", "Bike", offset_m=0, inside_places=["Home"]),
+        _member("d2", "Shoes", offset_m=20, inside_places=["Home"]),
+        _member("d3", "Backpack", minutes_ago=240),
+    ]
+    r = group_presence(1, members, NOW, 90, 150, 25.0, 60)
+    assert r.verdict == "all_together"
+    assert r.note == "2 tags together near Home; Backpack have no recent fix."
+
+
+def test_stale_suffix_is_semicolon_joined_when_partial() -> None:
+    members = [
+        _member("d1", "Bike", offset_m=0),
+        _member("d2", "Shoes", offset_m=600),
+        _member("d3", "Backpack", minutes_ago=240),
+    ]
+    r = group_presence(1, members, NOW, 90, 150, 25.0, 60)
+    assert r.verdict == "partial"
+    assert "apart); Backpack have no recent fix." in r.note
+    assert "left behind" not in r.note

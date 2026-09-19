@@ -187,3 +187,21 @@ def test_duplicate_observation_does_not_trigger_evaluate(session):
     ingest_observations(session, [make_obs(411000900, -806400000, T0)])
     count_after_second = len(list(session.scalars(select(PlaceEvent))))
     assert count_after_second == count_after_first
+
+
+def test_hook_failure_never_loses_the_batch(session, monkeypatch) -> None:
+    """A raising post-ingest hook must not discard the observations it ran on.
+
+    The provider will not hand the same fixes back, so a bug in the geofence
+    (or, later, the groups/alerts) hook has to be logged and stepped over, not
+    allowed to roll back the batch.
+    """
+
+    def boom(_session, _lo):
+        raise RuntimeError("hook exploded")
+
+    monkeypatch.setattr("findplus.ingest._geofence_evaluate", boom)
+    result = ingest_observations(session, [make_obs(411000900, -806400000, T0)])
+    assert result.inserted == 1
+    session.flush()
+    assert len(list(session.scalars(select(LocationObservation)))) == 1

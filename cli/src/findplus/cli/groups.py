@@ -109,6 +109,9 @@ def add_group_cmd(name, color, quorum, cluster_radius_meters, stale_after_minute
                 stale_after_minutes=stale_after_minutes,
                 member_ids=list(member_ids),
             )
+        except ValueError as exc:
+            click.echo(f"Error: {exc}", err=True)
+            sys.exit(1)
         except IntegrityError as exc:
             s.rollback()
             if "UNIQUE" not in str(exc):
@@ -139,8 +142,8 @@ def edit_group_cmd(group_id, name, color, quorum, cluster_radius_meters, stale_a
     with session_scope() as s:
         try:
             update_group(s, group_id, **fields)
-        except ValueError:
-            click.echo("Error: group not found", err=True)
+        except ValueError as exc:
+            click.echo(f"Error: {exc}", err=True)
             sys.exit(1)
     click.echo(f"Updated group {group_id}")
 

@@ -38,6 +38,8 @@ from findplus.groups.presence import (
     group_presence,
     member_status,
 )
+from findplus.groups.timeline import list_group_timeline  # re-exported, see timeline.py
+from findplus.groups.validation import validate_group_fields
 
 
 def list_groups(session: Session) -> list[Group]:
@@ -71,6 +73,11 @@ def create_group(
     stale_after_minutes: int = 90,
     member_ids: list[str] | None = None,
 ) -> Group:
+    validate_group_fields(
+        quorum=quorum,
+        cluster_radius_meters=cluster_radius_meters,
+        stale_after_minutes=stale_after_minutes,
+    )
     group = Group(
         name=name,
         color=color,
@@ -92,6 +99,11 @@ def update_group(session: Session, group_id: int, **fields) -> Group:
     group = session.get(Group, group_id)
     if group is None:
         raise ValueError(f"group {group_id} not found")
+    validate_group_fields(
+        quorum=fields.get("quorum"),
+        cluster_radius_meters=fields.get("cluster_radius_meters"),
+        stale_after_minutes=fields.get("stale_after_minutes"),
+    )
     for key, value in fields.items():
         if value is not None:
             setattr(group, key, value)
@@ -253,41 +265,13 @@ def list_group_place_events(
     return result
 
 
-def list_group_timeline(
-    session: Session, group_id: int, start_utc: datetime, end_utc: datetime
-) -> list[dict]:
-    """One dict per member device: `{device_id, name, points}` for `[start_utc, end_utc)`.
-
-    Never merges points across devices (PROMPT.md §2 invariant 5) — each
-    entry's `points` list holds only that one device_id's observations.
-    Caller (routes_history.py) is responsible for the group-not-found 404.
-    """
-    members = session.execute(
-        select(Device.device_id, Device.name)
-        .join(DeviceGroup, DeviceGroup.device_id == Device.device_id)
-        .where(DeviceGroup.group_id == group_id)
-    ).all()
-
-    result = []
-    for device_id, name in members:
-        obs = session.scalars(
-            select(LocationObservation)
-            .where(
-                LocationObservation.device_id == device_id,
-                LocationObservation.observed_at >= start_utc,
-                LocationObservation.observed_at < end_utc,
-            )
-            .order_by(LocationObservation.observed_at)
-        ).all()
-        points = [
-            {
-                "lat": o.latitude_e7 / 1e7,
-                "lon": o.longitude_e7 / 1e7,
-                # Aware UTC already carries "+00:00"; a trailing "Z" makes it unparseable.
-                "observed_at": o.observed_at.isoformat(),
-                "accuracy_meters": o.accuracy_meters,
-            }
-            for o in obs
-        ]
-        result.append({"device_id": device_id, "name": name, "points": points})
-    return result
+__all__ = [
+    "build_presence",
+    "create_group",
+    "delete_group",
+    "list_group_place_events",
+    "list_group_timeline",
+    "list_groups",
+    "set_members",
+    "update_group",
+]

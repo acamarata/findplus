@@ -107,6 +107,9 @@ def build_router() -> APIRouter:
                     stale_after_minutes=body.stale_after_minutes,
                     member_ids=body.member_ids,
                 )
+            except ValueError as exc:
+                s.rollback()
+                raise _map_value_error(exc) from exc
             except IntegrityError as exc:
                 s.rollback()
                 if "UNIQUE" not in str(exc):

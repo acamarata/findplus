@@ -52,3 +52,24 @@ def test_groups_presence_shows_verdict(tmp_db: str) -> None:
     result = runner.invoke(main, ["groups", "presence", group_id])
     assert result.exit_code == 0
     assert "Verdict:" in result.output
+
+
+def test_groups_add_rejects_radius_out_of_range(tmp_db: str) -> None:
+    result = CliRunner().invoke(main, ["groups", "add", "Family", "--cluster-radius", "5"])
+    assert result.exit_code != 0
+    assert "cluster_radius_meters" in result.output
+
+
+def test_groups_add_rejects_quorum_zero(tmp_db: str) -> None:
+    result = CliRunner().invoke(main, ["groups", "add", "Family", "--quorum", "0"])
+    assert result.exit_code != 0
+    assert "quorum" in result.output
+
+
+def test_groups_edit_rejects_invalid_quorum(tmp_db: str) -> None:
+    runner = CliRunner()
+    add_result = runner.invoke(main, ["groups", "add", "Family"])
+    group_id = _added_id(add_result.output)
+    result = runner.invoke(main, ["groups", "edit", group_id, "--quorum", "banana"])
+    assert result.exit_code != 0
+    assert "quorum" in result.output

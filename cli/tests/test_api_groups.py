@@ -61,6 +61,55 @@ def test_duplicate_name_409(client: TestClient) -> None:
     assert res.status_code == 409
 
 
+def test_post_group_radius_out_of_range_422(client: TestClient) -> None:
+    res = client.post("/api/groups", json={"name": "Family", "cluster_radius_meters": 5})
+    assert res.status_code == 422
+
+
+def test_post_group_stale_out_of_range_422(client: TestClient) -> None:
+    res = client.post("/api/groups", json={"name": "Family", "stale_after_minutes": 1})
+    assert res.status_code == 422
+
+
+def test_post_group_quorum_zero_422(client: TestClient) -> None:
+    res = client.post("/api/groups", json={"name": "Family", "quorum": "0"})
+    assert res.status_code == 422
+
+
+def test_post_group_quorum_non_numeric_422(client: TestClient) -> None:
+    res = client.post("/api/groups", json={"name": "Family", "quorum": "banana"})
+    assert res.status_code == 422
+
+
+def test_post_group_valid_values_201(client: TestClient) -> None:
+    res = client.post(
+        "/api/groups",
+        json={
+            "name": "Family",
+            "quorum": "3",
+            "cluster_radius_meters": 300,
+            "stale_after_minutes": 120,
+        },
+    )
+    assert res.status_code == 201
+    body = res.json()
+    assert body["quorum"] == "3"
+    assert body["cluster_radius_meters"] == 300
+    assert body["stale_after_minutes"] == 120
+
+
+def test_put_group_quorum_zero_422(client: TestClient) -> None:
+    group_id = client.post("/api/groups", json={"name": "Family"}).json()["id"]
+    res = client.put(f"/api/groups/{group_id}", json={"quorum": "0"})
+    assert res.status_code == 422
+
+
+def test_put_group_radius_out_of_range_422(client: TestClient) -> None:
+    group_id = client.post("/api/groups", json={"name": "Family"}).json()["id"]
+    res = client.put(f"/api/groups/{group_id}", json={"cluster_radius_meters": 3000})
+    assert res.status_code == 422
+
+
 def test_put_members_full_replace(client: TestClient) -> None:
     group_id = _make_group_with_members(client, ["dev1", "dev2"])
     res = client.put(f"/api/groups/{group_id}/members", json={"member_ids": ["dev3"]})

@@ -48,9 +48,37 @@ export function purge() {
   if (placeLayer) placeLayer.clearLayers();
   removePreviewCircle();
   if (dialogEl && dialogEl.open) dialogEl.close();
+  clearDialogFields();
   placesById = new Map();
   circlesById.clear();
   document.querySelectorAll(".fp-presence-chip").forEach((chip) => chip.remove());
+}
+
+/**
+ * Blank the add/edit dialog's inputs.
+ *
+ * Closing the <dialog> only stops it being displayed. Its inputs keep their
+ * values, and fields.lat/fields.lon hold the exact coordinates of the last
+ * place the user opened — readable from DevTools the moment the lock screen
+ * is up, which is precisely what purgeRenderedData()'s invariant forbids
+ * (PROMPT.md §2 invariant 11). The dataset entries go too: editId names a
+ * real place row.
+ */
+function clearDialogFields() {
+  if (!fields) return;
+  fields.name.value = "";
+  fields.lat.value = "";
+  fields.lon.value = "";
+  fields.radius.value = "200";
+  fields.radiusOut.textContent = "200";
+  fields.color.value = "#3b82f6";
+  fields.enter.value = "2";
+  fields.exit.value = "2";
+  fields.error.textContent = "";
+  if (dialogEl) {
+    delete dialogEl.dataset.editId;
+    delete dialogEl.dataset.mode;
+  }
 }
 
 export async function loadPlaces() {

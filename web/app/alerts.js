@@ -290,6 +290,16 @@ export function purge() {
   renderWebhookSection({ configured: false });
   $("fp-tg-status").textContent = "";
   ["fp-rule-place", "fp-rule-device", "fp-rule-group"].forEach((id) => fillOptions($(id), [], () => []));
+  // renderTelegramSection/renderWebhookSection above already blank the token
+  // and URL inputs. These two nothing else touches: a typed webhook secret and
+  // the add-rule dialog's name (a closed <dialog> keeps its input values, so
+  // both stay readable from DevTools behind the lock screen).
+  ["fp-rule-name", "fp-webhook-secret"].forEach((id) => {
+    const el = $(id);
+    if (el) el.value = "";
+  });
+  const err = $("fp-rule-error");
+  if (err) err.textContent = "";
   const dlg = $("fp-add-rule-dialog");
   if (dlg && dlg.open) dlg.close();
 }

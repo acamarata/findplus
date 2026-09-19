@@ -21,9 +21,22 @@ import { showLock } from "./lock.js";
  */
 function formatDetail(detail) {
   if (Array.isArray(detail)) {
-    return detail.map((item) => (item && item.msg) || JSON.stringify(item)).join("; ");
+    return detail.map(formatValidationItem).join("; ");
   }
   return detail;
+}
+
+/** "radius_meters: Input should be greater than 0" — the field, then the reason.
+ *
+ * The message alone ("Field required", "Input should be...") does not say
+ * which of a dialog's seven inputs is wrong, so the user has nothing to act
+ * on. FastAPI puts the field in `loc` as ["body", "<field>"]; "body" is
+ * dropped because every one of these errors is about the body.
+ */
+function formatValidationItem(item) {
+  if (!item || !item.msg) return JSON.stringify(item);
+  const where = (item.loc || []).filter((p) => p !== "body").join(".");
+  return where ? `${where}: ${item.msg}` : item.msg;
 }
 
 export async function api(path, options) {

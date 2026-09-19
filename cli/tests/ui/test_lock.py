@@ -231,3 +231,72 @@ async def test_lock_redirects_api_when_locked(page, base_url):
             headers={"Content-Type": "application/json"},
         )
         assert del_resp.ok, await del_resp.text()
+
+
+async def _dialog_input_values(page) -> dict:
+    """The place dialog's field values, read as DOM properties.
+
+    `page.content()` serialises markup, and an input's `value` set as a
+    property never appears there — which is why the purge test above, and the
+    older `test_no_location_data_is_in_the_dom_while_locked` grep, both miss
+    this residue entirely. DevTools does not miss it.
+    """
+    return await page.evaluate(
+        """() => {
+            const dlg = document.getElementById('fp-place-dialog');
+            if (!dlg) return null;
+            const inputs = [...dlg.querySelectorAll('input')];
+            return {
+                open: dlg.open,
+                editId: dlg.dataset.editId || '',
+                values: inputs.map((i) => i.value).join('|'),
+                name: (dlg.querySelector('input[type=text]') || {}).value || '',
+                lat: (dlg.querySelector('input[type=hidden]') || {}).value || '',
+            };
+        }"""
+    )
+
+
+async def test_lock_purges_the_place_dialog_and_the_webhook_secret(page, base_url):
+    """A closed <dialog> still holds the coordinates it was filled with.
+
+    purgeRenderedData()'s contract is that locking DESTROYS rendered location
+    data, not that it hides it. places.js only called `dialog.close()`, so the
+    hidden lat/lon inputs kept the exact point the user had just clicked and
+    the name input kept the place name — both readable from DevTools with the
+    lock screen up. The webhook secret input had nothing clearing it at all.
+    """
+    await _setup_purge_fixture(page, base_url)
+    try:
+        await page.goto(base_url + "/")
+        await page.locator("#app-shell:not(.hidden)").wait_for(state="visible")
+
+        await page.click('button[data-tab="places"]')
+        await page.click("#fp-add-place-btn")
+        await page.click("#map", position={"x": 10, "y": 10})
+        dialog = page.locator("#fp-place-dialog")
+        await dialog.wait_for(state="visible")
+        await dialog.locator('input[type="text"]').fill("Safe house")
+        # Cancel, not Save: the point is that closing the dialog is not purging it.
+        await dialog.get_by_text("Cancel", exact=True).click()
+        await page.wait_for_function("() => !document.getElementById('fp-place-dialog').open")
+
+        before = await _dialog_input_values(page)
+        assert before["name"] == "Safe house", before
+        assert before["lat"], "fixture did not fill the hidden coordinate inputs"
+
+        await page.click('button[data-tab="alerts"]')
+        await page.fill("#fp-webhook-secret", "hunter2-not-a-real-secret")
+
+        await page.click("#btn-lock")
+        await page.wait_for_selector("#lock-screen:not(.hidden)")
+
+        after = await _dialog_input_values(page)
+        assert after["open"] is False
+        assert after["name"] == "", after
+        assert after["lat"] == "", after
+        assert after["editId"] == "", after
+        assert "Safe house" not in after["values"], after
+        assert await page.input_value("#fp-webhook-secret") == ""
+    finally:
+        await _teardown_purge_fixture(page, base_url)

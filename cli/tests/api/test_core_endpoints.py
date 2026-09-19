@@ -27,14 +27,44 @@ def test_widget_unlocked(client: TestClient) -> None:  # noqa: F811
         "last_poll_at",
         "next_poll_at",
         "tracked_count",
+        "stale_after_minutes",
         "devices",
         "groups",
         "show_map",
         "notice",
     ):
         assert key in body, key
-    assert body["notice"] == "Locations can be minutes to hours late."
+    # The verbatim honesty.md sentence, never the old paraphrase.
+    assert body["notice"] == honesty.ALERTS_LATENCY
+    assert body["stale_after_minutes"] == 90  # D18
     assert body["state"] in {"ok", "stale", "error"}
+
+
+def test_widget_hides_the_place_of_a_stale_device(session, monkeypatch) -> None:
+    """honesty.md presence_stale: a tag with no recent fix is not at a place.
+
+    The last known place must not be served as if the tag were still there, so
+    a device past `stale_after_minutes` comes back with `place: null`.
+    """
+    from findplus.api import _helpers
+    from findplus.ingest import ingest_observations
+    from findplus.state import track_all
+    from tests.conftest import make_observation
+
+    observed = datetime(2026, 9, 18, 12, 0, tzinfo=UTC)
+    ingest_observations(session, [make_observation(observed_at=observed)])
+    track_all(session)
+    monkeypatch.setattr(_helpers, "_place_by_device", lambda s: {"TAG-001": "Home"})
+
+    fresh = _helpers._widget_devices(session, observed + timedelta(minutes=90), 90)
+    assert fresh[0]["age_minutes"] == 90
+    assert fresh[0]["place"] == "Home"
+
+    stale = _helpers._widget_devices(session, observed + timedelta(minutes=91), 90)
+    assert stale[0]["age_minutes"] == 91
+    assert stale[0]["place"] is None
+    # Everything else still reports honestly: the tag is known, just not placed.
+    assert stale[0]["device_id"] == "TAG-001"
 
 
 def test_widget_locked(locked_client: TestClient) -> None:  # noqa: F811

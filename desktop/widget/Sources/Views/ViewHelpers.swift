@@ -32,13 +32,19 @@ func stateLabel(_ state: WidgetState) -> String {
 
 /// The 9 pt footer notice. `response.notice` when the daemon answered; the
 /// pinned sentence when it did not (locked/down/error entries carry no body).
+///
+/// Three lines with a 0.8 minimum scale factor: the sentence is 104
+/// characters and would otherwise be ellipsed away in the small family,
+/// which is the one place a reader most needs it.
 struct NoticeFooter: View {
     let entry: WidgetEntry
 
     var body: some View {
-        Text(entry.response?.notice ?? "Locations can be minutes to hours late.")
+        Text(entry.response?.notice ?? pinnedLatencyNotice)
             .font(.system(size: 9))
             .foregroundStyle(.secondary)
-            .lineLimit(2)
+            .lineLimit(3)
+            .minimumScaleFactor(0.8)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }

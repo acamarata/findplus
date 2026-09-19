@@ -29,6 +29,7 @@ from findplus.state import get_default_device, get_tracked_devices
 from findplus.timeline import local_zone
 
 from ._helpers import (
+    WIDGET_STALE_AFTER_MINUTES,
     _alerts_configured,
     _consecutive_failures,
     _device_summary,
@@ -142,10 +143,12 @@ def build_router(*, settings, static_dir: Path, find_hub_notice: str) -> APIRout
                 "last_poll_at": _iso_z(last_poll_at),
                 "next_poll_at": _iso_z(next_poll_at),
                 "tracked_count": len(get_tracked_devices(session)),
-                "devices": _widget_devices(session, now),
+                "stale_after_minutes": WIDGET_STALE_AFTER_MINUTES,
+                "devices": _widget_devices(session, now, WIDGET_STALE_AFTER_MINUTES),
                 "groups": _group_rows(session),
                 "show_map": _widget_show_map(session, settings),
-                "notice": "Locations can be minutes to hours late.",
+                # The exact honesty.md sentence, not a paraphrase of it.
+                "notice": honesty.ALERTS_LATENCY,
             }
 
     @router.get("/api/status")

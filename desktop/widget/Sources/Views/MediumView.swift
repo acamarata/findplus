@@ -1,7 +1,8 @@
 // MediumView.swift
 //
 // Purpose    : systemMedium widget layout — left status column, right up to
-//              three device rows (name, place, age; stale rows greyed out).
+//              three device rows (name, place, age; a stale row is greyed out
+//              and its place reads "unknown", never its last known place).
 // Inputs     : WidgetEntry.
 // Outputs    : A SwiftUI View for the medium widget family.
 // Constraints: Locked/Down states show a full-width message, no device rows.
@@ -64,10 +65,13 @@ struct MediumView: View {
     }
 
     private func deviceRow(_ device: WidgetDevice) -> some View {
-        HStack {
+        let staleAfter = entry.staleAfterMinutes
+        return HStack {
             Text(device.name).font(.caption)
-            Text(device.place ?? "no named place").font(.caption2).foregroundStyle(.secondary)
-            if device.isStale {
+            Text(device.placeText(staleAfter: staleAfter))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            if device.isStale(after: staleAfter) {
                 Text("no fix for \(device.age_minutes / 60) h")
                     .font(.caption2)
                     .foregroundStyle(Color.dotGrey)

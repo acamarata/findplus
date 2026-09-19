@@ -64,8 +64,8 @@ final class ProviderTests: XCTestCase {
     func testFetch200ReturnsOkEntry() async {
         let json = """
         {"state":"ok","version":"1.0","last_poll_at":null,"next_poll_at":null,
-         "tracked_count":1,"devices":[],"groups":[],"show_map":false,
-         "notice":"Locations can be minutes to hours late."}
+         "tracked_count":1,"stale_after_minutes":90,"devices":[],"groups":[],
+         "show_map":false,"notice":"\(pinnedLatencyNotice)"}
         """
         URLProtocolStub.stubbedData = Data(json.utf8)
         URLProtocolStub.stubbedStatusCode = 200
@@ -118,8 +118,8 @@ final class ProviderTests: XCTestCase {
         // surface as the error state, never a crash or a half-built response.
         let json = """
         {"state":"ok","version":"1.0","last_poll_at":null,"next_poll_at":null,
-         "devices":[],"groups":[],"show_map":false,
-         "notice":"Locations can be minutes to hours late."}
+         "stale_after_minutes":90,"devices":[],"groups":[],"show_map":false,
+         "notice":"\(pinnedLatencyNotice)"}
         """
         URLProtocolStub.stubbedData = Data(json.utf8)
         let provider = FindPlusProvider(configuration: stubbedConfiguration())
@@ -137,12 +137,13 @@ final class ProviderTests: XCTestCase {
         let json = """
         {"state":"stale","version":"1.0","last_poll_at":"2026-01-01T00:00:00Z",
          "next_poll_at":"2026-01-01T00:05:00Z","tracked_count":1,
+         "stale_after_minutes":90,
          "devices":[{"device_id":"d1","name":"Keys","provider":"google-find-hub",
            "last_observed_at":"2026-01-01T00:00:00Z","age_minutes":181,
            "latitude":40.5,"longitude":-74.25,"place":null,"group":null}],
          "groups":[{"id":7,"name":"School run","verdict":"together",
            "note":"last seen 3 h ago"}],
-         "show_map":true,"notice":"Locations can be minutes to hours late."}
+         "show_map":true,"notice":"\(pinnedLatencyNotice)"}
         """
         URLProtocolStub.stubbedData = Data(json.utf8)
         let provider = FindPlusProvider(configuration: stubbedConfiguration())
@@ -156,7 +157,9 @@ final class ProviderTests: XCTestCase {
         XCTAssertEqual(device?.latitude, 40.5)
         XCTAssertNil(device?.place)
         XCTAssertNil(device?.group)
-        XCTAssertEqual(device?.isStale, true)
+        XCTAssertEqual(entry.response?.stale_after_minutes, 90)
+        XCTAssertEqual(device?.isStale(after: entry.staleAfterMinutes), true)
+        XCTAssertEqual(device?.placeText(staleAfter: entry.staleAfterMinutes), "unknown")
         XCTAssertEqual(entry.response?.groups.first?.id, 7)
         XCTAssertEqual(entry.response?.show_map, true)
     }

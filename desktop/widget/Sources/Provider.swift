@@ -26,10 +26,11 @@ struct FindPlusProvider: TimelineProvider {
             last_poll_at: nil,
             next_poll_at: nil,
             tracked_count: 3,
+            stale_after_minutes: 90,
             devices: [],
             groups: [],
             show_map: false,
-            notice: "Locations can be minutes to hours late."
+            notice: pinnedLatencyNotice
         )
         return WidgetEntry(date: Date(), response: response, state: .ok, errorMessage: nil)
     }

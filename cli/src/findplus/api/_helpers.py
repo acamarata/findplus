@@ -252,8 +252,23 @@ def _group_rows(session) -> list[dict[str, Any]]:
     ]
 
 
-def _widget_devices(session, now: datetime) -> list[dict[str, Any]]:
-    """One row per tracked device that has at least one fix."""
+#: Widget staleness threshold in minutes (D18, the same number groups default to).
+#: Served as `stale_after_minutes` on GET /api/widget so the Swift views read one
+#: agreed figure instead of hardcoding a second, looser one of their own.
+WIDGET_STALE_AFTER_MINUTES = 90
+
+
+def _widget_devices(
+    session, now: datetime, stale_after_minutes: int = WIDGET_STALE_AFTER_MINUTES
+) -> list[dict[str, Any]]:
+    """One row per tracked device that has at least one fix.
+
+    A device whose newest fix is older than `stale_after_minutes` is served
+    with `place: null`. honesty.PRESENCE_STALE pins the rule and
+    groups/presence.py already applies it: a tag with no recent fix is stale,
+    not at a place, so its last known place must never be handed to a caller
+    as if the tag were still there.
+    """
     places = _place_by_device(session)
     device_groups = _group_by_device(session)
     out: list[dict[str, Any]] = []
@@ -266,16 +281,18 @@ def _widget_devices(session, now: datetime) -> list[dict[str, Any]]:
         )
         if latest is None:
             continue
+        age_minutes = int((now - latest.observed_at).total_seconds() // 60)
+        stale = age_minutes > stale_after_minutes
         out.append(
             {
                 "device_id": device.device_id,
                 "name": device.name,
                 "provider": device.provider,
                 "last_observed_at": _iso_z(latest.observed_at),
-                "age_minutes": int((now - latest.observed_at).total_seconds() // 60),
+                "age_minutes": age_minutes,
                 "latitude": latest.latitude,
                 "longitude": latest.longitude,
-                "place": places.get(device.device_id),
+                "place": None if stale else places.get(device.device_id),
                 "group": device_groups.get(device.device_id),
             }
         )

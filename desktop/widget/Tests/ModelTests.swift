@@ -18,8 +18,9 @@ final class ModelTests: XCTestCase {
     private func decode(state: String) throws -> WidgetResponse {
         let json = """
         {"state":"\(state)","version":"1.0","last_poll_at":null,"next_poll_at":null,
-         "tracked_count":2,"devices":[],"groups":[],"show_map":false,
-         "notice":"Locations can be minutes to hours late."}
+         "tracked_count":2,"stale_after_minutes":90,"devices":[],"groups":[],
+         "show_map":false,
+         "notice":"Alerts inherit the network's delay. An arrival or departure may be reported minutes to hours late."}
         """
         return try JSONDecoder().decode(WidgetResponse.self, from: Data(json.utf8))
     }
@@ -69,23 +70,51 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(formatAge(minutes: 4320), "3 d ago")
     }
 
-    func testDeviceIsStale() {
-        let stale = WidgetDevice(
+    private func device(ageMinutes: Int, place: String? = nil) -> WidgetDevice {
+        WidgetDevice(
             device_id: "d1", name: "Tag", provider: "google-find-hub",
-            last_observed_at: "2026-01-01T00:00:00Z", age_minutes: 121,
-            latitude: 0, longitude: 0, place: nil, group: nil
+            last_observed_at: "2026-01-01T00:00:00Z", age_minutes: ageMinutes,
+            latitude: 0, longitude: 0, place: place, group: nil
         )
-        let fresh = WidgetDevice(
-            device_id: "d1", name: "Tag", provider: "google-find-hub",
-            last_observed_at: "2026-01-01T00:00:00Z", age_minutes: 120,
-            latitude: 0, longitude: 0, place: nil, group: nil
-        )
-        XCTAssertTrue(stale.isStale)
-        XCTAssertFalse(fresh.isStale)
     }
 
+    /// The threshold comes from the API (90 per D18), not from a constant here.
+    func testDeviceIsStaleAgainstTheServedThreshold() {
+        XCTAssertTrue(device(ageMinutes: 91).isStale(after: 90))
+        XCTAssertFalse(device(ageMinutes: 90).isStale(after: 90))
+        // The old hardcoded 120 would have called this one fresh.
+        XCTAssertTrue(device(ageMinutes: 100).isStale(after: 90))
+    }
+
+    func testStaleDeviceRendersItsPlaceAsUnknown() {
+        XCTAssertEqual(device(ageMinutes: 91).placeText(staleAfter: 90), "unknown")
+        XCTAssertEqual(
+            device(ageMinutes: 91, place: "Home").placeText(staleAfter: 90), "unknown"
+        )
+    }
+
+    func testFreshDeviceRendersItsPlace() {
+        XCTAssertEqual(device(ageMinutes: 5, place: "Home").placeText(staleAfter: 90), "Home")
+        XCTAssertEqual(device(ageMinutes: 5).placeText(staleAfter: 90), "no named place")
+    }
+
+    func testStaleAfterMinutesIsDecoded() throws {
+        XCTAssertEqual(try decode(state: "ok").stale_after_minutes, 90)
+    }
+
+    func testEntryFallsBackToD18WhenThereIsNoResponse() {
+        let entry = WidgetEntry(date: Date(), response: nil, state: .locked, errorMessage: nil)
+        XCTAssertEqual(entry.staleAfterMinutes, 90)
+    }
+
+    /// The footer sentence is honesty.md's `alerts_latency`, verbatim.
     func testNoticeField() throws {
         let response = try decode(state: "ok")
-        XCTAssertEqual(response.notice, "Locations can be minutes to hours late.")
+        XCTAssertEqual(response.notice, pinnedLatencyNotice)
+        XCTAssertEqual(
+            pinnedLatencyNotice,
+            "Alerts inherit the network's delay. An arrival or departure may be "
+                + "reported minutes to hours late."
+        )
     }
 }

@@ -32,7 +32,10 @@ struct SmallView: View {
                 if let device = entry.response?.devices.first {
                     Text(formatAge(minutes: device.age_minutes))
                         .font(.caption)
-                        .foregroundStyle(device.isStale ? Color.dotGrey : .primary)
+                        .foregroundStyle(
+                            device.isStale(after: entry.staleAfterMinutes)
+                                ? Color.dotGrey : .primary
+                        )
                 }
                 Button(intent: PollNowIntent()) {
                     Label("Poll now", systemImage: "arrow.clockwise")

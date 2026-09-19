@@ -67,6 +67,92 @@ def test_widget_hides_the_place_of_a_stale_device(session, monkeypatch) -> None:
     assert stale[0]["device_id"] == "TAG-001"
 
 
+def _widget_group(session, *, name: str):
+    from findplus.db.models import Group
+
+    now = datetime.now(UTC)
+    group = Group(
+        name=name,
+        color="#27ae60",
+        quorum="majority",
+        cluster_radius_meters=150,
+        stale_after_minutes=90,
+        created_at=now,
+    )
+    session.add(group)
+    session.flush()
+    return group
+
+
+def _widget_member(session, group, device_id: str, *, minutes_ago: float | None) -> None:
+    """Add `device_id` to `group`; a fix `minutes_ago`, or none at all when `None`."""
+    from findplus.db.models import Device, DeviceGroup, LocationObservation
+
+    now = datetime.now(UTC)
+    session.add(Device(device_id=device_id, name=device_id, first_seen_at=now, last_seen_at=now))
+    session.flush()
+    session.add(DeviceGroup(device_id=device_id, group_id=group.id))
+    if minutes_ago is not None:
+        session.add(
+            LocationObservation(
+                device_id=device_id,
+                device_name=device_id,
+                latitude_e7=411000000,
+                longitude_e7=-806400000,
+                observed_at=now - timedelta(minutes=minutes_ago),
+                first_fetched_at=now,
+                last_fetched_at=now,
+            )
+        )
+    session.flush()
+
+
+def test_widget_group_verdict_all_together(session) -> None:
+    """Both members reporting recently, at the same spot -> `all_together`.
+
+    `GET /api/widget` must compute this from groups.repo.build_presence(),
+    the same engine GET /api/groups/{id}/presence uses — not a hardcoded
+    placeholder (widget.md § LargeView renders `verdict, note`).
+    """
+    from findplus.api._widget import _group_rows
+
+    group = _widget_group(session, name="family")
+    _widget_member(session, group, "dev1", minutes_ago=2)
+    _widget_member(session, group, "dev2", minutes_ago=2)
+
+    rows = _group_rows(session)
+    assert len(rows) == 1
+    assert rows[0]["id"] == group.id
+    assert rows[0]["name"] == "family"
+    assert rows[0]["verdict"] == "all_together"
+    assert "together" in rows[0]["note"]
+
+
+def test_widget_group_verdict_partial(session) -> None:
+    """One member reporting, the other with no fix at all -> `partial`."""
+    from findplus.api._widget import _group_rows
+
+    group = _widget_group(session, name="split")
+    _widget_member(session, group, "dev1", minutes_ago=2)
+    _widget_member(session, group, "dev2", minutes_ago=None)
+
+    rows = _group_rows(session)
+    assert rows[0]["verdict"] == "partial"
+    assert "dev1" in rows[0]["note"]
+
+
+def test_widget_group_verdict_unknown(session) -> None:
+    """No member has ever reported -> `unknown`, never a made-up placeholder."""
+    from findplus.api._widget import _group_rows
+
+    group = _widget_group(session, name="silent")
+    _widget_member(session, group, "dev1", minutes_ago=None)
+
+    rows = _group_rows(session)
+    assert rows[0]["verdict"] == "unknown"
+    assert "has reported" in rows[0]["note"]
+
+
 def test_widget_locked(locked_client: TestClient) -> None:  # noqa: F811
     assert locked_client.get("/api/widget").status_code == 401
 

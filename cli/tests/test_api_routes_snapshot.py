@@ -20,13 +20,13 @@ from __future__ import annotations
 
 from findplus.api import create_app
 
-#: FastAPI's own schema/docs routes (openapi.json, Swagger UI, its OAuth2
-#: redirect) — not part of the application's route surface this test pins.
-#: All three now sit under /api/ so the app lock covers them (security fix 10).
+#: FastAPI's own schema route (openapi.json) — not part of the application's
+#: route surface this test pins. It sits under /api/ so the app lock covers
+#: it (security fix 10). Swagger UI/ReDoc are disabled (docs_url=None,
+#: redoc_url=None): they fetch JS/CSS from cdn.jsdelivr.net and a favicon
+#: from fastapi.tiangolo.com, which invariant 9 forbids.
 _FASTAPI_BUILTIN_PATHS = {
     "/api/openapi.json",
-    "/api/docs",
-    "/api/docs/oauth2-redirect",
 }
 
 
@@ -111,3 +111,14 @@ def test_route_paths_present():
         "/api/alerts/deliveries",
     }
     assert expected.issubset(paths)
+
+
+def test_no_docs_or_redoc_routes_registered():
+    """docs_url and redoc_url are None (see api/__init__.py); confirm neither
+    Swagger UI, ReDoc nor the OAuth2 redirect route ever gets registered."""
+    app = create_app()
+    all_paths = {r.path for r in _flatten(app.routes)}
+    assert "/api/docs" not in all_paths
+    assert "/docs" not in all_paths
+    assert "/redoc" not in all_paths
+    assert "/api/docs/oauth2-redirect" not in all_paths

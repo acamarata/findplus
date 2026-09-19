@@ -43,6 +43,7 @@ from . import (
     routes_providers,
     routes_settings,
 )
+from ._routes_history_export import build_export_router
 from .middleware import OriginGuardMiddleware, SecurityHeadersMiddleware
 
 __all__ = ["SessionAuthMiddleware", "create_app"]
@@ -157,13 +158,17 @@ def create_app(sessions: SessionStore | None = None) -> FastAPI:
         title="Find+",
         version=__version__,
         description="Local Find Hub location history. Not for emergency use.",
-        docs_url="/api/docs",
+        # Swagger UI and ReDoc fetch their JS/CSS from cdn.jsdelivr.net and a
+        # favicon from fastapi.tiangolo.com — invariant 9 forbids third-party
+        # scripts, and the CSP would blank the page anyway. The machine-
+        # readable schema stays: it is authed and serves no remote asset.
+        # The API reference for humans lives in .github/wiki/API-reference.md.
+        docs_url=None,
         redoc_url=None,
-        # Schema and docs live under /api/ so the app lock covers them; at the
-        # FastAPI default (/openapi.json) they sat outside the gated prefix and
+        # Schema lives under /api/ so the app lock covers it; at the FastAPI
+        # default (/openapi.json) it sat outside the gated prefix and
         # described every route to anyone who could reach the port.
         openapi_url="/api/openapi.json",
-        swagger_ui_oauth2_redirect_url="/api/docs/oauth2-redirect",
     )
     # Registration order is inside-out: the LAST middleware added runs FIRST,
     # so a foreign Host is refused before the lock, the routers or /static see
@@ -203,6 +208,7 @@ def create_app(sessions: SessionStore | None = None) -> FastAPI:
     app.include_router(
         routes_history.build_router(settings=settings, check_poll_cooldown=_check_poll_cooldown)
     )
+    app.include_router(build_export_router())
 
     if STATIC_DIR.is_dir():
         app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

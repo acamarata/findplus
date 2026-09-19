@@ -17,10 +17,18 @@ from typing import Any
 from sqlalchemy import desc, select, text
 from sqlalchemy.exc import OperationalError
 
-from findplus.db.models import LocationObservation
+from findplus.config import get_settings
+from findplus.db.models import Group, LocationObservation
+from findplus.groups.repo import build_presence
 from findplus.state import get_setting, get_tracked_devices
 
 from ._time import _iso_z
+
+#: Presence lookback window for the widget's group rows, minutes. Matches the
+#: default `GET /api/groups/{id}/presence` and `findplus groups presence` use
+#: (routes_groups.py, cli/groups.py) so the widget's verdict for a group is
+#: the same one the dashboard and CLI would show right now.
+WIDGET_GROUP_WINDOW_MINUTES = 60
 
 #: Widget staleness threshold in minutes (D18, the same number groups default to).
 #: Served as `stale_after_minutes` on GET /api/widget so the Swift views read one
@@ -90,18 +98,31 @@ def _group_by_device(session) -> dict[str, str]:
 def _group_rows(session) -> list[dict[str, Any]]:
     """`[{id, name, verdict, note}]` for every group; `[]` before groups exist.
 
-    Real presence verdicts come from groups/presence.py (E5) behind
-    `GET /api/groups/{id}/presence`; this widget feed reports the honest,
-    non-committal "unknown" rather than duplicating that engine here.
+    Real presence verdicts, computed the same way `GET /api/groups/{id}/presence`
+    and `findplus groups presence` compute them: `groups.repo.build_presence()`
+    gathers each member's recent fixes and delegates to the pure
+    `groups.presence.group_presence()` engine (widget.md § LargeView renders
+    `verdict, note` for exactly this reason — widget.LargeView.swift).
     """
     try:
-        rows = session.execute(text("SELECT id, name FROM groups ORDER BY id")).all()
+        groups = session.scalars(select(Group).order_by(Group.id)).all()
     except OperationalError:
         return []
-    return [
-        {"id": row.id, "name": row.name, "verdict": "unknown", "note": "Not yet evaluated."}
-        for row in rows
-    ]
+    movement_threshold_meters = get_settings().movement_threshold_meters
+    rows: list[dict[str, Any]] = []
+    for group in groups:
+        presence, _statuses = build_presence(
+            session, group, WIDGET_GROUP_WINDOW_MINUTES, movement_threshold_meters
+        )
+        rows.append(
+            {
+                "id": group.id,
+                "name": group.name,
+                "verdict": presence.verdict,
+                "note": presence.note,
+            }
+        )
+    return rows
 
 
 def _widget_devices(

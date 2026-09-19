@@ -177,7 +177,16 @@ def test_the_schema_is_refused_while_locked(client: TestClient) -> None:
     )
     client.cookies.clear()
     assert client.get("/api/openapi.json").status_code == 401
-    assert client.get("/api/docs").status_code == 401
+
+
+def test_no_docs_or_redoc_ui_is_served(client: TestClient) -> None:
+    """Swagger UI/ReDoc fetch JS/CSS from cdn.jsdelivr.net and a favicon from
+    fastapi.tiangolo.com — invariant 9 forbids third-party scripts, so both
+    are disabled (docs_url=None, redoc_url=None) and must 404, not 401."""
+    assert client.get("/api/docs").status_code == 404
+    assert client.get("/docs").status_code == 404
+    assert client.get("/redoc").status_code == 404
+    assert client.get("/api/docs/oauth2-redirect").status_code == 404
 
 
 # --------------------------------------------------- 5. webhook URL masking

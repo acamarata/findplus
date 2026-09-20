@@ -184,6 +184,15 @@ def test_wheel_builds_from_sdist(tmp_path):
         names = zf.namelist()
     assert "findplus/web/static/index.html" in names
     assert "findplus/web/static/app/main.js" in names
+    # The page is composed from these at startup and a missing one is now a
+    # hard failure (web_compose.MissingPartialError), so the wheel must carry
+    # every partial, not just the shell (CR-C-E1 F12).
+    from findplus.web_compose import partial_names
+
+    for partial in partial_names(Path(__file__).resolve().parents[2] / "web"):
+        assert f"findplus/web/static/partials/{partial}.html" in names, (
+            f"partial {partial} is missing from the wheel; / would fail to start"
+        )
     assert any(n.startswith("findplus/_vendor/GoogleFindMyTools/") for n in names)
     for mod in VENDOR_BOOTSTRAP_MODULES:
         assert f"findplus/_vendor/GoogleFindMyTools/{mod}" in names, (

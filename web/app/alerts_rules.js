@@ -16,6 +16,7 @@
 import { $, state, showAlert } from "./state.js";
 import { api } from "./api.js";
 import { t } from "./i18n.js";
+import { renderChannelPicker, readChannelPicker } from "./components/channel-picker.js";
 
 export async function loadRules() {
   renderRulesTable(await api("/api/alerts/rules"));
@@ -35,7 +36,7 @@ function buildRuleRow(rule) {
     cell(rule.name), cell(rule.place_name || t("common.emptyValue")), cell(ruleTargetLabel(rule)),
     cell(rule.on_enter ? t("common.yes") : t("common.no")),
     cell(rule.on_exit ? t("common.yes") : t("common.no")),
-    cell(rule.channel),
+    cell(rule.channels.join(", ")),
   );
   const actions = document.createElement("td");
   const delBtn = document.createElement("button");
@@ -88,8 +89,41 @@ export function updateRuleTargetVisibility() {
   $("fp-rule-device").classList.toggle("hidden", !isDevice);
   $("fp-rule-group").classList.toggle("hidden", isDevice);
 }
+/* Native alerts need the menu bar app's poller, which is macOS-only in 1.1.
+ * Fetched once per page load and cached; ANY failure leaves native out of the
+ * list, so a fetch error can never offer a channel that will not fire. */
+let availableChannels = null;
+async function buildAvailableChannels() {
+  if (availableChannels) return availableChannels;
+  const base = ["telegram", "webhook", "whatsapp"];
+  try {
+    const version = await api("/api/version");
+    availableChannels =
+      typeof version.platform === "string" && version.platform.startsWith("macOS")
+        ? [...base, "native"]
+        : base;
+  } catch (_) {
+    availableChannels = base;
+  }
+  return availableChannels;
+}
+
+function channelLabels() {
+  return {
+    telegram: t("alerts.telegramHeading"),
+    webhook: t("alerts.webhookHeading"),
+    whatsapp: t("alerts.whatsappHeading"),
+    native: t("alerts.nativeHeading"),
+  };
+}
+
 export async function openAddRuleDialog() {
   await populateRuleSelects();
+  renderChannelPicker($("fp-rule-channels"), {
+    selected: ["telegram"],
+    available: await buildAvailableChannels(),
+    labels: channelLabels(),
+  });
   $("fp-rule-name").value = "";
   $("fp-rule-on-enter").checked = true;
   $("fp-rule-on-exit").checked = false;
@@ -121,7 +155,9 @@ export async function saveRule() {
     group_id: isDevice ? null : numberOrNull($("fp-rule-group").value),
     on_enter: $("fp-rule-on-enter").checked,
     on_exit: $("fp-rule-on-exit").checked,
-    channel: $("fp-rule-channel").value,
+    // No client-side guard on an empty set: the server's 422 is the one
+    // rule, and saveRule already routes an api() rejection to the dialog.
+    channels: readChannelPicker($("fp-rule-channels")),
     cooldown_minutes: Number($("fp-rule-cooldown").value),
   };
   try {

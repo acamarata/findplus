@@ -100,12 +100,9 @@
           <select id="fp-rule-group" class="hidden"></select>
           <label><input type="checkbox" id="fp-rule-on-enter" checked> <span data-i18n="alerts.colOnEnter">On enter</span></label>
           <label><input type="checkbox" id="fp-rule-on-exit"> <span data-i18n="alerts.colOnExit">On exit</span></label>
-          <label><span data-i18n="alerts.colChannel">Channel</span>
-            <select id="fp-rule-channel">
-              <option value="telegram" data-i18n="alerts.telegramHeading">Telegram</option>
-              <option value="webhook" data-i18n="alerts.webhookHeading">Webhook</option>
-            </select>
-          </label>
+          <fieldset class="fp-channel-picker-field"><legend data-i18n="alerts.colChannel">Channel</legend>
+            <div id="fp-rule-channels" class="fp-channel-picker"></div>
+          </fieldset>
           <label><span data-i18n="alerts.cooldownMinutes">Cooldown (minutes)</span> <input type="number" id="fp-rule-cooldown" value="30" min="0"></label>
           <p id="fp-rule-error" class="fp-dialog-error"></p>
           <footer>

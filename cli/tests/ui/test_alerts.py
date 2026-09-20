@@ -130,7 +130,7 @@ async def test_delete_rule_removes_row(page, base_url):
             {
                 "name": "Delete me rule",
                 "device_id": "TAG-HOME",
-                "channel": "webhook",
+                "channels": ["webhook"],
             }
         ),
         headers={"Content-Type": "application/json"},
@@ -187,7 +187,7 @@ async def test_delivery_log_shows_channel_and_status(page, base_url, ui_db):
     rule = await page.request.post(
         base_url + "/api/alerts/rules",
         data=json.dumps(
-            {"name": "Delivery log rule", "device_id": "TAG-HOME", "channel": "webhook"}
+            {"name": "Delivery log rule", "device_id": "TAG-HOME", "channels": ["webhook"]}
         ),
         headers={"Content-Type": "application/json"},
     )

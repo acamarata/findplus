@@ -61,7 +61,9 @@ async def _setup_purge_fixture(page, base_url):
     polls lock status."""
     rule_resp = await page.request.post(
         base_url + "/api/alerts/rules",
-        data=json.dumps({"name": "Lock purge rule", "device_id": "TAG-HOME", "channel": "webhook"}),
+        data=json.dumps(
+            {"name": "Lock purge rule", "device_id": "TAG-HOME", "channels": ["webhook"]}
+        ),
         headers={"Content-Type": "application/json"},
     )
     assert rule_resp.ok, await rule_resp.text()

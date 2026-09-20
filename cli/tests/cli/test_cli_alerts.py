@@ -124,3 +124,57 @@ def test_test_channel_whatsapp_not_configured(tmp_db: str, monkeypatch: pytest.M
     result = CliRunner().invoke(main, ["alerts", "test", "--channel", "whatsapp"])
     assert result.exit_code != 0
     assert "WhatsApp not configured" in result.output
+
+
+def test_rules_add_takes_a_repeatable_channel_option(tmp_db: str) -> None:
+    from findplus.db.models_alerts import AlertRule
+    from findplus.db.session import session_scope
+    from findplus.ingest import upsert_device
+
+    with session_scope() as s:
+        upsert_device(s, "dev1", "Tag1")
+
+    result = CliRunner().invoke(
+        main,
+        [
+            "alerts",
+            "rules",
+            "add",
+            "multi",
+            "--device-id",
+            "dev1",
+            "--channel",
+            "telegram",
+            "--channel",
+            "native",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    with session_scope() as s:
+        assert s.query(AlertRule).one().channels == "native,telegram"
+
+
+def test_rules_add_rejects_an_unknown_channel(tmp_db: str) -> None:
+    result = CliRunner().invoke(
+        main,
+        ["alerts", "rules", "add", "bad", "--device-id", "dev1", "--channel", "sms"],
+    )
+    assert result.exit_code != 0
+
+
+def test_rules_list_json_carries_the_channels_column(tmp_db: str) -> None:
+    import json as json_mod
+
+    from findplus.db.session import session_scope
+    from findplus.ingest import upsert_device
+
+    with session_scope() as s:
+        upsert_device(s, "dev1", "Tag1")
+    runner = CliRunner()
+    runner.invoke(
+        main,
+        ["alerts", "rules", "add", "r", "--device-id", "dev1", "--channel", "whatsapp"],
+    )
+    listed = json_mod.loads(runner.invoke(main, ["alerts", "rules", "list", "--json"]).output)
+    assert listed[0]["channels"] == "whatsapp"
+    assert "channel" not in listed[0]

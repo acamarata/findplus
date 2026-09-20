@@ -983,13 +983,12 @@ Post Rule
       "title": "On Exit",
       "default": true
     },
-    "channel": {
-      "type": "string",
-      "enum": [
-        "telegram",
-        "webhook"
-      ],
-      "title": "Channel"
+    "channels": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "title": "Channels"
     },
     "cooldown_minutes": {
       "type": "integer",
@@ -1012,7 +1011,7 @@ Post Rule
   "type": "object",
   "required": [
     "name",
-    "channel"
+    "channels"
   ],
   "title": "RuleCreate"
 }
@@ -1186,20 +1185,19 @@ Put Rule
       ],
       "title": "On Exit"
     },
-    "channel": {
+    "channels": {
       "anyOf": [
         {
-          "type": "string",
-          "enum": [
-            "telegram",
-            "webhook"
-          ]
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         },
         {
           "type": "null"
         }
       ],
-      "title": "Channel"
+      "title": "Channels"
     },
     "cooldown_minutes": {
       "anyOf": [

@@ -23,7 +23,7 @@ Create an alert rule for a place, targeting a group or a single device.
 | --place |  |  |
 | --enter |  |  |
 | --exit |  |  |
-| --channel |  |  |
+| --channel |  | Repeatable: --channel telegram --channel native. |
 | --cooldown | 30 |  |
 | --also-notify-members |  |  |
 

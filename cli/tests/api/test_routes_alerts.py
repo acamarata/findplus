@@ -123,7 +123,7 @@ def test_test_endpoint_sends(client: TestClient) -> None:
 def test_rules_crud(client: TestClient) -> None:
     create = client.post(
         "/api/alerts/rules",
-        json={"name": "r1", "device_id": "dev1", "channel": "telegram"},
+        json={"name": "r1", "device_id": "dev1", "channels": ["telegram"]},
     )
     assert create.status_code == 201
     body = create.json()
@@ -144,7 +144,7 @@ def test_rules_crud(client: TestClient) -> None:
 
 
 def test_rules_create_requires_exactly_one_target(client: TestClient) -> None:
-    res = client.post("/api/alerts/rules", json={"name": "bad", "channel": "telegram"})
+    res = client.post("/api/alerts/rules", json={"name": "bad", "channels": ["telegram"]})
     assert res.status_code == 422
 
 
@@ -165,7 +165,7 @@ def test_deliveries_include_channel(client: TestClient) -> None:
 
     rule_id = client.post(
         "/api/alerts/rules",
-        json={"name": "webhook rule", "device_id": "dev1", "channel": "webhook"},
+        json={"name": "webhook rule", "device_id": "dev1", "channels": ["webhook"]},
     ).json()["id"]
 
     with session_scope() as session:
@@ -207,7 +207,7 @@ def test_put_webhook_rejects_lookalike_loopback_host(client: TestClient) -> None
 
 def test_rules_create_rejects_unknown_channel(client: TestClient) -> None:
     res = client.post(
-        "/api/alerts/rules", json={"name": "bad", "device_id": "dev1", "channel": "email"}
+        "/api/alerts/rules", json={"name": "bad", "device_id": "dev1", "channels": ["email"]}
     )
     assert res.status_code == 422
 
@@ -215,7 +215,12 @@ def test_rules_create_rejects_unknown_channel(client: TestClient) -> None:
 def test_rules_create_rejects_out_of_range_cooldown(client: TestClient) -> None:
     res = client.post(
         "/api/alerts/rules",
-        json={"name": "bad", "device_id": "dev1", "channel": "telegram", "cooldown_minutes": 5000},
+        json={
+            "name": "bad",
+            "device_id": "dev1",
+            "channels": ["telegram"],
+            "cooldown_minutes": 5000,
+        },
     )
     assert res.status_code == 422
 
@@ -235,3 +240,58 @@ def test_test_endpoint_reports_failure_instead_of_500(client: TestClient) -> Non
         res = client.post("/api/alerts/test", json={"channel": "telegram"})
     assert res.status_code == 200
     assert res.json()["status"] == "failed"
+
+
+def test_rules_accept_several_channels_and_echo_them_sorted(client: TestClient) -> None:
+    res = client.post(
+        "/api/alerts/rules",
+        json={"name": "multi", "device_id": "dev1", "channels": ["telegram", "native"]},
+    )
+    assert res.status_code == 201
+    assert res.json()["channels"] == ["native", "telegram"]
+
+
+def test_rules_create_rejects_an_empty_channel_list(client: TestClient) -> None:
+    res = client.post(
+        "/api/alerts/rules", json={"name": "bad", "device_id": "dev1", "channels": []}
+    )
+    assert res.status_code == 422
+
+
+def test_rules_create_rejects_an_unknown_channel_in_a_list(client: TestClient) -> None:
+    res = client.post(
+        "/api/alerts/rules",
+        json={"name": "bad", "device_id": "dev1", "channels": ["telegram", "sms"]},
+    )
+    assert res.status_code == 422
+
+
+def test_put_channels_leaves_every_other_field_alone(client: TestClient) -> None:
+    rule_id = client.post(
+        "/api/alerts/rules",
+        json={
+            "name": "keepme",
+            "device_id": "dev1",
+            "channels": ["telegram"],
+            "cooldown_minutes": 7,
+            "on_exit": False,
+        },
+    ).json()["id"]
+    res = client.put(f"/api/alerts/rules/{rule_id}", json={"channels": ["whatsapp", "native"]})
+    assert res.status_code == 200
+    body = res.json()
+    assert body["channels"] == ["native", "whatsapp"]
+    assert body["name"] == "keepme"
+    assert body["cooldown_minutes"] == 7
+    assert body["on_exit"] is False
+
+
+def test_put_rejects_an_unknown_channel_without_touching_the_rule(client: TestClient) -> None:
+    rule_id = client.post(
+        "/api/alerts/rules",
+        json={"name": "keepme", "device_id": "dev1", "channels": ["telegram"]},
+    ).json()["id"]
+    assert (
+        client.put(f"/api/alerts/rules/{rule_id}", json={"channels": ["bogus"]}).status_code == 422
+    )
+    assert client.get("/api/alerts/rules").json()[0]["channels"] == ["telegram"]

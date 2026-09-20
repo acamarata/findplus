@@ -11,10 +11,10 @@ Constraints: Gated by SessionAuthMiddleware like every /api/ path not in
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 
 from findplus.alerts.channels_field import format_channels, parse_channels
@@ -24,6 +24,18 @@ from findplus.db.models_alerts import AlertDelivery, AlertRule
 from findplus.db.session import session_scope
 
 
+def _validate_channels(value: list[str] | None) -> list[str] | None:
+    """422, not 500: pydantic turns a ValueError here into a field error.
+
+    format_channels owns the rules (non-empty, known ids); this only surfaces
+    them, and leaves an omitted RuleUpdate.channels alone.
+    """
+    if value is None:
+        return None
+    format_channels(value)
+    return value
+
+
 class RuleCreate(BaseModel):
     name: str
     place_id: int | None = None
@@ -31,10 +43,12 @@ class RuleCreate(BaseModel):
     device_id: str | None = None
     on_enter: bool = True
     on_exit: bool = True
-    channel: Literal["telegram", "webhook"]
+    channels: list[str]
     cooldown_minutes: int = Field(default=30, ge=0, le=1440)
     enabled: bool = True
     also_notify_members: bool = False
+
+    _check_channels = field_validator("channels")(_validate_channels)
 
 
 class RuleUpdate(BaseModel):
@@ -42,10 +56,12 @@ class RuleUpdate(BaseModel):
     place_id: int | None = None
     on_enter: bool | None = None
     on_exit: bool | None = None
-    channel: Literal["telegram", "webhook"] | None = None
+    channels: list[str] | None = None
     cooldown_minutes: int | None = Field(default=None, ge=0, le=1440)
     enabled: bool | None = None
     also_notify_members: bool | None = None
+
+    _check_channels = field_validator("channels")(_validate_channels)
 
 
 def _rule_to_dict(
@@ -62,11 +78,7 @@ def _rule_to_dict(
         "device_name": device_name,
         "on_enter": r.on_enter,
         "on_exit": r.on_exit,
-        # Migration 0008 replaced alert_rules.channel with a channels list. The
-        # single-value wire field is kept until P2-E8-W3-S1-T6 swaps the whole
-        # request/response shape to `channels`; nothing creates a multi-channel
-        # rule before that ticket lands.
-        "channel": parse_channels(r.channels)[0],
+        "channels": parse_channels(r.channels),
         "cooldown_minutes": r.cooldown_minutes,
         "enabled": r.enabled,
         "also_notify_members": r.also_notify_members,
@@ -145,7 +157,7 @@ def build_router() -> APIRouter:
                 device_id=body.device_id,
                 on_enter=body.on_enter,
                 on_exit=body.on_exit,
-                channels=format_channels([body.channel]),
+                channels=format_channels(body.channels),
                 cooldown_minutes=body.cooldown_minutes,
                 enabled=body.enabled,
                 also_notify_members=body.also_notify_members,
@@ -162,8 +174,8 @@ def build_router() -> APIRouter:
         with session_scope() as s:
             rule = _get_rule_or_404(s, rule_id)
             for field, value in body.model_dump(exclude_unset=True).items():
-                if field == "channel":
-                    rule.channels = format_channels([value])
+                if field == "channels":
+                    rule.channels = format_channels(value)
                     continue
                 setattr(rule, field, value)
             s.commit()

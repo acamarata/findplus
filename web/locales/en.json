@@ -180,6 +180,8 @@
   "alerts": {
     "telegramHeading": "Telegram",
     "webhookHeading": "Webhook",
+    "whatsappHeading": "WhatsApp",
+    "nativeHeading": "Mac notifications",
     "botToken": "Bot token",
     "connect": "Connect",
     "sendTest": "Send test",

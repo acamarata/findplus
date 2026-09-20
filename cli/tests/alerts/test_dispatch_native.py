@@ -133,3 +133,56 @@ def test_in_cooldown_is_keyed_per_channel(session) -> None:
     event = _device_event()
     assert in_cooldown(rule, "telegram", event, [sent_telegram], NOW)
     assert not in_cooldown(rule, "native", event, [sent_telegram], NOW)
+
+
+def _whatsapp_configured():
+    return types.SimpleNamespace(
+        telegram=None,
+        webhook=None,
+        whatsapp=types.SimpleNamespace(phone="+34123123123", apikey="k"),
+    )
+
+
+def test_send_routes_a_whatsapp_channel_to_callmebot() -> None:
+    from findplus.alerts.dispatch_core import Rule
+    from findplus.alerts.dispatch_send import _send
+
+    rule = Rule(
+        id=1,
+        name="r",
+        place_id=1,
+        group_id=None,
+        device_id="dev1",
+        on_enter=True,
+        on_exit=True,
+        channels=["whatsapp"],
+        cooldown_minutes=30,
+        enabled=True,
+        also_notify_members=False,
+    )
+    ok = types.SimpleNamespace(success=True, status_code=200, error=None)
+    with patch("findplus.alerts.channels.whatsapp_callmebot.send", return_value=ok) as wa_mock:
+        result = _send("whatsapp", rule, _device_event(), "device", "msg", _whatsapp_configured())
+    assert result is ok
+    assert wa_mock.call_args[0] == ("msg", "+34123123123", "k")
+
+
+def test_send_falls_through_to_none_when_whatsapp_is_unconfigured() -> None:
+    from findplus.alerts.dispatch_core import Rule
+    from findplus.alerts.dispatch_send import _send
+
+    rule = Rule(
+        id=1,
+        name="r",
+        place_id=1,
+        group_id=None,
+        device_id="dev1",
+        on_enter=True,
+        on_exit=True,
+        channels=["whatsapp"],
+        cooldown_minutes=30,
+        enabled=True,
+        also_notify_members=False,
+    )
+    unconfigured = types.SimpleNamespace(telegram=None, webhook=None, whatsapp=None)
+    assert _send("whatsapp", rule, _device_event(), "device", "msg", unconfigured) is None

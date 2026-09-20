@@ -58,6 +58,10 @@ def _send(
             getattr(event, "note", ""),
         )
         return send_webhook(payload, channels_cfg.webhook.url, channels_cfg.webhook.secret)
+    if channel == "whatsapp" and getattr(channels_cfg, "whatsapp", None):
+        from findplus.alerts.channels.whatsapp_callmebot import send as wa_send
+
+        return wa_send(text_msg, channels_cfg.whatsapp.phone, channels_cfg.whatsapp.apikey)
     return None
 
 

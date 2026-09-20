@@ -159,7 +159,7 @@ _RULE_KEYS = (
     "device_id",
     "on_enter",
     "on_exit",
-    "channel",
+    "channels",
     "cooldown_minutes",
     "enabled",
     "also_notify_members",
@@ -175,8 +175,8 @@ def _rule_row(r: AlertRule) -> tuple:
         r.device_id,
         r.on_enter,
         r.on_exit,
-        # Single-channel display until P2-E8-W3-S1-T6 widens the CLI to the
-        # repeatable --channel option; the stored string is the channel name.
+        # The stored comma string, shown as-is: re-parsing it to a list only to
+        # re-join it for display would buy nothing.
         r.channels,
         r.cooldown_minutes,
         r.enabled,
@@ -197,10 +197,10 @@ def rules_list(as_json: bool) -> None:
     click.echo(
         f"{'ID':<5}{'NAME':<16}{'PLACE':>7}{'GROUP':>7}{'DEVICE':<10}{'CHANNEL':<10}{'ENABLED':>8}"
     )
-    for i, name, place_id, group_id, device_id, *_rest, channel, _cd, enabled, _n in records:
+    for i, name, place_id, group_id, device_id, *_rest, channels, _cd, enabled, _n in records:
         click.echo(
             f"{i:<5}{name:<16}{place_id or '':>7}{group_id or '':>7}"
-            f"{device_id or '':<10}{channel:<10}{enabled!s:>8}"
+            f"{device_id or '':<10}{channels:<10}{enabled!s:>8}"
         )
 
 
@@ -211,7 +211,14 @@ def rules_list(as_json: bool) -> None:
 @click.option("--place", "place_id", type=int, default=None)
 @click.option("--enter/--no-enter", default=True)
 @click.option("--exit/--no-exit", "exit_", default=True)
-@click.option("--channel", type=click.Choice(["telegram", "webhook"]), required=True)
+@click.option(
+    "--channel",
+    "channels",
+    multiple=True,
+    required=True,
+    type=click.Choice(["telegram", "webhook", "whatsapp", "native"]),
+    help="Repeatable: --channel telegram --channel native.",
+)
 @click.option("--cooldown", default=30, show_default=True)
 @click.option("--also-notify-members", is_flag=True, default=False)
 def rules_add(
@@ -221,7 +228,7 @@ def rules_add(
     place_id: int | None,
     enter: bool,
     exit_: bool,
-    channel: str,
+    channels: tuple[str, ...],
     cooldown: int,
     also_notify_members: bool,
 ) -> None:
@@ -236,7 +243,7 @@ def rules_add(
             device_id=device_id,
             on_enter=enter,
             on_exit=exit_,
-            channels=format_channels([channel]),
+            channels=format_channels(list(channels)),
             cooldown_minutes=cooldown,
             enabled=True,
             also_notify_members=also_notify_members,

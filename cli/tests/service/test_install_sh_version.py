@@ -48,3 +48,25 @@ def test_the_default_pin_is_not_a_pre_release() -> None:
     """A dev/rc suffix on main means the documented one-liner cannot resolve."""
     pin = _default_pin()
     assert not re.search(r"(dev|a|b|rc)\d*$", pin), f"install.sh pins a pre-release: {pin}"
+
+
+def test_the_installer_falls_back_to_the_github_release_sdist() -> None:
+    """E1 packaging round 3 F1: every documented install path resolved to PyPI.
+
+    Verified in a clean python:3.12 container before the fix: the README's own
+    one-liner ended in "Could not find a version that satisfies the requirement
+    findplus==1.0.0 (from versions: none)", because the name has never been
+    uploaded. Nothing caught it: every rehearsal lane forces FINDPLUS_WHEEL and
+    CI only shellchecks the script. Round 2 gave gen-formula.sh this same
+    fallback, so the Homebrew route worked while both headline routes did not.
+    """
+    install = (ROOT / "install.sh").read_text()
+
+    assert "releases/download/v$VERSION_PIN" in install
+    assert "pypi.org/pypi/findplus/$VERSION_PIN/json" in install, (
+        "PyPI must still win once the name is uploaded"
+    )
+    assert "FINDPLUS_SDIST_URL" in install, "an explicit sdist override is the escape hatch"
+    # FINDPLUS_WHEEL still short-circuits everything, for the rehearsal lanes.
+    spec = install[install.index("package_spec() {") : install.index("print_plan() {")]
+    assert spec.index("FINDPLUS_WHEEL") < spec.index("pypi.org")

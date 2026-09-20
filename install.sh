@@ -69,8 +69,16 @@ uninstall() {
   exit 0
 }
 
+# findplus is not on PyPI yet, so `findplus==<ver>` resolves to nothing and the
+# README's one-liner ends in "Could not find a version that satisfies". Fall
+# back to the GitHub release sdist, the source gen-formula.sh already uses.
 package_spec() {
-  echo "${FINDPLUS_WHEEL:-findplus${VERSION_PIN:+==$VERSION_PIN}}"
+  local pin="${FINDPLUS_WHEEL:-${FINDPLUS_SDIST_URL:-}}"
+  [ -n "$pin" ] && { echo "$pin"; return; }
+  [ -z "$VERSION_PIN" ] && { echo findplus; return; }
+  curl -fsI "https://pypi.org/pypi/findplus/$VERSION_PIN/json" > /dev/null 2>&1 &&
+    { echo "findplus==$VERSION_PIN"; return; }
+  echo "https://github.com/${FINDPLUS_REPO:-acamarata/findplus}/releases/download/v$VERSION_PIN/findplus-$VERSION_PIN.tar.gz"
 }
 
 print_plan() {

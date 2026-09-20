@@ -247,6 +247,50 @@ async def test_the_devices_dialog_opens_even_when_a_decoration_fails(page, base_
     await page.click("#btn-close-devices")
 
 
+async def test_booting_does_not_close_a_dialog_the_user_opened(page, base_url):
+    """CI-2's actual cause: a click during boot was undone by boot.
+
+    bootDashboard() awaits loadStatus() and loadDay() -- two network round
+    trips -- and only then calls applyHashRoute(), which closed every modal
+    when the URL carried no hash. The toolbar is live throughout, so a click on
+    Devices during that window opened the dialog and boot closed it again,
+    leaving the rows in the DOM and invisible. CI run 35530635344 hit it as
+    "62 x locator resolved to hidden"; it reproduces locally in the full
+    browser job, where the shared page makes the timing vary.
+    """
+    await _open_dashboard(page, base_url)
+
+    state_after = await page.evaluate(
+        """async () => {
+            const [devices, main] = await Promise.all([
+                import('/static/app/devices.js'),
+                import('/static/app/main.js'),
+            ]);
+            await devices.openDevices();          // the user clicks Devices
+            await main.applyHashRoute({ closeOthers: false });   // boot catches up
+            const modal = document.getElementById('device-modal');
+            const row = document.querySelector('[data-device-id="TAG-HOME"]');
+            return {
+                hidden: modal.classList.contains('hidden'),
+                rowVisible: row ? row.offsetParent !== null : false,
+            };
+        }"""
+    )
+
+    assert state_after["hidden"] is False, "boot closed the dialog the user had opened"
+    assert state_after["rowVisible"] is True
+
+    # A real hashchange away from a dialog still closes it.
+    closed = await page.evaluate(
+        """async () => {
+            const main = await import('/static/app/main.js');
+            await main.applyHashRoute();
+            return document.getElementById('device-modal').classList.contains('hidden');
+        }"""
+    )
+    assert closed is True, "an explicit route change must still close the dialog"
+
+
 async def test_the_devices_dialog_opens_normally(page, base_url):
     """The control: nothing failing, the dialog still opens with visible rows."""
     await _open_dashboard(page, base_url)

@@ -87,13 +87,24 @@ export function closeModals() {
   $("settings-modal").classList.add("hidden");
 }
 
-/** `#settings` and `#devices` deep-link straight to a dialog. */
-export async function applyHashRoute() {
+/**
+ * `#settings` and `#devices` deep-link straight to a dialog.
+ *
+ * `closeOthers` is false on the boot call. bootDashboard() awaits loadStatus()
+ * and loadDay() first, both network round trips, while the toolbar is already
+ * live — so a user (or a test) who clicked Devices during boot had the dialog
+ * opened and then closed again by this function, leaving the rows rendered but
+ * invisible with nothing on screen to explain it. That is CI-2, CI run
+ * 35530635344: "62 x locator resolved to hidden". At boot there is nothing to
+ * close anyway; the markup starts hidden. Closing belongs to a real hashchange
+ * away from a dialog.
+ */
+export async function applyHashRoute({ closeOthers = true } = {}) {
   if (state.locked) return;
   const hash = window.location.hash;
   if (hash === "#settings") await openSettings();
   else if (hash === "#devices") await openDevices();
-  else closeModals();
+  else if (closeOthers) closeModals();
 }
 
 /** Switches the active `.fp-tab` / `.fp-tab-panel` pair. Single source of truth for tab-nav. */
@@ -145,7 +156,7 @@ export async function bootDashboard(resume) {
   if (resume) window.scrollTo(0, resume.scrollY);
 
   startIdleTimer();
-  await applyHashRoute();
+  await applyHashRoute({ closeOthers: false });
 
   // Polls the LOCAL API only. Google is queried server-side on its own interval.
   // Guarded so repeated lock/unlock cycles cannot stack duplicate timers.

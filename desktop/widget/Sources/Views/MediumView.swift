@@ -79,7 +79,7 @@ struct MediumView: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
             if device.isStale(after: staleAfter) {
-                Text("no fix for \(device.age_minutes / 60) h")
+                Text(formatStaleGap(minutes: device.age_minutes))
                     .font(.caption2)
                     .foregroundStyle(Color.dotGrey)
             } else {

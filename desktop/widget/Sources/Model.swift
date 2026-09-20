@@ -92,6 +92,22 @@ extension WidgetEntry {
 }
 
 /// minutes < 1 -> "just now"; < 60 -> "N min ago"; < 2880 (48 h) -> "N h ago"; else "N d ago".
+/// "no fix for 2 h" / "no fix for 5 d" -- the same ladder as formatAge.
+///
+/// The stale line divided by 60 and printed hours only, so 119 minutes read
+/// "no fix for 1 h" and five days read "no fix for 120 h". Rounding a gap in
+/// someone's location history DOWN is the wrong direction for this app
+/// (E1 honesty round 2 F15).
+func formatStaleGap(minutes: Int) -> String {
+    if minutes < 60 {
+        return "no fix for \(minutes) min"
+    }
+    if minutes < 2880 {
+        return "no fix for \(minutes / 60) h"
+    }
+    return "no fix for \(minutes / 1440) d"
+}
+
 func formatAge(minutes: Int) -> String {
     if minutes < 1 {
         return "just now"

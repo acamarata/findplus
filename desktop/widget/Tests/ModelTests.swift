@@ -65,6 +65,23 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(formatAge(minutes: 2879), "47 h ago")
     }
 
+    /// E1 honesty round 2 F15: the stale line divided by 60 and printed hours
+    /// only, so 119 minutes read "no fix for 1 h" and five days read
+    /// "no fix for 120 h". Rounding a gap in location history down is the
+    /// wrong direction for this app.
+    func testFormatStaleGapUsesTheSameLadderAsFormatAge() {
+        XCTAssertEqual(formatStaleGap(minutes: 5), "no fix for 5 min")
+        XCTAssertEqual(formatStaleGap(minutes: 59), "no fix for 59 min")
+        XCTAssertEqual(formatStaleGap(minutes: 119), "no fix for 1 h")
+        XCTAssertEqual(formatStaleGap(minutes: 2879), "no fix for 47 h")
+        XCTAssertEqual(formatStaleGap(minutes: 7200), "no fix for 5 d")
+    }
+
+    func testFormatStaleGapNeverReportsAbsurdHours() {
+        // The old spelling: 7200 / 60 = 120.
+        XCTAssertFalse(formatStaleGap(minutes: 7200).contains("120 h"))
+    }
+
     func testFormatAgeDays() {
         XCTAssertEqual(formatAge(minutes: 2880), "2 d ago")
         XCTAssertEqual(formatAge(minutes: 4320), "3 d ago")

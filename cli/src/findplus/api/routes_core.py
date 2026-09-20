@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import HTMLResponse
 from sqlalchemy import desc, select
 
 from findplus import __version__, honesty
@@ -27,6 +27,7 @@ from findplus.db.session import session_scope
 from findplus.providers.google_findhub.bootstrap import describe_stored_auth
 from findplus.state import get_default_device, get_tracked_devices
 from findplus.timeline import local_zone
+from findplus.web_compose import compose_index
 
 from ._helpers import (
     WIDGET_STALE_AFTER_MINUTES,
@@ -198,9 +199,13 @@ def build_router(*, settings, static_dir: Path, find_hub_notice: str) -> APIRout
             }
 
     if static_dir.is_dir():
+        # Composed once at startup, not per request: the partials never change
+        # while the process runs, and a missing one must fail here rather than
+        # halfway through serving a dashboard (web_compose.compose_index raises).
+        composed_index = compose_index(static_dir)
 
-        @router.get("/")
-        def index() -> FileResponse:
-            return FileResponse(static_dir / "index.html")
+        @router.get("/", response_class=HTMLResponse)
+        def index() -> HTMLResponse:
+            return HTMLResponse(composed_index)
 
     return router

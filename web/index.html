@@ -109,119 +109,16 @@
        Groups draws member overlays on it); only this side pane switches. -->
   <aside class="timeline-pane">
     <div class="fp-tab-panel" id="tab-dashboard">
-      <div id="tracks"></div>
+      <!-- @partial: dashboard -->
     </div>
     <div class="fp-tab-panel" id="tab-places" hidden>
-      <button id="fp-add-place-btn">Add place</button>
-      <p class="fp-tab-hint">Click the map or use Add place to create a geofence.</p>
+      <!-- @partial: places -->
     </div>
     <div id="tab-groups" class="fp-tab-panel" hidden>
-      <p class="fp-tab-hint">Use the Group selector above the map to choose a group.</p>
-      <div id="fp-group-legend"></div>
-      <div id="fp-presence-panel"></div>
+      <!-- @partial: groups -->
     </div>
     <div id="tab-alerts" class="fp-tab-panel" hidden>
-      <p class="fp-disclaimer" id="fp-alerts-latency-notice"></p>
-
-      <section id="fp-telegram-section" class="fp-alerts-section">
-        <h3>Telegram</h3>
-        <p id="fp-tg-connected" class="fp-tab-hint hidden"></p>
-        <label class="setting-row">
-          <span>Bot token</span>
-          <input type="password" id="fp-tg-token" placeholder="Bot token">
-        </label>
-        <div class="fp-alerts-actions">
-          <button class="btn" id="fp-tg-connect" type="button">Connect</button>
-          <button class="btn btn-secondary" id="fp-tg-test" type="button">Send test</button>
-          <button class="btn btn-secondary" id="fp-tg-clear" type="button">Clear</button>
-        </div>
-        <p id="fp-tg-status"></p>
-      </section>
-
-      <section id="fp-webhook-section" class="fp-alerts-section">
-        <h3>Webhook</h3>
-        <p id="fp-webhook-current" class="fp-tab-hint hidden"></p>
-        <label class="setting-row">
-          <span>URL</span>
-          <input type="url" id="fp-webhook-url" placeholder="https://example.com/hook">
-        </label>
-        <label class="setting-row">
-          <span>Secret</span>
-          <input type="password" id="fp-webhook-secret" placeholder="Optional secret">
-        </label>
-        <div class="fp-alerts-actions">
-          <button class="btn" id="fp-webhook-save" type="button">Save</button>
-          <button class="btn btn-secondary" id="fp-webhook-remove" type="button">Remove</button>
-        </div>
-      </section>
-
-      <section class="fp-alerts-section">
-        <h3>Rules</h3>
-        <button id="fp-add-rule-btn" type="button">Add rule</button>
-        <table id="fp-rules-table">
-          <thead>
-            <tr>
-              <th>Name</th><th>Place</th><th>Device or Group</th>
-              <th>On enter</th><th>On exit</th><th>Channel</th><th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="fp-rules-tbody"></tbody>
-        </table>
-      </section>
-
-      <section class="fp-alerts-section">
-        <h3>Delivery log</h3>
-        <table id="fp-deliveries-table">
-          <thead>
-            <tr>
-              <th>Rule</th><th>Channel</th><th>Kind</th>
-              <th>Sent</th><th>Status</th><th>Error</th>
-            </tr>
-          </thead>
-          <tbody id="fp-deliveries-tbody"></tbody>
-        </table>
-      </section>
-
-      <section class="fp-alerts-section">
-        <label class="setting-row">
-          <span>Show map in widget</span>
-          <input type="checkbox" id="fp-widget-map-toggle">
-        </label>
-        <p class="fp-disclaimer">The map preview sends the coordinate region to Apple Maps.</p>
-      </section>
-
-      <dialog id="fp-add-rule-dialog">
-        <form method="dialog" id="fp-add-rule-form">
-          <label>Name <input type="text" id="fp-rule-name" required></label>
-          <label>Place
-            <select id="fp-rule-place"></select>
-          </label>
-          <label>
-            <input type="radio" name="fp-rule-target" id="fp-rule-target-device" value="device" checked>
-            Device
-          </label>
-          <select id="fp-rule-device"></select>
-          <label>
-            <input type="radio" name="fp-rule-target" id="fp-rule-target-group" value="group">
-            Group
-          </label>
-          <select id="fp-rule-group" class="hidden"></select>
-          <label><input type="checkbox" id="fp-rule-on-enter" checked> On enter</label>
-          <label><input type="checkbox" id="fp-rule-on-exit"> On exit</label>
-          <label>Channel
-            <select id="fp-rule-channel">
-              <option value="telegram">Telegram</option>
-              <option value="webhook">Webhook</option>
-            </select>
-          </label>
-          <label>Cooldown (minutes) <input type="number" id="fp-rule-cooldown" value="60" min="0"></label>
-          <p id="fp-rule-error" class="fp-dialog-error"></p>
-          <footer>
-            <button type="button" id="fp-rule-save">Save</button>
-            <button type="button" id="fp-rule-cancel">Cancel</button>
-          </footer>
-        </form>
-      </dialog>
+      <!-- @partial: alerts -->
     </div>
   </aside>
 </main>
@@ -262,111 +159,7 @@
 
 <div id="settings-modal" class="modal hidden">
   <div class="modal-box">
-    <header class="modal-head">
-      <h2>Settings</h2>
-      <button class="btn btn-tiny" id="btn-close-settings">Close</button>
-    </header>
-
-    <section class="setting-group">
-      <h3>Appearance</h3>
-      <label class="setting-row">
-        <span>Theme</span>
-        <select id="setting-theme">
-          <option value="dark">Dark</option>
-          <option value="light">Light</option>
-          <option value="system">Match system</option>
-        </select>
-      </label>
-    </section>
-
-    <section class="setting-group" id="setting-group-desktop">
-      <h3>Desktop app</h3>
-      <label class="setting-row">
-        <span>Start Find+ at login</span>
-        <input type="checkbox" id="setting-start-at-login">
-      </label>
-    </section>
-
-    <section class="setting-group">
-      <h3>App lock</h3>
-      <p class="modal-note" id="lock-caveat"></p>
-
-      <div id="lock-not-set">
-        <label class="setting-row">
-          <span>New PIN</span>
-          <input type="password" id="new-pin" inputmode="numeric" autocomplete="new-password"
-                 placeholder="at least 6 characters">
-        </label>
-        <label class="setting-row">
-          <span>Confirm PIN</span>
-          <input type="password" id="confirm-pin" inputmode="numeric" autocomplete="new-password">
-        </label>
-        <button class="btn" id="btn-set-pin">Set PIN</button>
-      </div>
-
-      <div id="lock-is-set" class="hidden">
-        <label class="setting-row">
-          <span>Lock enabled</span>
-          <input type="checkbox" id="setting-lock-enabled">
-        </label>
-        <label class="setting-row">
-          <span>Auto-lock after idle</span>
-          <select id="setting-idle">
-            <option value="0">Never</option>
-            <option value="1">1 minute</option>
-            <option value="5">5 minutes</option>
-            <option value="15">15 minutes</option>
-            <option value="30">30 minutes</option>
-            <option value="60">1 hour</option>
-          </select>
-        </label>
-        <label class="setting-row">
-          <span>Current PIN</span>
-          <input type="password" id="current-pin" autocomplete="current-password"
-                 placeholder="required to change or remove">
-        </label>
-        <label class="setting-row">
-          <span>New PIN (optional)</span>
-          <input type="password" id="change-pin" autocomplete="new-password">
-        </label>
-        <div class="setting-actions">
-          <button class="btn" id="btn-change-pin">Change PIN</button>
-          <button class="btn btn-danger" id="btn-remove-pin">Remove PIN</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="setting-group danger-zone">
-      <h3>Delete history</h3>
-      <p class="modal-note">
-        History is never deleted silently. Both actions show you exactly how many
-        observations would go, and ask again before anything is removed.
-      </p>
-      <label class="setting-row">
-        <span>Delete observations before</span>
-        <input type="date" id="delete-before-date">
-      </label>
-      <div class="setting-actions">
-        <button class="btn btn-secondary" id="btn-delete-before">Delete older than…</button>
-        <button class="btn btn-danger" id="btn-clear-all">Clear ALL history</button>
-      </div>
-      <p id="delete-result" class="modal-rate"></p>
-    </section>
-
-    <section class="setting-group">
-      <h3>About</h3>
-      <p class="modal-note" id="settings-about"></p>
-    </section>
-
-    <section class="setting-group">
-      <h3>Notices</h3>
-      <p class="modal-note" data-notice="find_hub" id="fp-notice-find-hub"></p>
-      <p class="modal-note" data-notice="apple" id="fp-notice-apple"></p>
-      <p class="modal-note" data-notice="alerts_latency" id="fp-notice-alerts-latency"></p>
-      <p class="modal-note" data-notice="presence_stale" id="fp-notice-presence-stale"></p>
-      <p class="modal-note" data-notice="lock_not_encryption" id="fp-notice-lock"></p>
-      <p class="modal-note" data-notice="not_affiliated" id="fp-notice-not-affiliated"></p>
-    </section>
+    <!-- @partial: settings -->
   </div>
 </div>
 

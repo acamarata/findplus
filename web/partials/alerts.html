@@ -1,0 +1,101 @@
+      <p class="fp-disclaimer" id="fp-alerts-latency-notice"></p>
+
+      <section id="fp-telegram-section" class="fp-alerts-section">
+        <h3>Telegram</h3>
+        <p id="fp-tg-connected" class="fp-tab-hint hidden"></p>
+        <label class="setting-row">
+          <span>Bot token</span>
+          <input type="password" id="fp-tg-token" placeholder="Bot token">
+        </label>
+        <div class="fp-alerts-actions">
+          <button class="btn" id="fp-tg-connect" type="button">Connect</button>
+          <button class="btn btn-secondary" id="fp-tg-test" type="button">Send test</button>
+          <button class="btn btn-secondary" id="fp-tg-clear" type="button">Clear</button>
+        </div>
+        <p id="fp-tg-status"></p>
+      </section>
+
+      <section id="fp-webhook-section" class="fp-alerts-section">
+        <h3>Webhook</h3>
+        <p id="fp-webhook-current" class="fp-tab-hint hidden"></p>
+        <label class="setting-row">
+          <span>URL</span>
+          <input type="url" id="fp-webhook-url" placeholder="https://example.com/hook">
+        </label>
+        <label class="setting-row">
+          <span>Secret</span>
+          <input type="password" id="fp-webhook-secret" placeholder="Optional secret">
+        </label>
+        <div class="fp-alerts-actions">
+          <button class="btn" id="fp-webhook-save" type="button">Save</button>
+          <button class="btn btn-secondary" id="fp-webhook-remove" type="button">Remove</button>
+        </div>
+      </section>
+
+      <section class="fp-alerts-section">
+        <h3>Rules</h3>
+        <button id="fp-add-rule-btn" type="button">Add rule</button>
+        <table id="fp-rules-table">
+          <thead>
+            <tr>
+              <th>Name</th><th>Place</th><th>Device or Group</th>
+              <th>On enter</th><th>On exit</th><th>Channel</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="fp-rules-tbody"></tbody>
+        </table>
+      </section>
+
+      <section class="fp-alerts-section">
+        <h3>Delivery log</h3>
+        <table id="fp-deliveries-table">
+          <thead>
+            <tr>
+              <th>Rule</th><th>Channel</th><th>Kind</th>
+              <th>Sent</th><th>Status</th><th>Error</th>
+            </tr>
+          </thead>
+          <tbody id="fp-deliveries-tbody"></tbody>
+        </table>
+      </section>
+
+      <section class="fp-alerts-section">
+        <label class="setting-row">
+          <span>Show map in widget</span>
+          <input type="checkbox" id="fp-widget-map-toggle">
+        </label>
+        <p class="fp-disclaimer">The map preview sends the coordinate region to Apple Maps.</p>
+      </section>
+
+      <dialog id="fp-add-rule-dialog">
+        <form method="dialog" id="fp-add-rule-form">
+          <label>Name <input type="text" id="fp-rule-name" required></label>
+          <label>Place
+            <select id="fp-rule-place"></select>
+          </label>
+          <label>
+            <input type="radio" name="fp-rule-target" id="fp-rule-target-device" value="device" checked>
+            Device
+          </label>
+          <select id="fp-rule-device"></select>
+          <label>
+            <input type="radio" name="fp-rule-target" id="fp-rule-target-group" value="group">
+            Group
+          </label>
+          <select id="fp-rule-group" class="hidden"></select>
+          <label><input type="checkbox" id="fp-rule-on-enter" checked> On enter</label>
+          <label><input type="checkbox" id="fp-rule-on-exit"> On exit</label>
+          <label>Channel
+            <select id="fp-rule-channel">
+              <option value="telegram">Telegram</option>
+              <option value="webhook">Webhook</option>
+            </select>
+          </label>
+          <label>Cooldown (minutes) <input type="number" id="fp-rule-cooldown" value="60" min="0"></label>
+          <p id="fp-rule-error" class="fp-dialog-error"></p>
+          <footer>
+            <button type="button" id="fp-rule-save">Save</button>
+            <button type="button" id="fp-rule-cancel">Cancel</button>
+          </footer>
+        </form>
+      </dialog>

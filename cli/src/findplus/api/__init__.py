@@ -24,6 +24,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import OperationalError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from findplus import __version__, honesty
@@ -131,6 +132,27 @@ def _sync_idle_timeout(sessions: SessionStore):
         sessions.idle_timeout_seconds = app_settings.idle_minutes * 60
 
     return sync
+
+
+class _ComposedSourceGuard(StaticFiles):
+    """StaticFiles that refuses the page sources composed server-side at "/".
+
+    web/index.html is a shell full of `<!-- @partial: … -->` markers and
+    web/partials/*.html are its pieces; the browser is meant to receive the
+    composed document, never the parts. This is a StaticFiles subclass rather
+    than a pair of routes on purpose: added routes would show up in the app's
+    route table, which the route-count snapshot and the lock sweep both
+    enumerate.
+    """
+
+    _HIDDEN = ("index.html", "partials/")
+
+    async def get_response(self, path: str, scope):
+        if path == "index.html" or path.startswith("partials/"):
+            raise StarletteHTTPException(status_code=404)
+        return await super().get_response(path, scope)
+
+
 class SessionAuthMiddleware(BaseHTTPMiddleware):
     """Return 401 for every gated API path while the app is locked.
 
@@ -228,7 +250,7 @@ def create_app(sessions: SessionStore | None = None) -> FastAPI:
     app.include_router(build_export_router())
 
     if STATIC_DIR.is_dir():
-        app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+        app.mount("/static", _ComposedSourceGuard(directory=STATIC_DIR), name="static")
 
     return app
 

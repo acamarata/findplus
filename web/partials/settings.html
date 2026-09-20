@@ -1,0 +1,105 @@
+    <header class="modal-head">
+      <h2>Settings</h2>
+      <button class="btn btn-tiny" id="btn-close-settings">Close</button>
+    </header>
+
+    <section class="setting-group">
+      <h3>Appearance</h3>
+      <label class="setting-row">
+        <span>Theme</span>
+        <select id="setting-theme">
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+          <option value="system">Match system</option>
+        </select>
+      </label>
+    </section>
+
+    <section class="setting-group" id="setting-group-desktop">
+      <h3>Desktop app</h3>
+      <label class="setting-row">
+        <span>Start Find+ at login</span>
+        <input type="checkbox" id="setting-start-at-login">
+      </label>
+    </section>
+
+    <section class="setting-group">
+      <h3>App lock</h3>
+      <p class="modal-note" id="lock-caveat"></p>
+
+      <div id="lock-not-set">
+        <label class="setting-row">
+          <span>New PIN</span>
+          <input type="password" id="new-pin" inputmode="numeric" autocomplete="new-password"
+                 placeholder="at least 6 characters">
+        </label>
+        <label class="setting-row">
+          <span>Confirm PIN</span>
+          <input type="password" id="confirm-pin" inputmode="numeric" autocomplete="new-password">
+        </label>
+        <button class="btn" id="btn-set-pin">Set PIN</button>
+      </div>
+
+      <div id="lock-is-set" class="hidden">
+        <label class="setting-row">
+          <span>Lock enabled</span>
+          <input type="checkbox" id="setting-lock-enabled">
+        </label>
+        <label class="setting-row">
+          <span>Auto-lock after idle</span>
+          <select id="setting-idle">
+            <option value="0">Never</option>
+            <option value="1">1 minute</option>
+            <option value="5">5 minutes</option>
+            <option value="15">15 minutes</option>
+            <option value="30">30 minutes</option>
+            <option value="60">1 hour</option>
+          </select>
+        </label>
+        <label class="setting-row">
+          <span>Current PIN</span>
+          <input type="password" id="current-pin" autocomplete="current-password"
+                 placeholder="required to change or remove">
+        </label>
+        <label class="setting-row">
+          <span>New PIN (optional)</span>
+          <input type="password" id="change-pin" autocomplete="new-password">
+        </label>
+        <div class="setting-actions">
+          <button class="btn" id="btn-change-pin">Change PIN</button>
+          <button class="btn btn-danger" id="btn-remove-pin">Remove PIN</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="setting-group danger-zone">
+      <h3>Delete history</h3>
+      <p class="modal-note">
+        History is never deleted silently. Both actions show you exactly how many
+        observations would go, and ask again before anything is removed.
+      </p>
+      <label class="setting-row">
+        <span>Delete observations before</span>
+        <input type="date" id="delete-before-date">
+      </label>
+      <div class="setting-actions">
+        <button class="btn btn-secondary" id="btn-delete-before">Delete older than…</button>
+        <button class="btn btn-danger" id="btn-clear-all">Clear ALL history</button>
+      </div>
+      <p id="delete-result" class="modal-rate"></p>
+    </section>
+
+    <section class="setting-group">
+      <h3>About</h3>
+      <p class="modal-note" id="settings-about"></p>
+    </section>
+
+    <section class="setting-group">
+      <h3>Notices</h3>
+      <p class="modal-note" data-notice="find_hub" id="fp-notice-find-hub"></p>
+      <p class="modal-note" data-notice="apple" id="fp-notice-apple"></p>
+      <p class="modal-note" data-notice="alerts_latency" id="fp-notice-alerts-latency"></p>
+      <p class="modal-note" data-notice="presence_stale" id="fp-notice-presence-stale"></p>
+      <p class="modal-note" data-notice="lock_not_encryption" id="fp-notice-lock"></p>
+      <p class="modal-note" data-notice="not_affiliated" id="fp-notice-not-affiliated"></p>
+    </section>

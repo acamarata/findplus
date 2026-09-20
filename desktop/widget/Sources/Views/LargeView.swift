@@ -26,8 +26,13 @@ struct LargeView: View {
                 }
                 .font(.caption)
             }
+            // A stale device's place column already reads "unknown", but the map
+            // kept drawing its last known fix beside it, and the picture outranks
+            // the words (CF-12). Suppress the map instead of captioning it: an
+            // overlay still shows a location that reads as current.
             if entry.response?.show_map == true,
-               let device = entry.response?.devices.first {
+               let device = entry.response?.devices.first,
+               !device.isStale(after: entry.staleAfterMinutes) {
                 MapSnapshotView(latitude: device.latitude, longitude: device.longitude)
                     .frame(width: 200, height: 120)
             }

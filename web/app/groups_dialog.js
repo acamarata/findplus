@@ -74,6 +74,9 @@ function wireDialog(dlg) {
   fields.quorum.addEventListener("change", () => {
     fields.quorumN.hidden = fields.quorum.value !== "custom";
   });
+  // A bare "letter" icon draws its glyph from the name (CR-C-E5 F7): keep the
+  // preview live as the user types instead of only on icon/colour pick.
+  fields.name.addEventListener("input", () => renderIconPreview(fields));
   // Esc with a popover open closes the popover, not the whole dialog.
   dlg.addEventListener("cancel", (e) => {
     if (fields.iconHost.hidden && fields.colorHost.hidden) return;
@@ -159,13 +162,24 @@ async function fillDialog(mode, id, group) {
   fields.name.focus();
 }
 
+/**
+ * fillDialog() is async (it awaits ensurePickers()/populateMembers()); an
+ * unhandled rejection here reads as a click that silently does nothing and
+ * trips test_no_javascript_errors (CR-C-E5 F6). populateMembers()'s own
+ * failures already land in fields.error; this is the backstop for anything
+ * earlier in fillDialog, surfaced the same way when the dialog exists.
+ */
+function reportFillFailure(err) {
+  if (fields) fields.error.textContent = err.message;
+}
+
 export function showAddDialog() {
-  fillDialog("add", null, null);
+  fillDialog("add", null, null).catch(reportFillFailure);
 }
 
 /** groups_list.js looks the group up (it owns the card registry) and hands it here. */
 export function openEditDialog(id, group) {
-  fillDialog("edit", id, group);
+  fillDialog("edit", id, group).catch(reportFillFailure);
 }
 
 function groupBody() {

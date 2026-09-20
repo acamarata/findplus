@@ -137,7 +137,7 @@ jobs:
       - run: pip install -e '.[dev]'
         working-directory: cli
       - run: python -m pytest cli/tests -q --cov=findplus --cov-report=lcov:coverage/lcov.info --cov-report=term
-      - run: coverage report --fail-under=95 --include='*/findplus/places/geofence.py,*/findplus/groups/presence.py,*/findplus/groups/quorum.py,*/findplus/alerts/dispatch.py,*/findplus/alerts/dispatch_core.py'
+      - run: coverage report --fail-under=95 --include='*/findplus/places/geofence.py,*/findplus/groups/presence.py,*/findplus/groups/quorum.py,*/findplus/alerts/dispatch.py,*/findplus/alerts/dispatch_core.py,*/findplus/alerts/dispatch_send.py'
       - uses: codecov/codecov-action@v7
         with:
           files: ./coverage/lcov.info

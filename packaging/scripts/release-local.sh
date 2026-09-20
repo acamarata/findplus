@@ -63,15 +63,14 @@ macos_step4_tauri_build() {
 }
 
 macos_step5_embed_widget() {
-  # embed-widget.sh does its own sign + notarise + dmg rebuild; it expects
-  # APPLE_API_KEY (a file path, not base64) and APPLE_API_ISSUER (no _ID
-  # suffix) rather than this repo's APPLE_API_KEY_P8_BASE64/_ISSUER_ID names.
+  # embed-widget.sh reads APPLE_API_KEY_P8_BASE64 itself and decodes it to a
+  # mktemp file under a `trap ... EXIT` (embed-widget.sh:107-110), so the key
+  # never outlives the notarisation call. This function used to decode the same
+  # secret a second time to a fixed, world-readable /tmp/findplus-api-key.p8
+  # with no cleanup -- leaving the signing key readable by every local user for
+  # good -- and export it under names embed-widget.sh does not read. Both the
+  # decode and the exports were dead weight as well as a leak.
   echo "==> Embed widget, sign, notarise, rebuild dmg"
-  if [ -n "${APPLE_API_KEY_P8_BASE64:-}" ]; then
-    echo "$APPLE_API_KEY_P8_BASE64" | base64 -d > /tmp/findplus-api-key.p8
-    export APPLE_API_KEY=/tmp/findplus-api-key.p8
-    export APPLE_API_ISSUER="${APPLE_API_ISSUER_ID:-}"
-  fi
   bash packaging/scripts/embed-widget.sh
 }
 

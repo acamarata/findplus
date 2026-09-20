@@ -68,3 +68,24 @@ def test_the_tap_pr_is_gated_on_a_published_release() -> None:
     )
     gated = [s for s in steps if s.get("if") == "steps.release.outputs.draft != 'true'"]
     assert len(gated) >= 4, "every step that writes or pushes the formula must be gated"
+
+
+def test_no_script_writes_key_material_to_a_fixed_path() -> None:
+    """E1 confirmation pass F1: the signing key must not outlive its use.
+
+    release-local.sh decoded APPLE_API_KEY_P8_BASE64 to a fixed, world-readable
+    /tmp/findplus-api-key.p8 with no cleanup, leaving the Apple signing key
+    readable by every local user for good -- while embed-widget.sh, the script
+    that actually uses it, already decodes it to a mktemp file under a
+    `trap ... EXIT`. The second decode was dead weight as well as a leak.
+    """
+    for script in sorted((ROOT / "packaging" / "scripts").glob("*.sh")):
+        code = "\n".join(
+            line for line in script.read_text().splitlines() if not line.lstrip().startswith("#")
+        )
+        if "base64 -d" not in code:
+            continue
+        assert "/tmp/" not in code, f"{script.name} writes decoded material to a fixed /tmp path"
+        assert "mktemp" in code and "trap" in code, (
+            f"{script.name} decodes a secret without a mktemp file and a cleanup trap"
+        )

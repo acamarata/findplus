@@ -11,6 +11,10 @@
   --warn: #e7b53f;
   --err: #ef5f5f;
   --gap: #e7b53f;
+  /* Provider badge / presence chip text only, on the rgba(79,140,247,.18)
+     tint those two draw over --panel: --accent itself measured 4.05:1 there
+     (CR-C-E4 CF-P2-E4-5), so a separate token, not a reused pinned one. */
+  --badge-text: #c7ddff;
 }
 * { box-sizing: border-box; }
 body {
@@ -177,6 +181,8 @@ html[data-theme="light"] {
   --warn: #956800;  /* 4.56:1 on --bg; #9a6b00 was 4.34:1 */
   --err: #c53232;
   --gap: #9a6b00;
+  /* --accent measured 4.28:1 on the same tint here (CR-C-E4 CF-P2-E4-5). */
+  --badge-text: #1e40af;
 }
 html[data-theme="light"] .leaflet-container { background: #e6eaf0; }
 html[data-theme="light"] .marker-num { box-shadow: 0 1px 4px rgba(0,0,0,.28); }
@@ -245,7 +251,7 @@ html[data-theme="light"] .alert.warn { color: #6b4a00; }
 .fp-tab-hint { color: var(--muted); font-size: 12.5px; padding: 0 18px; }
 #fp-add-place-btn { margin: 14px 18px 0; }
 .fp-presence-chip { font-size: .72rem; padding: 2px 7px; border-radius: 9999px;
-  background: rgba(79,140,247,.18); color: var(--accent); margin-left: 6px; }
+  background: rgba(79,140,247,.18); color: var(--badge-text); margin-left: 6px; }
 #map.fp-crosshair-mode { cursor: crosshair; }
 .fp-place-popup { display: flex; flex-direction: column; gap: 6px; }
 
@@ -278,7 +284,7 @@ html[data-theme="light"] .alert.warn { color: #6b4a00; }
 .fp-provider-badge { font-size: .7rem; padding: 1px 5px; border-radius: 4px;
   margin-left: 6px; vertical-align: middle;
   background: var(--panel-2); color: var(--muted); }
-.fp-provider-badge--google-find-hub { background: rgba(79,140,247,.18); color: var(--accent); }
+.fp-provider-badge--google-find-hub { background: rgba(79,140,247,.18); color: var(--badge-text); }
 .fp-provider-badge--apple-find-my { background: var(--panel-2); color: var(--text); }
 
 /* Heading above each group presence name list (honesty round 2 F11): the

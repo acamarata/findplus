@@ -1,45 +1,48 @@
       <p class="fp-disclaimer" id="fp-alerts-latency-notice"></p>
 
       <section id="fp-telegram-section" class="fp-alerts-section">
-        <h3>Telegram</h3>
+        <h3 data-i18n="alerts.telegramHeading">Telegram</h3>
         <p id="fp-tg-connected" class="fp-tab-hint hidden"></p>
         <label class="setting-row">
-          <span>Bot token</span>
-          <input type="password" id="fp-tg-token" placeholder="Bot token">
+          <span data-i18n="alerts.botToken">Bot token</span>
+          <input type="password" id="fp-tg-token" placeholder="Bot token"
+                 data-i18n-attr="placeholder:alerts.botToken">
         </label>
         <div class="fp-alerts-actions">
-          <button class="btn" id="fp-tg-connect" type="button">Connect</button>
-          <button class="btn btn-secondary" id="fp-tg-test" type="button">Send test</button>
-          <button class="btn btn-secondary" id="fp-tg-clear" type="button">Clear</button>
+          <button class="btn" id="fp-tg-connect" type="button" data-i18n="alerts.connect">Connect</button>
+          <button class="btn btn-secondary" id="fp-tg-test" type="button" data-i18n="alerts.sendTest">Send test</button>
+          <button class="btn btn-secondary" id="fp-tg-clear" type="button" data-i18n="common.clear">Clear</button>
         </div>
         <p id="fp-tg-status"></p>
       </section>
 
       <section id="fp-webhook-section" class="fp-alerts-section">
-        <h3>Webhook</h3>
+        <h3 data-i18n="alerts.webhookHeading">Webhook</h3>
         <p id="fp-webhook-current" class="fp-tab-hint hidden"></p>
         <label class="setting-row">
-          <span>URL</span>
-          <input type="url" id="fp-webhook-url" placeholder="https://example.com/hook">
+          <span data-i18n="alerts.url">URL</span>
+          <input type="url" id="fp-webhook-url" placeholder="https://example.com/hook"
+                 data-i18n-attr="placeholder:alerts.urlPlaceholder">
         </label>
         <label class="setting-row">
-          <span>Secret</span>
-          <input type="password" id="fp-webhook-secret" placeholder="Optional secret">
+          <span data-i18n="alerts.secret">Secret</span>
+          <input type="password" id="fp-webhook-secret" placeholder="Optional secret"
+                 data-i18n-attr="placeholder:alerts.secretPlaceholder">
         </label>
         <div class="fp-alerts-actions">
-          <button class="btn" id="fp-webhook-save" type="button">Save</button>
-          <button class="btn btn-secondary" id="fp-webhook-remove" type="button">Remove</button>
+          <button class="btn" id="fp-webhook-save" type="button" data-i18n="common.save">Save</button>
+          <button class="btn btn-secondary" id="fp-webhook-remove" type="button" data-i18n="common.remove">Remove</button>
         </div>
       </section>
 
       <section class="fp-alerts-section">
-        <h3>Rules</h3>
-        <button id="fp-add-rule-btn" type="button">Add rule</button>
+        <h3 data-i18n="alerts.rulesHeading">Rules</h3>
+        <button id="fp-add-rule-btn" type="button" data-i18n="alerts.addRule">Add rule</button>
         <table id="fp-rules-table">
           <thead>
             <tr>
-              <th>Name</th><th>Place</th><th>Device or Group</th>
-              <th>On enter</th><th>On exit</th><th>Channel</th><th>Actions</th>
+              <th data-i18n="alerts.colName">Name</th><th data-i18n="alerts.colPlace">Place</th><th data-i18n="alerts.colTarget">Device or Group</th>
+              <th data-i18n="alerts.colOnEnter">On enter</th><th data-i18n="alerts.colOnExit">On exit</th><th data-i18n="alerts.colChannel">Channel</th><th data-i18n="alerts.colActions">Actions</th>
             </tr>
           </thead>
           <tbody id="fp-rules-tbody"></tbody>
@@ -47,12 +50,12 @@
       </section>
 
       <section class="fp-alerts-section">
-        <h3>Delivery log</h3>
+        <h3 data-i18n="alerts.deliveryLogHeading">Delivery log</h3>
         <table id="fp-deliveries-table">
           <thead>
             <tr>
-              <th>Rule</th><th>Channel</th><th>Kind</th>
-              <th>Sent</th><th>Status</th><th>Error</th>
+              <th data-i18n="alerts.colRule">Rule</th><th data-i18n="alerts.colChannel">Channel</th><th data-i18n="alerts.colKind">Kind</th>
+              <th data-i18n="alerts.colSent">Sent</th><th data-i18n="alerts.colStatus">Status</th><th data-i18n="alerts.colError">Error</th>
             </tr>
           </thead>
           <tbody id="fp-deliveries-tbody"></tbody>
@@ -61,41 +64,41 @@
 
       <section class="fp-alerts-section">
         <label class="setting-row">
-          <span>Show map in widget</span>
+          <span data-i18n="alerts.showMapInWidget">Show map in widget</span>
           <input type="checkbox" id="fp-widget-map-toggle">
         </label>
-        <p class="fp-disclaimer">The map preview sends the coordinate region to Apple Maps.</p>
+        <p class="fp-disclaimer" data-i18n="alerts.widgetMapDisclaimer">The map preview sends the coordinate region to Apple Maps.</p>
       </section>
 
       <dialog id="fp-add-rule-dialog">
         <form method="dialog" id="fp-add-rule-form">
-          <label>Name <input type="text" id="fp-rule-name" required></label>
-          <label>Place
+          <label><span data-i18n="alerts.colName">Name</span> <input type="text" id="fp-rule-name" required></label>
+          <label><span data-i18n="alerts.colPlace">Place</span>
             <select id="fp-rule-place"></select>
           </label>
           <label>
             <input type="radio" name="fp-rule-target" id="fp-rule-target-device" value="device" checked>
-            Device
+            <span data-i18n="alerts.targetDevice">Device</span>
           </label>
           <select id="fp-rule-device"></select>
           <label>
             <input type="radio" name="fp-rule-target" id="fp-rule-target-group" value="group">
-            Group
+            <span data-i18n="alerts.targetGroup">Group</span>
           </label>
           <select id="fp-rule-group" class="hidden"></select>
-          <label><input type="checkbox" id="fp-rule-on-enter" checked> On enter</label>
-          <label><input type="checkbox" id="fp-rule-on-exit"> On exit</label>
-          <label>Channel
+          <label><input type="checkbox" id="fp-rule-on-enter" checked> <span data-i18n="alerts.colOnEnter">On enter</span></label>
+          <label><input type="checkbox" id="fp-rule-on-exit"> <span data-i18n="alerts.colOnExit">On exit</span></label>
+          <label><span data-i18n="alerts.colChannel">Channel</span>
             <select id="fp-rule-channel">
-              <option value="telegram">Telegram</option>
-              <option value="webhook">Webhook</option>
+              <option value="telegram" data-i18n="alerts.telegramHeading">Telegram</option>
+              <option value="webhook" data-i18n="alerts.webhookHeading">Webhook</option>
             </select>
           </label>
-          <label>Cooldown (minutes) <input type="number" id="fp-rule-cooldown" value="30" min="0"></label>
+          <label><span data-i18n="alerts.cooldownMinutes">Cooldown (minutes)</span> <input type="number" id="fp-rule-cooldown" value="30" min="0"></label>
           <p id="fp-rule-error" class="fp-dialog-error"></p>
           <footer>
-            <button type="button" id="fp-rule-save">Save</button>
-            <button type="button" id="fp-rule-cancel">Cancel</button>
+            <button type="button" id="fp-rule-save" data-i18n="common.save">Save</button>
+            <button type="button" id="fp-rule-cancel" data-i18n="common.cancel">Cancel</button>
           </footer>
         </form>
       </dialog>

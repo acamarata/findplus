@@ -1,30 +1,30 @@
     <header class="modal-head">
-      <h2>Settings</h2>
-      <button class="btn btn-tiny" id="btn-close-settings">Close</button>
+      <h2 data-i18n="settings.title">Settings</h2>
+      <button class="btn btn-tiny" id="btn-close-settings" data-i18n="common.close">Close</button>
     </header>
 
     <section class="setting-group">
-      <h3>Appearance</h3>
+      <h3 data-i18n="settings.appearanceHeading">Appearance</h3>
       <label class="setting-row">
-        <span>Theme</span>
+        <span data-i18n="settings.theme">Theme</span>
         <select id="setting-theme">
-          <option value="dark">Dark</option>
-          <option value="light">Light</option>
-          <option value="system">Match system</option>
+          <option value="dark" data-i18n="settings.themeDark">Dark</option>
+          <option value="light" data-i18n="settings.themeLight">Light</option>
+          <option value="system" data-i18n="settings.themeSystem">Match system</option>
         </select>
       </label>
     </section>
 
     <section class="setting-group" id="setting-group-desktop">
-      <h3>Desktop app</h3>
+      <h3 data-i18n="settings.desktopHeading">Desktop app</h3>
       <label class="setting-row">
-        <span>Start Find+ at login</span>
+        <span data-i18n="settings.startAtLogin">Start Find+ at login</span>
         <input type="checkbox" id="setting-start-at-login">
       </label>
     </section>
 
     <section class="setting-group">
-      <h3>App lock</h3>
+      <h3 data-i18n="settings.appLockHeading">App lock</h3>
       <!-- honesty.LOCK_NOT_ENCRYPTION is rendered once per screen: here, where
            the lock is configured. The Notices section below carries the other
            five sentences; #fp-notice-lock was the same paragraph a second time
@@ -35,73 +35,75 @@
 
       <div id="lock-not-set">
         <label class="setting-row">
-          <span>New PIN</span>
+          <span data-i18n="settings.newPin">New PIN</span>
           <input type="password" id="new-pin" inputmode="numeric" autocomplete="new-password"
-                 placeholder="at least 6 characters">
+                 placeholder="at least 6 characters"
+                 data-i18n-attr="placeholder:settings.newPinPlaceholder">
         </label>
         <label class="setting-row">
-          <span>Confirm PIN</span>
+          <span data-i18n="settings.confirmPin">Confirm PIN</span>
           <input type="password" id="confirm-pin" inputmode="numeric" autocomplete="new-password">
         </label>
-        <button class="btn" id="btn-set-pin">Set PIN</button>
+        <button class="btn" id="btn-set-pin" data-i18n="settings.setPin">Set PIN</button>
       </div>
 
       <div id="lock-is-set" class="hidden">
         <label class="setting-row">
-          <span>Lock enabled</span>
+          <span data-i18n="settings.lockEnabled">Lock enabled</span>
           <input type="checkbox" id="setting-lock-enabled">
         </label>
         <label class="setting-row">
-          <span>Auto-lock after idle</span>
+          <span data-i18n="settings.autoLockIdle">Auto-lock after idle</span>
           <select id="setting-idle">
-            <option value="0">Never</option>
-            <option value="1">1 minute</option>
-            <option value="5">5 minutes</option>
-            <option value="15">15 minutes</option>
-            <option value="30">30 minutes</option>
-            <option value="60">1 hour</option>
+            <option value="0" data-i18n="settings.idleNever">Never</option>
+            <option value="1" data-i18n="settings.idle1Minute">1 minute</option>
+            <option value="5" data-i18n="settings.idle5Minutes">5 minutes</option>
+            <option value="15" data-i18n="settings.idle15Minutes">15 minutes</option>
+            <option value="30" data-i18n="settings.idle30Minutes">30 minutes</option>
+            <option value="60" data-i18n="settings.idle1Hour">1 hour</option>
           </select>
         </label>
         <label class="setting-row">
-          <span>Current PIN</span>
+          <span data-i18n="settings.currentPin">Current PIN</span>
           <input type="password" id="current-pin" autocomplete="current-password"
-                 placeholder="required to change or remove">
+                 placeholder="required to change or remove"
+                 data-i18n-attr="placeholder:settings.currentPinPlaceholder">
         </label>
         <label class="setting-row">
-          <span>New PIN (optional)</span>
+          <span data-i18n="settings.newPinOptional">New PIN (optional)</span>
           <input type="password" id="change-pin" autocomplete="new-password">
         </label>
         <div class="setting-actions">
-          <button class="btn" id="btn-change-pin">Change PIN</button>
-          <button class="btn btn-danger" id="btn-remove-pin">Remove PIN</button>
+          <button class="btn" id="btn-change-pin" data-i18n="settings.changePin">Change PIN</button>
+          <button class="btn btn-danger" id="btn-remove-pin" data-i18n="settings.removePin">Remove PIN</button>
         </div>
       </div>
     </section>
 
     <section class="setting-group danger-zone">
-      <h3>Delete history</h3>
-      <p class="modal-note">
+      <h3 data-i18n="settings.deleteHistoryHeading">Delete history</h3>
+      <p class="modal-note" data-i18n="settings.deleteHistoryNote">
         History is never deleted silently. Both actions show you exactly how many
         observations would go, and ask again before anything is removed.
       </p>
       <label class="setting-row">
-        <span>Delete observations before</span>
+        <span data-i18n="settings.deleteBefore">Delete observations before</span>
         <input type="date" id="delete-before-date">
       </label>
       <div class="setting-actions">
-        <button class="btn btn-secondary" id="btn-delete-before">Delete older than…</button>
-        <button class="btn btn-danger" id="btn-clear-all">Clear ALL history</button>
+        <button class="btn btn-secondary" id="btn-delete-before" data-i18n="settings.deleteOlder">Delete older than…</button>
+        <button class="btn btn-danger" id="btn-clear-all" data-i18n="settings.clearAll">Clear ALL history</button>
       </div>
       <p id="delete-result" class="modal-rate"></p>
     </section>
 
     <section class="setting-group">
-      <h3>About</h3>
+      <h3 data-i18n="settings.aboutHeading">About</h3>
       <p class="modal-note" id="settings-about"></p>
     </section>
 
     <section class="setting-group">
-      <h3>Notices</h3>
+      <h3 data-i18n="settings.noticesHeading">Notices</h3>
       <p class="modal-note" data-notice="find_hub" id="fp-notice-find-hub"></p>
       <p class="modal-note" data-notice="apple" id="fp-notice-apple"></p>
       <p class="modal-note" data-notice="alerts_latency" id="fp-notice-alerts-latency"></p>

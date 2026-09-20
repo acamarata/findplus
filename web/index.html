@@ -17,12 +17,13 @@
 <div id="lock-screen" class="lock-screen hidden">
   <div class="lock-box">
     <div class="lock-icon">🔒</div>
-    <h1 class="lock-title">Find+ is locked</h1>
-    <p class="lock-sub">Enter your PIN to continue.</p>
+    <h1 class="lock-title" data-i18n="common.lockTitle">Find+ is locked</h1>
+    <p class="lock-sub" data-i18n="common.lockSub">Enter your PIN to continue.</p>
     <form id="lock-form" autocomplete="off">
       <input type="password" id="lock-pin" inputmode="numeric" autocomplete="off"
-             placeholder="PIN" aria-label="PIN">
-      <button type="submit" class="btn" id="lock-submit">Unlock</button>
+             placeholder="PIN" aria-label="PIN"
+             data-i18n-attr="placeholder:common.pin,aria-label:common.pin">
+      <button type="submit" class="btn" id="lock-submit" data-i18n="common.unlock">Unlock</button>
     </form>
     <p id="lock-error" class="lock-error"></p>
     <!-- honesty.LOCK_NOT_ENCRYPTION, from the PUBLIC /api/lock/requirements.
@@ -36,78 +37,84 @@
 <div id="app-shell">
 <header class="topbar">
   <div class="brand">
-    <span class="dot" id="live-dot" title="Polling service status"></span>
-    <h1>Find+</h1>
-    <span class="device" id="device-name">no tracker selected</span>
+    <span class="dot" id="live-dot" title="Polling service status"
+          data-i18n-attr="title:common.liveDotTitle"></span>
+    <h1 data-i18n="common.appName">Find+</h1>
+    <span class="device" id="device-name" data-i18n="common.deviceNamePlaceholder">no tracker selected</span>
   </div>
   <div class="topbar-actions">
-    <button id="btn-devices" class="btn btn-secondary">Devices</button>
-    <button id="btn-settings" class="btn btn-secondary" title="Settings">Settings</button>
-    <button id="btn-lock" class="btn btn-secondary hidden" title="Lock now">Lock</button>
-    <button id="btn-latest" class="btn">Latest Location</button>
-    <button id="btn-poll" class="btn btn-secondary" title="Queries your providers once, now">Poll Now</button>
+    <button id="btn-devices" class="btn btn-secondary" data-i18n="common.btnDevices">Devices</button>
+    <button id="btn-settings" class="btn btn-secondary" title="Settings"
+            data-i18n="common.btnSettings" data-i18n-attr="title:common.btnSettings">Settings</button>
+    <button id="btn-lock" class="btn btn-secondary hidden" title="Lock now"
+            data-i18n="common.btnLock" data-i18n-attr="title:common.btnLockTitle">Lock</button>
+    <button id="btn-latest" class="btn" data-i18n="common.btnLatest">Latest Location</button>
+    <button id="btn-poll" class="btn btn-secondary" title="Queries your providers once, now"
+            data-i18n="common.btnPoll" data-i18n-attr="title:common.btnPollTitle">Poll Now</button>
   </div>
 </header>
 
 <section class="cards" id="cards">
-  <div class="card"><span class="label" id="card-observed-label">Last observed</span><strong id="card-observed">—</strong><span class="sub" id="card-observed-ago">—</span></div>
-  <div class="card"><span class="label">Retrieved by this computer</span><strong id="card-fetched">—</strong><span class="sub" id="card-lag">—</span></div>
-  <div class="card"><span class="label">Last successful poll</span><strong id="card-poll">—</strong><span class="sub" id="card-poll-status">—</span></div>
-  <div class="card"><span class="label">Observations today</span><strong id="card-today">—</strong><span class="sub" id="card-total">—</span></div>
+  <div class="card"><span class="label" id="card-observed-label" data-i18n="common.cardObservedLabel">Last observed</span><strong id="card-observed">—</strong><span class="sub" id="card-observed-ago">—</span></div>
+  <div class="card"><span class="label" data-i18n="common.cardFetchedLabel">Retrieved by this computer</span><strong id="card-fetched">—</strong><span class="sub" id="card-lag">—</span></div>
+  <div class="card"><span class="label" data-i18n="common.cardPollLabel">Last successful poll</span><strong id="card-poll">—</strong><span class="sub" id="card-poll-status">—</span></div>
+  <div class="card"><span class="label" data-i18n="common.cardTodayLabel">Observations today</span><strong id="card-today">—</strong><span class="sub" id="card-total">—</span></div>
 </section>
 
 <div id="alert" class="alert hidden"></div>
 
 <section class="controls">
-  <label for="device-filter">Show</label>
+  <label for="device-filter" data-i18n="common.show">Show</label>
   <select id="device-filter">
-    <option value="">All tracked devices</option>
+    <option value="" data-i18n="devices.allTracked">All tracked devices</option>
   </select>
 
-  <label for="fp-group-select">Group:</label>
+  <label for="fp-group-select" data-i18n="common.groupLabel">Group:</label>
   <select id="fp-group-select"></select>
 
-  <label for="day-picker">Day</label>
+  <label for="day-picker" data-i18n="common.day">Day</label>
   <input type="date" id="day-picker">
-  <button class="btn btn-tiny" id="btn-prev-day" title="Previous day">‹</button>
-  <button class="btn btn-tiny" id="btn-today">Today</button>
-  <button class="btn btn-tiny" id="btn-next-day" title="Next day">›</button>
+  <button class="btn btn-tiny" id="btn-prev-day" title="Previous day"
+          data-i18n-attr="title:common.prevDay">‹</button>
+  <button class="btn btn-tiny" id="btn-today" data-i18n="common.today">Today</button>
+  <button class="btn btn-tiny" id="btn-next-day" title="Next day"
+          data-i18n-attr="title:common.nextDay">›</button>
 
-  <label class="toggle"><input type="checkbox" id="toggle-movement"> Movement only</label>
+  <label class="toggle"><input type="checkbox" id="toggle-movement"> <span data-i18n="common.movementOnly">Movement only</span></label>
 
   <span class="spacer"></span>
 
-  <label for="export-format">Export</label>
+  <label for="export-format" data-i18n="common.export">Export</label>
   <select id="export-format">
-    <option value="csv">CSV</option>
-    <option value="gpx">GPX</option>
-    <option value="json">JSON</option>
-    <option value="kml">KML</option>
+    <option value="csv" data-i18n="common.exportFormatCsv">CSV</option>
+    <option value="gpx" data-i18n="common.exportFormatGpx">GPX</option>
+    <option value="json" data-i18n="common.exportFormatJson">JSON</option>
+    <option value="kml" data-i18n="common.exportFormatKml">KML</option>
   </select>
   <select id="export-scope">
-    <option value="day">This day</option>
-    <option value="range">Date range…</option>
-    <option value="all">All history</option>
+    <option value="day" data-i18n="common.exportScopeDay">This day</option>
+    <option value="range" data-i18n="common.exportScopeRange">Date range…</option>
+    <option value="all" data-i18n="common.exportScopeAll">All history</option>
   </select>
   <span id="range-inputs" class="hidden">
-    <input type="date" id="range-start" title="Range start">
-    <span class="range-sep">to</span>
-    <input type="date" id="range-end" title="Range end">
+    <input type="date" id="range-start" title="Range start" data-i18n-attr="title:common.rangeStart">
+    <span class="range-sep" data-i18n="common.rangeSeparator">to</span>
+    <input type="date" id="range-end" title="Range end" data-i18n-attr="title:common.rangeEnd">
   </span>
-  <button class="btn btn-secondary" id="btn-export">Download</button>
+  <button class="btn btn-secondary" id="btn-export" data-i18n="common.download">Download</button>
 </section>
 
 <nav class="fp-tabs">
-  <button class="fp-tab active" data-tab="dashboard">Dashboard</button>
-  <button class="fp-tab" data-tab="places">Places</button>
-  <button class="fp-tab" data-tab="groups">Groups</button>
-  <button class="fp-tab" data-tab="alerts">Alerts</button>
+  <button class="fp-tab active" data-tab="dashboard" data-i18n="common.tabDashboard">Dashboard</button>
+  <button class="fp-tab" data-tab="places" data-i18n="common.tabPlaces">Places</button>
+  <button class="fp-tab" data-tab="groups" data-i18n="common.tabGroups">Groups</button>
+  <button class="fp-tab" data-tab="alerts" data-i18n="common.tabAlerts">Alerts</button>
 </nav>
 
 <main class="layout">
   <div class="map-pane">
     <div id="map"></div>
-    <p class="disclaimer" id="path-disclaimer">Observed path — actual route between detections may differ.</p>
+    <p class="disclaimer" id="path-disclaimer" data-i18n="notices.pathDisclaimer">Observed path — actual route between detections may differ.</p>
   </div>
 
   <!-- The map above is shared by every tab (Places crosshair-clicks it,
@@ -131,7 +138,7 @@
 <footer class="footer">
   <p id="findhub-notice" class="notice"></p>
   <p id="apple-notice" class="notice" hidden></p>
-  <p class="notice small">
+  <p class="notice small" data-i18n="common.footerPrivacy">
     Runs entirely on this computer and binds to 127.0.0.1. No analytics, telemetry or third-party scripts.
     Map tiles are fetched from OpenStreetMap, which necessarily sees the tile coordinates being viewed.
   </p>
@@ -142,10 +149,10 @@
 <div id="device-modal" class="modal hidden">
   <div class="modal-box">
     <header class="modal-head">
-      <h2 id="device-modal-title">Your devices</h2>
-      <button class="btn btn-tiny" id="btn-close-devices">Close</button>
+      <h2 id="device-modal-title" data-i18n="devices.title">Your devices</h2>
+      <button class="btn btn-tiny" id="btn-close-devices" data-i18n="common.close">Close</button>
     </header>
-    <p class="modal-note" id="device-modal-note">
+    <p class="modal-note" id="device-modal-note" data-i18n="devices.note">
       Tick every tracker you want polled. Each tracked device costs one provider
       request per poll cycle, so the request rate rises with the number you tick.
       Untracking keeps a device's existing history — it just stops being polled.
@@ -153,11 +160,11 @@
     <div id="device-list" class="device-list"></div>
     <p class="modal-rate" id="device-rate"></p>
     <footer class="modal-foot">
-      <button class="btn btn-secondary" id="btn-refresh-devices">Refresh from your providers</button>
+      <button class="btn btn-secondary" id="btn-refresh-devices" data-i18n="devices.refreshProvidersLabel">Refresh from your providers</button>
       <span class="spacer"></span>
-      <button class="btn btn-secondary" id="btn-track-none">Track none</button>
-      <button class="btn btn-secondary" id="btn-track-all">Track all</button>
-      <button class="btn" id="btn-save-devices">Save</button>
+      <button class="btn btn-secondary" id="btn-track-none" data-i18n="devices.trackNone">Track none</button>
+      <button class="btn btn-secondary" id="btn-track-all" data-i18n="devices.trackAll">Track all</button>
+      <button class="btn" id="btn-save-devices" data-i18n="common.save">Save</button>
     </footer>
   </div>
 </div>
@@ -169,6 +176,7 @@
 </div>
 
 <script src="/static/vendor/leaflet/leaflet.js"></script>
+<script type="module" src="/static/app/i18n.js"></script>
 <script type="module" src="/static/app/main.js"></script>
 <script type="module" src="/static/app/notices.js"></script>
 <script type="module" src="/static/app/alerts.js"></script>

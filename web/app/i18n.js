@@ -97,11 +97,27 @@ export function plural(key, n, vars) {
 /**
  * Render every element carrying `data-i18n` / `data-i18n-attr` from the catalog.
  *
- * T2 gives this its DOM walk; the export exists from this ticket so setLocale()
- * and main.js's boot sequence can be written against the final signature.
+ * One generic walk over the whole document, never one per section: the daemon
+ * composes index.html and every partial into a single page before serving it,
+ * so the markup is all there at parse time and a partial added later is covered
+ * without touching this function.
+ *
+ * `data-i18n="namespace.key"` sets textContent.
+ * `data-i18n-attr="attr:key,attr:key"` sets one or more attributes.
  */
-export function applyStaticI18n() {
-  /* implemented in P2-E9-W2-S1-T2 */
+export function applyStaticI18n(root = document) {
+  root.querySelectorAll("[data-i18n]").forEach((el) => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  root.querySelectorAll("[data-i18n-attr]").forEach((el) => {
+    for (const pair of el.dataset.i18nAttr.split(",")) {
+      const separator = pair.indexOf(":");
+      if (separator < 1) continue;
+      const attr = pair.slice(0, separator).trim();
+      const key = pair.slice(separator + 1).trim();
+      if (attr && key) el.setAttribute(attr, t(key));
+    }
+  });
 }
 
 /**

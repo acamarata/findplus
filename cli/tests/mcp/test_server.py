@@ -116,3 +116,17 @@ def test_unlock_wrong_pin_keeps_no_cookie():
     result = asyncio.run(mcp.call_tool("unlock", {"pin": "0000"}))
     assert client.session_cookie is None
     assert "cookie" not in result.structured_content
+
+
+def test_instructions_name_both_providers_verbatim():
+    """An agent querying Apple accessories was told the data came from Find Hub (E1 F2).
+
+    Both sentences must appear byte-for-byte: honesty.py is the one source, so a
+    paraphrase here would be a second copy that drifts.
+    """
+    from findplus import honesty
+
+    instructions = create_mcp_server().instructions
+
+    assert honesty.FIND_HUB in instructions
+    assert honesty.APPLE in instructions

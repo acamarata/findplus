@@ -17,7 +17,7 @@ from pathlib import Path
 
 from mcp.server.mcpserver import MCPServer
 
-from findplus.honesty import FIND_HUB
+from findplus.honesty import APPLE, FIND_HUB
 from findplus.mcp.client import DaemonClient
 from findplus.mcp.tools_read import register_read_tools
 from findplus.mcp.tools_write import register_write_tools
@@ -51,7 +51,10 @@ def create_mcp_server(
 ) -> MCPServer:
     from findplus import __version__
 
-    mcp = MCPServer("findplus", version=__version__, instructions=FIND_HUB)
+    # Both provider sentences, verbatim: an agent querying Apple accessories was
+    # being told its data came from Google's Find Hub network (E1 honesty pass F2).
+    instructions = "\n\n".join((FIND_HUB, APPLE))
+    mcp = MCPServer("findplus", version=__version__, instructions=instructions)
     client = DaemonClient(base_url=base_url)
     mcp._daemon_client = client
     mcp._allow_writes = allow_writes

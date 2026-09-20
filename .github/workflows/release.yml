@@ -9,7 +9,7 @@ jobs:
   build-python:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -45,7 +45,7 @@ jobs:
       APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
       APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: actions/setup-python@v5
@@ -129,7 +129,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Check for an existing published release
         id: existing
         env:
@@ -196,13 +196,13 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           name: python-dist
           path: dist
       - run: bash packaging/scripts/gen-formula.sh dist/findplus-*.tar.gz
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: acamarata/homebrew-tap
           token: ${{ secrets.TAP_PUSH_TOKEN }}

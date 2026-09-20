@@ -14,7 +14,7 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Pushed straight to the wiki's own git remote. The previously used
       # third-party action (nickg/github-wikis) does not exist on GitHub, so

@@ -149,7 +149,9 @@ def test_widget_group_verdict_unknown(session) -> None:
 
     rows = _group_rows(session)
     assert rows[0]["verdict"] == "unknown"
-    assert "has reported" in rows[0]["note"]
+    # honesty round 3 F7: the note names the members now, not a row id.
+    assert "has not reported" in rows[0]["note"]
+    assert "group " not in rows[0]["note"]
 
 
 def test_widget_locked(locked_client: TestClient) -> None:

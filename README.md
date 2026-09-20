@@ -67,7 +67,7 @@ The dashboard opens at http://localhost:8647.
 
 - Location history with a map and chronological timeline.
 - Places and geofence alerts, with configurable enter/exit confirmations.
-- Groups and quorum-based presence (together, apart, partial, unknown).
+- Groups and quorum-based presence (together, partial, unknown).
 - Telegram and webhook alert channels.
 - MCP server exposing devices, places, groups and history as LLM tools.
 - macOS menu-bar app (Tauri) with a WidgetKit widget.
@@ -114,7 +114,8 @@ Start with `findplus --help`.
 ## API
 
 See [API reference](https://github.com/acamarata/findplus/wiki/API-reference).
-The interactive docs are at http://localhost:8647/docs.
+The OpenAPI schema is at http://localhost:8647/api/openapi.json. There is no
+Swagger or ReDoc page: both fetch scripts from a CDN, which invariant 9 forbids.
 
 ## MCP
 
@@ -128,7 +129,7 @@ Find+ is GPL-3.0-or-later. It includes:
 - [GoogleFindMyTools](https://github.com/leonboe1/GoogleFindMyTools) by
   @leonboe1, GPL-3.0 (vendored, license preserved in
   `cli/vendor/GoogleFindMyTools/LICENSE`).
-- [FindMy.py](https://github.com/biemster/FindMy) by @biemster, MIT
+- [FindMy.py](https://github.com/malmeloo/FindMy.py) by @malmeloo, MIT
   (acknowledgement; not vendored directly).
 - [Leaflet](https://leafletjs.com), BSD-2-Clause.
 

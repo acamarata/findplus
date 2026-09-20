@@ -56,3 +56,59 @@ async def test_footer_hides_the_apple_sentence_without_an_apple_tracker(page, ba
         }"""
     )
     assert hidden is True
+
+
+async def test_footer_hides_the_findhub_sentence_for_an_apple_only_user(page, base_url):
+    """The finding itself: an AirTag-only user must not be told about Find Hub.
+
+    CR-C-E1 F5 -- the first fix gated only #apple-notice, so main.js still
+    rendered honesty.FIND_HUB unconditionally and the false sentence stayed on
+    screen for exactly the user the honesty pass was about.
+    """
+    await _open_dashboard(page, base_url)
+    await page.wait_for_function(
+        "() => document.getElementById('findhub-notice').textContent !== ''",
+        timeout=5000,
+    )
+
+    state_after = await page.evaluate(
+        """async () => {
+            const [state, devices] = await Promise.all([
+                import('/static/app/state.js'),
+                import('/static/app/devices.js'),
+            ]);
+            state.state.devices = state.state.devices.map(
+                (d) => ({ ...d, provider: 'apple-find-my' })
+            );
+            devices.syncProviderNotice();
+            const fh = document.getElementById('findhub-notice');
+            const ap = document.getElementById('apple-notice');
+            return {
+                findhub: { hidden: fh.hidden, text: fh.textContent },
+                apple: { hidden: ap.hidden, text: ap.textContent },
+            };
+        }"""
+    )
+    assert state_after["findhub"] == {"hidden": True, "text": ""}
+    assert state_after["apple"] == {"hidden": False, "text": honesty.APPLE}
+
+
+async def test_the_footer_sentences_are_blanked_by_the_lock(page, base_url):
+    """Both are device-derived, so both leak the tracked networks behind a lock."""
+    await _open_dashboard(page, base_url)
+    await page.wait_for_function(
+        "() => document.getElementById('findhub-notice').textContent !== ''",
+        timeout=5000,
+    )
+
+    blanked = await page.evaluate(
+        """async () => {
+            const lock = await import('/static/app/lock.js');
+            await lock.purgeRenderedData();
+            return ['findhub-notice', 'apple-notice'].every((id) => {
+                const el = document.getElementById(id);
+                return el.hidden && el.textContent === '';
+            });
+        }"""
+    )
+    assert blanked is True

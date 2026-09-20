@@ -57,12 +57,14 @@ export async function showLock() {
 export async function purgeRenderedData() {
   state.timeline = null;
   state.devices = [];
-  // The Apple footer sentence is device-derived: leaving it up behind the lock
-  // screen would tell a passer-by that this person tracks Apple accessories.
-  const appleNotice = $("apple-notice");
-  if (appleNotice) {
-    appleNotice.textContent = "";
-    appleNotice.hidden = true;
+  // Both footer sentences are device-derived: leaving either up behind the
+  // lock screen would tell a passer-by which networks this person tracks on.
+  for (const id of ["apple-notice", "findhub-notice"]) {
+    const el = $(id);
+    if (el) {
+      el.textContent = "";
+      el.hidden = true;
+    }
   }
   state.selectedId = null;
   state.markers.clear();

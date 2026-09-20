@@ -72,7 +72,8 @@ export async function loadStatus() {
 
 export async function loadConfig() {
   state.config = await api("/api/config");
-  $("findhub-notice").textContent = state.config.notice;
+  // The footer sentences are rendered by devices.syncProviderNotice(), which
+  // needs the device list to know which providers are actually tracked.
   return state.config;
 }
 

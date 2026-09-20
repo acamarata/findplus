@@ -79,20 +79,29 @@ export async function loadDevices() {
 }
 
 /**
- * Show the Apple sentence in the footer only when an Apple tracker is present.
+ * Render each provider's footer sentence only when that provider is tracked.
  *
  * The footer used to render the Find Hub sentence unconditionally, so someone
  * tracking only AirTags read that their tags report "through Google Find Hub
- * network" (E1 honesty pass F1). Both sentences come verbatim from
- * /api/config.notices, so honesty.py stays the single source.
+ * network" (E1 honesty pass F1). Gating the Apple sentence alone left that
+ * false sentence on screen, so both are device-derived now. Both come verbatim
+ * from /api/config.notices, so honesty.py stays the single source.
+ *
+ * With no devices at all neither sentence renders: there is no history on
+ * screen for either one to describe.
  */
 export function syncProviderNotice() {
-  const el = $("apple-notice");
+  const notices = state.config?.notices;
+  setNotice($("apple-notice"), (d) => d.provider === "apple-find-my", notices?.apple);
+  setNotice($("findhub-notice"), (d) => d.provider !== "apple-find-my", notices?.find_hub);
+}
+
+/** Show `text` on `el` when at least one tracked device matches `pred`. */
+function setNotice(el, pred, text) {
   if (!el) return;
-  const apple = state.config?.notices?.apple;
-  const hasApple = state.devices.some((d) => d.provider === "apple-find-my");
-  el.textContent = hasApple && apple ? apple : "";
-  el.hidden = !(hasApple && apple);
+  const show = Boolean(text) && state.devices.some(pred);
+  el.textContent = show ? text : "";
+  el.hidden = !show;
 }
 
 /** Open the Devices dialog. */

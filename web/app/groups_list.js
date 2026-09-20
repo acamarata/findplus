@@ -34,7 +34,10 @@ export async function init(container) {
     addBtn.textContent = t("groups.add_button");
     addBtn.addEventListener("click", showAddDialog);
   }
-  await loadCards();
+  // No loadCards() here: groups.js's init() calls loadGroups() immediately
+  // after this, and loadGroups() ends with loadCards(). Loading in both fired
+  // GET /api/groups and GET /api/devices twice on every boot and left two
+  // render passes racing over the same #fp-groups-list.
 }
 
 function clearList() {

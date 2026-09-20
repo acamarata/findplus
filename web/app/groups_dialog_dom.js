@@ -159,6 +159,10 @@ export function renderIconPreview(fields) {
 export function buildDialog({ onSave, onCancel }) {
   const dlg = document.createElement("dialog");
   dlg.id = "fp-group-dialog";
+  // Native <dialog> exposes the role but not a name; without this a screen
+  // reader announces "dialog" and nothing else (devices_dialog.js:96 does the
+  // same for its own editor).
+  dlg.setAttribute("aria-labelledby", "fp-group-dialog-title");
   const form = document.createElement("form");
   form.method = "dialog";
 

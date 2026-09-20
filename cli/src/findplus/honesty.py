@@ -4,8 +4,10 @@ Purpose    : One source of truth for the sentences specs/honesty.md pins, so
              `/api/config.notices`, the dashboard, and `test_honesty_text.py`
              (E10) all read the same strings instead of duplicating them.
 Inputs     : None — every value here is a fixed, owner-approved sentence.
-Outputs    : Six module-level constants plus the NOTICES dict `/api/config`
-             serves under its `notices` key.
+Outputs    : One module-level constant per sentence, plus the NOTICES dict
+             `/api/config` serves under its `notices` key. Every generator and
+             test iterates NOTICES rather than a hardcoded key list, so adding
+             a sentence here is the only edit an extra notice needs.
 Constraints: Copied character-for-character from specs/honesty.md. Never
              paraphrase or shorten these; this app touches a child's location
              history and every surface must state, not overstate, what it does.
@@ -41,8 +43,26 @@ LOCK_NOT_ENCRYPTION = (
     "anyone with access to this user account or the disk can read it. Use FileVault."
 )
 
+WHATSAPP_RELAY = (
+    "WhatsApp alerts are relayed through CallMeBot, a third-party free service. Your alert "
+    "text transits CallMeBot's servers before reaching WhatsApp. Delivery is best-effort with "
+    "no guarantee. Find+ is not affiliated with WhatsApp, Meta or CallMeBot."
+)
+
+WHATSAPP_SETUP = (
+    "To connect WhatsApp: add +34 623 91 22 04 to your phone's contacts, then send it the "
+    'message "I allow callmebot to send me messages" from your own WhatsApp. CallMeBot '
+    "replies with an API key within about two minutes — paste it below."
+)
+
 NOT_AFFILIATED = (
     "Find+ is not affiliated with Apple or Google. Find Hub and Find My are their trademarks."
+)
+
+CHROME_REQUIRED = (
+    "Google Chrome was not found on this machine. Google sign-in drives Chrome directly "
+    "and cannot run without it. Install it from https://www.google.com/chrome/ and try "
+    "again."
 )
 
 NOTICES: dict[str, str] = {
@@ -51,5 +71,8 @@ NOTICES: dict[str, str] = {
     "alerts_latency": ALERTS_LATENCY,
     "presence_stale": PRESENCE_STALE,
     "lock_not_encryption": LOCK_NOT_ENCRYPTION,
+    "whatsapp_relay": WHATSAPP_RELAY,
+    "whatsapp_setup": WHATSAPP_SETUP,
     "not_affiliated": NOT_AFFILIATED,
+    "chrome_required": CHROME_REQUIRED,
 }

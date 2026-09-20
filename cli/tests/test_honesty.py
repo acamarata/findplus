@@ -1,6 +1,6 @@
 """honesty.py constants match specs/honesty.md character-for-character.
 
-Build-notes carry-forward #28: the six sentences must have exactly one
+Build-notes carry-forward #28: every sentence must have exactly one
 code-side source of truth (honesty.py) to drift from the spec file, and that
 mirror needs its own regression test rather than relying on the API test
 (test_core_endpoints.py::test_config_notices) to catch a future divergence.
@@ -47,7 +47,10 @@ def _spec_sentences() -> dict[str, str]:
 @_needs_spec
 def test_every_constant_matches_the_spec_verbatim() -> None:
     spec = _spec_sentences()
-    assert set(spec) == set(honesty.NOTICES)
+    # `<=`, not `==`: this compares honesty.py against the FROZEN P1 spec file,
+    # which is never amended for a P2 sentence. Every P1 sentence must still be
+    # present and verbatim; later ones are covered by their own tests.
+    assert set(spec) <= set(honesty.NOTICES)
     for key, sentence in spec.items():
         assert honesty.NOTICES[key] == sentence, key
 
@@ -59,7 +62,10 @@ def test_notices_dict_matches_named_constants() -> None:
         "alerts_latency": honesty.ALERTS_LATENCY,
         "presence_stale": honesty.PRESENCE_STALE,
         "lock_not_encryption": honesty.LOCK_NOT_ENCRYPTION,
+        "whatsapp_relay": honesty.WHATSAPP_RELAY,
+        "whatsapp_setup": honesty.WHATSAPP_SETUP,
         "not_affiliated": honesty.NOT_AFFILIATED,
+        "chrome_required": honesty.CHROME_REQUIRED,
     }
 
 
@@ -103,3 +109,29 @@ def test_no_module_re_types_an_honesty_sentence() -> None:
             if tail in code:
                 offenders.append(f"{path.relative_to(src)}: {key}")
     assert not offenders, f"honesty sentence re-typed instead of imported: {offenders}"
+
+
+def test_chrome_sentence_has_exactly_one_literal() -> None:
+    """R-P2-6: honesty.py owns the Chrome-not-found sentence; browser.py aliases it.
+
+    The CLI (`findplus auth`), the API (`POST /api/auth/google/start`) and
+    `/api/config.notices` must all read the same string. A second hand-typed
+    copy in browser.py or cmd_auth.py would pass every other test in this file
+    right up until someone edited one of them.
+    """
+    from pathlib import Path
+
+    from findplus.providers.google_findhub import browser
+
+    assert browser.MSG_CHROME_MISSING is honesty.CHROME_REQUIRED
+    assert honesty.NOTICES["chrome_required"] is honesty.CHROME_REQUIRED
+
+    src = Path(honesty.__file__).parent
+    hits = [
+        path.relative_to(src)
+        for path in src.rglob("*.py")
+        if "vendor" not in path.parts
+        and "_vendor" not in path.parts
+        and "Google Chrome was not found" in path.read_text(encoding="utf-8")
+    ]
+    assert hits == [Path("honesty.py")], f"Chrome sentence re-typed: {hits}"

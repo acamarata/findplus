@@ -1,10 +1,10 @@
-"""Credential store for alert channels (Telegram, webhook).
+"""Credential store for alert channels (Telegram, webhook, WhatsApp).
 
 Purpose : Read/write ~/.findplus/alerts.json (0600) holding channel credentials.
 Inputs  : AlertsChannels dataclass tree; the state-dir path from Settings.alerts_file.
 Outputs : alerts.json on disk, atomic-written.
 Constraints:
-    - No findplus.db import here (importable under the network-block test fixture).
+    - No database import here (importable under the network-block test fixture).
     - Atomic write: .tmp (created 0600) -> os.replace, so the credentials are
       never on disk at the default umask, not even for one syscall.
 """
@@ -15,6 +15,7 @@ import dataclasses
 import json
 import os
 import pathlib
+import re
 
 from findplus.config import get_settings
 
@@ -34,10 +35,26 @@ class WebhookCreds:
     secret: str | None
 
 
+#: E.164: a leading +, a non-zero country digit, then 6 to 14 more digits.
+_PHONE_RE = re.compile(r"^\+[1-9]\d{6,14}$")
+
+
+def is_valid_phone(phone: str) -> bool:
+    """True for an E.164 number CallMeBot will accept."""
+    return bool(_PHONE_RE.fullmatch(phone))
+
+
+@dataclasses.dataclass(frozen=True)
+class WhatsappCreds:
+    phone: str
+    apikey: str
+
+
 @dataclasses.dataclass(frozen=True)
 class AlertsChannels:
     telegram: TelegramCreds | None = None
     webhook: WebhookCreds | None = None
+    whatsapp: WhatsappCreds | None = None
 
 
 def _alerts_path() -> pathlib.Path:
@@ -54,9 +71,11 @@ def load_alerts() -> AlertsChannels:
         ch = raw.get("channels", {})
         tg = ch.get("telegram")
         wh = ch.get("webhook")
+        wa = ch.get("whatsapp")
         return AlertsChannels(
             telegram=TelegramCreds(**tg) if tg else None,
             webhook=WebhookCreds(**wh) if wh else None,
+            whatsapp=WhatsappCreds(**wa) if wa else None,
         )
     except (OSError, ValueError, TypeError, KeyError, AttributeError):
         # ValueError covers JSONDecodeError and a binary file's UnicodeDecodeError.
@@ -72,6 +91,8 @@ def save_alerts(channels: AlertsChannels) -> None:
         data["channels"]["telegram"] = dataclasses.asdict(channels.telegram)
     if channels.webhook:
         data["channels"]["webhook"] = dataclasses.asdict(channels.webhook)
+    if channels.whatsapp:
+        data["channels"]["whatsapp"] = dataclasses.asdict(channels.whatsapp)
     tmp = path.with_suffix(".tmp")
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w") as handle:
@@ -83,3 +104,13 @@ def save_alerts(channels: AlertsChannels) -> None:
 def mask_token(token: str) -> str:
     """First 4 + last 4 characters, else '***' for a token too short to mask safely."""
     return "***" if len(token) < 8 else token[:4] + "…" + token[-4:]
+
+
+def mask_phone(phone: str) -> str:
+    """Country code + last 2 digits, e.g. '+34…23'; '***' when too short to mask.
+
+    Unlike mask_token's first-4/last-4 shape: a phone number's middle digits are
+    the private part, and the country code alone identifies nobody.
+    """
+    digits = phone[1:] if phone.startswith("+") else phone
+    return "***" if len(digits) < 4 else f"+{digits[:2]}…{digits[-2:]}"

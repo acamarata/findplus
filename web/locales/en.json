@@ -110,7 +110,21 @@
     "trackedResult": "Tracking {count} device(s) — about {rate} {requests} requests/hour.",
     "trackedNone": "No devices tracked. The poller will not query {requests}.",
     "wordingProviders": "your providers",
-    "wordingTracking": "tracking"
+    "wordingTracking": "tracking",
+    "field": {
+      "label": "Label",
+      "icon": "Icon",
+      "color": "Colour",
+      "tracked": "Tracked",
+      "letter": "Badge letter",
+      "customColor": "Custom colour"
+    },
+    "dialog": {
+      "title_edit": "Edit {name}"
+    },
+    "card": {
+      "edit": "Edit {name}"
+    }
   },
   "groups": {
     "tabHint": "Use the Group selector above the map to choose a group.",
@@ -122,7 +136,34 @@
     "verdictOnlyOneReporting": "Only 1 reporting",
     "verdictPartial": "Partial",
     "listAway": "Away from the others",
-    "staleBadge": "{name} — no fix for {age}"
+    "staleBadge": "{name} — no fix for {age}",
+    "dialog": {
+      "title_add": "Add group",
+      "title_edit": "Edit group"
+    },
+    "field": {
+      "name": "Name",
+      "icon": "Icon",
+      "color": "Colour",
+      "quorum": "Quorum",
+      "quorum_custom": "Custom",
+      "radius": "Cluster radius (m)",
+      "stale": "Stale after (minutes)",
+      "stale_hint": "A tag with no recent fix is stale, not at home and not left behind. Find+ reports it as unknown.",
+      "members": "Members"
+    },
+    "error": {
+      "name_required": "Name is required."
+    },
+    "empty": "No groups yet. A group tracks presence for a household, a set of pets, or anything you want a together/apart verdict for.",
+    "add_button": "Add group",
+    "card": {
+      "edit": "Edit {name}",
+      "delete": "Delete {name}"
+    },
+    "confirm": {
+      "delete": "Delete group \"{name}\"?"
+    }
   },
   "places": {
     "addPlace": "Add place",
@@ -272,6 +313,9 @@
     "alertsLatency": "Alerts inherit the network's delay. An arrival or departure may be reported minutes to hours late.",
     "presenceStale": "A tag with no recent fix is stale, not at home and not left behind. Find+ reports it as unknown.",
     "lockNotEncryption": "The app lock stops casual browsing. It does not encrypt the database; anyone with access to this user account or the disk can read it. Use FileVault.",
-    "notAffiliated": "Find+ is not affiliated with Apple or Google. Find Hub and Find My are their trademarks."
+    "whatsappRelay": "WhatsApp alerts are relayed through CallMeBot, a third-party free service. Your alert text transits CallMeBot's servers before reaching WhatsApp. Delivery is best-effort with no guarantee. Find+ is not affiliated with WhatsApp, Meta or CallMeBot.",
+    "whatsappSetup": "To connect WhatsApp: add +34 623 91 22 04 to your phone's contacts, then send it the message \"I allow callmebot to send me messages\" from your own WhatsApp. CallMeBot replies with an API key within about two minutes — paste it below.",
+    "notAffiliated": "Find+ is not affiliated with Apple or Google. Find Hub and Find My are their trademarks.",
+    "chromeRequired": "Google Chrome was not found on this machine. Google sign-in drives Chrome directly and cannot run without it. Install it from https://www.google.com/chrome/ and try again."
   }
 }

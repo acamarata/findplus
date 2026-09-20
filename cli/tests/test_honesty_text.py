@@ -1,4 +1,4 @@
-"""/api/config.notices carries the six honesty.md sentences verbatim.
+"""/api/config.notices carries every honesty.md sentence verbatim.
 
 Purpose    : PROMPT.md §2 invariant 4 requires honesty text to be
              test-enforced. These sentences are normative; any paraphrase,
@@ -42,8 +42,23 @@ EXPECTED = {
         "The app lock stops casual browsing. It does not encrypt the database; "
         "anyone with access to this user account or the disk can read it. Use FileVault."
     ),
+    "whatsapp_relay": (
+        "WhatsApp alerts are relayed through CallMeBot, a third-party free service. Your alert "
+        "text transits CallMeBot's servers before reaching WhatsApp. Delivery is best-effort with "
+        "no guarantee. Find+ is not affiliated with WhatsApp, Meta or CallMeBot."
+    ),
+    "whatsapp_setup": (
+        "To connect WhatsApp: add +34 623 91 22 04 to your phone's contacts, then send it the "
+        'message "I allow callmebot to send me messages" from your own WhatsApp. CallMeBot '
+        "replies with an API key within about two minutes — paste it below."
+    ),
     "not_affiliated": (
         "Find+ is not affiliated with Apple or Google. Find Hub and Find My are their trademarks."
+    ),
+    "chrome_required": (
+        "Google Chrome was not found on this machine. Google sign-in drives Chrome directly "
+        "and cannot run without it. Install it from https://www.google.com/chrome/ and try "
+        "again."
     ),
 }
 

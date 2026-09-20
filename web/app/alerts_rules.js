@@ -56,10 +56,15 @@ export function renderRulesTable(rules) {
 async function deleteRule(id, name) {
   if (!window.confirm(t("alerts.confirmDeleteRule", { name }))) return;
   // A refused delete used to leave the row on screen with no message, which is
-  // indistinguishable from a no-op (E1 honesty round 3 F10).
-  const res = await fetch(`/api/alerts/rules/${id}`, { method: "DELETE" });
-  if (!res.ok) {
-    showAlert(t("alerts.deleteRuleFailed", { name, status: res.status }), "err");
+  // indistinguishable from a no-op (E1 honesty round 3 F10). Through api(),
+  // not a raw fetch(), so a 401 shows the lock screen instead of reading as a
+  // failed delete, and the route's 204 is handled (CF-P2-E5-1).
+  try {
+    await api(`/api/alerts/rules/${id}`, { method: "DELETE" });
+  } catch (err) {
+    if (err.message !== "Locked") {
+      showAlert(t("alerts.deleteRuleFailed", { name, status: err.message }), "err");
+    }
     return;
   }
   await loadRules();
@@ -90,38 +95,39 @@ export function updateRuleTargetVisibility() {
   $("fp-rule-group").classList.toggle("hidden", isDevice);
 }
 /* Native alerts need the menu bar app's poller, which is macOS-only in 1.1.
- * Fetched once per page load and cached; ANY failure leaves native out of the
- * list, so a fetch error can never offer a channel that will not fire. */
+ * Resolved on the first dialog open and cached from then on -- deliberately NOT
+ * at module load, which would put a fetch on the boot path competing with the
+ * devices load every page does. /api/version is public (api/__init__.py's
+ * _PUBLIC), so this never trips the lock screen. ANY failure leaves native out
+ * of the list, so a fetch error can never offer a channel that will not fire. */
+const BASE_CHANNELS = ["telegram", "webhook", "whatsapp"];
 let availableChannels = null;
-async function buildAvailableChannels() {
-  if (availableChannels) return availableChannels;
-  const base = ["telegram", "webhook", "whatsapp"];
-  try {
-    const version = await api("/api/version");
-    availableChannels =
+function loadAvailableChannels() {
+  availableChannels ||= fetch("/api/version")
+    .then((r) => (r.ok ? r.json() : {}))
+    .then((version) =>
       typeof version.platform === "string" && version.platform.startsWith("macOS")
-        ? [...base, "native"]
-        : base;
-  } catch (_) {
-    availableChannels = base;
-  }
+        ? [...BASE_CHANNELS, "native"]
+        : BASE_CHANNELS,
+    )
+    .catch(() => BASE_CHANNELS);
   return availableChannels;
 }
 
+/** The caller resolves every label; channel-picker.js imports no i18n. */
 function channelLabels() {
-  return {
-    telegram: t("alerts.telegramHeading"),
-    webhook: t("alerts.webhookHeading"),
-    whatsapp: t("alerts.whatsappHeading"),
-    native: t("alerts.nativeHeading"),
-  };
+  return Object.fromEntries(
+    [...BASE_CHANNELS, "native"].map((id) => [id, t("alerts.channels." + id)]),
+  );
 }
 
 export async function openAddRuleDialog() {
-  await populateRuleSelects();
+  // In parallel, not in series: the channel list is usually already resolved,
+  // and it must never add a round-trip to the time the dialog takes to open.
+  const [, available] = await Promise.all([populateRuleSelects(), loadAvailableChannels()]);
   renderChannelPicker($("fp-rule-channels"), {
     selected: ["telegram"],
-    available: await buildAvailableChannels(),
+    available,
     labels: channelLabels(),
   });
   $("fp-rule-name").value = "";

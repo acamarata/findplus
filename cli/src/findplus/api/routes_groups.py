@@ -132,6 +132,18 @@ def build_router() -> APIRouter:
             except ValueError as exc:
                 s.rollback()
                 raise _map_value_error(exc) from exc
+            except IntegrityError as exc:
+                # update_group() never checks the name against the others, so a
+                # rename onto an existing one reaches the UNIQUE index and used
+                # to leave the route as a 500. Same 409 as create: the group
+                # dialog reads "already exists" and focuses the name field
+                # (specs/groups-ui.md § Error mapping).
+                s.rollback()
+                if "UNIQUE" not in str(exc):
+                    raise
+                raise HTTPException(
+                    status_code=409, detail=f"group {body.name!r} already exists"
+                ) from exc
             s.commit()
             return _group_to_dict(g)
 

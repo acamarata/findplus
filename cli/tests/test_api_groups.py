@@ -257,3 +257,17 @@ def test_group_response_includes_icon(client: TestClient) -> None:
     rows = client.get("/api/groups").json()
     assert rows
     assert all("icon" in row for row in rows), rows
+
+
+def test_put_group_duplicate_name_is_409_not_500(client: TestClient) -> None:
+    """Renaming onto another group's name used to reach the UNIQUE index uncaught.
+
+    The group dialog keys its "focus the name field" branch off the 409 body
+    (specs/groups-ui.md § Error mapping), so a 500 here lost the user's edits
+    behind a message that reads like a server fault.
+    """
+    client.post("/api/groups", json={"name": "Family"})
+    other = client.post("/api/groups", json={"name": "Pets"}).json()["id"]
+    res = client.put(f"/api/groups/{other}", json={"name": "Family"})
+    assert res.status_code == 409, res.text
+    assert "already exists" in res.json()["detail"]

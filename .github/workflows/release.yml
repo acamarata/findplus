@@ -28,7 +28,7 @@ jobs:
       id-token: write
     continue-on-error: true
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: python-dist
           path: dist
@@ -51,7 +51,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: python-dist
           path: dist
@@ -141,12 +141,12 @@ jobs:
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         if: steps.existing.outputs.skip != 'true'
         with:
           name: python-dist
           path: dist
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         if: steps.existing.outputs.skip != 'true'
         with:
           name: macos-dmg
@@ -197,7 +197,7 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: python-dist
           path: dist

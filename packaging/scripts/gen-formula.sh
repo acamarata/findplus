@@ -38,12 +38,17 @@ try:
 except Exception:
     pass' "$VERSION" 2> /dev/null || true)
 
-PLACEHOLDER_URL=false
 if [ -z "$URL" ]; then
-  PLACEHOLDER_URL=true
-  URL="https://files.pythonhosted.org/packages/source/f/findplus/$(basename "$SDIST")"
-  echo "gen-formula.sh: findplus $VERSION is not on PyPI yet; using the placeholder" >&2
-  echo "gen-formula.sh: url. brew style reports FormulaAudit/PyPiUrls until it is." >&2
+  # PyPI publish is deferred, so the sdist a user can actually fetch is the one
+  # attached to the GitHub release. The generator had no GitHub branch at all:
+  # every tag replaced the working GitHub url in packaging/homebrew/findplus.rb
+  # with a pythonhosted placeholder for a package nobody has uploaded, and
+  # `brew install acamarata/tap/findplus` 404'd (packaging round 2 F2).
+  REPO="${FINDPLUS_REPO:-acamarata/findplus}"
+  URL="https://github.com/$REPO/releases/download/v$VERSION/$(basename "$SDIST")"
+  echo "gen-formula.sh: findplus $VERSION is not on PyPI; using the GitHub release" >&2
+  echo "gen-formula.sh: sdist at $URL. The release must be PUBLISHED, not a draft:" >&2
+  echo "gen-formula.sh: a draft release's assets are not publicly downloadable." >&2
 fi
 
 # --- WRITE_FORMULA ------------------------------------------------------------
@@ -88,14 +93,11 @@ if command -v brew > /dev/null 2>&1; then
   STYLE_DIR=$(mktemp -d)/homebrew-tap/Formula
   mkdir -p "$STYLE_DIR"
   cp "$OUT" "$STYLE_DIR/findplus.rb"
-  if [ "$PLACEHOLDER_URL" = true ]; then
-    # Only FormulaAudit/PyPiUrls can fire here, and only because the version is
-    # not uploaded yet; re-run after `twine upload` for the strict check.
-    brew style "$STYLE_DIR/findplus.rb" ||
-      echo "gen-formula.sh: style offences above are the unpublished-url case" >&2
-  else
-    brew style "$STYLE_DIR/findplus.rb"
-  fi
+  # Both branches now emit a real, fetchable url (PyPI's hashed path or the
+  # GitHub release asset), so the strict check applies either way. The old
+  # placeholder branch existed only to excuse FormulaAudit/PyPiUrls on a
+  # /packages/source/f/ url for a package that was never uploaded.
+  brew style "$STYLE_DIR/findplus.rb"
 fi
 
 echo "Formula written to $OUT"

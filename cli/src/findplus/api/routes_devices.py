@@ -13,7 +13,7 @@ from typing import Any
 from fastapi import APIRouter, Body, HTTPException
 from sqlalchemy import func, select
 
-from findplus.db.models import Device, LocationObservation
+from findplus.db.models import Device, DeviceGroup, LocationObservation
 from findplus.db.session import session_scope
 from findplus.state import (
     get_default_device,
@@ -28,11 +28,40 @@ from findplus.state import (
 def build_router(*, settings) -> APIRouter:
     router = APIRouter(prefix="/api", tags=["devices"])
 
+    def _groups_by_device(session) -> dict[str, list[int]]:
+        """device_id -> the group ids it belongs to. One query, not one per device."""
+        out: dict[str, list[int]] = {}
+        for device_id, group_id in session.execute(
+            select(DeviceGroup.device_id, DeviceGroup.group_id)
+        ).all():
+            out.setdefault(device_id, []).append(group_id)
+        return out
+
+    def _presence_by_device(session) -> dict[str, list[dict[str, Any]]]:
+        """device_id -> the places it is currently inside, per api-contract.md."""
+        from findplus.places.repo import current_presence
+
+        out: dict[str, list[dict[str, Any]]] = {}
+        for row in current_presence(session):
+            if row["state"] != "inside":
+                continue
+            since = row["since_observed_at"]
+            out.setdefault(row["device_id"], []).append(
+                {
+                    "place_id": row["place_id"],
+                    "place_name": row["place_name"],
+                    "since": since.isoformat() if since else None,
+                }
+            )
+        return out
+
     @router.get("/devices")
     def devices() -> dict[str, Any]:
         with session_scope() as session:
             rows = list(session.scalars(select(Device).order_by(Device.name)))
             default = get_default_device(session)
+            groups_by_device = _groups_by_device(session)
+            presence_by_device = _presence_by_device(session)
             tracked = [d for d in rows if d.is_tracked]
             interval = settings.effective_poll_interval_minutes
             return {
@@ -55,6 +84,11 @@ def build_router(*, settings) -> APIRouter:
                         ),
                         "first_seen_at": d.first_seen_at.isoformat(),
                         "last_seen_at": d.last_seen_at.isoformat(),
+                        # api-contract.md § /api/devices pins both keys; they were
+                        # never emitted, so every consumer had to call
+                        # /api/groups and /api/places/presence itself (E1 CR-C).
+                        "groups": groups_by_device.get(d.device_id, []),
+                        "presence": presence_by_device.get(d.device_id, []),
                     }
                     for d in rows
                 ],

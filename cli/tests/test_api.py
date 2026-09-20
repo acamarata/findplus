@@ -150,6 +150,19 @@ def test_devices_endpoint_reports_tracking_state(client: TestClient) -> None:
     assert body["devices"][0]["observation_count"] == 3
 
 
+def test_devices_endpoint_carries_groups_and_presence(client: TestClient) -> None:
+    """api-contract.md § /api/devices pins both keys; neither was emitted (E1 CR-C).
+
+    Every consumer had to call /api/groups and /api/places/presence itself. The
+    keys are additive, so a device in no group and inside no place reports two
+    empty lists rather than being omitted.
+    """
+    row = client.get("/api/devices").json()["devices"][0]
+
+    assert row["groups"] == []
+    assert row["presence"] == []
+
+
 def test_tracking_an_unknown_device_is_a_404(client: TestClient) -> None:
     res = client.post("/api/devices/track", json={"device_ids": ["NOPE"]})
     assert res.status_code == 404

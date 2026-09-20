@@ -43,13 +43,11 @@ struct SmallView: View {
                                 ? Color.dotGrey : .primary
                         )
                 }
-                Button(intent: PollNowIntent()) {
-                    Label("Poll now", systemImage: "arrow.clockwise")
-                }
-                .disabled(entry.state == .locked || entry.state == .down)
-                Button(intent: OpenFindPlusIntent()) {
-                    Label("Open", systemImage: "arrow.up.right.square")
-                }
+                // No buttons in systemSmall (CF-13): the frame already carries the
+                // dot line, count, age and the footer notice. Poll now / Open stay
+                // on the medium and large families. The Down branch above keeps its
+                // Open intent, which widget.md's Behaviour section pins for every
+                // family.
             }
             Spacer()
             NoticeFooter(entry: entry)

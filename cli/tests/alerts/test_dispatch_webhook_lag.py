@@ -17,7 +17,8 @@ import types
 from datetime import timedelta
 from unittest.mock import patch
 
-from findplus.alerts.dispatch import Rule, _send
+from findplus.alerts.dispatch import Rule
+from findplus.alerts.dispatch_send import _send
 
 from ._helpers import NOW, _device_event, _group_event
 

@@ -17,15 +17,14 @@ from fastapi.testclient import TestClient
 
 from findplus.db.session import session_scope
 from findplus.state import get_setting
-from tests.test_api import client, locked_client  # noqa: F401
 
 
-def test_widget_show_map_defaults_false(client: TestClient) -> None:  # noqa: F811
+def test_widget_show_map_defaults_false(client: TestClient) -> None:
     body = client.get("/api/settings/widget.show_map").json()
     assert body == {"widget.show_map": False}
 
 
-def test_widget_show_map_put_and_post_roundtrip(client: TestClient) -> None:  # noqa: F811
+def test_widget_show_map_put_and_post_roundtrip(client: TestClient) -> None:
     put_body = client.put("/api/settings/widget.show_map", json={"value": True}).json()
     assert put_body == {"widget.show_map": True}
     assert client.get("/api/settings/widget.show_map").json() == {"widget.show_map": True}
@@ -35,21 +34,21 @@ def test_widget_show_map_put_and_post_roundtrip(client: TestClient) -> None:  # 
     assert client.get("/api/settings/widget.show_map").json() == {"widget.show_map": False}
 
 
-def test_widget_show_map_writes_the_settings_table_row(client: TestClient) -> None:  # noqa: F811
+def test_widget_show_map_writes_the_settings_table_row(client: TestClient) -> None:
     resp = client.post("/api/settings/widget.show_map", json={"value": True})
     assert resp.status_code == 200, resp.text
     with session_scope() as session:
         assert get_setting(session, "widget.show_map") == "1"
 
 
-def test_widget_show_map_locked(locked_client: TestClient) -> None:  # noqa: F811
+def test_widget_show_map_locked(locked_client: TestClient) -> None:
     path = "/api/settings/widget.show_map"
     assert locked_client.get(path).status_code == 401
     assert locked_client.put(path, json={"value": True}).status_code == 401
     assert locked_client.post(path, json={"value": True}).status_code == 401
 
 
-def test_widget_show_map_rejects_non_bool(client: TestClient) -> None:  # noqa: F811
+def test_widget_show_map_rejects_non_bool(client: TestClient) -> None:
     resp = client.post("/api/settings/widget.show_map", json={"value": "not-a-bool"})
     assert resp.status_code == 422
     resp = client.put("/api/settings/widget.show_map", json={"value": "not-a-bool"})

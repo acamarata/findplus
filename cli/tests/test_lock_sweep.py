@@ -16,7 +16,6 @@ import re
 
 import pytest
 
-from tests.test_api import client, locked_client  # noqa: F401
 from tests.test_api_routes_snapshot import _app_routes
 
 #: Mirrors api-contract.md §Lock exactly. /static/* and / are excluded below by
@@ -55,7 +54,7 @@ _NON_PUBLIC_ROUTES = _collect_routes()
 
 
 @pytest.mark.parametrize("method,path", _NON_PUBLIC_ROUTES)
-def test_locked_returns_401(locked_client, method: str, path: str) -> None:  # noqa: F811
+def test_locked_returns_401(locked_client, method: str, path: str) -> None:
     concrete = re.sub(r"\{[^}]+\}", "0", path)
     resp = getattr(locked_client, method.lower())(concrete)
     assert resp.status_code == 401, f"{method} {path} -> {resp.status_code}"

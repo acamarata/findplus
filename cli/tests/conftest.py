@@ -9,6 +9,9 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pytest
+from fastapi.testclient import TestClient
+
+from findplus.ingest import ingest_observations, upsert_device
 
 # Point every setting at a throwaway location BEFORE findplus.config is imported.
 os.environ.setdefault("FINDPLUS_STATE_DIR", "/tmp/findplus-tests-state")
@@ -192,3 +195,47 @@ def selected(tmp_db):
         upsert_device(session, "TAG-001", "Moto Tag 2", provider="test-fake")
         track_devices(session, ["TAG-001"], exclusive=True)
     return "TAG-001"
+
+
+# The seeded local-API client used by the contract tests. It lives here, not in
+# test_api.py, so test_api.py and test_api_exports.py (split under PRI rule 7)
+# share one definition of the seed; files with their own `client` override it.
+@pytest.fixture
+def client(tmp_db):
+    from findplus.api import create_app
+    from findplus.db.session import session_scope
+    from findplus.state import track_devices
+
+    with session_scope() as session:
+        upsert_device(session, "TAG-001", "Moto Tag 2")
+        track_devices(session, ["TAG-001"], exclusive=True)
+        ingest_observations(
+            session,
+            [
+                make_observation(minutes=0, lat=41.100),
+                make_observation(minutes=17, lat=41.110),
+                make_observation(minutes=63, lat=41.140),  # 46-minute gap
+            ],
+            fetched_at=datetime(2026, 9, 18, 13, 5, tzinfo=UTC),
+        )
+    return TestClient(create_app())
+
+
+@pytest.fixture
+def locked_client(client: TestClient):
+    """`client` with the app lock engaged (PIN set, session cleared).
+
+    Setting a PIN auto-issues the caller a fresh session cookie (routes_settings.py
+    re-signs-in whoever just set it), so the cookie jar is cleared afterwards to
+    make this client an anonymous, locked-out caller for the rest of the test.
+    """
+    pin = "000000"
+    resp = client.post("/api/settings/pin", json={"new_pin": pin})
+    assert resp.status_code == 200, resp.text
+    client.cookies.clear()
+    status = client.get("/api/lock/status").json()
+    assert status["locked"] is True, f"lock did not activate: {status}"
+    try:
+        yield client
+    finally:
+        client.post("/api/lock/unlock", json={"pin": pin})

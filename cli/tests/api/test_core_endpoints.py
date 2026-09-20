@@ -10,16 +10,15 @@ from fastapi.testclient import TestClient
 
 from findplus import honesty
 from findplus.api._helpers import _widget_state
-from tests.test_api import client, locked_client  # noqa: F401
 
 
-def test_version(client: TestClient) -> None:  # noqa: F811
+def test_version(client: TestClient) -> None:
     body = client.get("/api/version").json()
     assert set(body) >= {"version", "python", "platform", "providers", "apple_extra_installed"}
     assert body["version"] == importlib.metadata.version("findplus")
 
 
-def test_widget_unlocked(client: TestClient) -> None:  # noqa: F811
+def test_widget_unlocked(client: TestClient) -> None:
     body = client.get("/api/widget").json()
     for key in (
         "state",
@@ -153,7 +152,7 @@ def test_widget_group_verdict_unknown(session) -> None:
     assert "has reported" in rows[0]["note"]
 
 
-def test_widget_locked(locked_client: TestClient) -> None:  # noqa: F811
+def test_widget_locked(locked_client: TestClient) -> None:
     assert locked_client.get("/api/widget").status_code == 401
 
 
@@ -181,7 +180,7 @@ def test_widget_show_map_table_row_wins_over_config_env(
     assert body["show_map"] is False
 
 
-def test_status_new_fields(client: TestClient) -> None:  # noqa: F811
+def test_status_new_fields(client: TestClient) -> None:
     body = client.get("/api/status").json()
     assert isinstance(body["provider_health"], list)
     assert isinstance(body["alerts_configured"], bool)
@@ -189,7 +188,7 @@ def test_status_new_fields(client: TestClient) -> None:  # noqa: F811
     assert body["last_error_type"] is None or isinstance(body["last_error_type"], str)
 
 
-def test_config_notices(client: TestClient) -> None:  # noqa: F811
+def test_config_notices(client: TestClient) -> None:
     notices = client.get("/api/config").json()["notices"]
     expected_keys = {
         "find_hub",

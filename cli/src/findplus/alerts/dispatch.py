@@ -31,6 +31,7 @@ from findplus.alerts.dispatch_core import (
     render_message,
     suppressed_by_group,
 )
+from findplus.alerts.dispatch_send import _status_for
 from findplus.groups.quorum import group_event_note, stale_note_for_count
 
 __all__ = [
@@ -146,8 +147,8 @@ def _load_rules(session) -> list[Rule]:
 def _delivery_place_ids(session, rows) -> dict[tuple[str, int], int | None]:
     """Derived place_id per (event_kind, event_id), via an ORM join -- never text() SQL.
 
-    alert_deliveries has no place_id column (no 0006 migration), so cooldown
-    scoping by place is resolved here once per load.
+    alert_deliveries has no place_id column, so cooldown scoping by place is
+    resolved here once per load.
     """
     from findplus.db.models import GroupPlaceEvent, PlaceEvent
 
@@ -180,35 +181,6 @@ def _load_recent_deliveries(session, now: datetime.datetime) -> list[Delivery]:
     ]
 
 
-def _send(rule: Rule, event: DeviceEvent | GroupEvent, kind: str, text_msg: str, channels_cfg):
-    from findplus.alerts.channels.telegram import send as tg_send
-    from findplus.alerts.channels.webhook import build_payload, send_webhook
-
-    if rule.channel == "telegram" and channels_cfg.telegram:
-        return tg_send(text_msg, channels_cfg.telegram.bot_token, channels_cfg.telegram.chat_id)
-    if rule.channel == "webhook" and channels_cfg.webhook:
-        subject_id = event.device_id if isinstance(event, DeviceEvent) else event.group_id
-        subject_name = event.device_name if isinstance(event, DeviceEvent) else event.group_name
-        observed_at = as_utc(event.observed_at)
-        fetched_at = as_utc(getattr(event, "fetched_at", None))
-        lag = round((fetched_at - observed_at).total_seconds() / 60) if fetched_at else None
-        payload = build_payload(
-            event.event_type,
-            kind,
-            subject_id,
-            subject_name,
-            event.place_id,
-            event.place_name,
-            observed_at,
-            fetched_at,
-            lag,
-            event.confidence or "",
-            getattr(event, "note", ""),
-        )
-        return send_webhook(payload, channels_cfg.webhook.url, channels_cfg.webhook.secret)
-    return None
-
-
 def _deliver_one(
     session, rule: Rule, event, channels_cfg, now: datetime.datetime
 ) -> Delivery | None:
@@ -225,22 +197,7 @@ def _deliver_one(
     if already:
         return None
 
-    try:
-        text_msg = render_message(event, now)
-        result = _send(rule, event, kind, text_msg, channels_cfg)
-        if result is None:
-            # The rule names a channel that has no credentials — a telegram rule
-            # created before telegram-setup finished, or one left enabled after
-            # DELETE /api/alerts/channels/telegram, which does not touch rules.
-            # This used to return before writing anything while process() still
-            # stamped notified_at, so the event was swallowed for good and never
-            # appeared in GET /api/alerts/deliveries. Record it instead; the
-            # cooldown filter keys on status == "sent", so this starts none.
-            status, err = "skipped", f"{rule.channel} is not configured"
-        else:
-            status, err = ("sent" if result.success else "failed"), result.error
-    except Exception as exc:  # a channel failure must never crash dispatch/the poller
-        status, err = "failed", str(exc)[:500]
+    status, err = _status_for(rule, event, kind, channels_cfg, now)
 
     session.add(
         AlertDeliveryORM(

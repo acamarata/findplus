@@ -89,7 +89,8 @@ export const CATALOG_EN = {
     "pollFailed": "Last poll failed ({status}): {message}",
     "nothingTracked": "No devices are being tracked. Click \"Devices\" to choose which trackers to poll.",
     "serviceNotRunning": "The polling service does not appear to be running. Start it with: findplus start",
-    "apiUnreachable": "Could not reach the local API: {message}"
+    "apiUnreachable": "Could not reach the local API: {message}",
+    "sectionsNavLabel": "Sections"
   },
   "devices": {
     "title": "Your devices",

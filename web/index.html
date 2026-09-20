@@ -51,6 +51,17 @@
     <button id="btn-latest" class="btn" data-i18n="common.btnLatest">Latest Location</button>
     <button id="btn-poll" class="btn btn-secondary" title="Queries your providers once, now"
             data-i18n="common.btnPoll" data-i18n-attr="title:common.btnPollTitle">Poll Now</button>
+    <!-- Phone tier only (CSS hides it above 600px). components/tabbar.js wires
+         it to the menu below, whose items click the buttons above. -->
+    <button id="btn-more" class="btn btn-secondary" type="button"
+            aria-haspopup="true" aria-expanded="false" data-i18n="common.more">More</button>
+  </div>
+  <div id="fp-more-menu" class="hidden">
+    <button class="btn btn-secondary" type="button" data-relays-to="btn-devices" data-i18n="common.btnDevices">Devices</button>
+    <button class="btn btn-secondary" type="button" data-relays-to="btn-settings" data-i18n="common.btnSettings">Settings</button>
+    <button class="btn btn-secondary" type="button" data-relays-to="btn-lock" data-i18n="common.btnLock">Lock</button>
+    <button class="btn btn-secondary" type="button" data-relays-to="btn-poll" data-i18n="common.btnPoll">Poll Now</button>
+    <button class="btn btn-secondary" type="button" data-relays-to="btn-latest" data-i18n="common.btnLatest">Latest Location</button>
   </div>
 </header>
 

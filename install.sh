@@ -20,15 +20,19 @@ parse_args() {
 
 find_python() {
   # Debian/Ubuntu split venv into python3-venv; skip to the next candidate instead of failing outright.
+  local novenv=""
   for candidate in python3.13 python3.12 python3; do
-    if command -v "$candidate" >/dev/null 2>&1; then
-      if "$candidate" -c 'import sys; assert (3, 12) <= sys.version_info < (3, 15)' 2>/dev/null &&
-        "$candidate" -c 'import venv, ensurepip' 2>/dev/null; then
-        PYTHON="$candidate"
-        return 0
-      fi
-    fi
+    command -v "$candidate" >/dev/null 2>&1 || continue
+    "$candidate" -c 'import sys; assert (3, 12) <= sys.version_info < (3, 15)' 2>/dev/null || continue
+    "$candidate" -c 'import venv, ensurepip' 2>/dev/null && { PYTHON="$candidate"; return 0; }
+    novenv="$candidate"
   done
+  # Telling someone holding a working 3.12.3 to go and get 3.12 is useless.
+  if [ -n "$novenv" ]; then
+    pkg=$("$novenv" -c 'import sys;print(f"python{sys.version_info[0]}.{sys.version_info[1]}-venv")')
+    echo "find+: $novenv has no venv module (Debian ships it apart): sudo apt install $pkg" >&2
+    exit 1
+  fi
   echo "find+: Python 3.12-3.14 with the venv module required" >&2
   exit 1
 }
@@ -80,6 +84,11 @@ install() {
   mkdir -p "$PREFIX" "$BIN"
   local package
   package="$(package_spec)"
+  # A venv whose interpreter is gone (OS upgrade, removed python) made pip die
+  # rc=127, and re-running the one-liner -- the documented remedy -- could not fix it.
+  if [ -d "$VENV" ] && ! "$VENV/bin/python" -c pass 2>/dev/null; then
+    echo "Existing venv is broken (interpreter gone); rebuilding"; rm -rf "$VENV"
+  fi
   if [ -d "$VENV" ]; then
     echo "Existing venv found, running pip install --upgrade"
     "$VENV/bin/pip" install --upgrade --quiet "$package"
@@ -89,6 +98,11 @@ install() {
   fi
   ln -sf "$VENV/bin/findplus" "$SYMLINK"
   echo "Installed. Run: findplus auth"
+  # $BIN is off the default macOS PATH; Debian's ~/.profile adds it only if it existed at login.
+  if ! command -v findplus >/dev/null 2>&1; then
+    echo "$BIN is not on your PATH -- until it is, run $SYMLINK directly. To add it:"
+    echo "  echo 'export PATH=\"$BIN:\$PATH\"' >> ~/.profile   # then open a new shell"
+  fi
 }
 
 main() {

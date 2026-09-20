@@ -176,6 +176,27 @@ def _build_candidate(
     )
 
 
+def _insert_group_event(session: Session, row: GroupPlaceEvent) -> bool:
+    """Insert one group event, tolerating the exact-duplicate race. True if it landed.
+
+    uq_gpe_dedup (migration 0006) closes the read-then-write race between
+    _existing_group_event() and this insert: two concurrent ingest transactions
+    can each see no row and each write one. The insert gets its OWN SAVEPOINT
+    because Session.rollback() always unwinds the topmost transaction -- here
+    that would discard the LocationObservation rows ingest.py flushed before it
+    ran the hooks, which ingest.py:_run_post_ingest_hooks forbids ("must not
+    roll back rows the provider will not hand us again"). Rolling back to the
+    savepoint drops the duplicate and nothing else. The catch covers ONLY the
+    exact duplicate: a later crossing carries a different observed_at.
+    """
+    try:
+        with session.begin_nested():
+            session.add(row)
+    except IntegrityError:
+        return False
+    return True
+
+
 def _persist_fired(
     session: Session,
     groups: list[Group],
@@ -210,16 +231,7 @@ def _persist_fired(
             confidence=result.confidence,
             notified_at=None,
         )
-        # uq_gpe_dedup (migration 0006) closes the read-then-write race between
-        # the _existing_group_event() check above and this insert: two concurrent
-        # ingest transactions could each see no row and each write one. The catch
-        # covers ONLY that exact duplicate -- a later crossing carries a different
-        # observed_at and is unaffected. Mirrors alerts/dispatch.py's pattern.
-        try:
-            session.add(row)
-            session.flush()
-        except IntegrityError:
-            session.rollback()
+        if not _insert_group_event(session, row):
             continue
         inserted.append(row)
         log.info(

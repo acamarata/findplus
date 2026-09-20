@@ -113,6 +113,41 @@ def test_a_repeat_crossing_at_a_later_time_is_kept(session):
     assert {r.event_type for r in rows} == {"ENTER"}
 
 
+def test_a_duplicate_insert_loses_only_the_duplicate(session, monkeypatch):
+    """The production insert path: the race loses the duplicate, not the batch.
+
+    Reaches groups.events._insert_group_event's IntegrityError catch by forcing
+    _existing_group_event to miss, which is exactly what the read-then-write
+    race does to a concurrent writer. The savepoint matters here: a plain
+    session.rollback() would also discard the observation flushed below, the
+    rows ingest.py:_run_post_ingest_hooks promises never to lose.
+    """
+    from findplus.db.models import LocationObservation
+    from findplus.groups import events as events_mod
+
+    _group, place = _seed_group(session)
+    pe = _add_place_event(session, place, "a", "ENTER", T0)
+    _add_place_event(session, place, "b", "ENTER", T0 + timedelta(minutes=1))
+    assert len(evaluate_group_events(session, pe, _Settings(), now=T0 + timedelta(minutes=1))) == 1
+    session.commit()
+
+    # An unrelated observation, flushed but not committed -- ingest.py's batch.
+    sibling = _add_fix(session, "c", T0 + timedelta(minutes=2))
+    session.flush()
+
+    # A concurrent writer's view: the dedup SELECT misses the row that is
+    # already there, so the insert below collides with uq_gpe_dedup.
+    monkeypatch.setattr(events_mod, "_existing_group_event", lambda *a, **k: None)
+    rows = evaluate_group_events(session, pe, _Settings(), now=T0 + timedelta(minutes=1))
+
+    assert rows == [], "the duplicate must be dropped, not raised"
+    assert len(list(session.scalars(select(GroupPlaceEvent)))) == 1
+    survivors = session.scalars(
+        select(LocationObservation).where(LocationObservation.id == sibling.id)
+    )
+    assert survivors.first() is not None, "the savepoint must not discard the ingest batch"
+
+
 def test_the_exact_duplicate_race_is_rolled_back(session):
     """Two writers racing on the same four columns: the second insert is refused.
 

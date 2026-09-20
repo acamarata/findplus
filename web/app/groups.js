@@ -131,7 +131,21 @@ function ageLabel(member) {
   return hours < 48 ? `${hours} h` : `${Math.floor(hours / 24)} d`;
 }
 
-function nameList(id, deviceIds, byId) {
+/**
+ * A labelled list of member names.
+ *
+ * The together and diverged lists were two adjacent bare <ul>s with no
+ * heading and no ::before, so nothing on screen said which was which -- only
+ * the stale list described itself (honesty round 2 F11). An empty list renders
+ * nothing at all rather than a heading over a void.
+ */
+function nameList(id, heading, deviceIds, byId) {
+  const wrap = document.createElement("div");
+  if (!deviceIds || deviceIds.length === 0) return wrap;
+  const title = document.createElement("p");
+  title.className = "fp-list-heading";
+  title.textContent = heading;
+  wrap.appendChild(title);
   const ul = document.createElement("ul");
   ul.id = id;
   deviceIds.forEach((deviceId) => {
@@ -139,7 +153,8 @@ function nameList(id, deviceIds, byId) {
     li.textContent = (byId.get(deviceId) || {}).name || deviceId;
     ul.appendChild(li);
   });
-  return ul;
+  wrap.appendChild(ul);
+  return wrap;
 }
 
 export function renderPresencePanel(presence) {
@@ -160,8 +175,8 @@ export function renderPresencePanel(presence) {
   }
 
   const byId = new Map(presence.members.map((m) => [m.device_id, m]));
-  panel.appendChild(nameList("fp-together-list", presence.together, byId));
-  panel.appendChild(nameList("fp-diverged-list", presence.diverged, byId));
+  panel.appendChild(nameList("fp-together-list", "Together", presence.together, byId));
+  panel.appendChild(nameList("fp-diverged-list", "Away from the others", presence.diverged, byId));
 
   const staleList = document.createElement("ul");
   staleList.id = "fp-stale-list";

@@ -25,6 +25,11 @@
       <button type="submit" class="btn" id="lock-submit">Unlock</button>
     </form>
     <p id="lock-error" class="lock-error"></p>
+    <!-- honesty.LOCK_NOT_ENCRYPTION, from the PUBLIC /api/lock/requirements.
+         The Settings dialog rendered it, but Settings sits BEHIND this screen:
+         the one place that presents the lock as protection said nothing about
+         what it does not do (honesty round 2 F12). -->
+    <p id="lock-caveat-screen" class="notice"></p>
   </div>
 </div>
 

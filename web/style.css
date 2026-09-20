@@ -274,3 +274,13 @@ html[data-theme="light"] .alert.warn { color: #6b4a00; }
   background: var(--panel-2); color: var(--muted); }
 .fp-provider-badge--google-find-hub { background: rgba(79,140,247,.18); color: var(--accent); }
 .fp-provider-badge--apple-find-my { background: var(--panel-2); color: var(--text); }
+
+/* Heading above each group presence name list (honesty round 2 F11): the
+   together and diverged lists were two adjacent bare <ul>s with nothing
+   saying which was which. */
+.fp-list-heading {
+  margin: 0.6rem 0 0.15rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+}

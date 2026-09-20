@@ -124,3 +124,58 @@ async def test_real_divergence_is_still_labelled_diverged(page, base_url):
         }"""
     )
     assert label == "Diverged"
+
+
+async def test_each_presence_name_list_says_what_it_is(page, base_url):
+    """honesty round 2 F11: two adjacent bare <ul>s with nothing naming either.
+
+    Only the stale list described itself, so the together and diverged names
+    were indistinguishable at a glance.
+    """
+    await _open_group(page, base_url)
+
+    headings = await page.evaluate(
+        """async () => {
+            const groups = await import('/static/app/groups.js');
+            groups.renderPresencePanel({
+                verdict: 'partial',
+                together: ['TAG-HOME'],
+                diverged: ['TAG-AWAY'],
+                stale: [],
+                reporting_count: 2,
+                members: [
+                    { device_id: 'TAG-HOME', name: 'Home Tag' },
+                    { device_id: 'TAG-AWAY', name: 'Away Tag' },
+                ],
+                note: '',
+            });
+            return [...document.querySelectorAll('#fp-presence-panel .fp-list-heading')]
+                .map((el) => el.textContent);
+        }"""
+    )
+    assert len(headings) == 2, f"both lists must be labelled, got {headings}"
+    assert headings[0] == "Together"
+    assert "Away" in headings[1]
+
+
+async def test_an_empty_list_renders_no_heading(page, base_url):
+    """A heading over nothing is worse than no heading."""
+    await _open_group(page, base_url)
+
+    headings = await page.evaluate(
+        """async () => {
+            const groups = await import('/static/app/groups.js');
+            groups.renderPresencePanel({
+                verdict: 'all_together',
+                together: ['TAG-HOME'],
+                diverged: [],
+                stale: [],
+                reporting_count: 1,
+                members: [{ device_id: 'TAG-HOME', name: 'Home Tag' }],
+                note: '',
+            });
+            return [...document.querySelectorAll('#fp-presence-panel .fp-list-heading')]
+                .map((el) => el.textContent);
+        }"""
+    )
+    assert headings == ["Together"]

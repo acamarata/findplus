@@ -43,7 +43,29 @@ export async function showLock() {
   $("lock-screen").classList.remove("hidden");
   $("lock-error").textContent = "";
   $("lock-pin").value = "";
+  await showLockCaveat();
   $("lock-pin").focus();
+}
+
+/**
+ * State honesty.LOCK_NOT_ENCRYPTION on the screen that presents the lock.
+ *
+ * /api/lock/requirements is public, so this works while locked. The Settings
+ * dialog already rendered the same sentence, but Settings sits BEHIND this
+ * screen: the one surface making the protection claim said nothing about what
+ * the lock does not do (honesty round 2 F12). A failed fetch leaves it blank
+ * rather than substituting a paraphrase.
+ */
+async function showLockCaveat() {
+  const el = $("lock-caveat-screen");
+  if (!el) return;
+  try {
+    const res = await fetch("/api/lock/requirements");
+    if (!res.ok) return;
+    el.textContent = (await res.json()).caveat || "";
+  } catch {
+    /* offline or mid-restart: say nothing rather than guess */
+  }
 }
 
 /**

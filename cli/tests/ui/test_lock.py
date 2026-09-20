@@ -120,3 +120,52 @@ async def test_lock_redirects_api_when_locked(page, base_url):
             headers={"Content-Type": "application/json"},
         )
         assert del_resp.ok, await del_resp.text()
+
+
+async def test_the_lock_screen_states_the_lock_is_not_encryption(page, base_url):
+    """honesty round 2 F12: the caveat was only in Settings, which sits behind the lock.
+
+    /api/lock/requirements is public precisely so this screen can render it.
+    The one surface presenting the lock as protection said only "Find+ is
+    locked / Enter your PIN to continue."
+    """
+    from findplus import honesty
+
+    await page.goto(base_url + "/")
+    await page.wait_for_selector("#map")
+    set_resp = await page.request.post(
+        base_url + "/api/settings/pin",
+        data=json.dumps({"new_pin": PIN}),
+        headers={"Content-Type": "application/json"},
+    )
+    assert set_resp.ok, await set_resp.text()
+    try:
+        shown = await page.evaluate(
+            """async () => {
+                const lock = await import('/static/app/lock.js');
+                await lock.showLock();
+                const el = document.getElementById('lock-caveat-screen');
+                for (let i = 0; i < 50 && el.textContent === ''; i++) {
+                    await new Promise((r) => setTimeout(r, 100));
+                }
+                return {
+                    visible: !document.getElementById('lock-screen').classList.contains('hidden'),
+                    caveat: el.textContent,
+                };
+            }"""
+        )
+        assert shown["visible"] is True
+        assert shown["caveat"] == honesty.LOCK_NOT_ENCRYPTION
+    finally:
+        unlock = await page.request.post(
+            base_url + "/api/lock/unlock",
+            data=json.dumps({"pin": PIN}),
+            headers={"Content-Type": "application/json"},
+        )
+        assert unlock.ok, await unlock.text()
+        del_resp = await page.request.delete(
+            f"{base_url}/api/settings/pin",
+            data=json.dumps({"current_pin": PIN}),
+            headers={"Content-Type": "application/json"},
+        )
+        assert del_resp.ok, await del_resp.text()

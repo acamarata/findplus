@@ -174,18 +174,28 @@ export function renderPresencePanel(presence) {
     panel.appendChild(note);
   }
 
-  const byId = new Map(presence.members.map((m) => [m.device_id, m]));
+  // GroupPresence.together/diverged/stale hold member NAMES, not device ids
+  // (groups/presence.py, pinned by tests/groups/test_presence.py). Looking them
+  // up by device_id missed every time, so ageLabel() got undefined and every
+  // stale row read "no fix for unknown" -- including after round 2 taught the
+  // engine to keep the age (E1 honesty round 3 F2). Key on both, name first,
+  // so this keeps working if the payload ever carries ids instead.
+  const byId = new Map();
+  presence.members.forEach((m) => {
+    byId.set(m.name, m);
+    byId.set(m.device_id, m);
+  });
   panel.appendChild(nameList("fp-together-list", "Together", presence.together, byId));
   panel.appendChild(nameList("fp-diverged-list", "Away from the others", presence.diverged, byId));
 
   const staleList = document.createElement("ul");
   staleList.id = "fp-stale-list";
-  presence.stale.forEach((deviceId) => {
-    const member = byId.get(deviceId);
+  presence.stale.forEach((key) => {
+    const member = byId.get(key);
     const li = document.createElement("li");
     const badge = document.createElement("span");
     badge.className = "fp-stale-badge";
-    const name = (member && member.name) || deviceId;
+    const name = (member && member.name) || key;
     badge.textContent = `${name} — no fix for ${ageLabel(member)}`;
     li.appendChild(badge);
     staleList.appendChild(li);

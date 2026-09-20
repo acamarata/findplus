@@ -179,3 +179,35 @@ async def test_an_empty_list_renders_no_heading(page, base_url):
         }"""
     )
     assert headings == ["Together"]
+
+
+async def test_a_stale_member_row_shows_its_real_age(page, base_url):
+    """honesty round 3 F2: round 2's age never reached the badge.
+
+    GroupPresence.together/diverged/stale hold member NAMES, but the renderer
+    built its lookup keyed on device_id, so every `byId.get(...)` missed and
+    ageLabel(undefined) returned "unknown" — for every stale row, always, even
+    after the engine was taught to keep age_minutes.
+    """
+    await _open_group(page, base_url)
+
+    text = await page.evaluate(
+        """async () => {
+            const groups = await import('/static/app/groups.js');
+            groups.renderPresencePanel({
+                verdict: 'partial',
+                together: ['Home Tag'],
+                diverged: [],
+                stale: ['Backpack'],
+                reporting_count: 1,
+                members: [
+                    { device_id: 'TAG-HOME', name: 'Home Tag', age_minutes: 2 },
+                    { device_id: 'TAG-BAG', name: 'Backpack', age_minutes: 300 },
+                ],
+                note: 'Only Home Tag is reporting (2 min ago).',
+            });
+            return document.querySelector('#fp-stale-list li').textContent;
+        }"""
+    )
+    assert "unknown" not in text, f"the stale row still cannot find its member: {text}"
+    assert text == "Backpack — no fix for 5 h"

@@ -192,15 +192,10 @@ def test_status_new_fields(client: TestClient) -> None:
 
 def test_config_notices(client: TestClient) -> None:
     notices = client.get("/api/config").json()["notices"]
-    expected_keys = {
-        "find_hub",
-        "apple",
-        "alerts_latency",
-        "presence_stale",
-        "lock_not_encryption",
-        "not_affiliated",
-    }
-    assert set(notices) == expected_keys
+    # The key set comes from honesty.NOTICES, never a retyped list: a later
+    # ticket adding a sentence (chrome_required, the E8 alert notices) should
+    # only have to edit honesty.py (R-P2-5).
+    assert set(notices) == set(honesty.NOTICES)
     for value in notices.values():
         assert isinstance(value, str) and value
     assert notices["find_hub"] == honesty.FIND_HUB

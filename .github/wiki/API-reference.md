@@ -887,11 +887,13 @@ Delete Rule
 Get Channels
 
 ### GET /api/alerts/deliveries
-Get Deliveries
+The delivery log, and the queue the desktop native poller drains.
 
 | name | in | required | type |
 |---|---|---|---|
 | limit | query | False | integer |
+| since | query | False | integer |
+| channel | query | False | string |
 
 ### GET /api/alerts/rules
 Get Rules
@@ -919,6 +921,13 @@ Post Telegram Setup
   "title": "TelegramSetupBody"
 }
 ```
+
+### POST /api/alerts/deliveries/{delivery_id}/ack
+The desktop app confirms it showed a queued native notification.
+
+| name | in | required | type |
+|---|---|---|---|
+| delivery_id | path | True | integer |
 
 ### POST /api/alerts/rules
 Post Rule

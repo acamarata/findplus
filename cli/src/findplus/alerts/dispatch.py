@@ -199,7 +199,14 @@ def _deliver_one(
     if already:
         return None
 
-    status, err = _status_for(channel, rule, event, kind, channels_cfg, now)
+    if channel == "native":
+        # No send and no DeliveryResult: the row IS the queue entry the desktop
+        # app drains (specs/notifications.md § 2). Ruling F2 still holds -- a
+        # "queued" row is a one-time entry, never a pending retry, so if the app
+        # never polls the alert is simply never shown.
+        status, err = "queued", None
+    else:
+        status, err = _status_for(channel, rule, event, kind, channels_cfg, now)
 
     session.add(
         AlertDeliveryORM(

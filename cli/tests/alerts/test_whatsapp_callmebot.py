@@ -11,6 +11,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import httpx
+import pytest
 
 from findplus.alerts.channels.telegram import DeliveryResult
 from findplus.alerts.channels.whatsapp_callmebot import (
@@ -162,6 +163,7 @@ def test_is_valid_phone_accepts_e164_and_rejects_the_near_misses() -> None:
     assert not is_valid_phone("+3412 3123123")  # no spaces
 
 
+@pytest.mark.posix_only
 def test_alerts_json_round_trips_whatsapp_like_the_other_two(tmp_path, monkeypatch) -> None:
     from findplus.alerts import store
 

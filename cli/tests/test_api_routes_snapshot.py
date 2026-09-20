@@ -21,7 +21,9 @@ Constraints: Zero behavior change from the pre-split monolith is the bar —
              /api/auth/apple/* routes, bringing it to 65; P2-E6-W3-S1-T4 adds
              POST /api/apple/accessories, bringing it to 66;
              P2-E8-W3-S1-T3 adds PUT/DELETE
-             /api/alerts/channels/whatsapp, bringing it to 68.
+             /api/alerts/channels/whatsapp, bringing it to 68;
+             P2-E8-W3-S1-T4 adds POST
+             /api/alerts/deliveries/{delivery_id}/ack, bringing it to 69.
 """
 
 from __future__ import annotations
@@ -66,7 +68,7 @@ def _app_routes(app):
 def test_route_count():
     app = create_app()
     routes = _app_routes(app)
-    assert len(routes) == 68
+    assert len(routes) == 69
 
 
 def test_route_paths_present():
@@ -127,6 +129,7 @@ def test_route_paths_present():
         "/api/alerts/rules",
         "/api/alerts/rules/{rule_id}",
         "/api/alerts/deliveries",
+        "/api/alerts/deliveries/{delivery_id}/ack",
     }
     assert expected.issubset(paths)
 

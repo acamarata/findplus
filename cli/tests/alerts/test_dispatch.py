@@ -15,7 +15,12 @@ from unittest.mock import patch
 from findplus.alerts.dispatch import load_pending_events, process
 from findplus.db.models_alerts import AlertDelivery
 
-from ._helpers import NOW, _device_event, _seed_place_and_device, _telegram_configured
+from ._helpers import (
+    NOW,
+    _device_event,
+    _seed_place_and_device,
+    _telegram_configured,
+)
 
 
 def test_flapping_200_events(rule_row, session, settings_enabled) -> None:

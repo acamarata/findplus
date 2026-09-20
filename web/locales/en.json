@@ -317,6 +317,8 @@
     "lockNotEncryption": "The app lock stops casual browsing. It does not encrypt the database; anyone with access to this user account or the disk can read it. Use FileVault.",
     "whatsappRelay": "WhatsApp alerts are relayed through CallMeBot, a third-party free service. Your alert text transits CallMeBot's servers before reaching WhatsApp. Delivery is best-effort with no guarantee. Find+ is not affiliated with WhatsApp, Meta or CallMeBot.",
     "whatsappSetup": "To connect WhatsApp: add +34 623 91 22 04 to your phone's contacts, then send it the message \"I allow callmebot to send me messages\" from your own WhatsApp. CallMeBot replies with an API key within about two minutes — paste it below.",
+    "alertsLocked": "Notifications are held while Find+ is locked. Unlock to see what you missed.",
+    "nativeGeneric": "By default, macOS notifications show a generic \"Find+ alert\" instead of who or where, because notification banners can appear on a locked screen. Turn on notification details in Settings to show the person and place — anyone who can see the screen then sees the same thing.",
     "notAffiliated": "Find+ is not affiliated with Apple or Google. Find Hub and Find My are their trademarks.",
     "chromeRequired": "Google Chrome was not found on this machine. Google sign-in drives Chrome directly and cannot run without it. Install it from https://www.google.com/chrome/ and try again."
   }

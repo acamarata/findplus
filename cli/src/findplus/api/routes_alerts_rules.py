@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from findplus.alerts.channels_field import format_channels, parse_channels
+from findplus.api._delivery_render import delivery_text_body
 from findplus.db.models import Device, Group, Place
 from findplus.db.models_alerts import AlertDelivery, AlertRule
 from findplus.db.session import session_scope
@@ -93,6 +94,35 @@ def _get_rule_or_404(session, rule_id: int) -> AlertRule:
     return rule
 
 
+def _delivery_to_dict(session, d: AlertDelivery, rule_name: str) -> dict[str, Any]:
+    """One delivery row. `text`/`body` are rendered on read, for native rows only.
+
+    No join field (place_name, device_name, group_name, event_type) is exposed:
+    a caller that wants any of them already has the rendered text.
+    """
+    text, body = (
+        delivery_text_body(session, d.event_kind, d.event_id)
+        if d.channel == "native"
+        else (None, None)
+    )
+    return {
+        "id": d.id,
+        "rule_id": d.rule_id,
+        "rule_name": rule_name,
+        # A stored column since migration 0008: one delivery row per channel per
+        # event, so the rule no longer owns it alone.
+        "channel": d.channel,
+        "event_kind": d.event_kind,
+        "event_id": d.event_id,
+        "sent_at": d.sent_at.isoformat(),
+        "delivered_at": d.delivered_at.isoformat() if d.delivered_at else None,
+        "status": d.status,
+        "error": d.error,
+        "text": text,
+        "body": body,
+    }
+
+
 def build_router() -> APIRouter:
     router = APIRouter(prefix="/api/alerts", tags=["alerts"])
 
@@ -149,29 +179,42 @@ def build_router() -> APIRouter:
         return Response(status_code=204)
 
     @router.get("/deliveries")
-    def get_deliveries(limit: int = 100) -> list[dict[str, Any]]:
+    def get_deliveries(
+        limit: int = 100, since: int | None = None, channel: str | None = None
+    ) -> list[dict[str, Any]]:
+        """The delivery log, and the queue the desktop native poller drains.
+
+        `since` is an exclusive delivery-id cursor and replaces `limit` when
+        given: the poller wants everything new, in the order it happened, not a
+        fixed page of the most recent (specs/notifications.md § 2).
+        """
         with session_scope() as s:
-            stmt = (
-                select(AlertDelivery, AlertRule.name)
-                .join(AlertRule, AlertRule.id == AlertDelivery.rule_id)
-                .order_by(AlertDelivery.sent_at.desc())
-                .limit(limit)
+            stmt = select(AlertDelivery, AlertRule.name).join(
+                AlertRule, AlertRule.id == AlertDelivery.rule_id
             )
-            return [
-                {
-                    "id": d.id,
-                    "rule_id": d.rule_id,
-                    "rule_name": rule_name,
-                    # A stored column since migration 0008: one delivery row per
-                    # channel per event, so the rule no longer owns it alone.
-                    "channel": d.channel,
-                    "event_kind": d.event_kind,
-                    "event_id": d.event_id,
-                    "sent_at": d.sent_at.isoformat(),
-                    "status": d.status,
-                    "error": d.error,
-                }
-                for d, rule_name in s.execute(stmt).all()
-            ]
+            if channel is not None:
+                stmt = stmt.filter(AlertDelivery.channel == channel)
+            if since is not None:
+                stmt = stmt.filter(AlertDelivery.id > since).order_by(AlertDelivery.id)
+            else:
+                stmt = stmt.order_by(AlertDelivery.sent_at.desc()).limit(limit)
+            return [_delivery_to_dict(s, d, rule_name) for d, rule_name in s.execute(stmt).all()]
+
+    @router.post("/deliveries/{delivery_id}/ack", status_code=204)
+    def ack_delivery(delivery_id: int) -> Response:
+        """The desktop app confirms it showed a queued native notification.
+
+        404 covers both "no such delivery" and "not queued any more". A repeated
+        ack from a retried request is expected, not a conflict, so the client
+        treats 404 as success-equivalent (specs/notifications.md § 2).
+        """
+        with session_scope() as s:
+            delivery = s.get(AlertDelivery, delivery_id)
+            if delivery is None or delivery.status != "queued":
+                raise HTTPException(status_code=404, detail="delivery not queued")
+            delivery.status = "delivered"
+            delivery.delivered_at = datetime.now(UTC)
+            s.commit()
+        return Response(status_code=204)
 
     return router

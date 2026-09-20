@@ -64,6 +64,8 @@ def test_notices_dict_matches_named_constants() -> None:
         "lock_not_encryption": honesty.LOCK_NOT_ENCRYPTION,
         "whatsapp_relay": honesty.WHATSAPP_RELAY,
         "whatsapp_setup": honesty.WHATSAPP_SETUP,
+        "alerts_locked": honesty.ALERTS_LOCKED,
+        "native_generic": honesty.NATIVE_GENERIC,
         "not_affiliated": honesty.NOT_AFFILIATED,
         "chrome_required": honesty.CHROME_REQUIRED,
     }

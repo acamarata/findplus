@@ -55,6 +55,15 @@ WHATSAPP_SETUP = (
     "replies with an API key within about two minutes — paste it below."
 )
 
+ALERTS_LOCKED = "Notifications are held while Find+ is locked. Unlock to see what you missed."
+
+NATIVE_GENERIC = (
+    'By default, macOS notifications show a generic "Find+ alert" instead of who or '
+    "where, because notification banners can appear on a locked screen. Turn on "
+    "notification details in Settings to show the person and place — anyone who can see "
+    "the screen then sees the same thing."
+)
+
 NOT_AFFILIATED = (
     "Find+ is not affiliated with Apple or Google. Find Hub and Find My are their trademarks."
 )
@@ -73,6 +82,8 @@ NOTICES: dict[str, str] = {
     "lock_not_encryption": LOCK_NOT_ENCRYPTION,
     "whatsapp_relay": WHATSAPP_RELAY,
     "whatsapp_setup": WHATSAPP_SETUP,
+    "alerts_locked": ALERTS_LOCKED,
+    "native_generic": NATIVE_GENERIC,
     "not_affiliated": NOT_AFFILIATED,
     "chrome_required": CHROME_REQUIRED,
 }

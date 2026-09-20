@@ -1,15 +1,10 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "remote",
-  "description": "Grants the loopback dashboard origin core defaults plus notification permissions.",
+  "description": "Grants the loopback dashboard origin the core IPC defaults only, so it can invoke request_notification_permission. The notification plugin's own commands are deliberately NOT granted here: the page never calls them, notify.rs posts every banner from Rust (where plugin permissions do not apply), and granting notification:default to a remote origin would let any script on port 8647 post a detailed banner behind the generic-while-locked rule.",
   "remote": {
     "urls": ["http://127.0.0.1:8647/*"]
   },
   "windows": ["main"],
-  "permissions": [
-    "core:default",
-    "notification:default",
-    "notification:allow-request-permission",
-    "notification:allow-is-permission-granted"
-  ]
+  "permissions": ["core:default"]
 }

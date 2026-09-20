@@ -13,6 +13,8 @@ from __future__ import annotations
 import datetime
 from dataclasses import dataclass
 
+from findplus.honesty import ALERTS_LATENCY
+
 
 @dataclass(frozen=True)
 class DeviceEvent:
@@ -158,8 +160,12 @@ def in_cooldown(
     )
 
 
-#: The honesty sentence is never truncated away: the variable head is trimmed instead.
-_LATENCY_TAIL = "\nFind Hub and Find My locations can be minutes to hours late."
+#: The honesty sentence is never truncated away: the variable head is trimmed
+#: instead. It is honesty.ALERTS_LATENCY itself, never a second wording --
+#: honesty.py says "Never paraphrase or shorten these", and this surface is the
+#: one that arrives with no context around it. The old hand-written tail also
+#: named Find Hub to Apple-only users (E1 honesty round 2 F6).
+_LATENCY_TAIL = f"\n{ALERTS_LATENCY}"
 
 
 def as_utc(value: datetime.datetime | str | None) -> datetime.datetime | None:
@@ -200,6 +206,11 @@ def render_message(event: DeviceEvent | GroupEvent, now: datetime.datetime) -> s
         f"Observed {obs} · reported {rep} · {lag}\n"
         f"Confidence: {event.confidence}."
     )
+    budget = 400 - len(_LATENCY_TAIL)
     if note:
-        msg += f" {note}"
-    return msg[: 400 - len(_LATENCY_TAIL)] + _LATENCY_TAIL
+        # A note is one honesty sentence of its own ("...which does not mean
+        # they were left behind"). Half of it is worse than none of it, so it
+        # goes in whole or not at all rather than being sliced mid-clause.
+        with_note = f"{msg} {note}"
+        msg = with_note if len(with_note) <= budget else msg
+    return msg[:budget] + _LATENCY_TAIL

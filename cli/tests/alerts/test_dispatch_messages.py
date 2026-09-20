@@ -7,7 +7,9 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from ._helpers import NOW, _device_event
+from findplus import honesty
+
+from ._helpers import NOW, _device_event, _group_event
 
 
 def test_lag_in_message() -> None:
@@ -54,7 +56,8 @@ def test_message_with_a_date_and_a_note_still_fits_the_limit() -> None:
         _device_event(observed_at=NOW - timedelta(days=400), place_name="P" * 600), NOW
     )
     assert len(msg) <= 400
-    assert msg.endswith("Find Hub and Find My locations can be minutes to hours late.")
+    # The pinned sentence itself, not a second wording of it (honesty round 2 F6).
+    assert msg.endswith(honesty.ALERTS_LATENCY)
 
 
 def test_as_utc_parses_sqlite_strings() -> None:
@@ -71,4 +74,33 @@ def test_render_keeps_the_latency_sentence_when_truncating() -> None:
 
     msg = render_message(_device_event(place_name="X" * 600), NOW)
     assert len(msg) <= 400
-    assert msg.endswith("Find Hub and Find My locations can be minutes to hours late.")
+    assert msg.endswith(honesty.ALERTS_LATENCY)
+
+
+def test_the_latency_tail_is_the_pinned_sentence_verbatim() -> None:
+    """honesty.py: "Never paraphrase or shorten these"."""
+    from findplus.alerts.dispatch_core import _LATENCY_TAIL
+
+    assert f"\n{honesty.ALERTS_LATENCY}" == _LATENCY_TAIL
+    assert "Find Hub" not in _LATENCY_TAIL, "the tail must not name one provider"
+
+
+def test_a_note_is_kept_whole_or_dropped_whole() -> None:
+    """A half-sliced note loses the clause that does the honesty work.
+
+    The group note ends "...which does not mean they were left behind"; the old
+    code sliced the combined string at the byte budget, so a long note could
+    keep the accusation and lose the retraction.
+    """
+    from findplus.alerts.dispatch import render_message
+
+    long_note = "Only Zoe is reporting (4 min ago). " + "Y" * 400
+    msg = render_message(_group_event(note=long_note), NOW)
+
+    assert len(msg) <= 400
+    assert msg.endswith(honesty.ALERTS_LATENCY)
+    assert "Only Zoe" not in msg, "an oversized note is dropped, never half-rendered"
+
+    short_note = "Backpack have no recent fix, which does not mean they were left behind."
+    kept = render_message(_group_event(note=short_note), NOW)
+    assert short_note in kept

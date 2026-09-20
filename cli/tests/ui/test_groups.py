@@ -48,9 +48,16 @@ async def test_select_group_renders_overlay(page, base_url):
 
 
 async def test_presence_panel_shows_verdict(page, base_url):
+    """The seed is 2 reporting of 3, so the headline must say so.
+
+    This asserted a plain "Together" until honesty round 3 F3: `all_together`
+    only means everyone who REPORTED is together, and headlining that as
+    "Together" claims the whole group while a third of it is silent. The old
+    assertion was pinning the overstatement.
+    """
     await _open_group(page, base_url)
     verdict = page.locator("#fp-presence-panel .fp-verdict")
-    assert await verdict.inner_text() == "Together"
+    assert await verdict.inner_text() == "Together (2 of 3 reporting)"
 
 
 async def test_stale_member_no_marker(page, base_url):

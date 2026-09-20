@@ -98,31 +98,29 @@ export function drawGroupOverlays(presence, group) {
 }
 
 /**
- * The one word a glance reads. It must never assert more than the engine found.
+ * The phrase the API computed, with the old client-side rules as a fallback.
  *
- * `partial` covers two different situations. With names in `diverged` the tags
- * really are apart. With an empty `diverged` list it means only one member is
- * reporting and the rest are stale — presence.py:209 — and honesty.md's
- * presence_stale sentence forbids reading a missing fix as "not at home and not
- * left behind". Labelling that "Diverged" asserted exactly that inference,
- * while the note underneath it said the opposite.
+ * The dashboard, the widget and the CLI each had their own mapping and printed
+ * three different things for one state (E1 honesty round 3 F4), so the label is
+ * served beside the verdict now. The fallback keeps an older daemon readable
+ * and encodes the two rules that matter: `partial` with nobody diverged is not
+ * divergence (round 2 F1), and `all_together` with a silent member is not the
+ * whole group (round 3 F3).
  */
 function verdictLabel(presence) {
-  if (presence.verdict === "all_together") return "Together";
+  if (presence.verdict_label) return presence.verdict_label;
+  const reporting = presence.reporting_count;
+  const considered = presence.considered_count;
+  if (presence.verdict === "all_together") {
+    return considered && reporting < considered
+      ? `Together (${reporting} of ${considered} reporting)`
+      : "Together";
+  }
   if (presence.verdict !== "partial") return "Unknown";
   if (presence.diverged && presence.diverged.length > 0) return "Diverged";
-  const reporting = presence.reporting_count;
-  return reporting === 1 ? "Only 1 reporting" : "Unknown";
+  return reporting === 1 ? "Only 1 reporting" : "Partial";
 }
 
-/**
- * How long ago a member last reported, as min/h/d.
- *
- * "unknown" is reserved for a member with no fix at all. Until round 2 every
- * stale row said "no fix for unknown" because presence.py discarded
- * age_minutes on exactly the members this labels; and the hours rung alone
- * turned five days into "120 h" (E1 honesty round 2 F7).
- */
 function ageLabel(member) {
   const minutes = member ? member.age_minutes : null;
   if (minutes == null) return "unknown";

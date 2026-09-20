@@ -19,6 +19,7 @@ from sqlalchemy.exc import OperationalError
 
 from findplus.config import get_settings
 from findplus.db.models import Group, LocationObservation
+from findplus.groups.presence import verdict_label
 from findplus.groups.repo import build_presence
 from findplus.state import get_setting, get_tracked_devices
 
@@ -119,6 +120,12 @@ def _group_rows(session) -> list[dict[str, Any]]:
                 "id": group.id,
                 "name": group.name,
                 "verdict": presence.verdict,
+                "verdict_label": verdict_label(
+                    presence.verdict,
+                    diverged=presence.diverged,
+                    reporting_count=presence.reporting_count,
+                    considered_count=presence.considered_count,
+                ),
                 "note": presence.note,
             }
         )

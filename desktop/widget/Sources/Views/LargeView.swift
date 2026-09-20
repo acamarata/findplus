@@ -21,7 +21,7 @@ struct LargeView: View {
             MediumView(entry: entry, embedded: true)
             ForEach(entry.response?.groups ?? [], id: \.id) { g in
                 HStack {
-                    Text(verdictLabel(g.verdict)).bold()
+                    Text(g.displayVerdict).bold()
                     Text(g.note).foregroundStyle(.secondary)
                 }
                 .font(.caption)

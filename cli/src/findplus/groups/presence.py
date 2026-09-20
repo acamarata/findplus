@@ -74,6 +74,34 @@ def _names_joined(names: list[str]) -> str:
     return ", ".join(names[:-1]) + f" and {names[-1]}"
 
 
+def verdict_label(
+    verdict: str, *, diverged: list[str], reporting_count: int, considered_count: int
+) -> str:
+    """The one phrase every surface shows for a group verdict.
+
+    Served by the API beside `verdict` so the dashboard, the widget and the CLI
+    cannot drift apart again: they printed the raw enum, "Diverged" and
+    "Partial" for the same state (E1 honesty round 3 F4).
+
+    `all_together` means everyone who REPORTED is together, which reads as a
+    claim about the whole group when part of it is silent -- the overstating
+    direction, and the mirror of the `partial`-with-nobody-diverged case that
+    was already guarded. So a group with a stale member says how many reported
+    (E1 honesty round 3 F3).
+    """
+    if verdict == "all_together":
+        if considered_count and reporting_count < considered_count:
+            return f"Together ({reporting_count} of {considered_count} reporting)"
+        return "Together"
+    if verdict != "partial":
+        return "Unknown"
+    if diverged:
+        return "Diverged"
+    if reporting_count == 1:
+        return "Only 1 reporting"
+    return "Partial"
+
+
 def _build_stale_clause(stale_names: list[str]) -> str:
     """Standalone sentence closing the 0/1-reporting notes (engines.md)."""
     if not stale_names:

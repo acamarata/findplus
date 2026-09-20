@@ -22,6 +22,7 @@ from sqlalchemy.exc import IntegrityError
 from findplus.config import get_settings
 from findplus.db.models import Group
 from findplus.db.session import session_scope
+from findplus.groups.presence import verdict_label
 from findplus.groups.repo import (
     build_presence,
     create_group,
@@ -205,7 +206,16 @@ def presence_cmd(group_id, window, as_json):
         )
         return
 
-    click.echo(f"Verdict: {presence.verdict}")
+    # The same phrase the dashboard and the widget show, not the raw enum.
+    click.echo(
+        "Verdict: "
+        + verdict_label(
+            presence.verdict,
+            diverged=presence.diverged,
+            reporting_count=presence.reporting_count,
+            considered_count=presence.considered_count,
+        )
+    )
     click.echo(presence.note)
     click.echo(f"{'DEVICE':<14}{'NAME':<16}{'STATUS':<18}{'PLACE':<14}{'AGE_MIN':>8}{'STALE':>7}")
     for s2 in statuses:

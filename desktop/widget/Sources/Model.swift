@@ -62,7 +62,18 @@ struct WidgetGroup: Codable {
     let id: Int
     let name: String
     let verdict: String
+    /// The phrase the API computed. Optional so an older daemon still decodes.
+    let verdict_label: String?
     let note: String
+
+    /// What to show: the served label, else the local mapping.
+    ///
+    /// The dashboard, this widget and the CLI each had their own mapping and
+    /// printed three different things for one state, so the API serves it now
+    /// (E1 honesty round 3 F4).
+    var displayVerdict: String {
+        verdict_label ?? verdictLabel(verdict)
+    }
 }
 
 struct WidgetResponse: Codable {

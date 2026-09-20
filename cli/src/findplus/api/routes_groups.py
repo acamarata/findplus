@@ -25,7 +25,7 @@ from sqlalchemy.exc import IntegrityError
 from findplus.config import get_settings
 from findplus.db.models import Group
 from findplus.db.session import session_scope
-from findplus.groups.presence import MemberStatus
+from findplus.groups.presence import MemberStatus, verdict_label
 from findplus.groups.repo import (
     build_presence,
     create_group,
@@ -181,6 +181,14 @@ def build_router() -> APIRouter:
             movement_threshold_meters = get_settings().movement_threshold_meters
             presence, statuses = build_presence(s, group, window, movement_threshold_meters)
             body = asdict(presence)
+            # One phrase, computed once, so the dashboard, the widget and the
+            # CLI cannot drift apart again (E1 honesty round 3 F3/F4).
+            body["verdict_label"] = verdict_label(
+                presence.verdict,
+                diverged=presence.diverged,
+                reporting_count=presence.reporting_count,
+                considered_count=presence.considered_count,
+            )
             body["members"] = [_status_to_dict(s2) for s2 in statuses]
             return body
 

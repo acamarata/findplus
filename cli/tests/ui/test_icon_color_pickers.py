@@ -66,6 +66,20 @@ async def test_icon_picker_renders_grouped_sections(page, base_url) -> None:
     assert await page.locator("#picker-host .fp-icon-swatch").count() == 50
 
 
+async def test_icon_sprite_404_does_not_inject_parser_error(page, base_url) -> None:
+    """CR-C-E3 F2: a missing sprite must never leak XML parser error text."""
+    await page.route(
+        "**/static/icons.svg",
+        lambda route: route.fulfill(status=404, body="not found"),
+    )
+    await page.goto(base_url + "/")
+    await page.wait_for_timeout(300)  # let the fire-and-forget fetch settle
+    body_text = await page.locator("body").inner_text()
+    assert "error on line" not in body_text
+    assert "parsererror" not in body_text.lower()
+    assert await page.locator("#fp-icon-sprite").count() == 0
+
+
 async def test_icon_picker_click_emits_lucide_id(page, base_url) -> None:
     await _open_with_host(page, base_url)
     await _mount_icon_picker(page)

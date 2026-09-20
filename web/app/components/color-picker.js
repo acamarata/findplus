@@ -88,7 +88,7 @@ export function createColorPicker(host, { value, onChange, customLabel = "Custom
 
   return {
     setValue(hex) {
-      current = hex.toLowerCase();
+      current = (hex || DEVICE_PALETTE[0]).toLowerCase();
       applyPressedState(current);
     },
     getValue() {

@@ -226,7 +226,38 @@
     "deleteRuleFailed": "Could not delete \"{name}\" ({status}).",
     "groupFallback": "group {id}",
     "ruleFallback": "rule {id}",
-    "skippedNoReason": "suppressed, no reason recorded"
+    "skippedNoReason": "suppressed, no reason recorded",
+    "whatsapp": {
+      "heading": "WhatsApp",
+      "phone": "Phone",
+      "phonePlaceholder": "+E164",
+      "apikey": "API key",
+      "save": "Save",
+      "test": "Send test",
+      "clear": "Clear",
+      "connected": "Connected: {phone}"
+    },
+    "rules": {
+      "channels": "Channels",
+      "channelsHeader": "Channels"
+    },
+    "channels": {
+      "telegram": "Telegram",
+      "webhook": "Webhook",
+      "whatsapp": "WhatsApp",
+      "native": "Desktop notification"
+    },
+    "deliveries": {
+      "heading": "Delivery log",
+      "rule": "Rule",
+      "channel": "Channel",
+      "kind": "Kind",
+      "text": "Text",
+      "body": "Body",
+      "sent": "Sent",
+      "status": "Status",
+      "error": "Error"
+    }
   },
   "settings": {
     "title": "Settings",
@@ -269,16 +300,131 @@
     "pinChanged": "PIN changed. All existing sessions were signed out.",
     "enterCurrentPin": "Enter the current PIN to remove it.",
     "confirmRemovePin": "Remove the PIN and disable the app lock?",
-    "pinRemoved": "PIN removed. The app no longer locks."
+    "pinRemoved": "PIN removed. The app no longer locks.",
+    "signInHeading": "Sign-in",
+    "polling": {
+      "title": "Polling and retention",
+      "interval_label": "Poll every",
+      "interval_unit": "minutes",
+      "interval_note": "Find+ never polls faster than every 5 minutes, to avoid rate-limiting your account. Takes effect after Find+ restarts. An environment variable, if one is set, wins over this box, and the value shown then stays the one already in force.",
+      "retention_label": "Keep history for",
+      "retention_unit": "days (blank = forever)",
+      "retention_placeholder": "forever",
+      "retention_note": "Older observations, place visits and group events are deleted automatically once a day. Leave blank to keep everything."
+    },
+    "native_detail": {
+      "label": "Show who and where in notifications",
+      "note": "By default, macOS notifications show a generic \"Find+ alert\" instead of who or where, because notification banners can appear on a locked screen. Turn on notification details in Settings to show the person and place — anyone who can see the screen then sees the same thing."
+    }
   },
   "setup": {
-    "stepWelcome": "Welcome"
+    "stepWelcome": "Welcome",
+    "back": "Back",
+    "next": "Next",
+    "skip": "Skip",
+    "skip_all": "Skip setup",
+    "progress": "{n} of {total}",
+    "done": {
+      "button": "Done",
+      "title": "You're set up",
+      "summary": "{n} device(s) tracked."
+    },
+    "welcome": {
+      "title": "Welcome",
+      "body": "Find+ tracks your Google Find Hub and Apple Find My devices, entirely on this computer. Nothing you set up here leaves this machine except the direct connections to Google or Apple you set up directly."
+    },
+    "signin": {
+      "google": "Sign in with Google",
+      "apple": "Sign in with Apple",
+      "skip": "Skip for now",
+      "apple_id": "Apple ID",
+      "password": "Password",
+      "code": "Verification code",
+      "submit": "Continue",
+      "not_signed_in": "Not signed in yet.",
+      "signed_in_as": "Signed in as {accounts}.",
+      "starting": "Starting Chrome...",
+      "waiting": "Waiting for Google sign-in…",
+      "finishing": "Finishing up...",
+      "timed_out": "No sign-in was completed within 5 minutes. Try again."
+    },
+    "devices": {
+      "title": "Devices",
+      "empty": "No devices found yet — refresh once you've added a tracker",
+      "label_placeholder": "Your name for this tracker",
+      "refresh": "Refresh from your providers",
+      "edit": "Edit"
+    },
+    "groups": {
+      "title": "Groups (optional)",
+      "name_placeholder": "Group name",
+      "add": "Add"
+    },
+    "places": {
+      "title": "Places (optional)",
+      "add": "Add a place"
+    },
+    "notifications": {
+      "title": "Notifications (optional)",
+      "telegram": "Telegram",
+      "webhook": "Webhook",
+      "whatsapp": "WhatsApp",
+      "native": "Notifications",
+      "connect": "Connect",
+      "configure_later": "Configure from Settings after finishing setup.",
+      "enable": "Enable notifications",
+      "permission_granted": "Notifications are on.",
+      "permission_denied": "Notifications are off. You can turn them on in your system settings.",
+      "token_placeholder": "Bot token from @BotFather",
+      "enter_token": "Enter your bot token first.",
+      "waiting": "Send your bot a message now. Waiting for it...",
+      "connected": "Connected to {chat}.",
+      "already_connected": "Telegram is already connected."
+    },
+    "applock": {
+      "title": "App lock (optional)",
+      "pin": "New PIN",
+      "pin_confirm": "Confirm PIN",
+      "set": "Set PIN",
+      "set_ok": "PIN set. The app lock is on.",
+      "mismatch": "The two PINs do not match."
+    },
+    "rerun": "Run setup again",
+    "banner": {
+      "unfinished": "Setup isn't finished.",
+      "resume": "Resume setup",
+      "dismiss": "Dismiss"
+    }
   },
   "auth": {
-    "signInGoogle": "Sign in with Google"
+    "signInGoogle": "Sign in with Google",
+    "google": {
+      "signin": "Sign in with Google",
+      "launching": "Starting Chrome…",
+      "waiting": "Sign in inside the Chrome window that just opened.",
+      "capturing": "Finishing up…",
+      "chrome_missing": "Google Chrome was not found on this machine. Google sign-in drives Chrome directly and cannot run without it. Install it from https://www.google.com/chrome/ and try again.",
+      "downloadChrome": "Download Google Chrome",
+      "heading": "Google Find Hub"
+    },
+    "apple": {
+      "signin": "Sign in with Apple",
+      "appleid": "Apple ID",
+      "password": "Password",
+      "code": "Code",
+      "codeSubmit": "Submit",
+      "needs_2fa": "Enter the code sent to your trusted device.",
+      "heading": "Apple Find My"
+    },
+    "status": {
+      "signed_in": "Signed in as {account}",
+      "not_signed_in": "Not signed in"
+    }
   },
   "notices": {
-    "pathDisclaimer": "Observed path — actual route between detections may differ."
+    "pathDisclaimer": "Observed path — actual route between detections may differ.",
+    "dashboardEmpty": "No devices tracked yet. Devices to choose one, or Run setup again from Settings.",
+    "groupsEmpty": "No groups yet. Create one from Run setup again, or the group selector once you have one."
   },
   "timeline": {
     "emptyDay": "No observations recorded for this day.",

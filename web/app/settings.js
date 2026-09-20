@@ -24,7 +24,30 @@ export async function loadSettings() {
   $("setting-theme").value = state.settings.theme;
   $("btn-lock").classList.toggle("hidden", !state.settings.lock_active);
   renderLockSection();
+  renderPollingSection();
   return state.settings;
+}
+
+/**
+ * Poll interval, history retention and the native-detail toggle.
+ *
+ * The toggle and its sentence only exist in the desktop app:
+ * `window.__findplus_native` is set by an initialization script on the Tauri
+ * window and by nothing else (R-P2-13), so a browser tab at :8647 never shows
+ * a control for notifications it cannot deliver. The sentence beside it is
+ * replaced with the live one from /api/config, which always beats the
+ * catalog's bootstrap copy.
+ */
+function renderPollingSection() {
+  $("setting-poll-interval").value = state.settings["poll.interval_minutes"];
+  $("setting-retention-days").value = state.settings["history.retention_days"] ?? "";
+  if (window.__findplus_native !== true) return;
+  $("setting-native-detail-row").hidden = false;
+  $("setting-native-detail-note").hidden = false;
+  $("setting-native-detail").checked = state.settings["alerts.native_detail"];
+  if (state.config && state.config.notices) {
+    $("setting-native-detail-note").textContent = state.config.notices.native_generic;
+  }
 }
 
 function renderLockSection() {
@@ -67,6 +90,10 @@ export async function openSettings() {
     const startAtLogin = await api("/api/settings/app.start_at_login");
     $("setting-start-at-login").checked = startAtLogin["app.start_at_login"];
     $("settings-modal").classList.remove("hidden");
+    // Re-read the sign-in status on every open (ruling R-P2-8): a sign-in
+    // completed in a Chrome window or another tab is visible next time.
+    // Dynamic, so settings.js keeps no static dependency on auth.js.
+    import("./auth.js").then((m) => m.mountAuthPanel($("fp-settings-signin")));
     settingsTrap = trapFocus($("settings-modal"), closeSettings);
   } catch (e) {
     showAlert(e.message, "err");
@@ -162,6 +189,33 @@ export function wireSettingsControls() {
       showAlert(err.message, "err");
       e.target.checked = !e.target.checked;
     }
+  });
+
+  $("setting-poll-interval").addEventListener("change", async (e) => {
+    try { await saveSettings({ "poll.interval_minutes": Number(e.target.value) }); }
+    catch (err) { showAlert(err.message, "err"); }
+  });
+
+  $("setting-retention-days").addEventListener("change", async (e) => {
+    try {
+      await saveSettings({
+        "history.retention_days": e.target.value === "" ? null : Number(e.target.value),
+      });
+    } catch (err) { showAlert(err.message, "err"); }
+  });
+
+  // Reverted on failure: a stale number in a box is harmless, but a tick box
+  // left in the post-click state would misstate what the server actually holds.
+  $("setting-native-detail").addEventListener("change", async (e) => {
+    try { await saveSettings({ "alerts.native_detail": e.target.checked }); }
+    catch (err) { showAlert(err.message, "err"); e.target.checked = !e.target.checked; }
+  });
+
+  // Navigation only. Re-running the wizard and abandoning it leaves
+  // onboarding.completed_at exactly as it was; only Done ever writes it.
+  $("btn-rerun-setup").addEventListener("click", () => {
+    closeSettings();
+    window.location.hash = "#/setup";
   });
 
   $("btn-set-pin").addEventListener("click", setPin);

@@ -27,6 +27,16 @@ export async function loadNotices() {
     // /api/config stays the single source; alerts.js only holds a
     // same-text initialisation fallback for a failed/slow /api/config.
     "fp-alerts-latency-notice": n.alerts_latency,
+    // The Alerts tab's WhatsApp card: the CallMeBot relay caveat and the
+    // setup instructions, both server-sourced like every other sentence.
+    "fp-wa-relay-notice": n.whatsapp_relay,
+    "fp-wa-instructions": n.whatsapp_setup,
+    // Beside the add-rule dialog's channel checkboxes: what a native alert
+    // does while the app is locked.
+    "fp-alerts-locked-notice": n.alerts_locked,
+    // The sign-in panel's Google card. Same server-sourced mechanism as every
+    // other honesty sentence: honesty.CHROME_REQUIRED via /api/config.
+    "fp-auth-chrome-notice": n.chrome_required,
     "fp-notice-presence-stale": n.presence_stale,
     // lock_not_encryption is NOT here: the Settings dialog renders it once,
     // beside the App lock setting (#lock-caveat, from /api/lock/requirements),

@@ -33,6 +33,12 @@ function buildDeliveryRow(delivery) {
     cell(delivery.rule_name || t("alerts.ruleFallback", { id: delivery.rule_id })),
     cell(delivery.channel || t("common.emptyValue")),
     cell(delivery.event_kind),
+    // notifications.md §2: `text` (subject + verb) and `body` (place and the
+    // observed/lag line) are rendered server-side per row, so an edited place
+    // or device name is reflected on the next read. They are only computed for
+    // native rows; every other channel sends the em dash placeholder.
+    cell(delivery.text || t("common.emptyValue")),
+    cell(delivery.body || t("common.emptyValue")),
     cell(fmtDateTime(delivery.sent_at)),
     cell(delivery.status),
     // A "skipped" row arrived with an empty Error cell and no hint why; the

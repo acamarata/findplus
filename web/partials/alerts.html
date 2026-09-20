@@ -35,6 +35,34 @@
         </div>
       </section>
 
+      <!-- honesty.WHATSAPP_RELAY and honesty.WHATSAPP_SETUP land in the two
+           empty paragraphs below, injected by notices.js from /api/config.
+           Never typed here: one source for every honesty sentence
+           (PROMPT.md §2 invariant 4). The CallMeBot number and site are
+           identifiers, not copy, so they stay literal. -->
+      <section id="fp-whatsapp-section" class="fp-alerts-section">
+        <h3 data-i18n="alerts.whatsapp.heading">WhatsApp</h3>
+        <p id="fp-wa-connected" class="fp-tab-hint hidden"></p>
+        <p id="fp-wa-relay-notice" class="fp-disclaimer"></p>
+        <p id="fp-wa-instructions" class="fp-tab-hint"></p>
+        <p class="fp-tab-hint">
+          <a href="tel:+34623912204">+34 623 91 22 04</a> ·
+          <a href="https://www.callmebot.com/" target="_blank" rel="noopener">https://www.callmebot.com/</a>
+        </p>
+        <label class="setting-row"><span data-i18n="alerts.whatsapp.phone">Phone</span>
+          <input type="text" id="fp-wa-phone" placeholder="+E164"
+                 data-i18n-attr="placeholder:alerts.whatsapp.phonePlaceholder"></label>
+        <label class="setting-row"><span data-i18n="alerts.whatsapp.apikey">API key</span>
+          <input type="password" id="fp-wa-apikey" placeholder="API key"
+                 data-i18n-attr="placeholder:alerts.whatsapp.apikey"></label>
+        <div class="fp-alerts-actions">
+          <button class="btn" id="fp-wa-save" type="button" data-i18n="alerts.whatsapp.save">Save</button>
+          <button class="btn btn-secondary" id="fp-wa-test" type="button" data-i18n="alerts.whatsapp.test">Send test</button>
+          <button class="btn btn-secondary" id="fp-wa-clear" type="button" data-i18n="alerts.whatsapp.clear">Clear</button>
+        </div>
+        <p id="fp-wa-status"></p>
+      </section>
+
       <section class="fp-alerts-section">
         <h3 data-i18n="alerts.rulesHeading">Rules</h3>
         <button id="fp-add-rule-btn" type="button" data-i18n="alerts.addRule">Add rule</button>
@@ -50,7 +78,7 @@
             <thead>
               <tr>
                 <th data-i18n="alerts.colName">Name</th><th data-i18n="alerts.colPlace">Place</th><th data-i18n="alerts.colTarget">Device or Group</th>
-                <th data-i18n="alerts.colOnEnter">On enter</th><th data-i18n="alerts.colOnExit">On exit</th><th data-i18n="alerts.colChannel">Channel</th><th data-i18n="alerts.colActions">Actions</th>
+                <th data-i18n="alerts.colOnEnter">On enter</th><th data-i18n="alerts.colOnExit">On exit</th><th data-i18n="alerts.rules.channelsHeader">Channels</th><th data-i18n="alerts.colActions">Actions</th>
               </tr>
             </thead>
             <tbody id="fp-rules-tbody"></tbody>
@@ -66,6 +94,7 @@
             <thead>
               <tr>
                 <th data-i18n="alerts.colRule">Rule</th><th data-i18n="alerts.colChannel">Channel</th><th data-i18n="alerts.colKind">Kind</th>
+                <th data-i18n="alerts.deliveries.text">Text</th><th data-i18n="alerts.deliveries.body">Body</th>
                 <th data-i18n="alerts.colSent">Sent</th><th data-i18n="alerts.colStatus">Status</th><th data-i18n="alerts.colError">Error</th>
               </tr>
             </thead>
@@ -88,21 +117,32 @@
           <label><span data-i18n="alerts.colPlace">Place</span>
             <select id="fp-rule-place"></select>
           </label>
-          <label>
-            <input type="radio" name="fp-rule-target" id="fp-rule-target-device" value="device" checked>
-            <span data-i18n="alerts.targetDevice">Device</span>
-          </label>
-          <select id="fp-rule-device"></select>
-          <label>
-            <input type="radio" name="fp-rule-target" id="fp-rule-target-group" value="group">
-            <span data-i18n="alerts.targetGroup">Group</span>
-          </label>
-          <select id="fp-rule-group" class="hidden"></select>
+          <!-- W3 visual gate finding 4: the radio and the select it governs
+               are one row, not two misaligned ones. -->
+          <div class="fp-rule-target-row">
+            <label>
+              <input type="radio" name="fp-rule-target" id="fp-rule-target-device" value="device" checked>
+              <span data-i18n="alerts.targetDevice">Device</span>
+            </label>
+            <select id="fp-rule-device"></select>
+          </div>
+          <div class="fp-rule-target-row">
+            <label>
+              <input type="radio" name="fp-rule-target" id="fp-rule-target-group" value="group">
+              <span data-i18n="alerts.targetGroup">Group</span>
+            </label>
+            <select id="fp-rule-group" class="hidden"></select>
+          </div>
           <label><input type="checkbox" id="fp-rule-on-enter" checked> <span data-i18n="alerts.colOnEnter">On enter</span></label>
           <label><input type="checkbox" id="fp-rule-on-exit"> <span data-i18n="alerts.colOnExit">On exit</span></label>
-          <fieldset class="fp-channel-picker-field"><legend data-i18n="alerts.colChannel">Channel</legend>
+          <fieldset id="fp-rule-channels-fieldset" class="fp-channel-picker-field">
+            <legend data-i18n="alerts.rules.channels">Channels</legend>
             <div id="fp-rule-channels" class="fp-channel-picker"></div>
           </fieldset>
+          <!-- honesty.ALERTS_LOCKED, filled by notices.js from /api/config -
+               never typed here. It belongs beside the channel choice: a queued
+               native alert is held, not lost, while Find+ is locked. -->
+          <p id="fp-alerts-locked-notice" class="fp-disclaimer"></p>
           <label><span data-i18n="alerts.cooldownMinutes">Cooldown (minutes)</span> <input type="number" id="fp-rule-cooldown" value="30" min="0"></label>
           <p id="fp-rule-error" class="fp-dialog-error"></p>
           <footer>

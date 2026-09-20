@@ -46,7 +46,11 @@ function injectLatencyFallback() {
   }
 }
 function wireStaticControls() {
-  $("fp-tg-token").addEventListener("focus", clearMaskedToken);
+  $("fp-tg-token").addEventListener("focus", () => clearMaskedToken($("fp-tg-token")));
+  $("fp-wa-apikey").addEventListener("focus", () => clearMaskedToken($("fp-wa-apikey")));
+  $("fp-wa-save").addEventListener("click", saveWhatsapp);
+  $("fp-wa-test").addEventListener("click", sendWhatsappTest);
+  $("fp-wa-clear").addEventListener("click", clearWhatsappChannel);
   $("fp-tg-connect").addEventListener("click", startTelegramSetup);
   $("fp-tg-test").addEventListener("click", sendTelegramTest);
   $("fp-tg-clear").addEventListener("click", clearTelegramChannel);
@@ -64,12 +68,13 @@ export async function loadChannels() {
   const channels = await api("/api/alerts/channels");
   renderTelegramSection(channels.telegram);
   renderWebhookSection(channels.webhook);
+  renderWhatsappSection(channels.whatsapp);
 }
-function clearMaskedToken() {
-  const tokenInput = $("fp-tg-token");
-  if (tokenInput.classList.contains("fp-token-masked")) {
-    tokenInput.value = "";
-    tokenInput.classList.remove("fp-token-masked");
+/** Blanks a masked credential field the first time it is focused for editing. */
+function clearMaskedToken(el) {
+  if (el.classList.contains("fp-token-masked")) {
+    el.value = "";
+    el.classList.remove("fp-token-masked");
   }
 }
 /** Shows `text` in `el`, or hides `el` when `text` is falsy. */
@@ -101,6 +106,71 @@ function renderWebhookSection(webhook) {
       t("alerts.webhookCurrent", { url: webhook.url }) +
         (webhook.has_secret ? t("alerts.webhookSecretSet") : ""),
   );
+}
+/**
+ * WhatsApp (CallMeBot) section.
+ *
+ * The phone field shows `phone_masked` and is edited in the clear: the backend
+ * never returns the raw number, so there is nothing left to protect by
+ * clearing it on focus. The apikey has no masked form in the API contract
+ * (notifications.md §1 returns only `{configured, phone_masked}`), so it gets a
+ * fixed placeholder rather than the token's reveal-last-4 shape.
+ */
+function renderWhatsappSection(whatsapp) {
+  const phone = $("fp-wa-phone");
+  const apikey = $("fp-wa-apikey");
+  if (whatsapp && whatsapp.configured) {
+    phone.value = whatsapp.phone_masked || "";
+    apikey.value = "••••••••";
+    apikey.classList.add("fp-token-masked");
+  } else {
+    phone.value = "";
+    apikey.value = "";
+    apikey.classList.remove("fp-token-masked");
+  }
+  setVisibleText(
+    $("fp-wa-connected"),
+    whatsapp &&
+      whatsapp.configured &&
+      whatsapp.phone_masked &&
+      t("alerts.whatsapp.connected", { phone: whatsapp.phone_masked }),
+  );
+  $("fp-wa-status").textContent = "";
+}
+async function saveWhatsapp() {
+  const phone = $("fp-wa-phone").value.trim();
+  const apikey = $("fp-wa-apikey").value.trim();
+  if (!phone || !apikey) return;
+  try {
+    await api("/api/alerts/channels/whatsapp", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, apikey }),
+    });
+    await loadChannels();
+  } catch (err) {
+    $("fp-wa-status").textContent = err.message;
+  }
+}
+async function sendWhatsappTest() {
+  const statusEl = $("fp-wa-status");
+  try {
+    const result = await api("/api/alerts/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channel: "whatsapp" }),
+    });
+    statusEl.textContent =
+      result.status === "sent"
+        ? t("alerts.testSent")
+        : t("alerts.testFailed", { error: result.error || t("common.unknownError") });
+  } catch (err) {
+    statusEl.textContent = t("alerts.testFailed", { error: err.message });
+  }
+}
+async function clearWhatsappChannel() {
+  await api("/api/alerts/channels/whatsapp", { method: "DELETE" });
+  await loadChannels();
 }
 /** Status code -> catalog key. Built at call time so t() reads the loaded catalog. */
 const SETUP_ERROR_KEYS = {
@@ -207,7 +277,9 @@ export function purge() {
   purgeDeliveries();
   renderTelegramSection({ configured: false });
   renderWebhookSection({ configured: false });
+  renderWhatsappSection({ configured: false });
   $("fp-tg-status").textContent = "";
+  $("fp-wa-status").textContent = "";
   ["fp-rule-place", "fp-rule-device", "fp-rule-group"].forEach((id) => fillOptions($(id), [], () => []));
   // renderTelegramSection/renderWebhookSection above already blank the token
   // and URL inputs. These two nothing else touches: a typed webhook secret and

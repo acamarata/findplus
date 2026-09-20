@@ -40,6 +40,11 @@
   </div>
 </div>
 
+<!-- The onboarding wizard. A full view, not a dialog: while it is open
+     #app-shell is hidden, so closeModals() has nothing to do with it.
+     web/app/setup.js mounts into this element (specs/onboarding.md § 4). -->
+<main id="setup-view" hidden></main>
+
 <div id="app-shell">
 <header class="topbar">
   <div class="brand">
@@ -207,5 +212,6 @@
 <script type="module" src="/static/app/main.js"></script>
 <script type="module" src="/static/app/notices.js"></script>
 <script type="module" src="/static/app/alerts.js"></script>
+<script type="module" src="/static/app/auth.js"></script>
 </body>
 </html>

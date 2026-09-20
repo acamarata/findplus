@@ -80,9 +80,36 @@ export function fillOptions(select, items, mapFn) {
     select.appendChild(opt);
   });
 }
+/** One disabled placeholder, so an unfilled select never looks like "none exist". */
+function fillLoading(select) {
+  fillOptions(select, [null], () => ["", t("common.loading")]);
+}
+
+/**
+ * `state.devices`, loading it first when the boot has not filled it yet.
+ *
+ * The dialog used to read the module cache with nothing awaiting it, so
+ * opening Add rule before the boot's device load landed produced an empty
+ * device select and a rule that could not name a tracker (CF-P2-18). This is
+ * the same `loadDevices()` the boot calls, imported dynamically to keep
+ * devices.js off alerts.js's own import graph — never a second fetch path.
+ */
+async function ensureDevices() {
+  if (state.devices && state.devices.length) return state.devices;
+  try {
+    const devices = await import("./devices.js");
+    await devices.loadDevices();
+  } catch (_) { /* locked or unreachable; an empty select is the honest result */ }
+  return state.devices || [];
+}
+
 async function populateRuleSelects() {
-  fillOptions($("fp-rule-place"), await api("/api/places"), (p) => [String(p.id), p.name]);
-  fillOptions($("fp-rule-device"), state.devices, (d) => [d.device_id, d.name]);
+  const [places, devices] = await Promise.all([
+    api("/api/places").catch(() => []),
+    ensureDevices(),
+  ]);
+  fillOptions($("fp-rule-place"), places, (p) => [String(p.id), p.name]);
+  fillOptions($("fp-rule-device"), devices, (d) => [d.device_id, d.name]);
   let groups = [];
   try {
     groups = await api("/api/groups");
@@ -122,14 +149,10 @@ function channelLabels() {
 }
 
 export async function openAddRuleDialog() {
-  // In parallel, not in series: the channel list is usually already resolved,
-  // and it must never add a round-trip to the time the dialog takes to open.
-  const [, available] = await Promise.all([populateRuleSelects(), loadAvailableChannels()]);
-  renderChannelPicker($("fp-rule-channels"), {
-    selected: ["telegram"],
-    available,
-    labels: channelLabels(),
-  });
+  // Everything the dialog shows without a round trip is set first and the
+  // dialog opens at once; the three selects carry a "Loading…" placeholder
+  // until their data lands, rather than the dialog hanging shut on a fetch.
+  ["fp-rule-place", "fp-rule-device", "fp-rule-group"].forEach((id) => fillLoading($(id)));
   $("fp-rule-name").value = "";
   $("fp-rule-on-enter").checked = true;
   $("fp-rule-on-exit").checked = false;
@@ -141,6 +164,15 @@ export async function openAddRuleDialog() {
   updateRuleTargetVisibility();
   $("fp-rule-error").textContent = "";
   $("fp-add-rule-dialog").showModal();
+
+  // In parallel, not in series: the channel list is usually already resolved,
+  // and it must never add a round-trip to the time the dialog takes to open.
+  const [, available] = await Promise.all([populateRuleSelects(), loadAvailableChannels()]);
+  renderChannelPicker($("fp-rule-channels"), {
+    selected: ["telegram"],
+    available,
+    labels: channelLabels(),
+  });
 }
 /** "" -> null, so an unchosen select is not silently id 0. */
 function numberOrNull(value) {

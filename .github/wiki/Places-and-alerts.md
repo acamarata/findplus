@@ -33,8 +33,10 @@ The Alerts tab lists what Find+ actually sent, most recent first:
 | Column | What it holds |
 |---|---|
 | Rule | The rule that matched, by name. |
-| Channel | `telegram` or `webhook`, from the rule. |
+| Channel | `telegram`, `webhook`, `whatsapp` or `native`, from the rule. A rule with several channels gets one row per channel. |
 | Kind | `device` for a single tracker, `group` for a quorum crossing. |
+| Text | The notification's first line, rendered fresh on every read. Mac notifications only; every other channel shows a dash. |
+| Body | The place and the observed/lag line beneath it. Mac notifications only. |
 | Sent | When the attempt was made, in your local time. |
 | Status | `sent`, `failed`, or `skipped`. |
 | Error | Why it failed, or why it was skipped. |
@@ -80,7 +82,27 @@ The token lives in `~/.findplus/alerts.json` (mode `0600`), never in the databas
 
 ## WhatsApp
 
-WhatsApp-native alerts are planned for Find+ v1.1. The webhook channel is the interim path
-for connecting Find+ to messaging services that support incoming webhooks, including
-WhatsApp via a Business API provider. See the Webhook setup page for an example
-configuration.
+Open the Alerts tab and find the WhatsApp card. It carries the setup instructions
+verbatim: add +34 623 91 22 04 to your phone's contacts, send it
+"I allow callmebot to send me messages" from your own WhatsApp, and CallMeBot
+replies with an API key within about two minutes. Paste that key and your number
+in E.164 form, save, and use **Send test**.
+
+WhatsApp alerts are relayed through CallMeBot, a third-party free service. Your
+alert text transits CallMeBot's servers before reaching WhatsApp. Delivery is
+best-effort with no guarantee. Find+ is not affiliated with WhatsApp, Meta or
+CallMeBot.
+
+The API key is never sent back to the browser and the number is shown masked.
+Both live in `~/.findplus/alerts.json` (mode `0600`). From the terminal:
+`findplus alerts whatsapp set --phone +34... --apikey ...` and
+`findplus alerts whatsapp clear`.
+
+## Signing in from the dashboard
+
+Open **Settings**; sign-in is the first section. The Google card starts the
+Chrome sign-in and reports each stage as it runs; if Chrome is not installed it
+says so and offers a download link instead of failing silently. The Apple card
+takes your Apple ID and password, then asks for the code Apple sends to a
+trusted device. Your Apple password is used for that one call and is never
+stored, logged or returned.

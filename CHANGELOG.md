@@ -7,6 +7,12 @@ Versioning: [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Settings now carries the poll interval, how long history is kept, whether Mac notifications may name the person and place, and a Run setup again button.
+- A fresh install opens the setup wizard by itself. If you go somewhere else first, a bar under the toolbar offers to resume it, and stays until setup is actually finished.
+- The wizard's last four steps: saved places, alert channels, the app lock, and a summary. Every channel shows what it does with your alert text before you can switch it on.
+- The wizard's first four steps: what Find+ is, signing in to Google or Apple, choosing which trackers to poll, and putting them in a group. Every step can be skipped and none of them is a dead end.
+- A sign-in panel at the top of the Settings dialog, for Google Find Hub and Apple Find My. The Google card follows the Chrome sign-in as it runs and offers a download link when Chrome is missing; the Apple card asks for the two-factor code when Apple wants one.
+- An onboarding wizard for the dashboard. The daemon remembers which step you reached in `onboarding.last_step` and whether you finished in `onboarding.completed_at`, both readable on `GET /api/settings` and writable per key, so closing the tab halfway resumes where you left off.
 - Sign in to Google Find Hub from the dashboard: `POST /api/auth/google/start` opens Chrome and `GET /api/auth/google/progress` reports how far along it is. Chrome now runs in a profile of its own under `~/.findplus/chrome-profile`, so signing in no longer closes the Chrome windows you already have open.
 - Sign in to Apple Find My from the dashboard, 2FA included: `POST /api/auth/apple/start` then `POST /api/auth/apple/code`. Your Apple password is used for the sign-in call and is never stored, logged or sent back.
 - `GET /api/auth/status` reports, per provider, whether you are signed in, which account, and what is still missing (Chrome, or the Apple extra).
@@ -16,7 +22,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - `findplus setup`, a guided first-run walkthrough in the terminal for installs that never open the dashboard. Pass `--yes` to accept every default without a prompt.
 - The daemon prunes location history, place visits and group events older than the retention window once a day, with no restart needed after changing it.
 - `install.sh --start` installs, runs the setup wizard and starts the service in one command. A fresh install finishes by asking you to sign in, which is a success, not an error.
-- The Alerts tab has a Delivery log showing each alert's rule, channel, kind, time, status and error.
+- The Alerts tab has a Delivery log showing each alert's rule, channel, kind, message text and body, time, status and error.
 - An Uninstall page in the wiki with the manual service-removal commands for macOS, Linux and Windows.
 - A bundled Lucide icon sprite (48 icons, ISC licensed) the dashboard loads once at startup.
 - An icon picker for device and group badges: the 48 bundled icons grouped by kind, a letter of your choice, or a plain coloured dot.
@@ -28,7 +34,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - An accessibility scan in the browser test suite: axe-core over every tab, in both themes, at desktop and phone width.
 - An alert rule can now pick any combination of Telegram, webhook, WhatsApp and Mac notifications, through a checkbox set in the rule form and a repeatable `--channel` option on `findplus alerts rules add`. Mac notifications only appear as a choice on macOS.
 - Native macOS notifications for alerts. The daemon queues them and the menu bar app shows them, so an alert arrives even with no dashboard window open. While Find+ is locked, or unless you turn notification details on, the banner says only "Find+ alert" — a notification preview can appear on a locked screen.
-- WhatsApp alerts, relayed through CallMeBot. The setup text says plainly that your alert text passes through a third party before it reaches WhatsApp. Manage it from the dashboard with `PUT`/`DELETE /api/alerts/channels/whatsapp`, or from the terminal with `findplus alerts whatsapp set`/`clear`. The phone number is shown masked and the API key is never returned.
+- WhatsApp alerts, relayed through CallMeBot. The setup text says plainly that your alert text passes through a third party before it reaches WhatsApp. Set it up in the Alerts tab, which carries that text and the CallMeBot contact details, or from the terminal with `findplus alerts whatsapp set`/`clear`; the routes behind it are `PUT`/`DELETE /api/alerts/channels/whatsapp`. The phone number is shown masked and the API key is never returned.
 - Alert rules can target more than one channel at once. Each channel gets its own delivery row and its own cooldown, so a notification on one never suppresses another.
 - Device and group labels, icons and colours: `PATCH /api/devices/{id}`, `GET /api/icons`, `findplus devices label`/`findplus devices icons`, exports and the macOS widget all carry the new fields. A label is local only and survives every provider name refresh.
 - Edit a device's label, icon and colour from the dashboard: every row in the Devices dialog has an Edit button, and the choice shows up on the device list, on every map marker, on the timeline track heads and in the macOS widget.

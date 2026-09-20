@@ -210,15 +210,19 @@ async def test_delivery_log_shows_channel_and_status(page, base_url, ui_db):
     await _open_alerts_tab(page, base_url)
     await page.wait_for_selector("#fp-deliveries-table")
     headers = await page.locator("#fp-deliveries-table thead th").all_text_contents()
-    assert headers == ["Rule", "Channel", "Kind", "Sent", "Status", "Error"]
+    assert headers == ["Rule", "Channel", "Kind", "Text", "Body", "Sent", "Status", "Error"]
 
     row = page.locator("#fp-deliveries-tbody tr", has_text="Delivery log rule")
     await row.wait_for(state="visible")
     cells = await row.locator("td").all_text_contents()
 
     assert cells[1] == "webhook"
-    assert cells[4] == "failed"
-    assert cells[5] == "connection refused"
+    # text/body are rendered server-side for native rows only (notifications.md
+    # §2), so a webhook row shows the empty-value placeholder in both.
+    assert cells[3] == "\u2014"
+    assert cells[4] == "\u2014"
+    assert cells[6] == "failed"
+    assert cells[7] == "connection refused"
 
 
 async def test_the_rule_dialog_sends_null_for_an_unchosen_select(page, base_url):

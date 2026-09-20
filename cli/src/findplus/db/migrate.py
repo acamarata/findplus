@@ -8,18 +8,53 @@ from __future__ import annotations
 
 import importlib.resources as _ir
 import logging
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
+from sqlalchemy.engine import Connection
 
 from findplus.config import get_settings
 from findplus.db.session import get_engine
 
 # Alembic narrates "Context impl SQLiteImpl" on every run; we only want warnings.
 logging.getLogger("alembic").setLevel(logging.WARNING)
+
+
+@contextmanager
+def fk_disabled(connection: Connection) -> Iterator[None]:
+    """Turn SQLite FK enforcement off for a migration run (CF-P2-15).
+
+    Alembic's SQLite batch mode rebuilds an altered table by creating a new
+    one, copying rows in, then dropping the original (see
+    migrations/versions/0008_alert_channels_native.py for a migration that
+    also guards itself directly). findplus.db.session turns
+    `PRAGMA foreign_keys` ON for every connection, so that DROP TABLE runs an
+    implicit DELETE with foreign keys enforced, which fires ON DELETE CASCADE
+    on every child table and silently destroys their rows -- observations,
+    group memberships, alert rules, anything cascading from the table being
+    altered.
+
+    `PRAGMA foreign_keys` is a documented no-op once a transaction is open
+    (sqlite.org/pragma.html#pragma_foreign_keys), so the caller MUST enter
+    this context on a connection with no pending BEGIN -- before opening the
+    transaction the migration runs in, never inside one. Running the PRAGMA
+    through `connection.exec_driver_sql()` would trigger SQLAlchemy 2.0's
+    "future" Connection autobegin (any execute on a fresh Connection opens an
+    implicit transaction), defeating the point -- so this goes straight to
+    the raw DBAPI connection instead, the same way `db/session.py`'s
+    `PRAGMA foreign_keys=ON` connect listener does.
+    """
+    dbapi_conn = connection.connection.dbapi_connection
+    dbapi_conn.execute("PRAGMA foreign_keys=OFF")
+    try:
+        yield
+    finally:
+        dbapi_conn.execute("PRAGMA foreign_keys=ON")
 
 
 def _config(database_url: str | None = None) -> Config:
@@ -35,7 +70,9 @@ def upgrade_to_head(database_url: str | None = None) -> str:
         Path(url.split("///", 1)[1]).parent.mkdir(parents=True, exist_ok=True)
     cfg = _config(url)
     engine = get_engine(url)
-    with engine.begin() as connection:
+    # fk_disabled must wrap the connection BEFORE the transaction starts (see
+    # its docstring), so this cannot use engine.begin() directly.
+    with engine.connect() as connection, fk_disabled(connection), connection.begin():
         cfg.attributes["connection"] = connection
         command.upgrade(cfg, "head")
     return current_revision(url) or "head"

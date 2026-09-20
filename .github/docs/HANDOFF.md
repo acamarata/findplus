@@ -114,7 +114,7 @@ https://github.com/acamarata/findplus/releases/tag/v1.0.0
 | CHANGELOG.md | `c8038dea27ab15f196f98420c9626241db1490fd2dd82890483ca1631b04ea8e` | |
 
 Signing and notarisation, identity `Developer ID Application: Aric Camarata (5398R82926)`:
-both `Find+.app` and the dmg were notarised and stapled, and `spctl -a -vv --type install`
+both `Find+.app` and the dmg were notarised and stapled, and `spctl -a -vv --type exec`
 reports `accepted, source=Notarized Developer ID` for each. `codesign --verify --deep --strict`
 exits 0, `hdiutil verify` exits 0, `verify-dmg.sh` passes at 49 MB against the 120 MB budget.
 The sidecar launcher in `Contents/MacOS` is still the shell script; the notary service accepted

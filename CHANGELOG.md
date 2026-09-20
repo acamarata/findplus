@@ -8,6 +8,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ### Added
 - The Alerts tab has a Delivery log showing each alert's rule, channel, kind, time, status and error.
+- An Uninstall page in the wiki with the manual service-removal commands for macOS, Linux and Windows.
 
 ### Changed
 - `install.sh` is shorter and points at a new Uninstall wiki page for the manual service-removal commands it prints.
@@ -20,8 +21,15 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - `GET /api/places/events?group_id=` returns that group members' events instead of always returning an empty list.
 - `install.sh` no longer aborts with a `/dev/tty` error where no terminal is readable, such as inside a container.
 - The MCP server instructions name both Google Find Hub and Apple Find My, instead of claiming every tracker reports through Find Hub.
-- The dashboard footer shows the Apple Find My sentence when an Apple tracker is present, instead of naming Google Find Hub for every tracker.
 - `findplus serve --host` now refuses a non-loopback address unless `FINDPLUS_ALLOW_PUBLIC_BIND=1` is set, matching `findplus config set HOST` and the `Settings.host` guard.
+- The daemon answers 503 with the repair command on an unmigrated database, instead of 500.
+- The dashboard no longer breaks when `/api/config` returns an error while the notices are loading.
+- A group crossing recorded twice in the same instant is stored once, and the duplicate no longer discards the rest of the poll's location history.
+- Upgrading a database that already contained duplicate group events now succeeds instead of leaving the daemon unable to start.
+- The widget's large view hides the map for a device whose last fix is stale, and the small view no longer shows buttons it cannot action.
+- The dashboard footer names each tracking network only when a device of that kind is tracked, instead of naming Google Find Hub for every tracker, and clears both sentences while the app is locked.
+- The page sources behind the dashboard are no longer reachable under `/static`, in any capitalisation.
+- An alert delivery error is stored with credentials masked, so a webhook key in a failing request URL is not shown in the Delivery log.
 
 ## [1.0.0] - 2026-09-19
 

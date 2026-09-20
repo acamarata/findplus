@@ -17,6 +17,8 @@
 import { api } from "./api.js";
 import { esc, fmtAgeMinutes } from "./state.js";
 import { t } from "./i18n.js";
+import { initDialog, purgeDialog } from "./groups_dialog.js";
+import * as groupsList from "./groups_list.js";
 
 let map = null;
 let selectedGroupId = null;
@@ -27,6 +29,11 @@ let generation = 0;
 export function init(mapArg, _deviceListEl) {
   map = mapArg;
   overlayLayer = L.layerGroup().addTo(map);
+  initDialog(loadGroups);
+  // Same locked-boot swallow as loadGroups() below: init() renders the cards,
+  // which 401s while the lock screen is up, and an uncaught rejection there is
+  // a page error (cli/tests/test_ui_browser.py asserts there are none).
+  groupsList.init(document.getElementById("fp-groups-list")).catch(() => {});
   const select = document.getElementById("fp-group-select");
   if (select) {
     select.addEventListener("change", (e) => {
@@ -58,6 +65,24 @@ export async function loadGroups() {
     select.appendChild(opt);
   });
   select.value = current;
+  // One fetched list, two renderings: awaiting the cards here means a caller
+  // awaiting loadGroups() sees the grid, the selector and the hint agree.
+  await groupsList.loadCards();
+  updateEmptyStateHint(groups.length);
+}
+
+/**
+ * Show the tab hint only while there are no groups.
+ *
+ * The hint points at the selector above the map, which is useless with nothing
+ * to select; groups_list.js renders its own empty-state paragraph inside
+ * #fp-groups-list at the same moment, so the two are never both on screen. The
+ * selector is scoped to #tab-groups because the Places tab has a .fp-tab-hint
+ * of its own.
+ */
+function updateEmptyStateHint(groupCount) {
+  const hint = document.querySelector("#tab-groups .fp-tab-hint");
+  if (hint) hint.hidden = groupCount > 0;
 }
 
 export async function selectGroup(id) {
@@ -109,7 +134,7 @@ export function drawGroupOverlays(presence, group) {
  * divergence (round 2 F1), and `all_together` with a silent member is not the
  * whole group (round 3 F3).
  */
-function verdictLabel(presence) {
+export function verdictLabel(presence) {
   if (presence.verdict_label) return presence.verdict_label;
   const reporting = presence.reporting_count;
   const considered = presence.considered_count;
@@ -201,11 +226,26 @@ export function renderPresencePanel(presence) {
 
 export function clearGroup() {
   selectedGroupId = null;
-  overlayLayer.clearLayers();
+  // Locking before the Groups tab was ever opened leaves overlayLayer null,
+  // and an unguarded clearLayers() threw out of purgeRenderedData() — the one
+  // path that must never throw (T0 wave-2 visual gate).
+  if (overlayLayer) overlayLayer.clearLayers();
   const panel = document.getElementById("fp-presence-panel");
   if (panel) while (panel.firstChild) panel.removeChild(panel.firstChild);
   const legend = document.getElementById("fp-group-legend");
   if (legend) while (legend.firstChild) legend.removeChild(legend.firstChild);
+}
+
+/**
+ * Select a group from outside the dropdown, keeping the two in agreement.
+ *
+ * groups_list.js's card click calls this rather than selectGroup() directly,
+ * so the `<select>` never keeps showing the group that was selected before.
+ */
+export function selectGroupById(id) {
+  const select = document.getElementById("fp-group-select");
+  if (select) select.value = String(id);
+  selectGroup(id);
 }
 
 export async function refreshPresence() {
@@ -215,18 +255,21 @@ export async function refreshPresence() {
 
 /**
  * Destroy every member circle, the presence panel, the legend, the cached
- * group names and the group-select options.
+ * group names, the group-select options, the add/edit dialog and the cards.
  *
  * Called from lock.js's purgeRenderedData() on every lock — `clearGroup()`
  * alone left `#fp-group-select`'s option list (group names) and the
  * `groupsById` cache behind, both real data surviving behind the lock
  * screen (PROMPT.md §2). Bumping `generation` also discards any in-flight
  * `selectGroup()` response that would otherwise repopulate the panel right
- * after this purge runs.
+ * after this purge runs. lock.js still imports this one function: the dialog
+ * and the card grid are fanned out to from here, not wired into lock.js.
  */
 export function purge() {
   generation++;
   clearGroup();
+  purgeDialog();
+  groupsList.purgeCards();
   groupsById = new Map();
   const select = document.getElementById("fp-group-select");
   if (select) while (select.firstChild) select.removeChild(select.firstChild);

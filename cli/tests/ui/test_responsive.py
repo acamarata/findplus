@@ -37,11 +37,12 @@ async def _open_settings(page) -> None:
 
 
 # Scoped to the surfaces this fix loop touched (dashboard's export row,
-# alerts' form rows and tables, settings' form rows) — not every tab. The
-# Groups card row (.fp-group-card in web/components.css) has its own,
-# pre-existing overflow at 375px unrelated to this ticket's three findings
-# and belongs to whichever ticket owns web/app/groups.js.
-@pytest.mark.parametrize("surface", ("dashboard", "alerts", "settings"))
+# alerts' form rows and tables, settings' form rows), plus the Groups card
+# row: `.fp-group-card` (web/components.css) packed a badge, a name, six
+# avatars and two buttons onto one non-wrapping line and grew the page past
+# the viewport. Fixed in P2-E5-W3-S1-T2 by letting the card and its avatar
+# strip wrap, and covered here rather than in a second overflow test.
+@pytest.mark.parametrize("surface", ("dashboard", "alerts", "settings", "groups"))
 async def test_no_horizontal_overflow_at_phone_width(page, base_url, surface):
     """No element pushes the page wider than the viewport at 375px.
 
@@ -52,8 +53,10 @@ async def test_no_horizontal_overflow_at_phone_width(page, base_url, surface):
     await page.set_viewport_size({"width": PHONE_WIDTH, "height": PHONE_HEIGHT})
     await page.goto(base_url + "/")
     await page.wait_for_selector("#app-shell:not(.hidden)")
-    if surface == "alerts":
-        await _open_tab(page, "alerts")
+    if surface in ("alerts", "groups"):
+        await _open_tab(page, surface)
+        if surface == "groups":
+            await page.wait_for_selector(".fp-group-card, .fp-empty-state", state="visible")
     elif surface == "settings":
         await _open_settings(page)
 

@@ -241,3 +241,19 @@ def test_put_group_updates_icon(client: TestClient) -> None:
     group_id = client.post("/api/groups", json={"name": "Family"}).json()["id"]
     body = client.put(f"/api/groups/{group_id}", json={"icon": "lucide:cat"}).json()
     assert body["icon"] == "lucide:cat"
+
+
+def test_post_group_accepts_icon(client: TestClient) -> None:
+    """The dialog sends `icon` on create; 201 and the stored value come back."""
+    res = client.post("/api/groups", json={"name": "Pets", "icon": "lucide:dog"})
+    assert res.status_code == 201, res.text
+    assert res.json()["icon"] == "lucide:dog"
+
+
+def test_group_response_includes_icon(client: TestClient) -> None:
+    """Every row of GET /api/groups carries an icon, so a card never guesses."""
+    client.post("/api/groups", json={"name": "Family"})
+    client.post("/api/groups", json={"name": "Pets", "icon": "lucide:cat"})
+    rows = client.get("/api/groups").json()
+    assert rows
+    assert all("icon" in row for row in rows), rows

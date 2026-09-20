@@ -81,13 +81,16 @@ function createLetterInput(letterLabel) {
 }
 
 /** The letter and none swatches, plus the (hidden) one-character input. */
-function otherSection(letterInput) {
+function otherSection(letterInput, letterLabel) {
   const section = document.createElement("section");
   section.dataset.group = "other";
   const grid = document.createElement("div");
   grid.className = "fp-icon-grid";
 
-  const letterBtn = swatch("letter");
+  // "Aa" is a visual glyph, not translatable prose, but its accessible name
+  // still needs to say "letter" in the caller's language -- that is what
+  // letterLabel is passed in for.
+  const letterBtn = swatch("letter", letterLabel);
   letterBtn.textContent = "Aa";
   grid.appendChild(letterBtn);
 
@@ -109,7 +112,7 @@ export function createIconPicker(host, { value, onChange, letterLabel = "Letter"
     root.appendChild(groupSection(group, names));
   }
   const letterInput = createLetterInput(letterLabel);
-  root.appendChild(otherSection(letterInput));
+  root.appendChild(otherSection(letterInput, letterLabel));
   host.appendChild(root);
 
   // "letter:X" pins a character the user chose; the swatch for it is the bare

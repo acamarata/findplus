@@ -6,6 +6,9 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- `install.sh` is shorter and points at a new Uninstall wiki page for the manual service-removal commands it prints.
+
 ### Fixed
 - `findplus devices --json` prints the device list as JSON, as the CLI reference documents.
 - `GET /api/devices` rows carry the `groups` and `presence` keys the API contract documents.

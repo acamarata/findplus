@@ -1,16 +1,6 @@
 #!/usr/bin/env bash
-# install.sh — Find+ curl-pipe installer.
-#
-# Purpose    : Install findplus into an isolated venv under FINDPLUS_PREFIX
-#              and symlink its entry point into FINDPLUS_BIN, with no sudo.
-# Inputs     : env FINDPLUS_YES, FINDPLUS_VERSION (overrides the baked-in
-#              VERSION_PIN default, the one line the release sed-replaces),
-#              FINDPLUS_WHEEL, FINDPLUS_PREFIX, FINDPLUS_BIN; --yes, --uninstall, --version X.
-# Outputs    : $FINDPLUS_PREFIX/venv (installed package), a symlink at
-#              $FINDPLUS_BIN/findplus.
-# Constraints: idempotent (existing venv upgrades in place); never sudo;
-#              --uninstall removes the venv+symlink but leaves the state
-#              directory untouched.
+# install.sh - Find+ curl-pipe installer. Env: FINDPLUS_YES/VERSION/WHEEL/PREFIX/BIN/STATE_DIR. Flags: --yes --uninstall --version X.
+# Idempotent, never sudo; --uninstall keeps the state dir. See .github/wiki/Install.md, .github/wiki/Uninstall.md, packaging-and-release.md.
 set -euo pipefail
 
 YES="${FINDPLUS_YES:-0}"
@@ -20,31 +10,16 @@ VERSION_PIN="${FINDPLUS_VERSION:-1.0.0.dev0}"
 parse_args() {
   while [ $# -gt 0 ]; do
     case "$1" in
-      --yes)
-        YES=1
-        shift
-        ;;
-      --uninstall)
-        UNINSTALL=1
-        shift
-        ;;
-      --version)
-        VERSION_PIN="${2:?install.sh: --version needs a value, e.g. --version 1.0.0}"
-        shift 2
-        ;;
-      *)
-        echo "install.sh: unknown argument: $1" >&2
-        exit 2
-        ;;
+      --yes) YES=1; shift ;;
+      --uninstall) UNINSTALL=1; shift ;;
+      --version) VERSION_PIN="${2:?install.sh: --version needs a value, e.g. --version 1.0.0}"; shift 2 ;;
+      *) echo "install.sh: unknown argument: $1" >&2; exit 2 ;;
     esac
   done
 }
 
 find_python() {
-  # Debian and Ubuntu split venv and pip bootstrapping into a separate
-  # python3-venv package, so an interpreter of the right version can still be
-  # unable to create the venv. Check for that here and move to the next
-  # candidate rather than failing the whole install on the first one.
+  # Debian/Ubuntu split venv into python3-venv; skip to the next candidate instead of failing outright.
   for candidate in python3.13 python3.12 python3; do
     if command -v "$candidate" >/dev/null 2>&1; then
       if "$candidate" -c 'import sys; assert (3, 12) <= sys.version_info < (3, 15)' 2>/dev/null &&
@@ -73,7 +48,7 @@ uninstall() {
     "$VENV/bin/findplus" uninstall --yes || echo "install.sh: service uninstall reported an error; removing files anyway" >&2
   else
     echo "install.sh: $VENV/bin/findplus is missing, so no service could be unloaded." >&2
-    echo "  If a service is still installed, remove it by hand:" >&2
+    echo "  If a service is still installed, remove it by hand (also in .github/wiki/Uninstall.md):" >&2
     echo "    macOS:   launchctl bootout gui/\$(id -u)/com.acamarata.findplus" >&2
     echo "             launchctl bootout gui/\$(id -u)/com.acamarata.findplus.watchdog" >&2
     echo "             rm -f ~/Library/LaunchAgents/com.acamarata.findplus*.plist" >&2
@@ -133,10 +108,7 @@ main() {
     if (exec 3</dev/tty) 2>/dev/null; then read -r answer </dev/tty; else read -r answer || true; fi
     case "${answer:-}" in
       y | Y) ;;
-      *)
-        echo "Aborted."
-        exit 1
-        ;;
+      *) echo "Aborted."; exit 1 ;;
     esac
   fi
 

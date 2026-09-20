@@ -12,7 +12,7 @@ interactive Apple sign-in with `--provider apple-find-my`). `findplus start`
 installs a user-level service, begins polling, and opens the dashboard at
 http://localhost:8647 in your browser automatically.
 
-![Dashboard](.github/docs/screenshots/dashboard-light.png)
+![Dashboard](https://raw.githubusercontent.com/acamarata/findplus/main/.github/docs/screenshots/dashboard-light.png)
 
 From the dashboard, open **Devices** to choose which trackers to follow, or
 run `findplus devices --track-all` from the CLI. Add a place from the map

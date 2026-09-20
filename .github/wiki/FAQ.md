@@ -21,7 +21,7 @@ location back to its owner's account.
 
 **Can I track multiple people or devices at once?**
 Yes, using groups. A group of devices reports a combined presence verdict
-(together, apart, partial, or unknown) based on a configurable quorum rule.
+(together, partial, or unknown) based on a configurable quorum rule.
 
 **How do I uninstall?**
 `findplus uninstall --yes` removes the service and watchdog unit files.

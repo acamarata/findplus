@@ -16,7 +16,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from findplus.db.models import Device, Place, PlaceEvent, PlaceState
+from findplus.db.models import Device, DeviceGroup, Place, PlaceEvent, PlaceState
 
 
 def list_places(session: Session) -> list[Place]:
@@ -196,7 +196,11 @@ def list_place_events(
     if device_id is not None:
         stmt = stmt.where(PlaceEvent.device_id == device_id)
     if group_id is not None:
-        stmt = stmt.where(PlaceEvent.group_id == group_id)
+        # PlaceEvent.group_id is never written — group alerts landed as the separate
+        # group_place_events table — so filtering on it matched nothing and this
+        # documented parameter always returned []. Resolve the group to its members.
+        members = select(DeviceGroup.device_id).where(DeviceGroup.group_id == group_id)
+        stmt = stmt.where(PlaceEvent.device_id.in_(members))
     if since is not None:
         stmt = stmt.where(PlaceEvent.observed_at >= since)
     if until is not None:

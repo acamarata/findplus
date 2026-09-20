@@ -182,7 +182,9 @@ class PlaceEvent(Base):
     device_id: Mapped[str] = mapped_column(
         String(128), ForeignKey("devices.device_id"), nullable=False
     )
-    #: Set once group alerts land (migration 0005). No FK yet.
+    #: Vestigial: nothing writes this. Group alerts landed as the separate
+    #: group_place_events table instead, so a group filter on place events
+    #: resolves the group to its members (places/repo.py:list_place_events).
     group_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     event_type: Mapped[str] = mapped_column(String(5), nullable=False)
     observed_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)

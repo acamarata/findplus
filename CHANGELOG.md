@@ -7,6 +7,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Fixed
+- `GET /api/places/events?group_id=` returns that group members' events instead of always returning an empty list.
 - `install.sh` no longer aborts with a `/dev/tty` error where no terminal is readable, such as inside a container.
 - The MCP server instructions name both Google Find Hub and Apple Find My, instead of claiming every tracker reports through Find Hub.
 - The dashboard footer shows the Apple Find My sentence when an Apple tracker is present, instead of naming Google Find Hub for every tracker.

@@ -8,6 +8,7 @@ import pytest
 from sqlalchemy import func, select
 
 from findplus.db.models import Device, LocationObservation, PlaceEvent, PlaceState
+from findplus.groups.repo import create_group
 from findplus.places.repo import (
     create_place,
     current_presence,
@@ -172,6 +173,37 @@ def test_list_place_events_filter(session):
     rows = list_place_events(session, place_id=p1.id)
     assert len(rows) == 1
     assert rows[0]._place_name == "P1"
+
+
+def test_list_place_events_group_filter_resolves_members(session):
+    """`group_id` filtered on PlaceEvent.group_id, a column nothing writes (E1 CR-C).
+
+    api-contract.md and mcp-tools.md both advertise the parameter, so it returned
+    an empty list for every caller. It now resolves the group to its member devices.
+    """
+    place = create_place(session, name="P1", latitude_e7=0, longitude_e7=0, radius_meters=100)
+    group = create_group(session, name="Family", member_ids=["dev1"])
+    session.flush()
+
+    base = datetime.now(UTC) - timedelta(minutes=2)
+    for device_id, when in (("dev1", base), ("dev2", base + timedelta(minutes=1))):
+        session.add(
+            PlaceEvent(
+                place_id=place.id,
+                device_id=device_id,
+                event_type="ENTER",
+                observed_at=datetime.now(UTC),
+                fetched_at=datetime.now(UTC),
+                observation_id=_make_observation(session, device_id=device_id, when=when),
+                confidence="high",
+                distance_meters=1.0,
+            )
+        )
+    session.flush()
+
+    rows = list_place_events(session, group_id=group.id)
+
+    assert [r.device_id for r in rows] == ["dev1"]
 
 
 def test_devices_inside(session):

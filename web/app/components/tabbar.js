@@ -35,7 +35,10 @@ let tabbarEl = null;
 function tabButton(entry) {
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.dataset.tab = entry.tab;
+  // NOT `data-tab`: the existing browser suite selects tabs with a bare
+  // `button[data-tab="..."]`, and a second matching button makes every one of
+  // those selectors ambiguous. The bar drives switchTab() directly anyway.
+  btn.dataset.tabbarTab = entry.tab;
   const icon = document.createElement("span");
   icon.className = "fp-tabbar-icon";
   icon.setAttribute("aria-hidden", "true");
@@ -54,7 +57,7 @@ function tabButton(entry) {
 function markCurrent(tab) {
   if (!tabbarEl) return;
   tabbarEl.querySelectorAll("button").forEach((btn) => {
-    if (btn.dataset.tab === tab) btn.setAttribute("aria-current", "page");
+    if (btn.dataset.tabbarTab === tab) btn.setAttribute("aria-current", "page");
     else btn.removeAttribute("aria-current");
   });
 }

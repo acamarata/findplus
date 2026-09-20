@@ -193,6 +193,15 @@ def base_url(live_server: str) -> str:
     return live_server
 
 
+async def set_theme(page, theme: str) -> None:
+    """Write `data-theme` on <html>, the same mechanism applyTheme() uses.
+
+    A plain function, not a fixture: nothing here needs teardown, and a test
+    that scans several themes on one page calls it more than once.
+    """
+    await page.evaluate("(t) => { document.documentElement.dataset.theme = t; }", theme)
+
+
 @pytest_asyncio.fixture(loop_scope="session")
 async def page(browser_session):
     # One BrowserContext per test. The dashboard persists UI state (open

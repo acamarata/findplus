@@ -62,6 +62,9 @@ dev = [
   "pytest>=8.3", "pytest-asyncio>=0.24", "pytest-cov>=5",
   "ruff>=0.8", "freezegun>=1.5", "playwright>=1.63",
   "build", "twine", "pyyaml", "shellcheck-py", "Pillow>=10",
+  # MPL-2.0 (it bundles the axe-core engine). Dev/test only, per phase.yaml's
+  # amended constraints: no MPL code ships in the wheel, sdist, dmg or widget.
+  "axe-playwright-python==0.1.8",
 ]
 apple = ["findmy>=0.10,<0.11"]
 bundle = ["pyinstaller>=6.22,<7"]

@@ -10,6 +10,9 @@
 <meta name="theme-color" content="#11141a">
 <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="/static/style.css">
+<!-- Loaded second on purpose: every rule in it overrides one above at equal
+     specificity (focus ring, screen-reader helper, phone tier). -->
+<link rel="stylesheet" href="/static/responsive.css">
 </head>
 <body>
 <!-- Lock screen. Rendered as a separate full-screen view: while locked the

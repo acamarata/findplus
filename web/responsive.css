@@ -1,0 +1,92 @@
+/*
+ * Find+ dashboard — focus, screen-reader and phone-width rules.
+ *
+ * Purpose    : The WCAG 2.1 AA focus ring, the screen-reader-only helper, the
+ *              bottom tab bar and the topbar overflow menu, and the <600px
+ *              phone tier that switches between them. Split out of style.css,
+ *              which reached the 300-line cap.
+ * Inputs     : The colour tokens style.css declares on :root and the light
+ *              theme block.
+ * Outputs    : Loaded after style.css, so every rule here is the later one at
+ *              equal specificity and wins the overrides it is written to win.
+ * Constraints: The three tiers are >=900px (untouched desktop grid), 600-899px
+ *              (one column), and <600px (this file's media block). Nothing
+ *              here declares a colour of its own.
+ */
+
+/* One rule for every other interactive element, not one per component.
+   :focus-visible rather than :focus so a mouse click does not show the ring;
+   #lock-pin above keeps :focus deliberately (a full-screen modal input). */
+.btn:focus-visible, .btn-secondary:focus-visible, .btn-tiny:focus-visible,
+input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
+.fp-tabbar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Visible to a screen reader, not on screen. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap;
+}
+.lock-error { color: var(--err); font-size: 12.5px; min-height: 18px; margin: 12px 0 0; }
+
+/* --- bottom tab bar (components/tabbar.js) ------------------------------- */
+.fp-tabbar {
+  display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  height: calc(56px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--panel); border-top: 1px solid var(--line);
+}
+.fp-tabbar.hidden { display: none; }
+.fp-tabbar button {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 2px; min-height: 44px;
+  border: none; background: transparent; color: var(--muted);
+  font-size: 11px; cursor: pointer;
+}
+.fp-tabbar button[aria-current="page"] { color: var(--text); }
+.fp-tabbar .fp-tabbar-icon { font-size: 18px; line-height: 1; }
+
+/* --- topbar overflow menu (phone tier) ----------------------------------- */
+#btn-more { display: none; }
+#fp-more-menu {
+  position: absolute; right: 12px; top: 52px; z-index: 50;
+  display: flex; flex-direction: column; gap: 4px; padding: 8px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+}
+#fp-more-menu.hidden { display: none; }
+#fp-more-menu button { min-height: 44px; text-align: left; }
+
+/* --- phone tier (<600px) -------------------------------------------------
+   The desktop grid above 900px is untouched. Below 600px the top nav is
+   replaced by components/tabbar.js's fixed bottom bar, the topbar actions
+   collapse behind a "More" button, the map gives the timeline room, and
+   dialogs go full-screen. Every rule here is an override of a rule above,
+   never a new component. */
+@media (max-width: 599px) {
+  .fp-tabs { display: none; }
+  .fp-tabbar { display: flex; }
+
+  .topbar #device-name { display: none; }
+  .topbar-actions > *:not(#btn-more) { display: none; }
+  #btn-more { display: inline-flex; }
+
+  #map { height: 50vh; min-height: 280px; }
+  /* An inner scroll region under a fixed bottom bar fights the page scroll
+     on touch, so the pane scrolls the page instead. */
+  .timeline-pane { max-height: none; overflow-y: visible; }
+
+  .modal-box {
+    inset: 0; width: 100%; height: 100%; border-radius: 0; max-height: none;
+  }
+
+  /* Touch targets. The checkbox and radio hit box is drawn around the
+     control rather than resizing the control itself. */
+  .btn, .btn-tiny, .fp-tab { min-height: 44px; min-width: 44px; }
+  input[type=checkbox], input[type=radio] { position: relative; }
+  input[type=checkbox]::before, input[type=radio]::before {
+    content: ""; position: absolute; left: 50%; top: 50%;
+    width: 44px; height: 44px; transform: translate(-50%, -50%);
+  }
+
+  /* The fixed bar sits over the end of the page; give the content room. */
+  body { padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)); }
+}

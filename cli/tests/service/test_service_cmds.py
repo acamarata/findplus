@@ -99,6 +99,32 @@ def test_start_refresh_failure_exits_1(tmp_db, monkeypatch: pytest.MonkeyPatch) 
     assert install_calls == []
 
 
+# --------------------------------------------------- f2: apple refresh fails
+def test_start_apple_refresh_failure_exits_1(tmp_db, monkeypatch: pytest.MonkeyPatch) -> None:
+    """CR-C-E7 F3: branch B's Apple discovery gets the same guard as Google's."""
+    monkeypatch.setattr(
+        "findplus.providers.google_findhub.bootstrap.describe_stored_auth",
+        lambda: {"exists": False},
+    )
+    settings = get_settings()
+    settings.state_dir.mkdir(parents=True, exist_ok=True)
+    (settings.state_dir / "apple-account.json").write_text("{}")
+
+    def _raise(self):
+        raise RuntimeError("session expired")
+
+    monkeypatch.setattr(
+        "findplus.providers.apple_findmy.provider.AppleFindMyProvider.list_devices", _raise
+    )
+    install_calls: list[bool] = []
+    monkeypatch.setattr("findplus.service.install", lambda *a, **k: install_calls.append(True))
+
+    result = CliRunner().invoke(main, ["start"])
+    assert result.exit_code == 1, result.output
+    assert "Could not list devices: session expired" in result.output
+    assert install_calls == []
+
+
 def _track_one_device(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "findplus.providers.google_findhub.bootstrap.describe_stored_auth", lambda: {"exists": True}

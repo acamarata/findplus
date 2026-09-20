@@ -68,7 +68,11 @@ def _discover_and_track(google: bool, apple: bool, no_track_all: bool) -> None:
     if apple:
         from findplus.providers.apple_findmy.provider import AppleFindMyProvider
 
-        apple_found = AppleFindMyProvider().list_devices()
+        try:
+            apple_found = AppleFindMyProvider().list_devices()
+        except Exception as exc:
+            click.secho(f"Could not list devices: {exc}", fg="red")
+            sys.exit(1)
         with session_scope() as sess:
             for d in apple_found:
                 upsert_device(sess, d.device_id, d.name, provider="apple-find-my")

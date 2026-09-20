@@ -95,7 +95,7 @@ Get Start At Login
 The effective value, resolved exactly as `GET /api/widget` resolves it.
 
 ### POST /api/settings/app.start_at_login
-Toggle the desktop app's LaunchAgent via the shared service code.
+Toggle the desktop app's LaunchAgent through findplus.service.
 
 **Request body:**
 ```json
@@ -260,7 +260,7 @@ Set which device the dashboard focuses on first.
 ```
 
 ### POST /api/devices/refresh
-Re-query Find Hub for the account's device list.
+Re-query every authenticated provider for its device list.
 
 ### POST /api/devices/track
 Replace the tracked set. `all_devices=true` tracks everything.

@@ -365,6 +365,21 @@ existing `../web` -> `findplus/web/static` entry. `providers/findhub/bootstrap.p
 resolves it at runtime: the installed-wheel `_vendor` path first, the repo `vendor/` tree
 second — so the same code runs importable from either mode.
 
+## Dashboard icon sprite
+
+`packaging/vendor/lucide/` holds 48 Lucide 0.462.0 SVGs (ISC, unmodified), pinned by
+`packaging/data/lucide-subset.json`. `packaging/scripts/gen-icons.py` wraps each one as a
+`<symbol id="lucide-<name>" data-group="<group>">` and writes them all into the single
+generated file `web/icons.svg`; `--check` re-renders and compares instead of writing, which
+is the drift gate. `web/icons.LICENSE` carries Lucide's licence text and version.
+
+`main.js`'s `loadIconSprite()` fetches `/static/icons.svg` once at boot, parses it with
+`DOMParser` and prepends the element to `<body>` — `<use href="#lucide-dog">` only resolves
+against a symbol in the same document, so an external file reference would not work. The
+call is fire-and-forget: a missing sprite leaves badges on their letter fallback rather than
+stopping the dashboard. `web/app/components/icon-picker.js` reads the same in-page symbols,
+so the browser fetches icon artwork exactly once.
+
 ## Screenshots
 
 `packaging/scripts/screenshots.py` seeds a throwaway demo database (env-isolated via

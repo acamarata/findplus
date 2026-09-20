@@ -20,6 +20,10 @@ token_cache*
 
 # --- Location history — private by default --------------------------------
 data/
+# packaging/data/ holds pinned build inputs, not location history. The
+# directory itself has to be un-excluded: git cannot re-include a path under an
+# excluded directory.
+!packaging/data/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm

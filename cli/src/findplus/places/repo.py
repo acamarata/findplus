@@ -17,19 +17,33 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from findplus.db.models import Device, DeviceGroup, Place, PlaceEvent, PlaceState
+from findplus.places.staleness import _is_stale, _last_fix_by_device, _stale_before
 
 
-def list_places(session: Session) -> list[Place]:
-    """Every saved place, alphabetical, with `_devices_inside` attached."""
+def list_places(
+    session: Session, *, stale_after_minutes: int | None = None, now: datetime | None = None
+) -> list[Place]:
+    """Every saved place, alphabetical, with `_devices_inside` attached.
+
+    A device whose newest fix is older than the staleness threshold is NOT
+    listed as inside. geofence.advance() only moves a place_state when a new
+    fix arrives, so a tracker that entered Home and then went silent stayed
+    `inside` for ever; honesty.md's presence_stale sentence says a tag with no
+    recent fix is "stale, not at home and not left behind". The widget
+    (api/_widget.py) and group presence (groups/presence.py) both already null
+    a stale device's place; Places was the last surface asserting it
+    (E1 honesty round 3 F1).
+    """
+    cutoff = _stale_before(stale_after_minutes, now)
+    last_fix = _last_fix_by_device(session)
     rows = list(session.scalars(select(Place).order_by(Place.name)).all())
     for row in rows:
-        row._devices_inside = list(
-            session.scalars(
-                select(PlaceState.device_id).where(
-                    PlaceState.place_id == row.id, PlaceState.state == "inside"
-                )
-            ).all()
-        )
+        inside = session.scalars(
+            select(PlaceState.device_id).where(
+                PlaceState.place_id == row.id, PlaceState.state == "inside"
+            )
+        ).all()
+        row._devices_inside = [d for d in inside if not _is_stale(last_fix.get(d), cutoff)]
     return rows
 
 
@@ -215,20 +229,39 @@ def list_place_events(
     return result
 
 
-def current_presence(session: Session, *, device_id: str | None = None) -> list[dict]:
+def current_presence(
+    session: Session,
+    *,
+    device_id: str | None = None,
+    stale_after_minutes: int | None = None,
+    now: datetime | None = None,
+) -> list[dict]:
+    """Per (device, place) geofence state, with a stale device reported `unknown`.
+
+    See list_places: a place_state only advances on a new fix, so without this
+    a silent tracker reads "Home since 3 d" for ever. `since_observed_at` is
+    kept on a stale row -- when it was last seen there is true and useful; what
+    is no longer claimed is that it is still there.
+    """
+    cutoff = _stale_before(stale_after_minutes, now)
+    last_fix = _last_fix_by_device(session)
     stmt = select(PlaceState, Place.name.label("place_name")).join(
         Place, PlaceState.place_id == Place.id
     )
     if device_id is not None:
         stmt = stmt.where(PlaceState.device_id == device_id)
     rows = session.execute(stmt).all()
-    return [
-        {
-            "device_id": r.PlaceState.device_id,
-            "place_id": r.PlaceState.place_id,
-            "place_name": r.place_name,
-            "state": r.PlaceState.state,
-            "since_observed_at": r.PlaceState.since_observed_at,
-        }
-        for r in rows
-    ]
+    out = []
+    for r in rows:
+        stale = _is_stale(last_fix.get(r.PlaceState.device_id), cutoff)
+        out.append(
+            {
+                "device_id": r.PlaceState.device_id,
+                "place_id": r.PlaceState.place_id,
+                "place_name": r.place_name,
+                "state": "unknown" if stale else r.PlaceState.state,
+                "since_observed_at": r.PlaceState.since_observed_at,
+                "stale": stale,
+            }
+        )
+    return out

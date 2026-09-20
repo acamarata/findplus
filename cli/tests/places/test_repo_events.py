@@ -85,22 +85,67 @@ def test_list_place_events_group_filter_resolves_members(session):
     assert [r.device_id for r in rows] == ["dev1"]
 
 
+def _inside_state(session, place, device_id="dev1"):
+    session.add(
+        PlaceState(
+            place_id=place.id,
+            device_id=device_id,
+            state="inside",
+            streak=0,
+            since_observed_at=None,
+            last_observation_id=None,
+            updated_at=datetime.now(UTC),
+        )
+    )
+    session.flush()
+
+
 def test_devices_inside(session):
     place = create_place(session, name="Home", latitude_e7=0, longitude_e7=0, radius_meters=100)
-    state = PlaceState(
-        place_id=place.id,
-        device_id="dev1",
-        state="inside",
-        streak=0,
-        since_observed_at=None,
-        last_observation_id=None,
-        updated_at=datetime.now(UTC),
-    )
-    session.add(state)
-    session.flush()
+    _inside_state(session, place)
+    _make_observation(session, "dev1", datetime.now(UTC))
+
     assert list_places(session)[0]._devices_inside == ["dev1"]
-    state.state = "outside"
+
+    session.get(PlaceState, (place.id, "dev1")).state = "outside"
     session.flush()
+    assert list_places(session)[0]._devices_inside == []
+
+
+def test_a_silent_tracker_stops_being_listed_inside(session):
+    """honesty round 3 F1: a place_state only advances when a new fix arrives.
+
+    A tracker that entered Home and then went quiet stayed `inside` for ever,
+    so the dashboard read "Home since 3 d" about a tag nobody had heard from.
+    honesty.md's presence_stale sentence forbids exactly that reading.
+    """
+    place = create_place(session, name="Home", latitude_e7=0, longitude_e7=0, radius_meters=100)
+    _inside_state(session, place)
+    _make_observation(session, "dev1", datetime.now(UTC) - timedelta(days=3))
+
+    assert list_places(session)[0]._devices_inside == []
+
+    presence = current_presence(session, device_id="dev1")
+    assert [r["state"] for r in presence] == ["unknown"]
+    assert presence[0]["stale"] is True
+
+
+def test_a_reporting_tracker_is_still_inside(session):
+    """The control: a fresh fix keeps the place claim."""
+    place = create_place(session, name="Home", latitude_e7=0, longitude_e7=0, radius_meters=100)
+    _inside_state(session, place)
+    _make_observation(session, "dev1", datetime.now(UTC) - timedelta(minutes=5))
+
+    assert list_places(session)[0]._devices_inside == ["dev1"]
+    presence = current_presence(session, device_id="dev1")
+    assert presence[0]["state"] == "inside"
+    assert presence[0]["stale"] is False
+
+
+def test_a_tracker_that_never_reported_is_not_inside(session):
+    place = create_place(session, name="Home", latitude_e7=0, longitude_e7=0, radius_meters=100)
+    _inside_state(session, place)
+
     assert list_places(session)[0]._devices_inside == []
 
 

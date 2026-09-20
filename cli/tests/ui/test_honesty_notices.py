@@ -112,3 +112,70 @@ async def test_the_footer_sentences_are_blanked_by_the_lock(page, base_url):
         }"""
     )
     assert blanked is True
+
+
+async def test_the_chrome_around_the_footer_names_the_right_network(page, base_url):
+    """honesty round 2 F3: round 1 gated the sentence and left the chrome Google-only.
+
+    An Apple-only user still read "Last observed by Find Hub", "Queries Google
+    once, now", "Devices on this Google account" and "about N Google requests
+    per hour" — seven strings around the one sentence that had been fixed.
+    """
+    await _open_dashboard(page, base_url)
+    await page.wait_for_function(
+        "() => document.getElementById('findhub-notice').textContent !== ''",
+        timeout=5000,
+    )
+
+    apple_only = await page.evaluate(
+        """async () => {
+            const [state, devices] = await Promise.all([
+                import('/static/app/state.js'),
+                import('/static/app/devices.js'),
+            ]);
+            state.state.devices = state.state.devices.map(
+                (d) => ({ ...d, provider: 'apple-find-my', is_tracked: true })
+            );
+            devices.syncProviderChrome();
+            return {
+                poll: document.getElementById('btn-poll').title,
+                observed: document.getElementById('card-observed-label').textContent,
+                heading: document.getElementById('device-modal-title').textContent,
+                note: document.getElementById('device-modal-note').textContent,
+            };
+        }"""
+    )
+    for where, text in apple_only.items():
+        assert "Google" not in text, f"{where} still says Google to an Apple-only user: {text}"
+        assert "Find Hub" not in text, f"{where} still says Find Hub: {text}"
+    assert apple_only["observed"] == "Last observed by Find My"
+    assert apple_only["heading"] == "Devices on this Apple account"
+
+    google_only = await page.evaluate(
+        """async () => {
+            const [state, devices] = await Promise.all([
+                import('/static/app/state.js'),
+                import('/static/app/devices.js'),
+            ]);
+            state.state.devices = state.state.devices.map(
+                (d) => ({ ...d, provider: 'google-find-hub', is_tracked: true })
+            );
+            devices.syncProviderChrome();
+            return document.getElementById('card-observed-label').textContent;
+        }"""
+    )
+    assert google_only == "Last observed by Find Hub"
+
+
+async def test_the_markup_asserts_no_network_before_devices_load(page, base_url):
+    """The pre-load default must not be a claim: a fresh page has no device list."""
+    import re
+    from pathlib import Path
+
+    shell = Path(__file__).resolve().parents[3] / "web" / "index.html"
+    text = shell.read_text()
+    for partial in (shell.parent / "partials").glob("*.html"):
+        text += partial.read_text()
+    text = re.sub(r"<!--.*?-->", "", text, flags=re.S)
+    assert "Google" not in text
+    assert "Find Hub" not in text

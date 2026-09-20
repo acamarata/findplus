@@ -12,6 +12,7 @@ import { $, state, fmtTime, fmtDateTime, fmtDuration, fmtDistance, todayLocal, c
 import { api, postJson } from "./api.js";
 import { renderMap, visiblePoints } from "./map.js";
 import { reload } from "./main.js";
+import { providerWording } from "./devices.js";
 
 function statsHtml(stats) {
   if (!stats || !stats.observation_count) return "";
@@ -171,7 +172,8 @@ export function wireTimelineControls() {
       if (day !== state.day) await loadDay(day);
       selectPoint(latest.id, true);
       showAlert(
-        `${latest.device_name} — last observed by Find Hub ${fmtDateTime(latest.observed_at_local)} · ` +
+        `${latest.device_name} — last observed by ${providerWording().network} ` +
+        `${fmtDateTime(latest.observed_at_local)} · ` +
         `retrieved ${fmtDateTime(latest.fetched_at_local)} · age ${fmtDuration(latest.age_seconds)}`,
         "warn"
       );

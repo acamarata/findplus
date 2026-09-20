@@ -64,9 +64,10 @@ export function updateModalRate() {
   const checked = document.querySelectorAll("#device-list input:checked").length;
   const interval = (state.config && state.config.poll_interval_minutes) || 5;
   const rate = Math.round((checked * 60) / interval);
+  const w = providerWording();
   $("device-rate").textContent = checked
-    ? `${checked} device(s) tracked → about ${rate} Google requests per hour, polled sequentially every ${interval} min.`
-    : "Nothing tracked — the poller will not query Google at all.";
+    ? `${checked} device(s) tracked → about ${rate} ${w.requests} requests per hour, polled sequentially every ${interval} min.`
+    : `Nothing tracked — the poller will not query ${w.requests} at all.`;
 }
 
 export async function loadDevices() {
@@ -75,6 +76,7 @@ export async function loadDevices() {
   state.devices.forEach((d) => colorFor(d.device_id));
   renderDeviceFilter();
   syncProviderNotice();
+  syncProviderChrome();
   return body;
 }
 
@@ -90,6 +92,51 @@ export async function loadDevices() {
  * With no devices at all neither sentence renders: there is no history on
  * screen for either one to describe.
  */
+/**
+ * What to call the tracking side, derived from the tracked device set.
+ *
+ * Round 1 gated the footer honesty sentence and left the chrome around it
+ * speaking only Google: an Apple-only user still read "Last observed by Find
+ * Hub", "Devices on this Google account" and "about N Google requests per
+ * hour" (E1 honesty round 2 F3). `network` names the tracking network,
+ * `account` the account the devices hang off, `requests` the thing being
+ * queried. A mixed or unknown set falls back to neutral wording rather than
+ * picking a side.
+ */
+export function providerWording() {
+  const providers = new Set(
+    state.devices.filter((d) => d.is_tracked !== false).map((d) => d.provider)
+  );
+  const apple = providers.has("apple-find-my");
+  const other = [...providers].some((p) => p && p !== "apple-find-my");
+  if (apple && !other) return { network: "Find My", account: "Apple", requests: "Apple" };
+  if (other && !apple) return { network: "Find Hub", account: "Google", requests: "Google" };
+  return { network: "your providers", account: "tracking", requests: "your providers" };
+}
+
+/**
+ * Rewrite the provider-named chrome for the current device set.
+ *
+ * These strings live in the markup because they are there before any device
+ * list is loaded; this is the one place that keeps them true afterwards.
+ */
+export function syncProviderChrome() {
+  const w = providerWording();
+  const poll = $("btn-poll");
+  if (poll) poll.title = `Queries ${w.requests} once, now`;
+  const observed = $("card-observed-label");
+  if (observed) observed.textContent = `Last observed by ${w.network}`;
+  const heading = $("device-modal-title");
+  if (heading) heading.textContent = `Devices on this ${w.account} account`;
+  const note = $("device-modal-note");
+  if (note) {
+    note.textContent =
+      `Tick every tracker you want polled. Each tracked device costs one ${w.requests} ` +
+      "request per poll cycle, so the request rate rises with the number you tick. " +
+      "Untracking keeps a device's existing history — it just stops being polled.";
+  }
+}
+
 export function syncProviderNotice() {
   const notices = state.config?.notices;
   setNotice($("apple-notice"), (d) => d.provider === "apple-find-my", notices?.apple);
@@ -178,8 +225,8 @@ export function wireDeviceControls() {
       await loadDevices();
       showAlert(
         r.tracked_count
-          ? `Tracking ${r.tracked_count} device(s) — about ${r.requests_per_hour} Google requests/hour.`
-          : "No devices tracked. The poller will not query Google.",
+          ? `Tracking ${r.tracked_count} device(s) — about ${r.requests_per_hour} ${providerWording().requests} requests/hour.`
+          : `No devices tracked. The poller will not query ${providerWording().requests}.`,
         "warn"
       );
       await reload();

@@ -40,12 +40,12 @@
     <button id="btn-settings" class="btn btn-secondary" title="Settings">Settings</button>
     <button id="btn-lock" class="btn btn-secondary hidden" title="Lock now">Lock</button>
     <button id="btn-latest" class="btn">Latest Location</button>
-    <button id="btn-poll" class="btn btn-secondary" title="Queries Google once, now">Poll Now</button>
+    <button id="btn-poll" class="btn btn-secondary" title="Queries your providers once, now">Poll Now</button>
   </div>
 </header>
 
 <section class="cards" id="cards">
-  <div class="card"><span class="label">Last observed by Find Hub</span><strong id="card-observed">—</strong><span class="sub" id="card-observed-ago">—</span></div>
+  <div class="card"><span class="label" id="card-observed-label">Last observed</span><strong id="card-observed">—</strong><span class="sub" id="card-observed-ago">—</span></div>
   <div class="card"><span class="label">Retrieved by this computer</span><strong id="card-fetched">—</strong><span class="sub" id="card-lag">—</span></div>
   <div class="card"><span class="label">Last successful poll</span><strong id="card-poll">—</strong><span class="sub" id="card-poll-status">—</span></div>
   <div class="card"><span class="label">Observations today</span><strong id="card-today">—</strong><span class="sub" id="card-total">—</span></div>
@@ -137,11 +137,11 @@
 <div id="device-modal" class="modal hidden">
   <div class="modal-box">
     <header class="modal-head">
-      <h2>Devices on this Google account</h2>
+      <h2 id="device-modal-title">Your devices</h2>
       <button class="btn btn-tiny" id="btn-close-devices">Close</button>
     </header>
-    <p class="modal-note">
-      Tick every tracker you want polled. Each tracked device costs one Google
+    <p class="modal-note" id="device-modal-note">
+      Tick every tracker you want polled. Each tracked device costs one provider
       request per poll cycle, so the request rate rises with the number you tick.
       Untracking keeps a device's existing history — it just stops being polled.
     </p>

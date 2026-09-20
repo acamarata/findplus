@@ -21,6 +21,42 @@ async def _open_dashboard(page, base_url):
     await page.wait_for_selector("#map")
 
 
+async def _wait_for_popup_to_settle(page) -> None:
+    """Block until the open popup has a real box, so a click lands where it looks.
+
+    Leaflet auto-pans the map to fit a freshly opened popup. A click computed while
+    that pan is still running resolves against a stale rectangle, and Playwright
+    then reports whatever sits under the point as the receiver — which is how the
+    browser job failed on CI run 35522235405 with `section.controls` named as the
+    interceptor even though `.controls` sits entirely above `#map` and cannot
+    overlap it. This is a state check, never a sleep.
+    """
+    await page.wait_for_function(
+        """() => {
+            const el = document.querySelector(".leaflet-popup");
+            if (!el) return false;
+            const r = el.getBoundingClientRect();
+            return r.width > 0 && r.height > 0;
+        }""",
+        timeout=3000,
+    )
+
+
+async def _close_open_popups(page) -> None:
+    """Dismiss the open popup through Leaflet instead of clicking its close button.
+
+    `closePopup()` needs no coordinates, so it cannot race the pan the way a pixel
+    click on `.leaflet-popup-close-button` did.
+    """
+    await page.evaluate(
+        """async () => {
+            const { state } = await import("/static/app/state.js");
+            if (state.map) state.map.closePopup();
+        }"""
+    )
+    await page.wait_for_selector(".leaflet-popup", state="detached", timeout=3000)
+
+
 async def _click_popup_button(page, place_name, button_text):
     """Click each rendered place circle until its popup names `place_name`.
 
@@ -31,7 +67,7 @@ async def _click_popup_button(page, place_name, button_text):
     marker; (2) Escape does not close a Leaflet popup, so `.leaflet-popup-
     content` accumulates one element per prior click — `.last` always reads
     the most recently opened popup instead of hitting a strict-mode
-    violation, and the popup's own close button (not Escape) dismisses it.
+    violation, and `_close_open_popups` dismisses it through Leaflet.
     """
     paths = page.locator("#map svg path.leaflet-interactive")
     count = await paths.count()
@@ -43,12 +79,13 @@ async def _click_popup_button(page, place_name, button_text):
         popup = page.locator(".leaflet-popup-content").last
         try:
             await popup.wait_for(state="visible", timeout=1500)
+            await _wait_for_popup_to_settle(page)
         except Exception:
             continue
         if place_name in await popup.inner_text():
             await popup.get_by_text(button_text, exact=True).click()
             return
-        await page.locator(".leaflet-popup-close-button").last.click()
+        await _close_open_popups(page)
     raise AssertionError(f"no popup found naming {place_name!r}")
 
 

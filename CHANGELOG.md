@@ -14,6 +14,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - An i18n scaffold for the dashboard: `web/app/i18n.js` and the English catalog at `web/locales/en.json`, whose honesty sentences are generated from the same source the API serves.
 
 ### Changed
+- The Homebrew caveats and the installer both point new installs at `findplus setup`, so every install channel gives the same first instruction.
 - `findplus start` finishes a fresh sign-in in one run: it discovers devices from every provider you are signed in to, shows them, tracks them all and installs the service. Pass `--no-track-all` to discover without tracking.
 - `findplus start` exits 4 when you are not signed in yet, instead of 0, and counts an Apple sign-in as being signed in.
 - `install.sh` is shorter and points at a new Uninstall wiki page for the manual service-removal commands it prints. Without `--start` its last line now points at `findplus setup`.

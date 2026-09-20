@@ -514,6 +514,7 @@ Linux CI; TestPyPI rehearsal job in `release.yml` (environment `testpypi`, no ap
 ubuntu and macos with `FINDPLUS_WHEEL`.
 **E12-T3 (M) Homebrew formula template** `packaging/homebrew/findplus.rb.tmpl` + `packaging/scripts/gen-formula.sh`
 (`brew update-python-resources`); local `brew install --build-from-source ./findplus.rb` + `brew test`.
+P2-E7-W2-S1-T3 changed the caveats last line to `findplus setup`, matching install.sh's new final line.
 **E12-T4 (S) README install section** (three paths + dmg; two first-run commands; no inline comments).
 **E12-T5 (S) `packaging/scripts/bump-version.sh`** (refuses on a dirty tree; owner-run only).
 **E12-T6 (S) `packaging/scripts/release-local.sh`** skeleton: Python steps (build, twine check, TestPyPI

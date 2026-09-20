@@ -17,6 +17,7 @@ from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
+from findplus.alerts.channels_field import format_channels, parse_channels
 from findplus.db.models import Device, Group, Place
 from findplus.db.models_alerts import AlertDelivery, AlertRule
 from findplus.db.session import session_scope
@@ -60,7 +61,11 @@ def _rule_to_dict(
         "device_name": device_name,
         "on_enter": r.on_enter,
         "on_exit": r.on_exit,
-        "channel": r.channel,
+        # Migration 0008 replaced alert_rules.channel with a channels list. The
+        # single-value wire field is kept until P2-E8-W3-S1-T6 swaps the whole
+        # request/response shape to `channels`; nothing creates a multi-channel
+        # rule before that ticket lands.
+        "channel": parse_channels(r.channels)[0],
         "cooldown_minutes": r.cooldown_minutes,
         "enabled": r.enabled,
         "also_notify_members": r.also_notify_members,
@@ -110,7 +115,7 @@ def build_router() -> APIRouter:
                 device_id=body.device_id,
                 on_enter=body.on_enter,
                 on_exit=body.on_exit,
-                channel=body.channel,
+                channels=format_channels([body.channel]),
                 cooldown_minutes=body.cooldown_minutes,
                 enabled=body.enabled,
                 also_notify_members=body.also_notify_members,
@@ -127,6 +132,9 @@ def build_router() -> APIRouter:
         with session_scope() as s:
             rule = _get_rule_or_404(s, rule_id)
             for field, value in body.model_dump(exclude_unset=True).items():
+                if field == "channel":
+                    rule.channels = format_channels([value])
+                    continue
                 setattr(rule, field, value)
             s.commit()
         with session_scope() as s:
@@ -144,7 +152,7 @@ def build_router() -> APIRouter:
     def get_deliveries(limit: int = 100) -> list[dict[str, Any]]:
         with session_scope() as s:
             stmt = (
-                select(AlertDelivery, AlertRule.name, AlertRule.channel)
+                select(AlertDelivery, AlertRule.name)
                 .join(AlertRule, AlertRule.id == AlertDelivery.rule_id)
                 .order_by(AlertDelivery.sent_at.desc())
                 .limit(limit)
@@ -154,16 +162,16 @@ def build_router() -> APIRouter:
                     "id": d.id,
                     "rule_id": d.rule_id,
                     "rule_name": rule_name,
-                    # Derived from the join, never a stored column on the
-                    # delivery row: the rule owns the channel.
-                    "channel": rule_channel,
+                    # A stored column since migration 0008: one delivery row per
+                    # channel per event, so the rule no longer owns it alone.
+                    "channel": d.channel,
                     "event_kind": d.event_kind,
                     "event_id": d.event_id,
                     "sent_at": d.sent_at.isoformat(),
                     "status": d.status,
                     "error": d.error,
                 }
-                for d, rule_name, rule_channel in s.execute(stmt).all()
+                for d, rule_name in s.execute(stmt).all()
             ]
 
     return router

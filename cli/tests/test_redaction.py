@@ -8,6 +8,8 @@ key into the database in clear text and the dashboard then rendered it.
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 import pytest
 
 from findplus.redaction import redact_text
@@ -57,7 +59,7 @@ def test_the_delivery_status_path_redacts_before_storing(monkeypatch) -> None:
     from findplus.alerts import dispatch_send
 
     class _Rule:
-        channel = "webhook"
+        channels: ClassVar[list[str]] = ["webhook"]
 
     class _Result:
         success = False
@@ -66,7 +68,7 @@ def test_the_delivery_status_path_redacts_before_storing(monkeypatch) -> None:
     monkeypatch.setattr(dispatch_send, "render_message", lambda *a, **k: "msg")
     monkeypatch.setattr(dispatch_send, "_send", lambda *a, **k: _Result())
 
-    status, err = dispatch_send._status_for(_Rule(), object(), "device", None, None)
+    status, err = dispatch_send._status_for("webhook", _Rule(), object(), "device", None, None)
 
     assert status == "failed"
     assert "874216" not in err
@@ -77,7 +79,7 @@ def test_an_exception_message_is_redacted_too(monkeypatch) -> None:
     from findplus.alerts import dispatch_send
 
     class _Rule:
-        channel = "webhook"
+        channels: ClassVar[list[str]] = ["webhook"]
 
     def _boom(*a, **k):
         raise RuntimeError(f"POST {CALLMEBOT} blew up")
@@ -85,7 +87,7 @@ def test_an_exception_message_is_redacted_too(monkeypatch) -> None:
     monkeypatch.setattr(dispatch_send, "render_message", lambda *a, **k: "msg")
     monkeypatch.setattr(dispatch_send, "_send", _boom)
 
-    status, err = dispatch_send._status_for(_Rule(), object(), "device", None, None)
+    status, err = dispatch_send._status_for("webhook", _Rule(), object(), "device", None, None)
 
     assert status == "failed"
     assert "874216" not in err

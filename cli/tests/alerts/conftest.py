@@ -35,7 +35,7 @@ def rule_row(tmp_db, session):
         device_id="dev1",
         on_enter=True,
         on_exit=True,
-        channel="telegram",
+        channels="telegram",
         cooldown_minutes=30,
         enabled=True,
         also_notify_members=False,

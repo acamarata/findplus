@@ -19,6 +19,7 @@ import click
 
 from findplus.alerts.channels.telegram import send, telegram_setup
 from findplus.alerts.channels.webhook import build_payload, is_valid_url, send_webhook
+from findplus.alerts.channels_field import format_channels
 from findplus.alerts.store import AlertsChannels, WebhookCreds, load_alerts, save_alerts
 from findplus.db.models_alerts import AlertDelivery, AlertRule
 from findplus.db.session import session_scope
@@ -139,7 +140,9 @@ def _rule_row(r: AlertRule) -> tuple:
         r.device_id,
         r.on_enter,
         r.on_exit,
-        r.channel,
+        # Single-channel display until P2-E8-W3-S1-T6 widens the CLI to the
+        # repeatable --channel option; the stored string is the channel name.
+        r.channels,
         r.cooldown_minutes,
         r.enabled,
         r.also_notify_members,
@@ -198,7 +201,7 @@ def rules_add(
             device_id=device_id,
             on_enter=enter,
             on_exit=exit_,
-            channel=channel,
+            channels=format_channels([channel]),
             cooldown_minutes=cooldown,
             enabled=True,
             also_notify_members=also_notify_members,

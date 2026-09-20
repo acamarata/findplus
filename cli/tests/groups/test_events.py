@@ -99,7 +99,7 @@ def test_group_event_reaches_dispatch_in_the_same_poll(tmp_db, monkeypatch):
                 device_id=None,
                 on_enter=True,
                 on_exit=True,
-                channel="telegram",
+                channels="telegram",
                 cooldown_minutes=30,
                 enabled=True,
                 also_notify_members=False,

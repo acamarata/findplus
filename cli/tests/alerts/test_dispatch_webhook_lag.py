@@ -39,7 +39,7 @@ def _webhook_rule(**overrides) -> Rule:
         device_id=None,
         on_enter=True,
         on_exit=True,
-        channel="webhook",
+        channels="webhook",
         cooldown_minutes=0,
         enabled=True,
         also_notify_members=False,
@@ -56,7 +56,7 @@ def test_group_event_webhook_lag_minutes_is_null() -> None:
     """A GroupEvent has no fetched_at -- the payload must send null, never 0."""
     with patch("findplus.alerts.channels.webhook.send_webhook") as send_mock:
         send_mock.return_value = types.SimpleNamespace(success=True, status_code=200, error=None)
-        _send(_webhook_rule(), _group_event(), "group", "msg", _webhook_configured())
+        _send("webhook", _webhook_rule(), _group_event(), "group", "msg", _webhook_configured())
     assert _sent_payload(send_mock)["lag_minutes"] is None
 
 
@@ -64,7 +64,7 @@ def test_device_event_webhook_lag_minutes_reflects_a_five_minute_delay() -> None
     event = _device_event(fetched_at=NOW + timedelta(minutes=5))
     with patch("findplus.alerts.channels.webhook.send_webhook") as send_mock:
         send_mock.return_value = types.SimpleNamespace(success=True, status_code=200, error=None)
-        _send(_webhook_rule(), event, "device", "msg", _webhook_configured())
+        _send("webhook", _webhook_rule(), event, "device", "msg", _webhook_configured())
     assert _sent_payload(send_mock)["lag_minutes"] == 5
 
 
@@ -73,5 +73,5 @@ def test_device_event_webhook_lag_minutes_is_null_without_fetched_at() -> None:
     event = _device_event(fetched_at=None)
     with patch("findplus.alerts.channels.webhook.send_webhook") as send_mock:
         send_mock.return_value = types.SimpleNamespace(success=True, status_code=200, error=None)
-        _send(_webhook_rule(), event, "device", "msg", _webhook_configured())
+        _send("webhook", _webhook_rule(), event, "device", "msg", _webhook_configured())
     assert _sent_payload(send_mock)["lag_minutes"] is None

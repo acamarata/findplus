@@ -20,6 +20,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - A phone-width layout: under 600px the dashboard gets a bottom tab bar, the toolbar collapses behind a More button, dialogs open full screen, and every button and tick box is at least 44px to tap.
 - WCAG 2.1 AA groundwork: page landmarks, a label on every form control, a visible focus ring, a focus trap and Escape-to-close on the Devices and Settings dialogs, an announced alert banner, and colour changes where text or a control border fell short of the contrast minimum.
 - An accessibility scan in the browser test suite: axe-core over every tab, in both themes, at desktop and phone width.
+- Alert rules can target more than one channel at once. Each channel gets its own delivery row and its own cooldown, so a notification on one never suppresses another.
 - Device and group labels, icons and colours: `PATCH /api/devices/{id}`, `GET /api/icons`, `findplus devices label`/`findplus devices icons`, exports and the macOS widget all carry the new fields. A label is local only and survives every provider name refresh.
 
 ### Changed

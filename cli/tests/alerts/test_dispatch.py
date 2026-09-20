@@ -167,13 +167,20 @@ def test_concurrent_duplicate_delivery_is_rolled_back(rule_row, session) -> None
         device_id="dev1",
         on_enter=True,
         on_exit=True,
-        channel="telegram",
+        channels=["telegram"],
         cooldown_minutes=30,
         enabled=True,
         also_notify_members=False,
     )
     session.add(
-        AlertDelivery(rule_id=rule.id, event_kind="device", event_id=1, sent_at=NOW, status="sent")
+        AlertDelivery(
+            rule_id=rule.id,
+            event_kind="device",
+            event_id=1,
+            channel="telegram",
+            sent_at=NOW,
+            status="sent",
+        )
     )
     session.commit()
 
@@ -201,7 +208,7 @@ def test_concurrent_duplicate_delivery_is_rolled_back(rule_row, session) -> None
     ):
         send_mock.return_value = types.SimpleNamespace(success=True, status_code=200, error=None)
         result = _deliver_one(
-            _RacySession(session), rule, _device_event(), _telegram_configured(), NOW
+            _RacySession(session), rule, "telegram", _device_event(), _telegram_configured(), NOW
         )
 
     assert result is None

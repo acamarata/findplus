@@ -55,7 +55,8 @@ class Rule:
     device_id: str | None
     on_enter: bool
     on_exit: bool
-    channel: str
+    #: Every channel this rule notifies. One delivery row per channel per event.
+    channels: list[str]
     cooldown_minutes: int
     enabled: bool
     also_notify_members: bool
@@ -67,6 +68,9 @@ class Delivery:
     event_kind: str
     event_id: int
     sent_at: datetime.datetime | None
+    #: Which channel this row is for. One event under a multi-channel rule
+    #: produces one Delivery per channel, so the rule_id no longer implies it.
+    channel: str
     #: "sent" | "failed". 1.0 never retries a delivery (events are stamped
     #: notified_at regardless of outcome, to avoid a resend storm), so a
     #: failed/skipped send must not itself start a cooldown -- only a
@@ -129,17 +133,22 @@ def suppressed_by_group(rule: Rule, event: DeviceEvent, rules: list[Rule]) -> bo
 
 def in_cooldown(
     rule: Rule,
+    channel: str,
     event: DeviceEvent | GroupEvent,
     deliveries: list[Delivery],
     now: datetime.datetime,
 ) -> bool:
-    """Key = (rule.id, event.place_id, subject) per engines.md.
+    """Key = (rule.id, channel, event.place_id, subject) per engines.md.
 
     `subject` (device_id, or str(group_id) for a group) is not compared
     directly: `match()` already guarantees any delivery under this same
     `rule.id` was sent for this rule's own fixed device_id/group_id (the
     alert_rules XOR CHECK pins exactly one per rule), so filtering on
     rule.id + place_id is equivalent to also filtering on subject.
+
+    The key is per channel (specs/notifications.md § 2): a rule listing both
+    native and telegram must cool each down on its own, since a native send
+    cannot fail the way a telegram send can and must not gate the other.
 
     Only a `status == "sent"` delivery starts the cooldown -- a failed or
     skipped send must not suppress the next attempt at the same key, since
@@ -151,6 +160,7 @@ def in_cooldown(
     limit = now - datetime.timedelta(minutes=rule.cooldown_minutes)
     return any(
         d.rule_id == rule.id
+        and d.channel == channel
         and d.event_kind == kind
         and d.place_id == event.place_id
         and d.status == "sent"

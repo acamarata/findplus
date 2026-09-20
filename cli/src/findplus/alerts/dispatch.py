@@ -123,6 +123,7 @@ def load_pending_events(session) -> list[DeviceEvent | GroupEvent]:
 
 
 def _load_rules(session) -> list[Rule]:
+    from findplus.alerts.channels_field import parse_channels
     from findplus.db.models_alerts import AlertRule as AlertRuleORM
 
     rows = session.query(AlertRuleORM).filter_by(enabled=True).all()
@@ -135,7 +136,7 @@ def _load_rules(session) -> list[Rule]:
             device_id=r.device_id,
             on_enter=r.on_enter,
             on_exit=r.on_exit,
-            channel=r.channel,
+            channels=parse_channels(r.channels),
             cooldown_minutes=r.cooldown_minutes,
             enabled=r.enabled,
             also_notify_members=r.also_notify_members,
@@ -174,6 +175,7 @@ def _load_recent_deliveries(session, now: datetime.datetime) -> list[Delivery]:
             event_kind=d.event_kind,
             event_id=d.event_id,
             sent_at=d.sent_at,
+            channel=d.channel,
             status=d.status,
             place_id=place_ids.get((d.event_kind, d.event_id)),
         )
@@ -182,28 +184,29 @@ def _load_recent_deliveries(session, now: datetime.datetime) -> list[Delivery]:
 
 
 def _deliver_one(
-    session, rule: Rule, event, channels_cfg, now: datetime.datetime
+    session, rule: Rule, channel: str, event, channels_cfg, now: datetime.datetime
 ) -> Delivery | None:
-    """Send one (rule, event) pair and record it. None only if already delivered."""
+    """Send one (rule, channel, event) triple and record it. None if already delivered."""
     from findplus.db.models_alerts import AlertDelivery as AlertDeliveryORM
 
     kind = "device" if isinstance(event, DeviceEvent) else "group"
     eid = event.place_event_id if isinstance(event, DeviceEvent) else event.group_place_event_id
     already = (
         session.query(AlertDeliveryORM)
-        .filter_by(rule_id=rule.id, event_kind=kind, event_id=eid)
+        .filter_by(rule_id=rule.id, event_kind=kind, event_id=eid, channel=channel)
         .first()
     )
     if already:
         return None
 
-    status, err = _status_for(rule, event, kind, channels_cfg, now)
+    status, err = _status_for(channel, rule, event, kind, channels_cfg, now)
 
     session.add(
         AlertDeliveryORM(
             rule_id=rule.id,
             event_kind=kind,
             event_id=eid,
+            channel=channel,
             sent_at=now,
             status=status,
             error=err,
@@ -225,6 +228,7 @@ def _deliver_one(
         event_kind=kind,
         event_id=eid,
         sent_at=now,
+        channel=channel,
         status=status,
         place_id=event.place_id,
     )
@@ -266,10 +270,11 @@ def process(events: list, session, settings, now: datetime.datetime | None = Non
         for rule in match(rules, event):
             if isinstance(event, DeviceEvent) and suppressed_by_group(rule, event, rules):
                 continue
-            if in_cooldown(rule, event, deliveries, now):
-                continue
-            delivered = _deliver_one(session, rule, event, channels_cfg, now)
-            if delivered is not None:
-                deliveries.append(delivered)
+            for channel in rule.channels:
+                if in_cooldown(rule, channel, event, deliveries, now):
+                    continue
+                delivered = _deliver_one(session, rule, channel, event, channels_cfg, now)
+                if delivered is not None:
+                    deliveries.append(delivered)
 
     _mark_notified(session, events, now)

@@ -153,10 +153,11 @@ def test_deliveries_empty(client: TestClient) -> None:
 
 
 def test_deliveries_include_channel(client: TestClient) -> None:
-    """The delivery log names the channel (CF-14): it comes from the rule, by join.
+    """The delivery log names the channel (CF-14).
 
-    `alert_deliveries` has no channel column — the rule owns it — so the route has
-    to carry it out or the UI cannot show which way an alert went.
+    It was a join onto the rule until migration 0008 gave alert_deliveries its own
+    channel column; one event under a multi-channel rule now produces one row per
+    channel, so the row has to carry it or the UI cannot show which way each went.
     """
     import datetime
 
@@ -169,12 +170,13 @@ def test_deliveries_include_channel(client: TestClient) -> None:
 
     with session_scope() as session:
         rule = session.get(AlertRule, rule_id)
-        assert rule.channel == "webhook"
+        assert rule.channels == "webhook"
         session.add(
             AlertDelivery(
                 rule_id=rule_id,
                 event_kind="device",
                 event_id=1,
+                channel="webhook",
                 sent_at=datetime.datetime.now(datetime.UTC),
                 status="sent",
                 error=None,

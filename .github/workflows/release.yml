@@ -71,7 +71,13 @@ jobs:
         run: |
           rustup target add aarch64-apple-darwin
           cargo install tauri-cli --version '^2.11' --locked
-      - run: |
+      - name: Build app and dmg
+        run: |
+          # Tauri's bundler reads APPLE_SIGNING_IDENTITY from the environment
+          # directly; an empty-but-present var (job env resolves the unset
+          # secret to "") makes it attempt an empty-identity codesign and
+          # fail with "no identity found" instead of skipping signing.
+          if [ -z "$APPLE_SIGNING_IDENTITY" ]; then unset APPLE_SIGNING_IDENTITY; fi
           cd desktop/src-tauri
           cargo tauri build --target aarch64-apple-darwin
       - name: Build widget (signed path only)

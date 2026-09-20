@@ -1,4 +1,7 @@
       <p class="fp-tab-hint" data-i18n="groups.tabHint">Use the Group selector above the map to choose a group.</p>
+      <!-- Shown only while there are zero groups; groups.js toggles it.
+           The hint above stays exactly as it was (onboarding.md § 8). -->
+      <p class="fp-tab-hint" id="fp-groups-empty-hint" hidden data-i18n="notices.groupsEmpty">No groups yet. Create one from Run setup again, or the group selector once you have one.</p>
       <button id="fp-add-group-btn" type="button"></button>
       <div id="fp-groups-list"></div>
       <div id="fp-group-legend"></div>

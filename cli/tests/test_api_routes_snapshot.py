@@ -23,7 +23,10 @@ Constraints: Zero behavior change from the pre-split monolith is the bar —
              P2-E8-W3-S1-T3 adds PUT/DELETE
              /api/alerts/channels/whatsapp, bringing it to 68;
              P2-E8-W3-S1-T4 adds POST
-             /api/alerts/deliveries/{delivery_id}/ack, bringing it to 69.
+             /api/alerts/deliveries/{delivery_id}/ack, bringing it to 69;
+             P2-E11-W4-S1-T1 adds GET/POST
+             /api/settings/onboarding.completed_at and GET/POST
+             /api/settings/onboarding.last_step, bringing it to 73.
 """
 
 from __future__ import annotations
@@ -68,7 +71,7 @@ def _app_routes(app):
 def test_route_count():
     app = create_app()
     routes = _app_routes(app)
-    assert len(routes) == 69
+    assert len(routes) == 73
 
 
 def test_route_paths_present():
@@ -87,6 +90,8 @@ def test_route_paths_present():
         "/api/settings/pin",
         "/api/settings/app.start_at_login",
         "/api/settings/widget.show_map",
+        "/api/settings/onboarding.completed_at",
+        "/api/settings/onboarding.last_step",
         "/api/devices",
         "/api/devices/refresh",
         "/api/devices/track",

@@ -7,6 +7,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- The macOS app opens the dashboard by itself on a first launch, so the setup wizard is the first thing you see, and goes back to being tray-only once setup is finished. The splash window now closes when the daemon is up, instead of staying on top until you quit.
 - Settings now carries the poll interval, how long history is kept, whether Mac notifications may name the person and place, and a Run setup again button.
 - A fresh install opens the setup wizard by itself. If you go somewhere else first, a bar under the toolbar offers to resume it, and stays until setup is actually finished.
 - The wizard's last four steps: saved places, alert channels, the app lock, and a summary. Every channel shows what it does with your alert text before you can switch it on.

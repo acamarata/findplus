@@ -203,3 +203,11 @@ dialog a:hover,
   background: var(--panel); color: var(--text); font-size: 14px;
 }
 #setup-banner a { color: var(--accent); }
+
+/* --- hidden rows ---------------------------------------------------------- */
+/* style.css:227 gives .setting-row `display: flex`, and an author rule beats
+   the UA sheet's `[hidden] { display: none }`, so a row marked hidden in the
+   markup still painted. The native-detail row is hidden on every platform but
+   macOS, which made it visible everywhere (same shape as style.css's own
+   `.fp-tab-panel[hidden]` rule). */
+.setting-row[hidden] { display: none; }

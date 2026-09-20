@@ -105,7 +105,10 @@ export function renderTracks() {
   if (!state.timeline || !state.timeline.tracks.length) {
     const empty = document.createElement("div");
     empty.className = "empty";
-    empty.textContent = t("timeline.emptyDay");
+    // Nothing tracked at all is a different problem from a quiet day, and it
+    // has a different answer: pick a device, or run setup again.
+    const nothingTracked = !(state.devices || []).some((d) => d.is_tracked);
+    empty.textContent = nothingTracked ? t("notices.dashboardEmpty") : t("timeline.emptyDay");
     host.appendChild(empty);
     return;
   }

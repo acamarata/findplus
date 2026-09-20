@@ -37,6 +37,14 @@ export const state = {
   idleMinutes: 0,
   /** View to restore verbatim after an unlock. */
   resume: null,
+  /**
+   * Whether bootDashboard() has run at least once this page load.
+   *
+   * The onboarding wizard's onDone uses it to tell a true first launch (boot
+   * the dashboard now) from a re-entry through Settings (the dashboard is
+   * already live; booting it again would stack a second refresh timer).
+   */
+  dashboardBooted: false,
 };
 
 export const $ = (id) => document.getElementById(id);

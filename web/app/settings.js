@@ -92,9 +92,15 @@ export async function openSettings() {
     $("settings-modal").classList.remove("hidden");
     // Re-read the sign-in status on every open (ruling R-P2-8): a sign-in
     // completed in a Chrome window or another tab is visible next time.
-    // Dynamic, so settings.js keeps no static dependency on auth.js.
-    import("./auth.js").then((m) => m.mountAuthPanel($("fp-settings-signin")));
+    // Dynamic, so settings.js keeps no static dependency on auth.js. Awaited
+    // inside this try/catch: unawaited, a failed import or a mountAuthPanel
+    // that threw rejected into nothing, leaving the panel blank with no
+    // message anywhere (CR-C-E10 F2).
+    // The focus trap goes on first, so a sign-in panel that fails to mount
+    // cannot leave an open dialog with no way to Escape out of it.
     settingsTrap = trapFocus($("settings-modal"), closeSettings);
+    const auth = await import("./auth.js");
+    await auth.mountAuthPanel($("fp-settings-signin"));
   } catch (e) {
     showAlert(e.message, "err");
   }

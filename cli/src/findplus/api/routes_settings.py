@@ -31,6 +31,8 @@ from ._settings_fields import (
     _raw_patch_body,
     _settings_body,
     _write_config_fields,
+    _write_onboarding_fields,
+    validate_step,
 )
 from ._widget import _widget_show_map
 from .middleware import same_origin_problem
@@ -65,6 +67,8 @@ def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeo
         # below, never off this parameter. Do not add a sentinel default here.
         retention_days: int | None = Body(default=None, embed=True, alias="history.retention_days"),
         native_detail: bool | None = Body(default=None, embed=True, alias="alerts.native_detail"),
+        completed_at: str | None = Body(default=None, embed=True, alias="onboarding.completed_at"),
+        last_step: str | None = Body(default=None, embed=True, alias="onboarding.last_step"),
         raw_body: dict[str, Any] = Depends(_raw_patch_body),
     ) -> dict[str, Any]:
         with session_scope() as session:
@@ -87,6 +91,7 @@ def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeo
                     _write_config_fields(
                         poll_interval_minutes, retention_days, _RETENTION_KEY in raw_body
                     )
+                    _write_onboarding_fields(session, raw_body, completed_at, last_step)
                 except ValueError as exc:
                     raise HTTPException(status_code=422, detail=str(exc)) from exc
             except ValueError as exc:
@@ -242,5 +247,41 @@ def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeo
         with session_scope() as session:
             set_setting(session, "widget.show_map", "1" if value else "0")
         return {"widget.show_map": value}
+
+    @router.get("/onboarding.completed_at")
+    def get_onboarding_completed_at() -> dict[str, Any]:
+        with session_scope() as session:
+            return {"onboarding.completed_at": get_setting(session, "onboarding.completed_at")}
+
+    @router.post("/onboarding.completed_at")
+    def set_onboarding_completed_at(
+        value: str | None = Body(default=None, embed=True),
+    ) -> dict[str, Any]:
+        """Stamp or clear the onboarding completion time (specs/onboarding.md § 2).
+
+        `value: null` un-completes onboarding. Only tests and `findplus setup
+        --reset` send it; the wizard always sends an ISO timestamp.
+        """
+        with session_scope() as session:
+            set_setting(session, "onboarding.completed_at", value)
+        return {"onboarding.completed_at": value}
+
+    @router.get("/onboarding.last_step")
+    def get_onboarding_last_step() -> dict[str, Any]:
+        with session_scope() as session:
+            return {"onboarding.last_step": get_setting(session, "onboarding.last_step")}
+
+    @router.post("/onboarding.last_step")
+    def set_onboarding_last_step(
+        value: str | None = Body(default=None, embed=True),
+    ) -> dict[str, Any]:
+        """Record the wizard's resume point, one of the eight known step ids."""
+        try:
+            validate_step(value)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        with session_scope() as session:
+            set_setting(session, "onboarding.last_step", value)
+        return {"onboarding.last_step": value}
 
     return router

@@ -83,6 +83,10 @@ export async function loadGroups() {
 function updateEmptyStateHint(groupCount) {
   const hint = document.querySelector("#tab-groups .fp-tab-hint");
   if (hint) hint.hidden = groupCount > 0;
+  // The second line says where groups come from, which only helps while there
+  // are none (onboarding.md § 8).
+  const empty = document.getElementById("fp-groups-empty-hint");
+  if (empty) empty.hidden = groupCount > 0;
 }
 
 export async function selectGroup(id) {

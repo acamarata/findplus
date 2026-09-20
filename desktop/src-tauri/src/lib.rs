@@ -21,6 +21,7 @@ pub fn run() {
             windows::open_splash(app.handle());
             daemon::start(app.handle().clone());
             status::start(app.handle().clone());
+            first_launch::start(app.handle().clone());
             notify::start(app.handle().clone());
             Ok(())
         })
@@ -36,6 +37,7 @@ pub fn run() {
 }
 
 mod daemon;
+mod first_launch;
 mod notify;
 mod status;
 mod tray;

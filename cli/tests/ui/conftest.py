@@ -15,6 +15,7 @@ Constraints: FINDPLUS_DATABASE_PATH / FINDPLUS_STATE_DIR are the ONLY env
 
 from __future__ import annotations
 
+import json
 import os
 import socket
 import subprocess
@@ -40,7 +41,7 @@ from findplus.findhub.types import RawObservation
 from findplus.groups.repo import create_group
 from findplus.ingest import ingest_observations, upsert_device
 from findplus.places.repo import create_place
-from findplus.state import track_devices
+from findplus.state import set_setting, track_devices
 
 upgrade_to_head()
 
@@ -100,7 +101,18 @@ with session_scope() as session:
         cluster_radius_meters=150, stale_after_minutes=90,
         member_ids=["TAG-HOME", "TAG-AWAY", "TAG-STALE"],
     )
+
+# This suite drives a COMPLETED install. Without the stamp, main.js's
+# onboarding check redirects every `page.goto("/")` to #/setup and hides
+# #app-shell, so every dashboard assertion in this directory fails on an
+# element the wizard is covering (P2-E11-W4-S1-T4). The wizard's own tests
+# clear it per test through the `onboarding_incomplete` fixture below.
+with session_scope() as session:
+    set_setting(session, "onboarding.completed_at", "2026-01-01T00:00:00Z")
 """
+
+#: What the seed stamps, and what every wizard test restores afterwards.
+SEEDED_COMPLETED_AT = "2026-01-01T00:00:00Z"
 
 
 def _free_port() -> int:
@@ -200,6 +212,30 @@ async def browser_session(live_server: str):
 @pytest.fixture(scope="session")
 def base_url(live_server: str) -> str:
     return live_server
+
+
+@pytest_asyncio.fixture(loop_scope="session")
+async def onboarding_incomplete(page, base_url: str):
+    """Run one test against a never-onboarded install, then put the stamp back.
+
+    `live_server` is session-scoped and shared with every other file in this
+    directory, which all assume a finished setup. The restore is in a finally
+    so a failing assertion cannot leak the unfinished state into whatever runs
+    next (test_lock.py documents the same discipline for the PIN).
+    """
+    await _post_completed_at(page, base_url, None)
+    try:
+        yield
+    finally:
+        await _post_completed_at(page, base_url, SEEDED_COMPLETED_AT)
+
+
+async def _post_completed_at(page, base_url: str, value):
+    await page.request.post(
+        base_url + "/api/settings/onboarding.completed_at",
+        data=json.dumps({"value": value}),
+        headers={"Content-Type": "application/json"},
+    )
 
 
 async def set_theme(page, theme: str) -> None:

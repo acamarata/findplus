@@ -94,6 +94,12 @@ Read Settings
 ### GET /api/settings/app.start_at_login
 Get Start At Login
 
+### GET /api/settings/onboarding.completed_at
+Get Onboarding Completed At
+
+### GET /api/settings/onboarding.last_step
+Get Onboarding Last Step
+
 ### GET /api/settings/widget.show_map
 The effective value, resolved exactly as `GET /api/widget` resolves it.
 
@@ -169,6 +175,28 @@ Write Settings
         }
       ],
       "title": "Alerts.Native Detail"
+    },
+    "onboarding.completed_at": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Onboarding.Completed At"
+    },
+    "onboarding.last_step": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Onboarding.Last Step"
     }
   },
   "type": "object",
@@ -193,6 +221,54 @@ Toggle the desktop app's LaunchAgent through findplus.service.
     "value"
   ],
   "title": "Body_set_start_at_login_api_settings_app_start_at_login_post"
+}
+```
+
+### POST /api/settings/onboarding.completed_at
+Stamp or clear the onboarding completion time (specs/onboarding.md § 2).
+
+**Request body:**
+```json
+{
+  "properties": {
+    "value": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Value"
+    }
+  },
+  "type": "object",
+  "title": "Body_set_onboarding_completed_at_api_settings_onboarding_completed_at_post"
+}
+```
+
+### POST /api/settings/onboarding.last_step
+Record the wizard's resume point, one of the eight known step ids.
+
+**Request body:**
+```json
+{
+  "properties": {
+    "value": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Value"
+    }
+  },
+  "type": "object",
+  "title": "Body_set_onboarding_last_step_api_settings_onboarding_last_step_post"
 }
 ```
 

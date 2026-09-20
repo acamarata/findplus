@@ -15,6 +15,7 @@ Apple's own network.
 - [First run](First-run): sign in and start the daemon.
 - [Devices and groups](Devices-and-groups): track trackers, form groups.
 - [Places and alerts](Places-and-alerts): geofences and notifications.
+- [Settings](Settings): poll interval, history retention, app lock, notifications.
 - [CLI reference](CLI-reference)
 - [API reference](API-reference)
 - [MCP](MCP): connect Find+ to Claude Desktop or Claude Code.

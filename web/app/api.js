@@ -39,6 +39,19 @@ function formatValidationItem(item) {
   return where ? `${where}: ${item.msg}` : item.msg;
 }
 
+/**
+ * Tag a thrown error with the HTTP status that caused it.
+ *
+ * Callers that need to tell one failure from another read `err.status` rather
+ * than matching on the message text. main.js's onboarding check needs it: a
+ * 401 there means "locked, leave it to the lock screen", and every other
+ * status is a real error that must not be swallowed.
+ */
+function withStatus(error, status) {
+  error.status = status;
+  return error;
+}
+
 export async function api(path, options) {
   const res = await fetch(path, options);
   if (res.status === 401) {
@@ -48,15 +61,21 @@ export async function api(path, options) {
     // rejection reaches its caller — never a window where a caught error is
     // handled while stale location data is still on screen.
     await showLock();
-    throw new Error("Locked");
+    throw withStatus(new Error("Locked"), 401);
   }
   if (!res.ok) {
     let detail = `${res.status} ${res.statusText}`;
+    let payload = null;
     try {
-      const body = await res.json();
-      if (body.detail) detail = formatDetail(body.detail);
+      payload = await res.json();
+      if (payload && payload.detail) detail = formatDetail(payload.detail);
     } catch (_) {}
-    throw new Error(detail);
+    const error = withStatus(new Error(detail), res.status);
+    // The sign-in routes answer 409 with the job_id of the run already in
+    // progress. Dropping the body left a caller able to report the conflict
+    // and nothing else; carrying it lets the caller rejoin that job.
+    error.body = payload;
+    throw error;
   }
   // A 204 has no body, and res.json() on an empty body rejects with a parse
   // error that reads like a server failure. Every DELETE route in this API

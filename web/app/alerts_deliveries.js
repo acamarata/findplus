@@ -10,12 +10,14 @@
  * Outputs    : Rows inside #fp-deliveries-tbody.
  * Constraints: textContent only, never raw markup. alerts.js owns the wiring
  *              and re-exports purge()/refreshAll() for lock.js; this module has
- *              no top-level side effects of its own. `sent_at` renders as the
- *              raw ISO string: neither state.js nor alerts_rules.js exports a
- *              relative-time helper, and this ticket does not add one.
+ *              no top-level side effects of its own. `sent_at` renders in the
+ *              viewer's local time via state.fmtDateTime, like every other
+ *              timestamp in this dashboard: a raw "...+00:00" in a log of when
+ *              alerts went out is read as local and misinforms by hours
+ *              (honesty round 2 F14).
  */
 "use strict";
-import { $ } from "./state.js";
+import { $, fmtDateTime } from "./state.js";
 import { api } from "./api.js";
 
 function cell(text) {
@@ -30,9 +32,11 @@ function buildDeliveryRow(delivery) {
     cell(delivery.rule_name || `rule ${delivery.rule_id}`),
     cell(delivery.channel || "—"),
     cell(delivery.event_kind),
-    cell(delivery.sent_at || ""),
+    cell(fmtDateTime(delivery.sent_at)),
     cell(delivery.status),
-    cell(delivery.error || ""),
+    // A "skipped" row arrived with an empty Error cell and no hint why; the
+    // API now sends the reason in `error`, and a bare skip still says so.
+    cell(delivery.error || (delivery.status === "skipped" ? "suppressed, no reason recorded" : "")),
   );
   return tr;
 }

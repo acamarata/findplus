@@ -125,6 +125,9 @@ jobs:
       - run: |
           python packaging/scripts/gen-api-docs.py
           git diff --exit-code .github/wiki/API-reference.md || (echo 'API-reference.md is stale' && exit 1)
+      - run: |
+          python packaging/scripts/gen-honesty-json.py
+          git diff --exit-code web/locales/en.json web/app/catalog-en.js || (echo 'the generated catalog is stale' && exit 1)
       - run: bash packaging/scripts/lint-prose.sh README.md
 
   coverage:

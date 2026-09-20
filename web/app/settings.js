@@ -82,6 +82,55 @@ export function closeSettings() {
   }
 }
 
+/** Set a first PIN. Both fields must match before anything is sent. */
+async function setPin() {
+  const pin = $("new-pin").value.trim();
+  const confirm = $("confirm-pin").value.trim();
+  if (pin !== confirm) { showAlert(t("settings.pinsDoNotMatch"), "warn"); return; }
+  try {
+    await postJson("/api/settings/pin", { new_pin: pin });
+    $("new-pin").value = $("confirm-pin").value = "";
+    await loadSettings();
+    showAlert(t("settings.pinSet"), "warn");
+  } catch (e) {
+    showAlert(e.message, "err");
+  }
+}
+
+/** Change the PIN. The server revokes every other session, so this one re-locks. */
+async function changePin() {
+  const current = $("current-pin").value.trim();
+  const next = $("change-pin").value.trim();
+  if (!next) { showAlert(t("settings.enterNewPin"), "warn"); return; }
+  try {
+    await postJson("/api/settings/pin", { new_pin: next, current_pin: current });
+    $("current-pin").value = $("change-pin").value = "";
+    showAlert(t("settings.pinChanged"), "warn");
+    showLock();
+  } catch (e) {
+    showAlert(e.message, "err");
+  }
+}
+
+/** Remove the PIN, which disables the lock entirely. Confirmed twice. */
+async function removePin() {
+  const current = $("current-pin").value.trim();
+  if (!current) { showAlert(t("settings.enterCurrentPin"), "warn"); return; }
+  if (!window.confirm(t("settings.confirmRemovePin"))) return;
+  try {
+    await api("/api/settings/pin", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ current_pin: current }),
+    });
+    $("current-pin").value = "";
+    await loadSettings();
+    showAlert(t("settings.pinRemoved"), "warn");
+  } catch (e) {
+    showAlert(e.message, "err");
+  }
+}
+
 /** Wire the settings dialog: toggle it open/closed, theme/idle/lock-enabled, PIN set/change/remove. */
 export function wireSettingsControls() {
   $("btn-settings").addEventListener("click", openSettings);
@@ -115,49 +164,7 @@ export function wireSettingsControls() {
     }
   });
 
-  $("btn-set-pin").addEventListener("click", async () => {
-    const pin = $("new-pin").value.trim();
-    const confirm = $("confirm-pin").value.trim();
-    if (pin !== confirm) { showAlert(t("settings.pinsDoNotMatch"), "warn"); return; }
-    try {
-      await postJson("/api/settings/pin", { new_pin: pin });
-      $("new-pin").value = $("confirm-pin").value = "";
-      await loadSettings();
-      showAlert(t("settings.pinSet"), "warn");
-    } catch (e) {
-      showAlert(e.message, "err");
-    }
-  });
-
-  $("btn-change-pin").addEventListener("click", async () => {
-    const current = $("current-pin").value.trim();
-    const next = $("change-pin").value.trim();
-    if (!next) { showAlert(t("settings.enterNewPin"), "warn"); return; }
-    try {
-      await postJson("/api/settings/pin", { new_pin: next, current_pin: current });
-      $("current-pin").value = $("change-pin").value = "";
-      showAlert(t("settings.pinChanged"), "warn");
-      showLock();
-    } catch (e) {
-      showAlert(e.message, "err");
-    }
-  });
-
-  $("btn-remove-pin").addEventListener("click", async () => {
-    const current = $("current-pin").value.trim();
-    if (!current) { showAlert(t("settings.enterCurrentPin"), "warn"); return; }
-    if (!window.confirm(t("settings.confirmRemovePin"))) return;
-    try {
-      await api("/api/settings/pin", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ current_pin: current }),
-      });
-      $("current-pin").value = "";
-      await loadSettings();
-      showAlert(t("settings.pinRemoved"), "warn");
-    } catch (e) {
-      showAlert(e.message, "err");
-    }
-  });
+  $("btn-set-pin").addEventListener("click", setPin);
+  $("btn-change-pin").addEventListener("click", changePin);
+  $("btn-remove-pin").addEventListener("click", removePin);
 }

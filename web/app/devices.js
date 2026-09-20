@@ -144,6 +144,85 @@ export function closeDevices() {
   }
 }
 
+/** Query every provider once, now, and say what came back. */
+async function pollNow() {
+  const btn = $("btn-poll");
+  btn.disabled = true;
+  btn.textContent = t("devices.pollingLabel");
+  try {
+    const r = await postJson("/api/poll-now");
+    const lines = r.results.map(
+      (x) =>
+        t("devices.pollResultLine", { device: x.device_name, status: x.status }) +
+        (x.observations_new ? t("devices.pollResultNew", { n: x.observations_new }) : "")
+    );
+    showAlert(
+      t("devices.polled", {
+        devices: r.devices_polled,
+        observations: r.observations_new,
+        lines: lines.join(" · "),
+      }),
+      "warn"
+    );
+    await reload();
+  } catch (err) {
+    showAlert(err.message, "err");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = t("common.btnPoll");
+  }
+}
+
+/**
+ * Re-read the device list from every provider the user is signed in to.
+ *
+ * A partial failure names the provider that could not be reached rather than
+ * staying silent, and the button says "your providers" whichever ones answered
+ * (E1 honesty round 2 F4).
+ */
+async function refreshFromProviders() {
+  const btn = $("btn-refresh-devices");
+  btn.disabled = true;
+  btn.textContent = t("devices.askingProvidersLabel");
+  try {
+    const r = await postJson("/api/devices/refresh");
+    await loadDevices();
+    renderDeviceModal();
+    const failed = Object.keys(r.errors || {});
+    let msg = t("devices.refreshFound", { found: r.found, providers: (r.providers || []).length });
+    if (failed.length) msg += t("devices.refreshUnreachable", { names: failed.join(", ") });
+    showAlert(msg, "warn");
+  } catch (err) {
+    showAlert(t("devices.refreshFailed", { message: err.message }), "err");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = t("devices.refreshProvidersLabel");
+  }
+}
+
+/** Save the ticked set and report the request rate it implies. */
+async function saveTrackedDevices() {
+  const ids = [...document.querySelectorAll("#device-list input:checked")].map((i) => i.value);
+  try {
+    const r = await postJson("/api/devices/track", { device_ids: ids });
+    closeDevices();
+    await loadDevices();
+    showAlert(
+      r.tracked_count
+        ? t("devices.trackedResult", {
+            count: r.tracked_count,
+            rate: r.requests_per_hour,
+            requests: providerWording().requests,
+          })
+        : t("devices.trackedNone", { requests: providerWording().requests }),
+      "warn"
+    );
+    await reload();
+  } catch (err) {
+    showAlert(err.message, "err");
+  }
+}
+
 /** Wire the device filter, device-manager modal, and manual poll button. */
 export function wireDeviceControls() {
   $("device-filter").addEventListener("change", async (e) => {
@@ -152,33 +231,7 @@ export function wireDeviceControls() {
     await reload();
   });
 
-  $("btn-poll").addEventListener("click", async () => {
-    const btn = $("btn-poll");
-    btn.disabled = true;
-    btn.textContent = t("devices.pollingLabel");
-    try {
-      const r = await postJson("/api/poll-now");
-      const lines = r.results.map(
-        (x) =>
-          t("devices.pollResultLine", { device: x.device_name, status: x.status }) +
-          (x.observations_new ? t("devices.pollResultNew", { n: x.observations_new }) : "")
-      );
-      showAlert(
-        t("devices.polled", {
-          devices: r.devices_polled,
-          observations: r.observations_new,
-          lines: lines.join(" · "),
-        }),
-        "warn"
-      );
-      await reload();
-    } catch (err) {
-      showAlert(err.message, "err");
-    } finally {
-      btn.disabled = false;
-      btn.textContent = t("common.btnPoll");
-    }
-  });
+  $("btn-poll").addEventListener("click", pollNow);
 
   // --- device manager ---
   $("btn-devices").addEventListener("click", openDevices);
@@ -197,49 +250,6 @@ export function wireDeviceControls() {
     updateModalRate();
   });
 
-  $("btn-refresh-devices").addEventListener("click", async () => {
-    const btn = $("btn-refresh-devices");
-    btn.disabled = true;
-    btn.textContent = t("devices.askingProvidersLabel");
-    try {
-      const r = await postJson("/api/devices/refresh");
-      await loadDevices();
-      renderDeviceModal();
-      // Name the providers that answered. "on the account" was singular and
-      // Google-shaped while the button said "your providers" (round 2 F4);
-      // a partial failure must say which one was skipped, not stay silent.
-      const asked = (r.providers || []).length;
-      const failed = Object.keys(r.errors || {});
-      let msg = t("devices.refreshFound", { found: r.found, providers: asked });
-      if (failed.length) msg += t("devices.refreshUnreachable", { names: failed.join(", ") });
-      showAlert(msg, "warn");
-    } catch (err) {
-      showAlert(t("devices.refreshFailed", { message: err.message }), "err");
-    } finally {
-      btn.disabled = false;
-      btn.textContent = t("devices.refreshProvidersLabel");
-    }
-  });
-
-  $("btn-save-devices").addEventListener("click", async () => {
-    const ids = [...document.querySelectorAll("#device-list input:checked")].map((i) => i.value);
-    try {
-      const r = await postJson("/api/devices/track", { device_ids: ids });
-      closeDevices();
-      await loadDevices();
-      showAlert(
-        r.tracked_count
-          ? t("devices.trackedResult", {
-              count: r.tracked_count,
-              rate: r.requests_per_hour,
-              requests: providerWording().requests,
-            })
-          : t("devices.trackedNone", { requests: providerWording().requests }),
-        "warn"
-      );
-      await reload();
-    } catch (err) {
-      showAlert(err.message, "err");
-    }
-  });
+  $("btn-refresh-devices").addEventListener("click", refreshFromProviders);
+  $("btn-save-devices").addEventListener("click", saveTrackedDevices);
 }

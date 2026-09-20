@@ -16,7 +16,10 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - An icon picker for device and group badges: the 48 bundled icons grouped by kind, a letter of your choice, or a plain coloured dot.
 - A colour picker for device and group badges: the 12 palette colours, or any colour you pick.
 - One badge renderer behind the map markers, the timeline track heads and the group legend, so a device's icon and colour look the same everywhere.
-- An i18n scaffold for the dashboard: `web/app/i18n.js` and the English catalog at `web/locales/en.json`, whose honesty sentences are generated from the same source the API serves.
+- An i18n scaffold for the dashboard: `web/app/i18n.js` and the English catalog at `web/locales/en.json`, whose honesty sentences are generated from the same source the API serves. Every string the dashboard shows now comes from that catalog, so a second language can replace one file.
+- A phone-width layout: under 600px the dashboard gets a bottom tab bar, the toolbar collapses behind a More button, dialogs open full screen, and every button and tick box is at least 44px to tap.
+- WCAG 2.1 AA groundwork: page landmarks, a label on every form control, a visible focus ring, a focus trap and Escape-to-close on the Devices and Settings dialogs, an announced alert banner, and colour changes where text or a control border fell short of the contrast minimum.
+- An accessibility scan in the browser test suite: axe-core over every tab, in both themes, at desktop and phone width.
 - Device and group labels, icons and colours: `PATCH /api/devices/{id}`, `GET /api/icons`, `findplus devices label`/`findplus devices icons`, exports and the macOS widget all carry the new fields. A label is local only and survives every provider name refresh.
 
 ### Changed

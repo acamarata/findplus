@@ -138,6 +138,23 @@ export function shiftDay(days) {
   loadDay(d.toISOString().slice(0, 10));
 }
 
+/** Build the export URL for the chosen format and scope, then navigate to it. */
+function startExport() {
+  const params = new URLSearchParams({ fmt: $("export-format").value });
+  const scope = $("export-scope").value;
+  if (scope === "day") params.set("day", state.day);
+  if (scope === "range") {
+    const start = $("range-start").value;
+    const end = $("range-end").value;
+    if (!start || !end) { showAlert(t("timeline.pickBothDates"), "warn"); return; }
+    if (start > end) { showAlert(t("timeline.rangeStartAfterEnd"), "warn"); return; }
+    params.set("start", start);
+    params.set("end", end);
+  }
+  if (state.deviceFilter) params.set("device_id", state.deviceFilter);
+  window.location.href = `/api/export?${params}`;
+}
+
 /** Wire day navigation, the movement-only toggle, export, and "jump to latest". */
 export function wireTimelineControls() {
   $("day-picker").addEventListener("change", (e) => loadDay(e.target.value));
@@ -159,21 +176,7 @@ export function wireTimelineControls() {
     }
   });
 
-  $("btn-export").addEventListener("click", () => {
-    const params = new URLSearchParams({ fmt: $("export-format").value });
-    const scope = $("export-scope").value;
-    if (scope === "day") params.set("day", state.day);
-    if (scope === "range") {
-      const start = $("range-start").value;
-      const end = $("range-end").value;
-      if (!start || !end) { showAlert(t("timeline.pickBothDates"), "warn"); return; }
-      if (start > end) { showAlert(t("timeline.rangeStartAfterEnd"), "warn"); return; }
-      params.set("start", start);
-      params.set("end", end);
-    }
-    if (state.deviceFilter) params.set("device_id", state.deviceFilter);
-    window.location.href = `/api/export?${params}`;
-  });
+  $("btn-export").addEventListener("click", startExport);
 
   $("btn-latest").addEventListener("click", async () => {
     try {

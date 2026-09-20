@@ -22,67 +22,81 @@ import { wireSettingsControls, openSettings, loadSettings } from "./settings.js"
 import { loadCatalog, applyStaticI18n, t, plural } from "./i18n.js";
 import { initTabbar } from "./components/tabbar.js";
 
+/** The topbar device name: the filtered tracker, or how many are tracked. */
+function renderDeviceName(s) {
+  const tracked = s.devices.filter((d) => d.is_tracked);
+  $("device-name").textContent = state.deviceFilter
+    ? (s.devices.find((d) => d.device_id === state.deviceFilter) || {}).name || state.deviceFilter
+    : tracked.length
+      ? plural("common.devicesTracked", tracked.length, { n: tracked.length, rate: s.requests_per_hour })
+      : t("common.noDevicesTracked");
+}
+
+/** The service dot: colour plus a tooltip saying what the colour means. */
+function renderPollerDot(s) {
+  const dot = $("live-dot");
+  dot.className = "dot " + (s.poller_running ? "live" : "stale");
+  dot.title = s.poller_running
+    ? t("common.pollerActive", { interval: s.poll_interval_minutes })
+    : t("common.pollerStale");
+}
+
+/** The four summary cards. With no observation yet every value reads as empty. */
+function renderCards(s) {
+  const latest = s.latest_observation;
+  if (latest) {
+    $("card-observed").textContent = fmtTime(latest.observed_at_local);
+    $("card-observed-ago").textContent = t("common.observedAgo", {
+      age: fmtDuration(latest.age_seconds),
+      device: latest.device_name,
+    });
+    $("card-fetched").textContent = fmtTime(latest.fetched_at_local);
+    $("card-lag").textContent = t("common.retrievalLag", {
+      lag: fmtDuration(latest.retrieval_lag_seconds),
+    });
+  } else {
+    $("card-observed").textContent = t("common.emptyValue");
+    $("card-observed-ago").textContent = t("common.noObservationsYet");
+    $("card-fetched").textContent = t("common.emptyValue");
+    $("card-lag").textContent = t("common.emptyValue");
+  }
+
+  const run = s.last_successful_poll;
+  $("card-poll").textContent = run ? fmtTime(run.started_at_local) : t("common.emptyValue");
+  $("card-poll-status").textContent = s.last_poll
+    ? t("common.lastAttempt", { status: s.last_poll.status })
+    : t("common.noPollsYet");
+  $("card-today").textContent = String(s.observations_today);
+  $("card-total").textContent = t("common.totalOnRecord", { total: s.observations_total });
+}
+
+/** The banner, in priority order: a failed poll, nothing tracked, a stopped service. */
+function renderStatusAlert(s) {
+  if (s.last_poll && !["ok", "no_location"].includes(s.last_poll.status)) {
+    showAlert(
+      t("common.pollFailed", {
+        status: s.last_poll.status,
+        message: s.last_poll.error_message || t("common.unknownError"),
+      }),
+      "err"
+    );
+  } else if (!s.tracked_count) {
+    showAlert(t("common.nothingTracked"), "warn");
+  } else if (!s.poller_running) {
+    showAlert(t("common.serviceNotRunning"), "warn");
+  } else {
+    showAlert(null);
+  }
+}
+
 export async function loadStatus() {
   try {
-    const s = await api(`/api/status${state.deviceFilter ? `?device_id=${encodeURIComponent(state.deviceFilter)}` : ""}`);
-
-    const tracked = s.devices.filter((d) => d.is_tracked);
-    $("device-name").textContent = state.deviceFilter
-      ? (s.devices.find((d) => d.device_id === state.deviceFilter) || {}).name || state.deviceFilter
-      : tracked.length
-        ? plural("common.devicesTracked", tracked.length, {
-            n: tracked.length,
-            rate: s.requests_per_hour,
-          })
-        : t("common.noDevicesTracked");
-
-    const dot = $("live-dot");
-    dot.className = "dot " + (s.poller_running ? "live" : "stale");
-    dot.title = s.poller_running
-      ? t("common.pollerActive", { interval: s.poll_interval_minutes })
-      : t("common.pollerStale");
-
-    const latest = s.latest_observation;
-    if (latest) {
-      $("card-observed").textContent = fmtTime(latest.observed_at_local);
-      $("card-observed-ago").textContent = t("common.observedAgo", {
-        age: fmtDuration(latest.age_seconds),
-        device: latest.device_name,
-      });
-      $("card-fetched").textContent = fmtTime(latest.fetched_at_local);
-      $("card-lag").textContent = t("common.retrievalLag", {
-        lag: fmtDuration(latest.retrieval_lag_seconds),
-      });
-    } else {
-      $("card-observed").textContent = t("common.emptyValue");
-      $("card-observed-ago").textContent = t("common.noObservationsYet");
-      $("card-fetched").textContent = t("common.emptyValue");
-      $("card-lag").textContent = t("common.emptyValue");
-    }
-
-    const run = s.last_successful_poll;
-    $("card-poll").textContent = run ? fmtTime(run.started_at_local) : t("common.emptyValue");
-    $("card-poll-status").textContent = s.last_poll
-      ? t("common.lastAttempt", { status: s.last_poll.status })
-      : t("common.noPollsYet");
-    $("card-today").textContent = String(s.observations_today);
-    $("card-total").textContent = t("common.totalOnRecord", { total: s.observations_total });
-
-    if (s.last_poll && !["ok", "no_location"].includes(s.last_poll.status)) {
-      showAlert(
-        t("common.pollFailed", {
-          status: s.last_poll.status,
-          message: s.last_poll.error_message || t("common.unknownError"),
-        }),
-        "err"
-      );
-    } else if (!s.tracked_count) {
-      showAlert(t("common.nothingTracked"), "warn");
-    } else if (!s.poller_running) {
-      showAlert(t("common.serviceNotRunning"), "warn");
-    } else {
-      showAlert(null);
-    }
+    const query = state.deviceFilter ? `?device_id=${encodeURIComponent(state.deviceFilter)}` : "";
+    const s = await api(`/api/status${query}`);
+    renderDeviceName(s);
+    renderPollerDot(s);
+    renderCards(s);
+    renderStatusAlert(s);
   } catch (err) {
     showAlert(t("common.apiUnreachable", { message: err.message }), "err");
   }

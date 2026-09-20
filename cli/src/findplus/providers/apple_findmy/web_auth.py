@@ -39,6 +39,13 @@ MSG_SIGNING_IN = "Signing in..."
 MSG_NEEDS_2FA = "Enter the code from your trusted device."
 
 _JOB_TTL_SECONDS = 600
+
+#: How long a job may sit without a state transition before it counts as
+#: abandoned and is swept, so one unfinished sign-in cannot block every later
+#: one for the life of the daemon. Generous: reading a code off a trusted
+#: device is human-paced.
+_STALLED_SECONDS = 600
+
 _TERMINAL = ("done", "failed")
 
 _lock = threading.Lock()
@@ -62,11 +69,24 @@ class InvalidAppleCodeError(Exception):
 
 
 def _sweep_expired_jobs() -> None:
-    """Drop finished jobs past the TTL. The caller already holds `_lock`."""
+    """Drop finished jobs past the TTL, and stalled ones. Caller holds `_lock`.
+
+    A job that never reaches a terminal state has no `finished_monotonic`, so a
+    finished-only sweep keeps it forever — and `start_apple_auth()` refuses
+    while ANY job is non-terminal. The reachable case is an abandoned 2FA
+    prompt: a user who mistypes their Apple ID, gets to `needs_2fa` and closes
+    the dialog would otherwise be locked out of Apple sign-in until the daemon
+    restarts. `last_progress_monotonic` measures time since the last observed
+    transition, so a live flow (signing in, or a code being typed) is never
+    swept out from under the user.
+    """
     now = time.monotonic()
     for job_id, job in list(_jobs.items()):
         finished = job.get("finished_monotonic")
-        if finished is not None and now - finished > _JOB_TTL_SECONDS:
+        if finished is not None:
+            if now - finished > _JOB_TTL_SECONDS:
+                del _jobs[job_id]
+        elif now - job.get("last_progress_monotonic", now) > _STALLED_SECONDS:
             del _jobs[job_id]
 
 
@@ -78,6 +98,7 @@ def _set_progress(job_id: str, state: str, message: str) -> None:
             return
         job["state"] = state
         job["message"] = message
+        job["last_progress_monotonic"] = time.monotonic()
         if state in _TERMINAL:
             job["finished_monotonic"] = time.monotonic()
 
@@ -104,6 +125,7 @@ def start_apple_auth(settings: Any, apple_id: str, password: str) -> str:
             "method": None,
             "account": None,
             "finished_monotonic": None,
+            "last_progress_monotonic": time.monotonic(),
         }
 
     threading.Thread(

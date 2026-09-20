@@ -59,6 +59,14 @@ MSG_TIMEOUT = "No sign-in was completed within 5 minutes. Try again."
 #: background timer would be a second thread to own for no gain.
 _JOB_TTL_SECONDS = 600
 
+#: How long a job may sit without a state transition before it counts as
+#: abandoned. `uc.Chrome()` has no timeout of its own (it can block fetching a
+#: matching chromedriver), and the vendor's 300 s cookie wait only starts once
+#: that returns, so a hung launch would otherwise pin `_active_job_id` and 409
+#: every later sign-in for the life of the daemon. 300 s past the vendor's own
+#: cap, so a live flow is never swept out from under the user.
+_STALLED_SECONDS = 600
+
 #: States a job never leaves.
 _TERMINAL = ("done", "failed")
 
@@ -105,12 +113,22 @@ class _CookieWatchProxy:
 
 
 def _sweep_expired_jobs() -> None:
-    """Drop finished jobs past the TTL. The caller already holds `_lock`."""
+    """Drop finished jobs past the TTL, and stalled ones. Caller holds `_lock`.
+
+    A job that never reaches a terminal state has no `finished_monotonic`, so a
+    finished-only sweep keeps it — and with it `_active_job_id`, which is what
+    `start_google_auth()` refuses on. `last_progress_monotonic` measures time
+    since the last observed transition, so only a genuinely stuck launch is
+    dropped, never a sign-in the user is still working through.
+    """
     global _active_job_id
     now = time.monotonic()
     for job_id, job in list(_jobs.items()):
         finished = job.get("finished_monotonic")
-        if finished is not None and now - finished > _JOB_TTL_SECONDS:
+        stalled = now - job.get("last_progress_monotonic", now) > _STALLED_SECONDS
+        if (finished is not None and now - finished > _JOB_TTL_SECONDS) or (
+            finished is None and stalled
+        ):
             del _jobs[job_id]
             if _active_job_id == job_id:
                 _active_job_id = None
@@ -124,6 +142,7 @@ def _set_progress(job_id: str, state: str, message: str) -> None:
             return
         job["state"] = state
         job["message"] = message
+        job["last_progress_monotonic"] = time.monotonic()
         if state in _TERMINAL:
             job["finished_monotonic"] = time.monotonic()
 
@@ -205,6 +224,7 @@ def start_google_auth(settings: Any) -> str:
             "state": "launching",
             "message": MSG_LAUNCHING,
             "finished_monotonic": None,
+            "last_progress_monotonic": time.monotonic(),
         }
         _active_job_id = job_id
 

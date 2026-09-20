@@ -98,3 +98,41 @@ def test_a_plist_of_exactly_64_kib_is_not_rejected_for_size(client: TestClient) 
     res = client.post(URL, data={"name": "Tag 4"}, files={"plist": ("ok.plist", padded)})
     assert res.status_code != 413, res.text
     assert _leftovers() == []
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"content": b"not json", "headers": {"content-type": "application/json"}},
+        {"json": [1, 2, 3]},
+        {"json": "a string"},
+    ],
+)
+def test_an_unparseable_or_non_object_json_body_is_422_not_500(client: TestClient, kwargs) -> None:
+    """CR-C-E6 F4: `await request.json()` raised JSONDecodeError and `.get()` on a
+    list raised AttributeError, both uncaught — a malformed body was a 500."""
+    res = client.post(URL, **kwargs)
+    assert res.status_code == 422, res.text
+    assert _leftovers() == []
+
+
+@pytest.mark.posix_only
+def test_the_uploaded_plist_is_0600_while_it_exists(client: TestClient, monkeypatch) -> None:
+    """CR-C-E6 F3: the courier file holds raw key material and was created at the
+    umask's mode (0644) before add_accessory() ever saw it. PRI hard rule 9."""
+    import os
+    import stat
+
+    import findplus.api.routes_auth as routes_auth
+
+    seen: dict[str, int] = {}
+
+    def spy(name, settings, *, plist_path=None, private_key_b64=None, allow_overwrite=True):
+        seen["mode"] = stat.S_IMODE(os.stat(plist_path).st_mode)
+        return {"device_id": "aa", "name": name, "kind": "plist", "added_at": "t"}
+
+    monkeypatch.setattr(routes_auth, "add_accessory", spy)
+    res = client.post(URL, data={"name": "Tag 5"}, files={"plist": ("k.plist", b"xx")})
+    assert res.status_code == 201, res.text
+    assert seen["mode"] == 0o600
+    assert _leftovers() == []

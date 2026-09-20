@@ -269,3 +269,25 @@ def test_a_finished_job_is_swept_after_the_ttl(monkeypatch) -> None:
     monkeypatch.setattr(browser.time, "monotonic", lambda: 100.0 + browser._JOB_TTL_SECONDS + 1)
     assert browser.get_google_auth_progress("old") is None
     assert browser._active_job_id is None
+
+
+def test_a_stalled_job_is_swept_so_a_hung_launch_cannot_block_every_retry(monkeypatch) -> None:
+    """CR-C-E6 F2: a job that never reaches a terminal state has no
+    `finished_monotonic`, so a finished-only sweep kept it and `_active_job_id`
+    forever — every later start 409'd until the daemon restarted."""
+    browser._jobs.clear()
+    browser._jobs["hung"] = {
+        "state": "launching",
+        "message": "x",
+        "finished_monotonic": None,
+        "last_progress_monotonic": 100.0,
+    }
+    browser._active_job_id = "hung"
+
+    monkeypatch.setattr(browser.time, "monotonic", lambda: 100.0 + browser._STALLED_SECONDS - 1)
+    assert browser.get_google_auth_progress("hung") is not None
+
+    monkeypatch.setattr(browser.time, "monotonic", lambda: 100.0 + browser._STALLED_SECONDS + 1)
+    assert browser.get_google_auth_progress("hung") is None
+    assert browser._active_job_id is None
+    browser._jobs.clear()

@@ -100,10 +100,22 @@ async def _read_accessory_body(request: Request, settings) -> tuple[str, Path | 
         if len(plist_bytes) > _MAX_PLIST_BYTES:
             raise HTTPException(status_code=413, detail="plist too large")
         plist_path = settings.state_dir / f".accessory-upload-{uuid.uuid4().hex}.plist"
+        # 0600 BEFORE the key material is written, the same order save_account()
+        # and add_accessory() use. state_dir is 0700, but a private key must not
+        # rest in a default-mode file even for the length of one request.
+        plist_path.touch(mode=0o600, exist_ok=False)
+        plist_path.chmod(0o600)
         plist_path.write_bytes(plist_bytes)
         return raw_name, plist_path, None
 
-    payload = await request.json()
+    try:
+        payload = await request.json()
+    except Exception as exc:
+        # An unparseable body is a client error, not a 500. Starlette raises
+        # json.JSONDecodeError here, which no handler above would have caught.
+        raise HTTPException(status_code=422, detail="body must be JSON or multipart") from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=422, detail="JSON body must be an object")
     name = payload.get("name")
     if not isinstance(name, str):
         raise HTTPException(status_code=422, detail="'name' is required")

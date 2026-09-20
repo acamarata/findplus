@@ -153,3 +153,26 @@ def test_a_login_failure_marks_the_job_failed(tmp_path, monkeypatch) -> None:
     assert progress["state"] == "failed"
     assert "Apple rejected the credentials" in progress["message"]
     assert PASSWORD not in progress["message"]
+
+
+def test_an_abandoned_2fa_prompt_does_not_block_apple_signin_forever(monkeypatch) -> None:
+    """CR-C-E6 F1: `needs_2fa` is non-terminal, so it had no `finished_monotonic`
+    and was never swept, while start_apple_auth() refuses on ANY non-terminal
+    job. A user who closed the dialog was locked out until the daemon restarted."""
+    web_auth._jobs.clear()
+    web_auth._jobs["abandoned"] = {
+        "state": "needs_2fa",
+        "message": "x",
+        "apple_id": "a@b.com",
+        "method": None,
+        "account": None,
+        "finished_monotonic": None,
+        "last_progress_monotonic": 100.0,
+    }
+
+    monkeypatch.setattr(web_auth.time, "monotonic", lambda: 100.0 + web_auth._STALLED_SECONDS - 1)
+    assert web_auth.get_apple_auth_progress("abandoned") is not None
+
+    monkeypatch.setattr(web_auth.time, "monotonic", lambda: 100.0 + web_auth._STALLED_SECONDS + 1)
+    assert web_auth.get_apple_auth_progress("abandoned") is None
+    assert web_auth._jobs == {}

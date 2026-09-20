@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 import pytest
+from click.testing import CliRunner
 
 from findplus.config import Settings
 from findplus.logging_setup import _redact
@@ -26,6 +28,38 @@ def test_non_loopback_bind_is_refused(host: str, monkeypatch: pytest.MonkeyPatch
 def test_public_bind_requires_an_explicit_opt_in(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("FINDPLUS_ALLOW_PUBLIC_BIND", "1")
     assert Settings(host="0.0.0.0").host == "0.0.0.0"
+
+
+@pytest.mark.parametrize("host", ["0.0.0.0", "192.168.1.50", "::"])
+def test_serve_host_flag_does_not_bypass_the_loopback_guard(
+    host: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`serve --host` reached uvicorn without passing either I9 guard (E1 security pass F1).
+
+    `config set HOST 0.0.0.0` refused while `serve --host 0.0.0.0` silently bound every
+    interface. The refusal must happen before daemon.json is written, so the absence of
+    that file is part of the assertion.
+    """
+    from findplus.cli.cmd_serve import serve
+
+    monkeypatch.delenv("FINDPLUS_ALLOW_PUBLIC_BIND", raising=False)
+    monkeypatch.setenv("FINDPLUS_STATE_DIR", str(tmp_path))
+
+    result = CliRunner().invoke(serve, ["--host", host])
+
+    assert result.exit_code != 0
+    assert "FINDPLUS_ALLOW_PUBLIC_BIND" in result.output
+    assert not (tmp_path / "daemon.json").exists()
+
+
+def test_serve_host_flag_allows_loopback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The guard rejects the host, not the flag: an explicit loopback host still passes it."""
+    from findplus.cli.cmd_serve import is_public_bind
+
+    monkeypatch.delenv("FINDPLUS_ALLOW_PUBLIC_BIND", raising=False)
+    assert not is_public_bind("127.0.0.1")
+    assert not is_public_bind("localhost")
+    assert not is_public_bind("::1")
 
 
 # ------------------------------------------------------------------- limits

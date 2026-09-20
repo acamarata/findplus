@@ -12,13 +12,9 @@ Constraints: Only host and poll_interval_minutes are validated here — the
 
 from __future__ import annotations
 
-import os
-
 import click
 
-from findplus.config import Settings, get_settings
-
-_LOOPBACK = {"127.0.0.1", "localhost", "::1"}
+from findplus.config import Settings, get_settings, is_public_bind
 
 
 @click.group("config")
@@ -71,11 +67,7 @@ def config_path() -> None:
 
 def _validate_setting(key: str, value: str) -> None:
     key_lower = key.lower()
-    if (
-        key_lower in ("host", "findplus_host")
-        and value not in _LOOPBACK
-        and not os.environ.get("FINDPLUS_ALLOW_PUBLIC_BIND")
-    ):
+    if key_lower in ("host", "findplus_host") and is_public_bind(value):
         raise click.ClickException(
             f"Non-loopback host '{value}' rejected. Set FINDPLUS_ALLOW_PUBLIC_BIND=1 to allow."
         )

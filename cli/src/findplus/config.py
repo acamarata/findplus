@@ -38,6 +38,26 @@ DB_FILE_SUFFIXES = ("", "-wal", "-shm")
 #: umask every findplus entry point installs: new files 0600, new dirs 0700.
 PRIVATE_UMASK = 0o077
 
+#: The only hosts invariant I9 lets findplus bind without an explicit opt-in.
+LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+
+
+def is_public_bind(host: str) -> bool:
+    """Whether binding `host` needs the FINDPLUS_ALLOW_PUBLIC_BIND opt-in.
+
+    Purpose    : One place that decides what I9 allows, for the three entry
+                 points that can pick a bind address.
+    Inputs     : A host string from `Settings.host`, `findplus config set HOST`
+                 or `findplus serve --host`.
+    Outputs    : True when the bind must be refused.
+    Constraints: Reads the environment on every call, never at import time, so
+                 a test that sets the variable with monkeypatch takes effect.
+                 Before this existed `serve --host` checked nothing, so
+                 `config set HOST 0.0.0.0` refused while `serve --host 0.0.0.0`
+                 silently bound every interface.
+    """
+    return host not in LOOPBACK_HOSTS and not os.environ.get("FINDPLUS_ALLOW_PUBLIC_BIND")
+
 
 class Settings(BaseSettings):
     """Runtime settings. Every field is overridable via env var of the same name."""
@@ -135,9 +155,7 @@ class Settings(BaseSettings):
     @field_validator("host")
     @classmethod
     def _warn_on_public_bind(cls, v: str) -> str:
-        if v not in {"127.0.0.1", "localhost", "::1"} and not os.environ.get(
-            "FINDPLUS_ALLOW_PUBLIC_BIND"
-        ):
+        if is_public_bind(v):
             raise ValueError(
                 f"Refusing to bind to {v!r}. This app holds a child's location history "
                 "and is local-only by design. Set FINDPLUS_ALLOW_PUBLIC_BIND=1 to override."

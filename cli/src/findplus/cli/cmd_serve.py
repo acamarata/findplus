@@ -28,7 +28,7 @@ import click
 import httpx
 
 from findplus import __version__
-from findplus.config import PRIVATE_UMASK, get_settings
+from findplus.config import PRIVATE_UMASK, get_settings, is_public_bind
 
 from ._fmt import _prep
 
@@ -103,6 +103,14 @@ def serve(foreground: bool, no_poller: bool, host: str | None, port: int | None)
     settings = get_settings()
     bind_host = host or settings.host
     bind_port = port or settings.port
+
+    # I9 is enforced by Settings.host and by `config set HOST`; --host reached
+    # uvicorn without passing either, so refuse here too, before daemon.json is
+    # written or the server is constructed.
+    if is_public_bind(bind_host):
+        raise click.ClickException(
+            f"Non-loopback host '{bind_host}' rejected. Set FINDPLUS_ALLOW_PUBLIC_BIND=1 to allow."
+        )
 
     already_running, url = _check_exclusive(settings.state_dir)
     if already_running:

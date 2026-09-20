@@ -30,7 +30,10 @@ const SVG_NS = "http://www.w3.org/2000/svg";
  */
 export function resolveIconLetter(icon, label, name) {
   if (icon.startsWith("letter:")) return icon.slice(7);
-  if (icon === "letter") return ((label || name || "").trim()[0] || "?").toUpperCase();
+  if (icon === "letter") {
+    const text = (label || "").trim() || (name || "").trim();
+    return (text[0] || "?").toUpperCase();
+  }
   return null;
 }
 

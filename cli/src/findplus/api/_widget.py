@@ -163,6 +163,15 @@ def _widget_devices(
                 "group": device_groups.get(device.device_id),
             }
         )
+    # Newest fix first. get_tracked_devices() returns stable NAME order, and
+    # all three widget views take devices.first, so the headline age, the
+    # freshness dot and the large view's map snapshot all belonged to whichever
+    # tag sorted first alphabetically. With "Alice bag" 3 days cold and "Zoe
+    # tag" 2 minutes old the small widget read "3 d ago"; renaming the tags
+    # flipped it to "just now" and hid the cold one entirely. widget.md pins
+    # "age of newest fix" and "a snapshot of the newest fix"
+    # (E1 honesty round 2 F5).
+    out.sort(key=lambda row: row["age_minutes"])
     return out
 
 

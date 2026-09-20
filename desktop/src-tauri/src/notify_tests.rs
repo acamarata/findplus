@@ -10,7 +10,34 @@ fn row(id: u64, text: Option<&str>, body: Option<&str>) -> DeliveryRow {
         id,
         text: text.map(str::to_string),
         body: body.map(str::to_string),
+        status: Some("queued".to_string()),
     }
+}
+
+fn row_with_status(id: u64, status: Option<&str>) -> DeliveryRow {
+    DeliveryRow {
+        id,
+        text: None,
+        body: None,
+        status: status.map(str::to_string),
+    }
+}
+
+#[test]
+fn only_a_queued_row_is_shown() {
+    assert!(is_queued(&row_with_status(1, Some("queued"))));
+}
+
+#[test]
+fn an_already_delivered_row_is_never_re_shown() {
+    // The route filters by channel and cursor, not status, so a reset cursor
+    // returns the whole native history; nothing already delivered may notify again.
+    assert!(!is_queued(&row_with_status(1, Some("delivered"))));
+}
+
+#[test]
+fn a_row_from_a_daemon_that_omits_status_is_treated_as_queued() {
+    assert!(is_queued(&row_with_status(1, None)));
 }
 
 #[test]

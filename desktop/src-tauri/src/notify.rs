@@ -31,6 +31,20 @@ struct DeliveryRow {
     id: u64,
     text: Option<String>,
     body: Option<String>,
+    status: Option<String>,
+}
+
+/// Only a "queued" row is an unshown alert. The route filters by channel and by the
+/// `since` cursor but not by status, so every row this app has already shown is still
+/// returned to a cursor that points before it -- and the cursor file is deliberately
+/// re-derivable (read_cursor returns 0 on a missing or unparsable file), so a reset
+/// would otherwise re-notify the entire native history at once. An absent key is
+/// treated as queued, so an older daemon that omits the field still works.
+fn is_queued(row: &DeliveryRow) -> bool {
+    match row.status.as_deref() {
+        None => true,
+        Some(status) => status == "queued",
+    }
 }
 
 /// True when the response should be processed at all: any HTTP success. A locked
@@ -212,12 +226,16 @@ fn show_cycle(app: &tauri::AppHandle, rows: &[DeliveryRow]) {
         .permission_state()
         .map(|s| s == PermissionState::Granted)
         .unwrap_or(false);
-    for row in rows {
+    // Emitted at most once per cycle, not once per row: a blocked permission with a
+    // backlog of twenty rows is one tray state, not twenty events.
+    let mut blocked_reported = false;
+    for row in rows.iter().filter(|r| is_queued(r)) {
         if granted {
             let (title, body) = title_body(row, pair);
             let _ = app.notification().builder().title(title).body(body).show();
-        } else {
+        } else if !blocked_reported {
             let _ = app.emit("status-update", serde_json::json!({"notify_blocked": true}));
+            blocked_reported = true;
         }
         ack(row.id);
     }

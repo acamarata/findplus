@@ -84,3 +84,71 @@ def test_any_quorum_fires_on_first_member(session):
     assert len(rows) == 1
     assert rows[0].group_id == group.id
     assert rows[0].members_crossed == 1
+
+
+def test_a_repeat_crossing_at_a_later_time_is_kept(session):
+    """uq_gpe_dedup carries observed_at, so a group can cross the same place twice.
+
+    Ruling R-P2-15: a bare (group_id, place_id, event_type) key would be global —
+    one ENTER and one EXIT per place for all time — and the IntegrityError catch
+    added beside it would have swallowed every genuine later crossing silently.
+    """
+    _group, place = _seed_group(session)
+    later = T0 + timedelta(hours=6)
+
+    pe_first = _add_place_event(session, place, "a", "ENTER", T0)
+    _add_place_event(session, place, "b", "ENTER", T0 + timedelta(minutes=1))
+    first = evaluate_group_events(session, pe_first, _Settings(), now=T0 + timedelta(minutes=1))
+
+    pe_second = _add_place_event(session, place, "a", "ENTER", later)
+    _add_place_event(session, place, "b", "ENTER", later + timedelta(minutes=1))
+    second = evaluate_group_events(
+        session, pe_second, _Settings(), now=later + timedelta(minutes=1)
+    )
+
+    assert len(first) == 1
+    assert len(second) == 1
+    rows = list(session.scalars(select(GroupPlaceEvent)))
+    assert len(rows) == 2, "the later crossing must survive the dedup constraint"
+    assert {r.event_type for r in rows} == {"ENTER"}
+
+
+def test_the_exact_duplicate_race_is_rolled_back(session):
+    """Two writers racing on the same four columns: the second insert is refused.
+
+    This is the read-then-write window uq_gpe_dedup exists to close. The first
+    row must survive intact rather than both being lost to the rollback.
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    _group, place = _seed_group(session)
+    pe = _add_place_event(session, place, "a", "ENTER", T0)
+    _add_place_event(session, place, "b", "ENTER", T0 + timedelta(minutes=1))
+    rows = evaluate_group_events(session, pe, _Settings(), now=T0 + timedelta(minutes=1))
+    assert len(rows) == 1
+    # Commit first: the rollback below discards whatever is still uncommitted in
+    # this session, and in production the poller has already committed the first
+    # row by the time a second writer reaches the same four columns.
+    session.commit()
+    saved = session.scalar(select(GroupPlaceEvent))
+
+    duplicate = GroupPlaceEvent(
+        group_id=saved.group_id,
+        place_id=saved.place_id,
+        event_type=saved.event_type,
+        observed_at=saved.observed_at,
+        member_event_ids="[]",
+        members_crossed=1,
+        members_considered=3,
+        members_stale=0,
+        confidence="low",
+        notified_at=None,
+    )
+    session.add(duplicate)
+    try:
+        session.flush()
+        raise AssertionError("uq_gpe_dedup did not refuse the exact duplicate")
+    except IntegrityError:
+        session.rollback()
+
+    assert len(list(session.scalars(select(GroupPlaceEvent)))) == 1

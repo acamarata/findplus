@@ -252,7 +252,14 @@ class GroupPlaceEvent(Base):
     """One group-level ENTER/EXIT crossing that met its group's quorum (migration 0005)."""
 
     __tablename__ = "group_place_events"
-    __table_args__ = (Index("ix_gpe_group_place_observed", "group_id", "place_id", "observed_at"),)
+    #: uq_gpe_dedup carries observed_at (ruling R-P2-15): without it the key is
+    #: global and a group could log exactly one ENTER and one EXIT per place for
+    #: all time. The +/-window dedup stays in groups/events.py, which no table
+    #: constraint can express; this one closes the exact-duplicate race.
+    __table_args__ = (
+        Index("ix_gpe_group_place_observed", "group_id", "place_id", "observed_at"),
+        UniqueConstraint("group_id", "place_id", "event_type", "observed_at", name="uq_gpe_dedup"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     group_id: Mapped[int] = mapped_column(

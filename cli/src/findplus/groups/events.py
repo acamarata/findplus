@@ -30,6 +30,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from findplus.db.models import (
@@ -209,7 +210,17 @@ def _persist_fired(
             confidence=result.confidence,
             notified_at=None,
         )
-        session.add(row)
+        # uq_gpe_dedup (migration 0006) closes the read-then-write race between
+        # the _existing_group_event() check above and this insert: two concurrent
+        # ingest transactions could each see no row and each write one. The catch
+        # covers ONLY that exact duplicate -- a later crossing carries a different
+        # observed_at and is unaffected. Mirrors alerts/dispatch.py's pattern.
+        try:
+            session.add(row)
+            session.flush()
+        except IntegrityError:
+            session.rollback()
+            continue
         inserted.append(row)
         log.info(
             "group_place_event",

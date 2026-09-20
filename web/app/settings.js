@@ -11,6 +11,7 @@
 import { $, state, applyTheme, showAlert } from "./state.js";
 import { api, postJson } from "./api.js";
 import { showLock, startIdleTimer } from "./lock.js";
+import { t } from "./i18n.js";
 
 export async function loadSettings() {
   state.settings = await api("/api/settings");
@@ -34,7 +35,7 @@ function renderLockSection() {
 
 export async function saveSettings(patch) {
   state.settings = await api("/api/settings", {
-    method: "PUT",
+    method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
   });
@@ -53,9 +54,12 @@ export async function openSettings() {
     const req = await api("/api/lock/requirements");
     $("lock-caveat").textContent = req.caveat;
     const health = await api("/api/health");
-    $("settings-about").textContent =
-      `findplus ${health.version} · schema ${health.schema_revision} · ` +
-      `timezone ${health.timezone} · polling every ${state.config.poll_interval_minutes} min`;
+    $("settings-about").textContent = t("settings.about", {
+      version: health.version,
+      schema: health.schema_revision,
+      timezone: health.timezone,
+      interval: state.config.poll_interval_minutes,
+    });
     const startAtLogin = await api("/api/settings/app.start_at_login");
     $("setting-start-at-login").checked = startAtLogin["app.start_at_login"];
     $("settings-modal").classList.remove("hidden");
@@ -100,12 +104,12 @@ export function wireSettingsControls() {
   $("btn-set-pin").addEventListener("click", async () => {
     const pin = $("new-pin").value.trim();
     const confirm = $("confirm-pin").value.trim();
-    if (pin !== confirm) { showAlert("The two PINs do not match.", "warn"); return; }
+    if (pin !== confirm) { showAlert(t("settings.pinsDoNotMatch"), "warn"); return; }
     try {
       await postJson("/api/settings/pin", { new_pin: pin });
       $("new-pin").value = $("confirm-pin").value = "";
       await loadSettings();
-      showAlert("PIN set. The app will lock when idle and whenever the service restarts.", "warn");
+      showAlert(t("settings.pinSet"), "warn");
     } catch (e) {
       showAlert(e.message, "err");
     }
@@ -114,11 +118,11 @@ export function wireSettingsControls() {
   $("btn-change-pin").addEventListener("click", async () => {
     const current = $("current-pin").value.trim();
     const next = $("change-pin").value.trim();
-    if (!next) { showAlert("Enter the new PIN.", "warn"); return; }
+    if (!next) { showAlert(t("settings.enterNewPin"), "warn"); return; }
     try {
       await postJson("/api/settings/pin", { new_pin: next, current_pin: current });
       $("current-pin").value = $("change-pin").value = "";
-      showAlert("PIN changed. All existing sessions were signed out.", "warn");
+      showAlert(t("settings.pinChanged"), "warn");
       showLock();
     } catch (e) {
       showAlert(e.message, "err");
@@ -127,8 +131,8 @@ export function wireSettingsControls() {
 
   $("btn-remove-pin").addEventListener("click", async () => {
     const current = $("current-pin").value.trim();
-    if (!current) { showAlert("Enter the current PIN to remove it.", "warn"); return; }
-    if (!window.confirm("Remove the PIN and disable the app lock?")) return;
+    if (!current) { showAlert(t("settings.enterCurrentPin"), "warn"); return; }
+    if (!window.confirm(t("settings.confirmRemovePin"))) return;
     try {
       await api("/api/settings/pin", {
         method: "DELETE",
@@ -137,7 +141,7 @@ export function wireSettingsControls() {
       });
       $("current-pin").value = "";
       await loadSettings();
-      showAlert("PIN removed. The app no longer locks.", "warn");
+      showAlert(t("settings.pinRemoved"), "warn");
     } catch (e) {
       showAlert(e.message, "err");
     }

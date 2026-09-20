@@ -92,7 +92,7 @@ def test_removing_the_pin_requires_it_and_disables_the_lock(client: TestClient) 
 
 def test_lock_can_be_disabled_without_removing_the_pin(client: TestClient) -> None:  # noqa: F811
     _set_pin(client)
-    client.put("/api/settings", json={"lock_enabled": False})
+    client.patch("/api/settings", json={"lock_enabled": False})
     client.cookies.clear()
     assert client.get("/api/status").status_code == 200
     body = client.get("/api/lock/status").json()
@@ -101,7 +101,7 @@ def test_lock_can_be_disabled_without_removing_the_pin(client: TestClient) -> No
 
 
 def test_lock_cannot_be_enabled_without_a_pin(client: TestClient) -> None:  # noqa: F811
-    res = client.put("/api/settings", json={"lock_enabled": True})
+    res = client.patch("/api/settings", json={"lock_enabled": True})
     assert res.status_code == 400
     assert "Set a PIN" in res.json()["detail"]
 

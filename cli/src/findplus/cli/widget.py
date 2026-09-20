@@ -5,8 +5,9 @@ Purpose    : Toggle the widget's map preview and trigger a WidgetKit
 Inputs     : `show-map on|off`; `refresh` (no arguments).
 Outputs    : Writes the settings-table key `widget.show_map`; shells out to
              `open findplus://refresh-widget`.
-Constraints: PUT /api/settings is pinned to theme/idle_minutes/lock_enabled
-             only (api-contract.md) and silently drops unknown body fields,
+Constraints: PATCH /api/settings carries a pinned body (api-contract.md, and
+             service-and-settings.md § 4 for the P2 additions) and silently
+             drops unknown body fields, `widget.show_map` among them,
              so show-map writes the settings table directly, the same
              pattern cmd_diagnostics.theme uses for save_theme. refresh
              never execs the reload-widgets binary itself — it only opens

@@ -57,11 +57,11 @@ def test_configured_idle_timeout_reaches_the_session_store(
     Expiry itself is covered directly in test_security.py; this pins the wiring.
     """
     _set_pin(client)
-    client.put("/api/settings", json={"idle_minutes": 5})
+    client.patch("/api/settings", json={"idle_minutes": 5})
     client.get("/api/status")
     assert store.idle_timeout_seconds == 5 * 60
 
-    client.put("/api/settings", json={"idle_minutes": 0})
+    client.patch("/api/settings", json={"idle_minutes": 0})
     client.get("/api/status")
     assert store.idle_timeout_seconds == 0
 

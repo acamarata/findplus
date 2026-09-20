@@ -5,16 +5,16 @@ Purpose    : Let users and automation persist Settings values across
              var names.
 Inputs     : KEY (and VALUE for set) arguments.
 Outputs    : Reads/writes ~/.findplus/config.env (0600); console output.
-Constraints: Only host and poll_interval_minutes are validated here — the
-             same guardrails Settings itself enforces (loopback-only bind,
-             5-minute poll floor).
+Constraints: Validation and the config.env rewrite live in config_keys.py, so
+             this group and PATCH /api/settings enforce one set of rules
+             (specs/service-and-settings.md § 6).
 """
 
 from __future__ import annotations
 
 import click
 
-from findplus.config import Settings, get_settings, is_public_bind
+from findplus.config import get_settings, validate_config_key, write_config_key
 
 
 @click.group("config")
@@ -40,15 +40,18 @@ def config_get(key: str) -> None:
 @click.argument("value")
 def config_set(key: str, value: str) -> None:
     """Write KEY=VALUE to config.env after validating through Settings."""
-    _validate_setting(key, value)
-    _write_env_key(get_settings(), key, value)
+    try:
+        validate_config_key(key, value)
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+    write_config_key(get_settings(), key, value)
 
 
 @config_cmd.command("unset")
 @click.argument("key")
 def config_unset(key: str) -> None:
     """Remove KEY from config.env."""
-    _write_env_key(get_settings(), key, None)
+    write_config_key(get_settings(), key, None)
 
 
 @config_cmd.command("list")
@@ -63,36 +66,3 @@ def config_list() -> None:
 def config_path() -> None:
     """Print the path to config.env."""
     click.echo(str(get_settings().state_dir / "config.env"))
-
-
-def _validate_setting(key: str, value: str) -> None:
-    key_lower = key.lower()
-    if key_lower in ("host", "findplus_host") and is_public_bind(value):
-        raise click.ClickException(
-            f"Non-loopback host '{value}' rejected. Set FINDPLUS_ALLOW_PUBLIC_BIND=1 to allow."
-        )
-    if (
-        key_lower in ("poll_interval_minutes", "findplus_poll_interval_minutes")
-        and float(value) < 5.0
-        and not get_settings().allow_fast_polling
-    ):
-        raise click.ClickException(
-            "poll_interval_minutes < 5 rejected. Set FINDPLUS_ALLOW_FAST_POLLING=true to allow."
-        )
-
-
-def _write_env_key(settings: Settings, key: str, value: str | None) -> None:
-    env_file = settings.state_dir / "config.env"
-    settings.ensure_state_dir()
-    existing: dict[str, str] = {}
-    if env_file.exists():
-        for line in env_file.read_text().splitlines():
-            k, _, v = line.partition("=")
-            if k.strip():
-                existing[k.strip().upper()] = v.strip()
-    if value is None:
-        existing.pop(key.upper(), None)
-    else:
-        existing[key.upper()] = value
-    env_file.write_text("\n".join(f"{k}={v}" for k, v in existing.items()) + "\n")
-    env_file.chmod(0o600)

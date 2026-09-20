@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Body, HTTPException, Request, Response
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
 
 from findplus.appsettings import (
     clear_pin,
@@ -26,6 +26,12 @@ from findplus.logging_setup import get_logger
 from findplus.security import SessionStore, hash_pin, reject_padded_pin, verify_pin
 from findplus.state import get_setting, set_setting
 
+from ._settings_fields import (
+    _RETENTION_KEY,
+    _raw_patch_body,
+    _settings_body,
+    _write_config_fields,
+)
 from ._widget import _widget_show_map
 from .middleware import same_origin_problem
 
@@ -43,13 +49,23 @@ def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeo
     @router.get("")
     def read_settings() -> dict[str, Any]:
         with session_scope() as session:
-            return load_settings(session).public()
+            return _settings_body(session)
 
-    @router.put("")
+    @router.patch("")
     def write_settings(
         theme: str | None = Body(default=None, embed=True),
         idle_minutes: int | None = Body(default=None, embed=True),
         lock_enabled: bool | None = Body(default=None, embed=True),
+        poll_interval_minutes: int | None = Body(
+            default=None, embed=True, alias="poll.interval_minutes"
+        ),
+        # An explicit wire `null` means "keep history forever" (stored as 0) and
+        # an absent key means "leave retention alone". FastAPI gives both the
+        # declared default, so which one happened is read off the raw body
+        # below, never off this parameter. Do not add a sentinel default here.
+        retention_days: int | None = Body(default=None, embed=True, alias="history.retention_days"),
+        native_detail: bool | None = Body(default=None, embed=True, alias="alerts.native_detail"),
+        raw_body: dict[str, Any] = Depends(_raw_patch_body),
     ) -> dict[str, Any]:
         with session_scope() as session:
             try:
@@ -65,11 +81,20 @@ def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeo
                             detail="Set a PIN before enabling the app lock.",
                         )
                     set_lock_enabled(session, lock_enabled)
+                if native_detail is not None:
+                    set_setting(session, "alerts.native_detail", "1" if native_detail else "0")
+                try:
+                    _write_config_fields(
+                        poll_interval_minutes, retention_days, _RETENTION_KEY in raw_body
+                    )
+                except ValueError as exc:
+                    raise HTTPException(status_code=422, detail=str(exc)) from exc
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
             updated = load_settings(session)
+            body = _settings_body(session)
         sync_idle_timeout(updated)
-        return updated.public()
+        return body
 
     @router.post("/pin")
     def set_pin(

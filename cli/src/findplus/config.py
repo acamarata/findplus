@@ -19,6 +19,8 @@ from pydantic import Field, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from findplus.config_bind import is_public_bind
+from findplus.config_keys import validate_config_key as validate_config_key
+from findplus.config_keys import write_config_key as write_config_key
 from findplus.providers.findhub.bootstrap import resolve_vendor_path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]

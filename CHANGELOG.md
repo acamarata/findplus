@@ -11,9 +11,14 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - The Alerts tab has a Delivery log showing each alert's rule, channel, kind, time, status and error.
 - An Uninstall page in the wiki with the manual service-removal commands for macOS, Linux and Windows.
 - A bundled Lucide icon sprite (48 icons, ISC licensed) the dashboard loads once at startup.
+- An icon picker for device and group badges: the 48 bundled icons grouped by kind, a letter of your choice, or a plain coloured dot.
+- A colour picker for device and group badges: the 12 palette colours, or any colour you pick.
+- One badge renderer behind the map markers, the timeline track heads and the group legend, so a device's icon and colour look the same everywhere.
 - An i18n scaffold for the dashboard: `web/app/i18n.js` and the English catalog at `web/locales/en.json`, whose honesty sentences are generated from the same source the API serves.
+- Device and group labels, icons and colours: `PATCH /api/devices/{id}`, `GET /api/icons`, `findplus devices label`/`findplus devices icons`, exports and the macOS widget all carry the new fields. A label is local only and survives every provider name refresh.
 
 ### Changed
+- `PUT /api/settings` is now `PATCH /api/settings`, and its body carries the poll interval, the history retention period and whether native notifications may show details.
 - The Homebrew caveats and the installer both point new installs at `findplus setup`, so every install channel gives the same first instruction.
 - `findplus start` finishes a fresh sign-in in one run: it discovers devices from every provider you are signed in to, shows them, tracks them all and installs the service. Pass `--no-track-all` to discover without tracking.
 - `findplus start` exits 4 when you are not signed in yet, instead of 0, and counts an Apple sign-in as being signed in.

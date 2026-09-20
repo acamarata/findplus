@@ -34,6 +34,7 @@ from .plan import (
     ServicePlan,
     detect_manager,
 )
+from .retention import RetentionResult, RetentionScheduler, run_once
 from .runtime import (
     daemon_alive,
     install,
@@ -61,6 +62,8 @@ __all__ = [
     "WATCHDOG_LABEL",
     "WATCHDOG_SERVICE",
     "WATCHDOG_TIMER",
+    "RetentionResult",
+    "RetentionScheduler",
     "ServicePlan",
     "ServiceStatus",
     "check_once",
@@ -75,6 +78,7 @@ __all__ = [
     "restart",
     "restart_if_wedged",
     "restart_service",
+    "run_once",
     "start",
     "status",
     "stop",

@@ -7,6 +7,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- The daemon prunes location history, place visits and group events older than the retention window once a day, with no restart needed after changing it.
 - `install.sh --start` installs, runs the setup wizard and starts the service in one command. A fresh install finishes by asking you to sign in, which is a success, not an error.
 - The Alerts tab has a Delivery log showing each alert's rule, channel, kind, time, status and error.
 - An Uninstall page in the wiki with the manual service-removal commands for macOS, Linux and Windows.

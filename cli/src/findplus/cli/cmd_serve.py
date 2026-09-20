@@ -23,6 +23,7 @@ import sys
 import threading
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import click
 import httpx
@@ -31,6 +32,20 @@ from findplus import __version__
 from findplus.config import PRIVATE_UMASK, get_settings, is_public_bind
 
 from ._fmt import _prep
+
+
+def _start_worker(worker: Any, name: str) -> tuple[Any, threading.Thread]:
+    """Run `worker.run_forever()` on a named daemon thread, and return both."""
+    thread = threading.Thread(target=worker.run_forever, name=name, daemon=True)
+    thread.start()
+    return worker, thread
+
+
+def _stop_workers(workers: list[tuple[Any, threading.Thread]]) -> None:
+    """Ask every background worker to stop, then wait up to 5s each for it."""
+    for worker, thread in workers:
+        worker.stop()
+        thread.join(timeout=5.0)
 
 
 def _check_exclusive(state_dir: Path) -> tuple[bool, str]:
@@ -99,6 +114,7 @@ def serve(foreground: bool, no_poller: bool, host: str | None, port: int | None)
     from findplus import service
     from findplus.api import create_app
     from findplus.poller import PollerService
+    from findplus.service.retention import RetentionScheduler
 
     settings = get_settings()
     bind_host = host or settings.host
@@ -129,8 +145,7 @@ def serve(foreground: bool, no_poller: bool, host: str | None, port: int | None)
     cadence = "disabled" if no_poller else f"every {settings.effective_poll_interval_minutes:g} min"
     click.echo(f"Polling   : {cadence}")
 
-    poller: PollerService | None = None
-    poller_thread: threading.Thread | None = None
+    workers: list[tuple[Any, threading.Thread]] = []
     server: uvicorn.Server | None = None
     server_thread: threading.Thread | None = None
     exit_code = 0
@@ -140,9 +155,10 @@ def serve(foreground: bool, no_poller: bool, host: str | None, port: int | None)
         )
 
         if not no_poller:
-            poller = PollerService(settings)
-            poller_thread = threading.Thread(target=poller.run_forever, name="poller", daemon=True)
-            poller_thread.start()
+            workers.append(_start_worker(PollerService(settings), "poller"))
+        # Retention runs whether or not polling does: an operator who turned the
+        # poller off still asked for history past the window to go.
+        workers.append(_start_worker(RetentionScheduler(settings.state_dir), "retention"))
 
         config = uvicorn.Config(
             create_app(),
@@ -167,10 +183,7 @@ def serve(foreground: bool, no_poller: bool, host: str | None, port: int | None)
             server.should_exit = True
         if server_thread is not None:
             server_thread.join(timeout=5.0)
-        if poller is not None:
-            poller.stop()
-        if poller_thread is not None:
-            poller_thread.join(timeout=5.0)
+        _stop_workers(workers)
         (settings.state_dir / "daemon.json").unlink(missing_ok=True)
 
     if exit_code:

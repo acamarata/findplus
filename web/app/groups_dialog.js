@@ -20,7 +20,7 @@ import { api } from "./api.js";
 import { t } from "./i18n.js";
 import { createIconPicker } from "./components/icon-picker.js";
 import { createColorPicker } from "./components/color-picker.js";
-import { buildDialog, memberRow, renderIconPreview } from "./groups_dialog_dom.js";
+import { buildDialog, memberRow, renderIconPreview, renderColorPreview } from "./groups_dialog_dom.js";
 
 const DEFAULT_ICON = "lucide:users";
 const DEFAULT_COLOR = "#27ae60";
@@ -44,6 +44,13 @@ function togglePopover(host, other) {
   host.hidden = !host.hidden;
 }
 
+/** Both preview buttons: an icon or colour pick invalidates both (the icon
+ * badge is drawn with the current colour too, per renderIconPreview). */
+function renderPreviews() {
+  renderIconPreview(fields);
+  renderColorPreview(fields);
+}
+
 /** The pickers are destroyed by a purge and rebuilt here; the buttons are not. */
 function ensurePickers() {
   if (iconPicker) return;
@@ -51,7 +58,7 @@ function ensurePickers() {
     value: fields.icon.value,
     onChange: (id) => {
       fields.icon.value = id;
-      renderIconPreview(fields);
+      renderPreviews();
       fields.iconHost.hidden = true;
     },
   });
@@ -59,7 +66,7 @@ function ensurePickers() {
     value: fields.color.value,
     onChange: (hex) => {
       fields.color.value = hex;
-      renderIconPreview(fields);
+      renderPreviews();
       fields.colorHost.hidden = true;
     },
   });
@@ -93,7 +100,7 @@ function ensureDialog() {
   fields = built.fields;
   document.body.appendChild(dialogEl);
   wireDialog(dialogEl);
-  renderIconPreview(fields);
+  renderPreviews();
   return dialogEl;
 }
 
@@ -126,7 +133,7 @@ function applyGroup(group) {
   fields.color.value = (group && group.color) || DEFAULT_COLOR;
   iconPicker.setValue(fields.icon.value);
   colorPicker.setValue(fields.color.value);
-  renderIconPreview(fields);
+  renderPreviews();
   applyQuorum(group ? group.quorum : DEFAULT_QUORUM);
   const radius = group ? String(group.cluster_radius_meters) : DEFAULT_RADIUS;
   fields.radius.value = radius;

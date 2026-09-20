@@ -230,3 +230,35 @@ async def test_dialog_closes_on_escape(page, base_url):
     await page.keyboard.press("Escape")
     await page.wait_for_function("() => !document.getElementById('fp-group-dialog').open")
     assert await page.locator("#fp-group-dialog").get_attribute("open") is None
+
+
+async def test_icon_and_color_pickers_populate_on_a_cold_open(page, base_url):
+    """Visual gate W3 finding 1: the closed colour button had no content at
+    all (build-notes.md § W3 gate fixes), and nothing exercised the colour
+    popover before. This is a fresh page (no dialog opened earlier in the
+    test), so ensurePickers() runs for the first time here — the "cold page,
+    no prior sprite fetch" case the fix's root-cause note calls out."""
+    await _open_groups_tab(page, base_url)
+    await page.click("#fp-add-group-btn")
+    await page.wait_for_selector("#fp-group-dialog[open]")
+
+    # Closed state: both trigger buttons show a swatch, not an empty pill.
+    icon_html = await page.locator("#fp-group-icon-btn").inner_html()
+    color_bg = await page.locator("#fp-group-color-btn").evaluate(
+        "el => getComputedStyle(el).backgroundColor"
+    )
+    assert icon_html.strip()
+    assert color_bg not in ("rgba(0, 0, 0, 0)", "transparent")
+
+    await page.click("#fp-group-icon-btn")
+    icon_count = await page.locator("#fp-group-icon-popover .fp-icon-swatch").count()
+    assert icon_count >= 40, icon_count
+    # The icon grid is tall enough to sit over the colour row below it; close
+    # it the same way a user would (re-click its own trigger) before opening
+    # the colour popover, rather than clicking through it.
+    await page.click("#fp-group-icon-btn")
+    await page.wait_for_selector("#fp-group-icon-popover", state="hidden")
+
+    await page.click("#fp-group-color-btn")
+    color_count = await page.locator("#fp-group-color-popover .fp-color-swatch").count()
+    assert color_count == 12, color_count

@@ -24,10 +24,11 @@ const DEFAULT_COLOR = "#27ae60";
 const DEFAULT_RADIUS = "150";
 const DEFAULT_STALE = "90";
 
-function button(text, onClick) {
+function button(text, onClick, className) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.textContent = text;
+  if (className) btn.className = className;
   btn.addEventListener("click", onClick);
   return btn;
 }
@@ -39,11 +40,21 @@ function field(type, attrs) {
   return el;
 }
 
-function labeled(text, input) {
+/**
+ * A `.fp-dialog-field` row: a real `<label for>` beside its control, never
+ * text and input sharing one `<label>` (that pairing has no gap between them
+ * and the two painted on top of each other — visual gate W3 finding). Same
+ * wrapper devices_dialog.js's own `labeled()` builds, so one CSS rule in
+ * components.css covers both dialogs' field rows.
+ */
+function labeled(text, input, id) {
   const label = document.createElement("label");
+  if (id) label.htmlFor = id;
   label.textContent = text;
-  label.appendChild(input);
-  return label;
+  const wrap = document.createElement("div");
+  wrap.className = "fp-dialog-field";
+  wrap.append(label, input);
+  return wrap;
 }
 
 function popoverHost(id) {
@@ -62,15 +73,30 @@ function popoverHost(id) {
   return host;
 }
 
-function pickerRow(id, ariaLabel, hiddenInput) {
+/**
+ * A picker trigger row: a visible label, then the button that opens the
+ * popover. `swatchClass` reuses icon-picker.js's/color-picker.js's own
+ * swatch styling (`.fp-icon-swatch`/`.fp-color-swatch`) for the closed
+ * button instead of a bare unstyled `<button>` (visual gate W3 finding 1 —
+ * the closed colour button had no class and no content, so it rendered as
+ * an empty sliver next to the icon preview).
+ */
+function pickerRow(id, labelText, hiddenInput, swatchClass) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.id = `${id}-btn`;
-  btn.setAttribute("aria-label", ariaLabel);
+  btn.className = swatchClass;
+  btn.setAttribute("aria-label", labelText);
+  const label = document.createElement("span");
+  label.className = "fp-picker-label";
+  label.textContent = labelText;
   const host = popoverHost(`${id}-popover`);
+  const control = document.createElement("div");
+  control.className = "fp-picker-control";
+  control.append(btn, hiddenInput, host);
   const wrap = document.createElement("div");
   wrap.className = "fp-picker-row";
-  wrap.append(btn, hiddenInput, host);
+  wrap.append(label, control);
   return { btn, host, wrap };
 }
 
@@ -87,7 +113,7 @@ function quorumRow() {
   }
   const n = field("number", { id: "fp-group-quorum-n", min: "1", max: "20", value: "2", hidden: true });
   const wrap = document.createElement("div");
-  wrap.append(labeled(t("groups.field.quorum"), select), n);
+  wrap.append(labeled(t("groups.field.quorum"), select, select.id), n);
   return { select, n, wrap };
 }
 
@@ -96,10 +122,14 @@ function radiusRow() {
     id: "fp-group-radius", min: "25", max: "2000", step: "25", value: DEFAULT_RADIUS,
   });
   const out = document.createElement("output");
+  out.htmlFor = input.id;
   out.textContent = input.value;
-  const wrap = document.createElement("label");
-  wrap.textContent = t("groups.field.radius");
-  wrap.append(input, out);
+  const label = document.createElement("label");
+  label.htmlFor = input.id;
+  label.textContent = t("groups.field.radius");
+  const wrap = document.createElement("div");
+  wrap.className = "fp-dialog-field";
+  wrap.append(label, input, out);
   return { input, out, wrap };
 }
 
@@ -110,7 +140,7 @@ function staleRow() {
   // honesty.PRESENCE_STALE, verbatim: a stale tag is not a tag left behind.
   hint.textContent = t("groups.field.stale_hint");
   const wrap = document.createElement("div");
-  wrap.append(labeled(t("groups.field.stale"), input), hint);
+  wrap.append(labeled(t("groups.field.stale"), input, input.id), hint);
   return { input, wrap };
 }
 
@@ -156,6 +186,16 @@ export function renderIconPreview(fields) {
   );
 }
 
+/**
+ * The colour button previews the picked swatch as its own background, the
+ * same way icon-picker.js's/color-picker.js's own swatches show colour —
+ * without this the closed button had no content at all (visual gate W3
+ * finding 1: "the colour picker is absent").
+ */
+export function renderColorPreview(fields) {
+  fields.colorBtn.style.background = fields.color.value;
+}
+
 export function buildDialog({ onSave, onCancel }) {
   const dlg = document.createElement("dialog");
   dlg.id = "fp-group-dialog";
@@ -171,8 +211,8 @@ export function buildDialog({ onSave, onCancel }) {
   const name = field("text", { id: "fp-group-name", required: true, maxLength: 40 });
   const iconValue = field("hidden", { id: "fp-group-icon", value: DEFAULT_ICON });
   const colorValue = field("hidden", { id: "fp-group-color", value: DEFAULT_COLOR });
-  const icon = pickerRow("fp-group-icon", t("groups.field.icon"), iconValue);
-  const color = pickerRow("fp-group-color", t("groups.field.color"), colorValue);
+  const icon = pickerRow("fp-group-icon", t("groups.field.icon"), iconValue, "fp-icon-swatch");
+  const color = pickerRow("fp-group-color", t("groups.field.color"), colorValue, "fp-color-swatch");
   const quorum = quorumRow();
   const radius = radiusRow();
   const stale = staleRow();
@@ -182,10 +222,10 @@ export function buildDialog({ onSave, onCancel }) {
   error.className = "fp-dialog-error";
   error.id = "fp-group-dialog-error";
   const footer = document.createElement("footer");
-  footer.append(button(t("common.save"), onSave), button(t("common.cancel"), onCancel));
+  footer.append(button(t("common.save"), onSave, "btn"), button(t("common.cancel"), onCancel, "btn-secondary"));
 
   form.append(
-    title, labeled(t("groups.field.name"), name), icon.wrap, color.wrap,
+    title, labeled(t("groups.field.name"), name, name.id), icon.wrap, color.wrap,
     quorum.wrap, radius.wrap, stale.wrap, members.fieldset, error, footer,
   );
   dlg.appendChild(form);

@@ -176,6 +176,7 @@ List every tracker Find+ knows about and choose which ones to track.
 | --untrack |  | Stop tracking a device id. |
 | --default |  | Device the dashboard opens on. |
 | --refresh |  | Re-query Find Hub for the list. |
+| --json |  | Print the device list as JSON. |
 
 ## findplus doctor
 Diagnose the installation; with --repair, fix what can be fixed.

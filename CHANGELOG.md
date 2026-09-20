@@ -7,6 +7,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Fixed
+- `findplus devices --json` prints the device list as JSON, as the CLI reference documents.
 - `GET /api/devices` rows carry the `groups` and `presence` keys the API contract documents.
 - The menu bar shows a "CLI daemon vX (app is vY)" line when the daemon and the app disagree on version, instead of only writing it to the log.
 - An alert rule whose channel has no credentials now records a `skipped` delivery instead of silently discarding the event.

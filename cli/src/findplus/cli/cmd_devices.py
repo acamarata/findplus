@@ -18,6 +18,38 @@ from findplus.db.session import session_scope
 from ._fmt import _prep
 
 
+def _devices_as_json(session, rows) -> str:
+    """The rows the table shows, as JSON (cli-reference.md pins `--json` on this command).
+
+    Same shape as the table: one object per device, newest field set kept flat so a
+    shell pipeline can read it without walking a nested structure.
+    """
+    import json
+
+    from sqlalchemy import func, select
+
+    from findplus.db.models import LocationObservation
+
+    out = []
+    for d in rows:
+        count = session.scalar(
+            select(func.count(LocationObservation.id)).where(
+                LocationObservation.device_id == d.device_id
+            )
+        )
+        out.append(
+            {
+                "device_id": d.device_id,
+                "name": d.name,
+                "provider": d.provider,
+                "is_tracked": d.is_tracked,
+                "observation_count": int(count or 0),
+                "last_seen_at": d.last_seen_at.isoformat() if d.last_seen_at else None,
+            }
+        )
+    return json.dumps(out, indent=2)
+
+
 @click.command()
 @click.option("--track", "track_ids", multiple=True, help="Track this device id (repeatable).")
 @click.option(
@@ -26,12 +58,14 @@ from ._fmt import _prep
 @click.option("--untrack", "untrack_ids", multiple=True, help="Stop tracking a device id.")
 @click.option("--default", "default_id", default=None, help="Device the dashboard opens on.")
 @click.option("--refresh/--no-refresh", default=True, help="Re-query Find Hub for the list.")
+@click.option("--json", "json_out", is_flag=True, help="Print the device list as JSON.")
 def devices(
     track_ids: tuple[str, ...],
     track_all_flag: bool,
     untrack_ids: tuple[str, ...],
     default_id: str | None,
     refresh: bool,
+    json_out: bool,
 ) -> None:
     """List every tracker Find+ knows about and choose which ones to track.
 
@@ -110,6 +144,11 @@ def devices(
     with session_scope() as session:
         rows = list(session.scalars(sa_select(Device).order_by(Device.name)))
         tracked = get_tracked_devices(session)
+
+        if json_out:
+            click.echo(_devices_as_json(session, rows))
+            return
+
         if not rows:
             click.echo("No devices found on this account.")
             return

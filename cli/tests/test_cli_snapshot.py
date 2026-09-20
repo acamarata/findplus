@@ -68,3 +68,21 @@ def test_registered_command_set_is_exact():
     command added without a spec change. Read the group's registry instead.
     """
     assert set(main.commands) == EXPECTED_COMMANDS
+
+
+def test_devices_accepts_the_documented_json_flag(tmp_path, monkeypatch):
+    """cli-reference.md pins `--json` on `devices`; it was never declared (E1 CR-C).
+
+    `--no-refresh` keeps the run off the network: the flag's absence was the defect,
+    so an empty device table printing `[]` is the whole assertion.
+    """
+    import json
+
+    from findplus.cli.cmd_devices import devices
+
+    monkeypatch.setenv("FINDPLUS_STATE_DIR", str(tmp_path))
+
+    result = CliRunner().invoke(devices, ["--no-refresh", "--json"])
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output) == []

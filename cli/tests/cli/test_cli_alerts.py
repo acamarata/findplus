@@ -22,7 +22,7 @@ def test_webhook_set_invalid_url(tmp_db: str) -> None:
 
 
 def test_webhook_set_https_ok(tmp_db: str, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("findplus.cli.alerts.save_alerts", MagicMock())
+    monkeypatch.setattr("findplus.cli.alerts.save_channel", MagicMock())
     result = CliRunner().invoke(main, ["alerts", "webhook-set", "https://example.com/hook"])
     assert result.exit_code == 0
 
@@ -81,3 +81,46 @@ def test_alerts_help_lists_subcommands(tmp_db: str) -> None:
 def test_webhook_set_rejects_lookalike_loopback_host(tmp_db: str) -> None:
     result = CliRunner().invoke(main, ["alerts", "webhook-set", "http://localhost.evil.example/h"])
     assert result.exit_code != 0
+
+
+def test_whatsapp_is_a_subgroup_with_set_and_clear(tmp_db: str) -> None:
+    """F13: `alerts whatsapp set|clear`, never top-level whatsapp-set/whatsapp-clear."""
+    result = CliRunner().invoke(main, ["alerts", "whatsapp", "--help"])
+    assert result.exit_code == 0
+    assert "set" in result.output
+    assert "clear" in result.output
+
+
+def test_whatsapp_set_rejects_a_non_e164_phone(tmp_db: str) -> None:
+    result = CliRunner().invoke(
+        main, ["alerts", "whatsapp", "set", "--phone", "34123", "--apikey", "k"]
+    )
+    assert result.exit_code != 0
+    assert "E.164" in result.output
+
+
+def test_whatsapp_set_then_clear_round_trips(tmp_db: str) -> None:
+    from findplus.alerts.store import load_alerts
+
+    runner = CliRunner()
+    set_result = runner.invoke(
+        main,
+        ["alerts", "whatsapp", "set", "--phone", "+34123123123", "--apikey", "1234567890"],
+    )
+    assert set_result.exit_code == 0, set_result.output
+    assert "+34…23" in set_result.output
+    assert "1234567890" not in set_result.output
+    assert "+34123123123" not in set_result.output
+    assert load_alerts().whatsapp.apikey == "1234567890"
+
+    assert runner.invoke(main, ["alerts", "whatsapp", "clear"]).exit_code != 0  # needs --yes
+    clear_result = runner.invoke(main, ["alerts", "whatsapp", "clear", "--yes"])
+    assert clear_result.exit_code == 0
+    assert load_alerts().whatsapp is None
+
+
+def test_test_channel_whatsapp_not_configured(tmp_db: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("findplus.cli.alerts.load_alerts", lambda: AlertsChannels())
+    result = CliRunner().invoke(main, ["alerts", "test", "--channel", "whatsapp"])
+    assert result.exit_code != 0
+    assert "WhatsApp not configured" in result.output

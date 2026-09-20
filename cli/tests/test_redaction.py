@@ -91,3 +91,26 @@ def test_an_exception_message_is_redacted_too(monkeypatch) -> None:
 
     assert status == "failed"
     assert "874216" not in err
+
+
+def test_the_whatsapp_credential_keys_are_all_sensitive() -> None:
+    """F14: "apikey" alone is not enough — the phone and the full request URL leak too."""
+    from findplus.logging_setup import _SENSITIVE_KEYS
+
+    assert {"apikey", "phone", "url"} <= _SENSITIVE_KEYS
+
+
+def test_a_callmebot_url_pasted_into_a_free_text_message_is_redacted() -> None:
+    from findplus.logging_setup import _TOKEN_PATTERN
+
+    raw = "GET https://api.callmebot.com/whatsapp.php?phone=%2B34123123123&apikey=1234567890"
+    assert _TOKEN_PATTERN.search(raw)
+    assert "1234567890" not in _TOKEN_PATTERN.sub("<redacted>", raw)
+
+
+def test_the_existing_token_shapes_still_match_after_the_apikey_alternative() -> None:
+    from findplus.logging_setup import _TOKEN_PATTERN
+
+    assert _TOKEN_PATTERN.search("aas_et/AKppINd0123456789abc")
+    # The telegram bot-token shape: exactly 35 characters after the colon.
+    assert _TOKEN_PATTERN.search("12345678:" + "a" * 35)

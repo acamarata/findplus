@@ -23,7 +23,7 @@ from dataclasses import dataclass
 
 import httpx
 
-from findplus.alerts.store import AlertsChannels, TelegramCreds, load_alerts, save_alerts
+from findplus.alerts.store import TelegramCreds, save_channel
 
 TELEGRAM_BASE = "https://api.telegram.org/bot"
 
@@ -143,8 +143,7 @@ def telegram_setup(token: str, wait_seconds: int = 120, poll: int = 2) -> dict:
                     bot_username=username,
                     captured_at=datetime.datetime.now(datetime.UTC).isoformat(),
                 )
-                existing = load_alerts()
-                save_alerts(AlertsChannels(telegram=creds, webhook=existing.webhook))
+                save_channel(telegram=creds)
                 send("Find+ connected ✓", token, str(chat["id"]))
                 return {
                     "chat_id": str(chat["id"]),

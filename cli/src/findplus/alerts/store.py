@@ -114,3 +114,13 @@ def mask_phone(phone: str) -> str:
     """
     digits = phone[1:] if phone.startswith("+") else phone
     return "***" if len(digits) < 4 else f"+{digits[:2]}…{digits[-2:]}"
+
+
+def save_channel(**changes) -> None:
+    """Replace named channels in alerts.json, leaving every other one alone.
+
+    Each caller used to rebuild the whole AlertsChannels by hand, so adding a
+    third channel meant editing eight call sites or silently wiping the new one
+    from seven of them. dataclasses.replace makes that impossible.
+    """
+    save_alerts(dataclasses.replace(load_alerts(), **changes))

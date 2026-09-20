@@ -68,7 +68,7 @@ def test_setup_409_on_get_me() -> None:
 
 def test_setup_happy_path(monkeypatch: pytest.MonkeyPatch) -> None:
     save_mock = MagicMock()
-    monkeypatch.setattr("findplus.alerts.channels.telegram.save_alerts", save_mock)
+    monkeypatch.setattr("findplus.alerts.channels.telegram.save_channel", save_mock)
 
     update = {
         "update_id": 1,
@@ -144,7 +144,7 @@ def test_setup_accepts_group_and_channel_updates(
 ) -> None:
     """A group with privacy mode on sends only `my_chat_member`; a channel only
     sends `channel_post`. Ignoring either leaves setup hanging to the timeout."""
-    monkeypatch.setattr("findplus.alerts.channels.telegram.save_alerts", MagicMock())
+    monkeypatch.setattr("findplus.alerts.channels.telegram.save_channel", MagicMock())
 
     update = {"update_id": 1, key: {"chat": chat}}
     with patch("findplus.alerts.channels.telegram.httpx.Client") as mock_client:
@@ -164,7 +164,7 @@ def test_setup_accepts_group_and_channel_updates(
 def test_setup_tells_group_users_about_start_and_privacy_mode(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setattr("findplus.alerts.channels.telegram.save_alerts", MagicMock())
+    monkeypatch.setattr("findplus.alerts.channels.telegram.save_channel", MagicMock())
 
     update = {"update_id": 1, "message": {"chat": {"id": 99, "type": "private"}}}
     with patch("findplus.alerts.channels.telegram.httpx.Client") as mock_client:

@@ -7,6 +7,12 @@ Versioning: [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Sign in to Google Find Hub from the dashboard: `POST /api/auth/google/start` opens Chrome and `GET /api/auth/google/progress` reports how far along it is. Chrome now runs in a profile of its own under `~/.findplus/chrome-profile`, so signing in no longer closes the Chrome windows you already have open.
+- Sign in to Apple Find My from the dashboard, 2FA included: `POST /api/auth/apple/start` then `POST /api/auth/apple/code`. Your Apple password is used for the sign-in call and is never stored, logged or sent back.
+- `GET /api/auth/status` reports, per provider, whether you are signed in, which account, and what is still missing (Chrome, or the Apple extra).
+- `findplus auth --status` prints that same report as a table, or as JSON with `--json`.
+- Register an Apple Find My accessory from the dashboard, by uploading a key plist (up to 64 KiB) or pasting a private key: `POST /api/apple/accessories`. A tag you have already registered is reported rather than quietly replaced.
+- `findplus doctor` now checks the Chrome profile directory is owner-only, and repairs it with `--repair`.
 - `findplus setup`, a guided first-run walkthrough in the terminal for installs that never open the dashboard. Pass `--yes` to accept every default without a prompt.
 - The daemon prunes location history, place visits and group events older than the retention window once a day, with no restart needed after changing it.
 - `install.sh --start` installs, runs the setup wizard and starts the service in one command. A fresh install finishes by asking you to sign in, which is a success, not an error.
@@ -20,13 +26,15 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - A phone-width layout: under 600px the dashboard gets a bottom tab bar, the toolbar collapses behind a More button, dialogs open full screen, and every button and tick box is at least 44px to tap.
 - WCAG 2.1 AA groundwork: page landmarks, a label on every form control, a visible focus ring, a focus trap and Escape-to-close on the Devices and Settings dialogs, an announced alert banner, and colour changes where text or a control border fell short of the contrast minimum.
 - An accessibility scan in the browser test suite: axe-core over every tab, in both themes, at desktop and phone width.
-- WhatsApp alerts, relayed through CallMeBot. The setup text says plainly that your alert text passes through a third party before it reaches WhatsApp.
+- WhatsApp alerts, relayed through CallMeBot. The setup text says plainly that your alert text passes through a third party before it reaches WhatsApp. Manage it from the dashboard with `PUT`/`DELETE /api/alerts/channels/whatsapp`, or from the terminal with `findplus alerts whatsapp set`/`clear`. The phone number is shown masked and the API key is never returned.
 - Alert rules can target more than one channel at once. Each channel gets its own delivery row and its own cooldown, so a notification on one never suppresses another.
 - Device and group labels, icons and colours: `PATCH /api/devices/{id}`, `GET /api/icons`, `findplus devices label`/`findplus devices icons`, exports and the macOS widget all carry the new fields. A label is local only and survives every provider name refresh.
 - A group create and edit dialog on the Groups tab: name, icon, colour, quorum, cluster radius, stale-after minutes and which tracked devices belong to the group.
 - Group cards on the Groups tab, each with the group badge, its member avatars, its live presence verdict, and edit and delete buttons.
 
 ### Changed
+- The Chrome-not-found message is one sentence now shared by the terminal, the API and `/api/config`, instead of two wordings that could drift apart.
+- Starting a sign-in requires the request to carry an `Origin` or `Sec-Fetch-Site` header. Browsers and the desktop app always send one; nothing else has a reason to start a sign-in.
 - `PUT /api/settings` is now `PATCH /api/settings`, and its body carries the poll interval, the history retention period and whether native notifications may show details.
 - The Homebrew caveats and the installer both point new installs at `findplus setup`, so every install channel gives the same first instruction.
 - `findplus start` finishes a fresh sign-in in one run: it discovers devices from every provider you are signed in to, shows them, tracks them all and installs the service. Pass `--no-track-all` to discover without tracking.

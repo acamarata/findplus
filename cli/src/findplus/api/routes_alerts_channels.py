@@ -24,12 +24,14 @@ from pydantic import BaseModel
 from findplus.alerts.channels.telegram import _get_me, send, telegram_setup
 from findplus.alerts.channels.webhook import build_payload, is_valid_url, send_webhook
 from findplus.alerts.store import (
-    AlertsChannels,
     TelegramCreds,
     WebhookCreds,
+    WhatsappCreds,
+    is_valid_phone,
     load_alerts,
+    mask_phone,
     mask_token,
-    save_alerts,
+    save_channel,
 )
 
 
@@ -47,8 +49,13 @@ class WebhookPutBody(BaseModel):
     secret: str | None = None
 
 
+class WhatsappPutBody(BaseModel):
+    phone: str
+    apikey: str
+
+
 class AlertTestBody(BaseModel):
-    channel: Literal["telegram", "webhook"]
+    channel: Literal["telegram", "webhook", "whatsapp", "native"]
 
 
 def mask_url(url: str) -> str:
@@ -71,7 +78,7 @@ def mask_url(url: str) -> str:
 
 def _channels_response() -> dict[str, Any]:
     ch = load_alerts()
-    tg, wh = ch.telegram, ch.webhook
+    tg, wh, wa = ch.telegram, ch.webhook, ch.whatsapp
     return {
         "telegram": {
             "configured": tg is not None,
@@ -83,6 +90,12 @@ def _channels_response() -> dict[str, Any]:
             "configured": wh is not None,
             "url": mask_url(wh.url) if wh else None,
             "has_secret": bool(wh and wh.secret),
+        },
+        # The apikey is never echoed back in any shape, and phone_masked keeps
+        # only the country code and the last two digits.
+        "whatsapp": {
+            "configured": wa is not None,
+            "phone_masked": mask_phone(wa.phone) if wa else None,
         },
     }
 
@@ -112,7 +125,7 @@ def build_router() -> APIRouter:
             bot_username=me_result["username"],
             captured_at=datetime.now(UTC).isoformat(),
         )
-        save_alerts(AlertsChannels(telegram=creds, webhook=existing.webhook))
+        save_channel(telegram=creds)
         return _channels_response()
 
     @router.post("/channels/telegram/setup")
@@ -133,23 +146,34 @@ def build_router() -> APIRouter:
 
     @router.delete("/channels/telegram", status_code=204)
     def delete_telegram() -> Response:
-        ch = load_alerts()
-        save_alerts(AlertsChannels(telegram=None, webhook=ch.webhook))
+        save_channel(telegram=None)
         return Response(status_code=204)
 
     @router.put("/channels/webhook")
     def put_webhook(body: WebhookPutBody) -> dict[str, Any]:
         if not is_valid_url(body.url):
             raise HTTPException(status_code=422, detail="url must be https or http loopback")
-        ch = load_alerts()
-        new_webhook = WebhookCreds(url=body.url, secret=body.secret)
-        save_alerts(AlertsChannels(telegram=ch.telegram, webhook=new_webhook))
+        save_channel(webhook=WebhookCreds(url=body.url, secret=body.secret))
         return _channels_response()
 
     @router.delete("/channels/webhook", status_code=204)
     def delete_webhook() -> Response:
-        ch = load_alerts()
-        save_alerts(AlertsChannels(telegram=ch.telegram, webhook=None))
+        save_channel(webhook=None)
+        return Response(status_code=204)
+
+    @router.put("/channels/whatsapp")
+    def put_whatsapp(body: WhatsappPutBody) -> dict[str, Any]:
+        # Validate before any write, like put_webhook. Unlike put_telegram there is
+        # no verification round-trip: CallMeBot has no side-effect-free call that
+        # would tell a good key from a bad one.
+        if not is_valid_phone(body.phone):
+            raise HTTPException(status_code=422, detail="phone must be E.164, e.g. +34123123123")
+        save_channel(whatsapp=WhatsappCreds(phone=body.phone, apikey=body.apikey))
+        return _channels_response()
+
+    @router.delete("/channels/whatsapp", status_code=204)
+    def delete_whatsapp() -> Response:
+        save_channel(whatsapp=None)
         return Response(status_code=204)
 
     @router.post("/test")
@@ -166,7 +190,7 @@ def build_router() -> APIRouter:
                 )
             except (ValueError, RuntimeError) as exc:
                 return {"status": "failed", "error": str(exc)}
-        else:
+        elif body.channel == "webhook":
             if not ch.webhook:
                 raise HTTPException(status_code=422, detail="Webhook not configured")
             payload = build_payload(
@@ -183,6 +207,18 @@ def build_router() -> APIRouter:
                 "This is a test alert.",
             )
             result = send_webhook(payload, ch.webhook.url, ch.webhook.secret)
+        elif body.channel == "whatsapp":
+            if not ch.whatsapp:
+                raise HTTPException(status_code=422, detail="WhatsApp not configured")
+            from findplus.alerts.channels.whatsapp_callmebot import send as wa_send
+
+            result = wa_send(
+                "Find+ test alert from the dashboard", ch.whatsapp.phone, ch.whatsapp.apikey
+            )
+        else:
+            # native has no outbound send: the desktop app drains a queue, and
+            # nothing here can put a row in it for a test (E8-T4).
+            raise HTTPException(status_code=422, detail="native alerts cannot be tested from here")
         return {"status": "sent" if result.success else "failed", "error": result.error}
 
     return router

@@ -91,6 +91,25 @@ Configure the webhook channel.
 |---|---|---|
 | --secret, -s |  | HMAC signing secret (optional). |
 
+## findplus alerts whatsapp clear
+Remove the stored WhatsApp phone and apikey.
+
+**Usage:** `findplus alerts whatsapp clear [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --yes |  | Confirm clearing the WhatsApp configuration. |
+
+## findplus alerts whatsapp set
+Configure the WhatsApp (CallMeBot) channel.
+
+**Usage:** `findplus alerts whatsapp set [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --phone |  | E.164 phone number, e.g. +34123123123. |
+| --apikey |  | CallMeBot API key. |
+
 ## findplus apple add-accessory
 Register an accessory from a pairing --plist export or a --private-key.
 
@@ -122,6 +141,8 @@ Sign in to a provider (Google via Chrome, or Apple interactively).
 
 | option | default | help |
 |---|---|---|
+| --status |  | Print sign-in status and exit. |
+| --json |  | With --status, print JSON instead of a table. |
 | --provider | google-find-hub | Provider to authenticate: google-find-hub or apple-find-my |
 
 ## findplus config get

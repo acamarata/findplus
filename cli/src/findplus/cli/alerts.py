@@ -20,7 +20,14 @@ import click
 from findplus.alerts.channels.telegram import send, telegram_setup
 from findplus.alerts.channels.webhook import build_payload, is_valid_url, send_webhook
 from findplus.alerts.channels_field import format_channels
-from findplus.alerts.store import AlertsChannels, WebhookCreds, load_alerts, save_alerts
+from findplus.alerts.store import (
+    WebhookCreds,
+    WhatsappCreds,
+    is_valid_phone,
+    load_alerts,
+    mask_phone,
+    save_channel,
+)
 from findplus.db.models_alerts import AlertDelivery, AlertRule
 from findplus.db.session import session_scope
 
@@ -53,8 +60,7 @@ def telegram_clear(yes: bool) -> None:
     """Remove the stored Telegram bot token and chat id."""
     if not yes:
         raise click.ClickException("Pass --yes to confirm clearing Telegram configuration")
-    ch = load_alerts()
-    save_alerts(AlertsChannels(telegram=None, webhook=ch.webhook))
+    save_channel(telegram=None)
     click.echo("Telegram channel cleared.")
 
 
@@ -65,8 +71,7 @@ def webhook_set_cmd(url: str, secret: str | None) -> None:
     """Configure the webhook channel."""
     if not is_valid_url(url):
         raise click.ClickException("URL must be https or http loopback")
-    ch = load_alerts()
-    save_alerts(AlertsChannels(telegram=ch.telegram, webhook=WebhookCreds(url=url, secret=secret)))
+    save_channel(webhook=WebhookCreds(url=url, secret=secret))
     click.echo(f"Webhook configured: {url}")
 
 
@@ -76,13 +81,37 @@ def webhook_clear_cmd(yes: bool) -> None:
     """Remove the stored webhook URL and secret."""
     if not yes:
         raise click.ClickException("Pass --yes to confirm")
-    ch = load_alerts()
-    save_alerts(AlertsChannels(telegram=ch.telegram, webhook=None))
+    save_channel(webhook=None)
     click.echo("Webhook cleared.")
 
 
+whatsapp_cmd = click.Group(name="whatsapp", help="Manage the WhatsApp (CallMeBot) channel.")
+alerts_cmd.add_command(whatsapp_cmd)
+
+
+@whatsapp_cmd.command("set")
+@click.option("--phone", required=True, help="E.164 phone number, e.g. +34123123123.")
+@click.option("--apikey", required=True, help="CallMeBot API key.")
+def whatsapp_set_cmd(phone: str, apikey: str) -> None:
+    """Configure the WhatsApp (CallMeBot) channel."""
+    if not is_valid_phone(phone):
+        raise click.ClickException("phone must be E.164, e.g. +34123123123")
+    save_channel(whatsapp=WhatsappCreds(phone=phone, apikey=apikey))
+    click.echo(f"WhatsApp configured: {mask_phone(phone)}")
+
+
+@whatsapp_cmd.command("clear")
+@click.option("--yes", is_flag=True, help="Confirm clearing the WhatsApp configuration.")
+def whatsapp_clear_cmd(yes: bool) -> None:
+    """Remove the stored WhatsApp phone and apikey."""
+    if not yes:
+        raise click.ClickException("Pass --yes to confirm")
+    save_channel(whatsapp=None)
+    click.echo("WhatsApp cleared.")
+
+
 @alerts_cmd.command("test")
-@click.option("--channel", type=click.Choice(["telegram", "webhook"]), required=True)
+@click.option("--channel", type=click.Choice(["telegram", "webhook", "whatsapp"]), required=True)
 def test_cmd(channel: str) -> None:
     """Send a test alert through the given channel."""
     ch = load_alerts()
@@ -90,7 +119,7 @@ def test_cmd(channel: str) -> None:
         if not ch.telegram:
             raise click.ClickException("Telegram not configured")
         result = send("Find+ test alert", ch.telegram.bot_token, ch.telegram.chat_id)
-    else:
+    elif channel == "webhook":
         if not ch.webhook:
             raise click.ClickException("Webhook not configured")
         payload = build_payload(
@@ -107,6 +136,12 @@ def test_cmd(channel: str) -> None:
             "This is a test alert.",
         )
         result = send_webhook(payload, ch.webhook.url, ch.webhook.secret)
+    else:
+        if not ch.whatsapp:
+            raise click.ClickException("WhatsApp not configured")
+        from findplus.alerts.channels.whatsapp_callmebot import send as wa_send
+
+        result = wa_send("Find+ test alert", ch.whatsapp.phone, ch.whatsapp.apikey)
     if result.success:
         click.echo(f"Test alert sent via {channel}.")
     else:

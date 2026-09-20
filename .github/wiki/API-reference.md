@@ -873,6 +873,9 @@ Delete Telegram
 ### DELETE /api/alerts/channels/webhook
 Delete Webhook
 
+### DELETE /api/alerts/channels/whatsapp
+Delete Whatsapp
+
 ### DELETE /api/alerts/rules/{rule_id}
 Delete Rule
 
@@ -1017,7 +1020,9 @@ Post Test
       "type": "string",
       "enum": [
         "telegram",
-        "webhook"
+        "webhook",
+        "whatsapp",
+        "native"
       ],
       "title": "Channel"
     }
@@ -1089,6 +1094,31 @@ Put Webhook
     "url"
   ],
   "title": "WebhookPutBody"
+}
+```
+
+### PUT /api/alerts/channels/whatsapp
+Put Whatsapp
+
+**Request body:**
+```json
+{
+  "properties": {
+    "phone": {
+      "type": "string",
+      "title": "Phone"
+    },
+    "apikey": {
+      "type": "string",
+      "title": "Apikey"
+    }
+  },
+  "type": "object",
+  "required": [
+    "phone",
+    "apikey"
+  ],
+  "title": "WhatsappPutBody"
 }
 ```
 
@@ -1206,4 +1236,78 @@ Put Rule
 ## providers
 ### GET /api/providers
 List Providers
+
+## auth
+### GET /api/auth/apple/progress
+Apple Progress
+
+| name | in | required | type |
+|---|---|---|---|
+| job_id | query | False | string |
+
+### GET /api/auth/google/progress
+Google Progress
+
+| name | in | required | type |
+|---|---|---|---|
+| job_id | query | False | string |
+
+### GET /api/auth/status
+Auth Status
+
+### POST /api/apple/accessories
+Apple Accessories
+
+### POST /api/auth/apple/code
+Apple Code
+
+**Request body:**
+```json
+{
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "title": "Job Id"
+    },
+    "code": {
+      "type": "string",
+      "title": "Code"
+    }
+  },
+  "type": "object",
+  "required": [
+    "job_id",
+    "code"
+  ],
+  "title": "AppleCodeBody"
+}
+```
+
+### POST /api/auth/apple/start
+Apple Start
+
+**Request body:**
+```json
+{
+  "properties": {
+    "apple_id": {
+      "type": "string",
+      "title": "Apple Id"
+    },
+    "password": {
+      "type": "string",
+      "title": "Password"
+    }
+  },
+  "type": "object",
+  "required": [
+    "apple_id",
+    "password"
+  ],
+  "title": "AppleStartBody"
+}
+```
+
+### POST /api/auth/google/start
+Google Start
 

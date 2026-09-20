@@ -48,12 +48,23 @@ _SENSITIVE_KEYS = {
     "bot_token",
     "chat_id",
     "webhook_url",
+    # WhatsApp (CallMeBot). "apikey" is that credential's canonical field name and is
+    # not covered by "token"/"api_key"; "phone" is the E.164 number; "url" covers the
+    # full request URL, which carries both in its query string and can otherwise reach
+    # a sink through a logged httpx.Request or exception repr rather than through
+    # DeliveryResult.error, which whatsapp_callmebot.send() already redacts.
+    "apikey",
+    "phone",
+    "url",
     # "secret" is already a member above (ruff B033 forbids a literal duplicate).
 }
 
 #: Defensive catch for tokens pasted into free-text messages.
 _TOKEN_PATTERN = re.compile(
     r"\b(?:aas_et|ya29|oauth2_4|AIzaSy)[A-Za-z0-9._\-/]{10,}|\d{8,10}:[A-Za-z0-9_-]{35}\b"
+    # A CallMeBot key is a plain digit string, so it matches none of the shapes
+    # above; catch it by its query parameter instead.
+    r"|apikey=[^&\s]+"
 )
 
 

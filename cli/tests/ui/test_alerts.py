@@ -197,8 +197,10 @@ async def test_delivery_log_shows_channel_and_status(page, base_url, ui_db):
     conn = sqlite3.connect(ui_db)
     try:
         conn.execute(
-            "INSERT INTO alert_deliveries (rule_id, event_kind, event_id, sent_at, status, error)"
-            " VALUES (?, 'device', 4242, '2026-09-20 12:00:00', 'failed', 'connection refused')",
+            "INSERT INTO alert_deliveries"
+            " (rule_id, event_kind, event_id, channel, sent_at, status, error)"
+            " VALUES (?, 'device', 4242, 'webhook', '2026-09-20 12:00:00', 'failed',"
+            " 'connection refused')",
             (rule_id,),
         )
         conn.commit()

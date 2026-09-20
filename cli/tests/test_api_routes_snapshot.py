@@ -15,7 +15,13 @@ Constraints: Zero behavior change from the pre-split monolith is the bar —
              P1-E10-S2's fix loop adds GET/PUT/POST
              /api/settings/widget.show_map, bringing it to 57;
              P2-E2-W2-S1-T2 adds PATCH /api/devices/{device_id} and
-             GET /api/icons, bringing it to 59.
+             GET /api/icons, bringing it to 59; P2-E6-W3-S1-T2 adds
+             GET /api/auth/status and the two /api/auth/google/* routes,
+             bringing it to 62; P2-E6-W3-S1-T3 adds the three
+             /api/auth/apple/* routes, bringing it to 65; P2-E6-W3-S1-T4 adds
+             POST /api/apple/accessories, bringing it to 66;
+             P2-E8-W3-S1-T3 adds PUT/DELETE
+             /api/alerts/channels/whatsapp, bringing it to 68.
 """
 
 from __future__ import annotations
@@ -60,7 +66,7 @@ def _app_routes(app):
 def test_route_count():
     app = create_app()
     routes = _app_routes(app)
-    assert len(routes) == 59
+    assert len(routes) == 68
 
 
 def test_route_paths_present():
@@ -94,6 +100,13 @@ def test_route_paths_present():
         "/api/history/delete-before",
         "/api/history/clear",
         "/api/providers",
+        "/api/auth/status",
+        "/api/auth/google/start",
+        "/api/auth/google/progress",
+        "/api/auth/apple/start",
+        "/api/auth/apple/code",
+        "/api/auth/apple/progress",
+        "/api/apple/accessories",
         "/api/places",
         "/api/places/{place_id}",
         "/api/places/events",
@@ -109,6 +122,7 @@ def test_route_paths_present():
         "/api/alerts/channels/telegram",
         "/api/alerts/channels/telegram/setup",
         "/api/alerts/channels/webhook",
+        "/api/alerts/channels/whatsapp",
         "/api/alerts/test",
         "/api/alerts/rules",
         "/api/alerts/rules/{rule_id}",

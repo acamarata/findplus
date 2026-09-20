@@ -43,6 +43,7 @@ EXPECTED_COMMANDS = {
     "reset-lock",
     "restart",
     "serve",
+    "setup",
     "start",
     "status",
     "stop",

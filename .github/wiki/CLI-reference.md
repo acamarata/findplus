@@ -178,6 +178,26 @@ List every tracker Find+ knows about and choose which ones to track.
 | --refresh |  | Re-query Find Hub for the list. |
 | --json |  | Print the device list as JSON. |
 
+## findplus devices icons
+List the available Lucide icon ids.
+
+**Usage:** `findplus devices icons [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --json |  | Output JSON. |
+
+## findplus devices label
+Set a device's label, icon and/or colour.
+
+**Usage:** `findplus devices label [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --label |  | Your own name for this tracker. |
+| --icon |  | lucide:<name>, letter:<X>, letter, none. |
+| --color |  | Lowercase #rrggbb. |
+
 ## findplus doctor
 Diagnose the installation; with --repair, fix what can be fixed.
 
@@ -440,6 +460,15 @@ Start the local API/UI and (unless disabled) the polling service.
 | --no-poller |  | Serve the UI/API without polling Google. |
 | --host |  |  |
 | --port |  |  |
+
+## findplus setup
+Guided first-run setup: sign-in, devices, groups, places, notifications, app lock.
+
+**Usage:** `findplus setup [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --yes |  | Non-interactive: accept every default, skip every optional step. |
 
 ## findplus start
 Start the background service: auth check, then discover-and-track, then

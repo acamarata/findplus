@@ -20,7 +20,16 @@ import click
 from findplus import __version__
 from findplus.config import PRIVATE_UMASK
 
-from . import cmd_apple, cmd_config, cmd_db, cmd_devices, cmd_diagnostics, cmd_history, cmd_service
+from . import (
+    cmd_apple,
+    cmd_config,
+    cmd_db,
+    cmd_devices,
+    cmd_diagnostics,
+    cmd_history,
+    cmd_service,
+    cmd_setup,
+)
 from .alerts import alerts_cmd
 from .cmd_mcp import mcp
 from .cmd_version import version_cmd
@@ -52,6 +61,7 @@ main.add_command(cmd_service.open)
 # install-service is kept as a named alias of `start` (same --yes/--program/
 # --no-open options) per specs/cli-reference.md — no separate implementation.
 main.add_command(cmd_service.start, name="install-service")
+main.add_command(cmd_setup.setup)
 
 main.add_command(doctor_cmd)
 main.add_command(cmd_diagnostics.watchdog)

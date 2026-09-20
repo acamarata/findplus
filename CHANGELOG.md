@@ -7,6 +7,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- `findplus setup`, a guided first-run walkthrough in the terminal for installs that never open the dashboard. Pass `--yes` to accept every default without a prompt.
 - The daemon prunes location history, place visits and group events older than the retention window once a day, with no restart needed after changing it.
 - `install.sh --start` installs, runs the setup wizard and starts the service in one command. A fresh install finishes by asking you to sign in, which is a success, not an error.
 - The Alerts tab has a Delivery log showing each alert's rule, channel, kind, time, status and error.

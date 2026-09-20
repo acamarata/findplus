@@ -114,6 +114,16 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
   .setting-row input[type=url],
   .setting-row select { width: 100%; min-width: 0; }
 
+  /* Device/group dialog field rows: same reasoning as .setting-row above
+     (visual gate W3 finding 2). Checkbox rows (Tracked) and the picker
+     trigger rows (icon/colour) stay one row -- there is no wide control to
+     squeeze, only a small button. */
+  .fp-dialog-field:has(input:not([type=checkbox])),
+  .fp-dialog-field:has(select) {
+    flex-direction: column; align-items: stretch; gap: 4px;
+  }
+  .fp-dialog-field > label { flex: none; }
+
   /* The rules and delivery-log tables (7 and 6 columns) are wider than a
      phone viewport; scroll the wrapper instead of the whole page so the
      rest of the tab stays put (visual gate W2 finding). */

@@ -49,10 +49,11 @@ function labeled(text, input, id) {
   return wrap;
 }
 
-function button(text, onClick) {
+function button(text, onClick, className) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.textContent = text;
+  if (className) btn.className = className;
   btn.addEventListener("click", onClick);
   return btn;
 }
@@ -113,7 +114,10 @@ function ensureDialog() {
   );
 
   const footer = document.createElement("footer");
-  footer.append(button(t("common.save"), onSave), button(t("common.cancel"), () => dlg.close()));
+  footer.append(
+    button(t("common.save"), onSave, "btn"),
+    button(t("common.cancel"), () => dlg.close(), "btn-secondary"),
+  );
   form.appendChild(footer);
   dlg.appendChild(form);
   document.body.appendChild(dlg);

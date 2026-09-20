@@ -23,8 +23,22 @@
 #fp-device-dialog h2 { margin: 0 0 12px; font-size: 16px; }
 #fp-group-dialog footer,
 #fp-device-dialog footer { display: flex; gap: 8px; margin-top: 14px; }
-#fp-group-dialog label { display: block; margin: 8px 0; }
-.fp-picker-row { position: relative; display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+/* W3 visual gate finding 2: these two dialogs had no input/select styling at
+   all (native white boxes on the dark panel), unlike .setting-row's own
+   inputs. Same declarations, reused rather than forked. Native checkbox and
+   range chrome is left alone, matching the settings dialog's own choice. */
+#fp-group-dialog input[type="text"],
+#fp-group-dialog input[type="number"],
+#fp-group-dialog select,
+#fp-device-dialog input[type="text"],
+#fp-device-dialog select {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line-strong);
+  border-radius: 7px; padding: 6px 9px; font-size: 13px;
+}
+#fp-group-dialog input[type="range"] { accent-color: var(--accent); }
+.fp-picker-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+.fp-picker-label { flex: 0 0 108px; color: var(--muted); font-size: 13px; }
+.fp-picker-control { position: relative; display: inline-flex; }
 .fp-popover { position: absolute; top: 100%; left: 0; z-index: 20; background: var(--panel);
   border: 1px solid var(--line); border-radius: 8px; padding: 8px;
   max-height: 260px; overflow-y: auto; }
@@ -83,10 +97,95 @@
 /* --- timeline track heads ------------------------------------------------- */
 .track-swatch svg { width: 100%; height: 100%; display: block; }
 
-/* --- device edit dialog --------------------------------------------------- */
+/* --- device edit dialog (also the group dialog's name/quorum/radius/stale
+   rows, same wrapper via groups_dialog_dom.js's labeled()) --------------- */
 .fp-dialog-field { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
-.fp-dialog-field input[type="text"] { flex: 1; }
+.fp-dialog-field > label { flex: 0 0 108px; color: var(--muted); font-size: 13px; }
+.fp-dialog-field input[type="text"],
+.fp-dialog-field input[type="number"],
+.fp-dialog-field select { flex: 1; min-width: 0; }
 .fp-dialog-group {
   border: 1px solid var(--line); border-radius: 8px; margin: 10px 0; padding: 8px 10px;
 }
 .fp-dialog-group legend { color: var(--muted); font-size: 12px; padding: 0 4px; }
+
+/* --- onboarding wizard ---------------------------------------------------- */
+/* R-P2-25 rule 1: style.css is at its 300-line cap, so the wizard chrome lives
+   here. components/wizard.js is the only writer of these class names. */
+.fp-wizard-progress { display: flex; gap: 6px; align-items: center; padding: 12px 0; }
+.fp-wizard-progress-text { color: var(--muted); font-size: 12px; margin-right: 6px; }
+.fp-wizard-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.fp-wizard-dot.filled { background: var(--accent); }
+.fp-wizard-footer { display: flex; justify-content: space-between; gap: 8px; padding-top: 16px; }
+.fp-wizard-skip {
+  background: none; border: 0; padding: 0; font-size: .85rem;
+  color: var(--muted); cursor: pointer; text-decoration: underline;
+}
+.fp-wizard-footnote { color: var(--muted); font-size: 12px; margin: 6px 0 14px; }
+
+/* --- sign-in panel (first section of the settings dialog, R-P2-8) --------- */
+/* style.css:231 styles password/date/select inside a .setting-row and nothing
+   else, so the Apple ID and 2FA code fields would render browser-default —
+   white boxes on the dark panel. Same declarations, text inputs only. */
+#fp-settings-signin .setting-row input[type="text"] {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line-strong);
+  border-radius: 7px; padding: 6px 9px; font-size: 13px; min-width: 190px;
+}
+#fp-settings-signin .btn { margin-top: 8px; }
+/* Sub-heading per provider card, so the two "Not signed in" lines each say what
+   they are about (W3 visual gate finding 3). Sized between the section h3 and
+   the body text, like .setting-group h3 but not uppercase. */
+.fp-auth-provider { font-size: 13px; font-weight: 600; margin: 14px 0 4px; }
+#fp-auth-google-card > .fp-auth-provider { margin-top: 4px; }
+#fp-auth-chrome-download { display: inline-block; margin-top: 8px; font-size: .8rem; }
+
+/* --- links inside dialogs, modals and cards -------------------------------- */
+/* There is no global `a` rule, so an unstyled link renders in the browser's own
+   #0000EE and axe reports a serious color-contrast failure on the dark panel
+   (W3 visual gate finding 2). --badge-text is the contrast-safe accent added
+   for exactly this (#c7ddff dark / #1e40af light, CF-P2-E4-5); --accent itself
+   measured 4.05:1 on a panel and is not safe here. */
+.modal-box a,
+dialog a,
+.fp-alerts-section a,
+.fp-group-card a { color: var(--badge-text); text-decoration: none; }
+.modal-box a:hover,
+dialog a:hover,
+.fp-alerts-section a:hover,
+.fp-group-card a:hover { text-decoration: underline; }
+
+/* --- add-rule dialog ------------------------------------------------------ */
+/* W3 visual gate finding 1: this <dialog> had no rules at all, so it painted
+   the browser default — a white box with no backdrop and native form controls,
+   in both themes. Same chrome as the group and device editors above; the
+   selector stays this id so a shared `dialog` rule can land beside it. */
+#fp-add-rule-dialog {
+  background: var(--panel); color: var(--text); border: 1px solid var(--line);
+  border-radius: 12px; padding: 18px 20px; min-width: 320px; max-width: 420px;
+}
+#fp-add-rule-dialog::backdrop { background: rgba(5,8,13,.72); }
+#fp-add-rule-dialog input[type="text"],
+#fp-add-rule-dialog input[type="number"],
+#fp-add-rule-dialog select {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line-strong);
+  border-radius: 7px; padding: 6px 9px; font-size: 13px;
+}
+#fp-add-rule-dialog footer { display: flex; gap: 8px; margin-top: 14px; }
+/* Finding 4: the target radio and the select it governs were two stacked rows
+   that did not line up. One row on a desktop width, stacked on a phone. */
+.fp-rule-target-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+.fp-rule-target-row label { display: flex; align-items: center; gap: 6px; margin: 0; }
+.fp-rule-target-row select { flex: 1 1 auto; min-width: 0; }
+@media (max-width: 599px) {
+  .fp-rule-target-row { flex-direction: column; align-items: stretch; }
+}
+
+/* --- unfinished-setup banner ---------------------------------------------- */
+/* Same weight as #alert, directly under the topbar (onboarding.md § 5). */
+#setup-banner {
+  display: flex; align-items: center; gap: 10px;
+  margin: 0 18px 10px; padding: 8px 12px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--panel); color: var(--text); font-size: 14px;
+}
+#setup-banner a { color: var(--accent); }

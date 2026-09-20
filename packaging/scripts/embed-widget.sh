@@ -159,6 +159,17 @@ if [ "$NOTARISE" = true ]; then
 fi
 
 # --- VERIFY -------------------------------------------------------------------
+# The published v1.0.0 dmg shipped web/.claude/{AGENTS,CLAUDE}.md inside the
+# notarised app: the Intel spec still copied the tree verbatim, and no release
+# step ever looked inside a built bundle (E1 packaging round 3 F2). The specs
+# are fixed and unit-tested, but a spec test cannot see what was actually
+# bundled, so the bundle itself is checked here before it is signed off.
+if find "$APP_PATH" -path '*/.claude/*' -print -quit | grep -q .; then
+  echo "embed-widget.sh: .claude/ found inside $APP_PATH -- rebuild the sidecar." >&2
+  find "$APP_PATH" -path '*/.claude/*' >&2
+  exit 1
+fi
+
 codesign --verify --deep --strict --verbose=2 "$APP_PATH" 2>&1
 # spctl --type exec only passes on a notarised, stapled bundle, so it is a
 # real check after notarisation and a guaranteed failure without it.

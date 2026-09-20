@@ -89,3 +89,34 @@ def test_no_script_writes_key_material_to_a_fixed_path() -> None:
         assert "mktemp" in code and "trap" in code, (
             f"{script.name} decodes a secret without a mktemp file and a cleanup trap"
         )
+
+
+def test_the_bundle_is_checked_for_dotdirs_before_sign_off() -> None:
+    """E1 packaging round 3 F2: the published dmg shipped web/.claude/ inside it.
+
+    The specs are fixed and unit-tested, but a spec test reads the spec, not
+    the bundle that was actually produced, and no release step had ever looked
+    inside one.
+    """
+    embed = (ROOT / "packaging" / "scripts" / "embed-widget.sh").read_text()
+    i = embed.index("-path '*/.claude/*'")
+    guard = embed[i : embed.index("codesign --verify", i)]
+    assert "exit 1" in guard, "finding .claude/ must fail the release, not just print"
+
+
+def test_ci_lints_every_shell_script() -> None:
+    """E1 packaging round 3 F3: the gate covered install.sh only, 1 of 15."""
+    ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    assert "shellcheck install.sh packaging/scripts/*.sh" in ci
+
+
+def test_one_supported_python_window() -> None:
+    """E1 packaging round 3 F4: it was stated three different ways."""
+    pyproject = (ROOT / "cli" / "pyproject.toml").read_text()
+    install = (ROOT / "install.sh").read_text()
+    readme = (ROOT / "README.md").read_text()
+
+    assert 'requires-python = ">=3.12,<3.15"' in pyproject
+    assert "(3, 12) <= sys.version_info < (3, 15)" in install
+    assert "Python 3.12, 3.13 or 3.14" in readme
+    assert "Python 3.12 or newer" not in readme

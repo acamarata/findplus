@@ -177,7 +177,9 @@ class SessionStore:
         """Remaining lockout, or 0 when an attempt is allowed."""
         now = time.monotonic()
         with self._lock:
-            return max(0.0, self._lockout_until - now)
+            # Clamp to the cap: `now + 3600.0` can round up by one ulp when the
+            # monotonic clock has not advanced (Windows), overshooting the cap.
+            return min(max(0.0, self._lockout_until - now), MAX_LOCKOUT_SECONDS)
 
     def record_failure(self) -> None:
         """Count one wrong PIN, opening a longer lockout each time five pile up."""

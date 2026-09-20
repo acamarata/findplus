@@ -7,6 +7,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Fixed
+- The menu bar shows a "CLI daemon vX (app is vY)" line when the daemon and the app disagree on version, instead of only writing it to the log.
 - An alert rule whose channel has no credentials now records a `skipped` delivery instead of silently discarding the event.
 - `GET /api/places/events?group_id=` returns that group members' events instead of always returning an empty list.
 - `install.sh` no longer aborts with a `/dev/tty` error where no terminal is readable, such as inside a container.

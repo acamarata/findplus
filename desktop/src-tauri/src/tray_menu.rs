@@ -69,6 +69,22 @@ fn status_items(app: &AppHandle, status: &Status) -> tauri::Result<Vec<Item>> {
         format!("Tracked devices: {}", status.tracked),
         false,
     )?);
+
+    // desktop-app.md § Status mapping pins a visible "CLI daemon vX" line when the
+    // daemon and the app disagree. daemon.rs only log::warn!ed it, so Status.version
+    // was carried all the way here and rendered nowhere (E1 CR-C, CF-10).
+    if !status.version.is_empty() && status.version != daemon::APP_VERSION {
+        items.push(entry(
+            app,
+            "version_mismatch",
+            format!(
+                "CLI daemon v{} (app is v{})",
+                status.version,
+                daemon::APP_VERSION
+            ),
+            false,
+        )?);
+    }
     Ok(items)
 }
 

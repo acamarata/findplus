@@ -26,10 +26,42 @@ block_cipher = None
 # SPECPATH is injected by PyInstaller: <repo>/packaging/pyinstaller.
 ROOT = Path(SPECPATH).resolve().parents[1]  # noqa: F821
 
+def _tree_datas(src_dir, dest_root, keep_dotted=False):
+    """Every file under `src_dir`, file by file, skipping dotted parts and caches.
+
+    A bare (dir, dest) entry copies the tree verbatim, dotdirs included, so an
+    owner-run release-local.sh -- which builds from the WORKING tree, not a
+    clean checkout -- embedded web/.claude/{AGENTS,CLAUDE}.md inside the
+    distributed app, and shipped whatever __pycache__ happened to be lying in
+    the vendor tree. PRI rule 11 says .claude/ is never shipped; CI looked
+    clean only because .claude/ is gitignored, which is luck, not a guard.
+    This is the same rel_parts test cli/hatch_build.py applies to the wheel.
+    Filtering here changes what is PACKAGED, never the vendor tree itself
+    (PRI rule 8) -- which is why the vendored project keeps its own dotfiles
+    (`keep_dotted=True`) and loses only the __pycache__ a local test run left
+    behind. That closure is 88 files and the wheel test pins the same number.
+    """
+    out = []
+    for file in sorted(Path(src_dir).rglob("*")):
+        if not file.is_file():
+            continue
+        rel_parts = file.relative_to(src_dir).parts
+        if "__pycache__" in rel_parts:
+            continue
+        if not keep_dotted and any(part.startswith(".") for part in rel_parts):
+            continue
+        out.append((str(file), "/".join((dest_root, *rel_parts[:-1]))))
+    return out
+
+
 datas = [
-    (str(ROOT / "web"), "findplus/web/static"),
-    (str(ROOT / "cli/src/findplus/db/migrations"), "findplus/db/migrations"),
-    (str(ROOT / "cli/vendor/GoogleFindMyTools"), "findplus/_vendor/GoogleFindMyTools"),
+    *_tree_datas(ROOT / "web", "findplus/web/static"),
+    *_tree_datas(ROOT / "cli/src/findplus/db/migrations", "findplus/db/migrations"),
+    *_tree_datas(
+        ROOT / "cli/vendor/GoogleFindMyTools",
+        "findplus/_vendor/GoogleFindMyTools",
+        keep_dotted=True,
+    ),
 ]
 
 hiddenimports = [

@@ -228,3 +228,51 @@ def test_an_export_download_header_is_well_formed(client: TestClient) -> None:
     header = res.headers["content-disposition"]
     assert header.startswith('attachment; filename="findplus-')
     assert "filename*=UTF-8''" in header
+
+
+# ------------------------------------- 8. The composed page's sources (CF-1)
+# `/` is composed from web/index.html + web/partials/*.html at startup, so the
+# raw shell (with its `<!-- @partial: … -->` holes) and the pieces must not be
+# reachable through /static. The guard compares a normalised path because APFS
+# and NTFS are case-insensitive: before that, `/static/Index.html` served the
+# shell the exact-match guard had just refused.
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/static/index.html",
+        "/static/Index.html",
+        "/static/INDEX.HTML",
+        "/static/partials/alerts.html",
+        "/static/PARTIALS/alerts.html",
+        "/static/Partials/Alerts.html",
+    ],
+)
+def test_the_page_sources_are_not_served_from_static(client: TestClient, path: str) -> None:
+    res = client.get(path)
+    assert res.status_code == 404, f"{path} leaked the composed page's source"
+    assert "@partial" not in res.text
+
+
+def test_an_ordinary_static_asset_still_loads(client: TestClient) -> None:
+    """The control: the guard must not turn /static into a black hole."""
+    res = client.get("/static/style.css")
+    assert res.status_code == 200
+    assert res.headers["content-type"].startswith("text/css")
+
+
+def test_the_composed_page_itself_still_has_every_partial(client: TestClient) -> None:
+    """The other half of the guard: what /static refuses, "/" must still deliver."""
+    import re
+
+    from findplus.api import _static_dir
+    from findplus.web_compose import partial_names
+
+    res = client.get("/")
+    assert res.status_code == 200
+    assert "@partial" not in res.text
+    static_dir = _static_dir()
+    for name in partial_names(static_dir):
+        source = (static_dir / "partials" / f"{name}.html").read_text()
+        first_id = re.search(r'id="([^"]+)"', source)
+        assert first_id, f"partial {name} has no id to anchor on"
+        assert f'id="{first_id.group(1)}"' in res.text, f"partial {name} is missing from /"

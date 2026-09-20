@@ -148,7 +148,12 @@ class _ComposedSourceGuard(StaticFiles):
     _HIDDEN = ("index.html", "partials/")
 
     async def get_response(self, path: str, scope):
-        if path == "index.html" or path.startswith("partials/"):
+        # Compare on a normalised path: APFS and NTFS are case-insensitive, so
+        # `/static/Index.html` opens the same file the exact-match guard just
+        # refused, and Windows accepts `\` as a separator. Without both of
+        # these the guard is a one-character bypass.
+        probe = path.replace("\\", "/").lower()
+        if any(probe == name or probe.startswith(name) for name in self._HIDDEN):
             raise StarletteHTTPException(status_code=404)
         return await super().get_response(path, scope)
 

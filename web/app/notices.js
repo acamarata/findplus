@@ -11,7 +11,13 @@
 "use strict";
 
 export async function loadNotices() {
-  const cfg = await fetch("/api/config").then((r) => r.json());
+  const res = await fetch("/api/config");
+  if (!res.ok) {
+    // A 401 or an error used to parse as {} and blank every notice silently.
+    console.error("loadNotices: /api/config returned", res.status);
+    return;
+  }
+  const cfg = await res.json();
   const n = cfg.notices || {};
   const map = {
     "fp-notice-find-hub": n.find_hub,

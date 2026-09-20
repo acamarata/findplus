@@ -106,7 +106,15 @@ def member_status(
         minutes=stale_after_minutes
     )
     if stale:
-        return MemberStatus(m.device_id, m.name, "stale", None, None, None, None, None, None)
+        # Keep the last fix's timestamp and age. `place` and the coordinates
+        # stay None -- honesty.md's presence_stale sentence is about not
+        # claiming a stale member's POSITION, not about hiding when they were
+        # last heard from. Dropping the age made every stale row in the
+        # dashboard and the widget read "no fix for unknown", always, while
+        # the answer sat in the row one line above (E1 honesty round 2 F7).
+        last = m.last_fix.observed_at if m.last_fix else None
+        age = int((now - last).total_seconds() / 60) if last else None
+        return MemberStatus(m.device_id, m.name, "stale", None, last, age, None, None, None)
 
     lat, lon = m.last_fix.latitude_e7 / 1e7, m.last_fix.longitude_e7 / 1e7
     age = int((now - m.last_fix.observed_at).total_seconds() / 60)

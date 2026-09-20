@@ -115,10 +115,20 @@ function verdictLabel(presence) {
   return reporting === 1 ? "Only 1 reporting" : "Unknown";
 }
 
+/**
+ * How long ago a member last reported, as min/h/d.
+ *
+ * "unknown" is reserved for a member with no fix at all. Until round 2 every
+ * stale row said "no fix for unknown" because presence.py discarded
+ * age_minutes on exactly the members this labels; and the hours rung alone
+ * turned five days into "120 h" (E1 honesty round 2 F7).
+ */
 function ageLabel(member) {
   const minutes = member ? member.age_minutes : null;
   if (minutes == null) return "unknown";
-  return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h`;
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  return hours < 48 ? `${hours} h` : `${Math.floor(hours / 24)} d`;
 }
 
 function nameList(id, deviceIds, byId) {

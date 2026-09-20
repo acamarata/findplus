@@ -205,6 +205,33 @@ def test_scheduler_runs_once_immediately_then_after_the_wait(
     assert waits == [RUN_INTERVAL_SECONDS, RUN_INTERVAL_SECONDS]
 
 
+def test_a_failing_cycle_does_not_end_the_schedule(tmp_db, monkeypatch: pytest.MonkeyPatch) -> None:
+    """CR-C-E7 F2: one bad run_once (e.g. a locked/full database) must not stop
+    retention for the life of the daemon."""
+    runs: list[object] = []
+
+    def _run_once(state_dir=None):
+        runs.append(state_dir)
+        if len(runs) == 1:
+            raise RuntimeError("database is locked")
+
+    monkeypatch.setattr("findplus.service.retention.run_once", _run_once)
+
+    scheduler = RetentionScheduler()
+    waits: list[float] = []
+
+    def _wait(self, timeout=None):
+        waits.append(timeout)
+        return len(waits) >= 2
+
+    monkeypatch.setattr(threading.Event, "wait", _wait)
+    monkeypatch.setattr(threading.Event, "is_set", lambda self: len(waits) >= 2)
+
+    scheduler.run_forever()
+
+    assert len(runs) == 2
+
+
 def test_stop_ends_the_loop(tmp_db, monkeypatch: pytest.MonkeyPatch) -> None:
     runs: list[object] = []
     monkeypatch.setattr(

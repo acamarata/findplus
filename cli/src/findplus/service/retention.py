@@ -98,6 +98,9 @@ class RetentionScheduler:
     def run_forever(self) -> None:
         log.info("retention_scheduler_started")
         while not self._stop.is_set():
-            run_once(self._state_dir)
+            try:
+                run_once(self._state_dir)
+            except Exception as exc:  # a bad cycle must not end the daily schedule
+                log.warning("retention_failed", error=str(exc))
             self._stop.wait(RUN_INTERVAL_SECONDS)
         log.info("retention_scheduler_stopped")

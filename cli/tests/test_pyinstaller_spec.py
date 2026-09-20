@@ -15,29 +15,43 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-SPEC = ROOT / "packaging" / "pyinstaller" / "findplus-daemon.spec"
+SPEC_DIR = ROOT / "packaging" / "pyinstaller"
+SPECS = ("findplus-daemon.spec", "findplus-daemon-x86_64.spec")
+SPEC = SPEC_DIR / SPECS[0]
 
 
-def _expanded_datas() -> list[str]:
+def _expanded_datas(spec: Path | None = None) -> list[str]:
     """The spec's `datas`, expanded the way PyInstaller itself expands it."""
     format_binaries_and_datas = pytest.importorskip(
         "PyInstaller.building.utils"
     ).format_binaries_and_datas
 
-    source = SPEC.read_text()
+    spec = spec or SPEC
+    source = spec.read_text()
     body = source[source.index("ROOT = Path(SPECPATH)") : source.index("hiddenimports = [")]
-    namespace: dict = {"Path": Path, "SPECPATH": str(SPEC.parent)}
+    namespace: dict = {"Path": Path, "SPECPATH": str(spec.parent)}
     exec(body, namespace)
-    return [dest for dest, _src in format_binaries_and_datas(namespace["datas"], str(SPEC.parent))]
+    return [dest for dest, _src in format_binaries_and_datas(namespace["datas"], str(spec.parent))]
 
 
-def test_no_dotted_path_ships_under_the_dashboard() -> None:
+@pytest.mark.parametrize("spec_name", SPECS)
+def test_no_dotted_path_ships_under_the_dashboard(spec_name: str) -> None:
+    """Both architectures. The filter lived only in the arm64 spec until
+    security round 3 F3, so an Intel release shipped web/.claude/ inside the
+    app -- where /static then served it."""
     dotted = [
         d
-        for d in _expanded_datas()
+        for d in _expanded_datas(SPEC_DIR / spec_name)
         if d.startswith("findplus/web/static/") and any(p.startswith(".") for p in d.split("/"))
     ]
-    assert dotted == [], f"the sidecar would ship {dotted}"
+    assert dotted == [], f"{spec_name} would ship {dotted}"
+
+
+def test_both_specs_ship_exactly_the_same_files() -> None:
+    """They differ in target_arch only, so their datas must not drift again."""
+    arm = sorted(_expanded_datas(SPEC_DIR / SPECS[0]))
+    intel = sorted(_expanded_datas(SPEC_DIR / SPECS[1]))
+    assert arm == intel
 
 
 def test_the_dashboard_itself_still_ships() -> None:
@@ -52,9 +66,10 @@ def test_the_dashboard_itself_still_ships() -> None:
     assert len([d for d in datas if d.startswith("findplus/db/migrations/")]) >= 8
 
 
-def test_no_pycache_ships_from_any_tree() -> None:
+@pytest.mark.parametrize("spec_name", SPECS)
+def test_no_pycache_ships_from_any_tree(spec_name: str) -> None:
     """Local .pyc files are build-host junk; the vendored tree collected them too."""
-    assert not [d for d in _expanded_datas() if "__pycache__" in d]
+    assert not [d for d in _expanded_datas(SPEC_DIR / spec_name) if "__pycache__" in d]
 
 
 def test_the_vendor_closure_is_still_complete() -> None:

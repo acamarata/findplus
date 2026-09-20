@@ -1,5 +1,5 @@
 # x86_64 (Intel) build — the arm64 spec is findplus-daemon.spec; the two differ
-# only in target_arch. Both write the same resources/findplus-daemon output, so
+# only in target_arch and share their datas walk via spec_datas.py. Both write the same resources/findplus-daemon output, so
 # build the one matching the arch you are bundling for; the second run wins.
 # PyInstaller spec — findplus-daemon onedir sidecar (x86_64).
 #
@@ -29,11 +29,15 @@ block_cipher = None
 # SPECPATH is injected by PyInstaller: <repo>/packaging/pyinstaller.
 ROOT = Path(SPECPATH).resolve().parents[1]  # noqa: F821
 
-datas = [
-    (str(ROOT / "web"), "findplus/web/static"),
-    (str(ROOT / "cli/src/findplus/db/migrations"), "findplus/db/migrations"),
-    (str(ROOT / "cli/vendor/GoogleFindMyTools"), "findplus/_vendor/GoogleFindMyTools"),
-]
+# Shared with findplus-daemon.spec: the .claude/ and __pycache__ filter lived
+# only in the arm64 spec, so an Intel release shipped the repo's instruction
+# files inside the app (E1 security round 3 F3).
+import sys
+
+sys.path.insert(0, SPECPATH)  # noqa: F821
+from spec_datas import daemon_datas  # noqa: E402
+
+datas = daemon_datas(ROOT)
 
 hiddenimports = [
     "uvicorn.logging",

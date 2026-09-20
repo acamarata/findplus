@@ -33,6 +33,23 @@ from .downloads import content_disposition
 log = get_logger(__name__)
 
 
+def _labels_for(session, rows) -> dict[str, str]:
+    """device_id -> the user's label, for the devices in this export only.
+
+    One query for the whole export, and none at all when there is nothing to
+    label. Devices without a label are left out, so the exporters fall back to
+    the denormalized provider name they already carry.
+    """
+    if not rows:
+        return {}
+    pairs = session.execute(
+        select(Device.device_id, Device.label).where(
+            Device.device_id.in_({r.device_id for r in rows})
+        )
+    ).all()
+    return {device_id: label for device_id, label in pairs if label}
+
+
 def build_export_router() -> APIRouter:
     router = APIRouter(prefix="/api", tags=["history"])
 
@@ -75,7 +92,9 @@ def build_export_router() -> APIRouter:
                 if device:
                     name = device.name
                     label = f"{device.name.replace(' ', '-')}-{label}"
-            body = export(fmt, rows, zone, name=f"{name} {label}")
+            body = export(
+                fmt, rows, zone, name=f"{name} {label}", labels=_labels_for(session, rows)
+            )
         return _download(body, fmt, f"findplus-{label}.{fmt}")
 
     @router.post("/history/delete-before")

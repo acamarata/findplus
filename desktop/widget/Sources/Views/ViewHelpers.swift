@@ -30,6 +30,52 @@ func stateLabel(_ state: WidgetState) -> String {
     }
 }
 
+/// The character a letter badge shows: the pinned one, else the label's
+/// initial, else the provider name's. "?" only when there is no text at all.
+func resolveLetter(icon: String, label: String?, name: String) -> Character {
+    if icon.hasPrefix("letter:"), let c = icon.dropFirst(7).first {
+        return Character(c.uppercased())
+    }
+    let source = (label?.isEmpty == false ? label! : name)
+    return Character((source.first ?? "?").uppercased())
+}
+
+/// The SF Symbol for a Find+ icon id (specs/labels-and-icons.md § Widget).
+///
+/// `squirrel` and `anchor` are the two pinned Lucide ids with no good SF
+/// Symbol match; they fall through to the letter circle, as do `letter`,
+/// `letter:X` and `none`. An SF Symbol exists for every uppercase letter and
+/// digit in the `X.circle.fill` form, so the fallback never resolves to a
+/// missing symbol.
+func sfSymbol(for icon: String, label: String?, name: String) -> String {
+    let table: [String: String] = [
+        "user": "person.fill", "users": "person.2.fill",
+        "user-round": "person.crop.circle.fill", "baby": "figure.child",
+        "footprints": "shoeprints.fill", "glasses": "eyeglasses",
+        "shirt": "tshirt.fill", "graduation-cap": "graduationcap.fill",
+        "heart": "heart.fill", "smile": "face.smiling.fill",
+        "dog": "dog.fill", "cat": "cat.fill", "bird": "bird.fill",
+        "rabbit": "hare.fill", "fish": "fish.fill", "paw-print": "pawprint.fill",
+        "turtle": "tortoise.fill",
+        "bike": "bicycle", "backpack": "backpack", "shopping-bag": "bag.fill",
+        "key": "key.fill", "key-round": "key.fill", "car": "car.fill",
+        "luggage": "suitcase.fill", "wallet": "wallet.pass.fill",
+        "watch": "applewatch", "smartphone": "iphone", "laptop": "laptopcomputer",
+        "umbrella": "umbrella.fill", "camera": "camera.fill",
+        "book-open": "book.fill", "gift": "gift.fill", "guitar": "guitars.fill",
+        "scissors": "scissors", "wrench": "wrench.fill", "hammer": "hammer.fill",
+        "briefcase": "briefcase.fill",
+        "door-open": "door.left.hand.open", "house": "house.fill", "tent": "tent.fill",
+        "map-pin": "mappin.circle.fill", "compass": "location.north.circle.fill",
+        "plane": "airplane", "train-front": "train.side.front.car",
+        "bus": "bus.fill", "sailboat": "sailboat.fill",
+    ]
+    if icon.hasPrefix("lucide:"), let symbol = table[String(icon.dropFirst(7))] {
+        return symbol
+    }
+    return "\(resolveLetter(icon: icon, label: label, name: name)).circle.fill"
+}
+
 /// The 9 pt footer notice. `response.notice` when the daemon answered; the
 /// pinned sentence when it did not (locked/down/error entries carry no body).
 ///

@@ -97,7 +97,7 @@ def _group_by_device(session) -> dict[str, str]:
 
 
 def _group_rows(session) -> list[dict[str, Any]]:
-    """`[{id, name, verdict, note}]` for every group; `[]` before groups exist.
+    """`[{id, name, icon, verdict, note}]` for every group; `[]` before groups exist.
 
     Real presence verdicts, computed the same way `GET /api/groups/{id}/presence`
     and `findplus groups presence` compute them: `groups.repo.build_presence()`
@@ -119,6 +119,7 @@ def _group_rows(session) -> list[dict[str, Any]]:
             {
                 "id": group.id,
                 "name": group.name,
+                "icon": group.icon,
                 "verdict": presence.verdict,
                 "verdict_label": verdict_label(
                     presence.verdict,
@@ -168,6 +169,8 @@ def _widget_devices(
                 "longitude": latest.longitude,
                 "place": None if stale else places.get(device.device_id),
                 "group": device_groups.get(device.device_id),
+                "icon": device.icon,
+                "color": device.color,
             }
         )
     # Newest fix first. get_tracked_devices() returns stable NAME order, and

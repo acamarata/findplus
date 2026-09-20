@@ -8,8 +8,9 @@
 //              WidgetEntry, formatAge(minutes:).
 // Constraints: Field names are snake_case to match the API JSON directly —
 //              no CodingKeys mapping. Only `place` and `group` are optional
-//              on WidgetDevice; every other field is guaranteed non-null by
-//              specs/api-contract.md § GET /api/widget. The staleness
+//              on WidgetDevice; every other field, `icon`/`color` included,
+//              is guaranteed non-null by specs/api-contract.md
+//              § GET /api/widget. The staleness
 //              threshold is never hardcoded here: the API serves
 //              `stale_after_minutes` (90 per D18) and the views use that.
 
@@ -41,6 +42,8 @@ struct WidgetDevice: Codable {
     let longitude: Double
     let place: String?
     let group: String?
+    let icon: String
+    let color: String
 }
 
 extension WidgetDevice {
@@ -61,6 +64,7 @@ extension WidgetDevice {
 struct WidgetGroup: Codable {
     let id: Int
     let name: String
+    let icon: String
     let verdict: String
     /// The phrase the API computed. Optional so an older daemon still decodes.
     let verdict_label: String?

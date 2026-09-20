@@ -44,6 +44,9 @@ def _export_range(all_history: bool, day, start, end, tz):
 
 def _export_body(fmt: str, device_id, group_id, start_utc, end_utc, tz, label: str):
     """`(body, count)` — the group branch counts rendered lines, not observations."""
+    from sqlalchemy import select
+
+    from findplus.db.models import Device
     from findplus.exporters import export as render
     from findplus.group_export import GroupNotFoundError, export_group
     from findplus.timeline import fetch_observations
@@ -58,7 +61,16 @@ def _export_body(fmt: str, device_id, group_id, start_utc, end_utc, tz, label: s
         return body, body.count("\n")
     with session_scope() as session:
         rows = fetch_observations(session, device_id, start_utc, end_utc)
-        return render(fmt, rows, tz, name=f"Find+ history {label}"), len(rows)
+        labels: dict[str, str] = {}
+        if rows:
+            pairs = session.execute(
+                select(Device.device_id, Device.label).where(
+                    Device.device_id.in_({r.device_id for r in rows})
+                )
+            ).all()
+            labels = {device_id: text for device_id, text in pairs if text}
+        body = render(fmt, rows, tz, name=f"Find+ history {label}", labels=labels)
+        return body, len(rows)
 
 
 @click.command()

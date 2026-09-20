@@ -13,7 +13,9 @@ Constraints: Zero behavior change from the pre-split monolith is the bar —
              12 /api/alerts/* routes, bringing it to 52; E13-T5 adds
              GET/POST /api/settings/app.start_at_login, bringing it to 54;
              P1-E10-S2's fix loop adds GET/PUT/POST
-             /api/settings/widget.show_map, bringing it to 57.
+             /api/settings/widget.show_map, bringing it to 57;
+             P2-E2-W2-S1-T2 adds PATCH /api/devices/{device_id} and
+             GET /api/icons, bringing it to 59.
 """
 
 from __future__ import annotations
@@ -58,7 +60,7 @@ def _app_routes(app):
 def test_route_count():
     app = create_app()
     routes = _app_routes(app)
-    assert len(routes) == 57
+    assert len(routes) == 59
 
 
 def test_route_paths_present():
@@ -81,6 +83,8 @@ def test_route_paths_present():
         "/api/devices/refresh",
         "/api/devices/track",
         "/api/devices/default",
+        "/api/devices/{device_id}",
+        "/api/icons",
         "/api/timeline",
         "/api/days",
         "/api/latest",

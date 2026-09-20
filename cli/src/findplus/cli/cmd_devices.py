@@ -50,7 +50,7 @@ def _devices_as_json(session, rows) -> str:
     return json.dumps(out, indent=2)
 
 
-@click.command()
+@click.group(name="devices", invoke_without_command=True)
 @click.option("--track", "track_ids", multiple=True, help="Track this device id (repeatable).")
 @click.option(
     "--track-all", "track_all_flag", is_flag=True, help="Track every device on the account."
@@ -59,7 +59,9 @@ def _devices_as_json(session, rows) -> str:
 @click.option("--default", "default_id", default=None, help="Device the dashboard opens on.")
 @click.option("--refresh/--no-refresh", default=True, help="Re-query Find Hub for the list.")
 @click.option("--json", "json_out", is_flag=True, help="Print the device list as JSON.")
+@click.pass_context
 def devices(
+    ctx: click.Context,
     track_ids: tuple[str, ...],
     track_all_flag: bool,
     untrack_ids: tuple[str, ...],
@@ -74,7 +76,13 @@ def devices(
     Hub account only; Apple accessories are added with `findplus apple`.
     Any number of devices can be tracked at once. Tracking N devices costs N
     provider requests per poll cycle, so the effective request rate is shown.
+
+    `devices` is a group with its own callback: `findplus devices --track-all`
+    still runs this listing body, while `findplus devices label ...` and
+    `findplus devices icons` dispatch to the subcommands below instead.
     """
+    if ctx.invoked_subcommand is not None:
+        return
     _prep()
     from sqlalchemy import select as sa_select
 
@@ -164,6 +172,61 @@ def devices(
             )
         else:
             _print_nothing_tracked_hint()
+
+
+@devices.command("label")
+@click.argument("device_id")
+@click.option("--label", "label_value", default=None, help="Your own name for this tracker.")
+@click.option("--icon", "icon_value", default=None, help="lucide:<name>, letter:<X>, letter, none.")
+@click.option("--color", "color_value", default=None, help="Lowercase #rrggbb.")
+def label_device_cmd(device_id, label_value, icon_value, color_value):
+    """Set a device's label, icon and/or colour."""
+    if label_value is None and icon_value is None and color_value is None:
+        click.echo("Error: give at least one of --label, --icon, --color", err=True)
+        sys.exit(2)
+    from findplus.db.models import Device
+    from findplus.labels import validate_color, validate_icon, validate_label
+
+    with session_scope() as session:
+        device = session.get(Device, device_id)
+        if device is None:
+            click.echo(f"Error: device {device_id} not found", err=True)
+            sys.exit(1)
+        try:
+            # Validate every option before writing any of them: a bad --color
+            # after a good --label must not leave the label half-applied.
+            new_label = validate_label(label_value) if label_value is not None else None
+            new_icon = validate_icon(icon_value) if icon_value is not None else None
+            new_color = validate_color(color_value) if color_value is not None else None
+        except ValueError as exc:
+            click.echo(f"Error: {exc}", err=True)
+            sys.exit(1)
+        if label_value is not None:
+            device.label = new_label
+        if new_icon is not None:
+            device.icon = new_icon
+        if new_color is not None:
+            device.color = new_color
+        session.flush()
+        label_out, icon_out, color_out = device.label, device.icon, device.color
+    click.echo(f"label={label_out!r} icon={icon_out!r} color={color_out!r}")
+
+
+@devices.command("icons")
+@click.option("--json", "as_json", is_flag=True, help="Output JSON.")
+def icons_cmd(as_json):
+    """List the available Lucide icon ids."""
+    import json as _json
+
+    from findplus.labels import lucide_subset
+
+    rows = lucide_subset()
+    if as_json:
+        click.echo(_json.dumps(rows, indent=2))
+        return
+    click.echo(f"{'ID':<24}{'GROUP':<10}")
+    for row in rows:
+        click.echo(f"{row['id']:<24}{row['group']:<10}")
 
 
 #: poll-now exit codes, pinned in specs/cli-reference.md § poll-now.

@@ -7,7 +7,9 @@ Inputs     : None. Imports the root Click group directly (no subprocess, so
              findplus need not be on PATH) and walks its command tree.
 Outputs    : .github/wiki/CLI-reference.md, one "## findplus {path}" section
              per leaf command (group commands recurse into their subcommands
-             instead of getting a section of their own).
+             instead of getting a section of their own -- unless the group runs
+             without a subcommand, like `findplus devices`, whose own flags
+             would otherwise disappear from the reference).
 Constraints: Options only (click.Argument entries are skipped — they have no
              default/help worth tabulating the way options do).
 """
@@ -53,10 +55,19 @@ def _walk(name: str, command, prefix: str, lines: list[str]) -> int:
     full_name = f"{prefix} {name}".strip()
     if isinstance(command, click.Group):
         count = 0
+        # A group with invoke_without_command is a runnable command too:
+        # `findplus devices --track-all` is still the documented way to track,
+        # and recursing straight past it would drop every one of its flags.
+        if command.invoke_without_command:
+            count += _walk_leaf(full_name, command, lines)
         for sub_name, sub_command in sorted(command.commands.items()):
             count += _walk(sub_name, sub_command, full_name, lines)
         return count
 
+    return _walk_leaf(full_name, command, lines)
+
+
+def _walk_leaf(full_name: str, command, lines: list[str]) -> int:
     lines.append(f"## findplus {full_name}")
     help_line = (command.help or command.short_help or "").strip().splitlines()
     if help_line:

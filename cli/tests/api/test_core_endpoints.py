@@ -270,3 +270,38 @@ def test_error_state_types_covers_every_auth_or_decrypt_error_the_poller_stores(
     auth_or_decrypt = {name for name in literals if re.search(r"auth|decrypt", name, re.I)}
     assert auth_or_decrypt, "poller.py stores no auth/decrypt error_type literal any more"
     assert auth_or_decrypt <= ERROR_STATE_TYPES, sorted(auth_or_decrypt - ERROR_STATE_TYPES)
+
+
+def test_get_icons_returns_48_pinned_ids(client: TestClient) -> None:
+    res = client.get("/api/icons")
+    assert res.status_code == 200
+    rows = res.json()
+    assert len(rows) == 48
+    assert all(row["id"].startswith("lucide:") and row["group"] for row in rows)
+
+
+def test_get_icons_requires_unlock(locked_client: TestClient) -> None:
+    assert locked_client.get("/api/icons").status_code == 401
+
+
+def test_widget_device_rows_carry_icon_and_color(client: TestClient) -> None:
+    from findplus.db.models import Device
+    from findplus.db.session import session_scope
+
+    with session_scope() as session:
+        device = session.get(Device, "TAG-001")
+        device.icon, device.color = "lucide:key", "#4f8cf7"
+
+    row = client.get("/api/widget").json()["devices"][0]
+    assert row["icon"] == "lucide:key"
+    assert row["color"] == "#4f8cf7"
+
+
+def test_widget_group_rows_carry_icon(client: TestClient) -> None:
+    from findplus.db.session import session_scope
+    from findplus.groups.repo import create_group
+
+    with session_scope() as session:
+        create_group(session, name="Family", icon="lucide:dog")
+
+    assert client.get("/api/widget").json()["groups"][0]["icon"] == "lucide:dog"

@@ -220,3 +220,24 @@ def test_group_timestamps_are_parseable(client: TestClient) -> None:
 
     for stamp in stamps:
         assert datetime.fromisoformat(stamp).tzinfo is not None
+
+
+# ------------------------------------------------------------------- icons (P2-E2)
+def test_post_group_default_icon(client: TestClient) -> None:
+    assert client.post("/api/groups", json={"name": "Family"}).json()["icon"] == "lucide:users"
+
+
+def test_post_group_custom_icon(client: TestClient) -> None:
+    body = client.post("/api/groups", json={"name": "Family", "icon": "lucide:dog"}).json()
+    assert body["icon"] == "lucide:dog"
+
+
+def test_post_group_invalid_icon_422(client: TestClient) -> None:
+    res = client.post("/api/groups", json={"name": "Family", "icon": "bogus"})
+    assert res.status_code == 422
+
+
+def test_put_group_updates_icon(client: TestClient) -> None:
+    group_id = client.post("/api/groups", json={"name": "Family"}).json()["id"]
+    body = client.put(f"/api/groups/{group_id}", json={"icon": "lucide:cat"}).json()
+    assert body["icon"] == "lucide:cat"

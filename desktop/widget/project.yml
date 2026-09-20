@@ -36,8 +36,13 @@ targets:
       # target — the same pattern used for every other Swift-only,
       # non-UI-hosted XCTest target — sidesteps both without weakening what
       # is tested: the exact same source files, compiled once more.
+      # ViewHelpers.swift joins them for sfSymbol/resolveLetter, and
+      # Colors.swift with it because ViewHelpers' dotColour reads the four
+      # Color constants that file defines.
       - path: Sources/Model.swift
       - path: Sources/Provider.swift
+      - path: Sources/Views/ViewHelpers.swift
+      - path: Sources/Colors.swift
     settings:
       base:
         SWIFT_VERSION: "5"

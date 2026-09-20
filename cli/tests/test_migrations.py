@@ -121,3 +121,30 @@ def test_migrate_down_to_base(tmp_path: Path) -> None:
     # every schema table must be gone.
     tables = set(inspect(create_engine(url)).get_table_names()) - {"alembic_version"}
     assert tables == set()
+
+
+# ------------------------------------------------------------------ 0007 labels
+def test_0007_backfills_every_device_a_palette_color(tmp_path: Path, monkeypatch) -> None:
+    """The migration's inline formula and `labels.palette_color_for` agree.
+
+    The revision keeps its own copy of the palette and the hash (an Alembic
+    revision has to stay runnable long after labels.py moves on), so a device
+    created through the app must land on exactly the colour the backfill would
+    have given it.
+    """
+    from findplus.config import get_settings, reset_settings_cache
+    from findplus.db.session import session_scope
+    from findplus.ingest import upsert_device
+    from findplus.labels import palette_color_for
+
+    monkeypatch.setenv("FINDPLUS_DATABASE_PATH", str(tmp_path / "m.sqlite"))
+    monkeypatch.setenv("FINDPLUS_STATE_DIR", str(tmp_path / "state"))
+    reset_settings_cache()
+    get_engine.cache_clear()
+    get_settings()
+    upgrade_to_head()
+    with session_scope() as session:
+        device = upsert_device(session, "TAG-palette", "Moto Tag 2")
+        assert device.color == palette_color_for("TAG-palette")
+    reset_settings_cache()
+    get_engine.cache_clear()

@@ -187,3 +187,36 @@ def test_dispatcher_supports_every_documented_format(rows, fmt: str) -> None:
 def test_dispatcher_rejects_unknown_formats(rows) -> None:
     with pytest.raises(ValueError, match="Unsupported export format"):
         export("shapefile", rows, EASTERN)
+
+
+# ------------------------------------------------------ device labels (P2-E2)
+def test_csv_label_column_present_when_devices_have_labels(rows) -> None:
+    body = to_csv(rows, EASTERN, labels={"TAG-001": "Mom's Keys"})
+    table = list(csv.DictReader(io.StringIO(body.split("\n", 1)[1])))
+    assert table[0]["label"] == "Mom's Keys"
+
+
+def test_csv_label_column_empty_when_absent(rows) -> None:
+    body = to_csv(rows, EASTERN)
+    table = list(csv.DictReader(io.StringIO(body.split("\n", 1)[1])))
+    assert CSV_COLUMNS[CSV_COLUMNS.index("device_name") + 1] == "label"
+    assert table[0]["label"] == ""
+
+
+def test_json_label_field_is_null_when_absent(rows) -> None:
+    payload = json.loads(to_json(rows, EASTERN))
+    assert payload["observations"][0]["label"] is None
+
+
+def test_json_label_field_present(rows) -> None:
+    payload = json.loads(to_json(rows, EASTERN, labels={"TAG-001": "Mom's Keys"}))
+    assert payload["observations"][0]["label"] == "Mom's Keys"
+
+
+def test_export_forwards_labels_to_every_format(rows) -> None:
+    """`export()` is the only entry point the route and the CLI call."""
+    labels = {"TAG-001": "Mom's Keys"}
+    assert "Mom's Keys" in export("csv", rows, EASTERN, labels=labels)
+    assert "Mom's Keys" in export("json", rows, EASTERN, labels=labels)
+    for fmt in ("gpx", "kml"):
+        assert export(fmt, rows, EASTERN, name="Find+ history", labels=labels)

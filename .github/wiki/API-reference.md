@@ -12,6 +12,9 @@ Config
 ### GET /api/health
 Health
 
+### GET /api/icons
+The pinned Lucide subset, for the CLI and test tooling.
+
 ### GET /api/status
 Overall health plus a per-device summary.
 
@@ -94,6 +97,85 @@ Get Start At Login
 ### GET /api/settings/widget.show_map
 The effective value, resolved exactly as `GET /api/widget` resolves it.
 
+### PATCH /api/settings
+Write Settings
+
+**Request body:**
+```json
+{
+  "properties": {
+    "theme": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Theme"
+    },
+    "idle_minutes": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Idle Minutes"
+    },
+    "lock_enabled": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Lock Enabled"
+    },
+    "poll.interval_minutes": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Poll.Interval Minutes"
+    },
+    "history.retention_days": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "History.Retention Days"
+    },
+    "alerts.native_detail": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Alerts.Native Detail"
+    }
+  },
+  "type": "object",
+  "title": "Body_write_settings_api_settings_patch"
+}
+```
+
 ### POST /api/settings/app.start_at_login
 Toggle the desktop app's LaunchAgent through findplus.service.
 
@@ -165,52 +247,6 @@ Persist whether the widget renders a map snapshot.
 }
 ```
 
-### PUT /api/settings
-Write Settings
-
-**Request body:**
-```json
-{
-  "properties": {
-    "theme": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "title": "Theme"
-    },
-    "idle_minutes": {
-      "anyOf": [
-        {
-          "type": "integer"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "title": "Idle Minutes"
-    },
-    "lock_enabled": {
-      "anyOf": [
-        {
-          "type": "boolean"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "title": "Lock Enabled"
-    }
-  },
-  "type": "object",
-  "title": "Body_write_settings_api_settings_put"
-}
-```
-
 ### PUT /api/settings/widget.show_map
 Persist whether the widget renders a map snapshot.
 
@@ -234,6 +270,68 @@ Persist whether the widget renders a map snapshot.
 ## devices
 ### GET /api/devices
 Devices
+
+### PATCH /api/devices/{device_id}
+Edit one device's label, icon, colour or tracked flag.
+
+| name | in | required | type |
+|---|---|---|---|
+| device_id | path | True | string |
+
+**Request body:**
+```json
+{
+  "properties": {
+    "label": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Label"
+    },
+    "icon": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Icon"
+    },
+    "color": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Color"
+    },
+    "tracked": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Tracked"
+    }
+  },
+  "type": "object",
+  "title": "DevicePatch",
+  "description": "The editable fields of a device row.\n\nValidation lives in the model, not the route body, which is what makes\nFastAPI answer with api-contract.md's pinned\n`{\"detail\":[{\"loc\":[...],\"msg\":...}]}` shape. Raising an HTTPException from\nthe handler instead would produce `{\"detail\": \"<text>\"}` and break it."
+}
+```
 
 ### POST /api/devices/default
 Set which device the dashboard focuses on first.
@@ -621,6 +719,11 @@ Post Group
       "title": "Color",
       "default": "#27ae60"
     },
+    "icon": {
+      "type": "string",
+      "title": "Icon",
+      "default": "lucide:users"
+    },
     "quorum": {
       "type": "string",
       "title": "Quorum",
@@ -685,6 +788,17 @@ Put Group
         }
       ],
       "title": "Color"
+    },
+    "icon": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Icon"
     },
     "quorum": {
       "anyOf": [

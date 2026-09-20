@@ -104,7 +104,8 @@ final class ModelTests: XCTestCase {
         WidgetDevice(
             device_id: "d1", name: "Tag", provider: "google-find-hub",
             last_observed_at: "2026-01-01T00:00:00Z", age_minutes: ageMinutes,
-            latitude: 0, longitude: 0, place: place, group: nil
+            latitude: 0, longitude: 0, place: place, group: nil,
+            icon: "letter", color: "#888888"
         )
     }
 
@@ -146,5 +147,45 @@ final class ModelTests: XCTestCase {
             "Alerts inherit the network's delay. An arrival or departure may be "
                 + "reported minutes to hours late."
         )
+    }
+
+    // --------------------------------------------- icons and colours (P2-E2)
+    func testWidgetDeviceDecodesIconAndColor() throws {
+        let json = """
+        {"device_id":"d1","name":"Tag","provider":"google-find-hub",
+         "last_observed_at":"2026-01-01T00:00:00Z","age_minutes":0,
+         "latitude":0,"longitude":0,"place":null,"group":null,
+         "icon":"lucide:dog","color":"#4f8cf7"}
+        """
+        let device = try JSONDecoder().decode(WidgetDevice.self, from: Data(json.utf8))
+        XCTAssertEqual(device.icon, "lucide:dog")
+        XCTAssertEqual(device.color, "#4f8cf7")
+    }
+
+    func testWidgetGroupDecodesIcon() throws {
+        let json = """
+        {"id":1,"name":"Family","verdict":"together","note":"note","icon":"lucide:users"}
+        """
+        let group = try JSONDecoder().decode(WidgetGroup.self, from: Data(json.utf8))
+        XCTAssertEqual(group.icon, "lucide:users")
+    }
+
+    func testSfSymbolKnownLucideId() {
+        XCTAssertEqual(sfSymbol(for: "lucide:dog", label: nil, name: "Fido"), "dog.fill")
+    }
+
+    func testSfSymbolUnmappedLucideIdFallsBackToLetter() {
+        XCTAssertEqual(
+            sfSymbol(for: "lucide:squirrel", label: nil, name: "Nutty"), "N.circle.fill")
+        XCTAssertEqual(
+            sfSymbol(for: "lucide:anchor", label: nil, name: "boat"), "B.circle.fill")
+    }
+
+    func testSfSymbolBareLetterUsesLabelOverName() {
+        XCTAssertEqual(sfSymbol(for: "letter", label: "Mom", name: "Moto Tag 2"), "M.circle.fill")
+    }
+
+    func testSfSymbolPinnedLetterUsesItsOwnCharacter() {
+        XCTAssertEqual(sfSymbol(for: "letter:Z", label: "Mom", name: "Moto Tag 2"), "Z.circle.fill")
     }
 }

@@ -40,6 +40,7 @@ from findplus.groups.repo import (
 class GroupCreate(BaseModel):
     name: str
     color: str = "#27ae60"
+    icon: str = "lucide:users"
     quorum: str = "majority"
     cluster_radius_meters: int = 150
     stale_after_minutes: int = 90
@@ -49,6 +50,7 @@ class GroupCreate(BaseModel):
 class GroupUpdate(BaseModel):
     name: str | None = None
     color: str | None = None
+    icon: str | None = None
     quorum: str | None = None
     cluster_radius_meters: int | None = None
     stale_after_minutes: int | None = None
@@ -63,6 +65,7 @@ def _group_to_dict(g: Group) -> dict[str, Any]:
         "id": g.id,
         "name": g.name,
         "color": g.color,
+        "icon": g.icon,
         "quorum": g.quorum,
         "cluster_radius_meters": g.cluster_radius_meters,
         "stale_after_minutes": g.stale_after_minutes,
@@ -102,6 +105,7 @@ def build_router() -> APIRouter:
                     s,
                     name=body.name,
                     color=body.color,
+                    icon=body.icon,
                     quorum=body.quorum,
                     cluster_radius_meters=body.cluster_radius_meters,
                     stale_after_minutes=body.stale_after_minutes,

@@ -69,6 +69,7 @@ def create_group(
     *,
     name: str,
     color: str = "#27ae60",
+    icon: str = "lucide:users",
     quorum: str = "majority",
     cluster_radius_meters: int = 150,
     stale_after_minutes: int = 90,
@@ -78,10 +79,12 @@ def create_group(
         quorum=quorum,
         cluster_radius_meters=cluster_radius_meters,
         stale_after_minutes=stale_after_minutes,
+        icon=icon,
     )
     group = Group(
         name=name,
         color=color,
+        icon=icon,
         quorum=quorum,
         cluster_radius_meters=cluster_radius_meters,
         stale_after_minutes=stale_after_minutes,
@@ -104,6 +107,7 @@ def update_group(session: Session, group_id: int, **fields) -> Group:
         quorum=fields.get("quorum"),
         cluster_radius_meters=fields.get("cluster_radius_meters"),
         stale_after_minutes=fields.get("stale_after_minutes"),
+        icon=fields.get("icon"),
     )
     for key, value in fields.items():
         if value is not None:

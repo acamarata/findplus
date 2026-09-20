@@ -11,8 +11,10 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Body, HTTPException
+from pydantic import BaseModel, field_validator
 from sqlalchemy import func, select
 
+from findplus import labels
 from findplus.db.models import Device, DeviceGroup, LocationObservation
 from findplus.db.session import session_scope
 from findplus.redaction import redact_text
@@ -68,35 +70,108 @@ def _refresh_from_providers() -> tuple[list[tuple[str, Any]], list[str], dict[st
     return rows, queried, errors
 
 
+def _groups_by_device(session) -> dict[str, list[int]]:
+    """device_id -> the group ids it belongs to. One query, not one per device."""
+    out: dict[str, list[int]] = {}
+    for device_id, group_id in session.execute(
+        select(DeviceGroup.device_id, DeviceGroup.group_id)
+    ).all():
+        out.setdefault(device_id, []).append(group_id)
+    return out
+
+
+def _presence_by_device(session) -> dict[str, list[dict[str, Any]]]:
+    """device_id -> the places it is currently inside, per api-contract.md."""
+    from findplus.places.repo import current_presence
+
+    out: dict[str, list[dict[str, Any]]] = {}
+    for row in current_presence(session):
+        if row["state"] != "inside":
+            continue
+        since = row["since_observed_at"]
+        out.setdefault(row["device_id"], []).append(
+            {
+                "place_id": row["place_id"],
+                "place_name": row["place_name"],
+                "since": since.isoformat() if since else None,
+            }
+        )
+    return out
+
+
+def _device_row(
+    session,
+    d: Device,
+    *,
+    groups: list[int] | None = None,
+    presence: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """One `GET /api/devices` row. The PATCH response reuses it verbatim.
+
+    `groups`/`presence` are passed in by the list route, which reads both in one
+    query each for every device; PATCH, with a single device to answer for,
+    lets them default and looks them up itself.
+    """
+    return {
+        "device_id": d.device_id,
+        "name": d.name,
+        "is_tracked": d.is_tracked,
+        "provider": d.provider,
+        "label": d.label,
+        "icon": d.icon,
+        "color": d.color,
+        "observation_count": int(
+            session.scalar(
+                select(func.count(LocationObservation.id)).where(
+                    LocationObservation.device_id == d.device_id
+                )
+            )
+            or 0
+        ),
+        "first_seen_at": d.first_seen_at.isoformat(),
+        "last_seen_at": d.last_seen_at.isoformat(),
+        # api-contract.md § /api/devices pins both keys; they were never emitted,
+        # so every consumer had to call /api/groups and /api/places/presence
+        # itself (E1 CR-C).
+        "groups": groups if groups is not None else _groups_by_device(session).get(d.device_id, []),
+        "presence": presence
+        if presence is not None
+        else _presence_by_device(session).get(d.device_id, []),
+    }
+
+
+class DevicePatch(BaseModel):
+    """The editable fields of a device row.
+
+    Validation lives in the model, not the route body, which is what makes
+    FastAPI answer with api-contract.md's pinned
+    `{"detail":[{"loc":[...],"msg":...}]}` shape. Raising an HTTPException from
+    the handler instead would produce `{"detail": "<text>"}` and break it.
+    """
+
+    label: str | None = None
+    icon: str | None = None
+    color: str | None = None
+    tracked: bool | None = None
+
+    @field_validator("label")
+    @classmethod
+    def _v_label(cls, v: str | None) -> str | None:
+        return labels.validate_label(v) if v is not None else v
+
+    @field_validator("icon")
+    @classmethod
+    def _v_icon(cls, v: str | None) -> str | None:
+        return labels.validate_icon(v) if v is not None else v
+
+    @field_validator("color")
+    @classmethod
+    def _v_color(cls, v: str | None) -> str | None:
+        return labels.validate_color(v) if v is not None else v
+
+
 def build_router(*, settings) -> APIRouter:
     router = APIRouter(prefix="/api", tags=["devices"])
-
-    def _groups_by_device(session) -> dict[str, list[int]]:
-        """device_id -> the group ids it belongs to. One query, not one per device."""
-        out: dict[str, list[int]] = {}
-        for device_id, group_id in session.execute(
-            select(DeviceGroup.device_id, DeviceGroup.group_id)
-        ).all():
-            out.setdefault(device_id, []).append(group_id)
-        return out
-
-    def _presence_by_device(session) -> dict[str, list[dict[str, Any]]]:
-        """device_id -> the places it is currently inside, per api-contract.md."""
-        from findplus.places.repo import current_presence
-
-        out: dict[str, list[dict[str, Any]]] = {}
-        for row in current_presence(session):
-            if row["state"] != "inside":
-                continue
-            since = row["since_observed_at"]
-            out.setdefault(row["device_id"], []).append(
-                {
-                    "place_id": row["place_id"],
-                    "place_name": row["place_name"],
-                    "since": since.isoformat() if since else None,
-                }
-            )
-        return out
 
     @router.get("/devices")
     def devices() -> dict[str, Any]:
@@ -112,27 +187,12 @@ def build_router(*, settings) -> APIRouter:
                 "tracked_count": len(tracked),
                 "requests_per_hour": round(len(tracked) * 60 / interval, 1) if interval else None,
                 "devices": [
-                    {
-                        "device_id": d.device_id,
-                        "name": d.name,
-                        "is_tracked": d.is_tracked,
-                        "provider": d.provider,
-                        "observation_count": int(
-                            session.scalar(
-                                select(func.count(LocationObservation.id)).where(
-                                    LocationObservation.device_id == d.device_id
-                                )
-                            )
-                            or 0
-                        ),
-                        "first_seen_at": d.first_seen_at.isoformat(),
-                        "last_seen_at": d.last_seen_at.isoformat(),
-                        # api-contract.md § /api/devices pins both keys; they were
-                        # never emitted, so every consumer had to call
-                        # /api/groups and /api/places/presence itself (E1 CR-C).
-                        "groups": groups_by_device.get(d.device_id, []),
-                        "presence": presence_by_device.get(d.device_id, []),
-                    }
+                    _device_row(
+                        session,
+                        d,
+                        groups=groups_by_device.get(d.device_id, []),
+                        presence=presence_by_device.get(d.device_id, []),
+                    )
                     for d in rows
                 ],
             }
@@ -188,5 +248,33 @@ def build_router(*, settings) -> APIRouter:
         with session_scope() as session:
             set_default_device(session, device_id)
             return {"default_device_id": device_id}
+
+    @router.patch("/devices/{device_id}")
+    def patch_device(device_id: str, body: DevicePatch) -> dict[str, Any]:
+        """Edit one device's label, icon, colour or tracked flag.
+
+        `label` is read through `model_fields_set` because clearing a label is
+        `{"label": ""}`, which validates to `None` and must be written; an
+        omitted key must leave the stored label alone. `icon` and `color` are
+        NOT NULL columns with no clear operation, so an explicit `null` for
+        either is a no-op rather than a write.
+        """
+        with session_scope() as session:
+            device = session.get(Device, device_id)
+            if device is None:
+                raise HTTPException(status_code=404, detail=f"device {device_id} not found")
+            if "label" in body.model_fields_set:
+                device.label = body.label
+            if body.icon is not None:
+                device.icon = body.icon
+            if body.color is not None:
+                device.color = body.color
+            if body.tracked is not None:
+                if body.tracked:
+                    track_devices(session, [device_id], exclusive=False)
+                else:
+                    untrack_devices(session, [device_id])
+            session.flush()
+            return _device_row(session, device)
 
     return router

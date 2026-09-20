@@ -121,6 +121,18 @@ def build_router(*, settings, static_dir: Path, find_hub_notice: str) -> APIRout
             "apple_extra_installed": apple_installed,
         }
 
+    @router.get("/api/icons")
+    def icons() -> list[dict[str, str]]:
+        """The pinned Lucide subset, for the CLI and test tooling.
+
+        The dashboard's icon picker does not read this: it enumerates the
+        `<symbol id="lucide-*">` elements already in the sprite, so the browser
+        fetches icon artwork and grouping in one request.
+        """
+        from findplus import labels
+
+        return labels.lucide_subset()
+
     @router.get("/api/widget")
     def widget() -> dict[str, Any]:
         """Compact, lock-aware feed for the Tauri menu-bar widget (E16)."""

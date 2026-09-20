@@ -51,6 +51,13 @@ class Device(Base):
     is_tracked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     #: Which LocationProvider owns this row (registry key, e.g. google-find-hub).
     provider: Mapped[str] = mapped_column(String(32), nullable=False, default="google-find-hub")
+    #: User-chosen name for this tracker. Local only: never sent to Google or
+    #: Apple, and a provider name refresh never overwrites it (D-P2-4).
+    label: Mapped[str | None] = mapped_column(Text, nullable=True)
+    #: lucide:<name> | letter:<X> | letter (dynamic initial) | none.
+    icon: Mapped[str] = mapped_column(String(32), nullable=False, default="letter")
+    #: Set from labels.palette_color_for on creation; the default is a safety net.
+    color: Mapped[str] = mapped_column(String(16), nullable=False, default="#888888")
     first_seen_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
     last_seen_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
 
@@ -228,6 +235,7 @@ class Group(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     color: Mapped[str] = mapped_column(String(16), nullable=False, default="#27ae60")
+    icon: Mapped[str] = mapped_column(String(32), nullable=False, default="lucide:users")
     quorum: Mapped[str] = mapped_column(String(16), nullable=False, default="majority")
     cluster_radius_meters: Mapped[int] = mapped_column(Integer, nullable=False, default=150)
     stale_after_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=90)

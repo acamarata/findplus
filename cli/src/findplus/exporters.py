@@ -46,6 +46,7 @@ CSV_COLUMNS = [
     "observation_id",
     "device_id",
     "device_name",
+    "label",
     "observed_at_utc",
     "observed_at_local",
     "fetched_at_utc",
@@ -106,7 +107,11 @@ def _with_deltas(
     return out
 
 
-def to_csv(observations: list[LocationObservation], tz) -> str:
+def to_csv(
+    observations: list[LocationObservation],
+    tz,
+    labels: dict[str, str] | None = None,
+) -> str:
     buf = io.StringIO()
     buf.write(CSV_COMMENT + "\n")
     writer = csv.DictWriter(buf, fieldnames=CSV_COLUMNS, lineterminator="\n")
@@ -117,6 +122,7 @@ def to_csv(observations: list[LocationObservation], tz) -> str:
                 "observation_id": obs.id,
                 "device_id": _csv_safe(obs.device_id),
                 "device_name": _csv_safe(obs.device_name),
+                "label": _csv_safe((labels or {}).get(obs.device_id) or ""),
                 "observed_at_utc": obs.observed_at.isoformat(),
                 "observed_at_local": _local(obs.observed_at, tz),
                 "fetched_at_utc": obs.first_fetched_at.isoformat(),
@@ -134,7 +140,11 @@ def to_csv(observations: list[LocationObservation], tz) -> str:
     return buf.getvalue()
 
 
-def to_json(observations: list[LocationObservation], tz) -> str:
+def to_json(
+    observations: list[LocationObservation],
+    tz,
+    labels: dict[str, str] | None = None,
+) -> str:
     payload = {
         "disclaimer": DISCLAIMER,
         "exported_at": datetime.now(tz).isoformat(),
@@ -145,6 +155,7 @@ def to_json(observations: list[LocationObservation], tz) -> str:
                 "id": obs.id,
                 "device_id": obs.device_id,
                 "device_name": obs.device_name,
+                "label": (labels or {}).get(obs.device_id),
                 "observed_at_utc": obs.observed_at.isoformat(),
                 "observed_at_local": _local(obs.observed_at, tz),
                 "fetched_at_utc": obs.first_fetched_at.isoformat(),
@@ -164,8 +175,18 @@ def to_json(observations: list[LocationObservation], tz) -> str:
     return json.dumps(payload, indent=2)
 
 
-def to_gpx(observations: list[LocationObservation], tz, track_name: str = "Find+ history") -> str:
-    """GPX 1.1 with a single track segment of timestamped points."""
+def to_gpx(
+    observations: list[LocationObservation],
+    tz,
+    track_name: str = "Find+ history",
+    labels: dict[str, str] | None = None,
+) -> str:
+    """GPX 1.1 with a single track segment of timestamped points.
+
+    `labels` is accepted for a uniform four-exporter signature and not read:
+    GPX has no per-point name, so the label reaches the file through the
+    `track_name` the caller already builds.
+    """
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<gpx version="1.1" creator="findplus" '
@@ -199,8 +220,17 @@ def to_gpx(observations: list[LocationObservation], tz, track_name: str = "Find+
     return "\n".join(lines)
 
 
-def to_kml(observations: list[LocationObservation], tz, doc_name: str = "Find+ history") -> str:
-    """KML with numbered placemarks plus a LineString of the observed path."""
+def to_kml(
+    observations: list[LocationObservation],
+    tz,
+    doc_name: str = "Find+ history",
+    labels: dict[str, str] | None = None,
+) -> str:
+    """KML with numbered placemarks plus a LineString of the observed path.
+
+    `labels` is accepted for signature symmetry and not read, for the same
+    reason as `to_gpx`: the label reaches the file through `doc_name`.
+    """
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<kml xmlns="http://www.opengis.net/kml/2.2">',
@@ -251,11 +281,15 @@ MEDIA_TYPES = {
 
 
 def export(
-    fmt: str, observations: list[LocationObservation], tz, name: str = "Find+ history"
+    fmt: str,
+    observations: list[LocationObservation],
+    tz,
+    name: str = "Find+ history",
+    labels: dict[str, str] | None = None,
 ) -> str:
     fmt = fmt.lower()
     if fmt not in EXPORTERS:
         raise ValueError(f"Unsupported export format {fmt!r}. Choose one of {sorted(EXPORTERS)}.")
     if fmt in {"gpx", "kml"}:
-        return EXPORTERS[fmt](observations, tz, name)  # type: ignore[operator]
-    return EXPORTERS[fmt](observations, tz)  # type: ignore[operator]
+        return EXPORTERS[fmt](observations, tz, name, labels=labels)  # type: ignore[operator]
+    return EXPORTERS[fmt](observations, tz, labels=labels)  # type: ignore[operator]

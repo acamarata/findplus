@@ -101,3 +101,68 @@ def test_poll_now_device_id_repeatable(tmp_db, register_provider) -> None:
     assert provider_a.calls == 1
     assert provider_b.calls == 1
     assert provider_c.calls == 0
+
+
+# ------------------------------------------- `devices` as a group (P2-E2-W2-S1-T5)
+def test_devices_default_still_lists_with_no_subcommand(selected) -> None:
+    """The group conversion is behaviourally transparent for the bare command."""
+    result = CliRunner().invoke(main, ["devices", "--no-refresh"])
+    assert result.exit_code == 0, result.output
+    assert "TAG-001" in result.output
+
+
+def test_devices_label_sets_all_three_fields(selected) -> None:
+    result = CliRunner().invoke(
+        main,
+        [
+            "devices",
+            "label",
+            "TAG-001",
+            "--label",
+            "Mom",
+            "--icon",
+            "lucide:user-round",
+            "--color",
+            "#37c67a",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "Mom" in result.output
+    assert "lucide:user-round" in result.output
+    assert "#37c67a" in result.output
+
+
+def test_devices_label_no_options_is_usage_error(selected) -> None:
+    result = CliRunner().invoke(main, ["devices", "label", "TAG-001"])
+    assert result.exit_code == 2, result.output
+
+
+def test_devices_label_unknown_device(selected) -> None:
+    result = CliRunner().invoke(main, ["devices", "label", "no-such-id", "--label", "X"])
+    assert result.exit_code == 1, result.output
+
+
+def test_devices_label_invalid_icon(selected) -> None:
+    result = CliRunner().invoke(main, ["devices", "label", "TAG-001", "--icon", "bogus"])
+    assert result.exit_code == 1, result.output
+    assert "icon must match lucide:" in result.output
+
+
+def test_devices_label_validates_before_writing_anything(selected) -> None:
+    """A good --label with a bad --color leaves the label untouched."""
+    from findplus.db.models import Device
+
+    result = CliRunner().invoke(
+        main, ["devices", "label", "TAG-001", "--label", "Mom", "--color", "#FFFFFF"]
+    )
+    assert result.exit_code == 1, result.output
+    with session_scope() as session:
+        assert session.get(Device, "TAG-001").label is None
+
+
+def test_devices_icons_lists_48(selected) -> None:
+    import json
+
+    result = CliRunner().invoke(main, ["devices", "icons", "--json"])
+    assert result.exit_code == 0, result.output
+    assert len(json.loads(result.output)) == 48

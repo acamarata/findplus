@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from findplus.config import get_settings
 from findplus.db.models import Device, LocationObservation, PlaceEvent
 from findplus.groups.events import evaluate_group_events as _group_events_evaluate
+from findplus.labels import palette_color_for
 from findplus.logging_setup import get_logger
 from findplus.places.events import evaluate as _geofence_evaluate
 from findplus.providers.google_findhub.types import RawObservation
@@ -73,6 +74,7 @@ def upsert_device(
             name=name,
             is_tracked=False,
             provider=provider,
+            color=palette_color_for(device_id),
             first_seen_at=now,
             last_seen_at=now,
         )

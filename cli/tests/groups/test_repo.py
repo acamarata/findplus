@@ -15,7 +15,12 @@ from findplus.db.models import (
     Place,
     PlaceState,
 )
-from findplus.groups.repo import build_presence, list_group_place_events
+from findplus.groups.repo import (
+    build_presence,
+    create_group,
+    list_group_place_events,
+    update_group,
+)
 
 NOW = datetime.now(UTC)
 
@@ -114,3 +119,33 @@ def test_group_event_log_carries_the_note(session, group) -> None:
 
     rows = list_group_place_events(session, group_id=group.id)
     assert rows[0]["note"] == "1 of 3 tags left Home; 2 tags have no recent fix."
+
+
+# ------------------------------------------------------------------- icons (P2-E2)
+def test_create_group_default_icon(session) -> None:
+    assert create_group(session, name="Family").icon == "lucide:users"
+
+
+def test_create_group_custom_icon(session) -> None:
+    assert create_group(session, name="Family", icon="lucide:dog").icon == "lucide:dog"
+
+
+def test_create_group_invalid_icon_raises(session) -> None:
+    with pytest.raises(ValueError, match="icon must match lucide:"):
+        create_group(session, name="Family", icon="bogus")
+
+
+def test_update_group_icon(session) -> None:
+    group = create_group(session, name="Family")
+    update_group(session, group.id, icon="lucide:cat")
+    assert session.get(Group, group.id).icon == "lucide:cat"
+
+
+def test_update_group_invalid_icon_leaves_the_row_alone(session) -> None:
+    """Validation runs before any setattr, so a bad PUT cannot half-apply."""
+    group = create_group(session, name="Family", icon="lucide:dog")
+    with pytest.raises(ValueError, match="one of the available lucide icon ids"):
+        update_group(session, group.id, name="Renamed", icon="lucide:not-real")
+    refetched = session.get(Group, group.id)
+    assert refetched.icon == "lucide:dog"
+    assert refetched.name == "Family"

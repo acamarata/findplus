@@ -22,6 +22,7 @@ from findplus.alerts.dispatch_core import (
     as_utc,
     render_message,
 )
+from findplus.redaction import redact_text
 
 
 def _send(rule: Rule, event: DeviceEvent | GroupEvent, kind: str, text_msg: str, channels_cfg):
@@ -61,7 +62,7 @@ def _status_for(
         text_msg = render_message(event, now)
         result = _send(rule, event, kind, text_msg, channels_cfg)
     except Exception as exc:  # a channel failure must never crash dispatch/the poller
-        return "failed", str(exc)[:500]
+        return "failed", redact_text(str(exc)[:500])
     if result is None:
         # The rule names a channel that has no credentials — a telegram rule
         # created before telegram-setup finished, or one left enabled after
@@ -71,4 +72,6 @@ def _status_for(
         # appeared in GET /api/alerts/deliveries. Record it instead; the
         # cooldown filter keys on status == "sent", so this starts none.
         return "skipped", f"{rule.channel} is not configured"
-    return ("sent" if result.success else "failed"), result.error
+    # CF-14 displays this column, and httpx status errors carry the request URL
+    # -- a webhook with its key in the query string would otherwise show it.
+    return ("sent" if result.success else "failed"), redact_text(result.error)

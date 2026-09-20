@@ -109,6 +109,7 @@ def test_write_none_removes_the_key(tmp_db) -> None:
     assert "LOG_LEVEL=DEBUG" in text
 
 
+@pytest.mark.posix_only
 def test_the_config_file_stays_owner_only(tmp_db) -> None:
     settings = get_settings()
 

@@ -97,10 +97,22 @@ export function drawGroupOverlays(presence, group) {
   });
 }
 
-function verdictLabel(verdict) {
-  if (verdict === "all_together") return "Together";
-  if (verdict === "partial") return "Diverged";
-  return "Unknown";
+/**
+ * The one word a glance reads. It must never assert more than the engine found.
+ *
+ * `partial` covers two different situations. With names in `diverged` the tags
+ * really are apart. With an empty `diverged` list it means only one member is
+ * reporting and the rest are stale — presence.py:209 — and honesty.md's
+ * presence_stale sentence forbids reading a missing fix as "not at home and not
+ * left behind". Labelling that "Diverged" asserted exactly that inference,
+ * while the note underneath it said the opposite.
+ */
+function verdictLabel(presence) {
+  if (presence.verdict === "all_together") return "Together";
+  if (presence.verdict !== "partial") return "Unknown";
+  if (presence.diverged && presence.diverged.length > 0) return "Diverged";
+  const reporting = presence.reporting_count;
+  return reporting === 1 ? "Only 1 reporting" : "Unknown";
 }
 
 function ageLabel(member) {
@@ -127,7 +139,7 @@ export function renderPresencePanel(presence) {
 
   const verdict = document.createElement("p");
   verdict.className = `fp-verdict fp-verdict--${presence.verdict}`;
-  verdict.textContent = verdictLabel(presence.verdict);
+  verdict.textContent = verdictLabel(presence);
   panel.appendChild(verdict);
 
   if (presence.note) {

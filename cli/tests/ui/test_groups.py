@@ -71,3 +71,56 @@ async def test_group_note_displayed(page, base_url):
     await _open_group(page, base_url)
     panel_text = await page.locator("#fp-presence-panel").inner_text()
     assert note in panel_text
+
+
+async def test_one_reporting_member_is_not_labelled_diverged(page, base_url):
+    """honesty round 2 F1: `partial` with an empty diverged list is not divergence.
+
+    presence.py:209 returns verdict `partial`, `diverged: []`, `reporting_count: 1`
+    when a single member is reporting and the rest are stale. The headline word
+    used to read "Diverged", asserting the tags were apart — the exact inference
+    honesty.md's presence_stale sentence forbids, and the opposite of the note
+    rendered directly underneath it.
+    """
+    await _open_group(page, base_url)
+
+    label = await page.evaluate(
+        """async () => {
+            const groups = await import('/static/app/groups.js');
+            const panel = document.getElementById('fp-presence-panel');
+            groups.renderPresencePanel({
+                verdict: 'partial',
+                together: [],
+                diverged: [],
+                stale: ['TAG-STALE'],
+                reporting_count: 1,
+                members: [],
+                note: 'Only Zoe is reporting (4 min ago).',
+            });
+            return panel.querySelector('.fp-verdict').textContent;
+        }"""
+    )
+    assert label != "Diverged"
+    assert label == "Only 1 reporting"
+
+
+async def test_real_divergence_is_still_labelled_diverged(page, base_url):
+    """The control: a non-empty diverged list must keep the word."""
+    await _open_group(page, base_url)
+
+    label = await page.evaluate(
+        """async () => {
+            const groups = await import('/static/app/groups.js');
+            groups.renderPresencePanel({
+                verdict: 'partial',
+                together: ['TAG-HOME'],
+                diverged: ['TAG-AWAY'],
+                stale: [],
+                reporting_count: 2,
+                members: [],
+                note: 'Away moved away from Home (900 m apart)',
+            });
+            return document.querySelector('#fp-presence-panel .fp-verdict').textContent;
+        }"""
+    )
+    assert label == "Diverged"

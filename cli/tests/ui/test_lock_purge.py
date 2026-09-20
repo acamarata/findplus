@@ -71,7 +71,7 @@ async def _setup_purge_fixture(page, base_url):
         headers={"Content-Type": "application/json"},
     )
     assert set_resp.ok, await set_resp.text()
-    enable_resp = await page.request.put(
+    enable_resp = await page.request.patch(
         base_url + "/api/settings",
         data=json.dumps({"lock_enabled": True}),
         headers={"Content-Type": "application/json"},

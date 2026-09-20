@@ -48,7 +48,9 @@ separate CLI install is required.
 
 ## Post-install
 
-Run `findplus auth` to sign in, then continue with [First run](First-run).
+Run `findplus setup` for a guided walkthrough (or `findplus auth` then
+`findplus start` for the two-command path), then continue with
+[First run](First-run).
 
 To remove Find+ later, see [Uninstall](Uninstall).
 

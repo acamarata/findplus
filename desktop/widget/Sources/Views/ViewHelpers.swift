@@ -33,11 +33,13 @@ func stateLabel(_ state: WidgetState) -> String {
 /// The character a letter badge shows: the pinned one, else the label's
 /// initial, else the provider name's. "?" only when there is no text at all.
 func resolveLetter(icon: String, label: String?, name: String) -> Character {
-    if icon.hasPrefix("letter:"), let c = icon.dropFirst(7).first {
-        return Character(c.uppercased())
+    let raw: Character
+    if icon.hasPrefix("letter:"), let c = icon.dropFirst(7).first { raw = c }
+    else {
+        let source = (label?.isEmpty == false ? label! : name)
+        raw = source.first ?? "?"
     }
-    let source = (label?.isEmpty == false ? label! : name)
-    return Character((source.first ?? "?").uppercased())
+    return String(raw).uppercased().first ?? raw
 }
 
 /// The SF Symbol for a Find+ icon id (specs/labels-and-icons.md § Widget).

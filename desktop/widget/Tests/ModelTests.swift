@@ -188,4 +188,13 @@ final class ModelTests: XCTestCase {
     func testSfSymbolPinnedLetterUsesItsOwnCharacter() {
         XCTAssertEqual(sfSymbol(for: "letter:Z", label: "Mom", name: "Moto Tag 2"), "Z.circle.fill")
     }
+
+    /// CR-C-E2 F1: a label whose first character uppercases to more than one
+    /// scalar (ß -> SS, ﬁ -> FI) used to trap `Character(String)`'s
+    /// one-grapheme-cluster precondition. resolveLetter must fall back to a
+    /// single-character badge instead of crashing the widget extension.
+    func testSfSymbolMultiScalarUppercaseDoesNotTrap() {
+        XCTAssertEqual(sfSymbol(for: "letter", label: "ßtart", name: "Tag"), "S.circle.fill")
+        XCTAssertEqual(sfSymbol(for: "letter", label: "ﬁnder", name: "Tag"), "F.circle.fill")
+    }
 }

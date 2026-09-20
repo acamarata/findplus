@@ -199,7 +199,7 @@ def _run_post_ingest_hooks(
                 _geofence_evaluate(
                     session,
                     lo,
-                    default_accuracy=getattr(settings, "geofence_default_accuracy_meters", 100.0),
+                    default_accuracy=settings.geofence_default_accuracy_meters,
                 )
         except Exception:
             log.exception(

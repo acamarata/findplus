@@ -149,7 +149,7 @@ with session_scope() as session:
 
 @pytest.fixture
 def page(browser: Browser, server: str) -> Iterator[Page]:
-    context = browser.new_context(viewport={"width": 1280, "height": 900})
+    context = browser.new_context(viewport={"width": 1280, "height": 900}, bypass_csp=True)
     p = context.new_page()
     p.goto(server, wait_until="networkidle")
     p.wait_for_timeout(600)

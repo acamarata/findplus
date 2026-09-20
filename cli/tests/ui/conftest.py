@@ -197,7 +197,10 @@ async def page(browser_session):
     # context leaks that state between tests and makes them order
     # dependent; a reload inside a single test still sees its own writes.
     browser, _ = browser_session
-    ctx = await browser.new_context()
+    # bypass_csp: the dashboard's CSP has no 'unsafe-eval', and Playwright
+    # evaluates string predicates (wait_for_function) via eval in the page.
+    # The header itself is still asserted by the security tests.
+    ctx = await browser.new_context(bypass_csp=True)
     pg = await ctx.new_page()
     yield pg
     await ctx.close()

@@ -69,6 +69,27 @@ export function getStoredTheme() {
 
 /* ----------------------------------------------------------- formatting */
 
+/**
+ * Escape text for an innerHTML template. Prefer textContent where you can.
+ *
+ * A tracker's `name` and an observation's `source` come from the provider, so
+ * anyone who can rename a tag in the linked Google or Apple account writes
+ * into the watcher's dashboard. Most modules build their DOM with
+ * createElement and are safe by construction; the five template sites that
+ * could not be converted cheaply pass their untrusted values through here
+ * (E1 security round 3 F1). The CSP was the only reason the injected markup
+ * did not execute -- it was still enough to smuggle a checked <input> into
+ * the device list, which the Save button then POSTs as a tracked device.
+ */
+export function esc(value) {
+  return String(value == null ? "" : value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export function fmtTime(iso) {
   if (!iso) return "—";
   return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });

@@ -8,7 +8,7 @@
  */
 "use strict";
 
-import { $, state, fmtTime, fmtDateTime, fmtDuration, fmtDistance, todayLocal, colorFor, showAlert } from "./state.js";
+import { $, state, fmtTime, fmtDateTime, fmtDuration, fmtDistance, todayLocal, colorFor, showAlert, esc } from "./state.js";
 import { api, postJson } from "./api.js";
 import { renderMap, visiblePoints } from "./map.js";
 import { reload } from "./main.js";
@@ -70,8 +70,8 @@ export function renderTracks() {
     block.className = "track-block";
     block.innerHTML =
       `<div class="track-head">` +
-      `<span class="track-swatch" style="background:${colorFor(track.device_id)}"></span>` +
-      `<span class="track-name">${track.device_name || track.device_id}</span>` +
+      `<span class="track-swatch" style="background:${esc(colorFor(track.device_id))}"></span>` +
+      `<span class="track-name">${esc(track.device_name || track.device_id)}</span>` +
       `<span class="track-count">${track.points.length} observation${track.points.length === 1 ? "" : "s"}</span>` +
       `</div>` +
       statsHtml(track.stats) +

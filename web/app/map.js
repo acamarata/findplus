@@ -10,7 +10,7 @@
  */
 "use strict";
 
-import { state, colorFor, fmtTime, fmtDateTime, fmtDuration, fmtDistance } from "./state.js";
+import { state, colorFor, fmtTime, fmtDateTime, fmtDuration, fmtDistance, esc } from "./state.js";
 import { selectPoint } from "./timeline.js";
 
 export function initMap() {
@@ -38,7 +38,7 @@ function numberedIcon(point, index, total, color) {
 function popupHtml(point, deviceName) {
   const rows = [
     `<b>${fmtTime(point.observed_at_local)}</b>`,
-    `<div style="opacity:.75">${deviceName}</div>`,
+    `<div style="opacity:.75">${esc(deviceName)}</div>`,
     `<div>${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}</div>`,
   ];
   if (point.accuracy_meters != null) {
@@ -49,7 +49,7 @@ function popupHtml(point, deviceName) {
   }
   const dist = fmtDistance(point.meters_from_previous);
   if (dist) rows.push(`<div>${dist} from previous observation</div>`);
-  if (point.source) rows.push(`<div style="opacity:.7">Report: ${point.source}</div>`);
+  if (point.source) rows.push(`<div style="opacity:.7">Report: ${esc(point.source)}</div>`);
   if (!point.is_movement && point.seconds_since_previous !== null) {
     rows.push(`<div style="opacity:.7">Below movement threshold</div>`);
   }
@@ -78,7 +78,7 @@ export function renderMap() {
     if (latlngs.length > 1) {
       L.polyline(latlngs, { color, weight: 3, opacity: 0.75, dashArray: "6 5" })
         .addTo(state.layer)
-        .bindTooltip(`${track.device_name} — observed path; actual route between detections may differ.`);
+        .bindTooltip(`${esc(track.device_name)} — observed path; actual route between detections may differ.`);
     }
 
     points.forEach((point, index) => {

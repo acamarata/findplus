@@ -15,6 +15,7 @@
 "use strict";
 
 import { api } from "./api.js";
+import { esc } from "./state.js";
 
 let map = null;
 let selectedGroupId = null;
@@ -83,7 +84,7 @@ export function drawGroupOverlays(presence, group) {
     if (member.latitude == null || member.longitude == null) return;
     L.circle([member.latitude, member.longitude], {
       radius: 80, color: group.color, fillOpacity: 0.2, weight: 1,
-    }).bindTooltip(member.name).addTo(overlayLayer);
+    }).bindTooltip(esc(member.name)).addTo(overlayLayer);
     if (!legend) return;
     const item = document.createElement("span");
     item.className = "fp-legend-item";

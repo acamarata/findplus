@@ -7,7 +7,7 @@
  */
 "use strict";
 
-import { $, state, colorFor, showAlert } from "./state.js";
+import { $, state, colorFor, showAlert, esc } from "./state.js";
 import { api, postJson } from "./api.js";
 import { reload, applyHashRoute } from "./main.js";
 import { loadPresence } from "./places.js";
@@ -45,9 +45,10 @@ export function renderDeviceModal() {
     const row = document.createElement("label");
     row.className = "device-row";
     row.innerHTML =
-      `<input type="checkbox" value="${d.device_id}" ${d.is_tracked ? "checked" : ""}>` +
-      `<span><span class="d-name">${d.name}</span><br><span class="d-id">${d.device_id}</span></span>` +
-      `<span class="d-obs">${d.observation_count} obs</span>`;
+      `<input type="checkbox" value="${esc(d.device_id)}" ${d.is_tracked ? "checked" : ""}>` +
+      `<span><span class="d-name">${esc(d.name)}</span><br>` +
+      `<span class="d-id">${esc(d.device_id)}</span></span>` +
+      `<span class="d-obs">${Number(d.observation_count) || 0} obs</span>`;
     row.dataset.deviceId = d.device_id;
     const badge = document.createElement("span");
     badge.className = "fp-provider-badge fp-provider-badge--" + (d.provider || "unknown");

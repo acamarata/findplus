@@ -20,9 +20,10 @@ import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.exc import OperationalError
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from findplus import __version__, honesty
@@ -107,9 +108,21 @@ def _check_poll_cooldown() -> float:
 
 
 def _current_lock_state():
-    """(is_locked_overall, AppSettings). Cheap enough to call per request."""
-    with session_scope() as session:
-        app_settings = load_settings(session)
+    """(is_locked_overall, AppSettings). Cheap enough to call per request.
+
+    Fails CLOSED on an unmigrated database. api/_widget.py catches the same
+    OperationalError and degrades to an empty read, but this function backs the
+    auth middleware: answering "not locked" because the table is missing would
+    open every gated route. A typed 503 naming the repair command is the only
+    safe answer, and it replaces the uncaught 500 this used to raise.
+    """
+    try:
+        with session_scope() as session:
+            app_settings = load_settings(session)
+    except OperationalError as exc:
+        raise HTTPException(
+            status_code=503, detail="Database not migrated. Run findplus db upgrade."
+        ) from exc
     return app_settings.lock_active, app_settings
 
 
@@ -118,8 +131,6 @@ def _sync_idle_timeout(sessions: SessionStore):
         sessions.idle_timeout_seconds = app_settings.idle_minutes * 60
 
     return sync
-
-
 class SessionAuthMiddleware(BaseHTTPMiddleware):
     """Return 401 for every gated API path while the app is locked.
 
@@ -136,7 +147,13 @@ class SessionAuthMiddleware(BaseHTTPMiddleware):
         if not path.startswith("/api/") or path in _PUBLIC:
             return await call_next(request)
 
-        lock_active, app_settings = _current_lock_state()
+        try:
+            lock_active, app_settings = _current_lock_state()
+        except HTTPException as exc:
+            # BaseHTTPMiddleware sits OUTSIDE Starlette's ExceptionMiddleware, so an
+            # HTTPException raised here is never turned into a response — it would
+            # surface as a 500. Render it here instead.
+            return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
         if not lock_active:
             return await call_next(request)
 

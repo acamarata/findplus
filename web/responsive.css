@@ -71,8 +71,12 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
 
   #map { height: 50vh; min-height: 280px; }
   /* An inner scroll region under a fixed bottom bar fights the page scroll
-     on touch, so the pane scrolls the page instead. */
-  .timeline-pane { max-height: none; overflow-y: visible; }
+     on touch, so the pane scrolls the page instead. min-width: 0 overrides
+     the grid item's default min-width: auto, which otherwise lets a wide
+     child (e.g. the rules table) grow the pane past the viewport instead of
+     letting .fp-table-scroll's own overflow-x handle it (visual gate W2
+     finding). */
+  .timeline-pane { max-height: none; overflow-y: visible; min-width: 0; }
 
   .modal-box {
     inset: 0; width: 100%; height: 100%; border-radius: 0; max-height: none;
@@ -95,4 +99,28 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
 
   /* The fixed bar sits over the end of the page; give the content room. */
   body { padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)); }
+
+  /* Settings/alerts form rows: label above a full-width input, not squeezed
+     onto one row with a 190px-min-width control (visual gate W2 finding).
+     Checkbox/radio rows (toggles) stay a single row — the label is what
+     needs the width, not a checkbox glyph. */
+  .setting-row:has(input:not([type=checkbox]):not([type=radio])),
+  .setting-row:has(select) {
+    flex-direction: column; align-items: stretch; gap: 4px;
+  }
+  .setting-row input[type=password],
+  .setting-row input[type=date],
+  .setting-row input[type=text],
+  .setting-row input[type=url],
+  .setting-row select { width: 100%; min-width: 0; }
+
+  /* The rules and delivery-log tables (7 and 6 columns) are wider than a
+     phone viewport; scroll the wrapper instead of the whole page so the
+     rest of the tab stays put (visual gate W2 finding). */
+  .fp-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Grouped so "Download" always wraps together with the format/scope
+     controls instead of landing alone on its own row (visual gate W2
+     finding). */
+  .export-group { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; flex: 1 1 100%; }
 }

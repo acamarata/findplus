@@ -38,28 +38,35 @@
       <section class="fp-alerts-section">
         <h3 data-i18n="alerts.rulesHeading">Rules</h3>
         <button id="fp-add-rule-btn" type="button" data-i18n="alerts.addRule">Add rule</button>
-        <table id="fp-rules-table">
-          <thead>
-            <tr>
-              <th data-i18n="alerts.colName">Name</th><th data-i18n="alerts.colPlace">Place</th><th data-i18n="alerts.colTarget">Device or Group</th>
-              <th data-i18n="alerts.colOnEnter">On enter</th><th data-i18n="alerts.colOnExit">On exit</th><th data-i18n="alerts.colChannel">Channel</th><th data-i18n="alerts.colActions">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="fp-rules-tbody"></tbody>
-        </table>
+        <!-- The rules table has 7 columns and does not fit a phone-width
+             viewport; scrolling the wrapper (not the page) keeps the row
+             text readable instead of squeezing it (visual gate W2 finding). -->
+        <div class="fp-table-scroll">
+          <table id="fp-rules-table">
+            <thead>
+              <tr>
+                <th data-i18n="alerts.colName">Name</th><th data-i18n="alerts.colPlace">Place</th><th data-i18n="alerts.colTarget">Device or Group</th>
+                <th data-i18n="alerts.colOnEnter">On enter</th><th data-i18n="alerts.colOnExit">On exit</th><th data-i18n="alerts.colChannel">Channel</th><th data-i18n="alerts.colActions">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="fp-rules-tbody"></tbody>
+          </table>
+        </div>
       </section>
 
       <section class="fp-alerts-section">
         <h3 data-i18n="alerts.deliveryLogHeading">Delivery log</h3>
-        <table id="fp-deliveries-table">
-          <thead>
-            <tr>
-              <th data-i18n="alerts.colRule">Rule</th><th data-i18n="alerts.colChannel">Channel</th><th data-i18n="alerts.colKind">Kind</th>
-              <th data-i18n="alerts.colSent">Sent</th><th data-i18n="alerts.colStatus">Status</th><th data-i18n="alerts.colError">Error</th>
-            </tr>
-          </thead>
-          <tbody id="fp-deliveries-tbody"></tbody>
-        </table>
+        <div class="fp-table-scroll">
+          <table id="fp-deliveries-table">
+            <thead>
+              <tr>
+                <th data-i18n="alerts.colRule">Rule</th><th data-i18n="alerts.colChannel">Channel</th><th data-i18n="alerts.colKind">Kind</th>
+                <th data-i18n="alerts.colSent">Sent</th><th data-i18n="alerts.colStatus">Status</th><th data-i18n="alerts.colError">Error</th>
+              </tr>
+            </thead>
+            <tbody id="fp-deliveries-tbody"></tbody>
+          </table>
+        </div>
       </section>
 
       <section class="fp-alerts-section">

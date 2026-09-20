@@ -64,8 +64,31 @@ jobs:
       - name: Sign sidecar
         if: env.APPLE_CERTIFICATE_P12_BASE64 != ''
         run: |
-          echo "$APPLE_CERTIFICATE_P12_BASE64" | base64 -d > /tmp/cert.p12
-          security import /tmp/cert.p12 -P "$APPLE_CERTIFICATE_PASSWORD" -A
+          # A dedicated, unlocked keychain with an explicit partition list.
+          # Importing into the default keychain with -A alone leaves the key
+          # ACL asking for interactive approval, so every codesign in
+          # sign-sidecar.sh and embed-widget.sh dies non-interactively with
+          # errSecInternalComponent / "User interaction is not allowed". Only
+          # the unsigned path had ever been exercised (packaging round 2 F3).
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/findplus-signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 24)
+          CERT="$RUNNER_TEMP/cert.p12"
+          # Always remove the decoded key material, however this step ends.
+          trap 'rm -f "$CERT"' EXIT
+          echo "$APPLE_CERTIFICATE_P12_BASE64" | base64 -d > "$CERT"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$CERT" -k "$KEYCHAIN" -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          # Put it on the search list so codesign resolves the identity by name.
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v -p codesigning "$KEYCHAIN"
+
           bash packaging/scripts/sign-sidecar.sh
       - name: Install Tauri CLI
         run: |
@@ -197,17 +220,35 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
+      # github-release creates the release as a DRAFT, and a draft release's
+      # assets are not publicly downloadable — so the formula url the next step
+      # writes would 404 for everyone until the owner publishes. Open the tap PR
+      # only once the release is live (packaging round 2 F2).
+      - id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          draft=$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft)
+          echo "draft=$draft" >> "$GITHUB_OUTPUT"
+          if [ "$draft" = "true" ]; then
+            echo "::notice::$GITHUB_REF_NAME is still a draft; skipping the tap PR."
+            echo "Publish the release and re-run this job to open it."
+          fi
+      - if: steps.release.outputs.draft != 'true'
+        uses: actions/download-artifact@v8
         with:
           name: python-dist
           path: dist
-      - run: bash packaging/scripts/gen-formula.sh dist/findplus-*.tar.gz
-      - uses: actions/checkout@v7
+      - if: steps.release.outputs.draft != 'true'
+        run: bash packaging/scripts/gen-formula.sh dist/findplus-*.tar.gz
+      - if: steps.release.outputs.draft != 'true'
+        uses: actions/checkout@v7
         with:
           repository: acamarata/homebrew-tap
           token: ${{ secrets.TAP_PUSH_TOKEN }}
           path: homebrew-tap
-      - run: |
+      - if: steps.release.outputs.draft != 'true'
+        run: |
           VERSION="${GITHUB_REF_NAME#v}"
           cp packaging/homebrew/findplus.rb homebrew-tap/Formula/findplus.rb
           cd homebrew-tap

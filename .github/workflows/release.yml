@@ -15,7 +15,7 @@ jobs:
           python-version: "3.12"
       - run: pip install build
       - run: python -m build --outdir dist cli
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: python-dist
           path: dist/
@@ -113,7 +113,7 @@ jobs:
           DMG=$(find dist -maxdepth 1 -name 'FindPlus-*.dmg' | head -1)
           cp "$DMG" "FindPlus-${VERSION}-aarch64${SUFFIX}.dmg"
           shasum -a 256 "FindPlus-${VERSION}-aarch64${SUFFIX}.dmg" > "FindPlus-${VERSION}-aarch64${SUFFIX}.dmg.sha256"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: macos-dmg
           path: |

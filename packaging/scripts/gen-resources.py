@@ -7,60 +7,73 @@ Purpose    : Fallback for gen-formula.sh when `brew update-python-resources`
 Inputs     : argv[1] = path to a findplus-<version>.tar.gz sdist.
 Outputs    : Ruby `resource "<name>" do ... end` blocks on stdout, two-space
              indented, sorted by name, ready to splice into the template.
-Constraints: Reads `Requires-Dist` from the sdist's PKG-INFO and asks PyPI for
-             each name's newest sdist url + sha256. Unlike Homebrew's own
-             resolver this covers the DIRECT dependencies only, not the full
-             transitive closure, so it is a fallback and not the happy path;
-             gen-formula.sh says so on stderr when it is used.
+Constraints: Resolves the full transitive closure with pip's own resolver
+             (`pip install --dry-run --report`) and asks PyPI for each
+             resolved version's sdist url + sha256. A direct-dependency list
+             is not enough: it installs and then crashes on the first
+             transitive import (pydantic without pydantic_core, v1.0.0).
 """
 
 from __future__ import annotations
 
 import json
-import re
+import subprocess
 import sys
-import tarfile
+import tempfile
 import urllib.request
+from pathlib import Path
 
-PYPI = "https://pypi.org/pypi/{name}/json"
-# "uvicorn[standard]>=0.32" -> "uvicorn"; stops at the first extra/specifier char.
-NAME_RE = re.compile(r"^[A-Za-z0-9._-]+")
+PYPI = "https://pypi.org/pypi/{name}/{version}/json"
 
 
-def requirements(sdist: str) -> list[str]:
-    """Direct, non-extra requirement names declared in the sdist's PKG-INFO."""
-    names: list[str] = []
-    with tarfile.open(sdist, "r:gz") as tar:
-        member = next(
-            (
-                m
-                for m in tar.getmembers()
-                if m.name.count("/") == 1 and m.name.endswith("PKG-INFO")
-            ),
-            None,
+def requirements(sdist: str) -> list[tuple[str, str]]:
+    """Every package pip would install for `sdist`, as (name, version) pairs.
+
+    pip resolves the whole graph; reading Requires-Dist would give the direct
+    dependencies only, and Homebrew installs nothing that is not listed.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        report = Path(tmp) / "report.json"
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "--dry-run",
+                "--ignore-installed",
+                "--quiet",
+                "--report",
+                str(report),
+                sdist,
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
         )
-        if member is None:
-            raise SystemExit(f"gen-resources: no PKG-INFO in {sdist}")
-        raw = tar.extractfile(member).read().decode("utf-8", "replace")
-    for line in raw.splitlines():
-        if not line.startswith("Requires-Dist:"):
-            continue
-        value = line.split(":", 1)[1].strip()
-        if "extra ==" in value:
-            continue
-        match = NAME_RE.match(value)
-        if match and match.group(0).lower() not in names:
-            names.append(match.group(0).lower())
-    return sorted(names)
+        if result.returncode != 0 or not report.exists():
+            raise SystemExit(
+                f"gen-resources: pip could not resolve {sdist}\n{result.stderr}"
+            )
+        data = json.loads(report.read_text())
+    pairs = []
+    for item in data.get("install", []):
+        meta = item.get("metadata", {})
+        name, version = meta.get("name"), meta.get("version")
+        if name and version and name.lower() != "findplus":
+            pairs.append((name, version))
+    return sorted(pairs, key=lambda pair: pair[0].lower())
 
 
-def stanza(name: str) -> str | None:
-    """Look up the newest sdist for `name` on PyPI and render its resource block."""
-    with urllib.request.urlopen(PYPI.format(name=name), timeout=30) as response:
+def stanza(name: str, version: str) -> str | None:
+    """Render the resource block for the exact version pip resolved."""
+    with urllib.request.urlopen(
+        PYPI.format(name=name, version=version), timeout=30
+    ) as response:
         data = json.load(response)
     files = [f for f in data["urls"] if f["packagetype"] == "sdist"]
     if not files:
-        print(f"gen-resources: no sdist on PyPI for {name}", file=sys.stderr)
+        print(f"gen-resources: no sdist on PyPI for {name} {version}", file=sys.stderr)
         return None
     chosen = files[0]
     return (
@@ -75,7 +88,11 @@ def main() -> int:
     if len(sys.argv) != 2:
         print("Usage: gen-resources.py <sdist-tarball>", file=sys.stderr)
         return 2
-    blocks = [block for name in requirements(sys.argv[1]) if (block := stanza(name))]
+    blocks = [
+        block
+        for name, version in requirements(sys.argv[1])
+        if (block := stanza(name, version))
+    ]
     if not blocks:
         print("gen-resources: produced no resources", file=sys.stderr)
         return 1

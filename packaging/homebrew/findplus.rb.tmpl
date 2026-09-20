@@ -7,6 +7,11 @@ class Findplus < Formula
   sha256 "__SHA256__"
   license "GPL-3.0-or-later"
 
+  # cryptography builds its Rust extension with maturin, and Homebrew installs
+  # every Python resource from source, so the toolchain has to be here.
+  depends_on "rust" => :build
+  # pyyaml compiles its C extension against libyaml.
+  depends_on "libyaml"
   depends_on "python@3.12"
 
 __RESOURCES__

@@ -9,8 +9,8 @@
 # Constraints: `brew update-python-resources` takes a FORMULA, not a tarball,
 #              so the formula is written first and updated in place. If brew
 #              cannot resolve it (offline, or the url is not on PyPI yet),
-#              gen-resources.py fills the block from the sdist's own
-#              Requires-Dist metadata. __RESOURCES__ never survives: an
+#              gen-resources.py fills the block from pip's own resolution of
+#              the sdist. __RESOURCES__ never survives: an
 #              unresolved token is a hard failure.
 set -euo pipefail
 
@@ -64,7 +64,7 @@ fi
 
 # --- RESOURCES_VIA_SDIST ------------------------------------------------------
 if grep -q '^__RESOURCES__$' "$OUT"; then
-  echo "gen-formula.sh: filling resources from the sdist's Requires-Dist (direct deps only)" >&2
+  echo "gen-formula.sh: filling resources with pip's resolver (full transitive closure)" >&2
   RES_FILE=$(mktemp)
   trap 'rm -f "$RES_FILE"' EXIT
   python3 "$HELPER" "$SDIST" > "$RES_FILE"

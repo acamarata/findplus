@@ -158,3 +158,16 @@ def test_the_readme_credits_the_dependency_that_is_actually_pinned() -> None:
     assert 'apple = ["findmy>=0.10,<0.11"]' in pyproject
     assert "malmeloo/FindMy.py" in readme
     assert "biemster" not in readme
+
+
+def test_expected_is_a_subset_of_the_notices_dict():
+    """No absolute count here (R-P2-5 asserts the eleven at E13).
+
+    What this pins is that EXPECTED never names a key honesty.py does not have,
+    which is the drift a retyped list would otherwise hide.
+    """
+    from findplus import honesty
+
+    assert set(EXPECTED) <= set(honesty.NOTICES)
+    for key, sentence in EXPECTED.items():
+        assert honesty.NOTICES[key] == sentence, f"{key} drifted from honesty.py"

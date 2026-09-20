@@ -90,6 +90,20 @@ export function esc(value) {
     .replace(/'/g, "&#39;");
 }
 
+/**
+ * "5 min" / "3 h" / "2 d" — the one age ladder every surface uses.
+ *
+ * groups.js, Model.swift's formatAge and formatStaleGap all switch to days at
+ * 48 h; places.js had its own switching at 24 h, so a 30-hour gap read "30 h"
+ * in Groups and "1 d" in Places (E1 honesty round 3 F12).
+ */
+export function fmtAgeMinutes(minutes) {
+  if (minutes == null || Number.isNaN(minutes)) return "unknown";
+  if (minutes < 60) return `${Math.max(0, Math.floor(minutes))} min`;
+  const hours = Math.floor(minutes / 60);
+  return hours < 48 ? `${hours} h` : `${Math.floor(hours / 24)} d`;
+}
+
 export function fmtTime(iso) {
   if (!iso) return "—";
   return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });

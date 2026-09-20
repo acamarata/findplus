@@ -28,7 +28,10 @@ export async function loadNotices() {
     // same-text initialisation fallback for a failed/slow /api/config.
     "fp-alerts-latency-notice": n.alerts_latency,
     "fp-notice-presence-stale": n.presence_stale,
-    "fp-notice-lock": n.lock_not_encryption,
+    // lock_not_encryption is NOT here: the Settings dialog renders it once,
+    // beside the App lock setting (#lock-caveat, from /api/lock/requirements),
+    // and the lock screen has its own copy. Listing it here too put the same
+    // paragraph twice in one dialog (E1 honesty round 3 F13).
     "fp-notice-not-affiliated": n.not_affiliated,
   };
   for (const [id, text] of Object.entries(map)) {

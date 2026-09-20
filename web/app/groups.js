@@ -15,7 +15,7 @@
 "use strict";
 
 import { api } from "./api.js";
-import { esc } from "./state.js";
+import { esc, fmtAgeMinutes } from "./state.js";
 
 let map = null;
 let selectedGroupId = null;
@@ -123,11 +123,7 @@ function verdictLabel(presence) {
 }
 
 function ageLabel(member) {
-  const minutes = member ? member.age_minutes : null;
-  if (minutes == null) return "unknown";
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  return hours < 48 ? `${hours} h` : `${Math.floor(hours / 24)} d`;
+  return fmtAgeMinutes(member ? member.age_minutes : null);
 }
 
 /**

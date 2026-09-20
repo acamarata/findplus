@@ -34,11 +34,24 @@ async def test_dashboard_accessible_unlocked(page, base_url):
 
 
 async def test_lock_not_encryption_notice_present(page, base_url):
+    """The sentence appears once in the dialog, under App lock.
+
+    It used to render twice in the same scrollable modal -- here and again in
+    the Notices list -- so #fp-notice-lock was dropped and #lock-caveat, the
+    copy next to the setting it describes, is the one that stays
+    (E1 honesty round 3 F13).
+    """
     await page.goto(base_url + "/")
     await page.click("#btn-settings")
-    notice = page.locator("#fp-notice-lock")
+    notice = page.locator("#lock-caveat")
     await notice.wait_for(state="visible")
     assert "The app lock stops casual browsing." in await notice.inner_text()
+
+    copies = await page.evaluate(
+        """() => [...document.querySelectorAll('#settings-modal p')]
+            .filter((p) => p.textContent.includes('The app lock stops casual browsing.')).length"""
+    )
+    assert copies == 1, f"the caveat renders {copies} times in one dialog"
 
 
 async def test_places_repopulate_after_unlock_without_reload(page, base_url):
@@ -76,7 +89,7 @@ async def test_places_repopulate_after_unlock_without_reload(page, base_url):
         await page.wait_for_selector("#map svg path.leaflet-interactive")
 
         await page.click("#btn-settings")
-        notice = page.locator("#fp-notice-lock")
+        notice = page.locator("#lock-caveat")
         await notice.wait_for(state="visible")
         assert "The app lock stops casual browsing." in await notice.inner_text()
     finally:

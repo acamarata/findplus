@@ -30,6 +30,18 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - The dashboard footer names each tracking network only when a device of that kind is tracked, instead of naming Google Find Hub for every tracker, and clears both sentences while the app is locked.
 - The page sources behind the dashboard are no longer reachable under `/static`, in any capitalisation.
 - An alert delivery error is stored with credentials masked, so a webhook key in a failing request URL is not shown in the Delivery log.
+- A group whose members have mostly gone quiet is no longer labelled "Diverged" when only one is still reporting.
+- Every stale group member shows how long since its last fix, instead of "no fix for unknown".
+- The dashboard and the MCP server name the tracking network each device actually uses, instead of naming Google Find Hub for every tracker.
+- "Refresh from your providers" now asks every provider you are signed in to, and says which one it could not reach instead of showing a raw error.
+- Alerts carry the documented latency sentence, and a long group note is kept whole rather than cut mid-sentence.
+- The widget shows the device with the newest fix rather than the first by name, spells a long gap in days, and names group verdicts the way the dashboard does.
+- The lock screen states that locking does not encrypt the database, which until now was only visible in Settings, behind the lock.
+- The Delivery log shows times in your local timezone and says why an alert was skipped.
+- The group presence lists say which members are together and which are away.
+- The installer pins the released version, tells you when `~/.local/bin` is not on your PATH, names the package to install when `venv` is missing, and rebuilds a virtualenv whose Python has gone.
+- The macOS app bundle no longer carries the repository's editor configuration files.
+- The Homebrew formula points at the release the tag actually published.
 
 ## [1.0.0] - 2026-09-19
 

@@ -26,6 +26,28 @@ Find+ connects to the following external services during normal operation:
 Map tiles are loaded by your browser directly from OpenStreetMap tile servers. The Find+
 daemon does not proxy or log tile requests.
 
+## Delivery log
+
+The Alerts tab lists what Find+ actually sent, most recent first:
+
+| Column | What it holds |
+|---|---|
+| Rule | The rule that matched, by name. |
+| Channel | `telegram` or `webhook`, from the rule. |
+| Kind | `device` for a single tracker, `group` for a quorum crossing. |
+| Sent | When the attempt was made, in your local time. |
+| Status | `sent`, `failed`, or `skipped`. |
+| Error | Why it failed, or why it was skipped. |
+
+`skipped` means the rule matched but nothing was sent — most often because the
+rule names a channel with no credentials, such as a Telegram rule created
+before setup finished, or one left enabled after the Telegram connection was
+deleted. A skipped or failed delivery does not start the rule's cooldown, so
+the next crossing is still eligible.
+
+Errors are stored with credentials masked. A webhook that carries its key in
+the query string will show the URL with that value replaced.
+
 ## Alert latency
 
 Alerts inherit the network's delay. An arrival or departure may be reported minutes to hours late.

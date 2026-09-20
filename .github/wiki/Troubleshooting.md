@@ -48,5 +48,22 @@ happens upstream, in the network.
 Apple Find My locations come from nearby Apple devices and can be delayed,
 sparse or unavailable.
 
+
+## 6. "Database not migrated. Run findplus db upgrade."
+
+Every API call returns HTTP 503 with this message. The database file exists but
+its schema is older than the code — usually after installing a new version
+without starting the daemon, which normally migrates on start.
+
+Run the command it names:
+
+```bash
+findplus db upgrade
+```
+
+The daemon fails closed here on purpose. Answering "not locked" because the
+settings table was missing would have opened every gated route, so an
+unmigrated database is refused rather than guessed at.
+
 ---
 [[Home]]

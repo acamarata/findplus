@@ -98,6 +98,19 @@ extension WidgetEntry {
 /// "no fix for 1 h" and five days read "no fix for 120 h". Rounding a gap in
 /// someone's location history DOWN is the wrong direction for this app
 /// (E1 honesty round 2 F15).
+/// "all_together" -> "Together". The widget printed the raw engine enum while
+/// the dashboard said "Together"/"Unknown", making four vocabularies for one
+/// verdict (E1 honesty round 2 F10). An unknown value is shown as-is rather
+/// than guessed at.
+func verdictLabel(_ verdict: String) -> String {
+    switch verdict {
+    case "all_together": return "Together"
+    case "partial": return "Partial"
+    case "unknown": return "Unknown"
+    default: return verdict
+    }
+}
+
 func formatStaleGap(minutes: Int) -> String {
     if minutes < 60 {
         return "no fix for \(minutes) min"

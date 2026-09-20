@@ -69,6 +69,19 @@ final class ModelTests: XCTestCase {
     /// only, so 119 minutes read "no fix for 1 h" and five days read
     /// "no fix for 120 h". Rounding a gap in location history down is the
     /// wrong direction for this app.
+    /// E1 honesty round 2 F10: the widget printed the engine's raw enum while
+    /// the dashboard said "Together", README and FAQ advertised a fourth word
+    /// ("apart") the engine never produces.
+    func testVerdictLabelMatchesTheDashboardWording() {
+        XCTAssertEqual(verdictLabel("all_together"), "Together")
+        XCTAssertEqual(verdictLabel("partial"), "Partial")
+        XCTAssertEqual(verdictLabel("unknown"), "Unknown")
+    }
+
+    func testVerdictLabelPassesAnUnknownValueThrough() {
+        XCTAssertEqual(verdictLabel("something_new"), "something_new")
+    }
+
     func testFormatStaleGapUsesTheSameLadderAsFormatAge() {
         XCTAssertEqual(formatStaleGap(minutes: 5), "no fix for 5 min")
         XCTAssertEqual(formatStaleGap(minutes: 59), "no fix for 59 min")

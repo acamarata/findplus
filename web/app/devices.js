@@ -56,8 +56,21 @@ export function renderDeviceModal() {
     row.querySelector("input").addEventListener("change", updateModalRate);
     host.appendChild(row);
   });
-  updateModalRate();
-  loadPresence();
+  // The rows are the point of this dialog. Everything after them is a
+  // decoration -- the request-rate line and the presence chips -- and a
+  // failure in either used to propagate out of openDevices() before it
+  // removed `hidden`, so the rows sat in the DOM invisible (CI-2, CI run
+  // 35530635344: the row resolved but was hidden through 61 retries).
+  try {
+    updateModalRate();
+  } catch (err) {
+    console.error("updateModalRate failed", err);
+  }
+  try {
+    loadPresence();
+  } catch (err) {
+    console.error("loadPresence failed", err);
+  }
 }
 
 export function updateModalRate() {
@@ -105,7 +118,7 @@ export async function loadDevices() {
  */
 export function providerWording() {
   const providers = new Set(
-    state.devices.filter((d) => d.is_tracked !== false).map((d) => d.provider)
+    (state.devices || []).filter((d) => d.is_tracked !== false).map((d) => d.provider)
   );
   const apple = providers.has("apple-find-my");
   const other = [...providers].some((p) => p && p !== "apple-find-my");
@@ -151,11 +164,23 @@ function setNotice(el, pred, text) {
   el.hidden = !show;
 }
 
-/** Open the Devices dialog. */
+/**
+ * Open the Devices dialog.
+ *
+ * The dialog is revealed whatever happened while filling it: a failed device
+ * fetch, a missing chrome element or a presence request that never landed must
+ * not leave the user clicking a button that does nothing, and must not leave
+ * the rows rendered but invisible.
+ */
 export async function openDevices() {
-  await loadDevices();
-  renderDeviceModal();
-  $("device-modal").classList.remove("hidden");
+  try {
+    await loadDevices();
+    renderDeviceModal();
+  } catch (err) {
+    showAlert(`Could not load devices: ${err.message}`, "err");
+  } finally {
+    $("device-modal").classList.remove("hidden");
+  }
 }
 
 /** Wire the device filter, device-manager modal, and manual poll button. */

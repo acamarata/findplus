@@ -203,3 +203,54 @@ async def test_presence_chip_appears(page, base_url):
     chip = page.locator('[data-device-id="TAG-HOME"] .fp-presence-chip')
     await chip.wait_for(state="visible")
     assert "Home" in await chip.inner_text()
+
+
+async def test_the_devices_dialog_opens_even_when_a_decoration_fails(page, base_url):
+    """CI-2: the device rows rendered but the dialog stayed hidden.
+
+    CI run 35530635344 timed out on `[data-device-id="TAG-HOME"]`: the element
+    resolved but was HIDDEN through 61 retries. openDevices() removed `hidden`
+    only after renderDeviceModal() returned, so anything that threw while
+    filling the dialog left the rows in the DOM and invisible, with no error on
+    screen either. The failure is simulated here by deleting the element
+    updateModalRate() writes to, which is the same class of fault as whatever
+    CI hit; the fix makes the symptom impossible whichever decoration fails.
+    """
+    await _open_dashboard(page, base_url)
+
+    result = await page.evaluate(
+        """async () => {
+            const devices = await import('/static/app/devices.js');
+            const rate = document.getElementById('device-rate');
+            const parent = rate.parentNode;
+            const next = rate.nextSibling;
+            rate.remove();  // updateModalRate() now throws on a null element
+            try {
+                await devices.openDevices();
+            } finally {
+                parent.insertBefore(rate, next);
+            }
+            const modal = document.getElementById('device-modal');
+            const row = document.querySelector('[data-device-id="TAG-HOME"]');
+            return {
+                hidden: modal.classList.contains('hidden'),
+                rows: document.querySelectorAll('#device-list .device-row').length,
+                rowVisible: row ? row.offsetParent !== null : false,
+            };
+        }"""
+    )
+
+    assert result["hidden"] is False, "the dialog must open even when a decoration throws"
+    assert result["rows"] >= 1, "the rows themselves must still render"
+    assert result["rowVisible"] is True, "a row in a hidden dialog is a row nobody can see"
+
+    await page.click("#btn-close-devices")
+
+
+async def test_the_devices_dialog_opens_normally(page, base_url):
+    """The control: nothing failing, the dialog still opens with visible rows."""
+    await _open_dashboard(page, base_url)
+    await page.click("#btn-devices")
+    await page.wait_for_selector('[data-device-id="TAG-HOME"]', state="visible")
+
+    assert await page.locator("#device-modal").is_visible()

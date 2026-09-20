@@ -128,6 +128,7 @@ jobs:
       - run: |
           python packaging/scripts/gen-honesty-json.py
           git diff --exit-code web/locales/en.json web/app/catalog-en.js || (echo 'the generated catalog is stale' && exit 1)
+      - run: python packaging/scripts/gen-icons.py --check
       - run: bash packaging/scripts/lint-prose.sh README.md
 
   coverage:

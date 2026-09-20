@@ -74,7 +74,25 @@ export async function loadDevices() {
   state.devices = body.devices;
   state.devices.forEach((d) => colorFor(d.device_id));
   renderDeviceFilter();
+  syncProviderNotice();
   return body;
+}
+
+/**
+ * Show the Apple sentence in the footer only when an Apple tracker is present.
+ *
+ * The footer used to render the Find Hub sentence unconditionally, so someone
+ * tracking only AirTags read that their tags report "through Google Find Hub
+ * network" (E1 honesty pass F1). Both sentences come verbatim from
+ * /api/config.notices, so honesty.py stays the single source.
+ */
+export function syncProviderNotice() {
+  const el = $("apple-notice");
+  if (!el) return;
+  const apple = state.config?.notices?.apple;
+  const hasApple = state.devices.some((d) => d.provider === "apple-find-my");
+  el.textContent = hasApple && apple ? apple : "";
+  el.hidden = !(hasApple && apple);
 }
 
 /** Open the Devices dialog. */

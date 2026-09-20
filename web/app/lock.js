@@ -57,6 +57,13 @@ export async function showLock() {
 export async function purgeRenderedData() {
   state.timeline = null;
   state.devices = [];
+  // The Apple footer sentence is device-derived: leaving it up behind the lock
+  // screen would tell a passer-by that this person tracks Apple accessories.
+  const appleNotice = $("apple-notice");
+  if (appleNotice) {
+    appleNotice.textContent = "";
+    appleNotice.hidden = true;
+  }
   state.selectedId = null;
   state.markers.clear();
   if (state.layer) state.layer.clearLayers();

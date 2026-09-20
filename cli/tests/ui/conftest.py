@@ -59,6 +59,9 @@ with session_scope() as session:
     upsert_device(session, "TAG-HOME", "Home Tag")
     upsert_device(session, "TAG-AWAY", "Away Tag")
     upsert_device(session, "TAG-STALE", "Stale Tag")
+    # Untracked on purpose: it gives the footer an Apple tracker to notice
+    # (test_honesty_notices.py) without changing tracked_count for any other test.
+    upsert_device(session, "TAG-AIR", "AirTag", provider="apple-find-my")
     track_devices(session, ["TAG-HOME", "TAG-AWAY", "TAG-STALE"], exclusive=True)
 
 # The place must exist BEFORE the observations are ingested: ingest.py's

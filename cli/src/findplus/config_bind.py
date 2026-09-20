@@ -33,4 +33,22 @@ def is_public_bind(host: str) -> bool:
                  `config set HOST 0.0.0.0` refused while `serve --host 0.0.0.0`
                  silently bound every interface.
     """
-    return host not in LOOPBACK_HOSTS and not os.environ.get("FINDPLUS_ALLOW_PUBLIC_BIND")
+    return host not in LOOPBACK_HOSTS and not _opted_in()
+
+
+#: What counts as "yes" in FINDPLUS_ALLOW_PUBLIC_BIND.
+_TRUTHY = frozenset({"1", "true", "yes", "on"})
+
+
+def _opted_in() -> bool:
+    """Whether the opt-out of invariant I9 was actually asked for.
+
+    This used to be a bare truthiness test on the variable, so
+    FINDPLUS_ALLOW_PUBLIC_BIND=0 -- or "false", or "no", or "off" -- opted the
+    user IN. Someone writing 0 to turn the override off turned it on, and the
+    next FINDPLUS_HOST=0.0.0.0 put their location history on the LAN. Every
+    other boolean setting is a pydantic bool that parses those correctly; this
+    field inverted the convention on the strongest invariant in the app
+    (E1 security round 3 F2).
+    """
+    return os.environ.get("FINDPLUS_ALLOW_PUBLIC_BIND", "").strip().lower() in _TRUTHY

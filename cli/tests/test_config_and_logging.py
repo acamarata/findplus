@@ -244,3 +244,36 @@ def test_stdlib_records_are_redacted_too(tmp_path: Path, monkeypatch: pytest.Mon
 
     assert token not in written
     assert "<redacted>" in written
+
+
+def test_a_falsey_public_bind_value_does_not_opt_in(monkeypatch) -> None:
+    """E1 security round 3 F2: the guard was a bare truthiness test.
+
+    FINDPLUS_ALLOW_PUBLIC_BIND=0 -- or "false", "no", "off" -- opted the user
+    IN, so someone writing 0 to turn the override off turned it on, and the
+    next FINDPLUS_HOST=0.0.0.0 put their location history on the LAN. Every
+    other boolean setting is a pydantic bool that parses those correctly; this
+    field inverted the convention on invariant I9, the strongest one here.
+    """
+    from findplus.config_bind import is_public_bind
+
+    for value in ("0", "false", "False", "no", "off", "OFF", "", "   ", "banana"):
+        monkeypatch.setenv("FINDPLUS_ALLOW_PUBLIC_BIND", value)
+        assert is_public_bind("0.0.0.0") is True, f"{value!r} must not open the bind"
+
+
+def test_an_explicit_yes_still_opts_in(monkeypatch) -> None:
+    """The escape hatch must keep working, case and padding included."""
+    from findplus.config_bind import is_public_bind
+
+    for value in ("1", "true", "TRUE", "yes", "on", " On "):
+        monkeypatch.setenv("FINDPLUS_ALLOW_PUBLIC_BIND", value)
+        assert is_public_bind("0.0.0.0") is False, f"{value!r} must still allow it"
+
+
+def test_loopback_never_needs_the_opt_in(monkeypatch) -> None:
+    from findplus.config_bind import is_public_bind
+
+    monkeypatch.delenv("FINDPLUS_ALLOW_PUBLIC_BIND", raising=False)
+    for host in ("127.0.0.1", "localhost", "::1"):
+        assert is_public_bind(host) is False

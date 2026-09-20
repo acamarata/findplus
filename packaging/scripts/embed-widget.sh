@@ -160,12 +160,12 @@ fi
 
 # --- VERIFY -------------------------------------------------------------------
 codesign --verify --deep --strict --verbose=2 "$APP_PATH" 2>&1
-# spctl --type install only passes on a notarised, stapled bundle, so it is a
+# spctl --type exec only passes on a notarised, stapled bundle, so it is a
 # real check after notarisation and a guaranteed failure without it.
 if [ "$NOTARISE" = true ]; then
-  spctl -a -vv --type install "$APP_PATH" 2>&1
+  spctl -a -vv --type exec "$APP_PATH" 2>&1
 else
-  echo "Not notarised; skipping spctl --type install (it would reject by design)."
+  echo "Not notarised; skipping spctl --type exec (it would reject by design)."
 fi
 echo "dmg: dist/$DMG_NAME"
 echo "Run 'pluginkit -m -p com.apple.widgetkit-extension | grep findplus' after first launch."

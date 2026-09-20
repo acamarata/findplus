@@ -36,13 +36,14 @@ def configured_whatsapp(ui_env: dict):
 
     Mirrors test_alerts.py's configured_telegram: never through
     PUT /api/alerts/channels/whatsapp, and always restored, pass or fail.
+    Yields the path so a test can read back what the browser actually stored.
     """
     path = Path(ui_env["FINDPLUS_STATE_DIR"]) / "alerts.json"
     path.write_text(
         json.dumps({"channels": {"whatsapp": {"phone": FAKE_PHONE, "apikey": FAKE_APIKEY}}})
     )
     try:
-        yield
+        yield path
     finally:
         path.write_text(json.dumps({"channels": {}}))
 
@@ -96,10 +97,58 @@ async def test_whatsapp_apikey_masked_and_clears_on_focus(
 async def test_whatsapp_phone_is_only_ever_shown_masked(
     page, base_url, configured_whatsapp
 ) -> None:
-    """The backend returns phone_masked, never the raw number."""
+    """The masked number belongs in the connected line, never in the input.
+
+    CR-C-E10 F2: prefilling `+34…23` into an editable phone field offered the
+    user a value the PUT's E.164 check rejects, so Save answered a 422 to
+    someone who had changed nothing about their number.
+    """
     await _open_alerts_tab(page, base_url)
-    await page.wait_for_function("() => document.getElementById('fp-wa-phone').value.length > 0")
-    assert await page.locator("#fp-wa-phone").input_value() != FAKE_PHONE
+    await page.wait_for_function(
+        "() => document.getElementById('fp-wa-connected').textContent.length > 0"
+    )
+
+    connected = await page.locator("#fp-wa-connected").inner_text()
+    assert "…" in connected
+    assert FAKE_PHONE not in connected
+    assert await page.locator("#fp-wa-phone").input_value() == ""
+
+
+async def test_saving_a_changed_phone_never_overwrites_the_stored_key(
+    page, base_url, configured_whatsapp
+) -> None:
+    """CR-C-E10 F1: the bullets are a placeholder, not the API key.
+
+    Editing only the number and pressing Save used to PUT the literal
+    `••••••••` as the apikey — a working channel destroyed silently, with the
+    card still reporting itself connected.
+    """
+    await _open_alerts_tab(page, base_url)
+    await page.wait_for_function("() => document.getElementById('fp-wa-apikey').value.length > 0")
+
+    await page.fill("#fp-wa-phone", "+34999888777")
+    await page.click("#fp-wa-save")
+
+    await page.wait_for_function("() => document.getElementById('fp-wa-apikey').value === ''")
+    stored = json.loads(configured_whatsapp.read_text())["channels"]["whatsapp"]
+    assert stored["apikey"] == FAKE_APIKEY
+    assert stored["phone"] == FAKE_PHONE
+
+
+async def test_saving_both_fields_stores_them(page, base_url, configured_whatsapp) -> None:
+    """The guard above never blocks a real change: both fields filled, it saves."""
+    await _open_alerts_tab(page, base_url)
+    await page.wait_for_function("() => document.getElementById('fp-wa-apikey').value.length > 0")
+
+    await page.fill("#fp-wa-phone", "+34999888777")
+    await page.fill("#fp-wa-apikey", "second-apikey-456")
+    await page.click("#fp-wa-save")
+
+    await page.wait_for_function(
+        "() => document.getElementById('fp-wa-connected').textContent.includes('77')"
+    )
+    stored = json.loads(configured_whatsapp.read_text())["channels"]["whatsapp"]
+    assert stored == {"phone": "+34999888777", "apikey": "second-apikey-456"}
 
 
 async def test_rule_dialog_channel_checkboxes_present(page, base_url) -> None:

@@ -110,37 +110,32 @@ function renderWebhookSection(webhook) {
 /**
  * WhatsApp (CallMeBot) section.
  *
- * The phone field shows `phone_masked` and is edited in the clear: the backend
- * never returns the raw number, so there is nothing left to protect by
- * clearing it on focus. The apikey has no masked form in the API contract
- * (notifications.md §1 returns only `{configured, phone_masked}`), so it gets a
- * fixed placeholder rather than the token's reveal-last-4 shape.
+ * Neither input is prefilled with a masked value: `phone_masked` (`+34…23`)
+ * is not a number the PUT would accept, and the apikey has no masked form in
+ * the API contract at all (notifications.md §1 returns `{configured,
+ * phone_masked}`). The masked number shows in the connected line instead.
  */
 function renderWhatsappSection(whatsapp) {
-  const phone = $("fp-wa-phone");
   const apikey = $("fp-wa-apikey");
-  if (whatsapp && whatsapp.configured) {
-    phone.value = whatsapp.phone_masked || "";
-    apikey.value = "••••••••";
-    apikey.classList.add("fp-token-masked");
-  } else {
-    phone.value = "";
-    apikey.value = "";
-    apikey.classList.remove("fp-token-masked");
-  }
-  setVisibleText(
-    $("fp-wa-connected"),
-    whatsapp &&
-      whatsapp.configured &&
-      whatsapp.phone_masked &&
-      t("alerts.whatsapp.connected", { phone: whatsapp.phone_masked }),
-  );
+  const configured = !!(whatsapp && whatsapp.configured);
+  // Bullets stand for "a key is stored", never for the key itself.
+  $("fp-wa-phone").value = "";
+  apikey.value = configured ? "••••••••" : "";
+  apikey.classList.toggle("fp-token-masked", configured);
+  const masked = configured && whatsapp.phone_masked;
+  setVisibleText($("fp-wa-connected"), masked && t("alerts.whatsapp.connected", { phone: masked }));
   $("fp-wa-status").textContent = "";
 }
 async function saveWhatsapp() {
-  const phone = $("fp-wa-phone").value.trim();
-  const apikey = $("fp-wa-apikey").value.trim();
-  if (!phone || !apikey) return;
+  const phoneEl = $("fp-wa-phone");
+  const apikeyEl = $("fp-wa-apikey");
+  // The bullets are a placeholder, not the key: saving them would replace a
+  // working credential with punctuation while the card still said connected.
+  clearMaskedToken(apikeyEl);
+  const phone = phoneEl.value.trim();
+  const apikey = apikeyEl.value.trim();
+  // Focus what is missing: a silent return read as a dead Save button.
+  if (!phone || !apikey) return (phone ? apikeyEl : phoneEl).focus();
   try {
     await api("/api/alerts/channels/whatsapp", {
       method: "PUT",
@@ -149,7 +144,7 @@ async function saveWhatsapp() {
     });
     await loadChannels();
   } catch (err) {
-    $("fp-wa-status").textContent = err.message;
+    if (err.message !== "Locked") $("fp-wa-status").textContent = err.message;
   }
 }
 async function sendWhatsappTest() {
@@ -169,8 +164,13 @@ async function sendWhatsappTest() {
   }
 }
 async function clearWhatsappChannel() {
-  await api("/api/alerts/channels/whatsapp", { method: "DELETE" });
-  await loadChannels();
+  try {
+    await api("/api/alerts/channels/whatsapp", { method: "DELETE" });
+    await loadChannels();
+  } catch (err) {
+    // Never an unhandled rejection; api() handles a 401 by itself.
+    if (err.message !== "Locked") $("fp-wa-status").textContent = err.message;
+  }
 }
 /** Status code -> catalog key. Built at call time so t() reads the loaded catalog. */
 const SETUP_ERROR_KEYS = {

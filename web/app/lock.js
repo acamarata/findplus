@@ -133,6 +133,9 @@ async function purgeTabModules() {
     // The device edit dialog holds a device id and a label in its own <dialog>,
     // which $("device-list").innerHTML above does not reach.
     import("./devices_dialog.js").then((m) => m.purgeDialog()),
+    // The Settings dialog's sign-in panel holds the signed-in account, a typed
+    // Apple ID and an unsent password, and a closed <dialog> keeps them.
+    import("./auth.js").then((m) => m.purge()),
   ]);
   results.forEach((r) => {
     if (r.status === "rejected") console.error("post-lock purge failed", r.reason);

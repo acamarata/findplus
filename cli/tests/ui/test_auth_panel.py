@@ -148,3 +148,29 @@ async def test_apple_2fa_field_shown_via_show_apple_2fa(page, base_url) -> None:
 async def test_apple_password_field_type_is_password(page, base_url) -> None:
     await _open_settings(page, base_url)
     assert await page.locator("#fp-auth-apple-password").get_attribute("type") == "password"
+
+
+async def test_the_lock_purge_empties_the_sign_in_panel(page, base_url) -> None:
+    """CR-C-E10 F3: a closed <dialog> keeps its content behind the lock screen.
+
+    The signed-in account, a typed Apple ID and an unsent password all stayed
+    readable after a lock, because lock.js's purgeTabModules() had no auth.js
+    entry. Driven through purgeRenderedData(), so the registration itself is
+    what this asserts, not auth.purge() called directly.
+    """
+    await _open_settings(page, base_url)
+    await page.fill("#fp-auth-apple-id", "someone@example.com")
+    await page.fill("#fp-auth-apple-password", "not-a-real-password")
+    await page.evaluate(
+        """async () => {
+            document.getElementById('fp-auth-google-status').textContent =
+                'Signed in as someone@example.com';
+            const lock = await import('/static/app/lock.js');
+            await lock.purgeRenderedData();
+        }"""
+    )
+
+    for field in ("fp-auth-apple-id", "fp-auth-apple-password", "fp-auth-apple-code"):
+        assert await page.locator(f"#{field}").input_value() == "", field
+    assert await page.locator("#fp-auth-google-status").inner_text() == ""
+    assert await page.locator("#fp-auth-apple-status").inner_text() == ""

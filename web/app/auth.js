@@ -115,6 +115,11 @@ export function renderGoogleProgress(progress) {
  * catalog value (both are honesty.CHROME_REQUIRED, ruling R-P2-6).
  */
 async function startGoogleSignIn() {
+  const button = $("fp-auth-google-signin");
+  // Disabled on the click, not on the first poll two seconds later: a second
+  // click inside that window started a second job and answered it with a 409.
+  // renderGoogleProgress re-enables it as soon as the job settles.
+  button.disabled = true;
   try {
     const { job_id } = await api("/api/auth/google/start", { method: "POST" });
     pollGoogleProgress(job_id);
@@ -122,6 +127,7 @@ async function startGoogleSignIn() {
     if (err.message === t("auth.google.chrome_missing")) {
       showChromeMissing(err.message);
     } else if (err.message !== "Locked") {
+      button.disabled = false;
       showAlert(err.message, "err");
     }
   }
@@ -210,6 +216,27 @@ export function mountAuthPanel(root, { refresh = true } = {}) {
   // Locked or unreachable: the lock screen is already up and there is nothing
   // to render, exactly as alerts.js treats its own first load.
   if (refresh) loadAuthStatus().catch(() => {});
+}
+
+/**
+ * lock.js purgeRenderedData() hook: no account survives the lock screen.
+ *
+ * The Settings dialog keeps its content when it closes, so "Signed in as
+ * alice@icloud.com", a typed Apple ID and an unsent password were all still
+ * readable behind the lock screen — the same hole alerts.js closes for the
+ * rule name and the webhook secret (PROMPT.md §2: purge destroys, never hides).
+ */
+export function purge() {
+  for (const id of ["fp-auth-google-status", "fp-auth-apple-status", "fp-auth-google-progress"]) {
+    const el = $(id);
+    if (el) el.textContent = "";
+  }
+  for (const id of ["fp-auth-apple-id", "fp-auth-apple-password", "fp-auth-apple-code"]) {
+    const el = $(id);
+    if (el) el.value = "";
+  }
+  appleJobId = null;
+  showApple2fa(false);
 }
 
 /**

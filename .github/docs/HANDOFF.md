@@ -136,6 +136,11 @@ state: the repo has no Apple signing secrets and no PyPI trusted-publishing envi
 release itself was built, signed and uploaded from this machine, so those jobs are recorded here
 rather than acted on.
 
+Update 2026-09-20: `release.yml`'s `build-dmg` job was repaired after the tag run (commits
+`d20430d`, `6a163a0`: install `tauri-cli`, unset the empty signing identity, allow a
+`workflow_dispatch` dry run that never creates a release). Dispatch run 35477689893 built the
+unsigned dmg on a clean runner. `publish-pypi` still needs the PyPI trusted publisher (owner item 2).
+
 Owner items after this release:
 
 1. Run `findplus auth` against your real Google account. Nothing in the build could do it.

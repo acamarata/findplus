@@ -15,6 +15,7 @@ from sqlalchemy import func, select
 
 from findplus.db.models import Device, DeviceGroup, LocationObservation
 from findplus.db.session import session_scope
+from findplus.redaction import redact_text
 from findplus.state import (
     get_default_device,
     get_tracked_devices,
@@ -23,6 +24,48 @@ from findplus.state import (
     track_devices,
     untrack_devices,
 )
+
+
+def _query_every_provider() -> tuple[list[tuple[str, Any]], list[str], dict[str, str]]:
+    """Ask every installed, signed-in provider for its device list.
+
+    Returns (rows, queried, errors). A provider that is not installed or not
+    signed in is skipped rather than reported: the common case is exactly one
+    configured. One provider's outage never hides another's results.
+    """
+    from findplus.providers.base import available_providers, get_provider
+
+    rows: list[tuple[str, Any]] = []
+    queried: list[str] = []
+    errors: dict[str, str] = {}
+    for name in available_providers():
+        try:
+            provider = get_provider(name)
+            if not provider.is_available()[0] or not provider.is_authenticated():
+                continue
+            queried.append(name)
+            rows.extend((name, d) for d in provider.list_devices())
+        except Exception as exc:  # one provider's outage is not the others'
+            errors[name] = redact_text(str(exc)[:200]) or "failed"
+    return rows, queried, errors
+
+
+def _refresh_from_providers() -> tuple[list[tuple[str, Any]], list[str], dict[str, str]]:
+    """_query_every_provider, with the two failures the user needs words for."""
+    rows, queried, errors = _query_every_provider()
+    if not queried:
+        raise HTTPException(
+            status_code=409, detail="No provider is signed in. Run `findplus auth` first."
+        )
+    if errors and not rows:
+        # Every provider that was asked failed: name them in words the user can
+        # act on, instead of surfacing a raw exception message verbatim.
+        names = ", ".join(sorted(errors))
+        raise HTTPException(
+            status_code=502,
+            detail=f"Could not reach {names}. Check your connection and sign-in, then retry.",
+        )
+    return rows, queried, errors
 
 
 def build_router(*, settings) -> APIRouter:
@@ -96,18 +139,23 @@ def build_router(*, settings) -> APIRouter:
 
     @router.post("/devices/refresh")
     def refresh_devices() -> dict[str, Any]:
-        """Re-query Find Hub for the account's device list."""
-        from findplus.ingest import upsert_device
-        from findplus.providers.google_findhub.client import FindHubClient
+        """Re-query every authenticated provider for its device list.
 
-        try:
-            found = FindHubClient(settings).list_devices()
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        The button says "Refresh from your providers", plural, but this
+        constructed FindHubClient directly: an accessory added with
+        `findplus apple add-accessory` never appeared from the dashboard, and
+        nothing on screen said Apple was CLI-only (E1 honesty round 2 F4).
+        A provider that is not installed or not signed in is skipped, not an
+        error -- the common case is exactly one provider configured.
+        """
+        from findplus.ingest import upsert_device
+
+        found, queried, errors = _refresh_from_providers()
+
         with session_scope() as session:
-            for d in found:
-                upsert_device(session, d.device_id, d.name)
-        return {"found": len(found)}
+            for provider_name, d in found:
+                upsert_device(session, d.device_id, d.name, provider=provider_name)
+        return {"found": len(found), "providers": queried, "errors": errors}
 
     @router.post("/devices/track")
     def set_tracked(

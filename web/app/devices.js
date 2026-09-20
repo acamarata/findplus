@@ -208,7 +208,14 @@ export function wireDeviceControls() {
       const r = await postJson("/api/devices/refresh");
       await loadDevices();
       renderDeviceModal();
-      showAlert(`Found ${r.found} device(s) on the account.`, "warn");
+      // Name the providers that answered. "on the account" was singular and
+      // Google-shaped while the button said "your providers" (round 2 F4);
+      // a partial failure must say which one was skipped, not stay silent.
+      const asked = (r.providers || []).length;
+      const failed = Object.keys(r.errors || {});
+      let msg = `Found ${r.found} device(s) across ${asked} provider(s).`;
+      if (failed.length) msg += ` ${failed.join(", ")} could not be reached.`;
+      showAlert(msg, "warn");
     } catch (err) {
       showAlert(`Could not refresh devices: ${err.message}`, "err");
     } finally {

@@ -8,9 +8,10 @@
  */
 "use strict";
 
-import { $, state, fmtTime, fmtDateTime, fmtDuration, fmtDistance, todayLocal, colorFor, showAlert, esc } from "./state.js";
+import { $, state, fmtTime, fmtDateTime, fmtDuration, fmtDistance, todayLocal, showAlert, esc } from "./state.js";
 import { api, postJson } from "./api.js";
-import { renderMap, visiblePoints } from "./map.js";
+import { renderMap, visiblePoints, deviceForTrack } from "./map.js";
+import { renderBadge } from "./components/badge.js";
 import { reload } from "./main.js";
 import { providerWording } from "./devices.js";
 import { t, plural } from "./i18n.js";
@@ -65,6 +66,39 @@ function timelineHtml(track) {
   return html + `</ol>`;
 }
 
+/**
+ * The sticky header above one track: badge, name, observation count.
+ *
+ * The name prefers the device's label, so a track reads the way the user named
+ * the tracker rather than the way the provider did.
+ */
+function trackHead(track) {
+  const device = deviceForTrack(track);
+  const head = document.createElement("div");
+  head.className = "track-head";
+  const swatch = document.createElement("span");
+  swatch.className = "track-swatch";
+  swatch.appendChild(
+    renderBadge({
+      icon: device.icon,
+      color: device.color,
+      label: device.label,
+      name: device.name,
+      size: 20,
+    })
+  );
+  const name = document.createElement("span");
+  name.className = "track-name";
+  name.textContent = device.label || track.device_name || track.device_id;
+  const count = document.createElement("span");
+  count.className = "track-count";
+  count.textContent = plural("timeline.observations", track.points.length, {
+    n: track.points.length,
+  });
+  head.append(swatch, name, count);
+  return head;
+}
+
 export function renderTracks() {
   const host = $("tracks");
   host.innerHTML = "";
@@ -79,14 +113,10 @@ export function renderTracks() {
   state.timeline.tracks.forEach((track) => {
     const block = document.createElement("section");
     block.className = "track-block";
-    block.innerHTML =
-      `<div class="track-head">` +
-      `<span class="track-swatch" style="background:${esc(colorFor(track.device_id))}"></span>` +
-      `<span class="track-name">${esc(track.device_name || track.device_id)}</span>` +
-      `<span class="track-count">${esc(plural("timeline.observations", track.points.length, { n: track.points.length }))}</span>` +
-      `</div>` +
-      statsHtml(track.stats) +
-      timelineHtml(track);
+    block.appendChild(trackHead(track));
+    // statsHtml()/timelineHtml() still return markup strings and carry no label
+    // or icon data, so they are appended to the already-built head, not around it.
+    block.insertAdjacentHTML("beforeend", statsHtml(track.stats) + timelineHtml(track));
     host.appendChild(block);
   });
 

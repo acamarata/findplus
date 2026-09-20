@@ -74,6 +74,8 @@ struct MediumView: View {
     private func deviceRow(_ device: WidgetDevice) -> some View {
         let staleAfter = entry.staleAfterMinutes
         return HStack {
+            Image(systemName: sfSymbol(for: device.icon, label: nil, name: device.name))
+                .foregroundStyle(Color(hex: device.color))
             Text(device.name).font(.caption)
             Text(device.placeText(staleAfter: staleAfter))
                 .font(.caption2)

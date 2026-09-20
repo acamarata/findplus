@@ -130,6 +130,9 @@ async function purgeTabModules() {
     import("./places.js").then((m) => m.purge()),
     import("./groups.js").then((m) => m.purge()),
     import("./alerts.js").then((m) => m.purge()),
+    // The device edit dialog holds a device id and a label in its own <dialog>,
+    // which $("device-list").innerHTML above does not reach.
+    import("./devices_dialog.js").then((m) => m.purgeDialog()),
   ]);
   results.forEach((r) => {
     if (r.status === "rejected") console.error("post-lock purge failed", r.reason);

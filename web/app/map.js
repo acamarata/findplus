@@ -12,6 +12,7 @@
 
 import { state, colorFor, fmtTime, fmtDateTime, fmtDuration, fmtDistance, esc } from "./state.js";
 import { selectPoint } from "./timeline.js";
+import { renderBadge } from "./components/badge.js";
 
 export function initMap() {
   state.map = L.map("map", { zoomControl: true }).setView([39.5, -98.35], 4);
@@ -22,14 +23,36 @@ export function initMap() {
   state.layer = L.layerGroup().addTo(state.map);
 }
 
-function numberedIcon(point, index, total, color) {
+/**
+ * The numbered marker for one point, in its device's colour and icon.
+ *
+ * The number is the point's order within its track, not its identity, so it
+ * stays; the flat background behind it becomes the device's badge. `device` is
+ * resolved by the caller, which keeps this function free of any state lookup.
+ *
+ * This is the one place in the app that reads a badge as markup:
+ * `L.divIcon({ html })` takes a string, not a node (specs/labels-and-icons.md
+ * § Rendering). Every other caller appends the live SVGElement.
+ */
+function numberedIcon(point, index, total, device) {
   const classes = ["marker-num"];
   if (!point.is_movement) classes.push("jitter");
-  const bg = point.is_movement ? color : "#6b7688";
   const ring = index === 0 ? "#37c67a" : index === total - 1 ? "#ef5f5f" : "#fff";
+  const glyph = point.is_movement
+    ? renderBadge({
+        icon: device.icon,
+        color: device.color,
+        label: device.label,
+        name: device.name,
+        size: 26,
+      }).outerHTML
+    : "";
   return L.divIcon({
     className: "",
-    html: `<div class="${classes.join(" ")}" style="background:${bg};border-color:${ring}">${point.sequence}</div>`,
+    html:
+      `<div class="${classes.join(" ")}" style="border-color:${ring}">` +
+      `<span class="marker-num-glyph">${glyph}</span>` +
+      `<span class="marker-num-seq">${point.sequence}</span></div>`,
     iconSize: [26, 26],
     iconAnchor: [13, 13],
   });
@@ -57,6 +80,25 @@ function popupHtml(point, deviceName) {
   return rows.join("");
 }
 
+/**
+ * The device a track belongs to, or a stand-in that still renders.
+ *
+ * A track can outlive its device row (a tracker removed after its observations
+ * were ingested), and timeline.js needs the same answer this file does, so the
+ * fallback lives here once rather than as two copies that can drift.
+ * `state.devices` holds tens of rows, so a linear scan is the right shape.
+ */
+export function deviceForTrack(track) {
+  return (
+    state.devices.find((d) => d.device_id === track.device_id) || {
+      icon: "none",
+      color: colorFor(track.device_id),
+      label: null,
+      name: track.device_name,
+    }
+  );
+}
+
 export function visiblePoints(track) {
   return state.movementOnly ? track.points.filter((p) => p.is_movement) : track.points;
 }
@@ -72,6 +114,7 @@ export function renderMap() {
     const points = visiblePoints(track);
     if (!points.length) return;
     const color = colorFor(track.device_id);
+    const device = deviceForTrack(track);
     const latlngs = points.map((p) => [p.latitude, p.longitude]);
     allLatLngs.push(...latlngs);
 
@@ -83,7 +126,7 @@ export function renderMap() {
 
     points.forEach((point, index) => {
       const marker = L.marker([point.latitude, point.longitude], {
-        icon: numberedIcon(point, index, points.length, color),
+        icon: numberedIcon(point, index, points.length, device),
         title: `${track.device_name} · ${fmtTime(point.observed_at_local)}`,
       }).addTo(state.layer);
       marker.bindPopup(popupHtml(point, track.device_name));

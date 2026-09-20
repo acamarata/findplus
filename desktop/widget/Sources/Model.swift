@@ -14,6 +14,8 @@
 //              threshold is never hardcoded here: the API serves
 //              `stale_after_minutes` (90 per D18) and the views use that.
 
+import CryptoKit
+import Foundation
 import WidgetKit
 
 /// The honesty.md `alerts_latency` sentence, verbatim. The daemon serves it as
@@ -46,7 +48,47 @@ struct WidgetDevice: Codable {
     let color: String
 }
 
+/// `labels.py:DEVICE_PALETTE`, in order. Only read when a 1.0.x daemon sends a
+/// device row with no `color`; `cli/tests/test_labels.py` pins the two copies
+/// together so this one cannot drift.
+let devicePalette = [
+    "#4f8cf7", "#e7663f", "#37c67a", "#c77ae6", "#e7b53f", "#3fc9d6",
+    "#e64f7a", "#8fb43f", "#f2994a", "#9b6bd6", "#4fd6a8", "#d65f5f",
+]
+
+/// `labels.py:palette_color_for` — sha1 of the id, as one big integer, mod 12.
+func paletteColour(for deviceID: String) -> String {
+    let digest = Insecure.SHA1.hash(data: Data(deviceID.utf8))
+    var remainder = 0
+    for byte in digest {
+        remainder = (remainder * 256 + Int(byte)) % devicePalette.count
+    }
+    return devicePalette[remainder]
+}
+
 extension WidgetDevice {
+    /// Decode `icon`/`color` as optional, defaulting the way a 1.0.x row would.
+    ///
+    /// Ruling R-P2-23: those two columns arrived with the 1.1 daemon, and a 1.1
+    /// widget talking to a 1.0.x daemon must still render. Without this the
+    /// missing keys failed the WHOLE payload, not just the badge. The init sits
+    /// in an extension so the memberwise initialiser survives for the tests.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        device_id = try c.decode(String.self, forKey: .device_id)
+        name = try c.decode(String.self, forKey: .name)
+        provider = try c.decode(String.self, forKey: .provider)
+        last_observed_at = try c.decode(String.self, forKey: .last_observed_at)
+        age_minutes = try c.decode(Int.self, forKey: .age_minutes)
+        latitude = try c.decode(Double.self, forKey: .latitude)
+        longitude = try c.decode(Double.self, forKey: .longitude)
+        place = try c.decodeIfPresent(String.self, forKey: .place)
+        group = try c.decodeIfPresent(String.self, forKey: .group)
+        icon = try c.decodeIfPresent(String.self, forKey: .icon) ?? "letter"
+        color = try c.decodeIfPresent(String.self, forKey: .color)
+            ?? paletteColour(for: device_id)
+    }
+
     /// Stale against the threshold the daemon served, not one chosen here.
     func isStale(after minutes: Int) -> Bool { age_minutes > minutes }
 
@@ -77,6 +119,21 @@ struct WidgetGroup: Codable {
     /// (E1 honesty round 3 F4).
     var displayVerdict: String {
         verdict_label ?? verdictLabel(verdict)
+    }
+}
+
+extension WidgetGroup {
+    /// `icon` optional, defaulting to the 0007 group default (ruling R-P2-23):
+    /// a 1.0.x daemon does not send it, and one missing key must not throw the
+    /// whole payload away.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        icon = try c.decodeIfPresent(String.self, forKey: .icon) ?? "lucide:users"
+        verdict = try c.decode(String.self, forKey: .verdict)
+        verdict_label = try c.decodeIfPresent(String.self, forKey: .verdict_label)
+        note = try c.decode(String.self, forKey: .note)
     }
 }
 

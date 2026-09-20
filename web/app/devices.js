@@ -7,11 +7,13 @@
  */
 "use strict";
 
-import { $, state, colorFor, showAlert, esc } from "./state.js";
+import { $, state, colorFor, showAlert } from "./state.js";
 import { api, postJson } from "./api.js";
 import { reload, applyHashRoute } from "./main.js";
 import { loadPresence } from "./places.js";
 import { t } from "./i18n.js";
+import { renderBadge } from "./components/badge.js";
+import { initDialog, openEditDialog } from "./devices_dialog.js";
 import { trapFocus } from "./components/dialog-trap.js";
 import { providerWording, syncProviderChrome, syncProviderNotice } from "./provider_chrome.js";
 
@@ -51,31 +53,68 @@ export function renderDeviceFilter() {
   if (select.value !== current) { state.deviceFilter = ""; select.value = ""; }
 }
 
+/** `<span class="cls">text</span>` and friends, the shape every cell below takes. */
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+/** The colour disc. A device seeded without the 0007 columns still renders. */
+function badgeCell(d) {
+  const cell = el("span", "fp-device-badge");
+  const color = d.color || colorFor(d.device_id);
+  cell.appendChild(renderBadge({ icon: d.icon || "letter", color, label: d.label, name: d.name, size: 24 }));
+  return cell;
+}
+
+/** The label (or the name), with the raw device name below it once a label is set. */
+function nameCell(d) {
+  const cell = el("span");
+  const secondary = d.label ? d.name : d.device_id;
+  cell.append(el("span", "d-name", d.label || d.name), el("br"), el("span", "d-id", secondary));
+  return cell;
+}
+
+/** The Edit button. The row is a <label>, so the click must not also tick it. */
+function editButton(d) {
+  const edit = el("button", "fp-device-edit btn btn-tiny", t("common.edit"));
+  edit.type = "button";
+  edit.setAttribute("aria-label", t("devices.card.edit", { name: d.name }));
+  edit.addEventListener("click", (e) => {
+    e.preventDefault();
+    openEditDialog(d.device_id, d);
+  });
+  return edit;
+}
+
+/** One row of the Devices dialog. */
+function deviceRow(d) {
+  const row = el("label", "device-row");
+  row.dataset.deviceId = d.device_id;
+  const check = el("input");
+  check.type = "checkbox";
+  check.value = d.device_id;
+  check.checked = d.is_tracked;
+  check.addEventListener("change", updateModalRate);
+  const obs = el("span", "d-obs", t("devices.obsCount", { n: Number(d.observation_count) || 0 }));
+  const providerClass = "fp-provider-badge fp-provider-badge--" + (d.provider || "unknown");
+  const provider = el("span", providerClass, providerLabel(d.provider));
+  row.append(check, badgeCell(d), nameCell(d), obs, provider, editButton(d));
+  return row;
+}
+
 export function renderDeviceModal() {
   const host = $("device-list");
-  host.innerHTML = "";
+  while (host.firstChild) host.removeChild(host.firstChild);
   if (!state.devices.length) {
     const empty = document.createElement("div");
     empty.className = "empty";
     empty.textContent = t("devices.emptyState");
     host.appendChild(empty);
   }
-  state.devices.forEach((d) => {
-    const row = document.createElement("label");
-    row.className = "device-row";
-    row.innerHTML =
-      `<input type="checkbox" value="${esc(d.device_id)}" ${d.is_tracked ? "checked" : ""}>` +
-      `<span><span class="d-name">${esc(d.name)}</span><br>` +
-      `<span class="d-id">${esc(d.device_id)}</span></span>` +
-      `<span class="d-obs">${esc(t("devices.obsCount", { n: Number(d.observation_count) || 0 }))}</span>`;
-    row.dataset.deviceId = d.device_id;
-    const badge = document.createElement("span");
-    badge.className = "fp-provider-badge fp-provider-badge--" + (d.provider || "unknown");
-    badge.textContent = providerLabel(d.provider);
-    row.appendChild(badge);
-    row.querySelector("input").addEventListener("change", updateModalRate);
-    host.appendChild(row);
-  });
+  state.devices.forEach((d) => host.appendChild(deviceRow(d)));
   // The rows are the point of this dialog. Everything after them is a
   // decoration -- the request-rate line and the presence chips -- and a
   // failure in either used to propagate out of openDevices() before it
@@ -225,6 +264,11 @@ async function saveTrackedDevices() {
 
 /** Wire the device filter, device-manager modal, and manual poll button. */
 export function wireDeviceControls() {
+  initDialog(async () => {
+    await loadDevices();
+    renderDeviceModal();
+  });
+
   $("device-filter").addEventListener("change", async (e) => {
     state.deviceFilter = e.target.value;
     localStorage.setItem("findplus.deviceFilter", state.deviceFilter);

@@ -8,6 +8,7 @@ Purpose : Pin the exact 422 messages the API returns, the four-form icon
 from __future__ import annotations
 
 import importlib.util
+import re
 from pathlib import Path
 
 import pytest
@@ -106,3 +107,18 @@ def test_palette_never_drifts_from_migration_0007() -> None:
     for n in range(20):
         device_id = f"sample-device-{n}"
         assert labels.palette_color_for(device_id) == module._palette_color(device_id)
+
+
+def test_palette_never_drifts_from_the_widget_copy() -> None:
+    """The Swift widget carries a third copy, for the R-P2-23 legacy default.
+
+    `Model.swift:devicePalette` only ever renders a device row that a 1.0.x
+    daemon sent without a `color`, so nothing fails loudly when it drifts —
+    the badge just turns the wrong colour. This reads the literal back.
+    """
+    source = (
+        Path(__file__).parents[2] / "desktop" / "widget" / "Sources" / "Model.swift"
+    ).read_text(encoding="utf-8")
+    literal = re.search(r"let devicePalette = \[(.*?)\]", source, re.DOTALL)
+    assert literal, "Model.swift no longer declares devicePalette"
+    assert re.findall(r"#[0-9a-f]{6}", literal.group(1)) == labels.DEVICE_PALETTE

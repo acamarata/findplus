@@ -34,6 +34,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _SEED_SCRIPT = """
 from datetime import UTC, datetime, timedelta
 from findplus.db.migrate import upgrade_to_head
+from findplus.db.models import Device
 from findplus.db.session import session_scope
 from findplus.findhub.types import RawObservation
 from findplus.groups.repo import create_group
@@ -62,6 +63,14 @@ with session_scope() as session:
     # Untracked on purpose: it gives the footer an Apple tracker to notice
     # (test_honesty_notices.py) without changing tracked_count for any other test.
     upsert_device(session, "TAG-AIR", "AirTag", provider="apple-find-my")
+    # One device carries a real label, icon and colour rather than the 0007
+    # defaults, so the badge, dialog, map and timeline tests have something
+    # specific to assert (P2-E4-W3-S1-T6). The raw name stays "Home Tag";
+    # every existing selector that matches on it still matches.
+    home = session.get(Device, "TAG-HOME")
+    home.label = "Ali's Keys"
+    home.icon = "lucide:key"
+    home.color = "#4f8cf7"
     track_devices(session, ["TAG-HOME", "TAG-AWAY", "TAG-STALE"], exclusive=True)
 
 # The place must exist BEFORE the observations are ingested: ingest.py's

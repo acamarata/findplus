@@ -26,9 +26,11 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - A phone-width layout: under 600px the dashboard gets a bottom tab bar, the toolbar collapses behind a More button, dialogs open full screen, and every button and tick box is at least 44px to tap.
 - WCAG 2.1 AA groundwork: page landmarks, a label on every form control, a visible focus ring, a focus trap and Escape-to-close on the Devices and Settings dialogs, an announced alert banner, and colour changes where text or a control border fell short of the contrast minimum.
 - An accessibility scan in the browser test suite: axe-core over every tab, in both themes, at desktop and phone width.
+- Native macOS notifications for alerts. The daemon queues them and the menu bar app shows them, so an alert arrives even with no dashboard window open. While Find+ is locked, or unless you turn notification details on, the banner says only "Find+ alert" — a notification preview can appear on a locked screen.
 - WhatsApp alerts, relayed through CallMeBot. The setup text says plainly that your alert text passes through a third party before it reaches WhatsApp. Manage it from the dashboard with `PUT`/`DELETE /api/alerts/channels/whatsapp`, or from the terminal with `findplus alerts whatsapp set`/`clear`. The phone number is shown masked and the API key is never returned.
 - Alert rules can target more than one channel at once. Each channel gets its own delivery row and its own cooldown, so a notification on one never suppresses another.
 - Device and group labels, icons and colours: `PATCH /api/devices/{id}`, `GET /api/icons`, `findplus devices label`/`findplus devices icons`, exports and the macOS widget all carry the new fields. A label is local only and survives every provider name refresh.
+- Edit a device's label, icon and colour from the dashboard: every row in the Devices dialog has an Edit button, and the choice shows up on the device list, on every map marker, on the timeline track heads and in the macOS widget.
 - A group create and edit dialog on the Groups tab: name, icon, colour, quorum, cluster radius, stale-after minutes and which tracked devices belong to the group.
 - Group cards on the Groups tab, each with the group badge, its member avatars, its live presence verdict, and edit and delete buttons.
 

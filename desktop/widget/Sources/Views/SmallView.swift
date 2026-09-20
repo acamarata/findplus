@@ -36,12 +36,19 @@ struct SmallView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 if let device = entry.response?.devices.first {
-                    Text(formatAge(minutes: device.age_minutes))
-                        .font(.caption)
-                        .foregroundStyle(
-                            device.isStale(after: entry.staleAfterMinutes)
-                                ? Color.dotGrey : .primary
-                        )
+                    // The age line is the only thing small says about a
+                    // specific device, so the icon rides with it rather than
+                    // costing a name row the frame has no space for.
+                    HStack(spacing: 4) {
+                        Image(systemName: sfSymbol(for: device.icon, label: nil, name: device.name))
+                            .foregroundStyle(Color(hex: device.color))
+                        Text(formatAge(minutes: device.age_minutes))
+                            .font(.caption)
+                            .foregroundStyle(
+                                device.isStale(after: entry.staleAfterMinutes)
+                                    ? Color.dotGrey : .primary
+                            )
+                    }
                 }
                 // No buttons in systemSmall (CF-13): the frame already carries the
                 // dot line, count, age and the footer notice. Poll now / Open stay

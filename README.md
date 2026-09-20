@@ -40,8 +40,15 @@ Regenerate them with `python packaging/scripts/screenshots.py`.
 curl -fsSL https://raw.githubusercontent.com/acamarata/findplus/main/install.sh | bash
 ```
 
-See the [Install](https://github.com/acamarata/findplus/wiki/Install) wiki
-page for a pinned-version URL.
+Add `-s -- --start` to install and set the service up in the same command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/acamarata/findplus/main/install.sh | bash -s -- --start
+```
+
+A fresh install ends by asking you to sign in, which is the expected finish, not
+an error. See the [Install](https://github.com/acamarata/findplus/wiki/Install)
+wiki page for a pinned-version URL.
 
 **pipx:**
 

@@ -34,7 +34,9 @@ def test_a_broken_venv_is_rebuilt_rather_than_pip_installed_into() -> None:
 
 
 def test_the_installer_checks_its_symlink_is_reachable() -> None:
-    tail = INSTALL_SH[INSTALL_SH.index("Installed. Run: findplus auth") :]
+    # P2-E7-W2-S1-T2 changed the final line to point at the wizard and put the
+    # --start branch above it; the PATH check still has to come after both.
+    tail = INSTALL_SH[INSTALL_SH.index("Installed. Run: findplus setup") :]
     assert "command -v findplus" in tail, (
         "the happy path must not end by naming a command the shell cannot find"
     )

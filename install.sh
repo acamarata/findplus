@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # install.sh - Find+ curl-pipe installer. Env: FINDPLUS_YES/VERSION/WHEEL/PREFIX/BIN/STATE_DIR. Flags: --yes --uninstall --version X.
-# Idempotent, never sudo; --uninstall keeps the state dir. See .github/wiki/Install.md, .github/wiki/Uninstall.md, packaging-and-release.md.
+# Idempotent, never sudo; --uninstall keeps the state dir; --start runs setup and start after installing.
+# See .github/wiki/Install.md, .github/wiki/Uninstall.md, packaging-and-release.md.
 set -euo pipefail
 
 YES="${FINDPLUS_YES:-0}"
 UNINSTALL=0
+STARTNOW=0
 VERSION_PIN="${FINDPLUS_VERSION:-1.0.0}"
 
 parse_args() {
@@ -12,6 +14,7 @@ parse_args() {
     case "$1" in
       --yes) YES=1; shift ;;
       --uninstall) UNINSTALL=1; shift ;;
+      --start) STARTNOW=1; shift ;;
       --version) VERSION_PIN="${2:?install.sh: --version needs a value, e.g. --version 1.0.0}"; shift 2 ;;
       *) echo "install.sh: unknown argument: $1" >&2; exit 2 ;;
     esac
@@ -105,7 +108,21 @@ install() {
     "$VENV/bin/pip" install --quiet "$package"
   fi
   ln -sf "$VENV/bin/findplus" "$SYMLINK"
-  echo "Installed. Run: findplus auth"
+  if [ "$STARTNOW" = "1" ]; then
+    # setup --yes never signs anyone in, so a fresh --start always reaches
+    # `start --yes` unauthenticated, which exits 4. That is the expected end of
+    # a first install, not a failure: capture it, name the next command, exit 0.
+    "$SYMLINK" setup --yes || true
+    START_RC=0
+    "$SYMLINK" start --yes || START_RC=$?
+    if [ "$START_RC" = "4" ]; then
+      echo "Installed. Sign in with: findplus auth"
+    elif [ "$START_RC" != "0" ]; then
+      exit "$START_RC"
+    fi
+  else
+    echo "Installed. Run: findplus setup   (or findplus auth && findplus start)"
+  fi
   # $BIN is off the default macOS PATH; Debian's ~/.profile adds it only if it existed at login.
   if ! command -v findplus >/dev/null 2>&1; then
     echo "$BIN is not on your PATH -- until it is, run $SYMLINK directly. To add it:"

@@ -6,8 +6,11 @@ Purpose    : Terminal guided first-run setup for brew/curl-pipe installs that
 Inputs     : --yes (non-interactive: accept every default, skip every optional
              step).
 Outputs    : Console prompts (interactive) or one summary line per step
-             (--yes); writes onboarding.completed_at via
-             findplus.state.set_setting directly (no HTTP call).
+             (--yes). Only the interactive Done step writes
+             onboarding.completed_at, via findplus.state.set_setting directly
+             (no HTTP call); `--yes` writes onboarding.last_step = "headless"
+             instead and leaves completed_at unset, so install.sh --start
+             still leaves the web first-run wizard armed (R-P2-24).
 Constraints: No browser, no GUI dependency. Every step reuses an existing CLI
              code path (auth, groups, alerts, security), never reimplements
              sign-in, group creation, channel connection or PIN hashing.
@@ -48,7 +51,13 @@ def setup(yes: bool) -> None:
     from datetime import UTC, datetime
 
     with session_scope() as session:
-        set_setting(session, "onboarding.completed_at", datetime.now(UTC).isoformat())
+        if yes:
+            # R-P2-24: headless --yes never stamps completed_at, so the web
+            # wizard still shows on the first dashboard visit after a
+            # curl-pipe/brew install.
+            set_setting(session, "onboarding.last_step", "headless")
+        else:
+            set_setting(session, "onboarding.completed_at", datetime.now(UTC).isoformat())
     click.secho("Setup complete. Run `findplus start` to begin polling.", fg="green")
 
 

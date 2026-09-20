@@ -57,9 +57,12 @@ def test_yes_fresh_state_completes_and_changes_nothing_else(tmp_db) -> None:
     assert result.exit_code == 0, result.output
     assert "Find+ is not affiliated with Apple or Google" in result.output
     assert "Setup complete. Run `findplus start` to begin polling." in result.output
-    assert _completed_at() is not None
+    # R-P2-24: --yes never stamps completed_at, only last_step = "headless",
+    # so install.sh --start leaves the web first-run wizard armed.
+    assert _completed_at() is None
 
     with session_scope() as session:
+        assert get_setting(session, "onboarding.last_step") == "headless"
         assert get_tracked_devices(session) == []
         assert session.query(Group).count() == 0
         assert load_settings(session).pin_configured is False
@@ -75,15 +78,15 @@ def test_yes_never_prompts(tmp_db) -> None:
     assert "Add places from the dashboard." in result.output
 
 
-def test_yes_is_idempotent_and_restamps(tmp_db) -> None:
+def test_yes_never_stamps_completed_at(tmp_db) -> None:
+    """R-P2-24: repeated --yes runs stay headless; completed_at never gets set."""
     first = CliRunner().invoke(main, ["setup", "--yes"])
-    stamped_first = _completed_at()
-
     second = CliRunner().invoke(main, ["setup", "--yes"])
 
     assert (first.exit_code, second.exit_code) == (0, 0), second.output
-    assert stamped_first is not None
-    assert _completed_at() > stamped_first
+    assert _completed_at() is None
+    with session_scope() as session:
+        assert get_setting(session, "onboarding.last_step") == "headless"
 
 
 # ------------------------------------------------------------ interactive
@@ -174,3 +177,18 @@ def test_an_accepted_pin_turns_the_lock_on(tmp_db, two_devices, stub_auth: list[
         settings = load_settings(session)
         assert settings.pin_configured is True
         assert settings.lock_enabled is True
+
+
+def test_interactive_done_stamps_and_restamps_completed_at(
+    tmp_db, two_devices, stub_auth: list[str]
+) -> None:
+    """Only the interactive wizard's Done step writes completed_at (R-P2-24);
+    a second run re-stamps it, unlike --yes which never touches it."""
+    first = CliRunner().invoke(main, ["setup"], input="n\nn\nall\nn\nn\nn\n")
+    stamped_first = _completed_at()
+
+    second = CliRunner().invoke(main, ["setup"], input="n\nn\nall\nn\nn\nn\n")
+
+    assert (first.exit_code, second.exit_code) == (0, 0), second.output
+    assert stamped_first is not None
+    assert _completed_at() > stamped_first

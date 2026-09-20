@@ -214,3 +214,33 @@ def test_state_dir_mode_0700(tmp_path) -> None:
     s = get_settings(state_dir=tmp_path / "sd")
     s.ensure_state_dir()
     assert stat.S_IMODE((tmp_path / "sd").stat().st_mode) == 0o700
+
+
+def test_stdlib_records_are_redacted_too(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """structlog's processor chain never sees a third-party library's records (E1 round 2).
+
+    The Telegram bot token lives in the request URL, so an httpx or urllib3 message
+    logged at WARNING reached the rotating file with the token in the clear: the
+    handlers were shared but the scrub was not. Verified before the fix by writing
+    exactly this record and reading the token straight back out of the log file.
+    """
+    import logging
+
+    from findplus.config import get_settings, reset_settings_cache
+    from findplus.logging_setup import configure_logging
+
+    monkeypatch.setenv("FINDPLUS_STATE_DIR", str(tmp_path))
+    reset_settings_cache()
+    settings = get_settings()
+    configure_logging(settings, to_file=True, console=False)
+
+    token = "123456789:" + ("A" * 35)  # the real Telegram shape
+    logging.getLogger("httpx").warning(
+        "HTTP Request: POST https://api.telegram.org/bot%s/sendMessage", token
+    )
+    logging.shutdown()
+
+    written = Path(settings.log_file).read_text()
+
+    assert token not in written
+    assert "<redacted>" in written

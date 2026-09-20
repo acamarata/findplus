@@ -88,6 +88,24 @@ def _redact(_logger: Any, _name: str, event_dict: dict[str, Any]) -> dict[str, A
     return event_dict
 
 
+class _RedactingFilter(logging.Filter):
+    """Apply the same scrub to stdlib records that `_redact` applies to structlog ones.
+
+    structlog's processor chain only sees structlog calls. A third-party library
+    logging through the stdlib root handler — httpx, urllib3, selenium — reached
+    the log file with its message untouched, so a secret-bearing string (the
+    Telegram bot token lives in the request URL) would have been written in the
+    clear. The handlers are shared, so the guard belongs on the handler.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.msg, str):
+            record.msg = _TOKEN_PATTERN.sub("<redacted>", record.msg)
+        if record.args:
+            record.args = _scrub(record.args)
+        return True
+
+
 def configure_logging(settings: Settings, *, to_file: bool = False, console: bool = True) -> None:
     """Install logging handlers. Idempotent."""
     settings.ensure_dirs()
@@ -98,9 +116,11 @@ def configure_logging(settings: Settings, *, to_file: bool = False, console: boo
     root.setLevel(level)
 
     fmt = logging.Formatter("%(message)s")
+    redactor = _RedactingFilter()
     if console:
         stream = logging.StreamHandler(sys.stderr)
         stream.setFormatter(fmt)
+        stream.addFilter(redactor)
         root.addHandler(stream)
     if to_file:
         rotating = logging.handlers.RotatingFileHandler(
@@ -110,6 +130,7 @@ def configure_logging(settings: Settings, *, to_file: bool = False, console: boo
             encoding="utf-8",
         )
         rotating.setFormatter(fmt)
+        rotating.addFilter(redactor)
         root.addHandler(rotating)
 
     # Third-party chatter we never want at INFO.

@@ -37,8 +37,10 @@ def test_start_not_authenticated_prints_next_steps(tmp_db, monkeypatch: pytest.M
     monkeypatch.setattr("findplus.service.install", lambda *a, **k: calls.append(True))
 
     result = CliRunner().invoke(main, ["start"])
-    assert result.exit_code == 0, result.output
+    assert result.exit_code == 4, result.output
+    assert "Find+ is not signed in yet" in result.output
     assert "findplus auth" in result.output
+    assert "findplus setup" in result.output
     assert "findplus start" in result.output
     assert calls == []
 
@@ -50,7 +52,7 @@ class _FakeDevice:
         self.name = name
 
 
-def test_start_nothing_tracked_refreshes_and_opens_devices(
+def test_start_nothing_tracked_discovers_prints_and_tracks_all(
     tmp_db, monkeypatch: pytest.MonkeyPatch, _no_browser: list[str]
 ) -> None:
     monkeypatch.setattr(
@@ -60,15 +62,15 @@ def test_start_nothing_tracked_refreshes_and_opens_devices(
         "findplus.providers.google_findhub.client.FindHubClient.list_devices",
         lambda self: [_FakeDevice("TAG-1", "Keys")],
     )
+    monkeypatch.setattr("findplus.service.is_installed", lambda: False)
     install_calls: list[bool] = []
     monkeypatch.setattr("findplus.service.install", lambda *a, **k: install_calls.append(True))
+    monkeypatch.setattr("findplus.service.install_watchdog", lambda *a, **k: None)
 
-    result = CliRunner().invoke(main, ["start"])
+    result = CliRunner().invoke(main, ["start", "--yes"])
     assert result.exit_code == 0, result.output
-    settings = get_settings()
-    assert f"{settings.base_url}/#devices" in _no_browser
-    assert "No devices are tracked yet" in result.output
-    assert install_calls == []
+    assert "Now tracking all 1 device(s)." in result.output
+    assert len(install_calls) == 1
 
     from findplus.db.models import Device
     from findplus.db.session import session_scope

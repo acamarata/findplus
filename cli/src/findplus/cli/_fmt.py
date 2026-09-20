@@ -45,3 +45,34 @@ def _row(label: str, value: str) -> None:
 def _check(label: str, ok: bool, detail: str) -> None:
     mark = click.style("ok  ", fg="green") if ok else click.style("FAIL", fg="red")
     click.echo(f"  [{mark}] {label:<32} {detail}")
+
+
+def _print_device_table(session) -> None:
+    """The device table `findplus devices` prints, shared with `findplus start`.
+
+    One renderer so the two commands never drift (service-and-settings.md § 1 B.2).
+    """
+    from sqlalchemy import func
+    from sqlalchemy import select as sa_select
+
+    from findplus.db.models import Device, LocationObservation
+
+    rows = list(session.scalars(sa_select(Device).order_by(Device.name)))
+    click.echo("")
+    click.secho(f"{'':4} {'NAME':<30} {'OBS':>7}  DEVICE ID", bold=True)
+    for d in rows:
+        count = session.scalar(
+            sa_select(func.count(LocationObservation.id)).where(
+                LocationObservation.device_id == d.device_id
+            )
+        )
+        mark = click.style(" [x]", fg="green") if d.is_tracked else " [ ]"
+        click.echo(f"{mark} {d.name:<30} {count or 0:>7}  {d.device_id}")
+    click.echo("")
+
+
+def _print_nothing_tracked_hint() -> None:
+    """The three-line "nothing tracked" hint, shared by `devices` and `start`."""
+    click.echo("Nothing is being tracked yet. Choose what to poll:")
+    click.echo("  findplus devices --track-all")
+    click.echo("  findplus devices --track <ID> --track <ID>")

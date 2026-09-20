@@ -282,7 +282,7 @@ Delete a group and its membership rows.
 | --yes |  | Confirm removal. |
 
 ## findplus install-service
-Start the background service (D15): auth check, then tracked-devices
+Start the background service: auth check, then discover-and-track, then
 
 **Usage:** `findplus install-service [OPTIONS]`
 
@@ -291,6 +291,7 @@ Start the background service (D15): auth check, then tracked-devices
 | --yes |  | Write and load the service files without asking. |
 | --no-open |  | Do not open the dashboard in a browser. |
 | --program, -P |  | Path to the daemon executable. The desktop app passes /Applications/Find+.app/Contents/MacOS/findplus-daemon here. |
+| --no-track-all |  | Discover devices but do not track them. |
 
 ## findplus install-watchdog
 Show, then optionally install, the watchdog job.
@@ -441,7 +442,7 @@ Start the local API/UI and (unless disabled) the polling service.
 | --port |  |  |
 
 ## findplus start
-Start the background service (D15): auth check, then tracked-devices
+Start the background service: auth check, then discover-and-track, then
 
 **Usage:** `findplus start [OPTIONS]`
 
@@ -450,6 +451,7 @@ Start the background service (D15): auth check, then tracked-devices
 | --yes |  | Write and load the service files without asking. |
 | --no-open |  | Do not open the dashboard in a browser. |
 | --program, -P |  | Path to the daemon executable. The desktop app passes /Applications/Find+.app/Contents/MacOS/findplus-daemon here. |
+| --no-track-all |  | Discover devices but do not track them. |
 
 ## findplus status
 Show service, watchdog and daemon status.

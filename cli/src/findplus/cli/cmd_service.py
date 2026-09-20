@@ -27,7 +27,12 @@ import httpx
 
 from findplus.config import get_settings
 
-from ._fmt import _prep, _show_service_plan
+from ._fmt import (
+    _prep,
+    _print_device_table,
+    _print_nothing_tracked_hint,
+    _show_service_plan,
+)
 
 # Re-exported so `cmd_service.auth` / `cmd_service.serve` (main.py, tests) keep
 # resolving after the splits.
@@ -36,6 +41,50 @@ from .cmd_auth import auth as auth
 from .cmd_serve import _check_exclusive as _check_exclusive
 from .cmd_serve import _make_signal_handler as _make_signal_handler
 from .cmd_serve import serve as serve
+
+
+def _discover_and_track(google: bool, apple: bool, no_track_all: bool) -> None:
+    """Branch B of `findplus start`: discover from every signed-in provider, show
+    the table, and track everything unless --no-track-all.
+
+    Split out of start() only to hold the 50-line function cap; the order of the
+    steps is exactly service-and-settings.md § 1 B.1-B.4.
+    """
+    from findplus.db.session import session_scope
+    from findplus.ingest import upsert_device
+    from findplus.state import get_tracked_devices, track_all
+
+    if google:
+        from findplus.providers.google_findhub.client import FindHubClient
+
+        try:
+            found = FindHubClient().list_devices()
+        except Exception as exc:
+            click.secho(f"Could not list devices: {exc}", fg="red")
+            sys.exit(1)
+        with session_scope() as sess:
+            for d in found:
+                upsert_device(sess, d.device_id, d.name)
+    if apple:
+        from findplus.providers.apple_findmy.provider import AppleFindMyProvider
+
+        apple_found = AppleFindMyProvider().list_devices()
+        with session_scope() as sess:
+            for d in apple_found:
+                upsert_device(sess, d.device_id, d.name, provider="apple-find-my")
+
+    with session_scope() as sess:
+        _print_device_table(sess)
+    if not no_track_all:
+        with session_scope() as sess:
+            now_tracked = track_all(sess)
+            count = len(now_tracked)
+        click.secho(f"Now tracking all {count} device(s).", fg="green")
+    else:
+        with session_scope() as sess:
+            still_untracked = not get_tracked_devices(sess)
+        if still_untracked:
+            _print_nothing_tracked_hint()
 
 
 @click.command()
@@ -50,43 +99,34 @@ from .cmd_serve import serve as serve
     help="Path to the daemon executable. The desktop app passes "
     "/Applications/Find+.app/Contents/MacOS/findplus-daemon here.",
 )
-def start(yes: bool, no_open: bool, program_override: str | None) -> None:
-    """Start the background service (D15): auth check, then tracked-devices
-    check, then install/start — installing it first if needed."""
+@click.option("--no-track-all", is_flag=True, help="Discover devices but do not track them.")
+def start(yes: bool, no_open: bool, program_override: str | None, no_track_all: bool) -> None:
+    """Start the background service: auth check, then discover-and-track, then
+    install/start — the whole fresh-account path in one run.
+
+    Pinned in specs/service-and-settings.md § 1 (supersedes PROMPT.md D15).
+    """
     _prep()
     from findplus import service
     from findplus.db.session import session_scope
-    from findplus.ingest import upsert_device
     from findplus.providers.google_findhub.bootstrap import describe_stored_auth
     from findplus.state import get_tracked_devices
 
+    from .cmd_devices import _POLL_NOW_UNAUTHENTICATED
+
     settings = get_settings()
     auth_info = describe_stored_auth()
-    if not auth_info["exists"]:
-        click.echo("Find+ is not authenticated yet. Run these two commands:")
-        click.echo("  findplus auth")
+    apple_signed_in = (settings.state_dir / "apple-account.json").exists()
+    if not auth_info["exists"] and not apple_signed_in:
+        click.echo("Find+ is not signed in yet. Run:")
+        click.echo("  findplus auth       (or findplus setup for a guided walkthrough)")
         click.echo("  findplus start")
-        sys.exit(0)
+        sys.exit(_POLL_NOW_UNAUTHENTICATED)
 
     with session_scope() as sess:
         tracked = get_tracked_devices(sess)
     if not tracked:
-        from findplus.providers.google_findhub.client import FindHubClient
-
-        try:
-            found = FindHubClient().list_devices()
-        except Exception as exc:
-            click.secho(f"Could not list devices: {exc}", fg="red")
-            sys.exit(1)
-        with session_scope() as sess:
-            for d in found:
-                upsert_device(sess, d.device_id, d.name)
-        webbrowser.open(f"{settings.base_url}/#devices")
-        click.echo(
-            f"No devices are tracked yet. Pick the ones to track at {settings.base_url}/#devices"
-        )
-        click.echo("Then run `findplus start` again to install the background service.")
-        sys.exit(0)
+        _discover_and_track(auth_info["exists"], apple_signed_in, no_track_all)
 
     program = None
     if program_override:

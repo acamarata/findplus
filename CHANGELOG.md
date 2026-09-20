@@ -9,8 +9,11 @@ Versioning: [Semantic Versioning](https://semver.org/).
 ### Added
 - The Alerts tab has a Delivery log showing each alert's rule, channel, kind, time, status and error.
 - An Uninstall page in the wiki with the manual service-removal commands for macOS, Linux and Windows.
+- A bundled Lucide icon sprite (48 icons, ISC licensed) the dashboard loads once at startup.
 
 ### Changed
+- `findplus start` finishes a fresh sign-in in one run: it discovers devices from every provider you are signed in to, shows them, tracks them all and installs the service. Pass `--no-track-all` to discover without tracking.
+- `findplus start` exits 4 when you are not signed in yet, instead of 0, and counts an Apple sign-in as being signed in.
 - `install.sh` is shorter and points at a new Uninstall wiki page for the manual service-removal commands it prints.
 
 ### Fixed

@@ -404,7 +404,9 @@ webhook is the interim path (D9).
 
 ### E7 — Service management (W3; files disjoint from E3)
 
-**E7-T1 (M) `start|stop|restart|status|uninstall` (D8, D15).** Plan-text snapshot tests (launchd plist, systemd
+**E7-T1 (M) `start|stop|restart|status|uninstall` (D8, D15).** P2's E7-T1 supersedes D15's two-invocation
+start flow: one run now discovers, tracks and installs, and an unauthenticated `start` exits 4 (see
+`.claude/phases/current/p2/specs/service-and-settings.md` § 1). Plan-text snapshot tests (launchd plist, systemd
 unit + timer, schtasks XML); fake manager backend records calls; a test asserts every written path starts
 with `$HOME`.
 **E7-T2 (M) Windows watchdog (D13).** `schtasks /Create /SC MINUTE /MO 5 /TN FindPlusWatchdog …`; task XML

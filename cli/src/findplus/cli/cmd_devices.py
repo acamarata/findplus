@@ -15,7 +15,7 @@ import click
 from findplus.config import get_settings
 from findplus.db.session import session_scope
 
-from ._fmt import _prep
+from ._fmt import _prep, _print_device_table, _print_nothing_tracked_hint
 
 
 def _devices_as_json(session, rows) -> str:
@@ -76,10 +76,9 @@ def devices(
     provider requests per poll cycle, so the effective request rate is shown.
     """
     _prep()
-    from sqlalchemy import func
     from sqlalchemy import select as sa_select
 
-    from findplus.db.models import Device, LocationObservation
+    from findplus.db.models import Device
     from findplus.ingest import upsert_device
     from findplus.providers.google_findhub.client import FindHubClient
     from findplus.state import (
@@ -153,17 +152,7 @@ def devices(
             click.echo("No devices found on this account.")
             return
 
-        click.echo("")
-        click.secho(f"{'':4} {'NAME':<30} {'OBS':>7}  DEVICE ID", bold=True)
-        for d in rows:
-            count = session.scalar(
-                sa_select(func.count(LocationObservation.id)).where(
-                    LocationObservation.device_id == d.device_id
-                )
-            )
-            mark = click.style(" [x]", fg="green") if d.is_tracked else " [ ]"
-            click.echo(f"{mark} {d.name:<30} {count or 0:>7}  {d.device_id}")
-        click.echo("")
+        _print_device_table(session)
 
         interval = settings.effective_poll_interval_minutes
         if tracked:
@@ -174,9 +163,7 @@ def devices(
                 f"({len(tracked)} device(s) every {interval:g} min), polled sequentially."
             )
         else:
-            click.echo("Nothing is being tracked yet. Choose what to poll:")
-            click.echo("  findplus devices --track-all")
-            click.echo("  findplus devices --track <ID> --track <ID>")
+            _print_nothing_tracked_hint()
 
 
 #: poll-now exit codes, pinned in specs/cli-reference.md § poll-now.

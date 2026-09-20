@@ -66,6 +66,25 @@ async def test_icon_picker_renders_grouped_sections(page, base_url) -> None:
     assert await page.locator("#picker-host .fp-icon-swatch").count() == 50
 
 
+async def test_icon_picker_css_lands(page, base_url) -> None:
+    """CR-C-E3 F3: the grid, swatch and none-dot all get real computed styles."""
+    await _open_with_host(page, base_url)
+    await _mount_icon_picker(page)
+    grid = page.locator("#picker-host .fp-icon-grid").first
+    assert await grid.evaluate("(el) => getComputedStyle(el).display") == "flex"
+    swatch = page.locator("#picker-host button[data-icon-id='lucide:dog']")
+    box = await swatch.bounding_box()
+    assert box["width"] > 0 and box["height"] > 0
+    none_dot = page.locator("#picker-host .fp-icon-none-dot")
+    dot_box = await none_dot.bounding_box()
+    assert dot_box["width"] > 0 and dot_box["height"] > 0
+    await page.locator("#picker-host button[data-icon-id='lucide:dog']").click()
+    pressed_border = await swatch.evaluate("(el) => getComputedStyle(el).borderColor")
+    unpressed = page.locator("#picker-host button[data-icon-id='lucide:cat']")
+    unpressed_border = await unpressed.evaluate("(el) => getComputedStyle(el).borderColor")
+    assert pressed_border != unpressed_border
+
+
 async def test_icon_sprite_404_does_not_inject_parser_error(page, base_url) -> None:
     """CR-C-E3 F2: a missing sprite must never leak XML parser error text."""
     await page.route(

@@ -91,7 +91,8 @@ def test_all_stale_unknown() -> None:
     members = [_member(f"d{i}", n, minutes_ago=240) for i, n in enumerate(["A", "B", "C"])]
     r = group_presence(1, members, NOW, 90, 150, 25.0, 60)
     assert r.verdict == "unknown"
-    assert r.note.startswith("No member of")
+    assert "No member of" not in r.note, "the note names the members, not a row id"
+    assert r.note.startswith("A, B and C have not reported")
     assert "home" not in r.note
 
 
@@ -110,7 +111,9 @@ def test_single_member_never_all_together() -> None:
 def test_zero_reporting_note() -> None:
     members = [_member("d1", "A", minutes_ago=240)]
     r = group_presence(3, members, NOW, 90, 150, 25.0, 60)
-    assert r.note.startswith("No member of group 3")
+    # honesty round 3 F7: the note named a database id and dropped the caveat.
+    assert "group 3" not in r.note
+    assert r.note.startswith("A has not reported")
 
 
 def test_one_reporting_with_stale_note() -> None:
@@ -257,7 +260,7 @@ def test_stale_suffix_is_semicolon_joined_when_together() -> None:
     ]
     r = group_presence(1, members, NOW, 90, 150, 25.0, 60)
     assert r.verdict == "all_together"
-    assert r.note == "2 tags together near Home; Backpack have no recent fix."
+    assert r.note == "2 tags together near Home; Backpack has no recent fix."
 
 
 def test_stale_suffix_is_semicolon_joined_when_partial() -> None:
@@ -268,5 +271,5 @@ def test_stale_suffix_is_semicolon_joined_when_partial() -> None:
     ]
     r = group_presence(1, members, NOW, 90, 150, 25.0, 60)
     assert r.verdict == "partial"
-    assert "apart); Backpack have no recent fix." in r.note
+    assert "apart); Backpack has no recent fix." in r.note
     assert "left behind" not in r.note

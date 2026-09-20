@@ -64,3 +64,30 @@ def test_a_member_that_never_reported_has_no_age() -> None:
     assert status.status == "stale"
     assert status.age_minutes is None
     assert status.last_observed_at is None
+
+
+def test_a_single_stale_member_gets_a_singular_verb() -> None:
+    """honesty round 3 F6: one member read "Backpack have no recent fix"."""
+    from findplus.groups.presence import _build_stale_clause, _stale_suffix
+
+    one = _build_stale_clause(["Backpack"])
+    assert "Backpack has no recent fix" in one
+    assert "it was left behind" in one
+    assert _stale_suffix(["Backpack"]) == "; Backpack has no recent fix."
+
+
+def test_several_stale_members_keep_the_plural() -> None:
+    from findplus.groups.presence import _build_stale_clause, _stale_suffix
+
+    many = _build_stale_clause(["Backpack", "Bike"])
+    assert "Backpack and Bike have no recent fix" in many
+    assert "they were left behind" in many
+    assert _stale_suffix(["Backpack", "Bike"]).endswith("have no recent fix.")
+
+
+def test_the_caveat_survives_in_both_forms() -> None:
+    """The clause exists to say a missing fix is not evidence; never drop it."""
+    from findplus.groups.presence import _build_stale_clause
+
+    for names in (["A"], ["A", "B"], ["A", "B", "C"]):
+        assert "does not mean" in _build_stale_clause(names)

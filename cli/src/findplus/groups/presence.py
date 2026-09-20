@@ -107,7 +107,11 @@ def _build_stale_clause(stale_names: list[str]) -> str:
     if not stale_names:
         return ""
     joined = _names_joined(stale_names)
-    return f" {joined} have no recent fix, which does not mean they were left behind."
+    # The same agreement this module already does for divergence: one member
+    # read "Backpack have no recent fix" (E1 honesty round 3 F6).
+    verb = "has" if len(stale_names) == 1 else "have"
+    they = "it was" if len(stale_names) == 1 else "they were"
+    return f" {joined} {verb} no recent fix, which does not mean {they} left behind."
 
 
 def _stale_suffix(stale_names: list[str]) -> str:
@@ -116,7 +120,10 @@ def _stale_suffix(stale_names: list[str]) -> str:
     Reusing `_build_stale_clause` here runs two statements together
     ("... near Home Backpack have no recent fix ...").
     """
-    return f"; {_names_joined(stale_names)} have no recent fix." if stale_names else ""
+    if not stale_names:
+        return ""
+    verb = "has" if len(stale_names) == 1 else "have"
+    return f"; {_names_joined(stale_names)} {verb} no recent fix."
 
 
 def member_status(
@@ -233,9 +240,15 @@ def group_presence(
     stale_clause = _build_stale_clause(stale_names)
 
     if len(reporting) == 0:
+        # Name the members, like every other note. The one a worried user
+        # reaches printed a database id ("No member of group 3 has reported"),
+        # and dropped _build_stale_clause -- the sentence whose whole job is to
+        # say a missing fix is not evidence (E1 honesty round 3 F7).
+        who = _names_joined([s.name for s in statuses]) or "This group"
         note = (
-            f"No member of group {group_id} has reported in the last "
-            f"{stale_after_minutes} minutes; nothing can be said about where they are."
+            f"{who} {'has' if len(statuses) == 1 else 'have'} not reported in the last "
+            f"{stale_after_minutes} minutes; nothing can be said about where "
+            f"{'it is' if len(statuses) == 1 else 'they are'}."
         )
         return result("unknown", [], [], 0, note)
 

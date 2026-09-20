@@ -92,6 +92,13 @@ async def test_map_marker_embeds_device_icon(page, base_url):
     # A jitter point keeps the flat grey disc and draws no badge.
     for marker in await page.locator(".marker-num.jitter").all():
         assert await marker.locator(".marker-num-glyph svg").count() == 0
+    # D-P2-15: the marker shows the label too, not only the icon and colour.
+    # The hover title is the only text a marker carries (CR-C-E4 F1).
+    titles = await page.locator(".leaflet-marker-icon[title]").evaluate_all(
+        "els => els.map((e) => e.title)"
+    )
+    assert any(t.startswith(LABEL) for t in titles), titles
+    assert not any(t.startswith("Home Tag") for t in titles), titles
 
 
 async def test_timeline_swatch_shows_icon_and_label(page, base_url):

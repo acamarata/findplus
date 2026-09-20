@@ -34,6 +34,15 @@ final class ViewHelpersTests: XCTestCase {
         XCTAssertEqual(Color(hex: "4f8cf7"), expected, "the leading # is optional")
     }
 
+    /// `Scanner.scanHexInt64` scans a prefix and accepts "0x" and leading
+    /// spaces, so these six-character strings were parsed as real colours
+    /// before CR-C-E4 F2 rather than falling back (T5's own acceptance).
+    func testColorHexSixCharactersThatAreNotAllHexAreGray() {
+        XCTAssertEqual(Color(hex: "#12345z"), Color.gray)
+        XCTAssertEqual(Color(hex: "#0x1234"), Color.gray)
+        XCTAssertEqual(Color(hex: "#  1234"), Color.gray)
+    }
+
     func testColorHexMalformedFallsBackToGray() {
         XCTAssertEqual(Color(hex: "not-a-color"), Color.gray)
         XCTAssertEqual(Color(hex: "#abc"), Color.gray, "three digits is not the stored shape")

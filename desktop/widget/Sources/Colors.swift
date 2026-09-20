@@ -25,7 +25,13 @@ extension Color {
     init(hex: String) {
         let stripped = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
         var value: UInt64 = 0
-        guard stripped.count == 6, Scanner(string: stripped).scanHexInt64(&value) else {
+        // `scanHexInt64` scans a PREFIX and accepts "0x" and leading spaces, so
+        // "#12345z", "#0x1234" and "#  1234" all came back as a real colour
+        // instead of the documented grey. Every character has to be a hex digit
+        // before the scan is trusted.
+        guard stripped.count == 6, stripped.allSatisfy(\.isHexDigit),
+              Scanner(string: stripped).scanHexInt64(&value)
+        else {
             self = .gray
             return
         }

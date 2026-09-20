@@ -115,21 +115,26 @@ export function renderMap() {
     if (!points.length) return;
     const color = colorFor(track.device_id);
     const device = deviceForTrack(track);
+    // D-P2-15: a map marker shows the label as well as the icon and colour.
+    // The tooltip, the hover title and the popup are the only text the map
+    // has, so they read the label first, exactly as the device list and the
+    // timeline track head do.
+    const shown = device.label || track.device_name;
     const latlngs = points.map((p) => [p.latitude, p.longitude]);
     allLatLngs.push(...latlngs);
 
     if (latlngs.length > 1) {
       L.polyline(latlngs, { color, weight: 3, opacity: 0.75, dashArray: "6 5" })
         .addTo(state.layer)
-        .bindTooltip(`${esc(track.device_name)} — observed path; actual route between detections may differ.`);
+        .bindTooltip(`${esc(shown)} — observed path; actual route between detections may differ.`);
     }
 
     points.forEach((point, index) => {
       const marker = L.marker([point.latitude, point.longitude], {
         icon: numberedIcon(point, index, points.length, device),
-        title: `${track.device_name} · ${fmtTime(point.observed_at_local)}`,
+        title: `${shown} · ${fmtTime(point.observed_at_local)}`,
       }).addTo(state.layer);
-      marker.bindPopup(popupHtml(point, track.device_name));
+      marker.bindPopup(popupHtml(point, shown));
       marker.on("click", () => selectPoint(point.id, false));
       state.markers.set(point.id, marker);
     });

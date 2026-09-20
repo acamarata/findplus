@@ -8,7 +8,6 @@ Constraints: A PIN change revokes every session, then re-issues one to the calle
 
 from __future__ import annotations
 
-import subprocess
 from typing import Any
 
 from fastapi import APIRouter, Body, HTTPException, Request, Response
@@ -162,23 +161,28 @@ def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeo
 
     @router.post("/app.start_at_login")
     def set_start_at_login(value: bool = Body(..., embed=True)) -> dict[str, Any]:
-        """Toggle the desktop app's LaunchAgent via the shared service code.
+        """Toggle the desktop app's LaunchAgent through findplus.service.
 
-        Runs the same `findplus-daemon start`/`uninstall` path the CLI uses
-        (`--program` pointed at the bundled sidecar), so there is exactly one
-        install/uninstall implementation for both surfaces.
+        api-contract.md pins this as "toggles the LaunchAgent RunAtLoad flag
+        for com.acamarata.findplus via `findplus.service`". It used to shell
+        out to `findplus-daemon` instead, which is the sidecar binary inside
+        Find+.app and is not on any PATH -- including the sidecar's own, since
+        this code RUNS in that process. Toggling the switch in the dashboard
+        raised OSError and returned 500, every time, on every platform.
+        Calling the facade in-process is the same one implementation the CLI
+        uses (service.runtime.install/uninstall), minus the PATH dependency.
         """
+        from findplus.service import runtime
+
         with session_scope() as session:
             set_setting(session, "app.start_at_login", "1" if value else "0")
 
-        cmd = (
-            ["findplus-daemon", "install-service", "--yes", "--program", _APP_PROGRAM]
-            if value
-            else ["findplus-daemon", "uninstall", "--yes"]
-        )
         try:
-            subprocess.run(cmd, check=True)
-        except (OSError, subprocess.CalledProcessError) as exc:
+            if value:
+                runtime.install(confirmed=True, program=_APP_PROGRAM)
+            else:
+                runtime.uninstall()
+        except Exception as exc:  # a launchctl/systemd failure is not a crash
             log.error("start_at_login_service_update_failed", extra={"error": str(exc)})
             raise HTTPException(
                 status_code=500, detail=f"Could not update the background service: {exc}"

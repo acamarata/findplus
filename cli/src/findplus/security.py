@@ -120,6 +120,7 @@ class SessionStore:
     #: lockouts have been served since the last success.
     _lockout_until: float = 0.0
     _lockout_rounds: int = 0
+    _lockout_length: float = 0.0
 
     # ------------------------------------------------------------- sessions
     def create(self) -> str:
@@ -177,9 +178,9 @@ class SessionStore:
         """Remaining lockout, or 0 when an attempt is allowed."""
         now = time.monotonic()
         with self._lock:
-            # Clamp to the cap: `now + 3600.0` can round up by one ulp when the
-            # monotonic clock has not advanced (Windows), overshooting the cap.
-            return min(max(0.0, self._lockout_until - now), MAX_LOCKOUT_SECONDS)
+            # Clamp to the active lockout length: `now + length` can round up by
+            # one ulp when the monotonic clock has not advanced (Windows).
+            return min(max(0.0, self._lockout_until - now), self._lockout_length)
 
     def record_failure(self) -> None:
         """Count one wrong PIN, opening a longer lockout each time five pile up."""
@@ -190,7 +191,8 @@ class SessionStore:
             self._prune_failures(now)
             self._failures.append(now)
             if len(self._failures) >= MAX_ATTEMPTS:
-                self._lockout_until = now + self._current_lockout_seconds()
+                self._lockout_length = self._current_lockout_seconds()
+                self._lockout_until = now + self._lockout_length
                 self._lockout_rounds += 1
                 self._failures.clear()
 
@@ -199,6 +201,7 @@ class SessionStore:
         with self._lock:
             self._failures.clear()
             self._lockout_until = 0.0
+            self._lockout_length = 0.0
             self._lockout_rounds = 0
 
     def attempts_remaining(self) -> int:

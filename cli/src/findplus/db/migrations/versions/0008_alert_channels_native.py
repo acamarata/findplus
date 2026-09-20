@@ -20,6 +20,22 @@ Two things about this revision are load-bearing and neither is incidental.
    alone would be enough today (Alembic's SQLite impl runs DDL outside a
    transaction, where the pragma still takes effect), but it is silently a no-op
    inside one, and a silent no-op here costs the user their delivery history.
+
+3. downgrade() cannot re-create alert_deliveries' pre-0008 shape by just putting
+   the stashed rows back (CR-C-E8 F3). Two things a real 1.1 database can hold
+   don't fit that shape: a `queued` or `delivered` status (native's own states,
+   outside 0007's `sent`/`failed`/`skipped` CHECK), and more than one row for the
+   same (rule_id, event_kind, event_id) under different channels (0007's UNIQUE
+   has no `channel` column, so multi-channel rules collide on it). Before the
+   final batch rebuild narrows both constraints back down, this revision remaps
+   `delivered -> sent` (the row did get through, which is what `sent` meant in
+   1.0) and `queued -> skipped` (no confirmation ever arrived, the same state a
+   1.0 delivery attempt that never fired would have left), then keeps only the
+   earliest row (MIN(id), same dedup shape as 0006's R-P2-15 fix) per
+   (rule_id, event_kind, event_id) so the narrowed UNIQUE has nothing left to
+   collide on. A round-trip (upgrade head -> downgrade 0006 -> upgrade head) on
+   a database seeded with queued/delivered and multi-channel rows is the
+   regression test for this.
 """
 
 from __future__ import annotations
@@ -100,6 +116,15 @@ def downgrade() -> None:
         batch.drop_column("channels")
     _restore_deliveries()
 
+    # 0007's status CHECK and dedup UNIQUE are both narrower than what a real
+    # 1.1 database can hold (see module docstring point 3) -- reshape the data
+    # to fit before the batch rebuild re-creates either constraint.
+    op.execute("UPDATE alert_deliveries SET status = 'sent' WHERE status = 'delivered'")
+    op.execute("UPDATE alert_deliveries SET status = 'skipped' WHERE status = 'queued'")
+    op.execute(
+        "DELETE FROM alert_deliveries WHERE id NOT IN ("
+        " SELECT MIN(id) FROM alert_deliveries GROUP BY rule_id, event_kind, event_id)"
+    )
     with op.batch_alter_table("alert_deliveries") as batch:
         batch.drop_constraint("uq_alert_deliveries_dedup", type_="unique")
         batch.create_unique_constraint(

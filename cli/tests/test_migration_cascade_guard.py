@@ -1,6 +1,6 @@
 """Migration 0007/0008 must not lose cascading rows on a real 1.0.x database.
 
-Purpose : Regression coverage for CF-P2-15. Alembic's SQLite batch mode
+Purpose : Regression coverage for CF-P2-15 and CR-C-E8 F3. Alembic's SQLite batch mode
     rebuilds an altered table by creating a new one, copying rows in, then
     dropping the original -- and that DROP runs an implicit DELETE while
     findplus.db.session's `PRAGMA foreign_keys=ON` is enforced, which fires
@@ -14,6 +14,10 @@ Purpose : Regression coverage for CF-P2-15. Alembic's SQLite batch mode
     row and the identifying device/group fields survive -- then downgrades
     back to 0006 and asserts the same, since the downgrade path is the one
     that was actually proven (by trace) to trigger the table rebuild today.
+    Also proves 0008's downgrade round-trips a live 1.1 database: `queued`/
+    `delivered` statuses and multi-channel per-event deliveries (both only
+    possible after 0008's own upgrade) don't fit 0007's narrower CHECK/UNIQUE,
+    which previously aborted `downgrade 0006` outright (CR-C-E8 F3).
 Inputs  : pytest tmp_path fixture only; no real ~/.findplus, no network.
 Outputs : none (assertions only).
 Constraints: revision 0006 is the fixed pre-P2 shape; never renumber it here.
@@ -215,3 +219,62 @@ def test_fk_disabled_actually_toggles_the_pragma_off_then_on(tmp_path: Path) -> 
             assert dbapi_conn.execute("PRAGMA foreign_keys").fetchone()[0] == 0
         assert dbapi_conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
     get_engine.cache_clear()
+
+
+def test_downgrade_then_upgrade_round_trips_a_live_1_1_database(tmp_path: Path) -> None:
+    """CR-C-E8 F3: downgrade 0006 must survive queued/delivered + multi-channel rows.
+
+    These shapes only exist after 0008's own upgrade (queued/delivered are
+    native's states; per-channel rows need the channel column), so they are
+    seeded post-upgrade, not as part of the revision-0006 base data.
+    """
+    cfg, url, _db_path = _cfg_and_url(tmp_path)
+    command.upgrade(cfg, "0006")
+    engine = _engine(url)
+    with engine.begin() as conn:
+        _seed_1_0_x_database(conn)
+
+    upgrade_to_head(url)
+
+    engine2 = _engine(url)
+    with engine2.begin() as conn:
+        # Three deliveries for the same (rule, event_kind, event_id): the
+        # narrowed 0007 UNIQUE has no channel column, so these collide unless
+        # downgrade dedupes first. Statuses cover both of 0008's new states.
+        deliveries = (("telegram", "sent"), ("native", "queued"), ("whatsapp", "delivered"))
+        for channel, status in deliveries:
+            conn.execute(
+                sa.text(
+                    "INSERT INTO alert_deliveries "
+                    "(rule_id, event_kind, event_id, channel, sent_at, status) "
+                    "VALUES (1, 'device', 99, :ch, :now, :st)"
+                ),
+                {"ch": channel, "now": NOW, "st": status},
+            )
+
+    # Must not raise: this is exactly the constraint mismatch CR-C-E8 F3 found.
+    command.downgrade(cfg, "0006")
+
+    engine3 = _engine(url)
+    with engine3.begin() as conn:
+        rows = conn.execute(
+            sa.text(
+                "SELECT rule_id, event_kind, event_id, status FROM alert_deliveries "
+                "WHERE rule_id = 1 AND event_id = 99"
+            )
+        ).all()
+    # The narrowed UNIQUE allows exactly one row per (rule, kind, event); the
+    # remap left it a status 0007's CHECK actually accepts.
+    assert len(rows) == 1
+    assert rows[0].status in ("sent", "failed", "skipped")
+
+    # Must also not raise, proving the round trip -- not just the one-way drop.
+    command.upgrade(cfg, "0008")
+    engine4 = _engine(url)
+    with engine4.begin() as conn:
+        after = conn.execute(
+            sa.text(
+                "SELECT channel, status FROM alert_deliveries WHERE rule_id = 1 AND event_id = 99"
+            )
+        ).all()
+    assert len(after) == 1

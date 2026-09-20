@@ -11,24 +11,35 @@ import { $, state, colorFor, showAlert, esc } from "./state.js";
 import { api, postJson } from "./api.js";
 import { reload, applyHashRoute } from "./main.js";
 import { loadPresence } from "./places.js";
+import { t } from "./i18n.js";
 
 /** "google-find-hub" → "Find Hub"; "apple-find-my" → the honesty-spec short form. */
 export function providerLabel(p) {
-  if (p === "google-find-hub") return "Find Hub";
-  if (p === "apple-find-my") return "Apple Find My (keys you hold)";
-  return p || "Unknown";
+  if (p === "google-find-hub") return t("devices.providerGoogleFindHub");
+  if (p === "apple-find-my") return t("devices.providerAppleFindMy");
+  return p || t("devices.providerUnknown");
+}
+
+/** The "All tracked devices" row, built as a node so no translated string is parsed as markup. */
+function allTrackedOption() {
+  const opt = document.createElement("option");
+  opt.value = "";
+  opt.textContent = t("devices.allTracked");
+  return opt;
 }
 
 export function renderDeviceFilter() {
   const select = $("device-filter");
   const current = state.deviceFilter;
-  select.innerHTML = `<option value="">All tracked devices</option>`;
+  while (select.firstChild) select.removeChild(select.firstChild);
+  select.appendChild(allTrackedOption());
   state.devices
     .filter((d) => d.is_tracked || d.observation_count > 0)
     .forEach((d) => {
       const opt = document.createElement("option");
       opt.value = d.device_id;
-      opt.textContent = d.name + " (" + providerLabel(d.provider) + ")" + (d.is_tracked ? "" : " (not polled)");
+      opt.textContent =
+        d.name + " (" + providerLabel(d.provider) + ")" + (d.is_tracked ? "" : t("devices.notPolledSuffix"));
       select.appendChild(opt);
     });
   select.value = current;
@@ -39,7 +50,10 @@ export function renderDeviceModal() {
   const host = $("device-list");
   host.innerHTML = "";
   if (!state.devices.length) {
-    host.innerHTML = `<div class="empty">No devices known yet. Use "Refresh from your providers".</div>`;
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = t("devices.emptyState");
+    host.appendChild(empty);
   }
   state.devices.forEach((d) => {
     const row = document.createElement("label");
@@ -48,7 +62,7 @@ export function renderDeviceModal() {
       `<input type="checkbox" value="${esc(d.device_id)}" ${d.is_tracked ? "checked" : ""}>` +
       `<span><span class="d-name">${esc(d.name)}</span><br>` +
       `<span class="d-id">${esc(d.device_id)}</span></span>` +
-      `<span class="d-obs">${Number(d.observation_count) || 0} obs</span>`;
+      `<span class="d-obs">${esc(t("devices.obsCount", { n: Number(d.observation_count) || 0 }))}</span>`;
     row.dataset.deviceId = d.device_id;
     const badge = document.createElement("span");
     badge.className = "fp-provider-badge fp-provider-badge--" + (d.provider || "unknown");
@@ -80,8 +94,8 @@ export function updateModalRate() {
   const rate = Math.round((checked * 60) / interval);
   const w = providerWording();
   $("device-rate").textContent = checked
-    ? `${checked} device(s) tracked → about ${rate} ${w.requests} requests per hour, polled sequentially every ${interval} min.`
-    : `Nothing tracked — the poller will not query ${w.requests} at all.`;
+    ? t("devices.rateTracked", { count: checked, rate, requests: w.requests, interval })
+    : t("devices.rateNothing", { requests: w.requests });
 }
 
 export async function loadDevices() {
@@ -123,9 +137,15 @@ export function providerWording() {
   );
   const apple = providers.has("apple-find-my");
   const other = [...providers].some((p) => p && p !== "apple-find-my");
+  // The provider names are trademarks and stay as they are; only the neutral
+  // fallback wording is prose a translator owns.
   if (apple && !other) return { network: "Find My", account: "Apple", requests: "Apple" };
   if (other && !apple) return { network: "Find Hub", account: "Google", requests: "Google" };
-  return { network: "your providers", account: "tracking", requests: "your providers" };
+  return {
+    network: t("devices.wordingProviders"),
+    account: t("devices.wordingTracking"),
+    requests: t("devices.wordingProviders"),
+  };
 }
 
 /**
@@ -137,18 +157,13 @@ export function providerWording() {
 export function syncProviderChrome() {
   const w = providerWording();
   const poll = $("btn-poll");
-  if (poll) poll.title = `Queries ${w.requests} once, now`;
+  if (poll) poll.title = t("devices.pollTitleFor", { requests: w.requests });
   const observed = $("card-observed-label");
-  if (observed) observed.textContent = `Last observed by ${w.network}`;
+  if (observed) observed.textContent = t("devices.cardObservedFor", { network: w.network });
   const heading = $("device-modal-title");
-  if (heading) heading.textContent = `Devices on this ${w.account} account`;
+  if (heading) heading.textContent = t("devices.titleForAccount", { account: w.account });
   const note = $("device-modal-note");
-  if (note) {
-    note.textContent =
-      `Tick every tracker you want polled. Each tracked device costs one ${w.requests} ` +
-      "request per poll cycle, so the request rate rises with the number you tick. " +
-      "Untracking keeps a device's existing history — it just stops being polled.";
-  }
+  if (note) note.textContent = t("devices.noteForRequests", { requests: w.requests });
 }
 
 export function syncProviderNotice() {
@@ -178,7 +193,7 @@ export async function openDevices() {
     await loadDevices();
     renderDeviceModal();
   } catch (err) {
-    showAlert(`Could not load devices: ${err.message}`, "err");
+    showAlert(t("devices.loadFailed", { message: err.message }), "err");
   } finally {
     $("device-modal").classList.remove("hidden");
   }
@@ -195,17 +210,28 @@ export function wireDeviceControls() {
   $("btn-poll").addEventListener("click", async () => {
     const btn = $("btn-poll");
     btn.disabled = true;
-    btn.textContent = "Polling…";
+    btn.textContent = t("devices.pollingLabel");
     try {
       const r = await postJson("/api/poll-now");
-      const lines = r.results.map((x) => `${x.device_name}: ${x.status}${x.observations_new ? ` (+${x.observations_new})` : ""}`);
-      showAlert(`Polled ${r.devices_polled} device(s) — ${r.observations_new} new. ${lines.join(" · ")}`, "warn");
+      const lines = r.results.map(
+        (x) =>
+          t("devices.pollResultLine", { device: x.device_name, status: x.status }) +
+          (x.observations_new ? t("devices.pollResultNew", { n: x.observations_new }) : "")
+      );
+      showAlert(
+        t("devices.polled", {
+          devices: r.devices_polled,
+          observations: r.observations_new,
+          lines: lines.join(" · "),
+        }),
+        "warn"
+      );
       await reload();
     } catch (err) {
       showAlert(err.message, "err");
     } finally {
       btn.disabled = false;
-      btn.textContent = "Poll Now";
+      btn.textContent = t("common.btnPoll");
     }
   });
 
@@ -229,7 +255,7 @@ export function wireDeviceControls() {
   $("btn-refresh-devices").addEventListener("click", async () => {
     const btn = $("btn-refresh-devices");
     btn.disabled = true;
-    btn.textContent = "Asking your providers…";
+    btn.textContent = t("devices.askingProvidersLabel");
     try {
       const r = await postJson("/api/devices/refresh");
       await loadDevices();
@@ -239,14 +265,14 @@ export function wireDeviceControls() {
       // a partial failure must say which one was skipped, not stay silent.
       const asked = (r.providers || []).length;
       const failed = Object.keys(r.errors || {});
-      let msg = `Found ${r.found} device(s) across ${asked} provider(s).`;
-      if (failed.length) msg += ` ${failed.join(", ")} could not be reached.`;
+      let msg = t("devices.refreshFound", { found: r.found, providers: asked });
+      if (failed.length) msg += t("devices.refreshUnreachable", { names: failed.join(", ") });
       showAlert(msg, "warn");
     } catch (err) {
-      showAlert(`Could not refresh devices: ${err.message}`, "err");
+      showAlert(t("devices.refreshFailed", { message: err.message }), "err");
     } finally {
       btn.disabled = false;
-      btn.textContent = "Refresh from your providers";
+      btn.textContent = t("devices.refreshProvidersLabel");
     }
   });
 
@@ -258,8 +284,12 @@ export function wireDeviceControls() {
       await loadDevices();
       showAlert(
         r.tracked_count
-          ? `Tracking ${r.tracked_count} device(s) — about ${r.requests_per_hour} ${providerWording().requests} requests/hour.`
-          : `No devices tracked. The poller will not query ${providerWording().requests}.`,
+          ? t("devices.trackedResult", {
+              count: r.tracked_count,
+              rate: r.requests_per_hour,
+              requests: providerWording().requests,
+            })
+          : t("devices.trackedNone", { requests: providerWording().requests }),
         "warn"
       );
       await reload();

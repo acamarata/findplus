@@ -17,6 +17,7 @@
 "use strict";
 
 import { api } from "./api.js";
+import { t } from "./i18n.js";
 
 let map = null;
 let onSaved = null;
@@ -70,15 +71,15 @@ function ensureDialog() {
   const radiusOut = document.createElement("output");
   radiusOut.textContent = radius.value;
 
-  form.append(labeled("Name", name), lat, lon);
+  form.append(labeled(t("places.nameLabel"), name), lat, lon);
   const radiusLabel = document.createElement("label");
-  radiusLabel.textContent = "Radius (m)";
+  radiusLabel.textContent = t("places.radiusLabel");
   radiusLabel.append(radius, radiusOut);
   form.append(
     radiusLabel,
-    labeled("Color", color),
-    labeled("Enter confirmations", enter),
-    labeled("Exit confirmations", exit),
+    labeled(t("places.colorLabel"), color),
+    labeled(t("places.enterConfirmations"), enter),
+    labeled(t("places.exitConfirmations"), exit),
   );
 
   const errorEl = document.createElement("p");
@@ -86,8 +87,8 @@ function ensureDialog() {
   errorEl.id = "fp-place-dialog-error";
 
   const footer = document.createElement("footer");
-  const saveBtn = button("Save", onSave);
-  const cancelBtn = button("Cancel", onCancel);
+  const saveBtn = button(t("common.save"), onSave);
+  const cancelBtn = button(t("common.cancel"), onCancel);
   footer.append(saveBtn, cancelBtn);
   form.append(errorEl, footer);
 

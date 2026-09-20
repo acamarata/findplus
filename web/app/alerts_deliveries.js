@@ -19,6 +19,7 @@
 "use strict";
 import { $, fmtDateTime } from "./state.js";
 import { api } from "./api.js";
+import { t } from "./i18n.js";
 
 function cell(text) {
   const td = document.createElement("td");
@@ -29,14 +30,14 @@ function cell(text) {
 function buildDeliveryRow(delivery) {
   const tr = document.createElement("tr");
   tr.append(
-    cell(delivery.rule_name || `rule ${delivery.rule_id}`),
-    cell(delivery.channel || "—"),
+    cell(delivery.rule_name || t("alerts.ruleFallback", { id: delivery.rule_id })),
+    cell(delivery.channel || t("common.emptyValue")),
     cell(delivery.event_kind),
     cell(fmtDateTime(delivery.sent_at)),
     cell(delivery.status),
     // A "skipped" row arrived with an empty Error cell and no hint why; the
     // API now sends the reason in `error`, and a bare skip still says so.
-    cell(delivery.error || (delivery.status === "skipped" ? "suppressed, no reason recorded" : "")),
+    cell(delivery.error || (delivery.status === "skipped" ? t("alerts.skippedNoReason") : "")),
   );
   return tr;
 }

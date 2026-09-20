@@ -44,20 +44,29 @@ def _fallback_catalog() -> dict:
     return json.loads(source[start:].rstrip().rstrip(";"))
 
 
+#: The namespaces specs/layout-i18n-a11y.md pins. `timeline` is an eleventh the
+#: E9-T3 ticket names by key (`timeline.emptyDay` and friends); a later ticket may
+#: add more, so this asserts the pinned set is PRESENT rather than exhaustive.
+SPEC_NAMESPACES = (
+    "common",
+    "devices",
+    "groups",
+    "places",
+    "alerts",
+    "settings",
+    "setup",
+    "auth",
+    "notices",
+    "honesty",
+)
+
+
 def test_catalog_parses_and_has_every_namespace():
     data = _catalog()
-    assert list(data) == [
-        "common",
-        "devices",
-        "groups",
-        "places",
-        "alerts",
-        "settings",
-        "setup",
-        "auth",
-        "notices",
-        "honesty",
-    ]
+    assert set(SPEC_NAMESPACES) <= set(data)
+    assert list(data)[-1] == "honesty", "the generator rewrites honesty last, in place"
+    for name, block in data.items():
+        assert isinstance(block, dict), f"{name} must be a namespace object"
 
 
 def test_honesty_block_matches_notices_value_for_value():

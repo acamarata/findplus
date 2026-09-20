@@ -16,6 +16,7 @@
 
 import { api } from "./api.js";
 import { esc, fmtAgeMinutes } from "./state.js";
+import { t } from "./i18n.js";
 
 let map = null;
 let selectedGroupId = null;
@@ -48,7 +49,7 @@ export async function loadGroups() {
   while (select.firstChild) select.removeChild(select.firstChild);
   const allOpt = document.createElement("option");
   allOpt.value = "";
-  allOpt.textContent = "— All devices —";
+  allOpt.textContent = t("groups.allDevices");
   select.appendChild(allOpt);
   groups.forEach((g) => {
     const opt = document.createElement("option");
@@ -114,12 +115,12 @@ function verdictLabel(presence) {
   const considered = presence.considered_count;
   if (presence.verdict === "all_together") {
     return considered && reporting < considered
-      ? `Together (${reporting} of ${considered} reporting)`
-      : "Together";
+      ? t("groups.verdictTogetherPartial", { reporting, considered })
+      : t("groups.verdictTogether");
   }
-  if (presence.verdict !== "partial") return "Unknown";
-  if (presence.diverged && presence.diverged.length > 0) return "Diverged";
-  return reporting === 1 ? "Only 1 reporting" : "Partial";
+  if (presence.verdict !== "partial") return t("groups.verdictUnknown");
+  if (presence.diverged && presence.diverged.length > 0) return t("groups.verdictDiverged");
+  return reporting === 1 ? t("groups.verdictOnlyOneReporting") : t("groups.verdictPartial");
 }
 
 function ageLabel(member) {
@@ -180,8 +181,8 @@ export function renderPresencePanel(presence) {
     byId.set(m.name, m);
     byId.set(m.device_id, m);
   });
-  panel.appendChild(nameList("fp-together-list", "Together", presence.together, byId));
-  panel.appendChild(nameList("fp-diverged-list", "Away from the others", presence.diverged, byId));
+  panel.appendChild(nameList("fp-together-list", t("groups.verdictTogether"), presence.together, byId));
+  panel.appendChild(nameList("fp-diverged-list", t("groups.listAway"), presence.diverged, byId));
 
   const staleList = document.createElement("ul");
   staleList.id = "fp-stale-list";
@@ -191,7 +192,7 @@ export function renderPresencePanel(presence) {
     const badge = document.createElement("span");
     badge.className = "fp-stale-badge";
     const name = (member && member.name) || key;
-    badge.textContent = `${name} — no fix for ${ageLabel(member)}`;
+    badge.textContent = t("groups.staleBadge", { name, age: ageLabel(member) });
     li.appendChild(badge);
     staleList.appendChild(li);
   });

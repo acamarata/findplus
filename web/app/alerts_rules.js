@@ -15,13 +15,14 @@
 "use strict";
 import { $, state, showAlert } from "./state.js";
 import { api } from "./api.js";
+import { t } from "./i18n.js";
 
 export async function loadRules() {
   renderRulesTable(await api("/api/alerts/rules"));
 }
 function ruleTargetLabel(rule) {
-  if (rule.group_id) return rule.group_name || `group ${rule.group_id}`;
-  return rule.device_name || rule.device_id || "—";
+  if (rule.group_id) return rule.group_name || t("alerts.groupFallback", { id: rule.group_id });
+  return rule.device_name || rule.device_id || t("common.emptyValue");
 }
 function cell(text) {
   const td = document.createElement("td");
@@ -31,13 +32,15 @@ function cell(text) {
 function buildRuleRow(rule) {
   const tr = document.createElement("tr");
   tr.append(
-    cell(rule.name), cell(rule.place_name || "—"), cell(ruleTargetLabel(rule)),
-    cell(rule.on_enter ? "yes" : "no"), cell(rule.on_exit ? "yes" : "no"), cell(rule.channel),
+    cell(rule.name), cell(rule.place_name || t("common.emptyValue")), cell(ruleTargetLabel(rule)),
+    cell(rule.on_enter ? t("common.yes") : t("common.no")),
+    cell(rule.on_exit ? t("common.yes") : t("common.no")),
+    cell(rule.channel),
   );
   const actions = document.createElement("td");
   const delBtn = document.createElement("button");
   delBtn.type = "button";
-  delBtn.textContent = "Delete";
+  delBtn.textContent = t("common.delete");
   delBtn.addEventListener("click", () => deleteRule(rule.id, rule.name));
   actions.appendChild(delBtn);
   tr.appendChild(actions);
@@ -50,12 +53,12 @@ export function renderRulesTable(rules) {
   rules.forEach((rule) => tbody.appendChild(buildRuleRow(rule)));
 }
 async function deleteRule(id, name) {
-  if (!window.confirm(`Delete rule "${name}"?`)) return;
+  if (!window.confirm(t("alerts.confirmDeleteRule", { name }))) return;
   // A refused delete used to leave the row on screen with no message, which is
   // indistinguishable from a no-op (E1 honesty round 3 F10).
   const res = await fetch(`/api/alerts/rules/${id}`, { method: "DELETE" });
   if (!res.ok) {
-    showAlert(`Could not delete "${name}" (${res.status}).`, "err");
+    showAlert(t("alerts.deleteRuleFailed", { name, status: res.status }), "err");
     return;
   }
   await loadRules();

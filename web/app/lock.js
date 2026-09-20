@@ -13,6 +13,7 @@
 
 import { $, state, applyTheme } from "./state.js";
 import { postJson, api } from "./api.js";
+import { t } from "./i18n.js";
 import { closeModals, bootDashboard } from "./main.js";
 
 /**
@@ -95,13 +96,18 @@ export async function purgeRenderedData() {
 
   $("tracks").innerHTML = "";
   $("device-list").innerHTML = "";
-  $("device-filter").innerHTML = '<option value="">All tracked devices</option>';
+  const filter = $("device-filter");
+  while (filter.firstChild) filter.removeChild(filter.firstChild);
+  const allOpt = document.createElement("option");
+  allOpt.value = "";
+  allOpt.textContent = t("devices.allTracked");
+  filter.appendChild(allOpt);
   $("device-name").textContent = "";
   $("alert").classList.add("hidden");
   $("alert").textContent = "";
   ["card-observed", "card-observed-ago", "card-fetched", "card-lag",
    "card-poll", "card-poll-status", "card-today", "card-total"].forEach((id) => {
-    $(id).textContent = "—";
+    $(id).textContent = t("common.emptyValue");
   });
 
   await purgeTabModules();

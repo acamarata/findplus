@@ -21,6 +21,7 @@
 
 import { api } from "./api.js";
 import { showAlert, fmtAgeMinutes } from "./state.js";
+import { t } from "./i18n.js";
 import { activateCrosshairMode, initDialog, openEditDialog, purgeDialog } from "./places_dialog.js";
 
 let map = null;
@@ -83,8 +84,8 @@ function buildPlacePopup(place) {
   const name = document.createElement("div");
   name.textContent = place.name;
   box.appendChild(name);
-  box.appendChild(button("Edit", () => editPlace(place.id)));
-  box.appendChild(button("Delete", () => deletePlace(place.id)));
+  box.appendChild(button(t("common.edit"), () => editPlace(place.id)));
+  box.appendChild(button(t("common.delete"), () => deletePlace(place.id)));
   return box;
 }
 
@@ -96,11 +97,11 @@ async function editPlace(id) {
 
 async function deletePlace(id) {
   const place = placesById.get(String(id));
-  if (!window.confirm(`Delete place "${place ? place.name : id}"?`)) return;
+  if (!window.confirm(t("places.confirmDelete", { name: place ? place.name : id }))) return;
   const res = await fetch(`/api/places/${id}`, { method: "DELETE" });
   if (!res.ok) {
     // A bare return left the circle on the map with nothing said (round 3 F10).
-    showAlert(`Could not delete that place (${res.status}).`, "err");
+    showAlert(t("places.deleteFailed", { status: res.status }), "err");
     return;
   }
   const circle = circlesById.get(String(id));
@@ -132,11 +133,14 @@ export async function loadPresence() {
         chip.className = "fp-presence-chip";
         row.appendChild(chip);
       }
-      chip.textContent = `${entry.place_name} since ${relativeTime(entry.since_observed_at)}`;
+      chip.textContent = t("places.sinceLabel", {
+        place: entry.place_name,
+        time: relativeTime(entry.since_observed_at),
+      });
     });
 }
 
 function relativeTime(iso) {
-  if (!iso) return "unknown";
+  if (!iso) return t("common.unknown");
   return fmtAgeMinutes(Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
 }

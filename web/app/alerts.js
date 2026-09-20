@@ -17,6 +17,7 @@
  */
 "use strict";
 import { $ } from "./state.js";
+import { t } from "./i18n.js";
 import { api } from "./api.js";
 import {
   fillOptions,
@@ -87,7 +88,8 @@ function renderTelegramSection(telegram) {
   }
   setVisibleText(
     $("fp-tg-connected"),
-    telegram.chat_title && `Connected: ${telegram.chat_title} (${telegram.bot_username || ""})`,
+    telegram.chat_title &&
+      t("alerts.connectedAsWithBot", { chat: telegram.chat_title, bot: telegram.bot_username || "" }),
   );
   $("fp-tg-status").textContent = "";
 }
@@ -95,21 +97,24 @@ function renderWebhookSection(webhook) {
   $("fp-webhook-url").value = webhook.configured ? webhook.url || "" : "";
   setVisibleText(
     $("fp-webhook-current"),
-    webhook.configured && `Current: ${webhook.url}${webhook.has_secret ? " (secret set)" : ""}`,
+    webhook.configured &&
+      t("alerts.webhookCurrent", { url: webhook.url }) +
+        (webhook.has_secret ? t("alerts.webhookSecretSet") : ""),
   );
 }
-const SETUP_ERROR_TEXT = {
-  408: "No message received. Send any message to your bot and try again.",
-  409: "A webhook is already set on this bot. Remove it in BotFather first.",
+/** Status code -> catalog key. Built at call time so t() reads the loaded catalog. */
+const SETUP_ERROR_KEYS = {
+  408: "alerts.setupErrorTimeout",
+  409: "alerts.setupErrorConflict",
 };
 async function startTelegramSetup() {
   const statusEl = $("fp-tg-status");
   const token = $("fp-tg-token").value.trim();
   if (!token) {
-    statusEl.textContent = "Enter a bot token first.";
+    statusEl.textContent = t("alerts.enterBotToken");
     return;
   }
-  statusEl.textContent = "Waiting for a message to your bot (120 s)…";
+  statusEl.textContent = t("alerts.waitingForMessage");
   try {
     const res = await fetch("/api/alerts/channels/telegram/setup?wait=120", {
       method: "POST",
@@ -119,15 +124,15 @@ async function startTelegramSetup() {
     });
     if (res.status === 200) {
       const body = await res.json();
-      statusEl.textContent = `Connected: ${body.chat_title}`;
+      statusEl.textContent = t("alerts.connectedAs", { chat: body.chat_title });
       await loadChannels();
-    } else if (SETUP_ERROR_TEXT[res.status]) {
-      statusEl.textContent = SETUP_ERROR_TEXT[res.status];
+    } else if (SETUP_ERROR_KEYS[res.status]) {
+      statusEl.textContent = t(SETUP_ERROR_KEYS[res.status]);
     } else {
-      statusEl.textContent = "Connection failed: " + (await errorDetail(res));
+      statusEl.textContent = t("alerts.connectionFailed", { detail: await errorDetail(res) });
     }
   } catch (err) {
-    statusEl.textContent = "Connection failed: " + err.message;
+    statusEl.textContent = t("alerts.connectionFailed", { detail: err.message });
   }
 }
 async function errorDetail(res) {
@@ -146,9 +151,11 @@ async function sendTelegramTest() {
       body: JSON.stringify({ channel: "telegram" }),
     });
     statusEl.textContent =
-      result.status === "sent" ? "Test message sent." : `Test failed: ${result.error || "unknown error"}`;
+      result.status === "sent"
+        ? t("alerts.testSent")
+        : t("alerts.testFailed", { error: result.error || t("common.unknownError") });
   } catch (err) {
-    statusEl.textContent = "Test failed: " + err.message;
+    statusEl.textContent = t("alerts.testFailed", { error: err.message });
   }
 }
 async function clearTelegramChannel() {

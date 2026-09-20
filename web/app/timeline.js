@@ -13,45 +13,53 @@ import { api, postJson } from "./api.js";
 import { renderMap, visiblePoints } from "./map.js";
 import { reload } from "./main.js";
 import { providerWording } from "./devices.js";
+import { t, plural } from "./i18n.js";
 
 function statsHtml(stats) {
   if (!stats || !stats.observation_count) return "";
   const cells = [
-    ["First observation", fmtTime(stats.first_observed_at_local)],
-    ["Last observation", fmtTime(stats.last_observed_at_local)],
-    ["Unique observations", String(stats.observation_count)],
-    ["Meaningful movements", String(stats.movement_count)],
-    ["Approx. distance", `${stats.approximate_distance_miles.toFixed(2)} mi`],
-    ["Longest gap", fmtDuration(stats.longest_gap_seconds)],
-    ["Time span covered", fmtDuration(stats.time_span_seconds)],
+    [t("timeline.statFirst"), fmtTime(stats.first_observed_at_local)],
+    [t("timeline.statLast"), fmtTime(stats.last_observed_at_local)],
+    [t("timeline.statUnique"), String(stats.observation_count)],
+    [t("timeline.statMovements"), String(stats.movement_count)],
+    [t("timeline.statDistance"), t("timeline.distanceMiles", { miles: stats.approximate_distance_miles.toFixed(2) })],
+    [t("timeline.statLongestGap"), fmtDuration(stats.longest_gap_seconds)],
+    [t("timeline.statTimeSpan"), fmtDuration(stats.time_span_seconds)],
   ];
   return `<div class="stats">` +
-    cells.map(([l, v]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join("") +
-    `<div class="stat-note">${stats.distance_label} — not the distance actually travelled.</div>` +
+    cells.map(([l, v]) => `<div class="stat"><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join("") +
+    `<div class="stat-note">${esc(t("timeline.statNote", { label: stats.distance_label }))}</div>` +
     `</div>`;
 }
 
 function timelineHtml(track) {
   const points = visiblePoints(track);
   if (!points.length) {
-    return `<div class="empty">No observations recorded for this day.</div>`;
+    return `<div class="empty">${esc(t("timeline.emptyDay"))}</div>`;
   }
   let html = `<ol class="timeline">`;
   points.forEach((point) => {
     if (point.gap_before && point.seconds_since_previous) {
-      html += `<li class="tl-gap">NO NEW DETECTIONS FOR ${fmtDuration(point.seconds_since_previous).toUpperCase()}</li>`;
+      const gap = t("timeline.noDetectionsFor", {
+        duration: fmtDuration(point.seconds_since_previous).toUpperCase(),
+      });
+      html += `<li class="tl-gap">${esc(gap)}</li>`;
     }
     const dist = fmtDistance(point.meters_from_previous);
     const meta = [];
-    if (dist) meta.push(`${dist} from previous observation`);
-    if (point.accuracy_meters != null) meta.push(`±${Math.round(point.accuracy_meters)} m`);
-    if (!point.is_movement && point.seconds_since_previous !== null) meta.push("below movement threshold");
+    if (dist) meta.push(t("timeline.fromPrevious", { distance: dist }));
+    if (point.accuracy_meters != null) {
+      meta.push(t("timeline.accuracy", { meters: Math.round(point.accuracy_meters) }));
+    }
+    if (!point.is_movement && point.seconds_since_previous !== null) {
+      meta.push(t("timeline.belowThreshold"));
+    }
 
     html +=
       `<li class="tl-item${point.is_movement ? "" : " jitter"}" data-id="${point.id}">` +
       `<div><span class="tl-seq">${point.sequence}.</span> <span class="tl-time">${fmtTime(point.observed_at_local)}</span></div>` +
       `<div class="tl-coords">📍 ${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}</div>` +
-      (meta.length ? `<div class="tl-meta">${meta.join(" · ")}</div>` : "") +
+      (meta.length ? `<div class="tl-meta">${esc(meta.join(" · "))}</div>` : "") +
       `</li>`;
   });
   return html + `</ol>`;
@@ -61,7 +69,10 @@ export function renderTracks() {
   const host = $("tracks");
   host.innerHTML = "";
   if (!state.timeline || !state.timeline.tracks.length) {
-    host.innerHTML = `<div class="empty">No observations recorded for this day.</div>`;
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = t("timeline.emptyDay");
+    host.appendChild(empty);
     return;
   }
 
@@ -72,7 +83,7 @@ export function renderTracks() {
       `<div class="track-head">` +
       `<span class="track-swatch" style="background:${esc(colorFor(track.device_id))}"></span>` +
       `<span class="track-name">${esc(track.device_name || track.device_id)}</span>` +
-      `<span class="track-count">${track.points.length} observation${track.points.length === 1 ? "" : "s"}</span>` +
+      `<span class="track-count">${esc(plural("timeline.observations", track.points.length, { n: track.points.length }))}</span>` +
       `</div>` +
       statsHtml(track.stats) +
       timelineHtml(track);
@@ -117,7 +128,7 @@ export async function loadDay(day) {
     renderMap();
     renderTracks();
   } catch (err) {
-    showAlert(`Could not load ${day}: ${err.message}`, "err");
+    showAlert(t("timeline.loadFailed", { day, message: err.message }), "err");
   }
 }
 
@@ -155,8 +166,8 @@ export function wireTimelineControls() {
     if (scope === "range") {
       const start = $("range-start").value;
       const end = $("range-end").value;
-      if (!start || !end) { showAlert("Pick both a start and an end date.", "warn"); return; }
-      if (start > end) { showAlert("The range start is after its end.", "warn"); return; }
+      if (!start || !end) { showAlert(t("timeline.pickBothDates"), "warn"); return; }
+      if (start > end) { showAlert(t("timeline.rangeStartAfterEnd"), "warn"); return; }
       params.set("start", start);
       params.set("end", end);
     }
@@ -172,9 +183,13 @@ export function wireTimelineControls() {
       if (day !== state.day) await loadDay(day);
       selectPoint(latest.id, true);
       showAlert(
-        `${latest.device_name} — last observed by ${providerWording().network} ` +
-        `${fmtDateTime(latest.observed_at_local)} · ` +
-        `retrieved ${fmtDateTime(latest.fetched_at_local)} · age ${fmtDuration(latest.age_seconds)}`,
+        t("timeline.latestSummary", {
+          device: latest.device_name,
+          network: providerWording().network,
+          observed: fmtDateTime(latest.observed_at_local),
+          fetched: fmtDateTime(latest.fetched_at_local),
+          age: fmtDuration(latest.age_seconds),
+        }),
         "warn"
       );
     } catch (err) {
@@ -187,16 +202,15 @@ export function wireTimelineControls() {
 export function wireHistoryControls() {
   $("btn-delete-before").addEventListener("click", async () => {
     const before = $("delete-before-date").value;
-    if (!before) { showAlert("Pick a date first.", "warn"); return; }
+    if (!before) { showAlert(t("timeline.pickDateFirst"), "warn"); return; }
     try {
       const dry = await postJson("/api/history/delete-before", { before });
       if (!dry.would_delete) {
-        $("delete-result").textContent = `Nothing is older than ${before}.`;
+        $("delete-result").textContent = t("timeline.nothingOlderThan", { date: before });
         return;
       }
       if (!window.confirm(
-        `Permanently delete ${dry.would_delete} observation(s) recorded before ${before}?\n\n` +
-        `This cannot be undone.`
+        t("timeline.confirmDeleteBefore", { count: dry.would_delete, date: before })
       )) return;
       const done = await postJson("/api/history/delete-before", { before, confirm: true });
       $("delete-result").textContent = done.message;
@@ -210,15 +224,12 @@ export function wireHistoryControls() {
     try {
       const dry = await postJson("/api/history/clear", {});
       if (!dry.would_delete) {
-        $("delete-result").textContent = "There is no history to clear.";
+        $("delete-result").textContent = t("timeline.noHistoryToClear");
         return;
       }
-      if (!window.confirm(
-        `Delete ALL ${dry.would_delete} observation(s) for every device?\n\n` +
-        `This erases the entire location history and cannot be undone.`
-      )) return;
-      const typed = window.prompt('Type DELETE to confirm erasing all history:');
-      if (typed !== "DELETE") { $("delete-result").textContent = "Cancelled — nothing deleted."; return; }
+      if (!window.confirm(t("timeline.confirmClearAll", { count: dry.would_delete }))) return;
+      const typed = window.prompt(t("timeline.promptTypeDelete"));
+      if (typed !== "DELETE") { $("delete-result").textContent = t("timeline.deleteCancelled"); return; }
       const done = await postJson("/api/history/clear", { confirm: true });
       $("delete-result").textContent = done.message;
       await reload();

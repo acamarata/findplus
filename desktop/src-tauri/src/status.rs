@@ -285,7 +285,8 @@ fn fetch_status() -> Value {
         Ok(c) => c,
         Err(_) => return serde_json::json!({"http_status": 0}),
     };
-    match client.get("http://127.0.0.1:8647/api/status").send() {
+    let url = format!("{}/api/status", crate::daemon::daemon_base());
+    match client.get(url).send() {
         Ok(resp) if resp.status().as_u16() == 401 => serde_json::json!({"http_status": 401}),
         Ok(resp) if resp.status().is_success() => resp
             .json::<Value>()

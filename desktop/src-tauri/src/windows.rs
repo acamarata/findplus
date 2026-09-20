@@ -17,6 +17,10 @@ pub fn open_main(app: &AppHandle) {
     .title("Find+")
     .inner_size(1280.0, 820.0)
     .decorations(true)
+    // Runs before any page script, including main.js. The only writer of the
+    // flag every native-only branch gates on, so a plain browser tab pointed at
+    // :8647 never sees it (R-P2-13).
+    .initialization_script("window.__findplus_native = true;")
     .build();
 }
 
@@ -35,6 +39,10 @@ pub fn open_settings(app: &AppHandle) {
     .title("Find+")
     .inner_size(1280.0, 820.0)
     .decorations(true)
+    // Runs before any page script, including main.js. The only writer of the
+    // flag every native-only branch gates on, so a plain browser tab pointed at
+    // :8647 never sees it (R-P2-13).
+    .initialization_script("window.__findplus_native = true;")
     .build();
 }
 

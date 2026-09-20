@@ -29,6 +29,13 @@ mod daemon_child;
 pub use daemon_child::{child_running, spawn_sidecar, stop_child};
 
 const PORT: u16 = 8647;
+
+/// The daemon's loopback base URL. The one place the port is spelled out at
+/// runtime: status.rs and notify.rs both poll through this rather than
+/// repeating the literal, so making the port configurable is one edit.
+pub fn daemon_base() -> String {
+    format!("http://127.0.0.1:{PORT}")
+}
 pub const APP_VERSION: &str = env!("FINDPLUS_VERSION");
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

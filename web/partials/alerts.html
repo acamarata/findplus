@@ -40,8 +40,12 @@
         <button id="fp-add-rule-btn" type="button" data-i18n="alerts.addRule">Add rule</button>
         <!-- The rules table has 7 columns and does not fit a phone-width
              viewport; scrolling the wrapper (not the page) keeps the row
-             text readable instead of squeezing it (visual gate W2 finding). -->
-        <div class="fp-table-scroll">
+             text readable instead of squeezing it (visual gate W2 finding).
+             tabindex: a scrollable region has to be reachable by keyboard
+             (axe scrollable-region-focusable, WCAG 2.1.1) -- same pattern as
+             .timeline-pane in web/index.html. -->
+        <div class="fp-table-scroll" tabindex="0" aria-label="Rules table, scrollable"
+             data-i18n-attr="aria-label:alerts.rulesTableScrollLabel">
           <table id="fp-rules-table">
             <thead>
               <tr>
@@ -56,7 +60,8 @@
 
       <section class="fp-alerts-section">
         <h3 data-i18n="alerts.deliveryLogHeading">Delivery log</h3>
-        <div class="fp-table-scroll">
+        <div class="fp-table-scroll" tabindex="0" aria-label="Delivery log table, scrollable"
+             data-i18n-attr="aria-label:alerts.deliveryLogScrollLabel">
           <table id="fp-deliveries-table">
             <thead>
               <tr>

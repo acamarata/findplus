@@ -19,18 +19,6 @@ import { $, state } from "./state.js";
 import { t } from "./i18n.js";
 
 /**
- * Render each provider's footer sentence only when that provider is tracked.
- *
- * The footer used to render the Find Hub sentence unconditionally, so someone
- * tracking only AirTags read that their tags report "through Google Find Hub
- * network" (E1 honesty pass F1). Gating the Apple sentence alone left that
- * false sentence on screen, so both are device-derived now. Both come verbatim
- * from /api/config.notices, so honesty.py stays the single source.
- *
- * With no devices at all neither sentence renders: there is no history on
- * screen for either one to describe.
- */
-/**
  * What to call the tracking side, derived from the tracked device set.
  *
  * Round 1 gated the footer honesty sentence and left the chrome around it
@@ -76,6 +64,18 @@ export function syncProviderChrome() {
   if (note) note.textContent = t("devices.noteForRequests", { requests: w.requests });
 }
 
+/**
+ * Render each provider's footer sentence only when that provider is tracked.
+ *
+ * The footer used to render the Find Hub sentence unconditionally, so someone
+ * tracking only AirTags read that their tags report "through Google Find Hub
+ * network" (E1 honesty pass F1). Gating the Apple sentence alone left that
+ * false sentence on screen, so both are device-derived now. Both come verbatim
+ * from /api/config.notices, so honesty.py stays the single source.
+ *
+ * With no devices at all neither sentence renders: there is no history on
+ * screen for either one to describe.
+ */
 export function syncProviderNotice() {
   const notices = state.config?.notices;
   setNotice($("apple-notice"), (d) => d.provider === "apple-find-my", notices?.apple);

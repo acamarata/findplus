@@ -77,6 +77,12 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
   .modal-box {
     inset: 0; width: 100%; height: 100%; border-radius: 0; max-height: none;
   }
+  /* The add-rule dialog is a native <dialog>, not a .modal-box, so it needs
+     the same phone-tier rule written against its own id. */
+  #fp-add-rule-dialog[open] {
+    inset: 0; width: 100%; max-width: 100%; height: 100%; max-height: none;
+    border-radius: 0; margin: 0;
+  }
 
   /* Touch targets. The checkbox and radio hit box is drawn around the
      control rather than resizing the control itself. */

@@ -10,7 +10,10 @@
 <meta name="theme-color" content="#11141a">
 <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="/static/style.css">
-<!-- Loaded second on purpose: every rule in it overrides one above at equal
+<!-- The label/icon/badge rules. Their own file because style.css closed E9's
+     wave at exactly its 300-line cap with nowhere left to write. -->
+<link rel="stylesheet" href="/static/labels.css">
+<!-- Loaded last on purpose: every rule in it overrides one above at equal
      specificity (focus ring, screen-reader helper, phone tier). -->
 <link rel="stylesheet" href="/static/responsive.css">
 </head>
@@ -134,7 +137,10 @@
 
   <!-- The map above is shared by every tab (Places crosshair-clicks it,
        Groups draws member overlays on it); only this side pane switches. -->
-  <aside class="timeline-pane" aria-label="Details" data-i18n-attr="aria-label:common.detailsLandmarkLabel">
+  <!-- tabindex: the pane scrolls its own content above 600px, and a
+       scrollable region has to be reachable by keyboard (axe
+       scrollable-region-focusable, WCAG 2.1.1). -->
+  <aside class="timeline-pane" tabindex="0" aria-label="Details" data-i18n-attr="aria-label:common.detailsLandmarkLabel">
     <div class="fp-tab-panel" id="tab-dashboard">
       <!-- @partial: dashboard -->
     </div>

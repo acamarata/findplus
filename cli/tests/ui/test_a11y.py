@@ -48,6 +48,10 @@ async def test_no_serious_axe_violations(page, base_url, tab, theme, width):
     await page.set_viewport_size({"width": width, "height": 800})
     await page.goto(base_url + "/")
     await page.wait_for_selector("#map")
+    # The timeline pane only overflows once its rows are in, and "is this
+    # scrollable region keyboard reachable" is one of the rules being scanned:
+    # scanning before then made the verdict depend on load timing.
+    await page.wait_for_selector("#tracks > *", state="attached")
 
     # Under 600px the top nav is hidden and the bottom tab bar drives the tabs,
     # so click whichever nav is actually on screen at this width. The bar uses

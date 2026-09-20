@@ -196,6 +196,51 @@ export function renderColorPreview(fields) {
   fields.colorBtn.style.background = fields.color.value;
 }
 
+/** Closes whichever picker popover is open and returns focus to its own
+ * trigger — the outside-click/Escape paths (visual gate W3 round 2). The
+ * "click the trigger again" close never needs this: focus is already there. */
+export function closeOpenPopover(fields) {
+  if (!fields.iconHost.hidden) {
+    fields.iconHost.hidden = true;
+    fields.iconBtn.focus();
+  }
+  if (!fields.colorHost.hidden) {
+    fields.colorHost.hidden = true;
+    fields.colorBtn.focus();
+  }
+}
+
+/**
+ * Keeps an open popover inside the viewport AND inside its dialog.
+ *
+ * It opens anchored to its trigger (`left: 0` of `.fp-picker-control`, the
+ * popover's positioned ancestor), which is correct near the dialog's left
+ * edge but not for a trigger further right: a 320px-wide panel anchored
+ * there can run past the dialog's own right edge (a 420px-wide dialog still
+ * well inside a 1280px viewport) or, on a narrow dialog, past the viewport's
+ * right edge too -- both are visual gate W3 round 2 findings, so both edges
+ * are checked and the tighter one wins.
+ */
+export function clampPopoverToViewport(host) {
+  if (host.hidden) return;
+  host.style.left = "0";
+  const dlg = host.closest("dialog");
+  const viewportLimit = document.documentElement.clientWidth - 16;
+  const dialogLimit = dlg ? dlg.getBoundingClientRect().right - 1 : viewportLimit;
+  const overflow = host.getBoundingClientRect().right - Math.min(viewportLimit, dialogLimit);
+  if (overflow > 0) host.style.left = `-${overflow}px`;
+}
+
+/** A click outside both the open popover's host and its own trigger closes
+ * it (the trigger's own click is togglePopover's job, in groups_dialog.js). */
+export function closePopoverIfOutside(fields, target) {
+  const outsideIcon = !target.closest("#fp-group-icon-popover, #fp-group-icon-btn");
+  const outsideColor = !target.closest("#fp-group-color-popover, #fp-group-color-btn");
+  if ((!fields.iconHost.hidden && outsideIcon) || (!fields.colorHost.hidden && outsideColor)) {
+    closeOpenPopover(fields);
+  }
+}
+
 export function buildDialog({ onSave, onCancel }) {
   const dlg = document.createElement("dialog");
   dlg.id = "fp-group-dialog";

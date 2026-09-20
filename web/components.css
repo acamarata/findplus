@@ -39,9 +39,23 @@
 .fp-picker-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
 .fp-picker-label { flex: 0 0 108px; color: var(--muted); font-size: 13px; }
 .fp-picker-control { position: relative; display: inline-flex; }
-.fp-popover { position: absolute; top: 100%; left: 0; z-index: 20; background: var(--panel);
-  border: 1px solid var(--line); border-radius: 8px; padding: 8px;
-  max-height: 260px; overflow-y: auto; }
+/* Visual gate W3 round 2: `.fp-picker-control` (the popover's positioned
+   ancestor) is only as wide as the trigger button, and an absolutely
+   positioned box with only `left` set shrink-to-fits against ITS containing
+   block's width -- so the grid inside had ~40px to work with and wrapped to
+   one swatch per row. `width: max-content` sizes the popover off its own
+   content's natural (unwrapped) width instead, and `max-width` reintroduces
+   wrapping at a sane column count while keeping it inside a 375px viewport.
+   Contrast raised (`--line-strong`, a real shadow) because the panel and the
+   dialog behind it are both `--panel` -- an outline this subtle read as "no
+   panel at all" against a same-colour backdrop. */
+.fp-popover {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 30;
+  background: var(--panel); border: 1px solid var(--line-strong); border-radius: 10px;
+  padding: 10px; box-shadow: 0 10px 28px rgba(0,0,0,.4);
+  width: max-content; max-width: min(320px, calc(100vw - 32px));
+  max-height: 260px; overflow-y: auto;
+}
 .fp-field-hint { color: var(--muted); font-size: 12px; margin: 4px 0 8px; }
 #fp-group-members { max-height: 180px; overflow-y: auto; border: 1px solid var(--line);
   border-radius: 8px; padding: 6px 9px; }

@@ -20,7 +20,10 @@ import { api } from "./api.js";
 import { t } from "./i18n.js";
 import { createIconPicker } from "./components/icon-picker.js";
 import { createColorPicker } from "./components/color-picker.js";
-import { buildDialog, memberRow, renderIconPreview, renderColorPreview } from "./groups_dialog_dom.js";
+import {
+  buildDialog, memberRow, renderIconPreview, renderColorPreview,
+  closeOpenPopover, closePopoverIfOutside, clampPopoverToViewport,
+} from "./groups_dialog_dom.js";
 
 const DEFAULT_ICON = "lucide:users";
 const DEFAULT_COLOR = "#27ae60";
@@ -42,6 +45,7 @@ export function initDialog(onSavedArg) {
 function togglePopover(host, other) {
   other.hidden = true;
   host.hidden = !host.hidden;
+  clampPopoverToViewport(host);
 }
 
 /** Both preview buttons: an icon or colour pick invalidates both (the icon
@@ -88,9 +92,9 @@ function wireDialog(dlg) {
   dlg.addEventListener("cancel", (e) => {
     if (fields.iconHost.hidden && fields.colorHost.hidden) return;
     e.preventDefault();
-    fields.iconHost.hidden = true;
-    fields.colorHost.hidden = true;
+    closeOpenPopover(fields);
   });
+  dlg.addEventListener("click", (e) => closePopoverIfOutside(fields, e.target));
 }
 
 function ensureDialog() {

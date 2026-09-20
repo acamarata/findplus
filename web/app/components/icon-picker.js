@@ -124,6 +124,8 @@ export function createIconPicker(host, { value, onChange, letterLabel = "Letter"
     if (id.startsWith("letter:")) {
       letterInput.value = id.slice(7);
       letterInput.hidden = false;
+    } else {
+      letterInput.hidden = true;
     }
   }
 

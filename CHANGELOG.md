@@ -7,6 +7,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Fixed
+- An alert rule whose channel has no credentials now records a `skipped` delivery instead of silently discarding the event.
 - `GET /api/places/events?group_id=` returns that group members' events instead of always returning an empty list.
 - `install.sh` no longer aborts with a `/dev/tty` error where no terminal is readable, such as inside a container.
 - The MCP server instructions name both Google Find Hub and Apple Find My, instead of claiming every tracker reports through Find Hub.

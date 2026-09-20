@@ -206,3 +206,39 @@ def test_concurrent_duplicate_delivery_is_rolled_back(rule_row, session) -> None
 
     assert result is None
     assert session.query(AlertDelivery).count() == 1
+
+
+def test_unconfigured_channel_records_a_skipped_delivery(rule_row, session, settings_enabled):
+    """A rule whose channel has no credentials used to swallow the event (E1 CR-C).
+
+    `_send` returned None, `_deliver_one` bailed before writing a row, and
+    `process` stamped notified_at anyway — so nothing reached
+    GET /api/alerts/deliveries and the event could never fire again once the
+    channel was configured. `status="skipped"` was CHECK-legal but never written.
+    """
+    no_channels = types.SimpleNamespace(telegram=None, webhook=None)
+    with patch("findplus.alerts.store.load_alerts", return_value=no_channels):
+        process([_device_event()], session, settings_enabled, now=NOW)
+
+    row = session.query(AlertDelivery).one()
+    assert row.status == "skipped"
+    assert "telegram" in row.error
+
+
+def test_a_skipped_delivery_does_not_start_a_cooldown(rule_row, session, settings_enabled):
+    """Delivery.status defaults to "sent", so the skipped row must carry its own.
+
+    process() appends each returned Delivery to the in-memory cooldown list. If the
+    status did not travel with it, the next same-key event in the same run would be
+    suppressed by a delivery that never actually went out.
+    """
+    no_channels = types.SimpleNamespace(telegram=None, webhook=None)
+    events = [
+        _device_event(place_event_id=1, event_type="ENTER"),
+        _device_event(place_event_id=2, event_type="EXIT"),
+    ]
+    with patch("findplus.alerts.store.load_alerts", return_value=no_channels):
+        process(events, session, settings_enabled, now=NOW)
+
+    rows = session.query(AlertDelivery).all()
+    assert [r.status for r in rows] == ["skipped", "skipped"]

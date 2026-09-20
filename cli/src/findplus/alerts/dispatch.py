@@ -212,7 +212,7 @@ def _send(rule: Rule, event: DeviceEvent | GroupEvent, kind: str, text_msg: str,
 def _deliver_one(
     session, rule: Rule, event, channels_cfg, now: datetime.datetime
 ) -> Delivery | None:
-    """Send one (rule, event) pair and record it. None if already delivered or no channel."""
+    """Send one (rule, event) pair and record it. None only if already delivered."""
     from findplus.db.models_alerts import AlertDelivery as AlertDeliveryORM
 
     kind = "device" if isinstance(event, DeviceEvent) else "group"
@@ -229,8 +229,16 @@ def _deliver_one(
         text_msg = render_message(event, now)
         result = _send(rule, event, kind, text_msg, channels_cfg)
         if result is None:
-            return None
-        status, err = ("sent" if result.success else "failed"), result.error
+            # The rule names a channel that has no credentials — a telegram rule
+            # created before telegram-setup finished, or one left enabled after
+            # DELETE /api/alerts/channels/telegram, which does not touch rules.
+            # This used to return before writing anything while process() still
+            # stamped notified_at, so the event was swallowed for good and never
+            # appeared in GET /api/alerts/deliveries. Record it instead; the
+            # cooldown filter keys on status == "sent", so this starts none.
+            status, err = "skipped", f"{rule.channel} is not configured"
+        else:
+            status, err = ("sent" if result.success else "failed"), result.error
     except Exception as exc:  # a channel failure must never crash dispatch/the poller
         status, err = "failed", str(exc)[:500]
 
@@ -250,8 +258,18 @@ def _deliver_one(
         # Another poller won the race between the dedup SELECT and this commit.
         session.rollback()
         return None
+    # status must travel with the row: process() appends this to the in-memory
+    # cooldown list, and Delivery.status defaults to "sent", so a failed or
+    # skipped send would otherwise suppress the next same-key alert for the rest
+    # of this run even though _load_recent_deliveries reads it correctly on the
+    # next one.
     return Delivery(
-        rule_id=rule.id, event_kind=kind, event_id=eid, sent_at=now, place_id=event.place_id
+        rule_id=rule.id,
+        event_kind=kind,
+        event_id=eid,
+        sent_at=now,
+        status=status,
+        place_id=event.place_id,
     )
 
 

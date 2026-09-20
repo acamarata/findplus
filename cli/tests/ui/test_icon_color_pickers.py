@@ -91,6 +91,27 @@ async def test_icon_picker_letter_flow(page, base_url) -> None:
     assert await page.evaluate("window.__lastValue") == "letter"
 
 
+async def test_icon_picker_click_letter_swatch_emits_without_typing(page, base_url) -> None:
+    """CR-C-E3 F1: bare "letter" is a complete value -- the click alone must emit."""
+    await _open_with_host(page, base_url)
+    await page.evaluate(
+        """async () => {
+            const { createIconPicker } = await import('/static/app/components/icon-picker.js');
+            window.__picker = createIconPicker(document.getElementById('picker-host'), {
+                value: 'lucide:dog',
+                onChange: (v) => { window.__lastValue = v; },
+            });
+        }"""
+    )
+    letter_btn = page.locator("#picker-host button[data-icon-id='letter']")
+    await letter_btn.click()
+    assert await page.evaluate("window.__lastValue") == "letter"
+    assert await page.evaluate("window.__picker.getValue()") == "letter"
+    assert await letter_btn.get_attribute("aria-pressed") == "true"
+    dog = page.locator("#picker-host button[data-icon-id='lucide:dog']")
+    assert await dog.get_attribute("aria-pressed") == "false"
+
+
 async def test_icon_picker_get_set_and_destroy(page, base_url) -> None:
     await _open_with_host(page, base_url)
     await _mount_icon_picker(page)

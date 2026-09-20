@@ -136,9 +136,10 @@ export function createIconPicker(host, { value, onChange, letterLabel = "Letter"
   function onSwatchClick(btn) {
     const id = btn.dataset.iconId;
     if (id === "letter") {
-      // No emit yet: the letter form needs a character (or an empty input,
-      // which is the dynamic bare-letter form) before it means anything.
-      applyPressedState("letter");
+      // Bare "letter" is already a complete, valid value (the 0007 default),
+      // so the click itself must emit -- typing a character afterward just
+      // narrows it to "letter:X" via the input listener below.
+      emit("letter");
       letterInput.hidden = false;
       letterInput.focus();
       return;

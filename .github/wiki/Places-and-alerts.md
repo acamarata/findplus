@@ -39,7 +39,7 @@ The Alerts tab lists what Find+ actually sent, most recent first:
 | Status | `sent`, `failed`, or `skipped`. |
 | Error | Why it failed, or why it was skipped. |
 
-`skipped` means the rule matched but nothing was sent — most often because the
+`skipped` means the rule matched but nothing was sent, most often because the
 rule names a channel with no credentials, such as a Telegram rule created
 before setup finished, or one left enabled after the Telegram connection was
 deleted. A skipped or failed delivery does not start the rule's cooldown, so

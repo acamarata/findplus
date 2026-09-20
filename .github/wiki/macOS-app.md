@@ -31,7 +31,7 @@ describe the device with the **newest** fix, whatever it is called. A device
 whose last fix is older than the stale threshold is shown with no place and no
 map: a missing fix is not evidence of where a tag is.
 
-The small widget shows status only. It carries no action buttons — at that size
+The small widget shows status only. It carries no action buttons; at that size
 a mis-tap is too easy, and Poll Now and Lock are both one click away in the
 menu bar.
 

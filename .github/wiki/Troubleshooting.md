@@ -52,7 +52,7 @@ sparse or unavailable.
 ## 6. "Database not migrated. Run findplus db upgrade."
 
 Every API call returns HTTP 503 with this message. The database file exists but
-its schema is older than the code — usually after installing a new version
+its schema is older than the code, usually after installing a new version
 without starting the daemon, which normally migrates on start.
 
 Run the command it names:

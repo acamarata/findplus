@@ -95,3 +95,53 @@ open http://127.0.0.1:8647/
 Run them in that order. The first two re-prove the tree, the next two check what the release
 ticket published, and the last four sign in, take a first real fix, install the background
 service and open the dashboard.
+
+PyPI publish deferred: token missing
+
+## Release record v1.0.0
+
+Released 2026-09-19 from commit `7a13a5e` on `main`. Release:
+https://github.com/acamarata/findplus/releases/tag/v1.0.0
+
+| Asset | sha256 | Size |
+|---|---|---|
+| FindPlus-1.0.0-aarch64.dmg | `11b861c0ece6f5a7e13aee90f862e6569002e32de27616b98f7fcd341b733648` | 49 MB |
+| FindPlus-1.0.0-aarch64.dmg.sha256 | `78f4a335a33d80d95f083b9cf80d3308c41ff8e20b0f018c45a1ebeba232e6c1` | 93 B |
+| findplus-1.0.0-py3-none-any.whl | `c6fe30fc47a854ffe56136f329b5ce32050f4b137dfeafda2b35b031d077d85c` | 420 KB |
+| findplus-1.0.0.tar.gz | `e5602874d2ed2389b1d1735786ff9328d17a0317cc2177a9b285b102f8e0d0c5` | 430 KB |
+| install.sh | `f76bdc3b03ecad58bf1e6bd29a65df0d71ec84ee7201872f3dff401226436d04` | 4.5 KB |
+| LICENSE | `3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986` | GPL-3.0 |
+| CHANGELOG.md | `c8038dea27ab15f196f98420c9626241db1490fd2dd82890483ca1631b04ea8e` | |
+
+Signing and notarisation, identity `Developer ID Application: Aric Camarata (5398R82926)`:
+both `Find+.app` and the dmg were notarised and stapled, and `spctl -a -vv --type install`
+reports `accepted, source=Notarized Developer ID` for each. `codesign --verify --deep --strict`
+exits 0, `hdiutil verify` exits 0, `verify-dmg.sh` passes at 49 MB against the 120 MB budget.
+The sidecar launcher in `Contents/MacOS` is still the shell script; the notary service accepted
+it, so the compiled-stub fallback was not needed.
+
+PyPI outcome: deferred. `PYPI_API_TOKEN` is absent from `~/.claude/vault.env`, so nothing was
+uploaded and `findplus` is not on PyPI.
+
+Homebrew: the formula in `acamarata/homebrew-tap` is sourced from the GitHub Release, not PyPI,
+because PyPI publish was deferred. Its url is
+`https://github.com/acamarata/findplus/releases/download/v1.0.0/findplus-1.0.0.tar.gz` with
+sha256 `e5602874d2ed2389b1d1735786ff9328d17a0317cc2177a9b285b102f8e0d0c5`. Tap commit
+`041f0d265f53a6fd2c144eea6076bf0f8841fb72`. `brew install acamarata/tap/findplus` succeeds and
+`$(brew --prefix)/bin/findplus --version` prints `findplus, version 1.0.0`.
+
+`release.yml` on the tag (run 35476262190) finished with `build-python` and `github-release`
+green, `build-dmg` and `publish-pypi` failed and `update-tap` skipped. That is the expected
+state: the repo has no Apple signing secrets and no PyPI trusted-publishing environment. The
+release itself was built, signed and uploaded from this machine, so those jobs are recorded here
+rather than acted on.
+
+Owner items after this release:
+
+1. Run `findplus auth` against your real Google account. Nothing in the build could do it.
+2. Configure PyPI trusted publishing for `release.yml`, or add `PYPI_API_TOKEN` and upload
+   `dist/findplus-1.0.0-py3-none-any.whl` and `dist/findplus-1.0.0.tar.gz` by hand.
+3. The Intel dmg stays a conditional artefact (E13-T10). arm64 is the only build.
+4. Walk the six GUI steps in `.github/docs/REHEARSAL.md`.
+5. Dependabot PRs 1 to 5 are still parked. Set `if-no-files-found: warn` on `release.yml`'s
+   finalise step before merging the `actions/upload-artifact` bump.

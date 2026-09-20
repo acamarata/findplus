@@ -122,3 +122,5 @@ once. Nothing below is covered by the automated legs above.
 |---|---|
 | macOS | PASS, `REHEARSAL-MACOS-PASS`, exit 0 |
 | Linux | PASS, `REHEARSAL-LINUX-PASS`, exit 0 |
+
+Release v1.0.0 shipped from this rehearsal path on 2026-09-19: both legs green, the dmg notarised and stapled, and `brew install acamarata/tap/findplus` verified on this machine.

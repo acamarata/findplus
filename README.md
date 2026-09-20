@@ -49,7 +49,7 @@ page for a pinned-version URL.
 pipx install findplus
 ```
 
-Requires Python 3.12 or newer.
+Requires Python 3.12, 3.13 or 3.14.
 
 **macOS app (dmg):** download `FindPlus-<version>-aarch64.dmg` from
 [Releases](https://github.com/acamarata/findplus/releases).

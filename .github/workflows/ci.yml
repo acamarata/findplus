@@ -19,7 +19,7 @@ jobs:
       - run: ruff check cli/src cli/tests
       - run: ruff format --check cli/src cli/tests
       - run: find web -name '*.js' -exec node --check {} +
-      - run: shellcheck install.sh
+      - run: shellcheck install.sh packaging/scripts/*.sh
       - run: bash packaging/scripts/lint-prose.sh README.md .github/wiki/*.md
 
   test:

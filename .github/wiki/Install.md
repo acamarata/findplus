@@ -7,7 +7,7 @@ curl -fsSL https://raw.githubusercontent.com/acamarata/findplus/main/install.sh 
 ```
 
 Installs Find+ into `~/.local/share/findplus/` and links `findplus` into
-`~/.local/bin/`. Requires Python 3.12 or newer. Pass `--yes` to skip the
+`~/.local/bin/`. Requires Python 3.12, 3.13 or 3.14. Pass `--yes` to skip the
 confirmation prompt, or `--uninstall` to remove it (see [Uninstall](Uninstall)
 for what that keeps and what it removes).
 

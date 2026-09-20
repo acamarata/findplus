@@ -128,8 +128,10 @@ main() {
   print_plan
   if [ "$YES" != "1" ]; then
     printf "Continue? [y/N] "
-    if [ -r /dev/tty ]; then read -r answer </dev/tty; else read -r answer; fi
-    case "$answer" in
+    # [ -r /dev/tty ] passes inside a container while opening it fails with
+    # ENXIO, which killed the curl-pipe install under set -e. Probe by opening.
+    if (exec 3</dev/tty) 2>/dev/null; then read -r answer </dev/tty; else read -r answer || true; fi
+    case "${answer:-}" in
       y | Y) ;;
       *)
         echo "Aborted."

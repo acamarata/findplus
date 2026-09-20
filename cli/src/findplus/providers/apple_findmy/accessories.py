@@ -50,8 +50,15 @@ def add_accessory(
     *,
     plist_path: pathlib.Path | None = None,
     private_key_b64: str | None = None,
+    allow_overwrite: bool = True,
 ) -> dict:
-    """Register one accessory from a plist export or a raw base64 private key."""
+    """Register one accessory from a plist export or a raw base64 private key.
+
+    `allow_overwrite` defaults to the CLI's long-standing silent replace, so
+    `findplus apple add-accessory` behaves exactly as before. The web route
+    passes False: a dashboard form has no way to say "yes, replace it", so a
+    repeat submission should be reported (409), not applied.
+    """
     if plist_path is not None:
         kind = "plist"
         payload, key_bytes = _parse_plist(plist_path)
@@ -79,6 +86,8 @@ def add_accessory(
         "added_at": datetime.datetime.now(tz=datetime.UTC).isoformat(),
     }
     path = _accessories_dir(settings) / f"{device_id.replace(':', '_')}.json"
+    if not allow_overwrite and path.exists():
+        raise FileExistsError(f"accessory {device_id!r} is already registered")
     # 0600 before the key payload is written (see save_account for the why).
     path.touch(mode=0o600, exist_ok=True)
     path.chmod(0o600)

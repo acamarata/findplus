@@ -1,7 +1,8 @@
 """`findplus auth`: provider sign-in (Google via Chrome, Apple interactively).
 
 Purpose    : The sign-in command and its two provider branches.
-Inputs     : `--provider google-find-hub|apple-find-my` (specs/cli-reference.md § auth).
+Inputs     : `--provider google-find-hub|apple-find-my`, plus `--status` and
+             `--json` for a read-only report (specs/cli-reference.md § auth).
 Outputs    : Credentials written by the provider itself (secrets.json /
              apple-account.json, both 0600); console guidance only here.
 Constraints: Split out of cmd_service.py, which was over the 300-line/file hard
@@ -14,6 +15,7 @@ Constraints: Split out of cmd_service.py, which was over the 300-line/file hard
 
 from __future__ import annotations
 
+import json
 import sys
 
 import click
@@ -23,37 +25,34 @@ from findplus.config import get_settings
 from ._fmt import _prep
 
 
-@click.command()
-@click.option(
-    "--provider",
-    type=click.Choice(["google-find-hub", "apple-find-my"]),
-    default="google-find-hub",
-    help="Provider to authenticate: google-find-hub or apple-find-my",
-)
-def auth(provider: str) -> None:
-    """Sign in to a provider (Google via Chrome, or Apple interactively)."""
-    _prep()
-    settings = get_settings()
+def _print_auth_status(as_json: bool) -> None:
+    """Report sign-in state for every provider, taking no sign-in side effect.
 
-    if provider == "apple-find-my":
-        _auth_apple(settings)
+    Same object `GET /api/auth/status` serves, from the same call, so the CLI
+    and the dashboard cannot drift (specs/auth-ui.md §5).
+    """
+    from findplus.providers.auth_status import build_auth_status
+
+    status = build_auth_status()
+    if as_json:
+        click.echo(json.dumps(status))
         return
+    click.echo(f"{'Provider':<20} {'Signed in':<12} Account")
+    for provider in status["providers"]:
+        signed = "yes" if provider["signed_in"] else "no"
+        # "-", never str(None): a bare "None" in a terminal reads as a value.
+        account = provider["account"] or "-"
+        click.echo(f"{provider['id']:<20} {signed:<12} {account}")
 
-    from findplus.cli.doctor import check_chrome
-    from findplus.providers.base import get_provider
 
-    # Checked before anything is printed or confirmed: the upstream driver
-    # needs a real Chrome, so without one the whole flow is a dead end and
-    # saying so now beats failing halfway through a sign-in.
-    if not check_chrome().passed:
-        click.secho("Google Chrome was not found on this machine.", fg="red", err=True)
-        click.echo(
-            "Google sign-in drives Chrome directly and cannot run without it.\n"
-            "Install it from https://www.google.com/chrome/ and run `findplus auth` again.",
-            err=True,
-        )
-        sys.exit(1)
+def _google_preamble(settings) -> None:
+    """What the terminal flow opens, kills and stores, said before it happens.
 
+    The `pkill` line is about the CLI path only: it runs the vendor's original
+    `create_driver`, which closes every Chrome window first. The dashboard path
+    (providers/google_findhub/browser.py) uses its own profile and kills
+    nothing, so it carries no such warning.
+    """
     click.echo("")
     click.secho("Google sign-in", bold=True)
     click.echo(
@@ -71,6 +70,47 @@ def auth(provider: str) -> None:
     click.echo("  token, a device-manager token, FCM push credentials, and the")
     click.echo("  end-to-end-encryption owner key needed to decrypt tag locations.")
     click.echo("  Your Google PASSWORD is never seen, stored, or transmitted by this app.\n")
+
+
+@click.command()
+@click.option("--status", "show_status", is_flag=True, help="Print sign-in status and exit.")
+@click.option(
+    "--json", "as_json", is_flag=True, help="With --status, print JSON instead of a table."
+)
+@click.option(
+    "--provider",
+    type=click.Choice(["google-find-hub", "apple-find-my"]),
+    default="google-find-hub",
+    help="Provider to authenticate: google-find-hub or apple-find-my",
+)
+def auth(provider: str, show_status: bool, as_json: bool) -> None:
+    """Sign in to a provider (Google via Chrome, or Apple interactively)."""
+    # _prep() first: build_auth_status() reads settings and the secrets store,
+    # so the status path needs the same environment the sign-in path does.
+    _prep()
+    if show_status:
+        _print_auth_status(as_json)
+        return
+
+    settings = get_settings()
+
+    if provider == "apple-find-my":
+        _auth_apple(settings)
+        return
+
+    from findplus.cli.doctor import check_chrome
+    from findplus.providers.base import get_provider
+
+    # Checked before anything is printed or confirmed: the upstream driver
+    # needs a real Chrome, so without one the whole flow is a dead end and
+    # saying so now beats failing halfway through a sign-in.
+    if not check_chrome().passed:
+        from findplus.providers.google_findhub.browser import MSG_CHROME_MISSING
+
+        click.secho(MSG_CHROME_MISSING, fg="red", err=True)
+        sys.exit(1)
+
+    _google_preamble(settings)
 
     if not click.confirm("Open Chrome and sign in now?", default=True):
         raise click.Abort

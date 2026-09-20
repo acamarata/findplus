@@ -184,6 +184,12 @@ class Settings(BaseSettings):
 
     @computed_field
     @property
+    def chrome_profile_dir(self) -> Path:
+        # Never the user's own profile; browser.py makes it 0700 on first use.
+        return self.state_dir / "chrome-profile"
+
+    @computed_field
+    @property
     def task_xml_path(self) -> Path:
         return self.state_dir / "FindPlus-task.xml"
 

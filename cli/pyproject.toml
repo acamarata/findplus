@@ -24,6 +24,10 @@ dependencies = [
   # --- our stack ---
   "fastapi>=0.115",
   "uvicorn[standard]>=0.32",
+  # Starlette parses multipart bodies only when this is installed, and it
+  # raises at request time, not import time, when it is not. POST
+  # /api/apple/accessories takes a plist upload, so it is a runtime dependency.
+  "python-multipart>=0.0.9",
   "sqlalchemy>=2.0.36",
   "alembic>=1.14",
   "pydantic>=2.9",

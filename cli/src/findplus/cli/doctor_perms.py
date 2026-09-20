@@ -35,8 +35,12 @@ def _private_dirs(state_dir: Path) -> list[Path]:
 
     `apple/` holds one JSON per Apple accessory, each carrying a plist or a raw
     private key, so it is as sensitive as `logs/` (E11 review, carry-forward 26).
+    `chrome-profile/` joins them because a signed-in Chrome profile holds session
+    state as sensitive as a credential store. Each is skipped while it does not
+    exist: the Chrome profile is only created the first time someone signs in
+    through the dashboard.
     """
-    return [state_dir / "logs", state_dir / "apple"]
+    return [state_dir / "logs", state_dir / "apple", state_dir / "chrome-profile"]
 
 
 def _sensitive_files(state_dir: Path) -> list[Path]:

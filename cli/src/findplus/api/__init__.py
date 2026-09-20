@@ -153,6 +153,13 @@ class _ComposedSourceGuard(StaticFiles):
         # refused, and Windows accepts `\` as a separator. Without both of
         # these the guard is a one-character bypass.
         probe = path.replace("\\", "/").lower()
+        # Nothing dotted is ever a dashboard asset, and in the dev/monorepo
+        # tree the static root IS the repo's web/ directory -- so /static
+        # happily served web/.claude/CLAUDE.md, unauthenticated, on 8647
+        # (E1 security round 3 F4). An allow-everything-but-two list was the
+        # wrong shape for a directory nobody curates file by file.
+        if any(part.startswith(".") for part in probe.split("/")):
+            raise StarletteHTTPException(status_code=404)
         if any(probe == name or probe.startswith(name) for name in self._HIDDEN):
             raise StarletteHTTPException(status_code=404)
         return await super().get_response(path, scope)

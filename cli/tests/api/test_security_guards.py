@@ -276,3 +276,22 @@ def test_the_composed_page_itself_still_has_every_partial(client: TestClient) ->
         first_id = re.search(r'id="([^"]+)"', source)
         assert first_id, f"partial {name} has no id to anchor on"
         assert f'id="{first_id.group(1)}"' in res.text, f"partial {name} is missing from /"
+
+
+def test_no_dotted_path_is_served_from_static(client: TestClient) -> None:
+    """E1 security round 3 F4: /static served the whole static root.
+
+    In the dev/monorepo tree that root IS the repo's web/ directory, so
+    `GET /static/.claude/CLAUDE.md` returned 200 with the repo's own
+    instruction file, unauthenticated, on 8647. The guard was an
+    allow-everything-but-two list over a directory nobody curates file by file.
+    """
+    for path in (
+        "/static/.claude/CLAUDE.md",
+        "/static/.claude/AGENTS.md",
+        "/static/.gitignore",
+        "/static/app/../.claude/CLAUDE.md",
+    ):
+        res = client.get(path)
+        assert res.status_code == 404, f"{path} -> {res.status_code}"
+        assert "findplus-web-pac" not in res.text

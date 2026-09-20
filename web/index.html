@@ -72,7 +72,7 @@
   <div class="card"><span class="label" data-i18n="common.cardTodayLabel">Observations today</span><strong id="card-today">—</strong><span class="sub" id="card-total">—</span></div>
 </section>
 
-<div id="alert" class="alert hidden"></div>
+<div id="alert" class="alert hidden" role="status" aria-live="polite"></div>
 
 <section class="controls">
   <label for="device-filter" data-i18n="common.show">Show</label>
@@ -85,11 +85,11 @@
 
   <label for="day-picker" data-i18n="common.day">Day</label>
   <input type="date" id="day-picker">
-  <button class="btn btn-tiny" id="btn-prev-day" title="Previous day"
-          data-i18n-attr="title:common.prevDay">‹</button>
+  <button class="btn btn-tiny" id="btn-prev-day" title="Previous day" aria-label="Previous day"
+          data-i18n-attr="title:common.prevDay,aria-label:common.prevDay">‹</button>
   <button class="btn btn-tiny" id="btn-today" data-i18n="common.today">Today</button>
-  <button class="btn btn-tiny" id="btn-next-day" title="Next day"
-          data-i18n-attr="title:common.nextDay">›</button>
+  <button class="btn btn-tiny" id="btn-next-day" title="Next day" aria-label="Next day"
+          data-i18n-attr="title:common.nextDay,aria-label:common.nextDay">›</button>
 
   <label class="toggle"><input type="checkbox" id="toggle-movement"> <span data-i18n="common.movementOnly">Movement only</span></label>
 
@@ -102,6 +102,7 @@
     <option value="json" data-i18n="common.exportFormatJson">JSON</option>
     <option value="kml" data-i18n="common.exportFormatKml">KML</option>
   </select>
+  <label for="export-scope" class="sr-only" data-i18n="common.exportScope">Scope</label>
   <select id="export-scope">
     <option value="day" data-i18n="common.exportScopeDay">This day</option>
     <option value="range" data-i18n="common.exportScopeRange">Date range…</option>
@@ -115,7 +116,7 @@
   <button class="btn btn-secondary" id="btn-export" data-i18n="common.download">Download</button>
 </section>
 
-<nav class="fp-tabs">
+<nav class="fp-tabs" aria-label="Sections" data-i18n-attr="aria-label:common.sectionsNavLabel">
   <button class="fp-tab active" data-tab="dashboard" data-i18n="common.tabDashboard">Dashboard</button>
   <button class="fp-tab" data-tab="places" data-i18n="common.tabPlaces">Places</button>
   <button class="fp-tab" data-tab="groups" data-i18n="common.tabGroups">Groups</button>
@@ -130,7 +131,7 @@
 
   <!-- The map above is shared by every tab (Places crosshair-clicks it,
        Groups draws member overlays on it); only this side pane switches. -->
-  <aside class="timeline-pane">
+  <aside class="timeline-pane" aria-label="Details" data-i18n-attr="aria-label:common.detailsLandmarkLabel">
     <div class="fp-tab-panel" id="tab-dashboard">
       <!-- @partial: dashboard -->
     </div>
@@ -157,11 +158,12 @@
 
 </div><!-- /app-shell -->
 
-<div id="device-modal" class="modal hidden">
+<div id="device-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="device-modal-title">
   <div class="modal-box">
     <header class="modal-head">
       <h2 id="device-modal-title" data-i18n="devices.title">Your devices</h2>
-      <button class="btn btn-tiny" id="btn-close-devices" data-i18n="common.close">Close</button>
+      <button class="btn btn-tiny" id="btn-close-devices" aria-label="Close"
+              data-i18n="common.close" data-i18n-attr="aria-label:common.close">Close</button>
     </header>
     <p class="modal-note" id="device-modal-note" data-i18n="devices.note">
       Tick every tracker you want polled. Each tracked device costs one provider
@@ -180,7 +182,7 @@
   </div>
 </div>
 
-<div id="settings-modal" class="modal hidden">
+<div id="settings-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
   <div class="modal-box">
     <!-- @partial: settings -->
   </div>

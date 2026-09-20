@@ -12,6 +12,10 @@ import { $, state, applyTheme, showAlert } from "./state.js";
 import { api, postJson } from "./api.js";
 import { showLock, startIdleTimer } from "./lock.js";
 import { t } from "./i18n.js";
+import { trapFocus } from "./components/dialog-trap.js";
+
+/** The focus trap for #settings-modal while it is open, or null. */
+let settingsTrap = null;
 
 export async function loadSettings() {
   state.settings = await api("/api/settings");
@@ -63,17 +67,27 @@ export async function openSettings() {
     const startAtLogin = await api("/api/settings/app.start_at_login");
     $("setting-start-at-login").checked = startAtLogin["app.start_at_login"];
     $("settings-modal").classList.remove("hidden");
+    settingsTrap = trapFocus($("settings-modal"), closeSettings);
   } catch (e) {
     showAlert(e.message, "err");
+  }
+}
+
+/** Hide the dialog and hand focus back to whatever opened it. */
+export function closeSettings() {
+  $("settings-modal").classList.add("hidden");
+  if (settingsTrap) {
+    settingsTrap.release();
+    settingsTrap = null;
   }
 }
 
 /** Wire the settings dialog: toggle it open/closed, theme/idle/lock-enabled, PIN set/change/remove. */
 export function wireSettingsControls() {
   $("btn-settings").addEventListener("click", openSettings);
-  $("btn-close-settings").addEventListener("click", () => $("settings-modal").classList.add("hidden"));
+  $("btn-close-settings").addEventListener("click", closeSettings);
   $("settings-modal").addEventListener("click", (e) => {
-    if (e.target.id === "settings-modal") $("settings-modal").classList.add("hidden");
+    if (e.target.id === "settings-modal") closeSettings();
   });
 
   $("setting-theme").addEventListener("change", async (e) => {

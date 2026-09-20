@@ -19,6 +19,8 @@ import { loadDay, selectPoint, wireTimelineControls, wireHistoryControls } from 
 import { loadDevices, openDevices, wireDeviceControls } from "./devices.js";
 import { wireLockControls, refreshLockState, startIdleTimer } from "./lock.js";
 import { wireSettingsControls, openSettings, loadSettings } from "./settings.js";
+import { loadCatalog, applyStaticI18n, t, plural } from "./i18n.js";
+import { initTabbar } from "./components/tabbar.js";
 
 export async function loadStatus() {
   try {
@@ -28,45 +30,61 @@ export async function loadStatus() {
     $("device-name").textContent = state.deviceFilter
       ? (s.devices.find((d) => d.device_id === state.deviceFilter) || {}).name || state.deviceFilter
       : tracked.length
-        ? `${tracked.length} device${tracked.length === 1 ? "" : "s"} tracked · ~${s.requests_per_hour}/hr`
-        : "no devices tracked";
+        ? plural("common.devicesTracked", tracked.length, {
+            n: tracked.length,
+            rate: s.requests_per_hour,
+          })
+        : t("common.noDevicesTracked");
 
     const dot = $("live-dot");
     dot.className = "dot " + (s.poller_running ? "live" : "stale");
     dot.title = s.poller_running
-      ? `Polling service active (every ${s.poll_interval_minutes} min)`
-      : "No recent poll — the service may be stopped";
+      ? t("common.pollerActive", { interval: s.poll_interval_minutes })
+      : t("common.pollerStale");
 
     const latest = s.latest_observation;
     if (latest) {
       $("card-observed").textContent = fmtTime(latest.observed_at_local);
-      $("card-observed-ago").textContent = `${fmtDuration(latest.age_seconds)} ago · ${latest.device_name}`;
+      $("card-observed-ago").textContent = t("common.observedAgo", {
+        age: fmtDuration(latest.age_seconds),
+        device: latest.device_name,
+      });
       $("card-fetched").textContent = fmtTime(latest.fetched_at_local);
-      $("card-lag").textContent = `${fmtDuration(latest.retrieval_lag_seconds)} after it was seen`;
+      $("card-lag").textContent = t("common.retrievalLag", {
+        lag: fmtDuration(latest.retrieval_lag_seconds),
+      });
     } else {
-      $("card-observed").textContent = "—";
-      $("card-observed-ago").textContent = "no observations yet";
-      $("card-fetched").textContent = "—";
-      $("card-lag").textContent = "—";
+      $("card-observed").textContent = t("common.emptyValue");
+      $("card-observed-ago").textContent = t("common.noObservationsYet");
+      $("card-fetched").textContent = t("common.emptyValue");
+      $("card-lag").textContent = t("common.emptyValue");
     }
 
     const run = s.last_successful_poll;
-    $("card-poll").textContent = run ? fmtTime(run.started_at_local) : "—";
-    $("card-poll-status").textContent = s.last_poll ? `last attempt: ${s.last_poll.status}` : "no polls yet";
+    $("card-poll").textContent = run ? fmtTime(run.started_at_local) : t("common.emptyValue");
+    $("card-poll-status").textContent = s.last_poll
+      ? t("common.lastAttempt", { status: s.last_poll.status })
+      : t("common.noPollsYet");
     $("card-today").textContent = String(s.observations_today);
-    $("card-total").textContent = `${s.observations_total} total on record`;
+    $("card-total").textContent = t("common.totalOnRecord", { total: s.observations_total });
 
     if (s.last_poll && !["ok", "no_location"].includes(s.last_poll.status)) {
-      showAlert(`Last poll failed (${s.last_poll.status}): ${s.last_poll.error_message || "unknown error"}`, "err");
+      showAlert(
+        t("common.pollFailed", {
+          status: s.last_poll.status,
+          message: s.last_poll.error_message || t("common.unknownError"),
+        }),
+        "err"
+      );
     } else if (!s.tracked_count) {
-      showAlert('No devices are being tracked. Click "Devices" to choose which trackers to poll.', "warn");
+      showAlert(t("common.nothingTracked"), "warn");
     } else if (!s.poller_running) {
-      showAlert("The polling service does not appear to be running. Start it with: findplus start", "warn");
+      showAlert(t("common.serviceNotRunning"), "warn");
     } else {
       showAlert(null);
     }
   } catch (err) {
-    showAlert(`Could not reach the local API: ${err.message}`, "err");
+    showAlert(t("common.apiUnreachable", { message: err.message }), "err");
   }
 }
 
@@ -107,16 +125,24 @@ export async function applyHashRoute({ closeOthers = true } = {}) {
   else if (closeOthers) closeModals();
 }
 
-/** Switches the active `.fp-tab` / `.fp-tab-panel` pair. Single source of truth for tab-nav. */
+/**
+ * Switch the active `.fp-tab` / `.fp-tab-panel` pair.
+ *
+ * The one place tab switching happens: the top nav's buttons and the phone
+ * tier's bottom tab bar (components/tabbar.js) both call this rather than
+ * keeping two copies of the toggling.
+ */
+export function switchTab(tab) {
+  document.querySelectorAll(".fp-tabs .fp-tab").forEach((b) =>
+    b.classList.toggle("active", b.dataset.tab === tab));
+  document.querySelectorAll(".fp-tab-panel").forEach((p) => {
+    p.hidden = p.id !== "tab-" + tab;
+  });
+}
+
 function wireTabs() {
   document.querySelectorAll(".fp-tabs .fp-tab").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll(".fp-tabs .fp-tab").forEach((b) =>
-        b.classList.toggle("active", b === btn));
-      document.querySelectorAll(".fp-tab-panel").forEach((p) => {
-        p.hidden = p.id !== "tab-" + btn.dataset.tab;
-      });
-    });
+    btn.addEventListener("click", () => switchTab(btn.dataset.tab));
   });
 }
 
@@ -171,9 +197,39 @@ export async function bootDashboard(resume) {
   }, seconds * 1000);
 }
 
+/**
+ * Put the bundled Lucide sprite in the document once, at boot.
+ *
+ * `<use href="#lucide-dog">` only resolves against a symbol in the SAME
+ * document, so the sprite has to be inlined rather than referenced as an
+ * external file. Never innerHTML: the parsed SVG element is prepended as a
+ * node.
+ */
+async function loadIconSprite() {
+  const res = await fetch("/static/icons.svg");
+  const text = await res.text();
+  const svgEl = new DOMParser().parseFromString(text, "image/svg+xml").documentElement;
+  document.body.prepend(svgEl);
+}
+
 async function main() {
+  // Fire-and-forget: every consumer (icon picker, badge renderer) runs from a
+  // dialog the user opens long after this settles, and a missing sprite must
+  // not stop the dashboard booting.
+  loadIconSprite().catch(() => {});
+
   // Paint the cached theme before anything else so there is no flash.
   applyTheme(getStoredTheme());
+
+  // The catalog has no DOM dependency, so it can be loaded first; then ONE walk
+  // over the document renders every data-i18n element. The daemon composed the
+  // shell and all five partials into this page before serving it, so that one
+  // walk covers the whole UI and nothing added later needs a second hook.
+  await loadCatalog();
+  applyStaticI18n();
+  // Needs the catalog (its labels) and the static markup (#btn-more), so it
+  // runs after applyStaticI18n() and before the rest of the boot sequence.
+  initTabbar();
 
   initMap();
   wireControls();

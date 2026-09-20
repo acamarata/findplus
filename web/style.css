@@ -3,9 +3,13 @@
   --panel: #1a1f29;
   --panel-2: #222836;
   --line: #2e3646;
+  /* Interactive form-control borders only. --line stays as it is: it draws
+     decorative card and table dividers, which WCAG 1.4.11 does not gate. */
+  --line-strong: #667285;
   --text: #e7ecf3;
   --muted: #94a3b8;
-  --accent: #4f8cf7;
+  /* 4.55:1 with white button text (the old #4f8cf7 was 3.27:1 and failed). */
+  --accent: #4274cd;
   --ok: #37c67a;
   --warn: #e7b53f;
   --err: #ef5f5f;
@@ -55,15 +59,19 @@ h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .07em; color: v
 
 .controls { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; padding: 14px 18px 0; }
 .controls label { font-size: 12px; color: var(--muted); }
-.controls input[type=date], .controls select {
+.controls input[type=date] {
   background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 7px; padding: 6px 9px; font-size: 13px;
+}
+.controls select {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line-strong);
   border-radius: 7px; padding: 6px 9px; font-size: 13px;
 }
 .toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 .spacer { flex: 1; }
 
 .layout { display: grid; grid-template-columns: minmax(0,1fr) 380px; gap: 14px; padding: 14px 18px; }
-@media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
 
 .map-pane { display: flex; flex-direction: column; }
 #map { height: 66vh; min-height: 420px; border-radius: 11px; border: 1px solid var(--line);
@@ -167,11 +175,14 @@ html[data-theme="light"] {
   --panel: #ffffff;
   --panel-2: #eef1f6;
   --line: #d6dce6;
+  --line-strong: #808c9c;
   --text: #171d26;
   --muted: #5d6b7e;
   --accent: #2f6fe6;
-  --ok: #16915a;
-  --warn: #9a6b00;
+  /* 4.53:1 on --bg; the old #16915a was 3.71:1. */
+  --ok: #148150;
+  /* 4.56:1 on --bg; the old #9a6b00 was 4.34:1. */
+  --warn: #956800;
   --err: #c53232;
   --gap: #9a6b00;
 }
@@ -201,6 +212,18 @@ html[data-theme="light"] .alert.warn { color: #6b4a00; }
   letter-spacing: .3em; font-variant-numeric: tabular-nums;
 }
 #lock-pin:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* One rule for every other interactive element, not one per component.
+   :focus-visible rather than :focus so a mouse click does not show the ring;
+   #lock-pin above keeps :focus deliberately (a full-screen modal input). */
+.btn:focus-visible, .btn-secondary:focus-visible, .btn-tiny:focus-visible,
+input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
+.fp-tabbar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Visible to a screen reader, not on screen. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap;
+}
 .lock-error { color: var(--err); font-size: 12.5px; min-height: 18px; margin: 12px 0 0; }
 
 #app-shell.hidden { display: none; }
@@ -221,9 +244,12 @@ html[data-theme="light"] .alert.warn { color: #6b4a00; }
   gap: 12px; padding: 7px 0; font-size: 13.5px;
 }
 .setting-row input[type=password],
-.setting-row input[type=date],
-.setting-row select {
+.setting-row input[type=date] {
   background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 7px; padding: 6px 9px; font-size: 13px; min-width: 190px;
+}
+.setting-row select {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line-strong);
   border-radius: 7px; padding: 6px 9px; font-size: 13px; min-width: 190px;
 }
 .setting-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
@@ -284,3 +310,74 @@ html[data-theme="light"] .alert.warn { color: #6b4a00; }
   font-weight: 600;
   color: var(--muted);
 }
+
+/* --- colour picker (device and group badges) ----------------------------- */
+.fp-color-picker { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.fp-color-swatch { width: 26px; height: 26px; border-radius: 50%;
+  border: 2px solid transparent; cursor: pointer; padding: 0; }
+.fp-color-swatch[aria-pressed="true"] { border-color: var(--text); }
+.fp-color-custom { width: 30px; height: 26px; border: 1px solid var(--line);
+  border-radius: 6px; background: var(--panel-2); padding: 2px; cursor: pointer; }
+
+/* --- phone tier (<600px) -------------------------------------------------
+   The desktop grid above 900px is untouched. Below 600px the top nav is
+   replaced by components/tabbar.js's fixed bottom bar, the topbar actions
+   collapse behind a "More" button, the map gives the timeline room, and
+   dialogs go full-screen. Every rule here is an override of a rule above,
+   never a new component. */
+@media (max-width: 599px) {
+  .fp-tabs { display: none; }
+  .fp-tabbar { display: flex; }
+
+  .topbar #device-name { display: none; }
+  .topbar-actions > *:not(#btn-more) { display: none; }
+  #btn-more { display: inline-flex; }
+
+  #map { height: 50vh; min-height: 280px; }
+  /* An inner scroll region under a fixed bottom bar fights the page scroll
+     on touch, so the pane scrolls the page instead. */
+  .timeline-pane { max-height: none; overflow-y: visible; }
+
+  .modal-box {
+    inset: 0; width: 100%; height: 100%; border-radius: 0; max-height: none;
+  }
+
+  /* Touch targets. The checkbox and radio hit box is drawn around the
+     control rather than resizing the control itself. */
+  .btn, .btn-tiny, .fp-tab { min-height: 44px; min-width: 44px; }
+  input[type=checkbox], input[type=radio] { position: relative; }
+  input[type=checkbox]::before, input[type=radio]::before {
+    content: ""; position: absolute; left: 50%; top: 50%;
+    width: 44px; height: 44px; transform: translate(-50%, -50%);
+  }
+
+  /* The fixed bar sits over the end of the page; give the content room. */
+  body { padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* --- bottom tab bar (components/tabbar.js) ------------------------------- */
+.fp-tabbar {
+  display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  height: calc(56px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--panel); border-top: 1px solid var(--line);
+}
+.fp-tabbar.hidden { display: none; }
+.fp-tabbar button {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 2px; min-height: 44px;
+  border: none; background: transparent; color: var(--muted);
+  font-size: 11px; cursor: pointer;
+}
+.fp-tabbar button[aria-current="page"] { color: var(--text); }
+.fp-tabbar .fp-tabbar-icon { font-size: 18px; line-height: 1; }
+
+/* --- topbar overflow menu (phone tier) ----------------------------------- */
+#btn-more { display: none; }
+#fp-more-menu {
+  position: absolute; right: 12px; top: 52px; z-index: 50;
+  display: flex; flex-direction: column; gap: 4px; padding: 8px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+}
+#fp-more-menu.hidden { display: none; }
+#fp-more-menu button { min-height: 44px; text-align: left; }

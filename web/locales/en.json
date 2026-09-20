@@ -76,7 +76,8 @@
     "nothingTracked": "No devices are being tracked. Click \"Devices\" to choose which trackers to poll.",
     "serviceNotRunning": "The polling service does not appear to be running. Start it with: findplus start",
     "apiUnreachable": "Could not reach the local API: {message}",
-    "sectionsNavLabel": "Sections"
+    "sectionsNavLabel": "Sections",
+    "detailsLandmarkLabel": "Details"
   },
   "devices": {
     "title": "Your devices",

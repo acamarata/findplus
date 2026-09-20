@@ -15,11 +15,32 @@ from __future__ import annotations
 
 import httpx
 
-from findplus.honesty import FIND_HUB
+from findplus.honesty import APPLE, FIND_HUB
 from findplus.mcp import errors
 
 #: get_text's status for "could not reach the daemon at all".
 UNREACHABLE = 0
+
+
+def _both(find_hub: str = FIND_HUB, apple: str = APPLE) -> str:
+    return "\n\n".join((find_hub, apple))
+
+
+def _notice_for(devices: object, find_hub: str, apple: str) -> str:
+    """Pick the sentence(s) for the providers actually tracked."""
+    rows = devices.get("devices") if isinstance(devices, dict) else None
+    if not isinstance(rows, list) or not rows:
+        return _both(find_hub, apple)
+    providers = {r.get("provider") for r in rows if isinstance(r, dict) and r.get("is_tracked")}
+    if not providers:
+        return _both(find_hub, apple)
+    has_apple = "apple-find-my" in providers
+    has_other = bool(providers - {"apple-find-my"})
+    if has_apple and not has_other:
+        return apple
+    if has_other and not has_apple:
+        return find_hub
+    return _both(find_hub, apple)
 
 
 class DaemonClient:
@@ -113,9 +134,31 @@ class DaemonClient:
         self._session_cookie = None
 
     async def get_notice(self) -> str:
+        """The provider sentence(s) the tracked device set actually warrants.
+
+        This used to return `notices["find_hub"]` unconditionally, and
+        tools_read._with_notice stamps it on every read tool's response, so an
+        Apple-only user's agent was told its accessory fixes were "reported
+        through Google's Find Hub network" -- and would quote it. Mirrors
+        web/app/devices.js:syncProviderNotice(); server.py's `instructions`
+        were already fixed this way (E1 honesty round 2 F2).
+
+        Cached for the process like the old single sentence: the device set
+        does not change under an MCP session often enough to justify a second
+        HTTP call per tool invocation.
+
+        The fallbacks never assert something false. If /api/config is
+        unreachable, or /api/devices is refused because the app is locked, both
+        sentences are returned: saying more than the device set needs is
+        verbose, saying Find Hub alone to an AirTag owner is wrong.
+        """
         if self._notice is None:
             cfg = await self.get("/api/config")
             if "error" in cfg:
-                return FIND_HUB
-            self._notice = cfg["notices"]["find_hub"]
+                return _both()
+            notices = cfg.get("notices") or {}
+            find_hub = notices.get("find_hub", FIND_HUB)
+            apple = notices.get("apple", APPLE)
+            devices = await self.get("/api/devices")
+            self._notice = _notice_for(devices, find_hub, apple)
         return self._notice

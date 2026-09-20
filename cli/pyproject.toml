@@ -117,7 +117,15 @@ ignore = ["B008"]
 testpaths = ["tests"]
 pythonpath = ["."]
 asyncio_mode = "auto"
-filterwarnings = ["ignore::DeprecationWarning"]
+# A blanket ignore hid our own deprecations too (CF-3). Later entries win, so the
+# two third-party sources are silenced while everything else — including
+# findplus.findhub's own shim warning — surfaces. Add a module regex here rather
+# than re-broadening if the slow/browser legs turn up another third-party source.
+filterwarnings = [
+  "default::DeprecationWarning",
+  "ignore::DeprecationWarning:starlette\\.testclient",
+  "ignore::DeprecationWarning:sqlalchemy\\.engine\\.default",
+]
 markers = [
   "slow: builds/installs a wheel",
   "browser: needs Chrome",

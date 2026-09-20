@@ -17,7 +17,7 @@ from pathlib import Path
 
 from mcp.server.mcpserver import MCPServer
 
-from findplus.honesty import APPLE, FIND_HUB
+from findplus.honesty import ALERTS_LATENCY, APPLE, FIND_HUB, PRESENCE_STALE
 from findplus.mcp.client import DaemonClient
 from findplus.mcp.tools_read import register_read_tools
 from findplus.mcp.tools_write import register_write_tools
@@ -51,9 +51,14 @@ def create_mcp_server(
 ) -> MCPServer:
     from findplus import __version__
 
-    # Both provider sentences, verbatim: an agent querying Apple accessories was
-    # being told its data came from Google's Find Hub network (E1 honesty pass F2).
-    instructions = "\n\n".join((FIND_HUB, APPLE))
+    # Every sentence an agent needs to not overstate this data, verbatim.
+    # The provider pair went in at E1 honesty pass F2; round 3 F5 added the
+    # other two, because the one consumer guaranteed to PARAPHRASE rather than
+    # quote was getting presence and event rows with no caveat at all:
+    # get_group_presence returns `stale` and a verdict, get_place_events
+    # returns arrivals with a lag, and nothing said a missing fix is not
+    # "at home" or that an arrival may be hours late.
+    instructions = "\n\n".join((FIND_HUB, APPLE, PRESENCE_STALE, ALERTS_LATENCY))
     mcp = MCPServer("findplus", version=__version__, instructions=instructions)
     client = DaemonClient(base_url=base_url)
     mcp._daemon_client = client

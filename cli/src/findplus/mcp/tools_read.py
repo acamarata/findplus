@@ -20,6 +20,7 @@ from typing import Any
 
 from mcp.server.mcpserver import MCPServer
 
+from findplus import honesty
 from findplus.mcp import errors
 from findplus.mcp.client import UNREACHABLE, DaemonClient
 
@@ -28,11 +29,26 @@ def _params(**kwargs: object) -> dict[str, object]:
     return {k: v for k, v in kwargs.items() if v is not None}
 
 
-async def _with_notice(data: dict | list, client: DaemonClient) -> dict[str, Any]:
+async def _with_notice(
+    data: dict | list, client: DaemonClient, *, caveats: tuple[str, ...] = ()
+) -> dict[str, Any]:
+    """Stamp a tool response with the sentences its data needs.
+
+    `notice` names the provider. `caveats` carries the sentences that belong to
+    a particular SHAPE of answer: presence_stale wherever a missing fix could be
+    read as a location, alerts_latency wherever an arrival time is served. An
+    agent paraphrases rather than quotes, so it gets them verbatim and beside
+    the data, not only in the server instructions (E1 honesty round 3 F5).
+    """
     notice = await client.get_notice()
     if isinstance(data, list):
-        return {"data": data, "notice": notice}
+        data = {"data": data}
     data["notice"] = notice
+    # An error response carries no data, so it needs no caveats about data;
+    # a locked daemon's reply stays exactly {error, notice}, which
+    # test_server_locked.py pins as the no-leak shape.
+    if caveats and "error" not in data:
+        data["caveats"] = list(caveats)
     return data
 
 
@@ -48,7 +64,9 @@ def register_read_tools(mcp: MCPServer, client: DaemonClient) -> None:
     @mcp.tool(structured_output=True)
     async def list_devices() -> dict[str, Any]:
         """Every tracked device with its provider, groups and presence."""
-        return await _with_notice(await _c().get("/api/devices"), _c())
+        return await _with_notice(
+            await _c().get("/api/devices"), _c(), caveats=(honesty.PRESENCE_STALE,)
+        )
 
     @mcp.tool(structured_output=True)
     async def list_groups() -> dict[str, Any]:
@@ -58,13 +76,15 @@ def register_read_tools(mcp: MCPServer, client: DaemonClient) -> None:
     @mcp.tool(structured_output=True)
     async def list_places() -> dict[str, Any]:
         """Every saved place with its radius and the devices inside it."""
-        return await _with_notice(await _c().get("/api/places"), _c())
+        return await _with_notice(
+            await _c().get("/api/places"), _c(), caveats=(honesty.PRESENCE_STALE,)
+        )
 
     @mcp.tool(structured_output=True)
     async def get_latest(device_id: str | None = None) -> dict[str, Any]:
         """The most recent fix per device, or for one device."""
         data = await _c().get("/api/latest", _params(device_id=device_id))
-        return await _with_notice(data, _c())
+        return await _with_notice(data, _c(), caveats=(honesty.PRESENCE_STALE,))
 
     @mcp.tool(structured_output=True)
     async def get_timeline(
@@ -87,6 +107,7 @@ def register_read_tools(mcp: MCPServer, client: DaemonClient) -> None:
         limit: int = 200,
     ) -> dict[str, Any]:
         """The place ENTER and EXIT event log, newest first."""
+        caveats = (honesty.ALERTS_LATENCY, honesty.PRESENCE_STALE)
         params = _params(
             place_id=place_id,
             device_id=device_id,
@@ -95,13 +116,15 @@ def register_read_tools(mcp: MCPServer, client: DaemonClient) -> None:
             until=until,
             limit=limit,
         )
-        return await _with_notice(await _c().get("/api/places/events", params), _c())
+        return await _with_notice(
+            await _c().get("/api/places/events", params), _c(), caveats=caveats
+        )
 
     @mcp.tool(structured_output=True)
     async def get_group_presence(group_id: int, window_minutes: int = 60) -> dict[str, Any]:
         """A group's presence verdict over the last window_minutes."""
         data = await _c().get(f"/api/groups/{group_id}/presence", {"window": window_minutes})
-        return await _with_notice(data, _c())
+        return await _with_notice(data, _c(), caveats=(honesty.PRESENCE_STALE,))
 
     @mcp.tool(structured_output=True)
     async def export(

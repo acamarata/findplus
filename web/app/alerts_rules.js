@@ -13,7 +13,7 @@
  *              module has no top-level side effects of its own.
  */
 "use strict";
-import { $, state } from "./state.js";
+import { $, state, showAlert } from "./state.js";
 import { api } from "./api.js";
 
 export async function loadRules() {
@@ -51,7 +51,13 @@ export function renderRulesTable(rules) {
 }
 async function deleteRule(id, name) {
   if (!window.confirm(`Delete rule "${name}"?`)) return;
-  await fetch(`/api/alerts/rules/${id}`, { method: "DELETE" });
+  // A refused delete used to leave the row on screen with no message, which is
+  // indistinguishable from a no-op (E1 honesty round 3 F10).
+  const res = await fetch(`/api/alerts/rules/${id}`, { method: "DELETE" });
+  if (!res.ok) {
+    showAlert(`Could not delete "${name}" (${res.status}).`, "err");
+    return;
+  }
   await loadRules();
 }
 /* add-rule dialog */
@@ -84,20 +90,32 @@ export async function openAddRuleDialog() {
   $("fp-rule-name").value = "";
   $("fp-rule-on-enter").checked = true;
   $("fp-rule-on-exit").checked = false;
-  $("fp-rule-cooldown").value = "60";
+  // The API default (routes_alerts_rules.py:33) and the CLI's, so a rule
+  // created here does not suppress for twice as long as one created
+  // with `findplus alerts add` (E1 honesty round 3 F9).
+  $("fp-rule-cooldown").value = "30";
   $("fp-rule-target-device").checked = true;
   updateRuleTargetVisibility();
   $("fp-rule-error").textContent = "";
   $("fp-add-rule-dialog").showModal();
 }
+/** "" -> null, so an unchosen select is not silently id 0. */
+function numberOrNull(value) {
+  const n = Number(value);
+  return value === "" || Number.isNaN(n) || n === 0 ? null : n;
+}
+
 export async function saveRule() {
   const dlg = $("fp-add-rule-dialog");
   const isDevice = $("fp-rule-target-device").checked;
   const body = {
     name: $("fp-rule-name").value,
-    place_id: Number($("fp-rule-place").value),
-    device_id: isDevice ? $("fp-rule-device").value : null,
-    group_id: isDevice ? null : Number($("fp-rule-group").value),
+    // An empty <select> gives "", and Number("") is 0 — a place_id no row has,
+    // so PRAGMA foreign_keys=ON turned the save into a raw 500 in the dialog
+    // (E1 honesty round 3 F8). null is what "nothing chosen" means.
+    place_id: numberOrNull($("fp-rule-place").value),
+    device_id: (isDevice ? $("fp-rule-device").value : "") || null,
+    group_id: isDevice ? null : numberOrNull($("fp-rule-group").value),
     on_enter: $("fp-rule-on-enter").checked,
     on_exit: $("fp-rule-on-exit").checked,
     channel: $("fp-rule-channel").value,

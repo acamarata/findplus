@@ -217,3 +217,56 @@ async def test_delivery_log_shows_channel_and_status(page, base_url, ui_db):
     assert cells[1] == "webhook"
     assert cells[4] == "failed"
     assert cells[5] == "connection refused"
+
+
+async def test_the_rule_dialog_sends_null_for_an_unchosen_select(page, base_url):
+    """honesty round 3 F8: Number("") is 0, and no place has id 0.
+
+    With no places saved the select was empty, so the save posted place_id 0;
+    PRAGMA foreign_keys=ON turned that into an IntegrityError and the dialog
+    showed a raw 500. null is what "nothing chosen" means.
+    """
+    await _open_alerts_tab(page, base_url)
+
+    body = await page.evaluate(
+        """async () => {
+            const rules = await import('/static/app/alerts_rules.js');
+            const sent = [];
+            const realFetch = window.fetch;
+            window.fetch = async (url, opts) => {
+                if (String(url).includes('/api/alerts/rules') && opts && opts.method === 'POST') {
+                    sent.push(JSON.parse(opts.body));
+                    return new Response('{}', { status: 200 });
+                }
+                return realFetch(url, opts);
+            };
+            try {
+                rules.openAddRuleDialog();
+                document.getElementById('fp-rule-name').value = 'r1';
+                document.getElementById('fp-rule-place').value = '';
+                document.getElementById('fp-rule-device').value = '';
+                await rules.saveRule();
+            } finally {
+                window.fetch = realFetch;
+            }
+            return sent[0] || null;
+        }"""
+    )
+
+    if body is not None:  # the save may be refused client-side, which is also fine
+        assert body["place_id"] is None, "an empty select must not become id 0"
+        assert body["device_id"] is None
+
+
+async def test_the_cooldown_default_matches_the_api(page, base_url):
+    """honesty round 3 F9: the dialog defaulted to 60, the API and CLI to 30."""
+    await _open_alerts_tab(page, base_url)
+
+    value = await page.evaluate(
+        """async () => {
+            const rules = await import('/static/app/alerts_rules.js');
+            rules.openAddRuleDialog();
+            return document.getElementById('fp-rule-cooldown').value;
+        }"""
+    )
+    assert value == "30"

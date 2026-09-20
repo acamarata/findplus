@@ -26,6 +26,7 @@ import {
   saveRule,
   updateRuleTargetVisibility,
 } from "./alerts_rules.js";
+import { loadDeliveries, purgeDeliveries } from "./alerts_deliveries.js";
 const WIDGET_SETTING = "/api/settings/widget.show_map";
 export function init() {
   wireStaticControls();
@@ -34,7 +35,7 @@ export function init() {
 }
 export async function refreshAll() {
   // A 401 here already showed the lock screen; loadWidgetToggle() runs either way.
-  try { await loadChannels(); await loadRules(); } catch (_) { /* locked or unreachable */ }
+  try { await loadChannels(); await loadRules(); await loadDeliveries(); } catch (_) { /* locked or unreachable */ }
   await loadWidgetToggle();
 }
 function injectLatencyFallback() {
@@ -196,6 +197,7 @@ function wireWidgetToggle() {
 /** lock.js purgeRenderedData() hook: device/place names must not survive the lock screen. */
 export function purge() {
   renderRulesTable([]);
+  purgeDeliveries();
   renderTelegramSection({ configured: false });
   renderWebhookSection({ configured: false });
   $("fp-tg-status").textContent = "";

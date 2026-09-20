@@ -171,3 +171,49 @@ async def test_widget_map_toggle_persists(page, base_url):
     # async GET sets .checked, against is_checked() below).
     await _open_alerts_tab(page, base_url)
     await page.wait_for_function("document.getElementById('fp-widget-map-toggle').checked === true")
+
+
+async def test_delivery_log_shows_channel_and_status(page, base_url, ui_db):
+    """CF-14: alert_deliveries rows existed since 1.0 but no UI ever read them.
+
+    The rule is created through the API so the server owns it; the delivery row is
+    written straight into the live SQLite file, because the only code that writes
+    one is the poller's dispatch pass and this test is about the view, not the
+    dispatcher. The assertion is on the rendered row, not the endpoint — the
+    endpoint already worked and the gap was that nothing displayed it.
+    """
+    import sqlite3
+
+    rule = await page.request.post(
+        base_url + "/api/alerts/rules",
+        data=json.dumps(
+            {"name": "Delivery log rule", "device_id": "TAG-HOME", "channel": "webhook"}
+        ),
+        headers={"Content-Type": "application/json"},
+    )
+    assert rule.ok, await rule.text()
+    rule_id = (await rule.json())["id"]
+
+    conn = sqlite3.connect(ui_db)
+    try:
+        conn.execute(
+            "INSERT INTO alert_deliveries (rule_id, event_kind, event_id, sent_at, status, error)"
+            " VALUES (?, 'device', 4242, '2026-09-20 12:00:00', 'failed', 'connection refused')",
+            (rule_id,),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    await _open_alerts_tab(page, base_url)
+    await page.wait_for_selector("#fp-deliveries-table")
+    headers = await page.locator("#fp-deliveries-table thead th").all_text_contents()
+    assert headers == ["Rule", "Channel", "Kind", "Sent", "Status", "Error"]
+
+    row = page.locator("#fp-deliveries-tbody tr", has_text="Delivery log rule")
+    await row.wait_for(state="visible")
+    cells = await row.locator("td").all_text_contents()
+
+    assert cells[1] == "webhook"
+    assert cells[4] == "failed"
+    assert cells[5] == "connection refused"

@@ -152,6 +152,42 @@ def test_deliveries_empty(client: TestClient) -> None:
     assert client.get("/api/alerts/deliveries").json() == []
 
 
+def test_deliveries_include_channel(client: TestClient) -> None:
+    """The delivery log names the channel (CF-14): it comes from the rule, by join.
+
+    `alert_deliveries` has no channel column — the rule owns it — so the route has
+    to carry it out or the UI cannot show which way an alert went.
+    """
+    import datetime
+
+    from findplus.db.models_alerts import AlertDelivery, AlertRule
+
+    rule_id = client.post(
+        "/api/alerts/rules",
+        json={"name": "webhook rule", "device_id": "dev1", "channel": "webhook"},
+    ).json()["id"]
+
+    with session_scope() as session:
+        rule = session.get(AlertRule, rule_id)
+        assert rule.channel == "webhook"
+        session.add(
+            AlertDelivery(
+                rule_id=rule_id,
+                event_kind="device",
+                event_id=1,
+                sent_at=datetime.datetime.now(datetime.UTC),
+                status="sent",
+                error=None,
+            )
+        )
+
+    row = client.get("/api/alerts/deliveries").json()[0]
+
+    assert row["channel"] == "webhook"
+    assert row["rule_name"] == "webhook rule"
+    assert row["status"] == "sent"
+
+
 def test_401_locked(client: TestClient) -> None:
     client.post("/api/settings/pin", json={"new_pin": "864213"})
     client.cookies.clear()

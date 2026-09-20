@@ -144,7 +144,7 @@ def build_router() -> APIRouter:
     def get_deliveries(limit: int = 100) -> list[dict[str, Any]]:
         with session_scope() as s:
             stmt = (
-                select(AlertDelivery, AlertRule.name)
+                select(AlertDelivery, AlertRule.name, AlertRule.channel)
                 .join(AlertRule, AlertRule.id == AlertDelivery.rule_id)
                 .order_by(AlertDelivery.sent_at.desc())
                 .limit(limit)
@@ -154,13 +154,16 @@ def build_router() -> APIRouter:
                     "id": d.id,
                     "rule_id": d.rule_id,
                     "rule_name": rule_name,
+                    # Derived from the join, never a stored column on the
+                    # delivery row: the rule owns the channel.
+                    "channel": rule_channel,
                     "event_kind": d.event_kind,
                     "event_id": d.event_id,
                     "sent_at": d.sent_at.isoformat(),
                     "status": d.status,
                     "error": d.error,
                 }
-                for d, rule_name in s.execute(stmt).all()
+                for d, rule_name, rule_channel in s.execute(stmt).all()
             ]
 
     return router

@@ -6,6 +6,9 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- The Alerts tab has a Delivery log showing each alert's rule, channel, kind, time, status and error.
+
 ### Changed
 - `install.sh` is shorter and points at a new Uninstall wiki page for the manual service-removal commands it prints.
 

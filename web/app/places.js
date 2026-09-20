@@ -20,6 +20,7 @@
 "use strict";
 
 import { api } from "./api.js";
+import { showAlert, fmtAgeMinutes } from "./state.js";
 import { activateCrosshairMode, initDialog, openEditDialog, purgeDialog } from "./places_dialog.js";
 
 let map = null;
@@ -97,7 +98,11 @@ async function deletePlace(id) {
   const place = placesById.get(String(id));
   if (!window.confirm(`Delete place "${place ? place.name : id}"?`)) return;
   const res = await fetch(`/api/places/${id}`, { method: "DELETE" });
-  if (!res.ok) return;
+  if (!res.ok) {
+    // A bare return left the circle on the map with nothing said (round 3 F10).
+    showAlert(`Could not delete that place (${res.status}).`, "err");
+    return;
+  }
   const circle = circlesById.get(String(id));
   if (circle) {
     placeLayer.removeLayer(circle);
@@ -133,8 +138,5 @@ export async function loadPresence() {
 
 function relativeTime(iso) {
   if (!iso) return "unknown";
-  const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  return hours < 24 ? `${hours} h` : `${Math.floor(hours / 24)} d`;
+  return fmtAgeMinutes(Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
 }

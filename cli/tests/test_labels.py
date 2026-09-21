@@ -132,7 +132,7 @@ def test_every_subset_id_is_sf_mapped_or_pinned_exempt() -> None:
     assert table_match, "ViewHelpers.swift no longer declares the SF symbol table"
     swift_mapped = set(re.findall(r'"([^"]+)":', table_match.group(1)))
     exempt = {"squirrel", "anchor"}
-    
+
     python_ids = {row["id"].split(":", 1)[1] for row in labels.lucide_subset()}
     missing = python_ids - swift_mapped - exempt
     assert not missing, f"unmapped subset ids (not in Swift table or exempt set): {missing}"

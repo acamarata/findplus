@@ -98,7 +98,7 @@ async def _read_accessory_body(request: Request, settings) -> tuple[str, Path | 
             )
         if upload.size is not None and upload.size > _MAX_PLIST_BYTES:
             raise HTTPException(status_code=413, detail="plist too large")
-        
+
         plist_bytes = await upload.read(_MAX_PLIST_BYTES + 1)
         # Checked on the bytes already read, before any write.
         if len(plist_bytes) > _MAX_PLIST_BYTES:

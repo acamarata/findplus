@@ -100,6 +100,7 @@ def test_alerts_js_latency_fallback_matches_honesty_sentence():
     The dashboard uses t("honesty.alertsLatency") as a fallback.
     """
     import json
+
     en_json = json.loads((REPO_ROOT / "web" / "locales" / "en.json").read_text(encoding="utf-8"))
     assert en_json["honesty"]["alertsLatency"] == EXPECTED["alerts_latency"], (
         "en.json's honesty.alertsLatency no longer matches honesty.ALERTS_LATENCY"

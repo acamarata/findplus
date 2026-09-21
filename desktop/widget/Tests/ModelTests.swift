@@ -170,6 +170,28 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(group.icon, "lucide:users")
     }
 
+    /// R-P2-23: a 1.1 widget must still decode a payload from a 1.0.x daemon, which never
+    /// sent `icon`/`color` at all (loop2 C3 — the production defaulting existed but had
+    /// no regression test for the old-payload shape).
+    func testWidgetDeviceDecodesWithoutIconOrColor() throws {
+        let json = """
+        {"device_id":"d1","name":"Tag","provider":"google-find-hub",
+         "last_observed_at":"2026-01-01T00:00:00Z","age_minutes":0,
+         "latitude":0,"longitude":0,"place":null,"group":null}
+        """
+        let device = try JSONDecoder().decode(WidgetDevice.self, from: Data(json.utf8))
+        XCTAssertEqual(device.icon, "letter")
+        XCTAssertEqual(device.color, paletteColour(for: "d1"))
+    }
+
+    func testWidgetGroupDecodesWithoutIcon() throws {
+        let json = """
+        {"id":1,"name":"Family","verdict":"together","note":"note"}
+        """
+        let group = try JSONDecoder().decode(WidgetGroup.self, from: Data(json.utf8))
+        XCTAssertEqual(group.icon, "lucide:users")
+    }
+
     func testSfSymbolKnownLucideId() {
         XCTAssertEqual(sfSymbol(for: "lucide:dog", label: nil, name: "Fido"), "dog.fill")
     }

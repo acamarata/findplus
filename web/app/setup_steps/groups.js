@@ -7,29 +7,36 @@
  * Inputs     : ctx.api / ctx.postJson / ctx.state, handed down by the Wizard.
  * Outputs    : POST /api/groups, once per Add click.
  * Constraints: Add creates the group there and then, not on Next, so Skip is a
- *              true no-op. Colour and icon come from the shared pickers
- *              (D-P2-2/D-P2-3), never from a second local widget.
+ *              true no-op. Icon/colour pickers live in _group_pickers.js
+ *              (R-P2-28 point 2, the setup-step 150-line cap). The member
+ *              checklist uses `.fp-member-row`, the same class the dialog's
+ *              own member list draws with, instead of `.setting-row` (F1:
+ *              that row is `justify-content: space-between` with nothing
+ *              between a checkbox at the left edge and a name at the right).
  */
 "use strict";
 
 import { t } from "../i18n.js";
 import { renderBadge } from "../components/badge.js";
+import { createGroupPickers, DEFAULT_ICON } from "./_group_pickers.js";
 
-const DEFAULT_ICON = "lucide:users";
-const DEFAULT_COLOR = "#27ae60";
-
-/** The live step's elements, replaced on every render. */
+/** The live step's elements and picker handle, replaced on every render. */
 let els = null;
+let pickers = null;
 
-function memberCheckbox(device) {
+function memberRow(device) {
   const row = document.createElement("label");
-  row.className = "setting-row";
+  row.className = "fp-member-row";
   const box = document.createElement("input");
   box.type = "checkbox";
   box.dataset.deviceId = device.device_id;
+  const badge = document.createElement("span");
+  badge.appendChild(
+    renderBadge({ icon: device.icon || "letter", color: device.color, label: device.label, name: device.name, size: 16 })
+  );
   const name = document.createElement("span");
   name.textContent = device.label || device.name || device.device_id;
-  row.append(box, name);
+  row.append(box, badge, name);
   return row;
 }
 
@@ -37,38 +44,12 @@ function groupRow(group) {
   const row = document.createElement("div");
   row.className = "fp-dialog-field";
   row.append(
-    renderBadge({
-      icon: group.icon || DEFAULT_ICON,
-      color: group.color,
-      name: group.name,
-      size: 24,
-    })
+    renderBadge({ icon: group.icon || DEFAULT_ICON, color: group.color, name: group.name, size: 24 })
   );
   const name = document.createElement("span");
   name.textContent = group.name;
   row.append(name);
   return row;
-}
-
-async function mountPickers(host) {
-  const [icons, colors] = await Promise.all([
-    import("../components/icon-picker.js"),
-    import("../components/color-picker.js"),
-  ]);
-  icons.createIconPicker(host, {
-    value: els.icon,
-    onChange: (value) => {
-      els.icon = value;
-    },
-    letterLabel: t("devices.field.letter"),
-  });
-  colors.createColorPicker(host, {
-    value: els.color,
-    onChange: (value) => {
-      els.color = value;
-    },
-    customLabel: t("devices.field.customColor"),
-  });
 }
 
 async function addGroup(ctx) {
@@ -78,12 +59,10 @@ async function addGroup(ctx) {
     (box) => box.dataset.deviceId
   );
   await ctx.postJson("/api/groups", {
-    name,
-    color: els.color,
-    icon: els.icon,
-    member_ids: memberIds,
+    name, color: pickers.getColor(), icon: pickers.getIcon(), member_ids: memberIds,
   });
   els.name.value = "";
+  pickers.reset();
   await refresh(ctx);
 }
 
@@ -97,7 +76,7 @@ async function refresh(ctx) {
   let devices = ctx.state.devices || [];
   if (!devices.length) devices = (await ctx.api("/api/devices")).devices || [];
   els.members.textContent = "";
-  devices.forEach((device) => els.members.append(memberCheckbox(device)));
+  devices.forEach((device) => els.members.append(memberRow(device)));
 }
 
 export default {
@@ -116,7 +95,10 @@ export default {
     name.id = "fp-setup-group-name";
     name.placeholder = t("setup.groups.name_placeholder");
 
-    const pickers = document.createElement("div");
+    // Built after `name` exists: the icon preview reads it live for the
+    // bare-"letter" fallback initial.
+    pickers = createGroupPickers(name);
+
     const members = document.createElement("div");
     members.id = "fp-setup-group-members";
 
@@ -128,9 +110,9 @@ export default {
       addGroup(ctx).catch((err) => ctx.showAlert(err.message, "err"));
     });
 
-    els = { list, name, members, icon: DEFAULT_ICON, color: DEFAULT_COLOR };
-    mountPickers(pickers).catch(() => {});
-    container.append(heading, list, name, pickers, members, add);
+    els = { list, name, members };
+    container.append(heading, list, name, pickers.iconWrap, pickers.colorWrap, members, add);
+    container.addEventListener("click", (e) => pickers.closeIfOutside(e.target));
   },
   async onEnter(ctx) {
     await refresh(ctx);

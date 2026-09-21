@@ -10,6 +10,11 @@
  *              row from GET /api/devices for memberRow().
  * Outputs    : { dlg, fields } — the dialog element and every input in it by
  *              name, so the caller never queries the DOM to read a field.
+ *              pickerRow()/renderIconPreview()/renderColorPreview()/
+ *              closeOpenPopover()/clampPopoverToViewport() are also exported:
+ *              setup_steps/groups.js reuses them for the wizard's own icon
+ *              and colour triggers (R-P2-28 point 2) rather than forking the
+ *              popover-trigger pattern a second time.
  * Constraints: Pure construction, no network, no module state. Every element is
  *              built with createElement/textContent, never raw markup, and
  *              every static string comes from the catalog through t().
@@ -81,7 +86,7 @@ function popoverHost(id) {
  * the closed colour button had no class and no content, so it rendered as
  * an empty sliver next to the icon preview).
  */
-function pickerRow(id, labelText, hiddenInput, swatchClass) {
+export function pickerRow(id, labelText, hiddenInput, swatchClass) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.id = `${id}-btn`;

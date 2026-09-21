@@ -93,6 +93,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - A Telegram bot token or CallMeBot API key that is malformed, for example from a hand-edited config file, is rejected before Find+ ever sends it anywhere, instead of being placed into a request URL.
 - A cross-site form post that carries a Referer header but no Origin or Sec-Fetch-Site header, such as one aimed at registering an Apple accessory, is now refused like any other cross-site request.
 - The setup wizard renders inside a proper card with the same field and button styling as the rest of the app, instead of raw, unstyled rows, and offers WhatsApp as an inline setup step alongside Telegram.
+- A group's CSV, JSON, GPX and KML exports now carry each member's label, falling back to its device ID when no label is set, the same as a single device's export already did.
 
 ## [1.0.0] - 2026-09-19
 

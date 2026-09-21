@@ -412,9 +412,20 @@ overstate:
 ./.venv/bin/ruff format --check cli/src cli/tests
 node --check web/app/*.js
 shellcheck install.sh
+bash packaging/scripts/stage-sidecar-stub.sh
 cargo clippy --manifest-path desktop/src-tauri/Cargo.toml -- -D warnings
 cargo test --manifest-path desktop/src-tauri/Cargo.toml
 ```
+
+- `stage-sidecar-stub.sh` must run before the two `cargo` commands on a clean
+  checkout: `desktop/src-tauri/resources/findplus-daemon/` is gitignored (a
+  real PyInstaller build populates it), but `tauri_build::build()` validates
+  `tauri.conf.json`'s `bundle.resources` glob on every `cargo build`/`clippy`/
+  `test`, so a fresh clone or worktree fails with "glob pattern
+  resources/findplus-daemon/\*\*/\* path not found" before clippy even runs.
+  The script is idempotent and never overwrites a real sidecar build
+  (`.github/workflows/ci.yml`'s `desktop` and `notify-rust-tests` jobs already
+  run it first).
 
 - Every new feature gets tests. Tests never touch the real Google or Apple account,
   the real state dir or the network (an autouse fixture blocks non-loopback sockets).

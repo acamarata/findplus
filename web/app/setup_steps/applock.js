@@ -3,8 +3,12 @@
  *
  * Purpose    : Set a first PIN, with the sentence that says what the lock does
  *              not do right next to the fields (specs/onboarding.md § 4 row 7).
- * Inputs     : ctx.postJson / ctx.state / ctx.showAlert, from the Wizard.
- * Outputs    : POST /api/settings/pin, and only when both fields match.
+ * Inputs     : ctx.postJson / ctx.state, from the Wizard.
+ * Outputs    : POST /api/settings/pin, whether triggered by the Set PIN
+ *              button or by pressing Next with both fields filled and
+ *              matching (`onNext`, called by Wizard.next() — E13 blind-cap
+ *              S2: Next used to silently discard a typed PIN because only
+ *              the Set PIN button ever called the API).
  * Constraints: Skip is a true no-op: no PIN, lock stays off, exactly as if the
  *              Settings dialog had never been opened. The request shape is
  *              settings.js's first-time set, `new_pin` alone — the server's
@@ -13,7 +17,16 @@
  *              wrapper the group/device dialogs use), not `.setting-row`:
  *              that row's `justify-content: space-between` pushed the input
  *              to the far right of the unconstrained wizard container and off
- *              the 1280px viewport (visual gate W4 F2).
+ *              the 1280px viewport (visual gate W4 F2). `onNext` returning
+ *              `false` is how a step vetoes the transition (wizard.js); both
+ *              fields empty is the optional-step case and must still advance.
+ *              Feedback (mismatch, PIN set, an error) renders into a local
+ *              `.modal-note` status line, not `ctx.showAlert`: `#alert` lives
+ *              inside `#app-shell`, which is hidden for the whole time the
+ *              wizard is open (setup_route.js), so an alert call here was
+ *              never actually visible — the same reason
+ *              `_notifications_telegram.js`/`_notifications_whatsapp.js` keep
+ *              their own status line instead of the shared alert bar.
  */
 "use strict";
 
@@ -43,27 +56,57 @@ function pinInput(id) {
   return input;
 }
 
+/**
+ * POST the two fields as a new PIN if they match; render the inline mismatch
+ * error and return false otherwise. Shared by the Set PIN button and Next so
+ * both paths set the PIN through the exact same call.
+ */
+async function submitPin(ctx) {
+  const first = els.pin.value.trim();
+  const second = els.confirm.value.trim();
+  els.status.textContent = "";
+  if (first !== second) {
+    els.status.textContent = t("setup.applock.mismatch");
+    return false;
+  }
+  await ctx.postJson("/api/settings/pin", { new_pin: first });
+  els.pin.value = "";
+  els.confirm.value = "";
+  return true;
+}
+
 async function setPin(ctx) {
   const first = els.pin.value.trim();
   const second = els.confirm.value.trim();
   if (!first && !second) return;
-  if (first !== second) {
-    ctx.showAlert(t("setup.applock.mismatch"), "warn");
-    return;
-  }
   try {
-    await ctx.postJson("/api/settings/pin", { new_pin: first });
-    els.pin.value = "";
-    els.confirm.value = "";
-    ctx.showAlert(t("setup.applock.set_ok"), "warn");
+    if (await submitPin(ctx)) els.status.textContent = t("setup.applock.set_ok");
   } catch (err) {
-    ctx.showAlert(err.message, "err");
+    els.status.textContent = err.message;
+  }
+}
+
+/**
+ * Wizard.next() hook: both fields empty is the optional step doing nothing
+ * (advance as today); both filled and matching sets the PIN before advancing;
+ * a mismatch shows the inline error and vetoes the transition (return false).
+ */
+async function onNext(ctx) {
+  const first = els.pin.value.trim();
+  const second = els.confirm.value.trim();
+  if (!first && !second) return;
+  try {
+    return await submitPin(ctx);
+  } catch (err) {
+    els.status.textContent = err.message;
+    return false;
   }
 }
 
 export default {
   id: "applock",
   canSkip: true,
+  onNext,
   render(container, ctx) {
     container.textContent = "";
     const heading = document.createElement("h2");
@@ -76,19 +119,27 @@ export default {
     note.className = "fp-wizard-footnote";
     note.textContent = (ctx.state.config && ctx.state.config.notices.lock_not_encryption) || "";
 
+    // Local status line: #alert is inside #app-shell, hidden for the whole
+    // time the wizard is open, so it cannot carry this step's feedback.
+    const status = document.createElement("p");
+    status.id = "fp-setup-pin-status";
+    status.className = "modal-note";
+    status.setAttribute("aria-live", "polite");
+
     const submit = document.createElement("button");
     submit.type = "button";
     submit.className = "btn";
     submit.textContent = t("setup.applock.set");
     submit.addEventListener("click", () => setPin(ctx));
 
-    els = { pin, confirm };
+    els = { pin, confirm, status };
     container.append(
       heading,
       labelFor(pin, t("setup.applock.pin")),
       labelFor(confirm, t("setup.applock.pin_confirm")),
       note,
-      submit
+      submit,
+      status
     );
   },
 };

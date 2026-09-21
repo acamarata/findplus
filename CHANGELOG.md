@@ -94,6 +94,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - A cross-site form post that carries a Referer header but no Origin or Sec-Fetch-Site header, such as one aimed at registering an Apple accessory, is now refused like any other cross-site request.
 - The setup wizard renders inside a proper card with the same field and button styling as the rest of the app, instead of raw, unstyled rows, and offers WhatsApp as an inline setup step alongside Telegram.
 - A group's CSV, JSON, GPX and KML exports now carry each member's label, falling back to its device ID when no label is set, the same as a single device's export already did.
+- Pressing Next on the setup wizard's app lock step with a PIN typed and confirmed now sets it, instead of silently discarding it; a mismatched pair shows an inline error and stays on the step instead of advancing with no lock set.
 
 ## [1.0.0] - 2026-09-19
 

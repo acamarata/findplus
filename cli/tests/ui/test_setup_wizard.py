@@ -94,6 +94,61 @@ async def test_optional_step_skip_makes_no_save_call(page, base_url):
     assert (await _settings(page, base_url))["onboarding.completed_at"] is None
 
 
+async def test_next_with_matching_pin_sets_it_and_advances(page, base_url):
+    """E13 blind-cap S2: Next must set the PIN through the same call as the
+    Set PIN button, not silently discard it, when both fields match.
+
+    Fulfilled locally rather than let through to the live server: a real
+    `POST /api/settings/pin` reissues the session and locks the app, which
+    would leak into every later test sharing this session-scoped server.
+    """
+    calls = []
+
+    async def fulfill(route):
+        calls.append((route.request.url, route.request.post_data_json))
+        await route.fulfill(status=200, content_type="application/json", body="{}")
+
+    await page.route("**/api/settings/pin", fulfill)
+    await _set_last_step(page, base_url, "applock")
+    await page.goto(base_url + "/#/setup")
+    await page.wait_for_selector("#fp-setup-pin", timeout=15000)
+
+    await page.fill("#fp-setup-pin", "123456")
+    await page.fill("#fp-setup-pin-confirm", "123456")
+    await page.click("#fp-wizard-next")
+
+    await page.wait_for_selector("#fp-setup-pin", state="detached", timeout=15000)
+    assert calls == [(base_url + "/api/settings/pin", {"new_pin": "123456"})]
+    assert (await _settings(page, base_url))["onboarding.last_step"] == "done"
+
+
+async def test_next_with_mismatched_pin_shows_inline_error_and_stays(page, base_url):
+    """A mismatch must veto the transition, not advance with no PIN set."""
+    calls = []
+
+    async def record(route):
+        calls.append(route.request.url)
+        await route.continue_()
+
+    await page.route("**/api/settings/pin", record)
+    await _set_last_step(page, base_url, "applock")
+    await page.goto(base_url + "/#/setup")
+    await page.wait_for_selector("#fp-setup-pin", timeout=15000)
+
+    await page.fill("#fp-setup-pin", "1234")
+    await page.fill("#fp-setup-pin-confirm", "5678")
+    await page.click("#fp-wizard-next")
+
+    await page.wait_for_function(
+        "() => document.getElementById('fp-setup-pin-status').textContent.length > 0",
+        timeout=15000,
+    )
+    assert "do not match" in await page.locator("#fp-setup-pin-status").inner_text()
+    assert calls == []
+    assert await page.locator("#fp-setup-pin").is_visible()
+    assert (await _settings(page, base_url))["onboarding.last_step"] == "applock"
+
+
 async def test_done_completes_onboarding_and_returns_to_dashboard(page, base_url):
     await _set_last_step(page, base_url, "done")
     await page.goto(base_url + "/#/setup")

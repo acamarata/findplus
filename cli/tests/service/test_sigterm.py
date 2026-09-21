@@ -5,13 +5,15 @@ Purpose : The pure `_make_signal_handler` factory, plus subprocess integration
           signals, and that a server thread dying on its own ends serve
           instead of hanging it.
 Constraints: The subprocess tests use port 8640 (never 8647, the real default)
-          and skip cleanly if the `findplus` console script is not on PATH.
+          and run via `sys.executable -m findplus` (findplus/__main__.py), so
+          they never skip for want of the `findplus` console script on PATH
+          (blind B9 -- an editable, non-`pip install -e`d checkout used to
+          skip these silently).
 """
 
 from __future__ import annotations
 
 import os
-import shutil
 import signal
 import subprocess
 import sys
@@ -37,23 +39,23 @@ def test_make_signal_handler_sets_the_event() -> None:
 
 # ------------------------------------------------------------------------- b/c
 def _run_serve_and_signal(tmp_path: Path, sig: int) -> None:
-    findplus_bin = shutil.which("findplus") or (
-        str(Path(sys.executable).parent / "findplus")
-        if (Path(sys.executable).parent / "findplus").exists()
-        else None
-    )
-    if not findplus_bin:
-        import pytest
-
-        pytest.skip("findplus console script not on PATH")
-
     env = dict(
         os.environ,
         FINDPLUS_STATE_DIR=str(tmp_path),
         FINDPLUS_DATABASE_PATH=str(tmp_path / "test.sqlite"),
     )
+    argv = [
+        sys.executable,
+        "-m",
+        "findplus",
+        "serve",
+        "--foreground",
+        "--no-poller",
+        "--port",
+        "8640",
+    ]
     proc = subprocess.Popen(
-        [findplus_bin, "serve", "--foreground", "--no-poller", "--port", "8640"],
+        argv,
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

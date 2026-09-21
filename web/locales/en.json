@@ -79,6 +79,9 @@
     "sectionsNavLabel": "Sections",
     "detailsLandmarkLabel": "Details"
   },
+  "field": {
+    "customColor": "Custom colour"
+  },
   "devices": {
     "title": "Your devices",
     "note": "Tick every tracker you want polled. Each tracked device costs one provider request per poll cycle, so the request rate rises with the number you tick. Untracking keeps a device's existing history — it just stops being polled.",

@@ -15,6 +15,7 @@ Constraints: Reads the key set from `honesty.NOTICES` itself, never a retyped
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from findplus import honesty
@@ -22,6 +23,7 @@ from findplus import honesty
 REPO_ROOT = Path(__file__).parent.parent.parent
 CATALOG = REPO_ROOT / "web" / "locales" / "en.json"
 FALLBACK = REPO_ROOT / "web" / "app" / "catalog-en.js"
+WEB_APP = REPO_ROOT / "web" / "app"
 
 #: What the generator wraps the catalog in, so the literal can be parsed as JSON.
 _JS_PREFIX = "export const CATALOG_EN = "
@@ -85,3 +87,38 @@ def test_honesty_block_has_no_key_absent_from_notices():
 def test_bundled_fallback_matches_the_json_catalog():
     """i18n.js's offline fallback is the same catalog, byte for byte."""
     assert _fallback_catalog() == _catalog()
+
+
+#: A `t(` call whose first argument is one string literal -- never a
+#: `+`-built dynamic key, which this test cannot check without a JS parser.
+_T_CALL_RE = re.compile(r"\bt\(\s*[\"']([a-zA-Z0-9_.]+)[\"']\s*[,)]")
+
+
+def _resolve(catalog: dict, key: str) -> str | None:
+    """Walk a dot-path through `catalog`, mirroring i18n.js's resolve()."""
+    node = catalog
+    for part in key.split("."):
+        if not isinstance(node, dict) or part not in node:
+            return None
+        node = node[part]
+    return node if isinstance(node, str) else None
+
+
+def test_every_static_t_call_key_resolves_in_the_catalog():
+    """A literal `t("dotted.key")` whose key is missing from en.json renders
+    the raw key on screen -- i18n.js's fallback-of-last-resort. This caught
+    color-picker.js's default `customLabel` param calling `t("field.customColor")`
+    with no `field` namespace in the catalog (loop-2 L2-8): the aria-label read
+    "field.customColor" instead of "Custom colour" and no test noticed. Dynamic
+    keys built with `+` (e.g. alerts_rules.js's `"alerts.channels." + id`) are
+    skipped -- they cannot be resolved statically.
+    """
+    catalog = _catalog()
+    missing = []
+    for path in sorted(WEB_APP.rglob("*.js")):
+        text = path.read_text(encoding="utf-8")
+        for match in _T_CALL_RE.finditer(text):
+            key = match.group(1)
+            if _resolve(catalog, key) is None:
+                missing.append(f"{path.relative_to(REPO_ROOT)}: t({key!r})")
+    assert not missing, "\n".join(missing)

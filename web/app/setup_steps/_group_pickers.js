@@ -35,18 +35,53 @@ function togglePopover(host, other) {
   clampPopoverToViewport(host);
 }
 
-export function createGroupPickers(nameInput) {
+/** The two hidden inputs the pickers write their id/hex value into. */
+function createHiddenInputs() {
   const iconInput = document.createElement("input");
   iconInput.type = "hidden";
   iconInput.value = DEFAULT_ICON;
   const colorInput = document.createElement("input");
   colorInput.type = "hidden";
   colorInput.value = DEFAULT_COLOR;
+  return { iconInput, colorInput };
+}
 
+/** The two picker-row triggers, wired so opening one closes the other. */
+function buildPickerRows(iconInput, colorInput) {
   const icon = pickerRow("fp-setup-group-icon", t("groups.field.icon"), iconInput, "fp-icon-swatch");
   const color = pickerRow("fp-setup-group-color", t("groups.field.color"), colorInput, "fp-color-swatch");
   icon.btn.addEventListener("click", () => togglePopover(icon.host, color.host));
   color.btn.addEventListener("click", () => togglePopover(color.host, icon.host));
+  return { icon, color };
+}
+
+/** The public handle: wraps for mounting, getters, reset, and outside-click close. */
+function buildPickerHandle(fields, iconPicker, colorPicker, icon, color, renderPreviews) {
+  return {
+    iconWrap: icon.wrap,
+    colorWrap: color.wrap,
+    getIcon: () => fields.icon.value,
+    getColor: () => fields.color.value,
+    reset() {
+      fields.icon.value = DEFAULT_ICON;
+      fields.color.value = DEFAULT_COLOR;
+      iconPicker.setValue(DEFAULT_ICON);
+      colorPicker.setValue(DEFAULT_COLOR);
+      renderPreviews();
+    },
+    closeIfOutside(target) {
+      const outsideIcon = !target.closest(`#${icon.host.id}, #${icon.btn.id}`);
+      const outsideColor = !target.closest(`#${color.host.id}, #${color.btn.id}`);
+      if ((!icon.host.hidden && outsideIcon) || (!color.host.hidden && outsideColor)) {
+        closeOpenPopover(fields);
+      }
+    },
+  };
+}
+
+export function createGroupPickers(nameInput) {
+  const { iconInput, colorInput } = createHiddenInputs();
+  const { icon, color } = buildPickerRows(iconInput, colorInput);
 
   // Shaped like groups_dialog_dom.js's own `fields`: renderIconPreview/
   // renderColorPreview read the five *Btn/icon/color/name properties;
@@ -74,24 +109,5 @@ export function createGroupPickers(nameInput) {
   });
   renderPreviews();
 
-  return {
-    iconWrap: icon.wrap,
-    colorWrap: color.wrap,
-    getIcon: () => iconInput.value,
-    getColor: () => colorInput.value,
-    reset() {
-      iconInput.value = DEFAULT_ICON;
-      colorInput.value = DEFAULT_COLOR;
-      iconPicker.setValue(DEFAULT_ICON);
-      colorPicker.setValue(DEFAULT_COLOR);
-      renderPreviews();
-    },
-    closeIfOutside(target) {
-      const outsideIcon = !target.closest(`#${icon.host.id}, #${icon.btn.id}`);
-      const outsideColor = !target.closest(`#${color.host.id}, #${color.btn.id}`);
-      if ((!icon.host.hidden && outsideIcon) || (!color.host.hidden && outsideColor)) {
-        closeOpenPopover(fields);
-      }
-    },
-  };
+  return buildPickerHandle(fields, iconPicker, colorPicker, icon, color, renderPreviews);
 }

@@ -116,53 +116,12 @@ def ingest_observations(
             continue
         seen_in_batch.add(obs.identity)
 
-        # provider is applied on INSERT only (see upsert_device): a device first
-        # seen through a poll is tagged with the provider that reported it, and a
-        # device already on record keeps the provider it was discovered under.
-        upsert_device(
-            session, obs.device_id, obs.device_name, provider=obs.provider, now=fetched_at
-        )
-
-        existing = session.scalar(
-            select(LocationObservation).where(
-                LocationObservation.device_id == obs.device_id,
-                LocationObservation.observed_at == obs.observed_at,
-                LocationObservation.latitude_e7 == obs.latitude_e7,
-                LocationObservation.longitude_e7 == obs.longitude_e7,
-            )
-        )
-
-        if existing is not None:
-            # Identical sighting seen again: poll health, not movement.
-            existing.times_returned += 1
-            existing.last_fetched_at = fetched_at
-            if existing.accuracy_meters is None and obs.accuracy_meters is not None:
-                existing.accuracy_meters = obs.accuracy_meters
-            if existing.battery_level is None and obs.battery_level is not None:
-                existing.battery_level = obs.battery_level
+        lo = _ingest_one(session, obs, fetched_at)
+        if lo is None:
             duplicates += 1
-            continue
-
-        lo = LocationObservation(
-            device_id=obs.device_id,
-            device_name=obs.device_name,
-            latitude_e7=obs.latitude_e7,
-            longitude_e7=obs.longitude_e7,
-            altitude_meters=obs.altitude_meters,
-            accuracy_meters=obs.accuracy_meters,
-            observed_at=obs.observed_at,
-            first_fetched_at=fetched_at,
-            last_fetched_at=fetched_at,
-            times_returned=1,
-            source=obs.source,
-            is_own_report=obs.is_own_report,
-            semantic_name=obs.semantic_name,
-            battery_level=obs.battery_level,
-            raw_metadata=_encode_metadata(obs),
-        )
-        session.add(lo)
-        new_rows.append(lo)
-        inserted += 1
+        else:
+            new_rows.append(lo)
+            inserted += 1
 
     session.flush()
 
@@ -176,6 +135,56 @@ def ingest_observations(
         duplicates=result.duplicates,
     )
     return result
+
+
+def _ingest_one(
+    session: Session, obs: RawObservation, fetched_at: datetime
+) -> LocationObservation | None:
+    """Upsert the device, then insert the observation, or bump the existing
+    duplicate and return None if this exact sighting is already on record."""
+    # provider is applied on INSERT only (see upsert_device): a device first
+    # seen through a poll is tagged with the provider that reported it, and a
+    # device already on record keeps the provider it was discovered under.
+    upsert_device(session, obs.device_id, obs.device_name, provider=obs.provider, now=fetched_at)
+
+    existing = session.scalar(
+        select(LocationObservation).where(
+            LocationObservation.device_id == obs.device_id,
+            LocationObservation.observed_at == obs.observed_at,
+            LocationObservation.latitude_e7 == obs.latitude_e7,
+            LocationObservation.longitude_e7 == obs.longitude_e7,
+        )
+    )
+
+    if existing is not None:
+        # Identical sighting seen again: poll health, not movement.
+        existing.times_returned += 1
+        existing.last_fetched_at = fetched_at
+        if existing.accuracy_meters is None and obs.accuracy_meters is not None:
+            existing.accuracy_meters = obs.accuracy_meters
+        if existing.battery_level is None and obs.battery_level is not None:
+            existing.battery_level = obs.battery_level
+        return None
+
+    lo = LocationObservation(
+        device_id=obs.device_id,
+        device_name=obs.device_name,
+        latitude_e7=obs.latitude_e7,
+        longitude_e7=obs.longitude_e7,
+        altitude_meters=obs.altitude_meters,
+        accuracy_meters=obs.accuracy_meters,
+        observed_at=obs.observed_at,
+        first_fetched_at=fetched_at,
+        last_fetched_at=fetched_at,
+        times_returned=1,
+        source=obs.source,
+        is_own_report=obs.is_own_report,
+        semantic_name=obs.semantic_name,
+        battery_level=obs.battery_level,
+        raw_metadata=_encode_metadata(obs),
+    )
+    session.add(lo)
+    return lo
 
 
 def _run_post_ingest_hooks(

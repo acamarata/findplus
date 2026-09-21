@@ -30,6 +30,13 @@ class _FakeDevice:
 
 @pytest.fixture
 def two_devices(monkeypatch: pytest.MonkeyPatch) -> None:
+    # _discover_devices() (blind B2) gates each provider on is_authenticated();
+    # a fresh tmp_db has no real secrets.json, so Google must be stubbed signed
+    # in too, matching the real flow where _step_signin runs first.
+    monkeypatch.setattr(
+        "findplus.providers.google_findhub.client.FindHubClient.is_authenticated",
+        lambda self: True,
+    )
     monkeypatch.setattr(
         "findplus.providers.google_findhub.client.FindHubClient.list_devices",
         lambda self: [_FakeDevice("TAG-1", "Alpha"), _FakeDevice("TAG-2", "Bravo")],
@@ -144,6 +151,10 @@ def test_a_provider_that_cannot_list_devices_skips_that_step(
         raise RuntimeError("session expired")
 
     monkeypatch.setattr(
+        "findplus.providers.google_findhub.client.FindHubClient.is_authenticated",
+        lambda self: True,
+    )
+    monkeypatch.setattr(
         "findplus.providers.google_findhub.client.FindHubClient.list_devices", _raise
     )
 
@@ -152,6 +163,62 @@ def test_a_provider_that_cannot_list_devices_skips_that_step(
     assert result.exit_code == 0, result.output
     assert "Could not list devices: session expired" in result.output
     assert "Setup complete." in result.output
+
+
+class _FakeRegistryProvider:
+    """A LocationProvider fake keyed by registry name, for _discover_devices()
+    tests that need to control is_available/is_authenticated per provider."""
+
+    def __init__(self, name: str, display_name: str, devices=()) -> None:
+        self.name = name
+        self.display_name = display_name
+        self._devices = list(devices)
+
+    def is_available(self):
+        return True, ""
+
+    def is_authenticated(self):
+        return True
+
+    def list_devices(self):
+        return list(self._devices)
+
+
+def test_interactive_devices_step_lists_both_providers(
+    tmp_db, stub_auth: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Blind B2: an Apple Find My accessory must appear alongside a Google
+    device, not just Google's -- the wizard iterates the provider registry
+    the same way routes_devices.py's dashboard refresh does."""
+    from findplus.providers.base import ProviderDevice
+
+    providers = {
+        "google-find-hub": _FakeRegistryProvider(
+            "google-find-hub",
+            "Google Find Hub",
+            devices=[ProviderDevice("google-find-hub", "TAG-1", "Alpha", None, {})],
+        ),
+        "apple-find-my": _FakeRegistryProvider(
+            "apple-find-my",
+            "Apple Find My",
+            devices=[ProviderDevice("apple-find-my", "ACC-1", "Keys", "tag", {})],
+        ),
+    }
+    monkeypatch.setattr(
+        "findplus.providers.base.available_providers", lambda: list(providers), raising=False
+    )
+    monkeypatch.setattr(
+        "findplus.providers.base.get_provider", lambda n: providers[n], raising=False
+    )
+
+    result = CliRunner().invoke(main, ["setup"], input="n\nn\nall\nn\nn\nn\n")
+
+    assert result.exit_code == 0, result.output
+    assert "Alpha (TAG-1) [Google Find Hub]" in result.output
+    assert "Keys (ACC-1) [Apple Find My]" in result.output
+    with session_scope() as session:
+        tracked = {d.device_id for d in get_tracked_devices(session)}
+    assert tracked == {"TAG-1", "ACC-1"}
 
 
 def test_a_short_pin_aborts_only_the_app_lock_step(

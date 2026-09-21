@@ -102,25 +102,54 @@ def _resolve_indices(answer: str, devices) -> list[str]:
     return ids
 
 
+def _discover_devices() -> None:
+    """Ask every installed, signed-in provider for its devices and upsert them.
+
+    Mirrors routes_devices.py::_query_every_provider (the dashboard's
+    "Refresh from your providers" button) so the CLI wizard and the dashboard
+    never drift on which providers are consulted -- before this (blind B2),
+    the text wizard only ever asked Google, so an Apple Find My accessory
+    added via `findplus apple add-accessory` never showed up here even when
+    signed in. A provider that is not installed or not signed in is skipped,
+    not an error; one provider's outage never hides another's devices.
+    """
+    from findplus.ingest import upsert_device
+    from findplus.providers.base import available_providers, get_provider
+
+    for provider_name in available_providers():
+        try:
+            provider = get_provider(provider_name)
+            if not provider.is_available()[0] or not provider.is_authenticated():
+                continue
+            found = provider.list_devices()
+        except Exception as exc:
+            click.secho(f"Could not list devices: {exc}", fg="red")
+            continue
+        with session_scope() as session:
+            for device in found:
+                upsert_device(session, device.device_id, device.name, provider=provider_name)
+
+
+def _provider_label(name: str) -> str:
+    """Human-readable provider name for the device listing; falls back to the
+    registry key itself if the provider cannot be loaded."""
+    from findplus.providers.base import get_provider
+
+    try:
+        return get_provider(name).display_name
+    except Exception:
+        return name
+
+
 def _step_devices(yes: bool) -> None:
     """Step 3. Discovers, lists and tracks; labels and icons stay a dashboard job."""
     if yes:
         click.echo("Tracked nothing. Run `findplus devices --track-all` later.")
         return
 
-    from findplus.ingest import upsert_device
-    from findplus.providers.google_findhub.client import FindHubClient
     from findplus.state import track_all, track_devices
 
-    try:
-        found = FindHubClient().list_devices()
-    except Exception as exc:
-        click.secho(f"Could not list devices: {exc}", fg="red")
-        return
-
-    with session_scope() as session:
-        for device in found:
-            upsert_device(session, device.device_id, device.name)
+    _discover_devices()
 
     with session_scope() as session:
         devices = _listed_devices(session)
@@ -128,7 +157,8 @@ def _step_devices(yes: bool) -> None:
             click.echo("No devices found on this account.")
             return
         for index, device in enumerate(devices, start=1):
-            click.echo(f"  {index}. {device.name} ({device.device_id})")
+            label = _provider_label(device.provider)
+            click.echo(f"  {index}. {device.name} ({device.device_id}) [{label}]")
 
         answer = click.prompt("Devices to track (comma-separated indices, or 'all')", default="all")
         if answer.strip().lower() == "all":

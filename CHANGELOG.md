@@ -78,6 +78,8 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - The dashboard and the MCP server name the tracking network each device actually uses, instead of naming Google Find Hub for every tracker.
 - "Refresh from your providers" now asks every provider you are signed in to, and says which one it could not reach instead of showing a raw error.
 - Alerts carry the documented latency sentence, and a long group note is kept whole rather than cut mid-sentence.
+- GPX and KML exports carry a device's label, falling back to its device ID when no label is set, instead of leaving the name and description blank.
+- A CallMeBot phone number is now redacted in logs and CLI output, instead of appearing in the clear next to the API key.
 - The widget shows the device with the newest fix rather than the first by name, spells a long gap in days, and names group verdicts the way the dashboard does.
 - The lock screen states that locking does not encrypt the database, which until now was only visible in Settings, behind the lock.
 - The Delivery log shows times in your local timezone and says why an alert was skipped.

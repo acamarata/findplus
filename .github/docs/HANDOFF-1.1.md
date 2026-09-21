@@ -44,6 +44,12 @@ a stale service import) and were each followed by a fix commit. Whoever runs E13
 completion should re-verify every row above against `main`'s tip at that time, not assume this
 table still matches.
 
+**Addendum (loop 3, 2026-09-21)**: the sentence above about reviews A and C is stale. Both
+finished after this doc was written: `e13/loop2/review-A.md` (blocking 0, major 3, minor 2) and
+`e13/loop2/review-C.md` (blocking 0, major 4, minor 2) are populated, and their findings (A1-A5,
+C1-C6) drove 19 of loop 2's 30 commits. Loop 3's own review (`e13/loop2/review-L3.md`) closed
+with blocking 0, major 1, minor 2.
+
 ## 2. Unproven, requires owner action
 
 | Item | Why unproven | Required action |

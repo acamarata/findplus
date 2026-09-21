@@ -49,9 +49,15 @@ def configured_whatsapp(ui_env: dict):
 
 
 async def _open_alerts_tab(page, base_url) -> None:
+    """Local twin of conftest.py's open_alerts_tab() (DASHBOARD hash instead
+    of "/"). Same data-fp-ready wait for the same reason -- see that
+    docstring; alerts.js's init() wiring and boot-time refreshAll() are not
+    covered by page.goto()'s 'load' event or by #fp-whatsapp-section merely
+    existing (E13 loop3, CI 35560066419)."""
     await page.goto(base_url + DASHBOARD)
     await page.click('button[data-tab="alerts"]')
     await page.wait_for_selector("#fp-whatsapp-section")
+    await page.wait_for_selector('[data-fp-ready="alerts"]')
 
 
 async def _open_add_rule_dialog(page, base_url) -> None:

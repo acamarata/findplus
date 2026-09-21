@@ -12,8 +12,12 @@ Constraints: No network access; everything is resolved against the repo tree.
 from __future__ import annotations
 
 import re
+import shutil
+import subprocess
 from html.parser import HTMLParser
 from pathlib import Path
+
+import pytest
 
 REPO_ROOT = Path(__file__).parent.parent.parent
 INDEX_HTML = REPO_ROOT / "web" / "index.html"
@@ -88,3 +92,32 @@ def test_module_imports_resolve_on_disk():
         for specifier in _RELATIVE_IMPORT.findall(module.read_text(encoding="utf-8")):
             target = (module.parent / specifier).resolve()
             assert target.is_file(), f"{module.name} imports missing module: {specifier}"
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
+def test_every_module_passes_node_check():
+    """`node --check` on every web/app/*.js module, one process each.
+
+    A per-ticket gate ("node --check every touched JS") is only as good as
+    remembering to run it on every file a refactor touches. The E13 alerts.js
+    split (000bb2e) pasted `const SETUP_ERROR_KEYS = {...}` into
+    alerts_channels.js twice: a same-scope `const` redeclaration is a
+    SyntaxError, module evaluation aborted before main.js's boot() ran, and
+    the dashboard never rendered #tracks (caught by
+    cli/tests/ui/test_a11y.py's 30s selector timeout, not by anything fast).
+    This test would have failed on that commit in under a second.
+    """
+    app_dir = REPO_ROOT / "web" / "app"
+    modules = sorted(app_dir.glob("*.js"))
+    assert modules, f"no ES modules found under {app_dir}"
+    failures = []
+    for module in modules:
+        result = subprocess.run(
+            ["node", "--check", str(module)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            failures.append(f"{module.name}: {result.stderr.strip()}")
+    assert not failures, "node --check failed:\n" + "\n".join(failures)

@@ -169,6 +169,7 @@ def _widget_devices(
                 "longitude": latest.longitude,
                 "place": None if stale else places.get(device.device_id),
                 "group": device_groups.get(device.device_id),
+                "label": device.label,
                 "icon": device.icon,
                 "color": device.color,
             }

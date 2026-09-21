@@ -21,6 +21,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from findplus.config_bind import is_public_bind
 from findplus.config_keys import validate_config_key as validate_config_key
 from findplus.config_keys import write_config_key as write_config_key
+from findplus.config_keys import unprefixed_config_env
 from findplus.providers.findhub.bootstrap import resolve_vendor_path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -240,42 +241,6 @@ class Settings(BaseSettings):
         (self.state_dir / "logs").mkdir(mode=0o700, exist_ok=True)
 
 
-def _unprefixed_config_env(state_dir: Path) -> dict[str, str]:
-    """Read the bare (unprefixed) keys out of state_dir/config.env.
-
-    Purpose    : specs/data-model.md § state dir says config.env keys are Settings
-                 field names upper-cased with the FINDPLUS_ prefix OPTIONAL — both
-                 forms accepted. pydantic-settings applies env_prefix to dotenv files
-                 as well as to the environment, so the unprefixed form would otherwise
-                 be silently dropped and `findplus config set LOG_LEVEL DEBUG` would
-                 write a line that never reaches Settings.
-    Inputs     : the resolved state dir.
-    Outputs    : {field_name: raw string value} for unprefixed keys only; prefixed keys
-                 are left to the normal dotenv source.
-    Constraints: a real FINDPLUS_* environment variable always wins, so a key already
-                 present in os.environ is skipped.
-    """
-    path = state_dir / "config.env"
-    values: dict[str, str] = {}
-    try:
-        lines = path.read_text(encoding="utf-8").splitlines()
-    except OSError:
-        return values
-    for raw in lines:
-        line = raw.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        name = key.strip().upper()
-        if name.startswith("FINDPLUS_"):
-            continue  # handled by the dotenv source
-        field = name.lower()
-        if field in Settings.model_fields and f"FINDPLUS_{name}" not in os.environ:
-            values[field] = value.strip().strip("'\"")
-    values.pop("state_dir", None)  # already resolved by the caller
-    return values
-
-
 def get_settings(state_dir: Path | None = None) -> Settings:
     """Build a fresh Settings, resolving state_dir at call time (arg -> FINDPLUS_STATE_DIR ->
     ~/.findplus) so test-session isolation (FINDPLUS_STATE_DIR set before import) and
@@ -292,7 +257,7 @@ def get_settings(state_dir: Path | None = None) -> Settings:
     return Settings(
         state_dir=_sd,
         _env_file=[str(PROJECT_ROOT / ".env"), str(_sd / "config.env")],
-        **_unprefixed_config_env(_sd),
+        **unprefixed_config_env(_sd, Settings.model_fields),
     )
 
 

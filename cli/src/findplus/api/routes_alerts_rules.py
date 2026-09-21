@@ -109,7 +109,9 @@ def _get_rule_or_404(session, rule_id: int) -> AlertRule:
     return rule
 
 
-def _delivery_to_dict(session, d: AlertDelivery, rule_name: str) -> dict[str, Any]:
+def _delivery_to_dict(
+    session, d: AlertDelivery, rule_name: str, render_native: bool = False
+) -> dict[str, Any]:
     """One delivery row. `text`/`body` are rendered on read, for native rows only.
 
     No join field (place_name, device_name, group_name, event_type) is exposed:
@@ -117,7 +119,7 @@ def _delivery_to_dict(session, d: AlertDelivery, rule_name: str) -> dict[str, An
     """
     text, body = (
         delivery_text_body(session, d.event_kind, d.event_id)
-        if d.channel == "native"
+        if d.channel == "native" and render_native
         else (None, None)
     )
     return {
@@ -206,10 +208,13 @@ def get_deliveries(
         if channel is not None:
             stmt = stmt.filter(AlertDelivery.channel == channel)
         if since is not None:
-            stmt = stmt.filter(AlertDelivery.id > since).order_by(AlertDelivery.id)
+            stmt = stmt.filter(AlertDelivery.id > since).order_by(AlertDelivery.id).limit(limit)
         else:
             stmt = stmt.order_by(AlertDelivery.sent_at.desc()).limit(limit)
-        return [_delivery_to_dict(s, d, rule_name) for d, rule_name in s.execute(stmt).all()]
+        return [
+            _delivery_to_dict(s, d, rule_name, render_native=(channel == "native"))
+            for d, rule_name in s.execute(stmt).all()
+        ]
 
 
 def ack_delivery(delivery_id: int) -> Response:

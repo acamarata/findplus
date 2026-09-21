@@ -20,8 +20,8 @@ CALLMEBOT = "https://api.callmebot.com/whatsapp.php?phone=15550123&apikey=874216
 def test_a_secret_query_parameter_is_masked() -> None:
     out = redact_text(f"Client error '401 Unauthorized' for url '{CALLMEBOT}'")
     assert "874216" not in out
-    assert "<redacted>" in out
-    assert "phone=15550123" in out, "non-secret parameters stay, or the error is unreadable"
+    assert "15550123" not in out, "phone numbers are PII and must be masked"
+    assert out.count("<redacted>") == 2
 
 
 @pytest.mark.parametrize("name", ["token", "api_key", "access_token", "secret", "sig", "password"])

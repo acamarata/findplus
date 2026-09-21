@@ -112,11 +112,6 @@ async function clearWhatsappChannel() {
     if (err.message !== "Locked") $("fp-wa-status").textContent = err.message;
   }
 }
-/** Status code -> catalog key. Built at call time so t() reads the loaded catalog. */
-const SETUP_ERROR_KEYS = {
-  408: "alerts.setupErrorTimeout",
-  409: "alerts.setupErrorConflict",
-};
 async function startTelegramSetup() {
   const statusEl = $("fp-tg-status");
   const token = $("fp-tg-token").value.trim();

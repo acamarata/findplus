@@ -31,15 +31,18 @@ func stateLabel(_ state: WidgetState) -> String {
 }
 
 /// The character a letter badge shows: the pinned one, else the label's
-/// initial, else the provider name's. "?" only when there is no text at all.
-func resolveLetter(icon: String, label: String?, name: String) -> Character {
-    let raw: Character
+/// initial, else the provider name's. nil when there is no text at all.
+func resolveLetter(icon: String, label: String?, name: String) -> Character? {
+    let raw: Character?
     if icon.hasPrefix("letter:"), let c = icon.dropFirst(7).first { raw = c }
     else {
-        let source = (label?.isEmpty == false ? label! : name)
-        raw = source.first ?? "?"
+        let labelSource = label?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let nameSource = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let source = (labelSource?.isEmpty == false ? labelSource! : nameSource)
+        raw = source.first
     }
-    return String(raw).uppercased().first ?? raw
+    guard let c = raw else { return nil }
+    return String(c).uppercased().first ?? c
 }
 
 /// The SF Symbol for a Find+ icon id (specs/labels-and-icons.md § Widget).
@@ -75,7 +78,10 @@ func sfSymbol(for icon: String, label: String?, name: String) -> String {
     if icon.hasPrefix("lucide:"), let symbol = table[String(icon.dropFirst(7))] {
         return symbol
     }
-    return "\(resolveLetter(icon: icon, label: label, name: name)).circle.fill"
+    if let letter = resolveLetter(icon: icon, label: label, name: name) {
+        return "\(letter).circle.fill"
+    }
+    return "circle.fill"
 }
 
 /// The 9 pt footer notice. `response.notice` when the daemon answered; the

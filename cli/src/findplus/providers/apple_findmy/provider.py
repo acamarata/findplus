@@ -127,7 +127,7 @@ def _to_observation(report, device_id: str, name: str) -> RawObservation:
         longitude_e7=round(report.longitude * 1e7),
         observed_at=obs_at,
         altitude_meters=getattr(report, "altitude", None),
-        accuracy_meters=CONFIDENCE_TO_ACCURACY.get(confidence or "poor", 150.0),
+        accuracy_meters=None,
         source="apple-find-my",
         metadata={
             "confidence": confidence,

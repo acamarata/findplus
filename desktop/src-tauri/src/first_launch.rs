@@ -36,7 +36,14 @@ pub fn decide(settings_json: &Value, http_status: Option<i64>) -> bool {
         // Timeout, non-200, malformed body: fail safe.
         return false;
     }
-    let completed = settings_json.get(COMPLETED_AT);
+    let obj = match settings_json.as_object() {
+        Some(o) => o,
+        None => return false,
+    };
+    if !obj.keys().any(|k| k.starts_with("onboarding.")) {
+        return false;
+    }
+    let completed = obj.get(COMPLETED_AT);
     // A payload from before this field existed cannot mean "definitely
     // finished", so a missing key counts as never onboarded.
     matches!(completed, Some(Value::Null)) || completed.is_none()

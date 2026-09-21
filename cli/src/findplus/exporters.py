@@ -183,9 +183,8 @@ def to_gpx(
 ) -> str:
     """GPX 1.1 with a single track segment of timestamped points.
 
-    `labels` is accepted for a uniform four-exporter signature and not read:
-    GPX has no per-point name, so the label reaches the file through the
-    `track_name` the caller already builds.
+    `labels` provides the `<name>` and `<desc>` for each track point;
+    falls back to device_id.
     """
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
@@ -213,6 +212,9 @@ def to_gpx(
         lines.append(f"        <time>{stamp}</time>")
         if obs.accuracy_meters is not None:
             lines.append(f"        <hdop>{obs.accuracy_meters:.1f}</hdop>")
+        label = (labels or {}).get(obs.device_id) or obs.device_id
+        lines.append(f"        <name>{escape(label)}</name>")
+        lines.append(f"        <desc>{escape(label)}</desc>")
         if obs.source:
             lines.append(f"        <src>{escape(obs.source)}</src>")
         lines.append("      </trkpt>")
@@ -228,8 +230,7 @@ def to_kml(
 ) -> str:
     """KML with numbered placemarks plus a LineString of the observed path.
 
-    `labels` is accepted for signature symmetry and not read, for the same
-    reason as `to_gpx`: the label reaches the file through `doc_name`.
+    `labels` provides the `<name>` for each placemark; falls back to device_id.
     """
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
@@ -246,9 +247,10 @@ def to_kml(
         detail = f"Observed {local}"
         if obs.accuracy_meters is not None:
             detail += f" (accuracy ~{obs.accuracy_meters:.0f} m)"
+        label = (labels or {}).get(obs.device_id) or obs.device_id
         lines += [
             "    <Placemark>",
-            f"      <name>{index}. {escape(local)}</name>",
+            f"      <name>{escape(label)} ({index})</name>",
             f"      <description>{escape(detail)}</description>",
             f"      <TimeStamp><when>{_zulu(obs.observed_at)}</when></TimeStamp>",
             "      <Point><coordinates>"

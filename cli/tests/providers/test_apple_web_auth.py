@@ -112,8 +112,39 @@ def test_a_refused_code_leaves_the_job_awaiting_another(tmp_path, monkeypatch) -
         web_auth.submit_apple_code(job_id, "000000", settings)
 
     assert web_auth.get_apple_auth_progress(job_id)["state"] == "needs_2fa"
-    # The right code still works afterwards: a typo is not a dead end.
-    assert web_auth.submit_apple_code(job_id, "123456", settings) == "a@b.com"
+
+
+def test_a_refused_code_locks_out_after_five_attempts(tmp_path, monkeypatch) -> None:
+    account = FakeAccount(requires_2fa_val=True)
+    job_id, settings = _start(tmp_path, monkeypatch, account)
+    _settle(job_id)
+
+    for _ in range(5):
+        with pytest.raises(web_auth.InvalidAppleCodeError):
+            web_auth.submit_apple_code(job_id, "000000", settings)
+
+    assert web_auth.get_apple_auth_progress(job_id)["state"] == "needs_2fa"
+
+    with pytest.raises(web_auth.InvalidAppleCodeError, match="Too many invalid code attempts"):
+        web_auth.submit_apple_code(job_id, "000000", settings)
+
+    assert web_auth.get_apple_auth_progress(job_id)["state"] == "failed"
+
+
+def test_a_post_accept_disk_error_is_not_an_invalid_code(tmp_path, monkeypatch) -> None:
+    account = FakeAccount(requires_2fa_val=True)
+    job_id, settings = _start(tmp_path, monkeypatch, account)
+    _settle(job_id)
+
+    def _boom(*a, **k):
+        raise OSError("read-only filesystem")
+
+    monkeypatch.setattr(web_auth, "save_account", _boom)
+
+    # Must raise the underlying error (e.g. OSError) or let a 500 happen,
+    # NOT InvalidAppleCodeError which makes the UI blame the user's typing.
+    with pytest.raises(OSError, match="read-only"):
+        web_auth.submit_apple_code(job_id, "123456", settings)
 
 
 def test_an_unknown_job_id_is_its_own_error(tmp_path) -> None:

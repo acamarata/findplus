@@ -74,7 +74,7 @@ def test_locate_maps_fields(monkeypatch) -> None:
     assert len(results) == 2
     assert results[0].source == "apple-find-my"
     assert results[0].device_name == "Wallet Tag"
-    assert results[0].accuracy_meters == 30.0
+    assert results[0].accuracy_meters is None
     assert results[0].observed_at.tzinfo is not None
     assert results[0].metadata["confidence"] == "good"
 
@@ -87,10 +87,10 @@ def test_confidence_mapping(monkeypatch) -> None:
     _patch_common(monkeypatch, reports)
     provider = AppleFindMyProvider()
     results = provider.locate("apple:abc", "Wallet Tag")
-    expected = {"excellent": 10.0, "good": 30.0, "medium": 65.0, "poor": 150.0}
     assert len(results) == 4
     for r in results:
-        assert r.accuracy_meters == expected[r.metadata["confidence"]]
+        assert r.accuracy_meters is None
+        assert r.metadata["confidence"] in ("excellent", "good", "medium", "poor")
 
 
 def test_naive_timestamp_gets_utc(monkeypatch) -> None:

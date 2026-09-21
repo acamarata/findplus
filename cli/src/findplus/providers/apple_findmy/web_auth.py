@@ -172,13 +172,23 @@ def submit_apple_code(job_id: str, code: str, settings: Any) -> str:
             raise UnknownAppleJobError(job_id)
         if job["state"] != "needs_2fa":
             raise InvalidAppleCodeError("job is not awaiting a 2FA code")
+
+        job["attempts"] = job.get("attempts", 0) + 1
+        if job["attempts"] > 5:
+            job["state"] = "failed"
+            job["message"] = "Too many invalid code attempts. Please sign in again."
+            job["last_progress_monotonic"] = time.monotonic()
+            job["finished_monotonic"] = time.monotonic()
+            raise InvalidAppleCodeError("Too many invalid code attempts")
+
         method, account, apple_id = job["method"], job["account"], job["apple_id"]
 
     try:
         method.submit(code)
-        save_account(account, settings)
     except Exception as exc:
         raise InvalidAppleCodeError(str(exc)) from exc
+
+    save_account(account, settings)
 
     _set_progress(job_id, "done", f"Authenticated as {apple_id}.")
     return apple_id

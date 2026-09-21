@@ -78,6 +78,7 @@ def upgrade() -> None:
         "UPDATE alert_deliveries SET channel = ("
         "SELECT channel FROM alert_rules WHERE alert_rules.id = alert_deliveries.rule_id)"
     )
+    op.execute("UPDATE alert_deliveries SET channel = 'telegram' WHERE channel IS NULL")
     with op.batch_alter_table("alert_deliveries") as batch:
         batch.alter_column("channel", existing_type=sa.String(16), nullable=False)
         batch.drop_constraint("ck_alert_deliveries_status", type_="check")
@@ -114,17 +115,18 @@ def downgrade() -> None:
         batch.alter_column("channel", existing_type=sa.String(16), nullable=False)
         batch.create_check_constraint("ck_alert_rules_channel", "channel IN ('telegram','webhook')")
         batch.drop_column("channels")
-    _restore_deliveries()
-
     # 0007's status CHECK and dedup UNIQUE are both narrower than what a real
     # 1.1 database can hold (see module docstring point 3) -- reshape the data
-    # to fit before the batch rebuild re-creates either constraint.
-    op.execute("UPDATE alert_deliveries SET status = 'sent' WHERE status = 'delivered'")
-    op.execute("UPDATE alert_deliveries SET status = 'skipped' WHERE status = 'queued'")
+    # to fit before it is restored, so it does not violate the old constraints
+    # if the cascade rebuild already re-applied them.
+    op.execute(f"UPDATE {_STASH} SET status = 'sent' WHERE status = 'delivered'")
+    op.execute(f"UPDATE {_STASH} SET status = 'skipped' WHERE status = 'queued'")
     op.execute(
-        "DELETE FROM alert_deliveries WHERE id NOT IN ("
-        " SELECT MIN(id) FROM alert_deliveries GROUP BY rule_id, event_kind, event_id)"
+        f"DELETE FROM {_STASH} WHERE id NOT IN ("
+        f"  SELECT MIN(id) FROM {_STASH} GROUP BY rule_id, event_kind, event_id"
+        ")"
     )
+    _restore_deliveries()
     with op.batch_alter_table("alert_deliveries") as batch:
         batch.drop_constraint("uq_alert_deliveries_dedup", type_="unique")
         batch.create_unique_constraint(

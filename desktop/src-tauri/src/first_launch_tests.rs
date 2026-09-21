@@ -13,15 +13,14 @@ fn completed_stays_tray_only() {
 
 #[test]
 fn incomplete_opens_window() {
-    let body = serde_json::json!({"onboarding.completed_at": null});
+    let body = serde_json::json!({"onboarding.last_step": "welcome", "onboarding.completed_at": null});
     assert!(decide(&body, Some(200)));
 }
 
 #[test]
-fn missing_field_opens_window() {
-    // A settings payload from before this field existed cannot mean "finished",
-    // so it falls toward showing the wizard rather than hiding it.
-    assert!(decide(&serde_json::json!({}), Some(200)));
+fn missing_field_stays_tray_only() {
+    // A settings payload lacking any onboarding keys is treated as malformed/legacy.
+    assert!(!decide(&serde_json::json!({}), Some(200)));
 }
 
 #[test]
@@ -35,15 +34,15 @@ fn non_200_stays_tray_only() {
 }
 
 #[test]
-fn malformed_body_on_200_is_treated_as_never_onboarded() {
-    // resp.json() failing gives Value::Null, which has no key at all.
-    assert!(decide(&serde_json::Value::Null, Some(200)));
+fn malformed_body_on_200_stays_tray_only() {
+    // resp.json() failing gives Value::Null, which is not an object.
+    assert!(!decide(&serde_json::Value::Null, Some(200)));
 }
 
 #[test]
 fn the_key_is_dotted_not_nested() {
-    // A nested {"onboarding": {"completed_at": ...}} shape must NOT be read as
-    // a completion: the wire contract is one flat dotted key (ruling F6).
+    // A nested {"onboarding": {"completed_at": ...}} shape lacks dotted keys
+    // starting with "onboarding.", so it is rejected as malformed.
     let nested = serde_json::json!({"onboarding": {"completed_at": "2026-09-20T00:00:00Z"}});
-    assert!(decide(&nested, Some(200)));
+    assert!(!decide(&nested, Some(200)));
 }

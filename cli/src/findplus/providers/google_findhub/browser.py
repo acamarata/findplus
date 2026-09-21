@@ -194,9 +194,12 @@ def _run_google_auth(job_id: str, settings: Any) -> None:
     except TimeoutException:
         _set_progress(job_id, "failed", MSG_TIMEOUT)
     except Exception as exc:
-        # Truncated, never a traceback. The vendor functions reused here neither
-        # return nor raise a token value, so length is the only thing to bound.
-        _set_progress(job_id, "failed", str(exc)[:200])
+        # F8: Selenium error messages can embed the current URL, which might
+        # carry an OAuth token. Scrub before truncating.
+        from findplus.redaction import redact_text
+
+        safe_msg = redact_text(str(exc)) or "Unknown error"
+        _set_progress(job_id, "failed", safe_msg[:200])
     else:
         _set_progress(job_id, "done", f"Authenticated as {email}.")
 

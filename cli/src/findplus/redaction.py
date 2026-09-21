@@ -29,6 +29,7 @@ _SECRET_PARAMS = frozenset(
         "key",
         "password",
         "pass",
+        "phone",
         "secret",
         "sig",
         "signature",

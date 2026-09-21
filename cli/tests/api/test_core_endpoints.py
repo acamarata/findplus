@@ -286,8 +286,10 @@ def test_widget_device_rows_carry_icon_and_color(client: TestClient) -> None:
     with session_scope() as session:
         device = session.get(Device, "TAG-001")
         device.icon, device.color = "lucide:key", "#4f8cf7"
+        device.label = "Mom's Keys"
 
     row = client.get("/api/widget").json()["devices"][0]
+    assert row["label"] == "Mom's Keys"
     assert row["icon"] == "lucide:key"
     assert row["color"] == "#4f8cf7"
 
@@ -300,3 +302,17 @@ def test_widget_group_rows_carry_icon(client: TestClient) -> None:
         create_group(session, name="Family", icon="lucide:dog")
 
     assert client.get("/api/widget").json()["groups"][0]["icon"] == "lucide:dog"
+
+
+def test_get_icons_missing_table(client, monkeypatch) -> None:
+    from findplus import labels
+
+    def raise_missing():
+        raise RuntimeError("icon table missing; reinstall findplus")
+
+    monkeypatch.setattr(labels, "lucide_subset", lambda: (_ for _ in ()).throw(raise_missing()))
+
+    import pytest
+
+    with pytest.raises(RuntimeError, match="icon table missing; reinstall findplus"):
+        client.get("/api/icons")

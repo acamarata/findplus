@@ -58,7 +58,10 @@ def _data_path() -> Path:
         return packaged
     from findplus.config import PROJECT_ROOT
 
-    return PROJECT_ROOT.parent / "packaging" / "data" / "lucide-subset.json"
+    fallback = PROJECT_ROOT.parent / "packaging" / "data" / "lucide-subset.json"
+    if fallback.exists():
+        return fallback
+    raise RuntimeError("icon table missing; reinstall findplus")
 
 
 @functools.lru_cache(maxsize=1)

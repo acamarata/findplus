@@ -96,10 +96,11 @@ async def _read_accessory_body(request: Request, settings) -> tuple[str, Path | 
             raise HTTPException(
                 status_code=422, detail="multipart body requires 'name' and a 'plist' file"
             )
-        plist_bytes = await upload.read()
-        # Checked on the bytes already read, before any write. A Content-Length
-        # header is the client's word for it, and checking after the write
-        # would defeat the point of the cap.
+        if upload.size is not None and upload.size > _MAX_PLIST_BYTES:
+            raise HTTPException(status_code=413, detail="plist too large")
+        
+        plist_bytes = await upload.read(_MAX_PLIST_BYTES + 1)
+        # Checked on the bytes already read, before any write.
         if len(plist_bytes) > _MAX_PLIST_BYTES:
             raise HTTPException(status_code=413, detail="plist too large")
         plist_path = settings.state_dir / f".accessory-upload-{uuid.uuid4().hex}.plist"

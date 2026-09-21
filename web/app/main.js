@@ -277,6 +277,7 @@ async function main() {
   // (not in P1-E10-W6-S1-T2's own file list) — without a real map instance
   // the Groups tab has nothing to bind its selector or overlay layer to.
   await import("./groups.js").then((m) => m.init(state.map, deviceList));
+  await import("./alerts.js").then((m) => m.init());
 
   // Ask about the lock BEFORE requesting any location data. A locked install
   // has a PIN, which implies a wizard that already ran, so the onboarding

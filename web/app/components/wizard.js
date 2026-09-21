@@ -56,6 +56,7 @@ export class Wizard {
 
     this.progress = document.createElement("div");
     this.progress.className = "fp-wizard-progress";
+    this.progress.setAttribute("aria-live", "polite");
     this.progressText = document.createElement("span");
     this.progressText.className = "fp-wizard-progress-text";
     this.dots = this.steps.map(() => {

@@ -50,8 +50,9 @@ function customInput(customLabel) {
   input.setAttribute("aria-label", customLabel);
   return input;
 }
+import { t } from "../i18n.js";
 
-export function createColorPicker(host, { value, onChange, customLabel = "Custom colour" } = {}) {
+export function createColorPicker(host, { value, onChange, customLabel = t("field.customColor") } = {}) {
   const root = document.createElement("div");
   root.className = "fp-color-picker";
   for (const hex of DEVICE_PALETTE) root.appendChild(paletteSwatch(hex));

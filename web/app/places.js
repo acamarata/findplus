@@ -98,10 +98,11 @@ async function editPlace(id) {
 async function deletePlace(id) {
   const place = placesById.get(String(id));
   if (!window.confirm(t("places.confirmDelete", { name: place ? place.name : id }))) return;
-  const res = await fetch(`/api/places/${id}`, { method: "DELETE" });
-  if (!res.ok) {
+  try {
+    await api(`/api/places/${id}`, { method: "DELETE" });
+  } catch (err) {
     // A bare return left the circle on the map with nothing said (round 3 F10).
-    showAlert(t("places.deleteFailed", { status: res.status }), "err");
+    showAlert(t("places.deleteFailed", { status: err.status || err.message }), "err");
     return;
   }
   const circle = circlesById.get(String(id));

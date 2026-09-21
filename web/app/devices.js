@@ -91,17 +91,27 @@ function editButton(d) {
 
 /** One row of the Devices dialog. */
 function deviceRow(d) {
-  const row = el("label", "device-row");
+  const row = el("div", "device-row");
   row.dataset.deviceId = d.device_id;
   const check = el("input");
   check.type = "checkbox";
+  check.id = "chk-" + d.device_id;
   check.value = d.device_id;
   check.checked = d.is_tracked;
   check.addEventListener("change", updateModalRate);
+  
+  const label = el("label");
+  label.htmlFor = check.id;
+  label.style.display = "flex";
+  label.style.alignItems = "center";
+  label.style.gap = "10px";
+  label.style.cursor = "pointer";
+  label.append(check, badgeCell(d), nameCell(d));
+  
   const obs = el("span", "d-obs", t("devices.obsCount", { n: Number(d.observation_count) || 0 }));
   const providerClass = "fp-provider-badge fp-provider-badge--" + (d.provider || "unknown");
   const provider = el("span", providerClass, providerLabel(d.provider));
-  row.append(check, badgeCell(d), nameCell(d), obs, provider, editButton(d));
+  row.append(label, obs, provider, editButton(d));
   return row;
 }
 

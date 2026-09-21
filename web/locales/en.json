@@ -318,7 +318,6 @@
     }
   },
   "setup": {
-    "stepWelcome": "Welcome",
     "back": "Back",
     "next": "Next",
     "skip": "Skip",
@@ -336,7 +335,6 @@
     "signin": {
       "google": "Sign in with Google",
       "apple": "Sign in with Apple",
-      "skip": "Skip for now",
       "apple_id": "Apple ID",
       "password": "Password",
       "code": "Verification code",

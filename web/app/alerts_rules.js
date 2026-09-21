@@ -163,13 +163,20 @@ export async function openAddRuleDialog() {
   $("fp-rule-target-device").checked = true;
   updateRuleTargetVisibility();
   $("fp-rule-error").textContent = "";
+  
+  renderChannelPicker($("fp-rule-channels"), {
+    selected: ["telegram"],
+    available: BASE_CHANNELS,
+    labels: channelLabels(),
+  });
+  
   $("fp-add-rule-dialog").showModal();
 
   // In parallel, not in series: the channel list is usually already resolved,
   // and it must never add a round-trip to the time the dialog takes to open.
   const [, available] = await Promise.all([populateRuleSelects(), loadAvailableChannels()]);
   renderChannelPicker($("fp-rule-channels"), {
-    selected: ["telegram"],
+    selected: readChannelPicker($("fp-rule-channels")),
     available,
     labels: channelLabels(),
   });

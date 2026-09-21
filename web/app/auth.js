@@ -124,7 +124,9 @@ async function startGoogleSignIn() {
     const { job_id } = await api("/api/auth/google/start", { method: "POST" });
     pollGoogleProgress(job_id);
   } catch (err) {
-    if (err.message === t("auth.google.chrome_missing")) {
+    if (err.status === 409 && err.body && err.body.job_id) {
+      pollGoogleProgress(err.body.job_id);
+    } else if (err.message === t("auth.google.chrome_missing")) {
       showChromeMissing(err.message);
     } else if (err.message !== "Locked") {
       button.disabled = false;
@@ -174,7 +176,12 @@ async function submitAppleSignIn() {
     appleJobId = job_id;
     showApple2fa(true);
   } catch (err) {
-    if (err.message !== "Locked") showAlert(err.message, "err");
+    if (err.status === 409 && err.body && err.body.job_id) {
+      appleJobId = err.body.job_id;
+      showApple2fa(true);
+    } else if (err.message !== "Locked") {
+      showAlert(err.message, "err");
+    }
   } finally {
     // The password leaves the DOM whatever happened, the same way
     // settings.js never leaves a PIN sitting in its field.

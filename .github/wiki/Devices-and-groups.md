@@ -11,6 +11,52 @@ Each device gets its own coloured track on the map and its own row in the
 sidebar. Timelines are never merged across devices: distance and elapsed
 time between two points are only meaningful within a single tracker.
 
+## Labels, icons and colours
+
+Every device carries three things you choose: a label, an icon, and a colour.
+Together they make the badge you see on the map, on the timeline track heads,
+on the device list, and in the macOS widget.
+
+**Label.** Free text, up to 40 characters. A label is local only: it is never
+sent to Google or Apple, and a provider name refresh never overwrites one you
+have set. Clear the field to go back to the provider's own name.
+
+**Icon.** One of four forms:
+
+| Form | What it shows |
+|---|---|
+| `lucide:<name>` | One of the 48 bundled Lucide glyphs. |
+| `letter:<A-Z0-9>` | A badge character you pin once, which never changes. |
+| `letter` | A badge character computed live from the current label or name. |
+| `none` | A plain coloured dot with no glyph. |
+
+Bare `letter` is the default and is dynamic: it always shows the first
+character of the name in force right now, so renaming a device moves its badge
+letter with it. `letter:X` is the opposite, and stays on X whatever the device
+is called.
+
+The 48 glyphs come from Lucide 0.462.0 and are bundled with Find+, so the
+dashboard never fetches an icon from anywhere. The picker groups them as
+people (9), pets (8), things (21) and places (10). `footprints` sits in the
+things group, where it is the picker's only footwear-adjacent glyph.
+
+Forty-eight glyphs will not cover every label anyone writes, and that is fine:
+the coloured letter badge covers any label with no matching glyph, so the
+picker never has a dead end. Run `findplus devices icons` to print every
+available id.
+
+**Colour.** One of 12 palette swatches, or any hex colour you pick. A device
+that has never been given one gets a palette colour derived from its id, so two
+devices rarely start out the same colour.
+
+```bash
+findplus devices label <ID> --label "Mom" --icon lucide:user-round --color "#4f8cf7"
+findplus devices icons
+```
+
+From the dashboard, every row in the Devices dialog has an **Edit** button with
+the same three controls.
+
 ## Groups
 
 A group is a named set of devices with a quorum rule:
@@ -26,23 +72,10 @@ A group is a named set of devices with a quorum rule:
 together. `stale_after` (minutes) sets how long a fix stays valid before the
 device is treated as unknown for presence purposes.
 
-## Labels, icons and colours
-
-Every device and group can carry a label (up to 40 characters), an icon, and a
-colour. Pick a Lucide icon, a single-letter badge, or no icon at all -- the
-badge always shows a colour, with or without a glyph.
-
-```
-findplus devices label <ID> --label "Mom" --icon lucide:user-round --color "#4f8cf7"
-findplus devices icons
-```
-
-The first command sets all three from the command line; the second lists every
-available icon id. The dashboard's icon and colour pickers are documented on
-this page once they ship.
-
-A label is local only: it is never sent to Google or Apple, and a provider name
-refresh never overwrites one you have set.
+A group also carries an icon and a colour, set in the group dialog beside the
+quorum rule. The icon defaults to `lucide:users` and follows the same four-form
+grammar devices use. It is what you see on the group card and in the map
+legend.
 
 ## Presence verdicts
 

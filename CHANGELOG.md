@@ -34,7 +34,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - WCAG 2.1 AA groundwork: page landmarks, a label on every form control, a visible focus ring, a focus trap and Escape-to-close on the Devices and Settings dialogs, an announced alert banner, and colour changes where text or a control border fell short of the contrast minimum.
 - An accessibility scan in the browser test suite: axe-core over every tab, in both themes, at desktop and phone width.
 - An alert rule can now pick any combination of Telegram, webhook, WhatsApp and Mac notifications, through a checkbox set in the rule form and a repeatable `--channel` option on `findplus alerts rules add`. Mac notifications only appear as a choice on macOS.
-- Native macOS notifications for alerts. The daemon queues them and the menu bar app shows them, so an alert arrives even with no dashboard window open. While Find+ is locked, or unless you turn notification details on, the banner says only "Find+ alert" — a notification preview can appear on a locked screen.
+- Native macOS notifications for alerts. The daemon queues them and the menu bar app shows them, so an alert arrives even with no dashboard window open. While Find+ is locked, or unless you turn notification details on, the banner says only "Find+ alert", because a notification preview can appear on a locked screen.
 - WhatsApp alerts, relayed through CallMeBot. The setup text says plainly that your alert text passes through a third party before it reaches WhatsApp. Set it up in the Alerts tab, which carries that text and the CallMeBot contact details, or from the terminal with `findplus alerts whatsapp set`/`clear`; the routes behind it are `PUT`/`DELETE /api/alerts/channels/whatsapp`. The phone number is shown masked and the API key is never returned.
 - Alert rules can target more than one channel at once. Each channel gets its own delivery row and its own cooldown, so a notification on one never suppresses another.
 - Device and group labels, icons and colours: `PATCH /api/devices/{id}`, `GET /api/icons`, `findplus devices label`/`findplus devices icons`, exports and the macOS widget all carry the new fields. A label is local only and survives every provider name refresh.
@@ -43,6 +43,8 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - Group cards on the Groups tab, each with the group badge, its member avatars, its live presence verdict, and edit and delete buttons.
 
 ### Changed
+- CI runs the accessibility scan, the icon and catalog drift check, and the Rust notification tests as three lanes of their own, so each failure names itself.
+- README and wiki screenshots are regenerated at 1280x800, with a matching phone-width set at 375x812.
 - The Chrome-not-found message is one sentence now shared by the terminal, the API and `/api/config`, instead of two wordings that could drift apart.
 - Starting a sign-in requires the request to carry an `Origin` or `Sec-Fetch-Site` header. Browsers and the desktop app always send one; nothing else has a reason to start a sign-in.
 - `PUT /api/settings` is now `PATCH /api/settings`, and its body carries the poll interval, the history retention period and whether native notifications may show details.
@@ -52,6 +54,9 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - `install.sh` is shorter and points at a new Uninstall wiki page for the manual service-removal commands it prints. Without `--start` its last line now points at `findplus setup`.
 
 ### Fixed
+- The bottom tab bar on a phone-width dashboard stays clickable once the page is scrolled, instead of the map's overlay layer painting over it.
+- The bundled icon sprite no longer leaves a blank band above the toolbar.
+- The test suite's warning filters name the specific warnings Find+ suppresses, instead of ignoring every deprecation warning.
 - `findplus devices --json` prints the device list as JSON, as the CLI reference documents.
 - `GET /api/devices` rows carry the `groups` and `presence` keys the API contract documents.
 - The menu bar shows a "CLI daemon vX (app is vY)" line when the daemon and the app disagree on version, instead of only writing it to the log.

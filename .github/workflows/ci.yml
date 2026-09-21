@@ -65,7 +65,49 @@ jobs:
       - run: pip install '.[dev]'
         working-directory: cli
       - run: playwright install chromium
-      - run: python -m pytest cli/tests -q -m browser
+      - run: python -m pytest cli/tests -q -m browser --ignore=cli/tests/ui/test_a11y.py
+
+  # The axe-core scan gets its own lane so an accessibility regression is not
+  # reported as "the browser suite failed" (specs/release-1.1.md 1.4).
+  a11y:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install '.[dev]'
+        working-directory: cli
+      - run: playwright install chromium
+      - run: python -m pytest cli/tests/ui/test_a11y.py -q -m browser
+
+  # Same generate-then-diff idiom as docs-drift, in a lane of its own so a
+  # stale icon sprite and a stale API reference are two separate red jobs.
+  icon-i18n-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install '.[dev]'
+        working-directory: cli
+      - run: |
+          python packaging/scripts/gen-icons.py
+          git diff --exit-code web/icons.svg web/icons.LICENSE || (echo 'web/icons.svg is stale' && exit 1)
+      - run: |
+          python packaging/scripts/gen-honesty-json.py
+          git diff --exit-code web/locales/en.json || (echo 'web/locales/en.json honesty block is stale' && exit 1)
+
+  # notify.rs's own unit tests, separate from the desktop lane's clippy/build
+  # signal (specs/notifications.md 5). The sidecar stub is what lets build.rs
+  # resolve before any test runs.
+  notify-rust-tests:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: bash packaging/scripts/stage-sidecar-stub.sh
+      - run: cargo test --manifest-path desktop/src-tauri/Cargo.toml notify
 
   wheel-smoke:
     runs-on: ${{ matrix.os }}
@@ -149,7 +191,8 @@ jobs:
           fail_ci_if_error: false
 
   ci-gate:
-    needs: [lint, test, test-windows, browser, wheel-smoke, sidecar-smoke, desktop, docs-drift, coverage]
+    needs: [lint, test, test-windows, browser, a11y, icon-i18n-drift, notify-rust-tests,
+            wheel-smoke, sidecar-smoke, desktop, docs-drift, coverage]
     if: always()
     runs-on: ubuntu-latest
     steps:

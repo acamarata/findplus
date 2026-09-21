@@ -12,7 +12,8 @@ Apple's own network.
 ## Get started
 
 - [Install](Install): curl installer, Homebrew, pipx, or the macOS app.
-- [First run](First-run): sign in and start the daemon.
+- [First run](First-run): the eight-step setup wizard, in the dashboard or the terminal.
+- [Sign in](Sign-in): connect Google or Apple from the dashboard.
 - [Devices and groups](Devices-and-groups): track trackers, form groups.
 - [Places and alerts](Places-and-alerts): geofences and notifications.
 - [Settings](Settings): poll interval, history retention, app lock, notifications.

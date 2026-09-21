@@ -9,8 +9,11 @@ exit event, which reduces false alerts from location jitter.
 
 ## Alert rules
 
-An alert rule ties a place, a device or group, and a notification channel (Telegram or
-webhook). When a qualifying enter or exit event is confirmed, Find+ sends a notification. A
+An alert rule ties a place, a device or group, and one or more notification channels
+(Telegram, webhook, WhatsApp, or Mac notifications). A rule may target more than one channel
+at once: the rule form uses checkboxes, not a single dropdown, and each ticked channel is
+delivered and cooled down on its own. When a qualifying enter or exit event is confirmed,
+Find+ sends a notification. A
 cooldown period (default 30 minutes) prevents repeated alerts for the same tag at the same
 place. Delivery is best-effort: a failed send is recorded in the alert log and is not
 retried, and a failed send never starts the cooldown on its own.
@@ -82,21 +85,40 @@ The token lives in `~/.findplus/alerts.json` (mode `0600`), never in the databas
 
 ## WhatsApp
 
-Open the Alerts tab and find the WhatsApp card. It carries the setup instructions
-verbatim: add +34 623 91 22 04 to your phone's contacts, send it
-"I allow callmebot to send me messages" from your own WhatsApp, and CallMeBot
-replies with an API key within about two minutes. Paste that key and your number
-in E.164 form, save, and use **Send test**.
+WhatsApp alerts go out through CallMeBot, which hands out a personal API key
+over WhatsApp itself. Set it up from the Alerts tab, which carries the same
+instructions:
 
-WhatsApp alerts are relayed through CallMeBot, a third-party free service. Your
-alert text transits CallMeBot's servers before reaching WhatsApp. Delivery is
-best-effort with no guarantee. Find+ is not affiliated with WhatsApp, Meta or
-CallMeBot.
+1. Add +34 623 91 22 04 to your phone's contacts.
+2. Send that contact "I allow callmebot to send me messages" from your own
+   WhatsApp.
+3. CallMeBot replies with an API key within about two minutes.
+4. Paste your phone number in E.164 form and the API key into the Alerts tab's
+   WhatsApp card, and click **Connect**.
+5. Click **Send test** to confirm delivery.
+
+WhatsApp alerts are relayed through CallMeBot, a third-party free service. Your alert
+text transits CallMeBot's servers before reaching WhatsApp. Delivery is best-effort with
+no guarantee. Find+ is not affiliated with WhatsApp, Meta or CallMeBot.
 
 The API key is never sent back to the browser and the number is shown masked.
 Both live in `~/.findplus/alerts.json` (mode `0600`). From the terminal:
 `findplus alerts whatsapp set --phone +34... --apikey ...` and
 `findplus alerts whatsapp clear`.
+
+## Native notifications (macOS)
+
+The Find+ menu bar app polls the daemon for new alert deliveries every 15
+seconds and shows each one as an ordinary macOS notification, so an alert
+arrives with no dashboard window open. This channel is macOS only in 1.1; on
+Linux and Windows the option is not offered at all.
+
+By default the banner says only "Find+ alert", because a notification preview
+can appear on a locked screen. Turn on notification details in Settings to name
+the person and the place instead. See [Settings](Settings) for the exact
+wording and what it costs you.
+
+Notifications are held while Find+ is locked. Unlock to see what you missed.
 
 ## Signing in from the dashboard
 

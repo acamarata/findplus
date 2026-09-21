@@ -211,3 +211,13 @@ dialog a:hover,
    macOS, which made it visible everywhere (same shape as style.css's own
    `.fp-tab-panel[hidden]` rule). */
 .setting-row[hidden] { display: none; }
+
+/* main.js prepends the bundled Lucide sprite as a parsed SVG-document root.
+   Adopting it into the HTML document drops its own style="display:none", so
+   the sprite became a 150px-tall layout box above the toolbar on every load
+   (found by the E12 screenshot pass). Zero size with hidden overflow takes it
+   out of layout while keeping every <use href="#lucide-..."> resolvable, which
+   a display:none root is not guaranteed to do in every engine. */
+#fp-icon-sprite {
+  position: absolute; width: 0; height: 0; overflow: hidden;
+}

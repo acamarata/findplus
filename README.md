@@ -78,6 +78,11 @@ The dashboard opens at http://localhost:8647.
 - Telegram and webhook alert channels.
 - MCP server exposing devices, places, groups and history as LLM tools.
 - macOS menu-bar app (Tauri) with a WidgetKit widget.
+- Device and group labels with a 48-icon picker or a coloured letter badge, and 12 accent colours.
+- WhatsApp alerts via CallMeBot, alongside Telegram, webhook, and native macOS notifications.
+- In-dashboard sign-in for Google Find Hub and Apple Find My, no terminal required.
+- Guided first-run setup wizard covering sign-in, devices, groups, places, notifications and app lock.
+- Configurable poll interval (5-1440 minutes) and history retention.
 
 Apple Find My accessories require pairing keys; genuine AirTags require
 extracting pairing keys, which most users cannot do.

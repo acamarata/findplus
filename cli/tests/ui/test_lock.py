@@ -69,7 +69,9 @@ async def test_lock_not_encryption_notice_present(page, base_url):
     assert copies == 1, f"the caveat renders {copies} times in one dialog"
 
 
-async def test_places_repopulate_after_unlock_without_reload(page, base_url):
+async def test_places_repopulate_after_unlock_without_reload(
+    page, base_url, reset_alert_and_observation_state
+):
     """build-notes.md § E10-S2 bug 1: a session that boots locked never got its
     Places tab back after unlock — places.js's one-time loader ran (and 401'd)
     before the lock check resolved, and nothing re-triggered it post-unlock.
@@ -78,6 +80,12 @@ async def test_places_repopulate_after_unlock_without_reload(page, base_url):
     screenshots.py used. Also covers notices.js: a locked boot's /api/config
     401 left the six honesty paragraphs blank all session (PROMPT.md §2
     invariant 4 requires the text actually render, not just be fetchable).
+
+    This is a real cold boot (page.goto() + unlock), so it requests
+    reset_alert_and_observation_state to clear alert rules/deliveries earlier
+    files in the session-scoped suite left behind before rendering the
+    dashboard (E13 loop3 L3-3, same accumulation test_groups_dialog_purge.py's
+    locked-boot test hit).
     """
     set_resp = await page.request.post(
         base_url + "/api/settings/pin",

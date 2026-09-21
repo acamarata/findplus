@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import os
 import socket
+import sqlite3
 import subprocess
 import sys
 import time
@@ -253,6 +254,32 @@ async def open_alerts_tab(page, base_url) -> None:
     await page.goto(base_url + "/")
     await page.click('button[data-tab="alerts"]')
     await page.wait_for_selector("#fp-telegram-section")
+
+
+@pytest.fixture
+def reset_alert_and_observation_state(ui_db: Path) -> None:
+    """Delete accumulated alert_rules/alert_deliveries/location_observations
+    rows before a real cold-boot test renders the dashboard.
+
+    `live_server` is session-scoped; earlier files (test_alerts_rules.py,
+    test_alerts_deliveries.py, test_alerts_whatsapp.py) create alert rules
+    through the real API and never delete them, so a boot-heavy test later
+    (test_groups_dialog_purge.py, test_lock.py) rendered rules/deliveries
+    nothing in that test created, slowing its boot (E13 loop3 L3-3). Request
+    explicitly, not autouse: most files here reuse what earlier tests left
+    behind (e.g. the seeded "Family" group). Children (alert_deliveries)
+    delete before their parent regardless of PRAGMA foreign_keys.
+    """
+    conn = sqlite3.connect(ui_db)
+    try:
+        conn.execute("DELETE FROM alert_deliveries")
+        conn.execute("DELETE FROM alert_rules")
+        conn.execute(
+            "DELETE FROM location_observations WHERE device_id NOT IN ('TAG-HOME', 'TAG-AWAY')"
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 @pytest_asyncio.fixture(loop_scope="session")

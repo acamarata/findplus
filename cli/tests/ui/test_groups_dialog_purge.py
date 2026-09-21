@@ -70,7 +70,9 @@ async def test_purge_on_lock_clears_dialog_and_cards(page, base_url):
         await _teardown_purge_fixture(page, base_url)
 
 
-async def test_purge_on_a_locked_boot_does_not_throw(page, base_url):
+async def test_purge_on_a_locked_boot_does_not_throw(
+    page, base_url, reset_alert_and_observation_state
+):
     """clearGroup() runs before groups.js has a map, so overlayLayer is null.
 
     T0's wave-2 visual gate caught `Cannot read properties of null (reading
@@ -95,11 +97,15 @@ async def test_purge_on_a_locked_boot_does_not_throw(page, base_url):
         # bootDashboard() for the first time this session (config, settings,
         # devices, status and day all sequentially awaited against the real
         # live_server), on top of the extra alert rule _setup_purge_fixture
-        # just created -- the app-shell class flips before any of that runs,
-        # but CI's slower/shared runner (measured ~2x local wall time for
-        # this suite) can still make the default 30s too tight even though
-        # nothing is actually stuck; wait longer on the same DOM signal
-        # rather than guessing at a fixed sleep.
-        await page.locator("#app-shell:not(.hidden)").wait_for(state="visible", timeout=60000)
+        # just created. This used to also render every alert rule/delivery
+        # every earlier file in the session-scoped suite had created and
+        # never cleaned up (test_alerts_rules.py, test_alerts_deliveries.py,
+        # test_alerts_whatsapp.py), which doubled the boot's wall time on
+        # CI's slower/shared runner and needed a 60s wait even though
+        # nothing was actually stuck. reset_alert_and_observation_state
+        # (requested above) clears that accumulated state before this test
+        # runs, so the default wait_for timeout is enough again (E13 loop3
+        # L3-3).
+        await page.locator("#app-shell:not(.hidden)").wait_for(state="visible")
     finally:
         await _teardown_purge_fixture(page, base_url)

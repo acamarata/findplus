@@ -30,6 +30,8 @@ from findplus.alerts.store import (
     TelegramCreds,
     WebhookCreds,
     WhatsappCreds,
+    is_valid_apikey,
+    is_valid_bot_token,
     is_valid_phone,
     load_alerts,
     mask_phone,
@@ -110,6 +112,12 @@ def get_channels() -> dict[str, Any]:
 def put_telegram(body: TelegramPutBody) -> dict[str, Any]:
     import httpx
 
+    # Checked before _get_me ever builds a request: a malformed token is a
+    # 422 client error, distinct from the 400 _get_me raises for a real
+    # token Telegram itself rejects (blind cap B2).
+    if not is_valid_bot_token(body.bot_token):
+        raise HTTPException(status_code=422, detail="bot_token must look like a BotFather token")
+
     with httpx.Client(timeout=10.0) as client:
         try:
             me_result = _get_me(body.bot_token, client)
@@ -129,6 +137,8 @@ def put_telegram(body: TelegramPutBody) -> dict[str, Any]:
 
 
 async def post_telegram_setup(body: TelegramSetupBody, wait: int = 120) -> dict[str, Any]:
+    if not is_valid_bot_token(body.bot_token):
+        raise HTTPException(status_code=422, detail="bot_token must look like a BotFather token")
     loop = asyncio.get_event_loop()
     try:
         result = await loop.run_in_executor(
@@ -165,6 +175,10 @@ def put_whatsapp(body: WhatsappPutBody) -> dict[str, Any]:
     # would tell a good key from a bad one.
     if not is_valid_phone(body.phone):
         raise HTTPException(status_code=422, detail="phone must be E.164, e.g. +34123123123")
+    if not is_valid_apikey(body.apikey):
+        raise HTTPException(
+            status_code=422, detail="apikey must be alphanumeric, at least 4 characters"
+        )
     save_channel(whatsapp=WhatsappCreds(phone=body.phone, apikey=body.apikey))
     return _channels_response()
 

@@ -124,6 +124,28 @@ def test_the_request_percent_encodes_the_plus_the_space_and_the_newline() -> Non
     assert " " not in encoded
 
 
+def test_send_rejects_a_malformed_apikey_without_a_request() -> None:
+    mock = patch("findplus.alerts.channels.whatsapp_callmebot.httpx.Client")
+    started = mock.start()
+    try:
+        result = send("hi", PHONE, "ab")  # below the 4-char floor
+    finally:
+        mock.stop()
+    assert result == DeliveryResult(False, None, "malformed apikey")
+    started.assert_not_called()
+
+
+def test_send_rejects_a_malformed_phone_without_a_request() -> None:
+    mock = patch("findplus.alerts.channels.whatsapp_callmebot.httpx.Client")
+    started = mock.start()
+    try:
+        result = send("hi", "34123123123", APIKEY)  # no leading +
+    finally:
+        mock.stop()
+    assert result == DeliveryResult(False, None, "malformed phone")
+    started.assert_not_called()
+
+
 def test_send_never_retries() -> None:
     mock, client = _client(_response(500))
     try:

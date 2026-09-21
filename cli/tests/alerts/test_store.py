@@ -11,6 +11,8 @@ from findplus.alerts.store import (
     AlertsChannels,
     TelegramCreds,
     WebhookCreds,
+    is_valid_apikey,
+    is_valid_bot_token,
     load_alerts,
     mask_token,
     save_alerts,
@@ -70,6 +72,26 @@ def test_mask_token_normal() -> None:
 
 def test_mask_token_short() -> None:
     assert mask_token("abc") == "***"
+
+
+def test_is_valid_bot_token_accepts_botfather_shape_and_rejects_near_misses() -> None:
+    valid = "9876543210:ABCdefGHIjklMNOpqrSTUvwxyz012345678"
+    assert is_valid_bot_token(valid)
+    assert not is_valid_bot_token("tok")  # no colon
+    assert not is_valid_bot_token("")  # empty
+    assert not is_valid_bot_token("123456:" + "x" * 29)  # secret one char short
+    assert not is_valid_bot_token("12345:" + "x" * 30)  # bot id one digit short
+    assert not is_valid_bot_token(valid + " ")  # trailing whitespace
+    assert not is_valid_bot_token("123456:has a space" + "x" * 20)
+
+
+def test_is_valid_apikey_accepts_alphanumeric_and_rejects_near_misses() -> None:
+    assert is_valid_apikey("1234567890")
+    assert is_valid_apikey("aB3d")  # exactly the 4-char floor
+    assert not is_valid_apikey("aB3")  # one short
+    assert not is_valid_apikey("")
+    assert not is_valid_apikey("has a space")
+    assert not is_valid_apikey("apikey=1234")  # a stray query fragment, not a key
 
 
 def test_redaction_telegram_token() -> None:

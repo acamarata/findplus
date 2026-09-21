@@ -13,6 +13,11 @@ Constraints:
     - No raised or returned message ever contains the bot token: httpx puts the
       full request URL (which carries the token) into HTTPStatusError, so every
       raise_for_status goes through _http_error instead.
+    - bot_token is checked against store.is_valid_bot_token before it is ever
+      placed in a URL, in both send() and _get_me(): a malformed token raises
+      ValueError immediately and no request is made (blind cap B2). The chat
+      id never enters a URL -- send() puts it in the JSON body, which httpx
+      encodes on its own.
 """
 
 from __future__ import annotations
@@ -23,7 +28,7 @@ from dataclasses import dataclass
 
 import httpx
 
-from findplus.alerts.store import TelegramCreds, save_channel
+from findplus.alerts.store import TelegramCreds, is_valid_bot_token, save_channel
 
 TELEGRAM_BASE = "https://api.telegram.org/bot"
 
@@ -55,7 +60,13 @@ def send(text: str, bot_token: str, chat_id: str, timeout: float = 10.0) -> Deli
     A 400 carrying `migrate_to_chat_id` is followed once to the new supergroup
     id rather than reported as a failure: the user did nothing wrong, Telegram
     renumbered their group, and dropping the alert would be the worst outcome.
+
+    Raises ValueError, without making any request, when bot_token is not
+    shaped like a real one -- a stored credential can be malformed if
+    alerts.json was hand-edited or written by an older version.
     """
+    if not is_valid_bot_token(bot_token):
+        raise ValueError("telegram: malformed bot token")
     url = f"{TELEGRAM_BASE}{bot_token}/sendMessage"
     payload = {"chat_id": chat_id, "text": text}
     for attempt in range(2):
@@ -89,6 +100,15 @@ def _raise_for_status(r: httpx.Response, call: str) -> None:
 
 
 def _get_me(token: str, client: httpx.Client) -> dict:
+    """GET getMe, or ValueError without a request when the token's shape is wrong.
+
+    Both callers (telegram_setup's own getMe/getUpdates loop and the
+    PUT-channels route) already re-check the shape at their own edge to
+    return a clean 422/ClickException; this is the backstop that closes the
+    same URL-interpolation hole for any caller that does not.
+    """
+    if not is_valid_bot_token(token):
+        raise ValueError("telegram: malformed bot token")
     r = client.get(f"{TELEGRAM_BASE}{token}/getMe", timeout=10.0)
     if r.status_code == 409:
         raise RuntimeError(

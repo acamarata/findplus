@@ -11,6 +11,9 @@ from findplus.alerts.store import AlertsChannels, TelegramCreds, save_alerts
 from findplus.db.session import session_scope
 from findplus.ingest import upsert_device
 
+#: Shaped like a real BotFather token, so a mocked _get_me/telegram_setup is reached (blind B2).
+TOKEN = "9876543210:ABCdefGHIjklMNOpqrSTUvwxyz012345678"
+
 
 @pytest.fixture
 def client(tmp_db):
@@ -52,7 +55,7 @@ def test_put_telegram_invalid_token(client: TestClient, monkeypatch: pytest.Monk
         "findplus.api.routes_alerts_channels._get_me",
         MagicMock(side_effect=ValueError("telegram: invalid token (401)")),
     )
-    res = client.put("/api/alerts/channels/telegram", json={"bot_token": "bad"})
+    res = client.put("/api/alerts/channels/telegram", json={"bot_token": TOKEN})
     assert res.status_code == 400
 
 
@@ -61,7 +64,7 @@ def test_setup_timeout(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> N
         "findplus.api.routes_alerts_channels.telegram_setup",
         MagicMock(side_effect=TimeoutError("no message received within 1 s")),
     )
-    res = client.post("/api/alerts/channels/telegram/setup?wait=1", json={"bot_token": "tok"})
+    res = client.post("/api/alerts/channels/telegram/setup?wait=1", json={"bot_token": TOKEN})
     assert res.status_code == 408
 
 
@@ -70,7 +73,7 @@ def test_setup_webhook_conflict(client: TestClient, monkeypatch: pytest.MonkeyPa
         "findplus.api.routes_alerts_channels.telegram_setup",
         MagicMock(side_effect=RuntimeError("telegram: webhook conflict (409)")),
     )
-    res = client.post("/api/alerts/channels/telegram/setup?wait=1", json={"bot_token": "tok"})
+    res = client.post("/api/alerts/channels/telegram/setup?wait=1", json={"bot_token": TOKEN})
     assert res.status_code == 409
 
 

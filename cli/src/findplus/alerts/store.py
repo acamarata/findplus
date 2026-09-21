@@ -29,6 +29,17 @@ class TelegramCreds:
     captured_at: str
 
 
+#: BotFather's own shape: a numeric bot id, a colon, then a 30+ char secret
+#: (`[A-Za-z0-9_-]`). Shape-only -- it never proves the token is live, only
+#: that it is worth building a Telegram URL for.
+_BOT_TOKEN_RE = re.compile(r"^\d{6,}:[A-Za-z0-9_-]{30,}$")
+
+
+def is_valid_bot_token(token: str) -> bool:
+    """True for a token shaped like BotFather issues it (no live check)."""
+    return bool(_BOT_TOKEN_RE.fullmatch(token))
+
+
 @dataclasses.dataclass(frozen=True)
 class WebhookCreds:
     url: str
@@ -42,6 +53,16 @@ _PHONE_RE = re.compile(r"^\+[1-9]\d{6,14}$")
 def is_valid_phone(phone: str) -> bool:
     """True for an E.164 number CallMeBot will accept."""
     return bool(_PHONE_RE.fullmatch(phone))
+
+
+#: CallMeBot issues an alphanumeric apikey with no fixed length; 4 is a floor
+#: against an empty or single-character value, not a claim about the real one.
+_APIKEY_RE = re.compile(r"^[0-9A-Za-z]{4,}$")
+
+
+def is_valid_apikey(apikey: str) -> bool:
+    """True for a CallMeBot apikey shape (no live check -- CallMeBot has none)."""
+    return bool(_APIKEY_RE.fullmatch(apikey))
 
 
 @dataclasses.dataclass(frozen=True)

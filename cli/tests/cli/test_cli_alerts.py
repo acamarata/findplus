@@ -16,6 +16,17 @@ def test_telegram_clear_no_yes(tmp_db: str) -> None:
     assert result.exit_code != 0
 
 
+def test_telegram_setup_rejects_a_malformed_token_before_any_request(
+    tmp_db: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    setup_mock = MagicMock()
+    monkeypatch.setattr("findplus.cli.alerts.telegram_setup", setup_mock)
+    result = CliRunner().invoke(main, ["alerts", "telegram-setup", "--token", "tok"])
+    assert result.exit_code != 0
+    assert "BotFather" in result.output
+    setup_mock.assert_not_called()
+
+
 def test_webhook_set_invalid_url(tmp_db: str) -> None:
     result = CliRunner().invoke(main, ["alerts", "webhook-set", "ftp://bad"])
     assert result.exit_code != 0
@@ -97,6 +108,14 @@ def test_whatsapp_set_rejects_a_non_e164_phone(tmp_db: str) -> None:
     )
     assert result.exit_code != 0
     assert "E.164" in result.output
+
+
+def test_whatsapp_set_rejects_a_too_short_apikey(tmp_db: str) -> None:
+    result = CliRunner().invoke(
+        main, ["alerts", "whatsapp", "set", "--phone", "+34123123123", "--apikey", "ab"]
+    )
+    assert result.exit_code != 0
+    assert "apikey" in result.output.lower()
 
 
 def test_whatsapp_set_then_clear_round_trips(tmp_db: str) -> None:

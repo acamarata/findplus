@@ -10,6 +10,12 @@ import pytest
 
 from findplus.alerts.channels.telegram import DeliveryResult, send, telegram_setup
 
+#: Shaped like a real BotFather token (digits, colon, 35-char secret) so it
+#: passes store.is_valid_bot_token -- every test below that exercises the
+#: real send()/_get_me()/telegram_setup() must use a token this shape now
+#: that both functions reject a malformed one before making any request.
+TOKEN = "9876543210:ABCdefGHIjklMNOpqrSTUvwxyz012345678"
+
 
 def _response(status_code: int, json_body: dict | None = None, text: str = "") -> MagicMock:
     resp = MagicMock()
@@ -23,7 +29,7 @@ def _response(status_code: int, json_body: dict | None = None, text: str = "") -
 def test_send_happy_path() -> None:
     with patch("findplus.alerts.channels.telegram.httpx.Client") as mock_client:
         mock_client.return_value.__enter__.return_value.post.return_value = _response(200)
-        result = send("hi", "tok", "1")
+        result = send("hi", TOKEN, "1")
     assert result == DeliveryResult(True, 200, None)
 
 
@@ -32,7 +38,7 @@ def test_send_retries_on_5xx() -> None:
         instance = mock_client.return_value.__enter__.return_value
         instance.post.side_effect = [_response(500), _response(200)]
         with patch("findplus.alerts.channels.telegram.time.sleep"):
-            result = send("hi", "tok", "1")
+            result = send("hi", TOKEN, "1")
     assert result.success is True
     assert instance.post.call_count == 2
 
@@ -41,7 +47,7 @@ def test_send_timeout() -> None:
     with patch("findplus.alerts.channels.telegram.httpx.Client") as mock_client:
         instance = mock_client.return_value.__enter__.return_value
         instance.post.side_effect = httpx.TimeoutException("timed out")
-        result = send("hi", "tok", "1")
+        result = send("hi", TOKEN, "1")
     assert result == DeliveryResult(False, None, "timeout")
 
 
@@ -49,21 +55,21 @@ def test_send_401_raises() -> None:
     with patch("findplus.alerts.channels.telegram.httpx.Client") as mock_client:
         mock_client.return_value.__enter__.return_value.post.return_value = _response(401)
         with pytest.raises(ValueError, match="invalid token"):
-            send("hi", "tok", "1")
+            send("hi", TOKEN, "1")
 
 
 def test_send_403_raises() -> None:
     with patch("findplus.alerts.channels.telegram.httpx.Client") as mock_client:
         mock_client.return_value.__enter__.return_value.post.return_value = _response(403)
         with pytest.raises(ValueError, match="blocked or kicked"):
-            send("hi", "tok", "1")
+            send("hi", TOKEN, "1")
 
 
 def test_setup_409_on_get_me() -> None:
     with patch("findplus.alerts.channels.telegram.httpx.Client") as mock_client:
         mock_client.return_value.__enter__.return_value.get.return_value = _response(409)
         with pytest.raises(RuntimeError, match="webhook"):
-            telegram_setup("tok", wait_seconds=1, poll=1)
+            telegram_setup(TOKEN, wait_seconds=1, poll=1)
 
 
 def test_setup_happy_path(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -81,7 +87,7 @@ def test_setup_happy_path(monkeypatch: pytest.MonkeyPatch) -> None:
             _response(200, {"result": [update]}),  # getUpdates
         ]
         instance.post.return_value = _response(200)  # sendMessage confirmation
-        result = telegram_setup("tok", wait_seconds=120, poll=2)
+        result = telegram_setup(TOKEN, wait_seconds=120, poll=2)
 
     assert result["chat_id"] == "99"
     assert result["bot_username"] == "testbot"
@@ -96,7 +102,7 @@ def test_setup_timeout() -> None:
         ] + [_response(200, {"result": []})] * 50  # empty getUpdates, repeated
         start = time.monotonic()
         with pytest.raises(TimeoutError):
-            telegram_setup("tok", wait_seconds=1, poll=1)
+            telegram_setup(TOKEN, wait_seconds=1, poll=1)
         assert time.monotonic() - start < 4
 
 
@@ -116,18 +122,17 @@ def test_http_error_never_echoes_the_token(monkeypatch: pytest.MonkeyPatch) -> N
 
     server = HTTPServer(("127.0.0.1", 0), _Failing)
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    token = "9876543210:ABCdefGHIjklMNOpqrSTUvwxyz012345678"
     monkeypatch.setattr(
         "findplus.alerts.channels.telegram.TELEGRAM_BASE",
         f"http://127.0.0.1:{server.server_address[1]}/bot",
     )
     try:
         with pytest.raises(RuntimeError) as excinfo:
-            telegram_setup(token, wait_seconds=1, poll=1)
+            telegram_setup(TOKEN, wait_seconds=1, poll=1)
     finally:
         server.shutdown()
         server.server_close()
-    assert token not in str(excinfo.value)
+    assert TOKEN not in str(excinfo.value)
     assert "500" in str(excinfo.value)
 
 
@@ -154,7 +159,7 @@ def test_setup_accepts_group_and_channel_updates(
             _response(200, {"result": [update]}),
         ]
         instance.post.return_value = _response(200)
-        result = telegram_setup("tok", wait_seconds=120, poll=2)
+        result = telegram_setup(TOKEN, wait_seconds=120, poll=2)
 
     assert result["chat_id"] == str(chat["id"])
     assert result["chat_title"] == chat["title"]
@@ -174,7 +179,7 @@ def test_setup_tells_group_users_about_start_and_privacy_mode(
             _response(200, {"result": [update]}),
         ]
         instance.post.return_value = _response(200)
-        telegram_setup("tok", wait_seconds=120, poll=2)
+        telegram_setup(TOKEN, wait_seconds=120, poll=2)
 
     out = capsys.readouterr().out
     assert "/start@testbot" in out
@@ -197,7 +202,7 @@ def test_send_follows_migrate_to_chat_id() -> None:
     with patch("findplus.alerts.channels.telegram.httpx.Client") as mock_client:
         instance = mock_client.return_value.__enter__.return_value
         instance.post.side_effect = [migrated, _response(200)]
-        result = send("hi", "tok", "-4242")
+        result = send("hi", TOKEN, "-4242")
 
     assert result == DeliveryResult(True, 200, None)
     assert instance.post.call_count == 2
@@ -209,7 +214,7 @@ def test_send_400_without_migration_still_raises() -> None:
     with patch("findplus.alerts.channels.telegram.httpx.Client") as mock_client:
         mock_client.return_value.__enter__.return_value.post.return_value = plain
         with pytest.raises(ValueError, match="bad request"):
-            send("hi", "tok", "1")
+            send("hi", TOKEN, "1")
 
 
 def test_send_does_not_loop_when_telegram_repeats_the_same_id() -> None:
@@ -217,4 +222,36 @@ def test_send_does_not_loop_when_telegram_repeats_the_same_id() -> None:
     with patch("findplus.alerts.channels.telegram.httpx.Client") as mock_client:
         mock_client.return_value.__enter__.return_value.post.return_value = same
         with pytest.raises(ValueError, match="bad request"):
-            send("hi", "tok", "1")
+            send("hi", TOKEN, "1")
+
+
+# ------------------------------------------------- malformed token (blind B2)
+@pytest.mark.parametrize(
+    "bad_token",
+    ["tok", "", "123456", "123456:short", "not-a-token-at-all", "123456:" + "x" * 29],
+)
+def test_send_rejects_a_malformed_token_without_a_request(bad_token: str) -> None:
+    with (
+        patch("findplus.alerts.channels.telegram.httpx.Client") as mock_client,
+        pytest.raises(ValueError, match="malformed bot token"),
+    ):
+        send("hi", bad_token, "1")
+    mock_client.assert_not_called()
+
+
+def test_get_me_rejects_a_malformed_token_without_a_request() -> None:
+    from findplus.alerts.channels.telegram import _get_me
+
+    with patch("findplus.alerts.channels.telegram.httpx.Client") as mock_client:
+        client = mock_client.return_value.__enter__.return_value
+        with pytest.raises(ValueError, match="malformed bot token"):
+            _get_me("tok", client)
+    client.get.assert_not_called()
+
+
+def test_setup_rejects_a_malformed_token_without_a_request() -> None:
+    with patch("findplus.alerts.channels.telegram.httpx.Client") as mock_client:
+        client = mock_client.return_value.__enter__.return_value
+        with pytest.raises(ValueError, match="malformed bot token"):
+            telegram_setup("tok", wait_seconds=1, poll=1)
+    client.get.assert_not_called()

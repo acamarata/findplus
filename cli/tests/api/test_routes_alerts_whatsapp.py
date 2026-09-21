@@ -38,6 +38,13 @@ def test_put_rejects_a_non_e164_phone_before_writing_anything(client: TestClient
     assert client.get("/api/alerts/channels").json()["whatsapp"]["configured"] is False
 
 
+def test_put_rejects_a_too_short_apikey_before_writing_anything(client: TestClient) -> None:
+    """blind B2: apikey gets the same shape check as phone, before any write."""
+    res = client.put("/api/alerts/channels/whatsapp", json={"phone": PHONE, "apikey": "ab"})
+    assert res.status_code == 422
+    assert client.get("/api/alerts/channels").json()["whatsapp"]["configured"] is False
+
+
 def test_put_then_get_returns_a_masked_phone_and_never_the_apikey(client: TestClient) -> None:
     _configure(client)
     res = client.get("/api/alerts/channels")

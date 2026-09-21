@@ -23,6 +23,8 @@ from findplus.alerts.channels_field import format_channels
 from findplus.alerts.store import (
     WebhookCreds,
     WhatsappCreds,
+    is_valid_apikey,
+    is_valid_bot_token,
     is_valid_phone,
     load_alerts,
     mask_phone,
@@ -41,6 +43,8 @@ def telegram_setup_cmd(token: str | None, wait: int) -> None:
     """Connect a Telegram bot: verify the token, then wait for the user to message it."""
     if not token:
         token = click.prompt("Telegram bot token", hide_input=True)
+    if not is_valid_bot_token(token):
+        raise click.ClickException("Bot token must look like a BotFather token")
     click.echo(f"Waiting up to {wait} s for a message from Telegram...")
     try:
         result = telegram_setup(token, wait_seconds=wait, poll=2)
@@ -96,6 +100,8 @@ def whatsapp_set_cmd(phone: str, apikey: str) -> None:
     """Configure the WhatsApp (CallMeBot) channel."""
     if not is_valid_phone(phone):
         raise click.ClickException("phone must be E.164, e.g. +34123123123")
+    if not is_valid_apikey(apikey):
+        raise click.ClickException("apikey must be alphanumeric, at least 4 characters")
     save_channel(whatsapp=WhatsappCreds(phone=phone, apikey=apikey))
     click.echo(f"WhatsApp configured: {mask_phone(phone)}")
 

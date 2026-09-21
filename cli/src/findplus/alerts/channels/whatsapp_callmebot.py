@@ -16,6 +16,10 @@ Constraints:
       apikey=/phone= fragments BEFORE truncation.
     - No retry. Ruling F2 (p1/e15/review-log.md) forbids one at the dispatch
       layer, and CallMeBot's free tier documents no retry contract.
+    - phone and apikey are checked (store.is_valid_phone, store.is_valid_apikey)
+      before send() ever builds a request: a malformed stored credential is a
+      failed DeliveryResult, matching this module's never-raises contract,
+      and no request reaches CallMeBot (blind cap B2).
 """
 
 from __future__ import annotations
@@ -25,6 +29,7 @@ import re
 import httpx
 
 from findplus.alerts.channels.telegram import DeliveryResult
+from findplus.alerts.store import is_valid_apikey, is_valid_phone
 
 CALLMEBOT_BASE = "https://api.callmebot.com/whatsapp.php"
 
@@ -39,7 +44,16 @@ def _strip_query_secrets(body: str) -> str:
 
 
 def send(text: str, phone: str, apikey: str, timeout: float = 10.0) -> DeliveryResult:
-    """GET CallMeBot's whatsapp.php with the message. Never raises, never retries."""
+    """GET CallMeBot's whatsapp.php with the message. Never raises, never retries.
+
+    A malformed phone or apikey -- e.g. a stored credential left over from a
+    hand-edited alerts.json -- is a failed result with no HTTP request, the
+    same as every other failure this function reports.
+    """
+    if not is_valid_phone(phone):
+        return DeliveryResult(success=False, status_code=None, error="malformed phone")
+    if not is_valid_apikey(apikey):
+        return DeliveryResult(success=False, status_code=None, error="malformed apikey")
     # QueryParams, never manual concatenation: the leading '+' of an E.164 number
     # has to arrive as %2B, and a server reading a bare '+' as a space would send
     # the alert to the wrong number.

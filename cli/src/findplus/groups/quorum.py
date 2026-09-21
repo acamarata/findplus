@@ -93,20 +93,9 @@ def evaluate_quorum(q: QuorumInput) -> QuorumResult:
         if observed_at.tzinfo is None:
             raise ValueError("observed_at must be timezone-aware")
 
-    deduped: dict[str, tuple[int, datetime]] = {}
-    for dev_id, evt_id, observed_at in q.member_events:
-        prior = deduped.get(dev_id)
-        if prior is None or observed_at > prior[1]:
-            deduped[dev_id] = (evt_id, observed_at)
-
     considered_set = set(q.member_ids) - set(q.stale_ids)
     n_considered = len(considered_set)
-
-    crossed_events = [
-        (dev_id, evt_id, observed_at)
-        for dev_id, (evt_id, observed_at) in deduped.items()
-        if dev_id in considered_set
-    ]
+    crossed_events = _crossed_for_considered(q.member_events, considered_set)
     n_crossed = len(crossed_events)
     n_stale = len(q.stale_ids)
     needed = quorum_needed(q.quorum, n_considered)
@@ -115,16 +104,8 @@ def evaluate_quorum(q: QuorumInput) -> QuorumResult:
     if q.quorum == "all" and n_stale > 0:
         fire = False
 
-    if n_crossed == n_considered and n_stale == 0:
-        confidence = "high"
-    elif n_crossed >= needed:
-        confidence = "medium"
-    else:
-        confidence = "low"
-
     observed_at = max((e[2] for e in crossed_events), default=None)
     member_event_ids = [e[1] for e in sorted(crossed_events, key=lambda e: e[2])]
-
     note = group_event_note(
         crossed=n_crossed,
         considered=n_considered,
@@ -140,6 +121,30 @@ def evaluate_quorum(q: QuorumInput) -> QuorumResult:
         members_stale=n_stale,
         member_event_ids=member_event_ids,
         observed_at=observed_at,
-        confidence=confidence,
+        confidence=_confidence(n_crossed, n_considered, n_stale, needed),
         note=note,
     )
+
+
+def _crossed_for_considered(
+    member_events: list[tuple[str, int, datetime]], considered_set: set[str]
+) -> list[tuple[str, int, datetime]]:
+    """De-dupe to each device's latest crossing, keeping only considered (non-stale) devices."""
+    deduped: dict[str, tuple[int, datetime]] = {}
+    for dev_id, evt_id, observed_at in member_events:
+        prior = deduped.get(dev_id)
+        if prior is None or observed_at > prior[1]:
+            deduped[dev_id] = (evt_id, observed_at)
+    return [
+        (dev_id, evt_id, observed_at)
+        for dev_id, (evt_id, observed_at) in deduped.items()
+        if dev_id in considered_set
+    ]
+
+
+def _confidence(n_crossed: int, n_considered: int, n_stale: int, needed: int) -> str:
+    if n_crossed == n_considered and n_stale == 0:
+        return "high"
+    if n_crossed >= needed:
+        return "medium"
+    return "low"

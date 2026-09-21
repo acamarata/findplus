@@ -85,6 +85,12 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - The installer pins the released version, tells you when `~/.local/bin` is not on your PATH, names the package to install when `venv` is missing, and rebuilds a virtualenv whose Python has gone.
 - The macOS app bundle no longer carries the repository's editor configuration files.
 - The Homebrew formula points at the release the tag actually published.
+- The Windows scheduled task no longer kills the daemon every hour. Its time limit was capped at one hour by mistake; it now runs unlimited, like the macOS and Linux service managers already did.
+- A database upgrade that adds columns to `devices`, `groups` or `alert_rules` no longer deletes rows from related tables such as group members and alert rules along the way.
+- Downgrading a database that already has WhatsApp or Mac-notification alert deliveries in it no longer fails; those rows are remapped to their nearest 1.0 status instead of blocking the migration.
+- A Telegram bot token or CallMeBot API key that is malformed, for example from a hand-edited config file, is rejected before Find+ ever sends it anywhere, instead of being placed into a request URL.
+- A cross-site form post that carries a Referer header but no Origin or Sec-Fetch-Site header, such as one aimed at registering an Apple accessory, is now refused like any other cross-site request.
+- The setup wizard renders inside a proper card with the same field and button styling as the rest of the app, instead of raw, unstyled rows, and offers WhatsApp as an inline setup step alongside Telegram.
 
 ## [1.0.0] - 2026-09-19
 

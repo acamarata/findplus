@@ -66,6 +66,16 @@ async def test_alerts_tab_visible(page, base_url):
 async def test_telegram_token_field_masked(page, base_url, configured_telegram):
     await _open_alerts_tab(page, base_url)
     token_input = page.locator("#fp-tg-token")
+    # #fp-telegram-section is static markup, present before loadChannels()'s
+    # GET /api/alerts/channels resolves -- renderTelegramSection() only
+    # applies the mask once that fetch lands, so reading input_value() right
+    # after the selector wait races an unawaited fetch (alerts.js's init()
+    # fires refreshAll() without awaiting it) and can read the pre-load
+    # empty value on a slower CI runner. Wait on the mask class itself,
+    # matching test_widget_map_toggle_persists's pattern below.
+    await page.wait_for_function(
+        "document.getElementById('fp-tg-token').classList.contains('fp-token-masked')"
+    )
     value = await token_input.input_value()
     assert "••" in value
     assert "fake-token-1234" not in value

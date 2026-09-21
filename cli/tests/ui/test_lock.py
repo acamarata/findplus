@@ -21,6 +21,29 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 PIN = "864213"
 
 
+async def _open_settings(page, base_url) -> None:
+    """Go to the dashboard and open Settings without racing boot.
+
+    openSettings() (web/app/settings.js) reads state.config for the About
+    line before it unhides #settings-modal, and main.js's bootDashboard()
+    sets state.config asynchronously on its own first await. A click that
+    lands before that resolves makes openSettings() throw a TypeError
+    ("Cannot read properties of null (reading 'poll_interval_minutes')"),
+    caught into the alert banner -- so #settings-modal, and everything in
+    it including #lock-caveat, never comes out of `hidden` (CI run
+    35546305331: reproduced locally on a cold live_server, ~40% of runs,
+    always missing the trailing /api/settings/app.start_at_login request
+    that only fires after that line). test_auth_panel.py's `_open_settings`
+    hits the identical race and fixes it the same way: wait for the value
+    openSettings() needs rather than a wall-clock guess.
+    """
+    await page.goto(base_url + "/")
+    await page.wait_for_function(
+        "async () => (await import('/static/app/state.js')).state.config !== null"
+    )
+    await page.click("#btn-settings")
+
+
 async def test_lock_status_endpoint(page, base_url):
     resp = await page.request.get(base_url + "/api/lock/status")
     assert resp.ok
@@ -41,8 +64,7 @@ async def test_lock_not_encryption_notice_present(page, base_url):
     copy next to the setting it describes, is the one that stays
     (E1 honesty round 3 F13).
     """
-    await page.goto(base_url + "/")
-    await page.click("#btn-settings")
+    await _open_settings(page, base_url)
     notice = page.locator("#lock-caveat")
     await notice.wait_for(state="visible")
     assert "The app lock stops casual browsing." in await notice.inner_text()

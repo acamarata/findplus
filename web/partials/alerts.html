@@ -91,6 +91,16 @@
         <div class="fp-table-scroll" tabindex="0" aria-label="Delivery log table, scrollable"
              data-i18n-attr="aria-label:alerts.deliveryLogScrollLabel">
           <table id="fp-deliveries-table">
+            <!-- R-P2-28 point 6 (F6): fixed widths so Status (7th) stays inside
+                 the 380px side pane without a horizontal scroll. Text/Body/
+                 Error are the free-text columns (components.css truncates
+                 them with an ellipsis); the rest wrap onto extra lines
+                 instead of forcing the table wider than its box. -->
+            <colgroup>
+              <col style="width:15%"><col style="width:9%"><col style="width:8%">
+              <col style="width:9%"><col style="width:9%"><col style="width:15%">
+              <col style="width:12%"><col style="width:23%">
+            </colgroup>
             <thead>
               <tr>
                 <th data-i18n="alerts.colRule">Rule</th><th data-i18n="alerts.colChannel">Channel</th><th data-i18n="alerts.colKind">Kind</th>

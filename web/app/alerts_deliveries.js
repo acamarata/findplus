@@ -24,6 +24,10 @@ import { t } from "./i18n.js";
 function cell(text) {
   const td = document.createElement("td");
   td.textContent = text;
+  // Text/Body/Error truncate with an ellipsis at 1280 (components.css,
+  // R-P2-28 point 6); the title carries the full value for anyone who wants
+  // it without needing to widen the pane.
+  if (text) td.title = text;
   return td;
 }
 

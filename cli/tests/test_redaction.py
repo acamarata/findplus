@@ -29,6 +29,19 @@ def test_every_known_secret_parameter_name_is_masked(name: str) -> None:
     assert "s3cr3t" not in redact_text(f"POST https://h.example/x?{name}=s3cr3t failed")
 
 
+def test_a_bare_phone_value_outside_a_url_is_masked() -> None:
+    """R-P2-27-6: `phone=` with no leading `?`/`&`/`;` delimiter still leaks."""
+    out = redact_text("Error: phone=15550123 not registered")
+    assert "15550123" not in out
+    assert "<redacted>" in out
+
+
+def test_a_bare_apikey_value_outside_a_url_is_masked() -> None:
+    out = redact_text("Error: apikey=874216 rejected")
+    assert "874216" not in out
+    assert "<redacted>" in out
+
+
 def test_a_non_secret_parameter_survives() -> None:
     assert "chat=general" in redact_text("GET https://h.example/x?chat=general -> 500")
 

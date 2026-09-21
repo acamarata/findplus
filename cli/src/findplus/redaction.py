@@ -39,8 +39,12 @@ _SECRET_PARAMS = frozenset(
 
 #: Token shapes worth catching even outside a URL (kept in step with
 #: logging_setup._TOKEN_PATTERN, which guards the log stream).
+#: `phone=`/`apikey=` are plain digit strings, so they match none of the
+#: shapes above; catch them by their bare `name=value` form too, not only
+#: when `_PARAM_PATTERN`'s leading `?`/`&`/`;` delimiter is present.
 _TOKEN_PATTERN = re.compile(
     r"\b(?:aas_et|ya29|oauth2_4|AIzaSy)[A-Za-z0-9._\-/]{10,}|\d{8,10}:[A-Za-z0-9_-]{35}\b"
+    r"|(?:phone|apikey)=[^&\s]+"
 )
 
 #: `key=value` inside a query string or a form body.

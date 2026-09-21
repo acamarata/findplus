@@ -136,19 +136,51 @@ async def test_saving_a_changed_phone_never_overwrites_the_stored_key(
 
 
 async def test_saving_both_fields_stores_them(page, base_url, configured_whatsapp) -> None:
-    """The guard above never blocks a real change: both fields filled, it saves."""
+    """The guard above never blocks a real change: both fields filled, it saves.
+
+    The apikey is alphanumeric-only: `store.is_valid_apikey` (318d2ae) rejects
+    a hyphen, so a punctuated value here would 422 instead of exercising the
+    save path this test is for.
+    """
     await _open_alerts_tab(page, base_url)
     await page.wait_for_function("() => document.getElementById('fp-wa-apikey').value.length > 0")
 
     await page.fill("#fp-wa-phone", "+34999888777")
-    await page.fill("#fp-wa-apikey", "second-apikey-456")
+    await page.fill("#fp-wa-apikey", "secondapikey456")
     await page.click("#fp-wa-save")
 
     await page.wait_for_function(
         "() => document.getElementById('fp-wa-connected').textContent.includes('77')"
     )
     stored = json.loads(configured_whatsapp.read_text())["channels"]["whatsapp"]
-    assert stored == {"phone": "+34999888777", "apikey": "second-apikey-456"}
+    assert stored == {"phone": "+34999888777", "apikey": "secondapikey456"}
+
+
+async def test_saving_an_invalid_apikey_shows_an_inline_error(
+    page, base_url, configured_whatsapp
+) -> None:
+    """A shape `store.is_valid_apikey` rejects (318d2ae) must not fail silently.
+
+    alerts_channels.js's saveWhatsapp() catch puts the server's 422 detail
+    into #fp-wa-status, and the credential on disk must be left exactly as it
+    was -- the guard runs before any write (routes_alerts_channels.py's
+    put_whatsapp()).
+    """
+    await _open_alerts_tab(page, base_url)
+    await page.wait_for_function("() => document.getElementById('fp-wa-apikey').value.length > 0")
+
+    await page.fill("#fp-wa-phone", "+34999888777")
+    await page.fill("#fp-wa-apikey", "second-apikey-456")  # hyphens: not [0-9A-Za-z]
+    await page.click("#fp-wa-save")
+
+    await page.wait_for_function(
+        "() => document.getElementById('fp-wa-status').textContent.length > 0"
+    )
+    status = await page.locator("#fp-wa-status").inner_text()
+    assert "apikey" in status.lower(), status
+
+    stored = json.loads(configured_whatsapp.read_text())["channels"]["whatsapp"]
+    assert stored == {"phone": FAKE_PHONE, "apikey": FAKE_APIKEY}
 
 
 async def test_rule_dialog_channel_checkboxes_present(page, base_url) -> None:

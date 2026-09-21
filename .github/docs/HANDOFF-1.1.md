@@ -98,7 +98,22 @@ recorded rehearsal): the Welcome step shows `not_affiliated` as a footnote; the 
 ## 5. How to continue
 
 a. Review `.claude/phases/current/p2/release/draft-release-log.md` (P2-E13-W6-S1-T7's output).
-b. Open the draft release URL and click Publish: (filled by E13-T7)
+b. Open the draft release URL and click Publish: https://github.com/acamarata/findplus/releases/tag/untagged-f85e26032810e6eed002
+   (shows as `untagged-<hash>` because no `v1.1.0` git tag exists yet. `gh release view v1.1.0`
+   resolves the same draft; `tagName` is `v1.1.0`; the real tag and URL slug appear once published.)
+
+   | Asset | Size | sha256 |
+   |---|---|---|
+   | FindPlus-1.1.0-aarch64.dmg | 51 MB | `2e2dd0c8f7bb7e65133f9ba6658607cd83a47587dee89d480e4f6b632a7c48c4` |
+   | FindPlus-1.1.0-aarch64.dmg.sha256 | 93 B | `1e055e13955cfca93016dbcea3d6c4c5f64fa3efabaaefade6268a98dea9ebe2` |
+   | findplus-1.1.0-py3-none-any.whl | 618 KB | `da4c6145993c8860b2dd970ad52fcd0768ec69b6f1b83f29ad9d589287a551a6` |
+   | findplus-1.1.0.tar.gz | 711 KB | `705364b330524aa013f4f69f87597c1b81f04f28a41a6e89d037f28ef7d2022c` |
+   | install.sh | 6.1 KB | `cb0f328a669694ef1c09403322ae1e9fb7d5435dfb75ecf5d05cb4f58d3e1807` |
+
+   The `.app` and the `.dmg` were both notarised and stapled by Apple (submissions
+   `8ca8c209-8f7e-4b25-94a2-a399d0e5af3f` and `442c2f67-0f84-483a-8a72-54b09a7a8e9c`, both `Accepted`);
+   `spctl -a -vv --type exec`, `codesign --verify --deep --strict` and `hdiutil verify` all pass. Full
+   log: `.claude/phases/current/p2/release/draft-release-log.md`.
 c. `git checkout main && git merge release/1.1.0 && git push origin main`. This merges the version bump only after publishing, per D-P2-14.
 d. Update the Homebrew tap: `cp packaging/homebrew/findplus.rb <tap-clone>/Formula/findplus.rb`, commit, push.
 e. Run the wizard for a real first run: install Find+, open it, sign in with a real account.

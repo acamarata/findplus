@@ -286,21 +286,58 @@ def test_no_javascript_errors_and_no_broken_requests(page: Page, server: str) ->
     assert not failures, f"broken requests: {failures}"
 
 
-def test_dashboard_boots_past_alerts_init_with_no_error_banner(page: Page) -> None:
+def test_dashboard_boots_past_alerts_init_with_no_error_banner(page: Page, server: str) -> None:
     """`main()` catches every rejection from its own await chain and turns it
-    into the `#alert` banner (main.js's bottom-of-file `.catch`), so a broken
-    reference inside one tab's init() never shows as a `pageerror` — it just
-    quietly aborts `bootDashboard()` before `renderTracks()` runs and leaves
-    `#tracks` empty forever. That is exactly what happened when alerts.js's
-    `wireStaticControls()` called alerts_channels.js's un-exported locals
-    directly (loop1 split, findplus#238): `ReferenceError: saveWhatsapp is
-    not defined`, caught, shown as "Could not reach the local API:
-    saveWhatsapp is not defined", and the axe suite's `#tracks > *` wait was
-    the only thing in CI that noticed, after a 30s timeout. This test checks
-    the two symptoms directly and fails in under two seconds.
+    into the `#alert` banner, so a broken reference inside one tab's init()
+    never shows as a `pageerror` -- it quietly aborts `bootDashboard()` and
+    leaves `#tracks` empty. That's what happened when alerts.js called an
+    un-exported local directly (loop1, findplus#238): `ReferenceError`,
+    caught, banner shown, and the axe suite's `#tracks > *` wait was the only
+    thing in CI that noticed, after a 30s timeout.
+
+    Getting there through `_unlock()` sees neither symptom (confirmed by
+    reintroducing the exact regression in a worktree): `main()` calls
+    alerts.js's init() before it ever checks lock state, but while locked any
+    concurrent 401 (notices.js's `/api/config` always 401s) fires `showLock()`
+    -> `purgeRenderedData()`, which unconditionally clears `#alert` --
+    regression or not. Unlocking afterwards doesn't help either: `lock.js`'s
+    own handler calls `bootDashboard()` again on its own, independently of
+    `main()`'s chain, so `#tracks` fills in either way. Authenticating via
+    `POST /api/lock/unlock` before the page ever loads -- the session state a
+    never-locked install boots into, which is what let the axe suite see the
+    original failure -- avoids that purge and lets the banner show.
+
+    This fixture's `_SEED_SCRIPT` never sets `onboarding.completed_at`, so the
+    real `main()` chain (unlike `_unlock()`, which skips `checkOnboarding()`)
+    detours into the first-run wizard, hiding `#app-shell` and `#tracks` for
+    a reason that has nothing to do with alerts.js. Marking onboarding
+    complete first (as `cli/tests/ui/conftest.py` does at the DB layer)
+    avoids that detour.
+
+    `server` runs with `--no-poller`, so `renderStatusAlert()` would
+    legitimately show `common.serviceNotRunning` -- but only inside
+    `bootDashboard()`, downstream of the check below. Only the boot chain's
+    own `.catch()` banner (`common.apiUnreachable`) means what this test is
+    for, checked by its fixed prefix, read from the live catalog rather than
+    retyped (test_auth_panel.py's rule).
     """
-    _unlock(page)
-    assert not page.is_visible("#alert"), (
-        f"boot-time error banner shown: {page.text_content('#alert')!r}"
+    unlocked = page.request.post(
+        server + "/api/lock/unlock",
+        data=json.dumps({"pin": PIN}),
+        headers={"Content-Type": "application/json"},
     )
+    assert unlocked.ok, unlocked.text()
+    onboarded = page.request.post(
+        server + "/api/settings/onboarding.completed_at",
+        data=json.dumps({"value": "2026-01-01T00:00:00Z"}),
+        headers={"Content-Type": "application/json"},
+    )
+    assert onboarded.ok, onboarded.text()
+    page.goto(server, wait_until="networkidle")
+    page.wait_for_timeout(600)
+
+    catalog = page.request.get(server + "/static/locales/en.json").json()
+    api_unreachable_prefix = catalog["common"]["apiUnreachable"].split("{message}")[0]
+    alert_text = page.text_content("#alert") or ""
+    assert api_unreachable_prefix not in alert_text, f"boot-time error banner shown: {alert_text!r}"
     assert page.query_selector("#tracks > *") is not None, "#tracks never rendered a child"

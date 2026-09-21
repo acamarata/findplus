@@ -11,14 +11,11 @@ brace-depth from its own `{` to the matching `}`. It is a heuristic, not a
 real parser, but the repo's actual style (braces open on the same line,
 handlers closed the same way) is exactly what it is built to read.
 
-The file cap is enforced across every file under web/app/ -- nothing there
-currently exceeds it (main.js and devices.js, the two B2 offenders, are
-fixed by the same loop this test landed in). The function cap is scoped to
-MODULES: the files this loop's tickets actually touched, matching
-test_cli_sizes.py's own reasoning -- six functions elsewhere (icon-picker.js,
-devices_dialog.js, places_dialog.js, settings.js, _group_pickers.js,
-signin_apple.js) are pre-existing, off-worklist offenders this loop did not
-touch and is not the one to fix.
+Both caps are enforced across every file under web/app/ -- nothing there
+exceeds either one (loop2 L2-13 split the last six function-cap offenders:
+icon-picker.js, devices_dialog.js, places_dialog.js, settings.js,
+_group_pickers.js, signin_apple.js). There is no per-loop allowlist: any new
+file or function that crosses a cap fails this test.
 """
 
 from __future__ import annotations
@@ -30,21 +27,6 @@ WEB_APP_DIR = Path(__file__).resolve().parents[2] / "web" / "app"
 
 FUNCTION_CAP = 50
 FILE_CAP = 300
-
-#: Files this loop's tickets (loop2 B1-B7, L2-6) wrote or edited. New/edited
-#: functions in these files must be under the cap; the wider web/app/ tree may
-#: still carry off-worklist offenders (see module docstring).
-MODULES = [
-    "main.js",
-    "devices.js",
-    "devices_actions.js",
-    "icon_sprite.js",
-    "notices.js",
-    "api.js",
-    "alerts_channels.js",
-    "setup_steps/signin.js",
-    "setup_steps/_notifications_whatsapp.js",
-]
 
 _RESERVED = {
     "if",
@@ -171,10 +153,10 @@ def test_every_file_under_web_app_is_under_the_cap() -> None:
     assert not offenders, "over-cap files:\n" + "\n".join(offenders)
 
 
-def test_this_loops_modules_have_no_function_over_the_cap() -> None:
+def test_every_function_under_web_app_is_under_the_cap() -> None:
     offenders = []
-    for rel in MODULES:
-        path = WEB_APP_DIR / rel
+    for path in sorted(WEB_APP_DIR.rglob("*.js")):
+        rel = path.relative_to(WEB_APP_DIR)
         for name, lineno, length in _find_functions(path):
             if length > FUNCTION_CAP:
                 offenders.append(f"{rel}:{lineno} {name}() is {length} lines (cap {FUNCTION_CAP})")

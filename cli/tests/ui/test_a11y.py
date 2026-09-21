@@ -82,27 +82,54 @@ async def test_no_serious_axe_violations(page, base_url, tab, theme, width):
 DIALOGS = ("devices", "groups")
 
 
-async def _open_dialog(page, base_url, dialog: str) -> None:
-    """Open one dialog the way its own test file does (test_devices_dialog.py /
-    test_groups_dialog.py), but drive the trigger with `.click()` via evaluate
-    instead of a Playwright click: both triggers sit behind CSS that hides them
-    under 600px (topbar-actions / .fp-tabs), the same reason
-    test_groups_dialog.py dispatches its own #btn-lock click rather than
-    performing one."""
+async def _open_dialog(page, base_url, dialog: str, width: int) -> None:
+    """Open one dialog through the real control for this viewport width --
+    the same paths `test_no_serious_axe_violations` above, test_responsive.py's
+    `_open_tab`/`_open_settings` and test_alerts.py already use: the desktop
+    nav directly, or the phone-tier bottom bar / "More" overflow menu. A
+    Playwright `.click()` on a control CSS hides under 600px (the old
+    `.fp-tabs`-via-`evaluate()` route this replaced) auto-waits for
+    visibility and can time out under CI load even when the element is
+    reachable -- the real user path is a visible control at every width, so
+    drive that instead of reaching around it.
+
+    The icon/colour pickers read the sprite symbols from the DOM synchronously
+    the first time a dialog is built (components/icon-picker.js) and never
+    retry (test_icon_color_pickers.py's own note on this); wait for the
+    sprite's DOM evidence before opening either dialog so a slow
+    /static/icons.svg fetch under CI load cannot leave a picker permanently
+    empty for the rest of the page's life.
+    """
     await page.goto(base_url + "/")
+    await page.wait_for_selector("svg#fp-icon-sprite symbol[id='lucide-dog']", state="attached")
     if dialog == "devices":
         await page.wait_for_selector("#map")
-        await page.evaluate("document.getElementById('btn-devices').click()")
+        if width < 600:
+            # #btn-devices lives in .topbar-actions, CSS-hidden below 600px;
+            # the phone tier's own path is the "More" menu, whose relay
+            # handler clicks the real button itself (components/tabbar.js).
+            await page.click("#btn-more")
+            await page.click('[data-relays-to="btn-devices"]')
+        else:
+            await page.click("#btn-devices")
         await page.wait_for_selector("#device-modal:not(.hidden)")
         await page.wait_for_selector(".device-row")
         await page.click('.device-row[data-device-id="TAG-HOME"] .fp-device-edit')
         await page.wait_for_selector("#fp-device-dialog[open]")
+        await page.wait_for_selector("#fp-device-label", state="visible")
     else:
+        tab_selector = (
+            '.fp-tabbar [data-tabbar-tab="groups"]'
+            if width < 600
+            else '.fp-tabs [data-tab="groups"]'
+        )
         await page.wait_for_selector("#fp-add-group-btn", state="attached")
-        await page.evaluate("document.querySelector('.fp-tabs [data-tab=\"groups\"]').click()")
+        await page.click(tab_selector)
+        await page.wait_for_selector("#tab-groups:not([hidden])")
         await page.wait_for_selector(".fp-group-card, .fp-empty-state", state="attached")
         await page.click("#fp-add-group-btn")
         await page.wait_for_selector("#fp-group-dialog[open]")
+        await page.wait_for_selector("#fp-group-name", state="visible")
 
 
 @pytest.mark.parametrize("dialog", DIALOGS)
@@ -110,7 +137,7 @@ async def _open_dialog(page, base_url, dialog: str) -> None:
 @pytest.mark.parametrize("width", WIDTHS)
 async def test_no_serious_axe_violations_with_dialog_open(page, base_url, dialog, theme, width):
     await page.set_viewport_size({"width": width, "height": 800})
-    await _open_dialog(page, base_url, dialog)
+    await _open_dialog(page, base_url, dialog, width)
     await set_theme(page, theme)
 
     results = await Axe().run(page, options=AXE_OPTIONS)

@@ -5,34 +5,31 @@ Purpose : List Find Hub devices and retrieve decrypted location observations as
 Inputs  : A device's canonical id; credentials from the GFMT secret store.
 Outputs : `FindHubDevice` / `RawObservation` values.
 Constraints / why this module exists:
-    - Upstream's `get_location_data_for_device()` PRINTS results and returns None.
-      The obvious shortcut (capturing stdout and regex-parsing "Latitude:" lines)
-      is fragile and lossy: Google returns a BATCH of timestamped reports per
-      request and a line-parser keeps only the last one. We instead call the same
-      upstream crypto primitives and return every report.
+    - Upstream's `get_location_data_for_device()` PRINTS results and returns None
+      one line at a time, dropping all but the last of a BATCH of timestamped
+      reports per request. We call the same upstream crypto primitives directly
+      and return every report as typed data instead.
     - No cryptographic or protocol code is modified. `retrieve_identity_key`,
       `decrypt`, `decrypt_aes_gcm` and the protobuf decoders are upstream's.
-    - Two upstream robustness defects are contained here, not inherited:
-        1. `decrypt_locations.retrieve_identity_key` calls `exit(1)` on an
-           owner-key mismatch. `SystemExit` is caught and re-raised as
-           `DecryptionError` so the daemon survives.
-        2. `location_request` busy-waits `while result is None` forever. We use a
-           `threading.Event` with a hard timeout.
+    - Two upstream robustness defects are contained here, not inherited: (1)
+      `retrieve_identity_key` calls `exit(1)` on an owner-key mismatch --
+      `SystemExit` is caught and re-raised as `DecryptionError`; (2)
+      `location_request` busy-waits forever -- we use a `threading.Event` with
+      a hard timeout.
 """
 
 from __future__ import annotations
 
 import json
 import threading
-from datetime import UTC, datetime
 from typing import Any
 
 from findplus.config import Settings, get_settings
 from findplus.logging_setup import get_logger
 
 from .bootstrap import ensure_gfmt_importable, secrets_exist
+from .decrypt import decode_one_report, maybe_battery
 from .types import (
-    STATUS_NAMES,
     AuthRequiredError,
     DecryptionError,
     FindHubDevice,
@@ -42,9 +39,6 @@ from .types import (
 )
 
 log = get_logger(__name__)
-
-#: Google's Common_pb2.Status.SEMANTIC
-_STATUS_SEMANTIC = 0
 
 
 class FindHubClient:
@@ -163,11 +157,11 @@ class FindHubClient:
     def _extract_observations(
         self, device_update: Any, device_id: str, device_name: str
     ) -> list[RawObservation]:
-        """Decrypt a DeviceUpdate into typed observations.
-
-        Mirrors upstream `decrypt_location_response_locations()` but returns data
-        instead of printing it. All crypto calls are upstream's, unchanged.
-        """
+        """Decrypt a DeviceUpdate into typed observations (mirrors upstream
+        `decrypt_location_response_locations()`, returning data instead of
+        printing it; all crypto calls are upstream's, unchanged). Per-report
+        decode/skip/build logic lives in `.decrypt` (E13 loop2 A3 split, cap
+        only -- decode order and every field are unchanged)."""
         from FMDNCrypto.foreign_tracker_cryptor import decrypt
         from KeyBackup.cloud_key_decryptor import decrypt_aes_gcm
         from NovaApi.ExecuteAction.LocateTracker.decrypt_locations import (
@@ -179,6 +173,37 @@ class FindHubClient:
         info = device_update.deviceMetadata.information
         registration = info.deviceRegistration
 
+        identity_key = self._resolve_identity_key(registration, retrieve_identity_key)
+        is_mcu = is_mcu_tracker(registration)
+        battery = maybe_battery(info)
+        reports = info.locationInformation.reports.recentLocationAndNetworkLocations
+        pairs = list(zip(reports.networkLocations, reports.networkLocationTimestamps, strict=False))
+        if reports.HasField("recentLocation"):
+            pairs.append((reports.recentLocation, reports.recentLocationTimestamp))
+
+        observations: list[RawObservation] = []
+        for loc, ts in pairs:
+            obs = decode_one_report(
+                loc,
+                ts,
+                device_id,
+                device_name,
+                identity_key,
+                is_mcu,
+                battery,
+                decrypt,
+                decrypt_aes_gcm,
+                DeviceUpdate_pb2,
+            )
+            if obs is not None:
+                observations.append(obs)
+
+        observations.sort(key=lambda o: o.observed_at)
+        log.info("observations_decrypted", count=len(observations), device=device_name)
+        return observations
+
+    def _resolve_identity_key(self, registration: Any, retrieve_identity_key: Any) -> bytes:
+        """The identity key lookup, with upstream's `exit(1)` turned into a typed error."""
         try:
             identity_key = retrieve_identity_key(registration)
         except SystemExit as exc:  # upstream calls exit(1) on owner-key mismatch
@@ -189,110 +214,9 @@ class FindHubClient:
             ) from exc
         except Exception as exc:
             raise DecryptionError(f"Identity key retrieval failed: {exc}") from exc
-
         if identity_key is None:
             raise DecryptionError("Identity key retrieval returned nothing.")
-
-        is_mcu = is_mcu_tracker(registration)
-        reports = info.locationInformation.reports.recentLocationAndNetworkLocations
-
-        pairs = list(zip(reports.networkLocations, reports.networkLocationTimestamps, strict=False))
-        if reports.HasField("recentLocation"):
-            pairs.append((reports.recentLocation, reports.recentLocationTimestamp))
-
-        battery = self._maybe_battery(info)
-        observations: list[RawObservation] = []
-
-        for loc, ts in pairs:
-            observed_at = datetime.fromtimestamp(int(ts.seconds), tz=UTC)
-            status_name = STATUS_NAMES.get(int(loc.status), f"status_{int(loc.status)}")
-
-            if int(loc.status) == _STATUS_SEMANTIC:
-                # A named place with no coordinates. Recorded for context only:
-                # it cannot be plotted, so it is not a timeline point.
-                log.debug("semantic_report_skipped", name=loc.semanticLocation.locationName)
-                continue
-
-            try:
-                plaintext = self._decrypt_report(
-                    loc, identity_key, is_mcu, decrypt, decrypt_aes_gcm
-                )
-            except Exception as exc:
-                log.warning("report_decrypt_failed", error=str(exc), status=status_name)
-                continue
-
-            proto_loc = DeviceUpdate_pb2.Location()
-            try:
-                proto_loc.ParseFromString(plaintext)
-            except Exception:
-                log.warning("report_proto_malformed", status=status_name)
-                continue
-
-            if not self._plausible(proto_loc.latitude, proto_loc.longitude):
-                log.warning(
-                    "report_coords_implausible",
-                    lat_e7=proto_loc.latitude,
-                    lon_e7=proto_loc.longitude,
-                )
-                continue
-
-            accuracy = float(loc.geoLocation.accuracy) if loc.geoLocation.accuracy else None
-            observations.append(
-                RawObservation(
-                    device_id=device_id,
-                    device_name=device_name,
-                    latitude_e7=int(proto_loc.latitude),
-                    longitude_e7=int(proto_loc.longitude),
-                    observed_at=observed_at,
-                    altitude_meters=float(proto_loc.altitude) if proto_loc.altitude else None,
-                    accuracy_meters=accuracy,
-                    source=status_name,
-                    is_own_report=bool(loc.geoLocation.encryptedReport.isOwnReport),
-                    battery_level=battery,
-                    metadata={"status_code": int(loc.status), "is_mcu": is_mcu},
-                )
-            )
-
-        observations.sort(key=lambda o: o.observed_at)
-        log.info("observations_decrypted", count=len(observations), device=device_name)
-        return observations
-
-    @staticmethod
-    def _decrypt_report(
-        loc: Any, identity_key: bytes, is_mcu: bool, decrypt: Any, decrypt_aes_gcm: Any
-    ) -> bytes:
-        """Dispatch to the correct upstream decryption routine for this report."""
-        import hashlib
-
-        encrypted = loc.geoLocation.encryptedReport.encryptedLocation
-        public_key_random = loc.geoLocation.encryptedReport.publicKeyRandom
-        if public_key_random == b"":
-            # Own report: keyed by the SHA-256 of the identity key.
-            return decrypt_aes_gcm(hashlib.sha256(identity_key).digest(), encrypted)
-        time_offset = 0 if is_mcu else loc.geoLocation.deviceTimeOffset
-        return decrypt(identity_key, encrypted, public_key_random, time_offset)
-
-    @staticmethod
-    def _maybe_battery(info: Any) -> int | None:
-        """Best-effort battery read. Upstream does not expose this for all trackers."""
-        for path in ("deviceComponentsInformation.batteryInfo.batteryLevel",):
-            node: Any = info
-            try:
-                for part in path.split("."):
-                    node = getattr(node, part)
-                value = int(node)
-            except (AttributeError, TypeError, ValueError):
-                continue
-            if 0 < value <= 100:
-                return value
-        return None
-
-    @staticmethod
-    def _plausible(lat_e7: int, lon_e7: int) -> bool:
-        """Reject obviously corrupt coordinates, including the 0,0 null island."""
-        if lat_e7 == 0 and lon_e7 == 0:
-            return False
-        return -900_000_000 <= lat_e7 <= 900_000_000 and -1_800_000_000 <= lon_e7 <= 1_800_000_000
+        return identity_key
 
     # ------------------------------------------------------------- utilities
     def describe(self) -> str:

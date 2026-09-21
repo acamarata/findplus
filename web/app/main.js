@@ -22,6 +22,7 @@ import { wireSettingsControls, openSettings, loadSettings } from "./settings.js"
 import { loadCatalog, applyStaticI18n, t, plural } from "./i18n.js";
 import { initTabbar } from "./components/tabbar.js";
 import { openSetupRoute, closeSetupRoute, checkOnboarding } from "./setup_route.js";
+import { loadIconSprite } from "./icon_sprite.js";
 
 /** The topbar device name: the filtered tracker, or how many are tracked. */
 function renderDeviceName(s) {
@@ -221,28 +222,6 @@ export async function bootDashboard(resume) {
       if (state.day === todayLocal()) await loadDay(state.day);
     } catch (_) { /* a lock mid-refresh is handled by api() */ }
   }, seconds * 1000);
-}
-
-/**
- * Put the bundled Lucide sprite in the document once, at boot.
- *
- * `<use href="#lucide-dog">` only resolves against a symbol in the SAME
- * document, so the sprite has to be inlined rather than referenced as an
- * external file. Never innerHTML: the parsed SVG element is prepended as a
- * node. A missing or malformed sprite must never inject anything into the
- * page -- a 404 still resolves the fetch, and a bad parse still returns a
- * document, so both are checked explicitly rather than relying on a throw.
- */
-async function loadIconSprite() {
-  const res = await fetch("/static/icons.svg");
-  if (!res.ok) return;
-  const text = await res.text();
-  const doc = new DOMParser().parseFromString(text, "image/svg+xml");
-  if (doc.querySelector("parsererror") || doc.documentElement.nodeName !== "svg") {
-    console.warn("icon sprite failed to parse");
-    return;
-  }
-  document.body.prepend(doc.documentElement);
 }
 
 async function main() {

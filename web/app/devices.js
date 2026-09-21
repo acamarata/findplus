@@ -8,14 +8,15 @@
 "use strict";
 
 import { $, state, colorFor, showAlert } from "./state.js";
-import { api, postJson } from "./api.js";
-import { reload, applyHashRoute } from "./main.js";
+import { api } from "./api.js";
+import { applyHashRoute } from "./main.js";
 import { loadPresence } from "./places.js";
 import { t } from "./i18n.js";
 import { renderBadge } from "./components/badge.js";
 import { initDialog, openEditDialog } from "./devices_dialog.js";
 import { trapFocus } from "./components/dialog-trap.js";
 import { providerWording, syncProviderChrome, syncProviderNotice } from "./provider_chrome.js";
+import { pollNow, refreshFromProviders, saveTrackedDevices } from "./devices_actions.js";
 
 /** The focus trap for #device-modal while it is open, or null. */
 let deviceTrap = null;
@@ -190,85 +191,6 @@ export function closeDevices() {
   if (deviceTrap) {
     deviceTrap.release();
     deviceTrap = null;
-  }
-}
-
-/** Query every provider once, now, and say what came back. */
-async function pollNow() {
-  const btn = $("btn-poll");
-  btn.disabled = true;
-  btn.textContent = t("devices.pollingLabel");
-  try {
-    const r = await postJson("/api/poll-now");
-    const lines = r.results.map(
-      (x) =>
-        t("devices.pollResultLine", { device: x.device_name, status: x.status }) +
-        (x.observations_new ? t("devices.pollResultNew", { n: x.observations_new }) : "")
-    );
-    showAlert(
-      t("devices.polled", {
-        devices: r.devices_polled,
-        observations: r.observations_new,
-        lines: lines.join(" · "),
-      }),
-      "warn"
-    );
-    await reload();
-  } catch (err) {
-    showAlert(err.message, "err");
-  } finally {
-    btn.disabled = false;
-    btn.textContent = t("common.btnPoll");
-  }
-}
-
-/**
- * Re-read the device list from every provider the user is signed in to.
- *
- * A partial failure names the provider that could not be reached rather than
- * staying silent, and the button says "your providers" whichever ones answered
- * (E1 honesty round 2 F4).
- */
-async function refreshFromProviders() {
-  const btn = $("btn-refresh-devices");
-  btn.disabled = true;
-  btn.textContent = t("devices.askingProvidersLabel");
-  try {
-    const r = await postJson("/api/devices/refresh");
-    await loadDevices();
-    renderDeviceModal();
-    const failed = Object.keys(r.errors || {});
-    let msg = t("devices.refreshFound", { found: r.found, providers: (r.providers || []).length });
-    if (failed.length) msg += t("devices.refreshUnreachable", { names: failed.join(", ") });
-    showAlert(msg, "warn");
-  } catch (err) {
-    showAlert(t("devices.refreshFailed", { message: err.message }), "err");
-  } finally {
-    btn.disabled = false;
-    btn.textContent = t("devices.refreshProvidersLabel");
-  }
-}
-
-/** Save the ticked set and report the request rate it implies. */
-async function saveTrackedDevices() {
-  const ids = [...document.querySelectorAll("#device-list input:checked")].map((i) => i.value);
-  try {
-    const r = await postJson("/api/devices/track", { device_ids: ids });
-    closeDevices();
-    await loadDevices();
-    showAlert(
-      r.tracked_count
-        ? t("devices.trackedResult", {
-            count: r.tracked_count,
-            rate: r.requests_per_hour,
-            requests: providerWording().requests,
-          })
-        : t("devices.trackedNone", { requests: providerWording().requests }),
-      "warn"
-    );
-    await reload();
-  } catch (err) {
-    showAlert(err.message, "err");
   }
 }
 

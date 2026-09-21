@@ -97,6 +97,18 @@ codesign --force --options runtime --timestamp \
 codesign --force --options runtime --timestamp \
   --sign "$IDENTITY" "$APP_PATH/Contents/MacOS/reload-widgets"
 
+# --- SIGN_LAUNCHER --------------------------------------------------------------
+# tauri.conf.json's externalBin ("binaries/findplus-daemon") places a small
+# launcher (execs the real sidecar from Contents/Resources/resources/
+# findplus-daemon/) directly at Contents/MacOS/findplus-daemon. cargo tauri
+# build never signs it (no macOS signingIdentity is set there by design; every
+# signature in this bundle comes from this script), and it is a distinct
+# Mach-O from the PyInstaller sidecar sign-sidecar.sh already signed under
+# Contents/Resources/resources/, so the outer non-deep sign below rejects the
+# bundle with "code object is not signed at all" until this runs first.
+codesign --force --options runtime --timestamp \
+  --sign "$IDENTITY" "$APP_PATH/Contents/MacOS/findplus-daemon"
+
 # --- SIGN_OUTER -------------------------------------------------------------
 codesign --force --options runtime --timestamp \
   --entitlements desktop/src-tauri/entitlements.plist \

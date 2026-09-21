@@ -70,9 +70,13 @@ def load_pending_events(session) -> list[DeviceEvent | GroupEvent]:
     (group_place_events has no note column) so the alert states how many tags
     actually crossed and how many were silent.
     """
+    return [*_load_device_events(session), *_load_group_events(session)]
+
+
+def _load_device_events(session) -> list[DeviceEvent]:
     from sqlalchemy import text
 
-    events: list[DeviceEvent | GroupEvent] = []
+    events: list[DeviceEvent] = []
     for row in session.execute(text(_DEVICE_EVENTS_SQL)).all():
         group_ids = [
             r[0]
@@ -95,7 +99,13 @@ def load_pending_events(session) -> list[DeviceEvent | GroupEvent]:
                 group_ids=group_ids,
             )
         )
+    return events
 
+
+def _load_group_events(session) -> list[GroupEvent]:
+    from sqlalchemy import text
+
+    events: list[GroupEvent] = []
     for row in session.execute(text(_GROUP_EVENTS_SQL)).all():
         events.append(
             GroupEvent(
@@ -183,6 +193,23 @@ def _load_recent_deliveries(session, now: datetime.datetime) -> list[Delivery]:
     ]
 
 
+def _already_delivered(session, rule_id: int, kind: str, eid: int, channel: str) -> bool:
+    from findplus.db.models_alerts import AlertDelivery as AlertDeliveryORM
+
+    filters = {"rule_id": rule_id, "event_kind": kind, "event_id": eid, "channel": channel}
+    return session.query(AlertDeliveryORM).filter_by(**filters).first() is not None
+
+
+def _resolve_status(channel: str, rule: Rule, event, kind: str, channels_cfg, now):
+    # "native": no send and no DeliveryResult -- the row IS the queue entry
+    # the desktop app drains (specs/notifications.md § 2). Ruling F2 still
+    # holds: a "queued" row is a one-time entry, never a pending retry, so if
+    # the app never polls the alert is simply never shown.
+    if channel == "native":
+        return "queued", None
+    return _status_for(channel, rule, event, kind, channels_cfg, now)
+
+
 def _deliver_one(
     session, rule: Rule, channel: str, event, channels_cfg, now: datetime.datetime
 ) -> Delivery | None:
@@ -191,22 +218,10 @@ def _deliver_one(
 
     kind = "device" if isinstance(event, DeviceEvent) else "group"
     eid = event.place_event_id if isinstance(event, DeviceEvent) else event.group_place_event_id
-    already = (
-        session.query(AlertDeliveryORM)
-        .filter_by(rule_id=rule.id, event_kind=kind, event_id=eid, channel=channel)
-        .first()
-    )
-    if already:
+    if _already_delivered(session, rule.id, kind, eid, channel):
         return None
 
-    if channel == "native":
-        # No send and no DeliveryResult: the row IS the queue entry the desktop
-        # app drains (specs/notifications.md § 2). Ruling F2 still holds -- a
-        # "queued" row is a one-time entry, never a pending retry, so if the app
-        # never polls the alert is simply never shown.
-        status, err = "queued", None
-    else:
-        status, err = _status_for(channel, rule, event, kind, channels_cfg, now)
+    status, err = _resolve_status(channel, rule, event, kind, channels_cfg, now)
 
     session.add(
         AlertDeliveryORM(
@@ -225,11 +240,9 @@ def _deliver_one(
         # Another poller won the race between the dedup SELECT and this commit.
         session.rollback()
         return None
-    # status must travel with the row: process() appends this to the in-memory
-    # cooldown list, and Delivery.status defaults to "sent", so a failed or
-    # skipped send would otherwise suppress the next same-key alert for the rest
-    # of this run even though _load_recent_deliveries reads it correctly on the
-    # next one.
+    # status travels with the row: process() appends this to the in-memory
+    # cooldown list, and Delivery.status defaults to "sent", so a failed
+    # send would otherwise suppress the next same-key alert this run.
     return Delivery(
         rule_id=rule.id,
         event_kind=kind,

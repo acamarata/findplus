@@ -74,7 +74,7 @@ export function renderChannelSection(key, value, noticeKeys, ctx) {
   noticeKeys.forEach((id) => section.append(footnote(notices[id])));
 
   if (key === "native") nativeControls(section);
-  else if (key === "telegram") telegramControls(section, value);
+  else if (key === "telegram") telegramControls(section, value, ctx);
   else laterLink(section);
   return section;
 }

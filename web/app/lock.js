@@ -114,7 +114,7 @@ export async function purgeRenderedData() {
 }
 
 /**
- * Purge the Places, Groups and Alerts tabs' own rendered state.
+ * Purge the Places, Groups, Alerts tabs' and the setup wizard's own state.
  *
  * Each of those modules keeps a Leaflet overlay layer and/or DOM (place
  * circles, group-member circles, the presence panel, the group legend and
@@ -136,6 +136,11 @@ async function purgeTabModules() {
     // The Settings dialog's sign-in panel holds the signed-in account, a typed
     // Apple ID and an unsent password, and a closed <dialog> keeps them.
     import("./auth.js").then((m) => m.purge()),
+    // #setup-view is a SIBLING of #app-shell, so hiding the shell never
+    // reached it: a lock with the wizard open left an Apple ID, an unsent
+    // password, a bot token, both PIN boxes and every discovered tracker's
+    // name in the document behind the lock screen (CR-C-E11 F1).
+    import("./setup.js").then((m) => m.purge()),
   ]);
   results.forEach((r) => {
     if (r.status === "rejected") console.error("post-lock purge failed", r.reason);

@@ -4,8 +4,8 @@
  * Purpose    : Take a bot token and wait for the user to message the bot, the
  *              same `POST /api/alerts/channels/telegram/setup?wait=` long poll
  *              the Alerts tab uses (specs/onboarding.md § 4 row 6).
- * Inputs     : the channel section element, and the channel's own state from
- *              GET /api/alerts/channels.
+ * Inputs     : ctx (for api()), the channel section element, and the channel's
+ *              own state from GET /api/alerts/channels.
  * Outputs    : the button, token field and status line, appended to the section.
  * Constraints: Its own file because the Alerts tab's copy of this flow reads
  *              elements that live inside #app-shell, which is hidden while the
@@ -19,7 +19,7 @@ import { t } from "../i18n.js";
 /** Seconds the server holds the request open, matching alerts.js. */
 const WAIT_SECONDS = 120;
 
-export function telegramControls(section, value) {
+export function telegramControls(section, value, ctx) {
   const token = document.createElement("input");
   token.type = "password";
   token.id = "fp-setup-tg-token";
@@ -40,20 +40,22 @@ export function telegramControls(section, value) {
     }
     status.textContent = t("setup.notifications.waiting");
     try {
-      const res = await fetch(`/api/alerts/channels/telegram/setup?wait=${WAIT_SECONDS}`, {
+      // Through api(), not a raw fetch: a lock that lands mid-poll answers 401,
+      // and only api() turns that into the lock screen rather than the words
+      // "401 Unauthorized" in a status line (CR-C-E11 F5).
+      const body = await ctx.api(`/api/alerts/channels/telegram/setup?wait=${WAIT_SECONDS}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ bot_token: token.value.trim() }),
         signal: AbortSignal.timeout((WAIT_SECONDS + 5) * 1000),
       });
-      const body = await res.json().catch(() => ({}));
-      status.textContent =
-        res.status === 200
-          ? t("setup.notifications.connected", { chat: body.chat_title })
-          : body.detail || `${res.status} ${res.statusText}`;
-      token.value = "";
+      status.textContent = t("setup.notifications.connected", { chat: body.chat_title });
     } catch (err) {
       status.textContent = err.message;
+    } finally {
+      // In a finally: an abort or a rejected token must not leave the secret
+      // sitting in the field for the rest of the session.
+      token.value = "";
     }
   });
 

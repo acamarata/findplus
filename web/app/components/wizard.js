@@ -35,6 +35,8 @@ export class Wizard {
     // Built once and handed unchanged to every step call, so each step sees
     // the same `state` reference for the whole wizard session.
     this.ctx = { api, postJson, state, showAlert };
+    /** True while a Back/Skip/Next/Skip-setup transition is still in flight. */
+    this.busy = false;
     const found = initialStep ? steps.findIndex((s) => s.id === initialStep) : 0;
     this.index = found > 0 ? found : 0;
     this.buildChrome();
@@ -92,11 +94,25 @@ export class Wizard {
     return btn;
   }
 
-  /** Run an async chrome handler, surfacing a thrown api() error in the banner. */
+  /**
+   * Run one chrome handler at a time, surfacing a thrown api() error.
+   *
+   * The buttons are disabled for the duration: a transition is two awaited
+   * requests long, and a second click inside that window ran the step's
+   * onNext twice (two POST /api/devices/track) or stamped completed_at twice.
+   */
   guard(fn) {
+    if (this.busy) return;
+    this.busy = true;
+    const chrome = [this.backBtn, this.skipBtn, this.nextBtn, this.skipAll];
+    chrome.forEach((btn) => (btn.disabled = true));
     Promise.resolve()
       .then(fn)
-      .catch((err) => showAlert(err.message, "err"));
+      .catch((err) => showAlert(err.message, "err"))
+      .finally(() => {
+        this.busy = false;
+        chrome.forEach((btn) => (btn.disabled = false));
+      });
   }
 
   /** Paint the active step and reconcile the chrome around it. */

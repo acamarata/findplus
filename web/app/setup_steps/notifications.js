@@ -11,18 +11,27 @@
  *              all. The honesty paragraphs are appended BEFORE the channel's
  *              controls, never after. The native section exists only when
  *              window.__findplus_native is true (R-P2-13) and its button is
- *              the sole trigger of the OS permission prompt (R-P2-9).
+ *              the sole trigger of the OS permission prompt (R-P2-9). WhatsApp
+ *              gets the same inline phone/API-key/Save/Test controls Telegram
+ *              does (R-P2-28 point 3); only Webhook still falls to the
+ *              "configure later" link, which now carries the app's link
+ *              styling instead of the browser default (F5).
  */
 "use strict";
 
 import { t } from "../i18n.js";
 import { telegramControls } from "./_notifications_telegram.js";
+import { whatsappControls } from "./_notifications_whatsapp.js";
 
 /** Channel id -> the /api/config.notices ids that must be shown with it. */
 const CHANNEL_NOTICE_KEYS = {
   telegram: ["alerts_latency"],
   webhook: ["alerts_latency"],
-  whatsapp: ["whatsapp_relay"],
+  // whatsapp_setup (the CallMeBot connect steps) joins whatsapp_relay (the
+  // third-party-relay disclosure) above the fields, matching the settings
+  // card's own #fp-wa-relay-notice + #fp-wa-instructions pair (T0 addendum
+  // B3, e13/blind-gp-adjudicated.md).
+  whatsapp: ["whatsapp_relay", "whatsapp_setup"],
   native: ["native_generic", "alerts_locked"],
 };
 
@@ -75,6 +84,7 @@ export function renderChannelSection(key, value, noticeKeys, ctx) {
 
   if (key === "native") nativeControls(section);
   else if (key === "telegram") telegramControls(section, value, ctx);
+  else if (key === "whatsapp") whatsappControls(section, value, ctx);
   else laterLink(section);
   return section;
 }

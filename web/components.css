@@ -257,8 +257,12 @@ dialog a:hover,
    short error string) truncate with an ellipsis and keep the full value in a
    title attribute (alerts_deliveries.js). Column order is test-pinned
    (test_alerts_whatsapp.py::test_deliveries_table_renders_after_rule_fires),
-   so only widths change here, never the <th>/<td> sequence. */
+   so only widths change here, never the <th>/<td> sequence. Channel (2nd) and
+   Kind (3rd) get the same treatment (loop2 L2-6): "telegram"/"whatsapp" and
+   "device"/"group" both overran their 9%/8% columns into the neighbouring
+   cell's text at 1280 and 375 without it. */
 #fp-deliveries-table { table-layout: fixed; }
+#fp-deliveries-table td:nth-child(2), #fp-deliveries-table td:nth-child(3),
 #fp-deliveries-table td:nth-child(4), #fp-deliveries-table td:nth-child(5),
 #fp-deliveries-table td:nth-child(8) {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;

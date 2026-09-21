@@ -225,6 +225,86 @@ async def test_delivery_log_shows_channel_and_status(page, base_url, ui_db):
     assert cells[7] == "connection refused"
 
 
+@pytest.mark.parametrize("viewport", [{"width": 1280, "height": 900}, {"width": 375, "height": 812}])
+async def test_delivery_log_channel_and_kind_text_stays_inside_its_cell(page, base_url, ui_db, viewport):
+    """loop2 L2-6: Channel/Kind painted past their own cell into the
+    neighbouring column's text at 1280 and 375 -- components.css truncated
+    Text/Body/Error with an ellipsis but not these two.
+
+    `text-overflow: ellipsis` only changes what is PAINTED, not the box model:
+    a Range spanning the cell's text reports the same unclipped
+    getBoundingClientRect() whether or not the rule is applied, so comparing
+    rendered-text geometry to the cell's own box cannot tell the two states
+    apart. `scrollWidth` (the content's real extent) vs `clientWidth` (the
+    visible, fixed-by-colgroup box) is the bounding-box comparison that
+    actually distinguishes them -- content wider than its box is exactly the
+    condition `overflow: hidden` has to be present for, and "telegram" is
+    picked as the seeded channel because it is the longest of the four values
+    the column ever holds, so the overflow is real, not assumed.
+    """
+    import sqlite3
+
+    rule_name = f"L2-6 rule {viewport['width']}"
+    rule = await page.request.post(
+        base_url + "/api/alerts/rules",
+        data=json.dumps({"name": rule_name, "device_id": "TAG-HOME", "channels": ["telegram"]}),
+        headers={"Content-Type": "application/json"},
+    )
+    assert rule.ok, await rule.text()
+    rule_id = (await rule.json())["id"]
+
+    conn = sqlite3.connect(ui_db)
+    try:
+        conn.execute(
+            "INSERT INTO alert_deliveries"
+            " (rule_id, event_kind, event_id, channel, sent_at, status, error)"
+            " VALUES (?, 'device', ?, 'telegram', '2026-09-20 12:00:00', 'sent', NULL)",
+            (rule_id, 4000 + viewport["width"]),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    await page.set_viewport_size(viewport)
+    await page.goto(base_url + "/")
+    # Below 600px .fp-tabs (button[data-tab]) is display:none and the bottom
+    # .fp-tabbar takes over (components/tabbar.js) -- same split
+    # test_responsive.py's _open_tab() already follows for the phone tier.
+    if viewport["width"] < 600:
+        await page.click('.fp-tabbar [data-tabbar-tab="alerts"]')
+    else:
+        await page.click('button[data-tab="alerts"]')
+    await page.wait_for_selector("#fp-telegram-section")
+    row = page.locator("#fp-deliveries-tbody tr", has_text=rule_name)
+    await row.wait_for(state="visible")
+
+    for index, column in ((1, "Channel"), (2, "Kind")):
+        box = await page.evaluate(
+            """({name, i}) => {
+                const row = [...document.querySelectorAll('#fp-deliveries-tbody tr')]
+                    .find((r) => r.textContent.includes(name));
+                const td = row.children[i];
+                const style = getComputedStyle(td);
+                return {
+                    overflow: style.overflow,
+                    textOverflow: style.textOverflow,
+                    whiteSpace: style.whiteSpace,
+                    scrollWidth: td.scrollWidth,
+                    clientWidth: td.clientWidth,
+                };
+            }""",
+            {"name": rule_name, "i": index},
+        )
+        assert box["scrollWidth"] > box["clientWidth"], (
+            f"{column} cell content ({box['scrollWidth']}px) does not exceed its box "
+            f"({box['clientWidth']}px) at {viewport['width']}px -- test value too short "
+            "to prove the cap actually bites"
+        )
+        assert box["overflow"] == "hidden", f"{column}: overflow is {box['overflow']!r}, not hidden"
+        assert box["textOverflow"] == "ellipsis", f"{column}: text-overflow is {box['textOverflow']!r}"
+        assert box["whiteSpace"] == "nowrap", f"{column}: white-space is {box['whiteSpace']!r}"
+
+
 async def test_the_rule_dialog_sends_null_for_an_unchosen_select(page, base_url):
     """honesty round 3 F8: Number("") is 0, and no place has id 0.
 

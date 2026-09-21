@@ -177,14 +177,17 @@ async function removePin() {
   }
 }
 
-/** Wire the settings dialog: toggle it open/closed, theme/idle/lock-enabled, PIN set/change/remove. */
-export function wireSettingsControls() {
+/** Toggle the dialog open/closed, including the backdrop click. */
+function wireModalToggle() {
   $("btn-settings").addEventListener("click", openSettings);
   $("btn-close-settings").addEventListener("click", closeSettings);
   $("settings-modal").addEventListener("click", (e) => {
     if (e.target.id === "settings-modal") closeSettings();
   });
+}
 
+/** Theme (instant-feedback) and the idle timeout / lock-enabled toggle. */
+function wireThemeAndLockControls() {
   $("setting-theme").addEventListener("change", async (e) => {
     applyTheme(e.target.value);  // instant feedback
     try { await saveSettings({ theme: e.target.value }); }
@@ -200,7 +203,10 @@ export function wireSettingsControls() {
     try { await saveSettings({ lock_enabled: e.target.checked }); }
     catch (err) { showAlert(err.message, "err"); e.target.checked = !e.target.checked; }
   });
+}
 
+/** Start-at-login, poll interval, retention, and the native-detail toggle. */
+function wirePollingControls() {
   $("setting-start-at-login").addEventListener("change", async (e) => {
     try {
       await postJson("/api/settings/app.start_at_login", { value: e.target.checked });
@@ -229,7 +235,10 @@ export function wireSettingsControls() {
     try { await saveSettings({ "alerts.native_detail": e.target.checked }); }
     catch (err) { showAlert(err.message, "err"); e.target.checked = !e.target.checked; }
   });
+}
 
+/** The rerun-setup nav link plus PIN set/change/remove buttons. */
+function wirePinControls() {
   // Navigation only. Re-running the wizard and abandoning it leaves
   // onboarding.completed_at exactly as it was; only Done ever writes it.
   $("btn-rerun-setup").addEventListener("click", () => {
@@ -240,4 +249,12 @@ export function wireSettingsControls() {
   $("btn-set-pin").addEventListener("click", setPin);
   $("btn-change-pin").addEventListener("click", changePin);
   $("btn-remove-pin").addEventListener("click", removePin);
+}
+
+/** Wire the settings dialog: toggle it open/closed, theme/idle/lock-enabled, PIN set/change/remove. */
+export function wireSettingsControls() {
+  wireModalToggle();
+  wireThemeAndLockControls();
+  wirePollingControls();
+  wirePinControls();
 }

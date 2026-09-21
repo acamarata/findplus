@@ -14,6 +14,55 @@
 import { t } from "../i18n.js";
 import { Poller, button, field } from "./_signin_dom.js";
 
+/** Send the 2FA code, and hide the code row once the server accepts it. */
+function submitAppleCode(ctx, status, code, codeRow, jobId) {
+  ctx.postJson("/api/auth/apple/code", { job_id: jobId, code: code.input.value.trim() })
+    .then((result) => {
+      codeRow.hidden = true;
+      status.textContent = result.message;
+    })
+    .catch((err) => {
+      status.textContent = err.message;
+    });
+}
+
+/** Poll one sign-in job, revealing the code row once the server asks for 2FA. */
+function watchAppleProgress(ctx, poller, status, code, codeRow, codeSubmit, jobId) {
+  poller.start(ctx, "/api/auth/apple/progress", jobId, (progress) => {
+    status.textContent = progress.message;
+    if (progress.state === "needs_2fa") {
+      poller.stop();
+      codeRow.hidden = false;
+      codeSubmit.onclick = () => submitAppleCode(ctx, status, code, codeRow, jobId);
+    } else if (progress.state === "done" || progress.state === "failed") {
+      poller.stop();
+    }
+  });
+}
+
+/** Start (or rejoin) an Apple sign-in job from the credentials form. */
+function startAppleSignin(ctx, poller, status, appleId, password, code, codeRow, codeSubmit) {
+  status.textContent = t("setup.signin.starting");
+  ctx.postJson("/api/auth/apple/start", {
+    apple_id: appleId.input.value.trim(),
+    password: password.input.value,
+  })
+    .then(({ job_id: jobId }) => {
+      password.input.value = "";
+      watchAppleProgress(ctx, poller, status, code, codeRow, codeSubmit, jobId);
+    })
+    .catch((err) => {
+      password.input.value = "";
+      // 409 carries the id of the sign-in already running; rejoin it rather
+      // than leaving the user stuck at a conflict message (CR-C-E10 F1).
+      if (err.status === 409 && err.body && err.body.job_id) {
+        watchAppleProgress(ctx, poller, status, code, codeRow, codeSubmit, err.body.job_id);
+        return;
+      }
+      status.textContent = err.message;
+    });
+}
+
 /**
  * Build the Apple form and its code row, already wired.
  *
@@ -32,51 +81,9 @@ export function buildAppleBranch(ctx, status) {
   codeRow.hidden = true;
   codeRow.append(code.label, codeSubmit);
 
-  function submitCode(jobId) {
-    ctx.postJson("/api/auth/apple/code", { job_id: jobId, code: code.input.value.trim() })
-      .then((result) => {
-        codeRow.hidden = true;
-        status.textContent = result.message;
-      })
-      .catch((err) => {
-        status.textContent = err.message;
-      });
-  }
-
-  function watch(jobId) {
-    poller.start(ctx, "/api/auth/apple/progress", jobId, (progress) => {
-      status.textContent = progress.message;
-      if (progress.state === "needs_2fa") {
-        poller.stop();
-        codeRow.hidden = false;
-        codeSubmit.onclick = () => submitCode(jobId);
-      } else if (progress.state === "done" || progress.state === "failed") {
-        poller.stop();
-      }
-    });
-  }
-
-  const submit = button("setup.signin.submit", () => {
-    status.textContent = t("setup.signin.starting");
-    ctx.postJson("/api/auth/apple/start", {
-      apple_id: appleId.input.value.trim(),
-      password: password.input.value,
-    })
-      .then(({ job_id: jobId }) => {
-        password.input.value = "";
-        watch(jobId);
-      })
-      .catch((err) => {
-        password.input.value = "";
-        // 409 carries the id of the sign-in already running; rejoin it rather
-        // than leaving the user stuck at a conflict message (CR-C-E10 F1).
-        if (err.status === 409 && err.body && err.body.job_id) {
-          watch(err.body.job_id);
-          return;
-        }
-        status.textContent = err.message;
-      });
-  });
+  const submit = button("setup.signin.submit", () =>
+    startAppleSignin(ctx, poller, status, appleId, password, code, codeRow, codeSubmit),
+  );
 
   const form = document.createElement("div");
   form.id = "fp-setup-apple-form";

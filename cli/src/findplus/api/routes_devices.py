@@ -15,15 +15,16 @@ from typing import Any
 
 from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel, field_validator
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 from findplus import labels
-from findplus.db.models import Device, DeviceGroup, LocationObservation
+from findplus.db.models import Device, DeviceGroup
 from findplus.db.session import session_scope
 from findplus.redaction import redact_text
 from findplus.state import (
     get_default_device,
     get_tracked_devices,
+    observation_counts,
     set_default_device,
     track_all,
     track_devices,
@@ -108,13 +109,16 @@ def _device_row(
     *,
     groups: list[int] | None = None,
     presence: list[dict[str, Any]] | None = None,
+    observation_count: int | None = None,
 ) -> dict[str, Any]:
     """One `GET /api/devices` row. The PATCH response reuses it verbatim.
 
-    `groups`/`presence` are passed in by the list route, which reads both in one
-    query each for every device; PATCH, with a single device to answer for,
-    lets them default and looks them up itself.
+    `groups`/`presence`/`observation_count` are passed in by the list route,
+    which reads each in ONE query for every device; PATCH, with a single
+    device to answer for, lets them default and looks them up itself.
     """
+    if observation_count is None:
+        observation_count = observation_counts(session, [d.device_id]).get(d.device_id, 0)
     return {
         "device_id": d.device_id,
         "name": d.name,
@@ -123,14 +127,7 @@ def _device_row(
         "label": d.label,
         "icon": d.icon,
         "color": d.color,
-        "observation_count": int(
-            session.scalar(
-                select(func.count(LocationObservation.id)).where(
-                    LocationObservation.device_id == d.device_id
-                )
-            )
-            or 0
-        ),
+        "observation_count": observation_count,
         "first_seen_at": d.first_seen_at.isoformat(),
         "last_seen_at": d.last_seen_at.isoformat(),
         # api-contract.md § /api/devices pins both keys; they were never emitted,
@@ -236,6 +233,7 @@ def _register_list_route(router: APIRouter, *, settings) -> None:
             default = get_default_device(session)
             groups_by_device = _groups_by_device(session)
             presence_by_device = _presence_by_device(session)
+            counts_by_device = observation_counts(session, [d.device_id for d in rows])
             tracked = [d for d in rows if d.is_tracked]
             interval = settings.effective_poll_interval_minutes
             return {
@@ -248,6 +246,7 @@ def _register_list_route(router: APIRouter, *, settings) -> None:
                         d,
                         groups=groups_by_device.get(d.device_id, []),
                         presence=presence_by_device.get(d.device_id, []),
+                        observation_count=counts_by_device.get(d.device_id, 0),
                     )
                     for d in rows
                 ],

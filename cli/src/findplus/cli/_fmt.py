@@ -52,22 +52,18 @@ def _print_device_table(session) -> None:
 
     One renderer so the two commands never drift (service-and-settings.md § 1 B.2).
     """
-    from sqlalchemy import func
     from sqlalchemy import select as sa_select
 
-    from findplus.db.models import Device, LocationObservation
+    from findplus.db.models import Device
+    from findplus.state import observation_counts
 
     rows = list(session.scalars(sa_select(Device).order_by(Device.name)))
+    counts = observation_counts(session, [d.device_id for d in rows])
     click.echo("")
     click.secho(f"{'':4} {'NAME':<30} {'OBS':>7}  DEVICE ID", bold=True)
     for d in rows:
-        count = session.scalar(
-            sa_select(func.count(LocationObservation.id)).where(
-                LocationObservation.device_id == d.device_id
-            )
-        )
         mark = click.style(" [x]", fg="green") if d.is_tracked else " [ ]"
-        click.echo(f"{mark} {d.name:<30} {count or 0:>7}  {d.device_id}")
+        click.echo(f"{mark} {d.name:<30} {counts.get(d.device_id, 0):>7}  {d.device_id}")
     click.echo("")
 
 

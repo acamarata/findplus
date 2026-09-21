@@ -26,17 +26,12 @@ def _devices_as_json(session, rows) -> str:
     """
     import json
 
-    from sqlalchemy import func, select
+    from findplus.state import observation_counts
 
-    from findplus.db.models import LocationObservation
-
+    counts = observation_counts(session, [d.device_id for d in rows])
     out = []
     for d in rows:
-        count = session.scalar(
-            select(func.count(LocationObservation.id)).where(
-                LocationObservation.device_id == d.device_id
-            )
-        )
+        count = counts.get(d.device_id, 0)
         out.append(
             {
                 "device_id": d.device_id,

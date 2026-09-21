@@ -13,10 +13,10 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from findplus.db.models import Device, Setting
+from findplus.db.models import Device, LocationObservation, Setting
 
 DEFAULT_DEVICE_ID = "default_device_id"
 
@@ -120,3 +120,21 @@ def _ensure_default(session: Session) -> None:
     tracked = {d.device_id for d in get_tracked_devices(session)}
     if current not in tracked:
         set_setting(session, DEFAULT_DEVICE_ID, next(iter(sorted(tracked))) if tracked else None)
+
+
+def observation_counts(session: Session, device_ids: list[str]) -> dict[str, int]:
+    """Observation totals per device, ONE grouped query for the whole list.
+
+    The API device row, `findplus devices --json` and the CLI table all show
+    this number; each used to issue a COUNT per device, so a page over N
+    trackers cost N+1 selects (E1-CF-P2-5). One shared reader here so the
+    three surfaces cannot re-diverge.
+    """
+    if not device_ids:
+        return {}
+    rows = session.execute(
+        select(LocationObservation.device_id, func.count(LocationObservation.id))
+        .where(LocationObservation.device_id.in_(device_ids))
+        .group_by(LocationObservation.device_id)
+    ).all()
+    return {device_id: int(count) for device_id, count in rows}

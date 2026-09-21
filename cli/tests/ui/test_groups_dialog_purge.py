@@ -91,6 +91,15 @@ async def test_purge_on_a_locked_boot_does_not_throw(page, base_url):
         assert not [e for e in errors if "clearLayers" in e or "of null" in e], errors
         await page.fill("#lock-pin", PIN)
         await page.click("#lock-submit")
-        await page.locator("#app-shell:not(.hidden)").wait_for(state="visible")
+        # A locked cold boot means hideLockAndRestore() is running
+        # bootDashboard() for the first time this session (config, settings,
+        # devices, status and day all sequentially awaited against the real
+        # live_server), on top of the extra alert rule _setup_purge_fixture
+        # just created -- the app-shell class flips before any of that runs,
+        # but CI's slower/shared runner (measured ~2x local wall time for
+        # this suite) can still make the default 30s too tight even though
+        # nothing is actually stuck; wait longer on the same DOM signal
+        # rather than guessing at a fixed sleep.
+        await page.locator("#app-shell:not(.hidden)").wait_for(state="visible", timeout=60000)
     finally:
         await _teardown_purge_fixture(page, base_url)

@@ -8,6 +8,7 @@ from xml.etree import ElementTree
 import pytest
 from fastapi.testclient import TestClient
 
+from findplus.db.models import Device
 from findplus.db.session import session_scope
 from findplus.groups.repo import create_group
 from findplus.ingest import ingest_observations, upsert_device
@@ -37,6 +38,17 @@ def group_client(tmp_db):
         group_id = group.id
 
     client = TestClient(create_app())
+    return client, group_id
+
+
+@pytest.fixture
+def group_client_labeled(group_client):
+    """`group_client`, but TAG-A carries a user label and TAG-B does not —
+    so every format's device_id fallback is exercised in the same export
+    (E13 blind-cap S1: group exports must carry the label, R-P2-27 item 1)."""
+    client, group_id = group_client
+    with session_scope() as session:
+        session.get(Device, "TAG-A").label = "Mom's Keys"
     return client, group_id
 
 
@@ -121,3 +133,52 @@ def test_export_group_404_when_group_tables_are_missing(group_client, monkeypatc
     resp = client.get(f"/api/export?group_id={group_id}&fmt=csv")
     assert resp.status_code == 404
     assert resp.json() == {"detail": "group not found"}
+
+
+# ----------------------------------------------------- device labels (S1)
+def test_export_group_csv_carries_device_label(group_client_labeled) -> None:
+    """CSV `label` column: TAG-A's set label, TAG-B falls back to device_id."""
+    client, group_id = group_client_labeled
+    resp = client.get(f"/api/export?group_id={group_id}&fmt=csv")
+    assert resp.status_code == 200
+    lines = resp.text.strip().splitlines()
+    header = lines[1].split(",")
+    label_col = header.index("label")
+    labels = {line.split(",")[0]: line.split(",")[label_col] for line in lines[2:]}
+    assert labels["TAG-A"] == "Mom's Keys"
+    assert labels["TAG-B"] == ""
+
+
+def test_export_group_json_carries_device_label(group_client_labeled) -> None:
+    """JSON `label` field: TAG-A's set label, TAG-B falls back to null (no
+    label row), mirroring the single-device JSON export exactly."""
+    client, group_id = group_client_labeled
+    resp = client.get(f"/api/export?group_id={group_id}&fmt=json")
+    assert resp.status_code == 200
+    rows = resp.json()
+    labels = {row["device_id"]: row["label"] for row in rows}
+    assert labels["TAG-A"] == "Mom's Keys"
+    assert labels["TAG-B"] is None
+
+
+def test_export_group_gpx_carries_device_label(group_client_labeled) -> None:
+    """GPX `<trk><name>`: TAG-A's set label, TAG-B falls back to device_id
+    (not device_name — mirrors the single-device `to_gpx()` fallback)."""
+    client, group_id = group_client_labeled
+    resp = client.get(f"/api/export?group_id={group_id}&fmt=gpx")
+    root = ElementTree.fromstring(resp.text)
+    ns = {"g": "http://www.topografix.com/GPX/1/1"}
+    names = {trk.find("g:name", ns).text for trk in root.findall(".//g:trk", ns)}
+    assert names == {"Mom's Keys", "TAG-B"}
+
+
+def test_export_group_kml_carries_device_label(group_client_labeled) -> None:
+    """KML `<Placemark><name>`: TAG-A's set label, TAG-B falls back to
+    device_id (not device_name — mirrors the single-device `to_kml()`)."""
+    client, group_id = group_client_labeled
+    resp = client.get(f"/api/export?group_id={group_id}&fmt=kml")
+    root = ElementTree.fromstring(resp.text)
+    ns = {"k": "http://www.opengis.net/kml/2.2"}
+    names = {pm.find("k:name", ns).text for pm in root.findall(".//k:Placemark", ns)}
+    assert "Mom's Keys" in names
+    assert "TAG-B" in names

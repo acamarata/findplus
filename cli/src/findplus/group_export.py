@@ -71,6 +71,21 @@ def member_observations(
     return [(did, fetch_observations(session, did, start_utc, end_utc)) for did in member_ids]
 
 
+def _labels_for(session: Session, member_ids: list[str]) -> dict[str, str]:
+    """device_id -> the user's label, for this group's members only.
+
+    Mirrors `api/_routes_history_export.py::_labels_for`: one query, devices
+    without a label are left out so callers fall back to device_id (R-P2-27
+    item 1, extended to group exports per the E13 blind-cap S1 finding).
+    """
+    if not member_ids:
+        return {}
+    pairs = session.execute(
+        select(Device.device_id, Device.label).where(Device.device_id.in_(member_ids))
+    ).all()
+    return {device_id: label for device_id, label in pairs if label}
+
+
 def export_group(
     session: Session, group_id: str, fmt: str, start_utc: datetime, end_utc: datetime, zone
 ) -> tuple[str, str]:
@@ -82,12 +97,17 @@ def export_group(
     group = resolve_group(session, group_id)
     members = member_device_ids(session, group.id)
     blocks = member_observations(session, members, start_utc, end_utc)
-    body = render_group(fmt, blocks, zone, group.name)
+    labels = _labels_for(session, members)
+    body = render_group(fmt, blocks, zone, group.name, labels)
     return body, group.name.replace(" ", "-")
 
 
 def render_group(
-    fmt: str, blocks: list[tuple[str, list[LocationObservation]]], zone, group_name: str
+    fmt: str,
+    blocks: list[tuple[str, list[LocationObservation]]],
+    zone,
+    group_name: str,
+    labels: dict[str, str] | None = None,
 ) -> str:
     """Render `blocks` (one entry per member) in `fmt`. Blocks stay in member order."""
     fmt = fmt.lower()
@@ -95,13 +115,15 @@ def render_group(
     if fmt not in renderers:
         raise ValueError(f"Unsupported export format {fmt!r}.")
     if fmt in {"gpx", "kml"}:
-        return renderers[fmt](blocks, group_name)
-    return renderers[fmt](blocks, zone)
+        return renderers[fmt](blocks, group_name, labels)
+    return renderers[fmt](blocks, zone, labels)
 
 
-def _csv(blocks, zone) -> str:
+def _csv(blocks, zone, labels: dict[str, str] | None = None) -> str:
     """device_id-first CSV. Reuses `to_csv()` per member; the column it already
-    emits for device_id is dropped so the leading one isn't duplicated."""
+    emits for device_id is dropped so the leading one isn't duplicated. The
+    per-member `labels` dict is threaded through so the `label` column is
+    populated exactly as the single-device CSV export populates it."""
     buf = io.StringIO()
     buf.write(CSV_COMMENT + "\n")
     writer = csv.writer(buf, lineterminator="\n")
@@ -109,7 +131,7 @@ def _csv(blocks, zone) -> str:
     for device_id, obs in blocks:
         # csv_table() drops to_csv()'s own disclaimer line; this file carries
         # one copy of it, written above, not one per member block.
-        reader = csv.reader(io.StringIO(csv_table(to_csv(obs, zone))))
+        reader = csv.reader(io.StringIO(csv_table(to_csv(obs, zone, labels=labels))))
         header = next(reader)
         dup = header.index("device_id")
         if not header_written:
@@ -120,12 +142,13 @@ def _csv(blocks, zone) -> str:
     return buf.getvalue()
 
 
-def _json(blocks, zone) -> str:
+def _json(blocks, zone, labels: dict[str, str] | None = None) -> str:
     """A flat list (not the single-device metadata wrapper) — device_id is
-    already on each observation dict `to_json()` produces."""
+    already on each observation dict `to_json()` produces. `labels` is passed
+    through per member so each observation's `label` field is populated."""
     combined = []
     for _device_id, obs in blocks:
-        combined.extend(json.loads(to_json(obs, zone))["observations"])
+        combined.extend(json.loads(to_json(obs, zone, labels=labels))["observations"])
     return json.dumps(combined, indent=2)
 
 
@@ -133,15 +156,18 @@ def _zulu(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _gpx(blocks, group_name: str) -> str:
-    """One `<trk>` per member inside a single GPX document, never one doc each."""
+def _gpx(blocks, group_name: str, labels: dict[str, str] | None = None) -> str:
+    """One `<trk>` per member inside a single GPX document, never one doc each.
+
+    Track name falls back to device_id without a label, mirroring the
+    single-device `to_gpx()` fallback exactly (not device_name)."""
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<gpx version="1.1" creator="findplus" xmlns="http://www.topografix.com/GPX/1/1">',
         f"  <metadata><name>{escape(group_name)}</name></metadata>",
     ]
     for device_id, obs in blocks:
-        name = obs[0].device_name if obs else device_id
+        name = (labels or {}).get(device_id) or device_id
         lines.append(f"  <trk><name>{escape(name)}</name><trkseg>")
         for o in obs:
             lines.append(f'    <trkpt lat="{o.latitude:.7f}" lon="{o.longitude:.7f}">')
@@ -152,15 +178,18 @@ def _gpx(blocks, group_name: str) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _kml(blocks, group_name: str) -> str:
-    """One `<Placemark><LineString>` per member inside a single KML document."""
+def _kml(blocks, group_name: str, labels: dict[str, str] | None = None) -> str:
+    """One `<Placemark><LineString>` per member inside a single KML document.
+
+    Placemark name falls back to device_id without a label, mirroring the
+    single-device `to_kml()` fallback exactly (not device_name)."""
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>',
         f"  <name>{escape(group_name)}</name>",
     ]
     for device_id, obs in blocks:
-        name = obs[0].device_name if obs else device_id
+        name = (labels or {}).get(device_id) or device_id
         coords = " ".join(f"{o.longitude:.7f},{o.latitude:.7f},0" for o in obs)
         lines += [
             "  <Placemark>",

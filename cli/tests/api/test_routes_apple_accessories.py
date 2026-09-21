@@ -90,6 +90,27 @@ def test_a_plist_over_64_kib_is_413_and_never_reaches_disk(client: TestClient) -
     assert _leftovers() == []
 
 
+def test_an_oversized_content_length_is_rejected_before_the_body_is_parsed(
+    client: TestClient, monkeypatch
+) -> None:
+    """E6-CRC-F6: the 413 must come from Content-Length, never from `request.form()`.
+
+    Checking `upload.size` only after `await request.form()` bounds what gets
+    written to disk but not what Starlette buffers while parsing. Patching
+    `Request.form` to fail proves the guard rejects on the header alone.
+    """
+    from starlette.requests import Request
+
+    def _form_must_not_be_called(self, *a, **k):
+        raise AssertionError("request.form() was awaited; the Content-Length guard did not short-circuit")
+
+    monkeypatch.setattr(Request, "form", _form_must_not_be_called)
+    res = client.post(URL, data={"name": "Tag 5"}, files={"plist": ("huge.plist", b"x" * 200_000)})
+    assert res.status_code == 413
+    assert res.json()["detail"] == "plist too large"
+    assert _leftovers() == []
+
+
 def test_a_plist_of_exactly_64_kib_is_not_rejected_for_size(client: TestClient) -> None:
     """The boundary is one byte above the cap, not at it."""
     payload = plistlib.dumps({"Private Key": _key_b64(b"z")})

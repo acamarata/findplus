@@ -79,6 +79,31 @@ def _require_job_id(job_id: str | None) -> str:
 #: still bounds what an oversized body can cost before anything is parsed.
 _MAX_PLIST_BYTES = 64 * 1024
 
+#: Multipart framing (boundary markers, the two part headers, the 'name'
+#: field) adds a small, bounded amount on top of the plist bytes themselves.
+_MULTIPART_OVERHEAD_BYTES = 4 * 1024
+
+
+def _reject_oversized_content_length(request: Request) -> None:
+    """413 from the Content-Length header alone, before the body is parsed.
+
+    E6-CRC-F6: checking `upload.size` after `await request.form()` bounds what
+    gets written to disk but not what Starlette buffers while parsing the
+    multipart body. A well-formed Content-Length lets us refuse the request
+    before any of it is read; a missing/invalid header (chunked transfer) is
+    not fatal here because `_read_accessory_body` still bounds the actual
+    read below.
+    """
+    raw_length = request.headers.get("content-length")
+    if raw_length is None:
+        return
+    try:
+        declared = int(raw_length)
+    except ValueError:
+        return
+    if declared > _MAX_PLIST_BYTES + _MULTIPART_OVERHEAD_BYTES:
+        raise HTTPException(status_code=413, detail="plist too large")
+
 
 async def _read_accessory_body(request: Request, settings) -> tuple[str, Path | None, str | None]:
     """(name, plist_path, private_key_b64) from whichever body shape arrived.
@@ -89,6 +114,7 @@ async def _read_accessory_body(request: Request, settings) -> tuple[str, Path | 
     Content-Type only routes; the parse still rejects garbage on its own.
     """
     if request.headers.get("content-type", "").startswith("multipart/form-data"):
+        _reject_oversized_content_length(request)
         form = await request.form()
         raw_name = form.get("name")
         upload = form.get("plist")

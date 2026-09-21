@@ -103,11 +103,14 @@ export async function loadStatus() {
   }
 }
 
-export async function loadConfig() {
-  state.config = await api("/api/config");
-  // The footer sentences are rendered by devices.syncProviderNotice(), which
-  // needs the device list to know which providers are actually tracked.
-  return state.config;
+let configLoad = null;
+
+/** Fetch /api/config, sharing one in-flight request so a caller racing
+ *  bootDashboard() (openSettings(), openSetupRoute()) never double-fetches
+ *  (CI run 35546305331). Clears once settled, so a later call still refetches. */
+export function loadConfig() {
+  configLoad ??= api("/api/config").then((c) => (state.config = c)).finally(() => (configLoad = null));
+  return configLoad;
 }
 
 export async function reload() {

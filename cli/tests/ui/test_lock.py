@@ -12,6 +12,7 @@ The DOM/dialog purge tests split out to test_lock_purge.py (PRI rule 7,
 
 from __future__ import annotations
 
+import asyncio
 import json
 
 import pytest
@@ -21,27 +22,20 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 PIN = "864213"
 
 
-async def _open_settings(page, base_url) -> None:
-    """Go to the dashboard and open Settings without racing boot.
+async def _wait_for_lock_caveat(page) -> str:
+    """The text of #lock-caveat, once it actually has some.
 
-    openSettings() (web/app/settings.js) reads state.config for the About
-    line before it unhides #settings-modal, and main.js's bootDashboard()
-    sets state.config asynchronously on its own first await. A click that
-    lands before that resolves makes openSettings() throw a TypeError
-    ("Cannot read properties of null (reading 'poll_interval_minutes')"),
-    caught into the alert banner -- so #settings-modal, and everything in
-    it including #lock-caveat, never comes out of `hidden` (CI run
-    35546305331: reproduced locally on a cold live_server, ~40% of runs,
-    always missing the trailing /api/settings/app.start_at_login request
-    that only fires after that line). test_auth_panel.py's `_open_settings`
-    hits the identical race and fixes it the same way: wait for the value
-    openSettings() needs rather than a wall-clock guess.
+    openSettings() (web/app/settings.js) now unhides #settings-modal
+    immediately on click and fills #lock-caveat afterward, from a separate
+    /api/lock/requirements round trip -- so `state="visible"` alone no longer
+    proves the text has landed (CI run 35546305331 fix; see
+    test_settings_opens_before_config_resolves below for the race this
+    replaced).
     """
-    await page.goto(base_url + "/")
     await page.wait_for_function(
-        "async () => (await import('/static/app/state.js')).state.config !== null"
+        "() => document.getElementById('lock-caveat').textContent.length > 0"
     )
-    await page.click("#btn-settings")
+    return await page.locator("#lock-caveat").inner_text()
 
 
 async def test_lock_status_endpoint(page, base_url):
@@ -64,10 +58,9 @@ async def test_lock_not_encryption_notice_present(page, base_url):
     copy next to the setting it describes, is the one that stays
     (E1 honesty round 3 F13).
     """
-    await _open_settings(page, base_url)
-    notice = page.locator("#lock-caveat")
-    await notice.wait_for(state="visible")
-    assert "The app lock stops casual browsing." in await notice.inner_text()
+    await page.goto(base_url + "/")
+    await page.click("#btn-settings")
+    assert "The app lock stops casual browsing." in await _wait_for_lock_caveat(page)
 
     copies = await page.evaluate(
         """() => [...document.querySelectorAll('#settings-modal p')]
@@ -111,9 +104,7 @@ async def test_places_repopulate_after_unlock_without_reload(page, base_url):
         await page.wait_for_selector("#map svg path.leaflet-interactive")
 
         await page.click("#btn-settings")
-        notice = page.locator("#lock-caveat")
-        await notice.wait_for(state="visible")
-        assert "The app lock stops casual browsing." in await notice.inner_text()
+        assert "The app lock stops casual browsing." in await _wait_for_lock_caveat(page)
     finally:
         del_resp = await page.request.delete(
             f"{base_url}/api/settings/pin",
@@ -204,3 +195,37 @@ async def test_the_lock_screen_states_the_lock_is_not_encryption(page, base_url)
             headers={"Content-Type": "application/json"},
         )
         assert del_resp.ok, await del_resp.text()
+
+
+async def test_settings_opens_before_config_resolves(page, base_url):
+    """CI run 35546305331: openSettings() (web/app/settings.js) used to read
+    state.config for the About line before unhiding #settings-modal, so a
+    click that landed before bootDashboard()'s /api/config request resolved
+    threw and left the whole dialog -- #lock-caveat included -- hidden
+    forever. The fix opens the dialog first and fills the About line (which
+    needs state.config) once loadConfig() actually lands, reusing the same
+    loader main.js does instead of a second fetch. Delaying /api/config here
+    reproduces the slow-boot case deterministically instead of racing a real
+    cold start.
+    """
+
+    async def delay_config(route):
+        await asyncio.sleep(1.5)
+        await route.continue_()
+
+    await page.route("**/api/config", delay_config)
+    await page.goto(base_url + "/")
+    await page.click("#btn-settings")
+
+    # Open immediately: well inside the 1.5s /api/config delay above.
+    await page.locator("#settings-modal:not(.hidden)").wait_for(state="visible", timeout=500)
+    about = page.locator("#settings-about")
+    assert await about.inner_text() == ""
+
+    # The About line (state.config.poll_interval_minutes) fills in once the
+    # delayed response lands, not before.
+    await page.wait_for_function(
+        "() => document.getElementById('settings-about').textContent.length > 0",
+        timeout=5000,
+    )
+    assert "polling every" in await about.inner_text()

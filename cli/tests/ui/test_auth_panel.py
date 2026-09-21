@@ -15,7 +15,6 @@ follows for honesty sentences.
 from __future__ import annotations
 
 import pytest
-from playwright.async_api import TimeoutError as PlaywrightTimeout
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -35,27 +34,17 @@ async def _catalog(page, base_url) -> dict:
 
 
 async def _open_settings(page, base_url) -> None:
+    """Go to the dashboard and open Settings.
+
+    openSettings() (web/app/settings.js) unhides #settings-modal before any
+    await now, so the click below no longer races state.config or needs a
+    retry-and-diagnose loop (CI run 35546305331 fix) -- one deterministic
+    wait for the sign-in panel's static host is enough to know the dialog
+    is open.
+    """
     await page.goto(base_url + DASHBOARD)
-    # openSettings() reads state.config for the About line and throws into its
-    # own catch when the boot has not set it yet, so the dialog silently never
-    # opens. Wait for the value it needs rather than for a wall-clock guess.
-    await page.wait_for_function(
-        "async () => (await import('/static/app/state.js')).state.config !== null"
-    )
-    # openSettings() swallows any failure into the alert banner and leaves the
-    # dialog closed, so a bare wait_for_selector reports "hidden" and says
-    # nothing about why. Click again once, then fail with what the banner says.
-    for attempt in range(2):
-        await page.click("#btn-settings")
-        try:
-            await page.wait_for_selector("#fp-settings-signin", timeout=10000)
-            return
-        except PlaywrightTimeout as timeout:
-            if attempt:
-                banner = await page.locator("#alert").inner_text()
-                raise AssertionError(
-                    f"Settings never opened; alert banner said: {banner!r}"
-                ) from timeout
+    await page.click("#btn-settings")
+    await page.wait_for_selector("#fp-settings-signin")
 
 
 async def _render_google_progress(page, progress: dict) -> None:

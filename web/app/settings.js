@@ -74,12 +74,29 @@ export async function saveSettings(patch) {
   return state.settings;
 }
 
-/** Open the Settings dialog, refreshing everything it displays. */
+/**
+ * Open the Settings dialog immediately, then fill in everything it shows.
+ *
+ * Unhiding and trapping focus happen before any await: a slow daemon or a
+ * request that fails below must still leave the user a dialog they can see,
+ * read and Escape out of, not a permanently hidden one. Before this, the
+ * About line read state.config ahead of loadConfig() resolving and threw,
+ * caught into the alert banner with #settings-modal never unhidden (CI run
+ * 35546305331). state.config is now awaited explicitly, via main.js's own
+ * loader (loadConfig() shares its in-flight request, so this is never a
+ * second /api/config fetch) rather than assumed already loaded.
+ */
 export async function openSettings() {
+  $("settings-modal").classList.remove("hidden");
+  settingsTrap = trapFocus($("settings-modal"), closeSettings);
   try {
     await loadSettings();
     const req = await api("/api/lock/requirements");
     $("lock-caveat").textContent = req.caveat;
+    if (!state.config) {
+      const main = await import("./main.js");
+      await main.loadConfig();
+    }
     const health = await api("/api/health");
     $("settings-about").textContent = t("settings.about", {
       version: health.version,
@@ -89,16 +106,12 @@ export async function openSettings() {
     });
     const startAtLogin = await api("/api/settings/app.start_at_login");
     $("setting-start-at-login").checked = startAtLogin["app.start_at_login"];
-    $("settings-modal").classList.remove("hidden");
     // Re-read the sign-in status on every open (ruling R-P2-8): a sign-in
     // completed in a Chrome window or another tab is visible next time.
     // Dynamic, so settings.js keeps no static dependency on auth.js. Awaited
     // inside this try/catch: unawaited, a failed import or a mountAuthPanel
     // that threw rejected into nothing, leaving the panel blank with no
     // message anywhere (CR-C-E10 F2).
-    // The focus trap goes on first, so a sign-in panel that fails to mount
-    // cannot leave an open dialog with no way to Escape out of it.
-    settingsTrap = trapFocus($("settings-modal"), closeSettings);
     const auth = await import("./auth.js");
     await auth.mountAuthPanel($("fp-settings-signin"));
   } catch (e) {

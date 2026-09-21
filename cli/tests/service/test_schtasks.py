@@ -57,6 +57,15 @@ def test_plan_schtasks_unit_text_parses_as_utf16(tmp_db) -> None:
     ET.fromstring(text.encode("utf-16"))  # must not raise
 
 
+# ------------------------------------------------------------------------- c2
+def test_plan_schtasks_execution_time_limit_is_unlimited(tmp_db) -> None:
+    """PT1H killed the daemon every hour (blind B4); PT0S means no limit."""
+    settings = get_settings()
+    text = schtasks.plan_schtasks(settings).unit_text
+    assert "<ExecutionTimeLimit>PT0S</ExecutionTimeLimit>" in text
+    assert "PT1H" not in text
+
+
 # ------------------------------------------------------------------------- d
 def test_plan_schtasks_program_override_verbatim(tmp_db) -> None:
     settings = get_settings()

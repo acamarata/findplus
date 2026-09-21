@@ -43,7 +43,7 @@ def _task_xml(program: str, args: list[str]) -> str:
     <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
     <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
     <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
-    <ExecutionTimeLimit>PT1H</ExecutionTimeLimit>
+    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
     <Hidden>false</Hidden>
     <StartWhenAvailable>true</StartWhenAvailable>
   </Settings>

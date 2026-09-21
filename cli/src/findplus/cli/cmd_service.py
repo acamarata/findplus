@@ -116,7 +116,7 @@ def start(yes: bool, no_open: bool, program_override: str | None, no_track_all: 
     from findplus.providers.google_findhub.bootstrap import describe_stored_auth
     from findplus.state import get_tracked_devices
 
-    from .cmd_devices import _POLL_NOW_UNAUTHENTICATED
+    from .cmd_poll import _POLL_NOW_UNAUTHENTICATED
 
     settings = get_settings()
     auth_info = describe_stored_auth()

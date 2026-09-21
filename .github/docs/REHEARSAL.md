@@ -74,6 +74,40 @@ REHEARSAL-LINUX-PASS
 
 A missing Chrome on Linux is recorded output, never a failure.
 
+## P2 findplus setup leg (Linux)
+
+Run 2026-09-21 by the P2-E13-W6-S1-T5 builder, appended to the same
+`packaging/scripts/rehearsal-linux-inner.sh` between the existing uninstall block and the final
+`REHEARSAL-LINUX-PASS` line. P2 ships no Linux desktop GUI (`phase.yaml` `non_goals`), so this leg
+proves the CLI-only headless first run (`findplus setup`), not the web wizard (that is T4's
+browser-driven rehearsal). `findplus setup --help` shows a flag-based non-interactive mode
+(`--yes`), not a piped-stdin prompt sequence, so this leg uses that flag form instead of piping
+`track-all`/`skip`/`skip` answers (ticket's fallback instruction for exactly this case).
+
+```
+== findplus setup (headless, D-P2-10)
+  Python:  python3.12 (Python 3.12.14)
+  Venv:    /tmp/fp-home/.local/share/findplus/venv
+  Symlink: /tmp/fp-home/.local/bin/findplus
+  Package: /src/dist/findplus-1.0.0-py3-none-any.whl
+Installed. Run: findplus setup   (or findplus auth && findplus start)
+Find+ is not affiliated with Apple or Google. Find Hub and Find My are their trademarks.
+Run `findplus auth` later to sign in.
+Tracked nothing. Run `findplus devices --track-all` later.
+Add places from the dashboard.
+Configure WhatsApp, webhook or native notifications from the dashboard.
+Setup complete. Run `findplus start` to begin polling.
+{"status":"ok","app":"findplus","version":"1.0.0", ...}
+{"theme":"dark", ..., "onboarding.completed_at":null,"onboarding.last_step":"headless"}
+REHEARSAL-LINUX-PASS
+```
+
+R-P2-24: `--yes` never stamps `onboarding.completed_at`; it writes `onboarding.last_step =
+"headless"` instead, so `install.sh --start` on a curl-pipe/brew install still leaves the web
+first-run wizard armed on the dashboard's first visit. The completion assertion reads
+`GET /api/settings` (never `findplus config get`, which only reads `config.env` and would
+vacuously pass on an empty line) and checks both dotted keys directly with `python3 -c`.
+
 ## Defects found and fixes
 
 | File | Symptom | Fix |
@@ -82,6 +116,7 @@ A missing Chrome on Linux is recorded output, never a failure.
 | `install.sh` | `--uninstall` left an empty `~/.local/share/findplus` behind | the uninstall path `rmdir`s the prefix when it is empty |
 | `install.sh` | a second install printed exactly what the first did, so nothing showed the upgrade path had been taken | the existing-venv branch prints `Existing venv found, running pip install --upgrade` |
 | `cli/src/findplus/service/watchdog.py` | `findplus uninstall --yes` raised `FileNotFoundError: 'systemctl'` inside the container, which install.sh then reported as a service uninstall error | the three watchdog calls go through `service/_proc.run`, which checks the binary first |
+| `cli/src/findplus/cli/cmd_service.py` | the DoD's `pytest cli/tests` gate (unrelated to this leg's own script) failed on import: `cmd_service.py` imported `_POLL_NOW_UNAUTHENTICATED` from `.cmd_devices`, which does not define it; the constant lives in `.cmd_poll` (introduced by `33d14981`, 2026-09-20, pre-existing before this ticket started) | one-line import fix, `from .cmd_poll import _POLL_NOW_UNAUTHENTICATED` |
 | `packaging/scripts/rehearse-fresh-machine.sh` | the doctor assertion in the ticket text was `not signed in`; the implemented wording is `not signed-in` | the script asserts the implemented line |
 
 Each fix was made inside this ticket and both legs were re-run green afterwards.

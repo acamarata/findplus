@@ -71,4 +71,23 @@ test ! -e "$HOMEDIR/.local/bin/findplus"
 grep -F "$HOMEDIR/.findplus" "$LOG/uninstall.log"
 test -d "$HOMEDIR/.findplus"
 
+echo "== findplus setup (headless, D-P2-10)"
+env -i HOME="$HOMEDIR" PATH="$PATH" TERM=dumb FINDPLUS_YES=1 FINDPLUS_WHEEL="$WHEEL" \
+  bash /src/install.sh 2>&1 | tee "$LOG/reinstall-for-setup.log"
+env -i HOME="$HOMEDIR" PATH="$PATH" TERM=dumb "$FPBIN" setup --yes \
+  2>&1 | tee "$LOG/setup.log"
+if grep -qi traceback "$LOG/setup.log"; then
+  echo "FAIL: findplus setup --yes raised a Python traceback" >&2
+  exit 1
+fi
+env -i HOME="$HOMEDIR" PATH="$PATH" TERM=dumb "$FPBIN" serve --no-poller --port 18647 &
+PID2=$!
+curl -fsS --retry 30 --retry-delay 1 --retry-connrefused \
+  http://127.0.0.1:18647/api/health | grep -F '"app":"findplus"'
+curl -fsS http://127.0.0.1:18647/api/settings | tee "$LOG/settings-after-setup.json" \
+  | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['onboarding.last_step'] == 'headless', d; assert d['onboarding.completed_at'] is None, d"
+cat "$LOG/settings-after-setup.json"
+kill "$PID2"
+wait "$PID2" 2>/dev/null || true
+
 echo REHEARSAL-LINUX-PASS

@@ -219,4 +219,53 @@ def test_export_forwards_labels_to_every_format(rows) -> None:
     assert "Mom's Keys" in export("csv", rows, EASTERN, labels=labels)
     assert "Mom's Keys" in export("json", rows, EASTERN, labels=labels)
     for fmt in ("gpx", "kml"):
-        assert export(fmt, rows, EASTERN, name="Find+ history", labels=labels)
+        assert "Mom's Keys" in export(fmt, rows, EASTERN, name="Find+ history", labels=labels)
+
+
+def test_gpx_track_points_use_the_device_label(rows) -> None:
+    """R-P2-27-1: the GPX `<trkpt><name>`/`<desc>` must carry the device label."""
+    body = to_gpx(rows, EASTERN, labels={"TAG-001": "Mom's Keys"})
+    root = ElementTree.fromstring(body)
+    ns = {"g": "http://www.topografix.com/GPX/1/1"}
+    trkpts = root.findall(".//g:trkpt", ns)
+    assert trkpts, "fixture must produce at least one track point"
+    for pt in trkpts:
+        assert pt.find("g:name", ns).text == "Mom's Keys"
+        assert pt.find("g:desc", ns).text == "Mom's Keys"
+
+
+def test_gpx_track_points_fall_back_to_device_id_without_a_label(rows) -> None:
+    body = to_gpx(rows, EASTERN)
+    root = ElementTree.fromstring(body)
+    ns = {"g": "http://www.topografix.com/GPX/1/1"}
+    trkpts = root.findall(".//g:trkpt", ns)
+    assert trkpts
+    for pt in trkpts:
+        assert pt.find("g:name", ns).text == "TAG-001"
+
+
+def test_kml_placemarks_use_the_device_label(rows) -> None:
+    """R-P2-27-1: each observation Placemark's `<name>` must carry the device label."""
+    body = to_kml(rows, EASTERN, labels={"TAG-001": "Mom's Keys"})
+    root = ElementTree.fromstring(body)
+    ns = {"k": "http://www.opengis.net/kml/2.2"}
+    names = [
+        pm.find("k:name", ns).text
+        for pm in root.findall(".//k:Placemark", ns)
+        if pm.find("k:name", ns).text != "Observed path"
+    ]
+    assert names, "fixture must produce at least one observation placemark"
+    assert all(name.startswith("Mom's Keys (") for name in names)
+
+
+def test_kml_placemarks_fall_back_to_device_id_without_a_label(rows) -> None:
+    body = to_kml(rows, EASTERN)
+    root = ElementTree.fromstring(body)
+    ns = {"k": "http://www.opengis.net/kml/2.2"}
+    names = [
+        pm.find("k:name", ns).text
+        for pm in root.findall(".//k:Placemark", ns)
+        if pm.find("k:name", ns).text != "Observed path"
+    ]
+    assert names
+    assert all(name.startswith("TAG-001 (") for name in names)

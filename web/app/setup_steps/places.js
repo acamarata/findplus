@@ -10,7 +10,11 @@
  * Constraints: Skip is a true no-op. The map is the one Leaflet instance
  *              state.map already holds: this step borrows the element while it
  *              is on screen and hands it back in onLeave, never building a
- *              second map.
+ *              second map. The dashboard's "Observed path" disclaimer rides
+ *              along inside `.map-pane` (it is a sibling of `#map`, not a
+ *              child); it is hidden for the duration, since a first-run,
+ *              near-empty map has no observed path for the sentence to
+ *              describe (visual gate W4 F3).
  */
 "use strict";
 
@@ -31,11 +35,15 @@ function borrowMap(host) {
   const pane = document.querySelector(".map-pane");
   if (!pane || borrowed) return;
   borrowed = { parent: pane.parentNode, before: pane.nextSibling, pane };
+  const disclaimer = document.getElementById("path-disclaimer");
+  if (disclaimer) disclaimer.hidden = true;
   host.append(pane);
 }
 
 function returnMap(ctx) {
   if (!borrowed) return;
+  const disclaimer = document.getElementById("path-disclaimer");
+  if (disclaimer) disclaimer.hidden = false;
   borrowed.parent.insertBefore(borrowed.pane, borrowed.before);
   borrowed = null;
   if (ctx.state.map) ctx.state.map.invalidateSize();

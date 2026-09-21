@@ -132,31 +132,40 @@ def start(yes: bool, no_open: bool, program_override: str | None, no_track_all: 
     if not tracked:
         _discover_and_track(auth_info["exists"], apple_signed_in, no_track_all)
 
-    program = None
-    if program_override:
-        program = str(Path(program_override).resolve())
-    else:
-        import shutil as _shutil
-
-        found_bin = _shutil.which("findplus") or sys.argv[0]
-        program = str(Path(found_bin).resolve())
-
-    if service.is_installed():
-        service.start()
-        click.echo("Service already installed; started.")
-    else:
-        _show_service_plan(service.plan(program=program))
-        _show_service_plan(service.watchdog_plan(program=program))
-        if not yes:
-            click.echo("Pass --yes to write these files and load the service.")
-            return
-        service.install(confirmed=True, program=program)
-        service.install_watchdog(confirmed=True, program=program)
-        click.secho("Service started.", fg="green")
+    program = _resolve_program(program_override)
+    if not _install_or_start(service, program, yes):
+        return
 
     click.echo(f"Dashboard: {settings.base_url}")
     if not no_open:
         webbrowser.open(settings.base_url)
+
+
+def _resolve_program(program_override: str | None) -> str:
+    if program_override:
+        return str(Path(program_override).resolve())
+    import shutil as _shutil
+
+    found_bin = _shutil.which("findplus") or sys.argv[0]
+    return str(Path(found_bin).resolve())
+
+
+def _install_or_start(service, program: str, yes: bool) -> bool:
+    """True once the service is running; False means the plan was only shown
+    (no --yes), so the caller must stop before touching the dashboard."""
+    if service.is_installed():
+        service.start()
+        click.echo("Service already installed; started.")
+        return True
+    _show_service_plan(service.plan(program=program))
+    _show_service_plan(service.watchdog_plan(program=program))
+    if not yes:
+        click.echo("Pass --yes to write these files and load the service.")
+        return False
+    service.install(confirmed=True, program=program)
+    service.install_watchdog(confirmed=True, program=program)
+    click.secho("Service started.", fg="green")
+    return True
 
 
 @click.command()

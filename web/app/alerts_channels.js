@@ -164,8 +164,13 @@ async function sendTelegramTest() {
   }
 }
 async function clearTelegramChannel() {
-  await fetch("/api/alerts/channels/telegram", { method: "DELETE" });
-  await loadChannels();
+  try {
+    await api("/api/alerts/channels/telegram", { method: "DELETE" });
+    await loadChannels();
+  } catch (err) {
+    // Never an unhandled rejection; api() handles a 401 by itself (loop2 B3).
+    if (err.message !== "Locked") $("fp-tg-status").textContent = err.message;
+  }
 }
 async function saveWebhook() {
   const url = $("fp-webhook-url").value.trim();
@@ -182,8 +187,14 @@ async function saveWebhook() {
   } catch (_) { /* api() already surfaced the lock screen or an error */ }
 }
 async function removeWebhook() {
-  await fetch("/api/alerts/channels/webhook", { method: "DELETE" });
-  await loadChannels();
+  try {
+    await api("/api/alerts/channels/webhook", { method: "DELETE" });
+    await loadChannels();
+  } catch (_) {
+    // Webhook has no status slot of its own (unlike Telegram/WhatsApp) --
+    // matches saveWebhook() above, which already swallows the same way
+    // (loop2 B3: the fix is api()'s try/catch, not a new UI surface).
+  }
 }
 
 

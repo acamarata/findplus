@@ -78,6 +78,57 @@ async def test_telegram_token_cleared_on_focus(page, base_url, configured_telegr
     assert await token_input.input_value() == ""
 
 
+async def test_clear_telegram_channel_round_trips(page, base_url, configured_telegram):
+    """loop2 B3: clearTelegramChannel() used to bypass api() with a raw
+    fetch(), so a successful clear was never actually verified end to end."""
+    await _open_alerts_tab(page, base_url)
+    await page.click("#fp-tg-clear")
+    await page.wait_for_function(
+        """async () => {
+            const r = await fetch('/api/alerts/channels');
+            const body = await r.json();
+            return body.telegram.configured === false;
+        }"""
+    )
+
+
+async def test_clear_telegram_channel_surfaces_a_failed_delete(page, base_url, configured_telegram):
+    """loop2 B3: a non-401 DELETE failure used to be silently swallowed (no
+    res.ok check, no try/catch) while loadChannels() still ran unconditionally
+    afterward, and the promise rejection escaped the click handler unhandled."""
+
+    async def fail_delete(route):
+        await route.fulfill(status=500, content_type="application/json", body='{"detail":"boom"}')
+
+    await _open_alerts_tab(page, base_url)
+    await page.route("**/api/alerts/channels/telegram", fail_delete)
+    await page.click("#fp-tg-clear")
+    await page.wait_for_function("document.getElementById('fp-tg-status').textContent.length > 0")
+    assert "boom" in await page.locator("#fp-tg-status").inner_text()
+
+
+async def test_remove_webhook_round_trips(page, base_url):
+    """loop2 B3: removeWebhook() had the same raw-fetch bug as
+    clearTelegramChannel() -- this pins the successful path actually clears
+    the saved webhook, not just that the button no longer throws."""
+    save = await page.request.put(
+        base_url + "/api/alerts/channels/webhook",
+        data=json.dumps({"url": "http://localhost:9999/hook-remove-me", "secret": None}),
+        headers={"Content-Type": "application/json"},
+    )
+    assert save.ok, await save.text()
+
+    await _open_alerts_tab(page, base_url)
+    await page.click("#fp-webhook-remove")
+    await page.wait_for_function(
+        """async () => {
+            const r = await fetch('/api/alerts/channels');
+            const body = await r.json();
+            return body.webhook.configured === false;
+        }"""
+    )
+
+
 async def test_alerts_latency_disclaimer_present(page, base_url):
     await _open_alerts_tab(page, base_url)
     notice = page.locator("#fp-alerts-latency-notice")
@@ -225,8 +276,12 @@ async def test_delivery_log_shows_channel_and_status(page, base_url, ui_db):
     assert cells[7] == "connection refused"
 
 
-@pytest.mark.parametrize("viewport", [{"width": 1280, "height": 900}, {"width": 375, "height": 812}])
-async def test_delivery_log_channel_and_kind_text_stays_inside_its_cell(page, base_url, ui_db, viewport):
+@pytest.mark.parametrize(
+    "viewport", [{"width": 1280, "height": 900}, {"width": 375, "height": 812}]
+)
+async def test_delivery_log_channel_and_kind_text_stays_inside_its_cell(
+    page, base_url, ui_db, viewport
+):
     """loop2 L2-6: Channel/Kind painted past their own cell into the
     neighbouring column's text at 1280 and 375 -- components.css truncated
     Text/Body/Error with an ellipsis but not these two.
@@ -301,7 +356,9 @@ async def test_delivery_log_channel_and_kind_text_stays_inside_its_cell(page, ba
             "to prove the cap actually bites"
         )
         assert box["overflow"] == "hidden", f"{column}: overflow is {box['overflow']!r}, not hidden"
-        assert box["textOverflow"] == "ellipsis", f"{column}: text-overflow is {box['textOverflow']!r}"
+        assert box["textOverflow"] == "ellipsis", (
+            f"{column}: text-overflow is {box['textOverflow']!r}"
+        )
         assert box["whiteSpace"] == "nowrap", f"{column}: white-space is {box['whiteSpace']!r}"
 
 

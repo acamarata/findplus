@@ -79,8 +79,9 @@ export async function api(path, options) {
   }
   // A 204 has no body, and res.json() on an empty body rejects with a parse
   // error that reads like a server failure. Every DELETE route in this API
-  // answers 204, which is why places.js and alerts_rules.js reach past this
-  // wrapper to a raw fetch() — and lose the 401 lock handling with it.
+  // answers 204 (loop2 B4: places.js and alerts_channels.js's
+  // clearTelegramChannel()/removeWebhook() used to reach past this wrapper
+  // to a raw fetch() and lose the 401 lock handling with it; both are fixed).
   if (res.status === 204) return null;
   return res.json();
 }

@@ -32,6 +32,7 @@ from . import (
 )
 from .alerts import alerts_cmd
 from .cmd_mcp import mcp
+from .cmd_poll import poll_now
 from .cmd_version import version_cmd
 from .doctor import doctor_cmd
 from .groups import groups_cmd
@@ -71,7 +72,7 @@ main.add_command(cmd_diagnostics.pin_group)
 main.add_command(cmd_diagnostics.theme)
 
 main.add_command(cmd_devices.devices)
-main.add_command(cmd_devices.poll_now)
+main.add_command(poll_now)
 
 main.add_command(cmd_history.export)
 main.add_command(cmd_history.prune)

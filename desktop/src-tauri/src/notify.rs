@@ -8,7 +8,11 @@
 //! Outputs    : OS notifications (generic or detailed); POST .../ack calls; notify-cursor.json.
 //! Constraints: next_cursor/should_process/generic_pair are pure and unit-tested without
 //!              network, matching status.rs's from_api/dot_color split. Every network
-//!              helper fails CLOSED to the generic pair, never open to real content.
+//!              helper fails CLOSED to the generic pair, never open to real content. The
+//!              poll cadence backs off on an unreachable daemon or a daemon-error status
+//!              (loop2 C2): 15s when healthy, doubling to a 60s cap, reset to 15s the
+//!              moment the daemon answers again (a 401 counts as answering — locked is
+//!              not a failure, see should_back_off).
 
 use serde::Deserialize;
 use std::path::PathBuf;
@@ -20,6 +24,7 @@ use tauri_plugin_notification::{NotificationExt, PermissionState};
 const GENERIC_TITLE: &str = "Find+ alert";
 const GENERIC_BODY: &str = "Find+ alert — open Find+ to see details";
 const POLL_SECONDS: u64 = 15;
+const MAX_POLL_SECONDS: u64 = 60;
 const HTTP_TIMEOUT: Duration = Duration::from_secs(5);
 const CURSOR_FILE: &str = "notify-cursor.json";
 
@@ -58,6 +63,26 @@ fn should_process(http_status: Option<u16>) -> bool {
 /// current value unchanged when the response was empty or unprocessed.
 fn next_cursor(current: u64, rows: &[DeliveryRow]) -> u64 {
     rows.iter().map(|r| r.id).fold(current, u64::max)
+}
+
+/// True when this cycle's outcome should back off the NEXT poll's delay. A missing
+/// response (connection refused, timeout) or a daemon-reported error status both mean
+/// something is actually wrong; a 401 means the daemon is up and just locked, which is
+/// normal operation, not a failure worth slowing down for.
+fn should_back_off(http_status: Option<u16>) -> bool {
+    !matches!(http_status, Some(200) | Some(401))
+}
+
+/// The delay before the NEXT poll: the 15s base while healthy, doubling on every
+/// consecutive unreachable/error cycle up to a 60s cap, reset to the base the moment the
+/// daemon answers again (200 or 401). Never returns less than the base, so a caller that
+/// (incorrectly) passes a sub-base `current` still can't produce a busy loop.
+fn next_poll_delay(current: Duration, http_status: Option<u16>) -> Duration {
+    let base = Duration::from_secs(POLL_SECONDS);
+    if !should_back_off(http_status) {
+        return base;
+    }
+    current.saturating_mul(2).clamp(base, Duration::from_secs(MAX_POLL_SECONDS))
 }
 
 /// Pure decision: given the two upstream flags, which title/body pair to show. Locked
@@ -241,10 +266,13 @@ fn show_cycle(app: &tauri::AppHandle, rows: &[DeliveryRow]) {
     }
 }
 
-/// Poll every 15 s (D-P2-9); post each queued native delivery, ack it, advance the cursor.
+/// Poll every 15 s while healthy (D-P2-9), backing off to a 60 s cap while the daemon is
+/// unreachable or erroring (loop2 C2, next_poll_delay); post each queued native delivery,
+/// ack it, advance the cursor.
 pub fn start(app: tauri::AppHandle) {
     std::thread::spawn(move || {
         let mut cursor = read_cursor(&app);
+        let mut delay = Duration::from_secs(POLL_SECONDS);
         loop {
             let (http_status, rows) = fetch_deliveries(cursor);
             if should_process(http_status) {
@@ -254,7 +282,8 @@ pub fn start(app: tauri::AppHandle) {
                 cursor = next_cursor(cursor, &rows);
                 write_cursor(&app, cursor);
             }
-            std::thread::sleep(Duration::from_secs(POLL_SECONDS));
+            delay = next_poll_delay(delay, http_status);
+            std::thread::sleep(delay);
         }
     });
 }

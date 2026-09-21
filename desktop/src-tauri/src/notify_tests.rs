@@ -67,6 +67,57 @@ fn should_process_is_false_when_the_daemon_is_down() {
     assert!(!should_process(None));
 }
 
+// ---------------------------------------------------------------------------
+// Backoff (loop2 C2): next_poll_delay is the pure decision behind start()'s
+// sleep duration.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn next_poll_delay_stays_at_the_base_on_success() {
+    assert_eq!(
+        next_poll_delay(Duration::from_secs(15), Some(200)),
+        Duration::from_secs(15)
+    );
+}
+
+#[test]
+fn next_poll_delay_resets_to_the_base_when_locked() {
+    // A 401 means the daemon answered; locked is normal operation, not a failure.
+    assert_eq!(
+        next_poll_delay(Duration::from_secs(60), Some(401)),
+        Duration::from_secs(15)
+    );
+}
+
+#[test]
+fn next_poll_delay_doubles_on_each_unreachable_cycle_up_to_the_cap() {
+    let d = next_poll_delay(Duration::from_secs(15), None);
+    assert_eq!(d, Duration::from_secs(30));
+    let d = next_poll_delay(d, None);
+    assert_eq!(d, Duration::from_secs(60));
+    // Capped, not doubled past it.
+    let d = next_poll_delay(d, None);
+    assert_eq!(d, Duration::from_secs(60));
+}
+
+#[test]
+fn next_poll_delay_doubles_on_a_daemon_error_status_too() {
+    assert_eq!(
+        next_poll_delay(Duration::from_secs(15), Some(500)),
+        Duration::from_secs(30)
+    );
+}
+
+#[test]
+fn next_poll_delay_never_produces_a_busy_loop_below_the_base() {
+    // Defensive: a smaller-than-base starting delay should never happen in
+    // practice, but the clamp must never let the next sleep go below 15s.
+    assert_eq!(
+        next_poll_delay(Duration::from_secs(1), None),
+        Duration::from_secs(15)
+    );
+}
+
 #[test]
 fn a_delivery_row_deserializes_its_text_and_body() {
     let parsed: DeliveryRow =
@@ -261,6 +312,19 @@ fn fetch_native_detail_enabled_from_fails_closed_on_connection_refused() {
 fn fetch_native_detail_enabled_from_fails_closed_when_the_key_is_absent() {
     let base = fake_server("HTTP/1.1 200 OK", r#"{"poll.interval_minutes": 5}"#);
     assert!(!fetch_native_detail_enabled_from(&base));
+}
+
+#[test]
+fn a_refused_connection_backs_off_the_next_poll() {
+    // Ties the real-socket fetch to the backoff decision: exactly what start()'s loop
+    // does with fetch_deliveries()'s returned status each cycle.
+    let (status, rows) = fetch_deliveries_from(REFUSED, 0);
+    assert_eq!(status, None);
+    assert!(rows.is_empty());
+    assert_eq!(
+        next_poll_delay(Duration::from_secs(15), status),
+        Duration::from_secs(30)
+    );
 }
 
 #[test]

@@ -53,14 +53,8 @@ function labeled(text, input) {
   return label;
 }
 
-function ensureDialog() {
-  if (dialogEl) return dialogEl;
-
-  const dlg = document.createElement("dialog");
-  dlg.id = "fp-place-dialog";
-  const form = document.createElement("form");
-  form.method = "dialog";
-
+/** The name/lat/lon/radius/colour/confirmation inputs, built once. */
+function buildPlaceFields() {
   const name = field("text", { required: true });
   const lat = field("hidden", {});
   const lon = field("hidden", {});
@@ -70,16 +64,23 @@ function ensureDialog() {
   const exit = field("number", { min: "1", value: "2" });
   const radiusOut = document.createElement("output");
   radiusOut.textContent = radius.value;
+  return { name, lat, lon, radius, color, enter, exit, radiusOut };
+}
 
-  form.append(labeled(t("places.nameLabel"), name), lat, lon);
+/** Assemble the <form> around the built fields, plus the error text and footer. */
+function buildPlaceForm(f) {
+  const form = document.createElement("form");
+  form.method = "dialog";
+
+  form.append(labeled(t("places.nameLabel"), f.name), f.lat, f.lon);
   const radiusLabel = document.createElement("label");
   radiusLabel.textContent = t("places.radiusLabel");
-  radiusLabel.append(radius, radiusOut);
+  radiusLabel.append(f.radius, f.radiusOut);
   form.append(
     radiusLabel,
-    labeled(t("places.colorLabel"), color),
-    labeled(t("places.enterConfirmations"), enter),
-    labeled(t("places.exitConfirmations"), exit),
+    labeled(t("places.colorLabel"), f.color),
+    labeled(t("places.enterConfirmations"), f.enter),
+    labeled(t("places.exitConfirmations"), f.exit),
   );
 
   const errorEl = document.createElement("p");
@@ -87,19 +88,28 @@ function ensureDialog() {
   errorEl.id = "fp-place-dialog-error";
 
   const footer = document.createElement("footer");
-  const saveBtn = button(t("common.save"), onSave);
-  const cancelBtn = button(t("common.cancel"), onCancel);
-  footer.append(saveBtn, cancelBtn);
+  footer.append(button(t("common.save"), onSave), button(t("common.cancel"), onCancel));
   form.append(errorEl, footer);
 
+  return { form, error: errorEl };
+}
+
+function ensureDialog() {
+  if (dialogEl) return dialogEl;
+
+  const dlg = document.createElement("dialog");
+  dlg.id = "fp-place-dialog";
+
+  const f = buildPlaceFields();
+  const { form, error } = buildPlaceForm(f);
   dlg.appendChild(form);
   document.body.appendChild(dlg);
 
-  fields = { name, lat, lon, radius, radiusOut, color, enter, exit, error: errorEl };
+  fields = { ...f, error };
   dialogEl = dlg;
 
-  radius.addEventListener("input", () => {
-    radiusOut.textContent = radius.value;
+  f.radius.addEventListener("input", () => {
+    f.radiusOut.textContent = f.radius.value;
     updatePreviewCircle();
   });
   dlg.addEventListener("close", removePreviewCircle);

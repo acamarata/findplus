@@ -296,6 +296,30 @@ async def test_signin_step_maps_a_400_to_the_honesty_sentence_not_raw_text(page,
         await _set_last_step(page, base_url, None)
 
 
+async def test_signin_step_clears_status_line_on_chrome_missing_400(page, base_url):
+    """loop2 B1: the status line must not keep reading "Starting Chrome..."
+    once the Chrome-missing notice is showing -- that pairs a "please wait"
+    message with a "this cannot proceed" one, a contradictory UI state."""
+
+    async def start_route(route):
+        await route.fulfill(
+            status=400,
+            content_type="application/json",
+            body=json.dumps({"detail": "ChromeNotFoundError: no chrome binary on PATH"}),
+        )
+
+    try:
+        await _open_step(page, base_url, "signin")
+        await page.route("**/api/auth/google/start", start_route)
+        await page.get_by_role("button", name="Sign in with Google").click()
+        await page.wait_for_selector("#fp-setup-chrome-notice:not([hidden])", timeout=15000)
+        status = await page.locator("#fp-setup-signin-status").inner_text()
+        assert status == "", f"status line still reads {status!r} beside the Chrome-missing notice"
+    finally:
+        await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
+        await _set_last_step(page, base_url, None)
+
+
 async def test_notifications_step_telegram_help_lines(page, base_url):
     """T0 addendum B6: where the token comes from, and how Find+ finds the
     chat id — the same two things `findplus alerts telegram-setup` explains."""

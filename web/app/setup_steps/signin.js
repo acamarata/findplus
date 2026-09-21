@@ -82,12 +82,21 @@ function startGoogle(ctx) {
     .catch((err) => {
       const existing = runningJobId(err);
       if (existing) {
+        // Cleared rather than left reading "Starting Chrome...": the first
+        // poll response overwrites it anyway, but a rejoin can land on a job
+        // already past that state (loop2 B1).
+        els.status.textContent = "";
         watchGoogle(ctx, existing);
         return;
       }
       // The route's only 400 is ChromeNotFoundError (routes_auth.py): mapped
-      // through the live notice, never the raw thrown message (B5).
+      // through the live notice, never the raw thrown message (B5). The
+      // status line is cleared here too -- otherwise it keeps reading
+      // "Starting Chrome..." forever beside the now-visible Chrome-missing
+      // notice, a contradictory pair of things to tell someone at once
+      // (loop2 B1).
       if (err.status === 400) {
+        els.status.textContent = "";
         els.chrome.show(ctx, true);
         return;
       }

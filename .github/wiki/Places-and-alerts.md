@@ -101,6 +101,10 @@ WhatsApp alerts are relayed through CallMeBot, a third-party free service. Your 
 text transits CallMeBot's servers before reaching WhatsApp. Delivery is best-effort with
 no guarantee. Find+ is not affiliated with WhatsApp, Meta or CallMeBot.
 
+To connect WhatsApp: add +34 623 91 22 04 to your phone's contacts, then send it the
+message "I allow callmebot to send me messages" from your own WhatsApp. CallMeBot
+replies with an API key within about two minutes — paste it below.
+
 The API key is never sent back to the browser and the number is shown masked.
 Both live in `~/.findplus/alerts.json` (mode `0600`). From the terminal:
 `findplus alerts whatsapp set --phone +34... --apikey ...` and

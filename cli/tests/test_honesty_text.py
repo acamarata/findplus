@@ -171,3 +171,42 @@ def test_expected_is_a_subset_of_the_notices_dict():
     assert set(EXPECTED) <= set(honesty.NOTICES)
     for key, sentence in EXPECTED.items():
         assert honesty.NOTICES[key] == sentence, f"{key} drifted from honesty.py"
+
+
+# CR-C-E12 F1: distinctive substrings, one per honesty.NOTICES key. Each
+# fragment sits inside a single wrapped line of README.md's Honesty
+# blockquote (same grep-style approach as lint-prose.sh's HONESTY_SUBSTRINGS
+# and EM_DASH_ALLOWED), so a future notice dropped from the README fails with
+# the specific key rather than a generic diff.
+README_FRAGMENTS = {
+    "find_hub": "Moto Tag uses nearby participating Android devices",
+    "apple": "genuine AirTags require extracting pairing keys",
+    "alerts_latency": "Alerts inherit the network's delay",
+    "presence_stale": "stale, not at home and not left behind",
+    "lock_not_encryption": "The app lock stops casual browsing",
+    "whatsapp_relay": "relayed through CallMeBot, a third-party free",
+    "whatsapp_setup": "two minutes — paste it below",
+    "alerts_locked": "Notifications are held while Find+ is locked",
+    "native_generic": "place — anyone who can see",
+    "not_affiliated": "not affiliated with Apple or Google",
+    "chrome_required": "cannot run without it",
+}
+
+
+def test_readme_contains_every_honesty_notice():
+    """PRI hard rule 4 / R-P2-5: README's Honesty section must carry all
+    eleven honesty.NOTICES sentences, not just the six from P1.
+
+    Iterates honesty.NOTICES itself (never a hardcoded key list) so a twelfth
+    notice added to honesty.py without a matching README_FRAGMENTS entry
+    fails here instead of silently passing.
+    """
+    from findplus import honesty
+
+    assert set(README_FRAGMENTS) == set(honesty.NOTICES), (
+        "README_FRAGMENTS has drifted from honesty.NOTICES's key set"
+    )
+    readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    for key, fragment in README_FRAGMENTS.items():
+        assert fragment in honesty.NOTICES[key], f"{key} fragment does not match honesty.py"
+        assert fragment in readme, f"README.md Honesty section is missing the {key} notice"

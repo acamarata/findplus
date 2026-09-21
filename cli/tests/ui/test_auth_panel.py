@@ -148,8 +148,23 @@ async def test_the_lock_purge_empties_the_sign_in_panel(page, base_url) -> None:
     readable after a lock, because lock.js's purgeTabModules() had no auth.js
     entry. Driven through purgeRenderedData(), so the registration itself is
     what this asserts, not auth.purge() called directly.
+
+    Order-flaky under full-suite load (loop3 L3-1, CI 35557336869): openSettings()
+    (web/app/settings.js) mounts this panel via an unawaited loadAuthStatus()
+    (auth.js mountAuthPanel), so _open_settings() above can return before that
+    real GET /api/auth/status has even been issued, let alone resolved. If the
+    manual override + purge below land first, the still-pending initial load
+    finishes afterward with a fresh (post-purge) generation snapshot -- the
+    guard in auth.js's loadAuthStatus() only discards a response that was
+    already in flight *before* purge() bumped generation, so this one sails
+    through and repopulates "Not signed in". Waiting here for that first load
+    to actually render closes the gap deterministically, the same way
+    test_google_says_not_signed_in above already does.
     """
     await _open_settings(page, base_url)
+    await page.wait_for_function(
+        "() => document.getElementById('fp-auth-google-status').textContent !== ''"
+    )
     await page.fill("#fp-auth-apple-id", "someone@example.com")
     await page.fill("#fp-auth-apple-password", "not-a-real-password")
     await page.evaluate(

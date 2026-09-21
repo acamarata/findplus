@@ -50,6 +50,12 @@ export async function refreshAll() {
   // A 401 here already showed the lock screen; loadWidgetToggle() runs either way.
   try { await loadChannels(); await loadRules(); await loadDeliveries(); } catch (_) { /* locked or unreachable */ }
   await loadWidgetToggle();
+  // init() fires this without awaiting it, so a test (or a fast user) can act
+  // on the tab before the boot-time GETs it renders from have landed. This
+  // marker is the deterministic "those renders are done" signal (E13 loop3
+  // L3-1, matching R-P2-20's data-fp-ready convention) -- open_alerts_tab()
+  // only proves the section exists, not that refreshAll() has run.
+  $("fp-telegram-section").dataset.fpReady = "alerts";
 }
 function injectLatencyFallback() {
   const el = $("fp-alerts-latency-notice");

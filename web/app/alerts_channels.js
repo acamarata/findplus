@@ -38,8 +38,27 @@ function renderTelegramSection(telegram) {
   );
   $("fp-tg-status").textContent = "";
 }
+/**
+ * The webhook URL field only, never on top of what someone is mid-typing.
+ *
+ * init()'s boot-time refreshAll() (alerts.js) fires loadChannels() without
+ * awaiting it; on a slow daemon that GET can still be in flight when a test
+ * or a real user fills #fp-webhook-url and clicks Save. Unconditionally
+ * overwriting the field here raced that fill and won intermittently under
+ * load (E13 loop3 L3-1, CI 35558... webhook_save: "zero PUT requests reached
+ * the server" -- saveWebhook()'s own `if (!url) return` guard fired because
+ * this stale render had just cleared the field the click was about to read).
+ * Skipping the write while the field is focused closes the gap: the moment
+ * loadChannels() runs again (saveWebhook()'s own reload, or the next tab
+ * open), focus has moved on and the real server value renders as before.
+ */
+function renderWebhookUrl(webhook) {
+  const el = $("fp-webhook-url");
+  if (document.activeElement === el) return;
+  el.value = webhook.configured ? webhook.url || "" : "";
+}
 function renderWebhookSection(webhook) {
-  $("fp-webhook-url").value = webhook.configured ? webhook.url || "" : "";
+  renderWebhookUrl(webhook);
   setVisibleText(
     $("fp-webhook-current"),
     webhook.configured &&

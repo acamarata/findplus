@@ -49,6 +49,19 @@ async def test_webhook_save(page, base_url):
     render race alone -- capture every /api/alerts* response and console
     message so the next CI failure's pytest output carries the actual
     request/response sequence instead of a bare assertion.
+
+    Root cause (loop3, E13): open_alerts_tab() only proves #fp-telegram-section
+    exists; it says nothing about alerts.js's boot-time refreshAll() (fired
+    unawaited from init()) having finished its own GET /api/alerts/channels.
+    Under load that GET can still be in flight when the fill() below runs, and
+    if its render lands between fill() and click(), it overwrites
+    #fp-webhook-url back to "" (renderWebhookSection did not know the field
+    had just been typed into -- see the render guard added in
+    alerts_channels.js). saveWebhook()'s own `if (!url) return` then makes the
+    click a silent no-op, which reads exactly like "the button was never
+    wired": zero PUT requests reach the server. Waiting for the
+    data-fp-ready="alerts" marker alerts.js now sets at the end of
+    refreshAll() closes the gap deterministically.
     """
     console_events: list[str] = []
     network_events: list[str] = []
@@ -81,6 +94,7 @@ async def test_webhook_save(page, base_url):
     )
 
     await open_alerts_tab(page, base_url)
+    await page.wait_for_selector('[data-fp-ready="alerts"]')
     await page.fill("#fp-webhook-url", "http://localhost:9999/hook-abcd1234")
     await page.click("#fp-webhook-save")
     await page.wait_for_function(

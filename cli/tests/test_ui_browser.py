@@ -284,3 +284,23 @@ def test_no_javascript_errors_and_no_broken_requests(page: Page, server: str) ->
 
     assert not errors, f"JavaScript errors: {errors}"
     assert not failures, f"broken requests: {failures}"
+
+
+def test_dashboard_boots_past_alerts_init_with_no_error_banner(page: Page) -> None:
+    """`main()` catches every rejection from its own await chain and turns it
+    into the `#alert` banner (main.js's bottom-of-file `.catch`), so a broken
+    reference inside one tab's init() never shows as a `pageerror` — it just
+    quietly aborts `bootDashboard()` before `renderTracks()` runs and leaves
+    `#tracks` empty forever. That is exactly what happened when alerts.js's
+    `wireStaticControls()` called alerts_channels.js's un-exported locals
+    directly (loop1 split, findplus#238): `ReferenceError: saveWhatsapp is
+    not defined`, caught, shown as "Could not reach the local API:
+    saveWhatsapp is not defined", and the axe suite's `#tracks > *` wait was
+    the only thing in CI that noticed, after a 30s timeout. This test checks
+    the two symptoms directly and fails in under two seconds.
+    """
+    _unlock(page)
+    assert not page.is_visible("#alert"), (
+        f"boot-time error banner shown: {page.text_content('#alert')!r}"
+    )
+    assert page.query_selector("#tracks > *") is not None, "#tracks never rendered a child"

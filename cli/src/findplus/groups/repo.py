@@ -8,9 +8,8 @@ Inputs  : An open Session (caller-owned transaction) plus plain arguments.
 Outputs : ORM rows (Group) or a groups.presence.GroupPresence.
 Constraints: Never commits. Write functions raise ValueError with an exact
           substring ("not found" / "already exists") so callers map it to an
-          HTTP status or a CLI error without guessing. create_group leaves
-          the UNIQUE(name) violation to the caller (IntegrityError on
-          flush), matching the CLI/API contract in specs/api-contract.md.
+          HTTP/CLI error without guessing. create_group leaves UNIQUE(name)
+          to the caller's IntegrityError, per specs/api-contract.md.
 Reuse: session pattern matches findplus.places.repo.
 """
 
@@ -228,15 +227,10 @@ def build_presence(
     return presence, statuses
 
 
-def list_group_place_events(
-    session: Session,
-    *,
-    group_id: int | None = None,
-    place_id: int | None = None,
-    since: datetime | None = None,
-    until: datetime | None = None,
-    limit: int = 200,
-) -> list[dict]:
+def _group_place_events_stmt(
+    group_id: int | None, place_id: int | None, since: datetime | None, until: datetime | None,
+    limit: int,
+):  # fmt: skip
     stmt = (
         select(GroupPlaceEvent, Group.name.label("group_name"), Place.name.label("place_name"))
         .join(Group, GroupPlaceEvent.group_id == Group.id)
@@ -250,36 +244,48 @@ def list_group_place_events(
         stmt = stmt.where(GroupPlaceEvent.observed_at >= since)
     if until is not None:
         stmt = stmt.where(GroupPlaceEvent.observed_at <= until)
-    stmt = stmt.order_by(GroupPlaceEvent.observed_at.desc()).limit(min(limit, 1000))
+    return stmt.order_by(GroupPlaceEvent.observed_at.desc()).limit(min(limit, 1000))
 
-    result = []
-    for row in session.execute(stmt).all():
-        e = row.GroupPlaceEvent
-        result.append(
-            {
-                "id": e.id,
-                "group_id": e.group_id,
-                "group_name": row.group_name,
-                "place_id": e.place_id,
-                "place_name": row.place_name,
-                "event_type": e.event_type,
-                "observed_at": e.observed_at,
-                "members_crossed": e.members_crossed,
-                "members_considered": e.members_considered,
-                "members_stale": e.members_stale,
-                "confidence": e.confidence,
-                # api-contract.md § routes_groups.py pins `note` on this route.
-                "note": group_event_note(
-                    crossed=e.members_crossed,
-                    considered=e.members_considered,
-                    event_type=e.event_type,
-                    place=row.place_name,
-                    stale_note=stale_note_for_count(e.members_stale),
-                ),
-                "notified_at": e.notified_at,
-            }
-        )
-    return result
+
+def _group_place_event_dict(e, group_name: str, place_name: str) -> dict:
+    return {
+        "id": e.id,
+        "group_id": e.group_id,
+        "group_name": group_name,
+        "place_id": e.place_id,
+        "place_name": place_name,
+        "event_type": e.event_type,
+        "observed_at": e.observed_at,
+        "members_crossed": e.members_crossed,
+        "members_considered": e.members_considered,
+        "members_stale": e.members_stale,
+        "confidence": e.confidence,
+        # api-contract.md § routes_groups.py pins `note` on this route.
+        "note": group_event_note(
+            crossed=e.members_crossed,
+            considered=e.members_considered,
+            event_type=e.event_type,
+            place=place_name,
+            stale_note=stale_note_for_count(e.members_stale),
+        ),
+        "notified_at": e.notified_at,
+    }
+
+
+def list_group_place_events(
+    session: Session,
+    *,
+    group_id: int | None = None,
+    place_id: int | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
+    limit: int = 200,
+) -> list[dict]:
+    stmt = _group_place_events_stmt(group_id, place_id, since, until, limit)
+    return [
+        _group_place_event_dict(row.GroupPlaceEvent, row.group_name, row.place_name)
+        for row in session.execute(stmt).all()
+    ]
 
 
 __all__ = [

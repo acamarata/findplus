@@ -8,12 +8,25 @@
  *              own (specs/auth-ui.md § 3, specs/onboarding.md § 4 row 2).
  * Constraints: Skipping is the Wizard's own Skip button — this step renders no
  *              skip link of its own. Next always advances: the wizard must
- *              never trap someone who means to sign in later.
+ *              never trap someone who means to sign in later. Each provider
+ *              gets the same `.fp-auth-provider` sub-heading the Settings
+ *              dialog's sign-in panel shows (R-P2-28 point 4) — the two
+ *              honesty footnotes read as unattributed sentences without one
+ *              (matches settings.html's own comment: the served markup keeps
+ *              them empty, catalog values fill them at boot, so "Google"/
+ *              "Find Hub" never appear as a literal in test_honesty_notices.py's
+ *              static-file scan). The Chrome-missing notice (T0 addendum B5,
+ *              e13/blind-gp-adjudicated.md) is read from GET /api/auth/status's
+ *              `needs` field on entry, and never from a raw thrown message: the
+ *              route's only 400 is ChromeNotFoundError, whose text is already
+ *              honesty.CHROME_REQUIRED (routes_auth.py), but this reads it
+ *              through the live /api/config notice rather than trusting that
+ *              coincidence to hold.
  */
 "use strict";
 
 import { t } from "../i18n.js";
-import { Poller, button, footnote } from "./_signin_dom.js";
+import { Poller, ChromeGate, button, footnote } from "./_signin_dom.js";
 import { buildAppleBranch } from "./signin_apple.js";
 
 /** Google progress state -> the catalog key that describes it. */
@@ -28,6 +41,13 @@ let els = null;
 
 function watchGoogle(ctx, jobId) {
   els.poller.start(ctx, "/api/auth/google/progress", jobId, (progress) => {
+    // Recomputed on every poll (routes_auth.py), so Chrome going missing
+    // mid-job is reported the same way a missing Chrome at start is.
+    if (progress.chrome_found === false) {
+      els.chrome.show(ctx, true);
+      els.poller.stop();
+      return;
+    }
     const key = GOOGLE_STATE_KEYS[progress.state];
     // A finished or failed job carries the server's own explanation, which
     // is more use than any generic line this file could put in its place.
@@ -47,6 +67,14 @@ function runningJobId(err) {
   return err.status === 409 && err.body ? err.body.job_id : null;
 }
 
+/** Same class and catalog keys the Settings dialog's sign-in panel uses. */
+function providerHeading(key) {
+  const h = document.createElement("h4");
+  h.className = "fp-auth-provider";
+  h.textContent = t(`auth.${key}.heading`);
+  return h;
+}
+
 function startGoogle(ctx) {
   els.status.textContent = t("setup.signin.starting");
   ctx.postJson("/api/auth/google/start")
@@ -55,6 +83,12 @@ function startGoogle(ctx) {
       const existing = runningJobId(err);
       if (existing) {
         watchGoogle(ctx, existing);
+        return;
+      }
+      // The route's only 400 is ChromeNotFoundError (routes_auth.py): mapped
+      // through the live notice, never the raw thrown message (B5).
+      if (err.status === 400) {
+        els.chrome.show(ctx, true);
         return;
       }
       els.status.textContent = err.message;
@@ -75,12 +109,17 @@ export default {
     const status = document.createElement("p");
     status.id = "fp-setup-signin-status";
     const apple = buildAppleBranch(ctx, status);
-    els = { status, poller: new Poller(status), apple };
+    const googleBtn = button("setup.signin.google", () => startGoogle(ctx));
+    const chrome = new ChromeGate(googleBtn);
+    els = { status, poller: new Poller(status), apple, chrome };
 
     container.append(
       status,
-      button("setup.signin.google", () => startGoogle(ctx)),
+      providerHeading("google"),
+      googleBtn,
+      chrome.notice,
       footnote(notices.find_hub),
+      providerHeading("apple"),
       button("setup.signin.apple", () => apple.open()),
       footnote(notices.apple),
       apple.form,
@@ -95,5 +134,6 @@ export default {
           accounts: signedIn.map((p) => p.account || p.id).join(", "),
         })
       : t("setup.signin.not_signed_in");
+    els.chrome.show(ctx, ChromeGate.missing(providers));
   },
 };

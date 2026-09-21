@@ -5,9 +5,13 @@
  *              branch (signin.js) and the Apple branch (signin_apple.js) both
  *              need, kept here so neither file imports the other.
  * Inputs     : Catalog keys; a ctx with api(); a job route and job id.
- * Outputs    : DOM nodes; a Poller with start()/stop().
+ * Outputs    : DOM nodes; a Poller with start()/stop(); a ChromeGate with
+ *              show()/static missing().
  * Constraints: No step state of its own. One poll at a time per Poller, and
  *              the 5-minute cap matches the vendor's own WebDriverWait budget.
+ *              ChromeGate reads the live /api/config notice rather than a
+ *              thrown message's text (T0 addendum B5, split out of signin.js
+ *              at the setup-step 150-line cap).
  */
 "use strict";
 
@@ -44,6 +48,33 @@ export function button(labelKey, onClick) {
   btn.textContent = t(labelKey);
   btn.addEventListener("click", onClick);
   return btn;
+}
+
+/**
+ * The Chrome-missing notice under the Google button and the disable it
+ * implies — read from GET /api/auth/status's `needs` field on entry and from
+ * a 400/chrome_found:false in flight, never from a thrown message's text
+ * (providers/auth_status.py already computes `needs` for exactly this).
+ */
+export class ChromeGate {
+  constructor(googleBtn) {
+    this.button = googleBtn;
+    this.notice = footnote("");
+    this.notice.id = "fp-setup-chrome-notice";
+    this.notice.hidden = true;
+  }
+
+  show(ctx, on) {
+    const notices = (ctx.state.config && ctx.state.config.notices) || {};
+    this.notice.textContent = on ? notices.chrome_required || "" : "";
+    this.notice.hidden = !on;
+    this.button.disabled = on;
+  }
+
+  static missing(providers) {
+    const google = (providers || []).find((p) => p.id === "google-find-hub");
+    return !!(google && (google.needs || []).includes("chrome"));
+  }
 }
 
 /**

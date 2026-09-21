@@ -102,7 +102,9 @@ def test_an_oversized_content_length_is_rejected_before_the_body_is_parsed(
     from starlette.requests import Request
 
     def _form_must_not_be_called(self, *a, **k):
-        raise AssertionError("request.form() was awaited; the Content-Length guard did not short-circuit")
+        raise AssertionError(
+            "request.form() was awaited; the Content-Length guard did not short-circuit"
+        )
 
     monkeypatch.setattr(Request, "form", _form_must_not_be_called)
     res = client.post(URL, data={"name": "Tag 5"}, files={"plist": ("huge.plist", b"x" * 200_000)})

@@ -47,16 +47,12 @@ function injectLatencyFallback() {
   }
 }
 function wireStaticControls() {
-  $("fp-tg-token").addEventListener("focus", () => clearMaskedToken($("fp-tg-token")));
-  $("fp-wa-apikey").addEventListener("focus", () => clearMaskedToken($("fp-wa-apikey")));
-  $("fp-wa-save").addEventListener("click", saveWhatsapp);
-  $("fp-wa-test").addEventListener("click", sendWhatsappTest);
-  $("fp-wa-clear").addEventListener("click", clearWhatsappChannel);
-  $("fp-tg-connect").addEventListener("click", startTelegramSetup);
-  $("fp-tg-test").addEventListener("click", sendTelegramTest);
-  $("fp-tg-clear").addEventListener("click", clearTelegramChannel);
-  $("fp-webhook-save").addEventListener("click", saveWebhook);
-  $("fp-webhook-remove").addEventListener("click", removeWebhook);
+  // Telegram/WhatsApp/webhook buttons are wired by alerts_channels.js itself
+  // (loop1 split, findplus#238): this used to inline the same wiring against
+  // that module's un-exported locals, which threw "saveWhatsapp is not
+  // defined" on every boot and aborted main() before bootDashboard() ran
+  // (loop1 regression, #tracks never rendered).
+  wireChannelControls();
   $("fp-add-rule-btn").addEventListener("click", openAddRuleDialog);
   $("fp-rule-save").addEventListener("click", saveRule);
   $("fp-rule-cancel").addEventListener("click", () => $("fp-add-rule-dialog").close());

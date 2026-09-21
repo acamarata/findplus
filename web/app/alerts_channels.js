@@ -204,7 +204,7 @@ export function wireChannelControls() {
   $("fp-tg-test").addEventListener("click", sendTelegramTest);
   $("fp-tg-clear").addEventListener("click", clearTelegramChannel);
   $("fp-webhook-save").addEventListener("click", saveWebhook);
-  $("fp-webhook-clear").addEventListener("click", removeWebhook);
+  $("fp-webhook-remove").addEventListener("click", removeWebhook);
 }
 
 export function purgeChannels() {

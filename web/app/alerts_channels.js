@@ -218,6 +218,16 @@ export function wireChannelControls() {
   $("fp-webhook-remove").addEventListener("click", removeWebhook);
 }
 
+/** Masks #fp-tg-token before boot's GET /api/alerts/channels resolves, so the
+ * field is never observably empty while that fetch is in flight -- a real
+ * value (or a true "not configured" blank) replaces this placeholder the
+ * moment renderTelegramSection() runs (E13 loop3 L3-3). */
+export function showTelegramTokenPlaceholder() {
+  const tokenInput = $("fp-tg-token");
+  tokenInput.value = "••••••••";
+  tokenInput.classList.add("fp-token-masked");
+}
+
 export function purgeChannels() {
   renderTelegramSection({ configured: false });
   renderWebhookSection({ configured: false });

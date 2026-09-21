@@ -28,11 +28,22 @@ import {
   updateRuleTargetVisibility,
 } from "./alerts_rules.js";
 import { loadDeliveries, purgeDeliveries } from "./alerts_deliveries.js";
-import { loadChannels, wireChannelControls, purgeChannels } from "./alerts_channels.js";
+import {
+  loadChannels,
+  wireChannelControls,
+  purgeChannels,
+  showTelegramTokenPlaceholder,
+} from "./alerts_channels.js";
 const WIDGET_SETTING = "/api/settings/widget.show_map";
 export function init() {
   wireStaticControls();
   injectLatencyFallback();
+  // Mask the token field before refreshAll()'s GET lands (fire-and-forget
+  // below): #fp-tg-token must never be observably empty while that fetch is
+  // in flight (E13 loop3 L3-3). Awaiting refreshAll() here instead would
+  // serialize an extra network round trip into main.js's boot chain, which
+  // already awaits this init() call.
+  showTelegramTokenPlaceholder();
   refreshAll();
 }
 export async function refreshAll() {

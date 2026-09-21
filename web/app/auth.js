@@ -34,10 +34,22 @@ const BUSY_STATES = ["launching", "waiting_for_user", "capturing"];
 let mounted = false;
 /** The Apple job awaiting its 2FA code, or null. */
 let appleJobId = null;
+/**
+ * Bumped by purge() so a GET /api/auth/status or google/progress poll that
+ * was already in flight when the lock fired is a no-op once it lands
+ * (matching groups.js's selectGroup()/purge() pattern). Without this, a
+ * request started while unlocked could resolve after purgeRenderedData()
+ * cleared the panel and refill "Signed in as ..." behind the lock screen
+ * (R-P2-8; CI 35557336869 caught it as order-flakiness in
+ * test_the_lock_purge_empties_the_sign_in_panel).
+ */
+let generation = 0;
 
 /** Both provider cards, from one GET /api/auth/status. */
 export async function loadAuthStatus() {
+  const myGeneration = generation;
   const { providers } = await api("/api/auth/status");
+  if (myGeneration !== generation) return; // purge() ran while this was in flight
   const google = providers.find((p) => p.id === GOOGLE_PROVIDER);
   const apple = providers.find((p) => p.id === APPLE_PROVIDER);
   // A provider the daemon does not offer (the Apple extra is not installed)
@@ -140,12 +152,24 @@ async function startGoogleSignIn() {
  *
  * A stacked second poll cannot happen: a running job 409s
  * startGoogleSignIn(), which surfaces through showAlert rather than starting
- * another interval.
+ * another interval. The generation snapshot self-clears the interval as soon
+ * as purge() bumps it, so a lock mid-poll stops both the next tick and an
+ * already-in-flight progress fetch from rendering (R-P2-8: polling resumes
+ * only after unlock, when mountAuthPanel/loadAuthStatus run again).
  */
 export function pollGoogleProgress(jobId) {
+  const myGeneration = generation;
   const timer = setInterval(async () => {
+    if (myGeneration !== generation) {
+      clearInterval(timer);
+      return;
+    }
     try {
       const progress = await api("/api/auth/google/progress?job_id=" + jobId);
+      if (myGeneration !== generation) {
+        clearInterval(timer);
+        return;
+      }
       renderGoogleProgress(progress);
       if (["done", "failed"].includes(progress.state)) {
         clearInterval(timer);
@@ -232,8 +256,12 @@ export function mountAuthPanel(root, { refresh = true } = {}) {
  * alice@icloud.com", a typed Apple ID and an unsent password were all still
  * readable behind the lock screen — the same hole alerts.js closes for the
  * rule name and the webhook secret (PROMPT.md §2: purge destroys, never hides).
+ * Bumping `generation` first discards any in-flight loadAuthStatus() or
+ * pollGoogleProgress() response that would otherwise land after this purge
+ * and repopulate what it just cleared (R-P2-8, same pattern as groups.js).
  */
 export function purge() {
+  generation++;
   for (const id of ["fp-auth-google-status", "fp-auth-apple-status", "fp-auth-google-progress"]) {
     const el = $(id);
     if (el) el.textContent = "";

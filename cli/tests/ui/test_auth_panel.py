@@ -14,6 +14,8 @@ follows for honesty sentences.
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -163,3 +165,63 @@ async def test_the_lock_purge_empties_the_sign_in_panel(page, base_url) -> None:
         assert await page.locator(f"#{field}").input_value() == "", field
     assert await page.locator("#fp-auth-google-status").inner_text() == ""
     assert await page.locator("#fp-auth-apple-status").inner_text() == ""
+
+
+async def test_in_flight_status_response_does_not_repopulate_after_purge(page, base_url) -> None:
+    """R-P2-8 / CI 35557336869: the test above raced a real GET /api/auth/status
+    against purgeRenderedData() and was order-flaky (L3-1) because the request
+    sometimes landed after the purge and refilled "Not signed in". This test
+    holds the response open with page.route so the race is deterministic
+    instead of depending on scheduler timing: it waits for openSettings()'s
+    own GET /api/auth/status to actually reach the server (`request_started`)
+    before purging, so the purge is guaranteed to land while that request is
+    genuinely in flight, then releases it and checks it was a no-op. A final
+    fresh load (standing in for the real unlock -> reopen path) checks the
+    generation guard blocks only that one superseded request, not every
+    request after it.
+    """
+    request_started = asyncio.Event()
+    hold = asyncio.Event()
+
+    async def delay_status(route):
+        request_started.set()
+        await hold.wait()
+        await route.continue_()
+
+    await page.route("**/api/auth/status", delay_status)
+    try:
+        await _open_settings(page, base_url)
+        await asyncio.wait_for(request_started.wait(), timeout=5)
+
+        await page.evaluate(
+            """async () => {
+                const lock = await import('/static/app/lock.js');
+                await lock.purgeRenderedData();
+            }"""
+        )
+        assert await page.locator("#fp-auth-google-status").inner_text() == ""
+        assert await page.locator("#fp-auth-apple-status").inner_text() == ""
+
+        # Release the held response: the generation guard must make it a
+        # no-op now that purge() already ran.
+        hold.set()
+        await page.wait_for_timeout(300)
+        assert await page.locator("#fp-auth-google-status").inner_text() == ""
+        assert await page.locator("#fp-auth-apple-status").inner_text() == ""
+    finally:
+        await page.unroute("**/api/auth/status", delay_status)
+
+    # A fresh load after the purge -- the generation guard blocks only the
+    # one superseded request, not every request after it (polling resumes
+    # once mountAuthPanel/loadAuthStatus run again, i.e. after unlock).
+    expected = (await _catalog(page, base_url))["auth"]["status"]["not_signed_in"]
+    await page.evaluate(
+        """async () => {
+            const auth = await import('/static/app/auth.js');
+            await auth.loadAuthStatus();
+        }"""
+    )
+    await page.wait_for_function(
+        "(text) => document.getElementById('fp-auth-google-status').textContent === text",
+        arg=expected,
+    )

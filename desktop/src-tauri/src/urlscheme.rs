@@ -42,9 +42,8 @@ pub fn handle(app: &tauri::AppHandle, url: &str) {
         "findplus://open" => windows::open_main(app),
         "findplus://poll" => {
             std::thread::spawn(|| {
-                let _ = reqwest::blocking::Client::new()
-                    .post("http://127.0.0.1:8647/api/poll-now")
-                    .send();
+                let url = format!("{}/api/poll-now", crate::daemon::daemon_base());
+                let _ = reqwest::blocking::Client::new().post(url).send();
             });
         }
         "findplus://settings" => windows::open_settings(app),

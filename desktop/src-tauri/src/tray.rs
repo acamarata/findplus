@@ -128,7 +128,8 @@ fn probe_chrome_missing() -> bool {
     else {
         return false;
     };
-    let Ok(resp) = client.get("http://127.0.0.1:8647/api/providers").send() else {
+    let url = format!("{}/api/providers", crate::daemon::daemon_base());
+    let Ok(resp) = client.get(url).send() else {
         return false;
     };
     let Ok(list) = resp.json::<Vec<serde_json::Value>>() else {
@@ -186,17 +187,15 @@ fn handle_menu_event(app: &AppHandle, id: &str) {
         "poll_now" => {
             let app = app.clone();
             std::thread::spawn(move || {
-                let _ = reqwest::blocking::Client::new()
-                    .post("http://127.0.0.1:8647/api/poll-now")
-                    .send();
+                let url = format!("{}/api/poll-now", crate::daemon::daemon_base());
+                let _ = reqwest::blocking::Client::new().post(url).send();
                 let _ = app.emit("poll-now-triggered", ());
             });
         }
         "lock" => {
             std::thread::spawn(|| {
-                let _ = reqwest::blocking::Client::new()
-                    .post("http://127.0.0.1:8647/api/lock/lock")
-                    .send();
+                let url = format!("{}/api/lock/lock", crate::daemon::daemon_base());
+                let _ = reqwest::blocking::Client::new().post(url).send();
             });
         }
         "open_dashboard" => windows::open_main(app),

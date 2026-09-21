@@ -10,7 +10,7 @@ Constraints: FINDPLUS_DATABASE_PATH / FINDPLUS_STATE_DIR are the ONLY env
              vars findplus.config reads (env_prefix "FINDPLUS_"); the bare
              names silently target the real ~/.findplus (build-notes.md §
              E2) — deviation from this ticket's literal env dict, verified
-             against cli/tests/test_ui_browser.py's proven fixture.
+             against cli/tests/ui/boot/conftest.py's proven fixture.
 """
 
 from __future__ import annotations

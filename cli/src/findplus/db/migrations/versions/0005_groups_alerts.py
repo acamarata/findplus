@@ -16,7 +16,7 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade() -> None:
+def _create_groups_table() -> None:
     op.create_table(
         "groups",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
@@ -31,6 +31,9 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint("stale_after_minutes BETWEEN 10 AND 1440", name="ck_groups_stale_after"),
     )
+
+
+def _create_device_group_table() -> None:
     op.create_table(
         "device_group",
         sa.Column("device_id", sa.String(128), nullable=False),
@@ -39,6 +42,9 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["group_id"], ["groups.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("device_id", "group_id"),
     )
+
+
+def _create_group_place_events_table() -> None:
     op.create_table(
         "group_place_events",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
@@ -57,6 +63,9 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["group_id"], ["groups.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["place_id"], ["places.id"], ondelete="CASCADE"),
     )
+
+
+def _create_alert_rules_table() -> None:
     op.create_table(
         "alert_rules",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
@@ -80,6 +89,9 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["group_id"], ["groups.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["device_id"], ["devices.device_id"], ondelete="CASCADE"),
     )
+
+
+def _create_alert_deliveries_table() -> None:
     op.create_table(
         "alert_deliveries",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
@@ -96,11 +108,24 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["rule_id"], ["alert_rules.id"], ondelete="CASCADE"),
         sa.UniqueConstraint("rule_id", "event_kind", "event_id", name="uq_alert_deliveries_dedup"),
     )
+
+
+def _create_group_place_events_index() -> None:
     op.create_index(
         "ix_gpe_group_place_observed",
         "group_place_events",
         ["group_id", "place_id", "observed_at"],
     )
+
+
+def upgrade() -> None:
+    """Same table/index order as before the split (E13 loop2 A3, cap only)."""
+    _create_groups_table()
+    _create_device_group_table()
+    _create_group_place_events_table()
+    _create_alert_rules_table()
+    _create_alert_deliveries_table()
+    _create_group_place_events_index()
 
 
 def downgrade() -> None:

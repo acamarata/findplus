@@ -16,7 +16,7 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade() -> None:
+def _create_places_table() -> None:
     op.create_table(
         "places",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
@@ -35,6 +35,9 @@ def upgrade() -> None:
         sa.CheckConstraint("enter_confirmations BETWEEN 1 AND 5", name="ck_places_enter_conf"),
         sa.CheckConstraint("exit_confirmations BETWEEN 1 AND 5", name="ck_places_exit_conf"),
     )
+
+
+def _create_place_events_table() -> None:
     op.create_table(
         "place_events",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
@@ -57,6 +60,18 @@ def upgrade() -> None:
             ["observation_id"], ["location_observations.id"], ondelete="CASCADE"
         ),
     )
+
+
+def _create_place_events_indexes() -> None:
+    op.create_index(
+        "ix_place_events_place_device_observed",
+        "place_events",
+        ["place_id", "device_id", "observed_at"],
+    )
+    op.create_index("ix_place_events_observed", "place_events", ["observed_at"])
+
+
+def _create_place_states_table() -> None:
     op.create_table(
         "place_states",
         sa.Column("place_id", sa.Integer(), nullable=False),
@@ -72,12 +87,14 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["device_id"], ["devices.device_id"]),
         sa.PrimaryKeyConstraint("place_id", "device_id"),
     )
-    op.create_index(
-        "ix_place_events_place_device_observed",
-        "place_events",
-        ["place_id", "device_id", "observed_at"],
-    )
-    op.create_index("ix_place_events_observed", "place_events", ["observed_at"])
+
+
+def upgrade() -> None:
+    """Same table/index order as before the split (E13 loop2 A3, cap only)."""
+    _create_places_table()
+    _create_place_events_table()
+    _create_place_states_table()
+    _create_place_events_indexes()
 
 
 def downgrade() -> None:

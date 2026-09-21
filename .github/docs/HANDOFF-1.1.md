@@ -98,9 +98,9 @@ recorded rehearsal): the Welcome step shows `not_affiliated` as a footnote; the 
 ## 5. How to continue
 
 a. Review `.claude/phases/current/p2/release/draft-release-log.md` (P2-E13-W6-S1-T7's output).
-b. Open the draft release URL and click Publish: (filled by E13-T7)
+b. Open the draft release URL and click Publish: https://github.com/acamarata/findplus/releases/tag/untagged-f85e26032810e6eed002 (draft; release/1.1.0 @ 63a8800; 5 assets, notarised arm64 dmg 51 MB)
 c. `git checkout main && git merge release/1.1.0 && git push origin main`. This merges the version bump only after publishing, per D-P2-14.
 d. Update the Homebrew tap: `cp packaging/homebrew/findplus.rb <tap-clone>/Formula/findplus.rb`, commit, push.
 e. Run the wizard for a real first run: install Find+, open it, sign in with a real account.
 
-Final gate counts (full suite, CI lane parity, review-loop and adversarial-cap closure): (filled by E13-T8)
+Final gate counts (full suite, CI lane parity, review-loop and adversarial-cap closure): non-browser 1677 passed, browser 215 passed, slow 2 passed; ruff, node, shellcheck, gen-* drift clean; clippy 0 warnings, cargo tests green, widget 43; CI run 35562428139 green on 57c57df; three QA loops closed (A 5, B 7, C 6, L3 3 findings fixed), blind cap 2 Gemini + 1 Sonnet passes adjudicated

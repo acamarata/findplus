@@ -3,20 +3,27 @@
 Purpose    : Stop a page served from another origin from reaching this daemon,
              and stop a DNS name that resolves to 127.0.0.1 (DNS rebinding)
              from being used to drive it through the victim's own browser.
-Inputs     : The Host, Origin and Sec-Fetch-Site request headers.
-Outputs    : 421 for a foreign Host, 403 for a foreign Origin or a
-             cross-site mutation, and the three response headers every
-             dashboard response carries.
+Inputs     : The Host, Origin, Sec-Fetch-Site and Referer request headers.
+Outputs    : 421 for a foreign Host, 403 for a foreign Origin, a cross-site
+             mutation, or a mutation whose only origin signal is a foreign
+             Referer, and the three response headers every dashboard
+             response carries.
 Constraints:
     - Registered OUTSIDE SessionAuthMiddleware so a rebinding attempt is
       refused before the lock, the routers or the static mount see it.
-    - Non-browser callers (the CLI, the MCP server, curl) send no Origin and
-      no Sec-Fetch-Site, so they pass. That is deliberate: anyone who can run
-      a local process already has the database file, and the guard exists to
-      stop a REMOTE page, not a local user.
+    - Non-browser callers (the CLI, the MCP server, curl) send no Origin, no
+      Sec-Fetch-Site and no Referer, so they pass. That is deliberate: anyone
+      who can run a local process already has the database file, and the
+      guard exists to stop a REMOTE page, not a local user.
     - The Tauri shell loads http://127.0.0.1:8647/ in an external webview, so
       its requests are same-origin; the splash window's tauri:// origin is
       allowed explicitly.
+    - The Referer fallback (blind cap B3) exists for a route like
+      POST /api/apple/accessories that is deliberately not behind
+      _require_origin_signal (routes_auth.py) so headerless CLI/MCP requests
+      still work: an old-style cross-site <form> POST can omit both Origin
+      and Sec-Fetch-Site while still carrying a Referer, and this is the one
+      place that shape is checked, for every mutating /api/ route at once.
 """
 
 from __future__ import annotations
@@ -112,6 +119,17 @@ def is_allowed_origin(origin: str, base_url: str) -> bool:
     return _is_loopback_hostname((parts.hostname or "").lower())
 
 
+def _origin_of(url: str) -> str:
+    """`scheme://netloc` from a full URL, so a Referer can be checked like an Origin.
+
+    Falls back to the raw value when it has neither: is_allowed_origin's own
+    urlsplit then sees no http/https scheme and refuses it, which is the
+    safe default for a header shaped like nothing valid.
+    """
+    parts = urlsplit(url)
+    return f"{parts.scheme}://{parts.netloc}" if parts.scheme and parts.netloc else url
+
+
 def same_origin_problem(request: Request) -> str | None:
     """The reason to refuse this request, or None when it looks same-origin.
 
@@ -124,6 +142,16 @@ def same_origin_problem(request: Request) -> str | None:
     site = request.headers.get("sec-fetch-site")
     if request.method in _MUTATING_METHODS and site and site not in SAME_SITE_FETCH_VALUES:
         return _CROSS_SITE_DETAIL
+    if request.method in _MUTATING_METHODS and not origin and not site:
+        # Neither of the two usual signals is present. A plain non-browser
+        # client (the CLI, the MCP server) sends no Referer either and passes
+        # here unaffected; an old-style cross-site <form> POST -- exactly the
+        # shape a route like POST /api/apple/accessories is reachable to
+        # because it skips _require_origin_signal on purpose -- still carries
+        # one, and that is what this closes (blind cap B3).
+        referer = request.headers.get("referer")
+        if referer and not is_allowed_origin(_origin_of(referer), get_settings().base_url):
+            return _FOREIGN_ORIGIN_DETAIL
     return None
 
 

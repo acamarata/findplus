@@ -207,7 +207,13 @@ def apple_progress(job_id: str | None = Query(default=None)) -> dict[str, Any]:
 async def apple_accessories(request: Request) -> dict[str, Any]:
     # Deliberately NOT behind _require_origin_signal: specs/auth-ui.md §8
     # lists only the three sign-in starters, and this route is reachable
-    # from headerless callers the way every other mutating route is.
+    # from headerless callers the way every other mutating route is. That is
+    # safe against a cross-site <form> POST because OriginGuardMiddleware's
+    # same_origin_problem() refuses a foreign Origin or Sec-Fetch-Site on
+    # every mutating /api/ route already, and (blind cap B3) a foreign
+    # Referer too when both of those are absent -- the one shape that used
+    # to reach this handler unchecked. A headerless CLI/MCP request carries
+    # none of the three and still passes.
     _require_apple_provider()
     settings = get_settings()
     # The CLI path reaches accessories.py after `_prep()` has made the

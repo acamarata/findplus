@@ -105,36 +105,29 @@ function otherSection(letterInput, letterLabel) {
   return section;
 }
 
-export function createIconPicker(host, { value, onChange, letterLabel = "Letter" } = {}) {
-  const root = document.createElement("div");
-  root.className = "fp-icon-picker";
-  for (const [group, names] of groupSymbols(readSpriteSymbols())) {
-    root.appendChild(groupSection(group, names));
-  }
-  const letterInput = createLetterInput(letterLabel);
-  root.appendChild(otherSection(letterInput, letterLabel));
-  host.appendChild(root);
-
+/** Toggle aria-pressed to match `id`, and show/hide the letter input for it. */
+function applyPressedState(root, letterInput, id) {
   // "letter:X" pins a character the user chose; the swatch for it is the bare
   // "letter" button, so the pressed state is computed from that base id.
-  let current = value || "letter";
-
-  function applyPressedState(id) {
-    const base = id.startsWith("letter:") ? "letter" : id;
-    root.querySelectorAll(".fp-icon-swatch").forEach((btn) => {
-      btn.setAttribute("aria-pressed", String(btn.dataset.iconId === base));
-    });
-    if (id.startsWith("letter:")) {
-      letterInput.value = id.slice(7);
-      letterInput.hidden = false;
-    } else {
-      letterInput.hidden = true;
-    }
+  const base = id.startsWith("letter:") ? "letter" : id;
+  root.querySelectorAll(".fp-icon-swatch").forEach((btn) => {
+    btn.setAttribute("aria-pressed", String(btn.dataset.iconId === base));
+  });
+  if (id.startsWith("letter:")) {
+    letterInput.value = id.slice(7);
+    letterInput.hidden = false;
+  } else {
+    letterInput.hidden = true;
   }
+}
+
+/** Wire swatch clicks and the letter input, and return the picker's public handle. */
+function wireIconPicker(host, root, letterInput, initial, onChange) {
+  let current = initial;
 
   function emit(id) {
     current = id;
-    applyPressedState(id);
+    applyPressedState(root, letterInput, id);
     if (onChange) onChange(id);
   }
 
@@ -163,12 +156,12 @@ export function createIconPicker(host, { value, onChange, letterLabel = "Letter"
     else if (char === "") emit("letter");
   });
 
-  applyPressedState(current);
+  applyPressedState(root, letterInput, current);
 
   return {
     setValue(id) {
       current = id;
-      applyPressedState(id);
+      applyPressedState(root, letterInput, id);
     },
     getValue() {
       return current;
@@ -177,4 +170,17 @@ export function createIconPicker(host, { value, onChange, letterLabel = "Letter"
       host.innerHTML = "";
     },
   };
+}
+
+export function createIconPicker(host, { value, onChange, letterLabel = "Letter" } = {}) {
+  const root = document.createElement("div");
+  root.className = "fp-icon-picker";
+  for (const [group, names] of groupSymbols(readSpriteSymbols())) {
+    root.appendChild(groupSection(group, names));
+  }
+  const letterInput = createLetterInput(letterLabel);
+  root.appendChild(otherSection(letterInput, letterLabel));
+  host.appendChild(root);
+
+  return wireIconPicker(host, root, letterInput, value || "letter", onChange);
 }

@@ -105,6 +105,10 @@ export class Wizard {
     if (this.busy) return;
     this.busy = true;
     const chrome = [this.backBtn, this.skipBtn, this.nextBtn, this.skipAll];
+    // Disabling the button the keyboard is on drops focus to <body>, which
+    // would restart every Tab cycle at the top of the page; it goes back
+    // afterwards so the wizard can be walked end to end on the keyboard.
+    const focused = chrome.includes(document.activeElement) ? document.activeElement : null;
     chrome.forEach((btn) => (btn.disabled = true));
     Promise.resolve()
       .then(fn)
@@ -112,6 +116,9 @@ export class Wizard {
       .finally(() => {
         this.busy = false;
         chrome.forEach((btn) => (btn.disabled = false));
+        if (focused && !focused.hidden && document.activeElement === document.body) {
+          focused.focus();
+        }
       });
   }
 

@@ -95,3 +95,19 @@ async def test_run_setup_again_on_a_finished_install_starts_at_step_one(page, ba
     progress = await page.locator(".fp-wizard-progress-text").inner_text()
     assert progress.strip().startswith("1"), progress
     assert await page.locator("#fp-wizard-back").is_hidden()
+
+
+async def test_the_wizard_can_be_walked_on_the_keyboard(page, base_url):
+    """Next is disabled for the length of a transition (CR-C-E11 F8).
+
+    Disabling the focused button drops focus to <body>, so the guard puts it
+    back; without that a keyboard user restarts the Tab cycle on every step.
+    """
+    await _open_wizard_at(page, base_url, "welcome")
+    await page.focus("#fp-wizard-next")
+    await page.keyboard.press("Enter")
+    await page.wait_for_selector("#fp-setup-signin-status", timeout=15000)
+    await page.wait_for_function(
+        "() => !document.getElementById('fp-wizard-next').disabled", timeout=15000
+    )
+    assert await page.evaluate("() => document.activeElement.id") == "fp-wizard-next"

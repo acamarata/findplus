@@ -141,24 +141,31 @@ def member_status(
         minutes=stale_after_minutes
     )
     if stale:
-        # Keep the last fix's timestamp and age. `place` and the coordinates
-        # stay None -- honesty.md's presence_stale sentence is about not
-        # claiming a stale member's POSITION, not about hiding when they were
-        # last heard from. Dropping the age made every stale row in the
-        # dashboard and the widget read "no fix for unknown", always, while
-        # the answer sat in the row one line above (E1 honesty round 2 F7).
+        # Keep the last fix's timestamp/age; `place`/coordinates stay None --
+        # honesty.md's presence_stale is about not claiming a stale member's
+        # POSITION, not about hiding when they were last heard from
+        # (E1 honesty round 2 F7).
         last = m.last_fix.observed_at if m.last_fix else None
         age = int((now - last).total_seconds() / 60) if last else None
         return MemberStatus(m.device_id, m.name, "stale", None, last, age, None, None, None)
 
     lat, lon = m.last_fix.latitude_e7 / 1e7, m.last_fix.longitude_e7 / 1e7
     age = int((now - m.last_fix.observed_at).total_seconds() / 60)
+    status, place = _member_status_kind(m, now, window_minutes, movement_threshold_meters, lat, lon)
 
-    place: str | None = None
-    #: Both fixes must fall inside window_minutes, not just prev_fix -- a
-    #: last_fix older than the window is stale-adjacent (its age already
-    #: reads unknown-fresh territory) and must fall through to "unknown",
-    #: not report "moving" off a prev_fix that happens to be newer.
+    return MemberStatus(
+        m.device_id, m.name, status, place, m.last_fix.observed_at, age,
+        m.last_fix.accuracy_meters, lat, lon,
+    )  # fmt: skip
+
+
+def _member_status_kind(
+    m: MemberInput, now: datetime, window_minutes: int, movement_threshold_meters: float,
+    lat: float, lon: float,
+) -> tuple[Status, str | None]:  # fmt: skip
+    """(status, place) for a non-stale member: present-at-place, moving or unknown.
+    Both fixes must fall inside window_minutes, not just prev_fix, or a
+    stale-adjacent last_fix reports "moving" off a newer prev_fix instead."""
     moved = (
         m.prev_fix is not None
         and m.prev_fix.observed_at >= now - timedelta(minutes=window_minutes)
@@ -167,17 +174,10 @@ def member_status(
         > movement_threshold_meters
     )
     if m.inside_places:
-        status: Status = "present_at_place"
-        place = m.inside_places[0]
-    elif moved:
-        status = "moving"
-    else:
-        status = "unknown"
-
-    return MemberStatus(
-        m.device_id, m.name, status, place, m.last_fix.observed_at, age,
-        m.last_fix.accuracy_meters, lat, lon,
-    )  # fmt: skip
+        return "present_at_place", m.inside_places[0]
+    if moved:
+        return "moving", None
+    return "unknown", None
 
 
 def _greedy_clique(reporting: list[MemberStatus], cluster_radius_meters: int) -> list[int]:
@@ -225,20 +225,30 @@ def group_presence(
     if now.tzinfo is None:
         raise ValueError("now must be timezone-aware")
 
-    def result(verdict, together, diverged, reporting_count, note) -> GroupPresence:
-        return GroupPresence(
-            group_id, verdict, together, diverged, stale_names, reporting_count,
-            len(statuses), cluster_radius_meters, window_minutes, note,
-        )  # fmt: skip
-
     statuses = [
         member_status(m, now, stale_after_minutes, movement_threshold_meters, window_minutes)
         for m in members
     ]
     reporting = [s for s in statuses if s.status != "stale"]
     stale_names = [s.name for s in statuses if s.status == "stale"]
-    stale_clause = _build_stale_clause(stale_names)
+    verdict, together, diverged, reporting_count, note = _presence_verdict(
+        statuses, reporting, stale_names, stale_after_minutes, cluster_radius_meters
+    )
+    return GroupPresence(
+        group_id, verdict, together, diverged, stale_names, reporting_count,
+        len(statuses), cluster_radius_meters, window_minutes, note,
+    )  # fmt: skip
 
+
+def _presence_verdict(
+    statuses: list[MemberStatus],
+    reporting: list[MemberStatus],
+    stale_names: list[str],
+    stale_after_minutes: int,
+    cluster_radius_meters: int,
+) -> tuple[Verdict, list[str], list[str], int, str]:
+    """(verdict, together_names, diverged_names, reporting_count, note) --
+    the 0/1/2+-reporting cases `group_presence` must tell apart."""
     if len(reporting) == 0:
         # Name the members, like every other note. The one a worried user
         # reaches printed a database id ("No member of group 3 has reported"),
@@ -250,13 +260,19 @@ def group_presence(
             f"{stale_after_minutes} minutes; nothing can be said about where "
             f"{'it is' if len(statuses) == 1 else 'they are'}."
         )
-        return result("unknown", [], [], 0, note)
-
+        return "unknown", [], [], 0, note
     if len(reporting) == 1:
         r = reporting[0]
+        stale_clause = _build_stale_clause(stale_names)
         note = f"Only {r.name} is reporting ({r.age_minutes} min ago).{stale_clause}"
-        return result("partial", [], [], 1, note)
+        return "partial", [], [], 1, note
+    return _clustered_verdict(reporting, stale_names, cluster_radius_meters)
 
+
+def _clustered_verdict(
+    reporting: list[MemberStatus], stale_names: list[str], cluster_radius_meters: int
+) -> tuple[Verdict, list[str], list[str], int, str]:
+    """The >=2-reporting case: greedy-clique together/diverged split, then note."""
     stale_suffix = _stale_suffix(stale_names)
     clique = _greedy_clique(reporting, cluster_radius_meters)
     together = [reporting[i] for i in clique]
@@ -268,7 +284,7 @@ def group_presence(
         place_names = list({s.place for s in together if s.place})
         location = place_names[0] if len(place_names) == 1 else "each other"
         note = f"{len(together_names)} tags together near {location}{stale_suffix}"
-        return result("all_together", together_names, [], len(reporting), note)
+        return "all_together", together_names, [], len(reporting), note
 
     max_div_dist = max(
         haversine_meters(d.latitude, d.longitude, t.latitude, t.longitude)
@@ -281,4 +297,4 @@ def group_presence(
         f"{diverged_str} {verb} away from {together_str} "
         f"({round(max_div_dist)} m apart){stale_suffix}"
     )
-    return result("partial", together_names, diverged_names, len(reporting), note)
+    return "partial", together_names, diverged_names, len(reporting), note

@@ -40,7 +40,46 @@ async def test_remove_webhook_round_trips(page, base_url):
 async def test_webhook_save(page, base_url):
     """The saved URL comes back MASKED: a webhook path is a bearer credential,
     so the browser gets scheme://host plus the last few characters and never
-    the routable path (security review finding 5)."""
+    the routable path (security review finding 5).
+
+    Order-flaky in CI (loop2-inputs.md L2-14/L3-1: `assert False is True` on
+    the final `configured` check, only under full-suite load, 30x green in
+    isolation). The failing assert reads server state through a fresh
+    page.request.get(), not the DOM, so it cannot be explained by a client-side
+    render race alone -- capture every /api/alerts* response and console
+    message so the next CI failure's pytest output carries the actual
+    request/response sequence instead of a bare assertion.
+    """
+    console_events: list[str] = []
+    network_events: list[str] = []
+    page.on("console", lambda msg: console_events.append(f"{msg.type}: {msg.text}"))
+    # request + requestfailed, not just response: a fetch() that never
+    # reaches the server (aborted, network error, CSP block) fires
+    # "requestfailed" instead of "response" and would otherwise vanish from
+    # this evidence entirely.
+    page.on(
+        "request",
+        lambda r: (
+            network_events.append(f"-> {r.method} {r.url}") if "/api/alerts" in r.url else None
+        ),
+    )
+    page.on(
+        "response",
+        lambda r: (
+            network_events.append(f"<- {r.status} {r.request.method} {r.url}")
+            if "/api/alerts" in r.url
+            else None
+        ),
+    )
+    page.on(
+        "requestfailed",
+        lambda r: (
+            network_events.append(f"FAILED {r.method} {r.url} ({r.failure})")
+            if "/api/alerts" in r.url
+            else None
+        ),
+    )
+
     await open_alerts_tab(page, base_url)
     await page.fill("#fp-webhook-url", "http://localhost:9999/hook-abcd1234")
     await page.click("#fp-webhook-save")
@@ -53,6 +92,7 @@ async def test_webhook_save(page, base_url):
     )
     resp = await page.request.get(base_url + "/api/alerts/channels")
     channels = await resp.json()
-    assert channels["webhook"]["configured"] is True
-    assert channels["webhook"]["url"] == "http://localhost:9999/…1234"
-    assert "hook-abcd" not in channels["webhook"]["url"]
+    evidence = f"network={network_events!r} console={console_events!r}"
+    assert channels["webhook"]["configured"] is True, evidence
+    assert channels["webhook"]["url"] == "http://localhost:9999/…1234", evidence
+    assert "hook-abcd" not in channels["webhook"]["url"], evidence

@@ -1,10 +1,15 @@
 /*
- * Honesty notices: injects the six /api/config.notices sentences into the
- * Settings dialog's Notices section.
+ * Honesty notices: injects /api/config.notices sentences across the
+ * dashboard -- the Settings dialog's Notices section plus the Alerts tab's
+ * WhatsApp card, the add-rule dialog's channel notice, and the sign-in
+ * panel's Chrome notice.
  *
  * Purpose    : PROMPT.md §2 invariant 4 — honesty text must be rendered
  *              verbatim, sourced from one place (honesty.py via /api/config).
- * Outputs    : textContent of the six #fp-notice-* elements.
+ * Outputs    : textContent of ten elements (loop2 B6: E8/E10/E13 each added
+ *              entries after the original six; only five still follow the
+ *              #fp-notice-* id pattern the map started with -- see the
+ *              per-entry comments below for the rest).
  * Constraints: Module scripts are deferred, so the DOM is ready when this
  *              runs; no DOMContentLoaded hook or caller is needed.
  */

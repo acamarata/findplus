@@ -116,6 +116,7 @@
 .fp-dialog-field { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
 .fp-dialog-field > label { flex: 0 0 108px; color: var(--muted); font-size: 13px; }
 .fp-dialog-field input[type="text"],
+.fp-dialog-field input[type="password"],
 .fp-dialog-field input[type="number"],
 .fp-dialog-field select { flex: 1; min-width: 0; }
 .fp-dialog-group {
@@ -126,6 +127,32 @@
 /* --- onboarding wizard ---------------------------------------------------- */
 /* R-P2-25 rule 1: style.css is at its 300-line cap, so the wizard chrome lives
    here. components/wizard.js is the only writer of these class names. */
+/* R-P2-28 point 1: the wizard used to render edge-to-edge with no container
+   (visual gate W4 report). #setup-view IS the card -- Wizard.buildChrome()
+   appends the skip link, progress row, step and footer straight into it, so
+   one rule here gives all four the same inset and width every dialog gets.
+   The width formula mirrors .modal-box's own min(620px, 92vw): 16px gutters
+   below ~752px (which covers the <600px phone tier the ruling names), capped
+   at 720px above it. */
+#setup-view {
+  box-sizing: border-box;
+  width: min(720px, calc(100% - 32px));
+  margin: 40px auto;
+  padding: 26px 28px 30px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+/* Field and control styling to match the dialogs (.fp-dialog-field, .btn):
+   a wizard step is not inside a <dialog>, so none of components.css's
+   dialog-scoped input rules reached it before. */
+#setup-view input[type="text"],
+#setup-view input[type="password"],
+#setup-view input[type="number"],
+#setup-view select {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line-strong);
+  border-radius: 7px; padding: 6px 9px; font-size: 13px;
+}
 .fp-wizard-progress { display: flex; gap: 6px; align-items: center; padding: 12px 0; }
 .fp-wizard-progress-text { color: var(--muted); font-size: 12px; margin-right: 6px; }
 .fp-wizard-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
@@ -136,6 +163,12 @@
   color: var(--muted); cursor: pointer; text-decoration: underline;
 }
 .fp-wizard-footnote { color: var(--muted); font-size: 12px; margin: 6px 0 14px; }
+/* Groups step's inline add form (R-P2-28 point 2): the same scrollable box
+   the group dialog gives its own member fieldset (#fp-group-members). */
+#fp-setup-group-members {
+  max-height: 180px; overflow-y: auto; border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 9px; margin: 8px 0;
+}
 
 /* --- sign-in panel (first section of the settings dialog, R-P2-8) --------- */
 /* style.css:231 styles password/date/select inside a .setting-row and nothing
@@ -162,11 +195,13 @@
 .modal-box a,
 dialog a,
 .fp-alerts-section a,
-.fp-group-card a { color: var(--badge-text); text-decoration: none; }
+.fp-group-card a,
+#setup-view a { color: var(--badge-text); text-decoration: none; }
 .modal-box a:hover,
 dialog a:hover,
 .fp-alerts-section a:hover,
-.fp-group-card a:hover { text-decoration: underline; }
+.fp-group-card a:hover,
+#setup-view a:hover { text-decoration: underline; }
 
 /* --- add-rule dialog ------------------------------------------------------ */
 /* W3 visual gate finding 1: this <dialog> had no rules at all, so it painted
@@ -203,6 +238,28 @@ dialog a:hover,
   background: var(--panel); color: var(--text); font-size: 14px;
 }
 #setup-banner a { color: var(--accent); }
+
+/* --- table scroll containment (R-P2-28 point 6, F6) ------------------------ */
+/* responsive.css only turns this on below 600px; at desktop widths a wide
+   table had nothing containing it, so it bled into the PAGE's own horizontal
+   scroll instead of the pane's (visual gate W4 F6: the Status column sat past
+   the 380px pane's edge and needed a page-level scroll to reach). Unconditional
+   here; the phone tier layers its own -webkit-overflow-scrolling on top. */
+.fp-table-scroll { overflow-x: auto; }
+
+/* The delivery log's 8 columns default to their content's natural width,
+   which is what pushed Status (7th) out of the 380px side pane. Fixed layout
+   plus a pinned column split keeps Status inside the visible box without any
+   scrolling; Text/Body/Error (the free-text columns, usually an em dash or a
+   short error string) truncate with an ellipsis and keep the full value in a
+   title attribute (alerts_deliveries.js). Column order is test-pinned
+   (test_alerts_whatsapp.py::test_deliveries_table_renders_after_rule_fires),
+   so only widths change here, never the <th>/<td> sequence. */
+#fp-deliveries-table { table-layout: fixed; }
+#fp-deliveries-table td:nth-child(4), #fp-deliveries-table td:nth-child(5),
+#fp-deliveries-table td:nth-child(8) {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 
 /* --- hidden rows ---------------------------------------------------------- */
 /* style.css:227 gives .setting-row `display: flex`, and an author rule beats

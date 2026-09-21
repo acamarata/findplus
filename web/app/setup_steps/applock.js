@@ -9,7 +9,11 @@
  *              Settings dialog had never been opened. The request shape is
  *              settings.js's first-time set, `new_pin` alone — the server's
  *              same-origin branch covers a first PIN, so there is no
- *              `current_pin` to send.
+ *              `current_pin` to send. Rows use `.fp-dialog-field` (the same
+ *              wrapper the group/device dialogs use), not `.setting-row`:
+ *              that row's `justify-content: space-between` pushed the input
+ *              to the far right of the unconstrained wizard container and off
+ *              the 1280px viewport (visual gate W4 F2).
  */
 "use strict";
 
@@ -18,14 +22,16 @@ import { t } from "../i18n.js";
 /** The live step's fields, replaced on every render. */
 let els = null;
 
-/** A label wrapping its text and input, used for both PIN fields. */
+/** A real `<label for>` beside its input, used for both PIN fields — the same
+ * wrapper devices_dialog.js's/groups_dialog_dom.js's own `labeled()` builds. */
 function labelFor(input, text) {
   const label = document.createElement("label");
-  label.className = "setting-row";
-  const span = document.createElement("span");
-  span.textContent = text;
-  label.append(span, input);
-  return label;
+  label.htmlFor = input.id;
+  label.textContent = text;
+  const wrap = document.createElement("div");
+  wrap.className = "fp-dialog-field";
+  wrap.append(label, input);
+  return wrap;
 }
 
 function pinInput(id) {

@@ -98,46 +98,40 @@ def _wait_for_stop(stop_event: threading.Event, server_thread: threading.Thread)
     return 0
 
 
-@click.command()
-@click.option("--foreground", is_flag=True, help="Run in this terminal (used by the service).")
-@click.option("--no-poller", is_flag=True, help="Serve the UI/API without polling Google.")
-@click.option("--host", default=None)
-@click.option("--port", default=None, type=int)
-def serve(foreground: bool, no_poller: bool, host: str | None, port: int | None) -> None:
-    """Start the local API/UI and (unless disabled) the polling service."""
-    # Set again here, not only in the click group: the packaged daemon and the
-    # LaunchAgent/systemd unit can invoke this command directly.
-    os.umask(PRIVATE_UMASK)
-    _prep(to_file=True)
-    import uvicorn
+def _bind_or_exit(host: str | None, port: int | None) -> tuple[str, int]:
+    """Resolve the bind address, refusing non-loopback unless overridden.
 
-    from findplus import service
-    from findplus.api import create_app
-    from findplus.poller import PollerService
-    from findplus.service.retention import RetentionScheduler
-
+    I9 is enforced by Settings.host and by `config set HOST`; --host reached
+    uvicorn without passing either, so refuse here too, before daemon.json is
+    written or the server is constructed.
+    """
     settings = get_settings()
     bind_host = host or settings.host
     bind_port = port or settings.port
-
-    # I9 is enforced by Settings.host and by `config set HOST`; --host reached
-    # uvicorn without passing either, so refuse here too, before daemon.json is
-    # written or the server is constructed.
     if is_public_bind(bind_host):
         raise click.ClickException(
             f"Non-loopback host '{bind_host}' rejected. Set FINDPLUS_ALLOW_PUBLIC_BIND=1 to allow."
         )
+    return bind_host, bind_port
 
-    already_running, url = _check_exclusive(settings.state_dir)
+
+def _refuse_if_already_running(state_dir: Path) -> None:
+    """Exit 3 when a live daemon already answers (specs/cli-reference.md § serve)."""
+    already_running, url = _check_exclusive(state_dir)
     if already_running:
         click.echo(f"Find+ is already running at {url}")
         sys.exit(3)
 
-    stop_event = threading.Event()
+
+def _install_signal_handlers(stop_event: threading.Event) -> None:
+    """SIGINT always, SIGTERM everywhere but Windows (which lacks it)."""
     signal.signal(signal.SIGINT, _make_signal_handler(stop_event))
     if sys.platform != "win32":
         signal.signal(signal.SIGTERM, _make_signal_handler(stop_event))
 
+
+def _print_banner(bind_host: str, bind_port: int, settings, no_poller: bool) -> None:
+    """The six startup lines a foreground operator reads first."""
     click.secho(f"findplus {__version__}", bold=True)
     click.echo(f"Dashboard : http://{bind_host}:{bind_port}")
     click.echo(f"Database  : {settings.database_path}")
@@ -145,10 +139,47 @@ def serve(foreground: bool, no_poller: bool, host: str | None, port: int | None)
     cadence = "disabled" if no_poller else f"every {settings.effective_poll_interval_minutes:g} min"
     click.echo(f"Polling   : {cadence}")
 
+
+def _start_uvicorn(bind_host: str, bind_port: int, settings) -> tuple[Any, threading.Thread]:
+    """Build and launch the API server on a daemon thread; signal handling off.
+
+    install_signal_handlers is disabled because serve() installs its own
+    SIGINT/SIGTERM pair around the same event uvicorn would use.
+    """
+    import uvicorn
+
+    from findplus.api import create_app
+
+    config = uvicorn.Config(
+        create_app(),
+        host=bind_host,
+        port=bind_port,
+        log_level=settings.log_level.lower(),
+        access_log=False,
+    )
+    server = uvicorn.Server(config)
+    server.install_signal_handlers = False
+    server_thread = threading.Thread(target=server.run, name="uvicorn", daemon=True)
+    server_thread.start()
+    return server, server_thread
+
+
+def _run_server(
+    settings, bind_host: str, bind_port: int, no_poller: bool, stop_event: threading.Event
+) -> int:
+    """daemon.json + workers + uvicorn thread, torn down however this returns.
+
+    Retention runs whether or not polling does: an operator who turned the
+    poller off still asked for history past the window to go.
+    """
+    from findplus import service
+    from findplus.poller import PollerService
+    from findplus.service.retention import RetentionScheduler
+
     workers: list[tuple[Any, threading.Thread]] = []
-    server: uvicorn.Server | None = None
-    server_thread: threading.Thread | None = None
-    exit_code = 0
+    server = None
+    server_thread = None
+    exit_code = 1
     try:
         service.write_daemon_file(
             pid=os.getpid(), port=bind_port, host=bind_host, version=__version__, argv=sys.argv
@@ -156,21 +187,9 @@ def serve(foreground: bool, no_poller: bool, host: str | None, port: int | None)
 
         if not no_poller:
             workers.append(_start_worker(PollerService(settings), "poller"))
-        # Retention runs whether or not polling does: an operator who turned the
-        # poller off still asked for history past the window to go.
         workers.append(_start_worker(RetentionScheduler(settings.state_dir), "retention"))
 
-        config = uvicorn.Config(
-            create_app(),
-            host=bind_host,
-            port=bind_port,
-            log_level=settings.log_level.lower(),
-            access_log=False,
-        )
-        server = uvicorn.Server(config)
-        server.install_signal_handlers = False
-        server_thread = threading.Thread(target=server.run, name="uvicorn", daemon=True)
-        server_thread.start()
+        server, server_thread = _start_uvicorn(bind_host, bind_port, settings)
 
         exit_code = _wait_for_stop(stop_event, server_thread)
         if exit_code:
@@ -185,6 +204,29 @@ def serve(foreground: bool, no_poller: bool, host: str | None, port: int | None)
             server_thread.join(timeout=5.0)
         _stop_workers(workers)
         (settings.state_dir / "daemon.json").unlink(missing_ok=True)
+    return exit_code
 
+
+@click.command()
+@click.option("--foreground", is_flag=True, help="Run in this terminal (used by the service).")
+@click.option("--no-poller", is_flag=True, help="Serve the UI/API without polling Google.")
+@click.option("--host", default=None)
+@click.option("--port", default=None, type=int)
+def serve(foreground: bool, no_poller: bool, host: str | None, port: int | None) -> None:
+    """Start the local API/UI and (unless disabled) the polling service."""
+    # Set again here, not only in the click group: the packaged daemon and the
+    # LaunchAgent/systemd unit can invoke this command directly.
+    os.umask(PRIVATE_UMASK)
+    _prep(to_file=True)
+
+    settings = get_settings()
+    bind_host, bind_port = _bind_or_exit(host, port)
+    _refuse_if_already_running(settings.state_dir)
+
+    stop_event = threading.Event()
+    _install_signal_handlers(stop_event)
+    _print_banner(bind_host, bind_port, settings, no_poller)
+
+    exit_code = _run_server(settings, bind_host, bind_port, no_poller, stop_event)
     if exit_code:
         sys.exit(exit_code)

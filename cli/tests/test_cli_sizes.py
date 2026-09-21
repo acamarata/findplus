@@ -18,6 +18,7 @@ FILE_CAP = 300
 
 MODULES = [
     "findplus.cli.cmd_devices",
+    "findplus.cli.cmd_serve",
 ]
 
 

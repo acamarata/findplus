@@ -1,6 +1,6 @@
 """The PRI rule-7 size caps (loop2 B2), applied to web/app/**/*.js.
 
-Sibling of test_api_sizes.py/test_cli_sizes.py: the same idea, ported to JS
+Sibling of test_api_sizes.py/test_src_sizes.py: the same idea, ported to JS
 since there is no `ast` module for it. Python has no JS parser in this venv
 (no acorn under web/app, no node_modules) so this walks a "cleaned" copy of
 each file -- comments and string/template-literal contents blanked to spaces,

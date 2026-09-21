@@ -247,6 +247,14 @@ async def set_theme(page, theme: str) -> None:
     await page.evaluate("(t) => { document.documentElement.dataset.theme = t; }", theme)
 
 
+async def open_alerts_tab(page, base_url) -> None:
+    """Navigate to `/` and switch to the Alerts tab; shared by every
+    test_alerts_*.py file (split from test_alerts.py, E13 loop3 L3-4)."""
+    await page.goto(base_url + "/")
+    await page.click('button[data-tab="alerts"]')
+    await page.wait_for_selector("#fp-telegram-section")
+
+
 @pytest_asyncio.fixture(loop_scope="session")
 async def page(browser_session):
     # One BrowserContext per test. The dashboard persists UI state (open

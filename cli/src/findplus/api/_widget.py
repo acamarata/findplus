@@ -133,6 +133,45 @@ def _group_rows(session) -> list[dict[str, Any]]:
     return rows
 
 
+def _widget_device_row(
+    session,
+    device,
+    now: datetime,
+    stale_after_minutes: int,
+    places: dict[str, str],
+    device_groups: dict[str, str],
+) -> dict[str, Any] | None:
+    """One widget device row, or `None` if `device` has no fix yet.
+
+    Split out of `_widget_devices` (E13-CF-P2-13, the 50-line function cap):
+    same lookup, same staleness rule, no behaviour change.
+    """
+    latest = session.scalar(
+        select(LocationObservation)
+        .where(LocationObservation.device_id == device.device_id)
+        .order_by(desc(LocationObservation.observed_at))
+        .limit(1)
+    )
+    if latest is None:
+        return None
+    age_minutes = int((now - latest.observed_at).total_seconds() // 60)
+    stale = age_minutes > stale_after_minutes
+    return {
+        "device_id": device.device_id,
+        "name": device.name,
+        "provider": device.provider,
+        "last_observed_at": _iso_z(latest.observed_at),
+        "age_minutes": age_minutes,
+        "latitude": latest.latitude,
+        "longitude": latest.longitude,
+        "place": None if stale else places.get(device.device_id),
+        "group": device_groups.get(device.device_id),
+        "label": device.label,
+        "icon": device.icon,
+        "color": device.color,
+    }
+
+
 def _widget_devices(
     session, now: datetime, stale_after_minutes: int = WIDGET_STALE_AFTER_MINUTES
 ) -> list[dict[str, Any]]:
@@ -148,32 +187,9 @@ def _widget_devices(
     device_groups = _group_by_device(session)
     out: list[dict[str, Any]] = []
     for device in get_tracked_devices(session):
-        latest = session.scalar(
-            select(LocationObservation)
-            .where(LocationObservation.device_id == device.device_id)
-            .order_by(desc(LocationObservation.observed_at))
-            .limit(1)
-        )
-        if latest is None:
-            continue
-        age_minutes = int((now - latest.observed_at).total_seconds() // 60)
-        stale = age_minutes > stale_after_minutes
-        out.append(
-            {
-                "device_id": device.device_id,
-                "name": device.name,
-                "provider": device.provider,
-                "last_observed_at": _iso_z(latest.observed_at),
-                "age_minutes": age_minutes,
-                "latitude": latest.latitude,
-                "longitude": latest.longitude,
-                "place": None if stale else places.get(device.device_id),
-                "group": device_groups.get(device.device_id),
-                "label": device.label,
-                "icon": device.icon,
-                "color": device.color,
-            }
-        )
+        row = _widget_device_row(session, device, now, stale_after_minutes, places, device_groups)
+        if row is not None:
+            out.append(row)
     # Newest fix first. get_tracked_devices() returns stable NAME order, and
     # all three widget views take devices.first, so the headline age, the
     # freshness dot and the large view's map snapshot all belonged to whichever

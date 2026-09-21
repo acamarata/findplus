@@ -81,27 +81,10 @@ function buildFields() {
   return { label, tracked, icon, color, error, title };
 }
 
-/**
- * Build the dialog on first use.
- *
- * Lazily, not at boot: createIconPicker() reads the <symbol> elements from the
- * sprite main.js fetches at startup, and the picker is built once and cached.
- * Building it before that fetch lands would leave an empty icon grid for the
- * rest of the session.
- */
-function ensureDialog() {
-  if (dialogEl) return dialogEl;
-
-  const dlg = document.createElement("dialog");
-  dlg.id = "fp-device-dialog";
-  dlg.setAttribute("aria-labelledby", "fp-device-dialog-title");
+/** Assemble the <form> around the built fields and picker groups. */
+function buildForm(dlg, f, iconGroup, colorGroup) {
   const form = document.createElement("form");
   form.method = "dialog";
-
-  const f = buildFields();
-  const iconGroup = pickerGroup(t("devices.field.icon"));
-  const colorGroup = pickerGroup(t("devices.field.color"));
-
   form.append(
     f.title,
     labeled(t("devices.field.label"), f.label, f.label.id),
@@ -119,11 +102,11 @@ function ensureDialog() {
     button(t("common.cancel"), () => dlg.close(), "btn-secondary"),
   );
   form.appendChild(footer);
-  dlg.appendChild(form);
-  document.body.appendChild(dlg);
+  return form;
+}
 
-  fields = f;
-  dialogEl = dlg;
+/** Create the icon/colour pickers and mount them into their group elements. */
+function wirePickers(iconGroup, colorGroup) {
   iconPicker = createIconPicker(iconGroup, {
     value: DEFAULT_ICON,
     onChange: (value) => {
@@ -138,6 +121,33 @@ function ensureDialog() {
     },
     customLabel: t("devices.field.customColor"),
   });
+}
+
+/**
+ * Build the dialog on first use.
+ *
+ * Lazily, not at boot: createIconPicker() reads the <symbol> elements from the
+ * sprite main.js fetches at startup, and the picker is built once and cached.
+ * Building it before that fetch lands would leave an empty icon grid for the
+ * rest of the session.
+ */
+function ensureDialog() {
+  if (dialogEl) return dialogEl;
+
+  const dlg = document.createElement("dialog");
+  dlg.id = "fp-device-dialog";
+  dlg.setAttribute("aria-labelledby", "fp-device-dialog-title");
+
+  const f = buildFields();
+  const iconGroup = pickerGroup(t("devices.field.icon"));
+  const colorGroup = pickerGroup(t("devices.field.color"));
+  const form = buildForm(dlg, f, iconGroup, colorGroup);
+  dlg.appendChild(form);
+  document.body.appendChild(dlg);
+
+  fields = f;
+  dialogEl = dlg;
+  wirePickers(iconGroup, colorGroup);
   return dlg;
 }
 

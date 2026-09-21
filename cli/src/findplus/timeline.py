@@ -2,16 +2,15 @@
 
 Purpose : Turn stored observations into the day-view the UI renders.
 Constraints:
-    - "Distance" here is the geodesic distance BETWEEN OBSERVED LOCATIONS. It is
-      not travelled distance and must never be presented as a road route.
-    - Day boundaries are computed in the viewer's local timezone from UTC storage,
-      so DST transitions produce correct 23h/25h days.
-    - Movement filtering annotates; it never deletes. Every raw observation is
-      returned with an `is_movement` flag alongside.
-    - The point/stats/day dataclasses live in timeline_models.py (split out at
-      the PRI rule-7 300-line file cap) and are re-exported below, so every
-      existing `from findplus.timeline import TimelinePoint` (etc.) caller is
-      unchanged.
+    - "Distance" is the geodesic distance BETWEEN OBSERVED LOCATIONS, not
+      travelled distance, and must never be presented as a road route.
+    - Day boundaries are computed in the viewer's local timezone from UTC
+      storage, so DST transitions produce correct 23h/25h days.
+    - Movement filtering annotates; it never deletes -- every raw observation
+      returns with an `is_movement` flag alongside.
+    - The point/stats/day dataclasses live in timeline_models.py (PRI rule-7
+      300-line split) and are re-exported below, so every existing
+      `from findplus.timeline import TimelinePoint` caller is unchanged.
 """
 
 from __future__ import annotations
@@ -46,11 +45,7 @@ __all__ = [
 
 
 def local_zone(tz_name: str | None = None) -> ZoneInfo:
-    """The computer's IANA timezone unless explicitly overridden.
-
-    An IANA zone (not a fixed UTC offset) is required so that day boundaries and
-    DST transitions resolve correctly.
-    """
+    """The computer's IANA zone (not a fixed UTC offset -- needed for DST) unless overridden."""
     if tz_name:
         return ZoneInfo(tz_name)
     try:
@@ -100,6 +95,19 @@ def fetch_observations(
     return list(session.scalars(stmt))
 
 
+def _point_deltas(
+    previous: LocationObservation | None, obs: LocationObservation,
+    movement_threshold_meters: float, gap_seconds: float,
+) -> tuple[float | None, float | None, bool, bool]:  # fmt: skip
+    """(seconds_since, meters_from, is_movement, gap_before); anchors if `previous` is None."""
+    if previous is None:
+        return None, None, True, False
+    delta_s = (obs.observed_at - previous.observed_at).total_seconds()
+    meters = haversine_meters(previous.latitude, previous.longitude, obs.latitude, obs.longitude)
+    movement = is_meaningful_movement(meters, movement_threshold_meters)
+    return delta_s, meters, movement, delta_s > gap_seconds
+
+
 def build_timeline(
     observations: list[LocationObservation],
     *,
@@ -113,19 +121,9 @@ def build_timeline(
     previous: LocationObservation | None = None
 
     for index, obs in enumerate(observations):
-        if previous is None:
-            delta_s: float | None = None
-            meters: float | None = None
-            movement = True  # the day's first fix always anchors the timeline
-            gap_before = False
-        else:
-            delta_s = (obs.observed_at - previous.observed_at).total_seconds()
-            meters = haversine_meters(
-                previous.latitude, previous.longitude, obs.latitude, obs.longitude
-            )
-            movement = is_meaningful_movement(meters, movement_threshold_meters)
-            gap_before = delta_s > gap_seconds
-
+        delta_s, meters, movement, gap_before = _point_deltas(
+            previous, obs, movement_threshold_meters, gap_seconds
+        )
         points.append(
             TimelinePoint(
                 id=obs.id,

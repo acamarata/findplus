@@ -379,7 +379,9 @@
       "enter_token": "Enter your bot token first.",
       "waiting": "Send your bot a message now. Waiting for it...",
       "connected": "Connected to {chat}.",
-      "already_connected": "Telegram is already connected."
+      "already_connected": "Telegram is already connected.",
+      "telegram_help_token": "Create a bot with @BotFather on Telegram and paste its token here.",
+      "telegram_help_chat": "Then send your new bot any message and press Connect — Find+ reads the chat id from that message."
     },
     "applock": {
       "title": "App lock (optional)",

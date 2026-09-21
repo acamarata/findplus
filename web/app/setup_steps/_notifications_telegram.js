@@ -10,7 +10,11 @@
  * Constraints: Its own file because the Alerts tab's copy of this flow reads
  *              elements that live inside #app-shell, which is hidden while the
  *              wizard is open, so it cannot be called from here. The route,
- *              body and wait budget are identical to that copy's.
+ *              body and wait budget are identical to that copy's. The two
+ *              help lines (T0 addendum B6, e13/blind-gp-adjudicated.md)
+ *              mirror `findplus alerts telegram-setup`'s own instructions
+ *              (cli/alerts.py): where the token comes from, and how Find+
+ *              finds the chat id.
  */
 "use strict";
 
@@ -19,7 +23,23 @@ import { t } from "../i18n.js";
 /** Seconds the server holds the request open, matching alerts.js. */
 const WAIT_SECONDS = 120;
 
+/** Where the token comes from, and how Find+ finds the chat id — same content
+ * `findplus alerts telegram-setup` prints, never invented copy. */
+function helpLines() {
+  const frag = document.createDocumentFragment();
+  const tokenHelp = document.createElement("p");
+  tokenHelp.className = "modal-note";
+  tokenHelp.textContent = t("setup.notifications.telegram_help_token");
+  const chatHelp = document.createElement("p");
+  chatHelp.className = "modal-note";
+  chatHelp.textContent = t("setup.notifications.telegram_help_chat");
+  frag.append(tokenHelp, chatHelp);
+  return frag;
+}
+
 export function telegramControls(section, value, ctx) {
+  section.append(helpLines());
+
   const token = document.createElement("input");
   token.type = "password";
   token.id = "fp-setup-tg-token";

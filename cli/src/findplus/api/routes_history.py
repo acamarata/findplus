@@ -14,7 +14,10 @@ Inputs     : day/device/timezone filters.
 Outputs    : Timeline tracks, poll-run summaries.
 Constraints: `poll-now` is the only route here that queries Google; POST-only,
              rate-limited via the injected `check_poll_cooldown` (process-wide
-             state lives in api/__init__.py).
+             state lives in api/__init__.py). Handlers that close over a
+             factory collaborator sit in small register-functions; the rest
+             are module-level (E13 loop-1 function-cap refactor; routes and
+             signatures unchanged).
 """
 
 from __future__ import annotations
@@ -36,12 +39,55 @@ from ._helpers import _parse_day, _serialize_latest, _serialize_run
 log = get_logger(__name__)
 
 
-def build_router(*, settings, check_poll_cooldown) -> APIRouter:
-    router = APIRouter(prefix="/api", tags=["history"])
+def _tz(name: str | None = None):
+    """Every handler in this module resolves timezones through one helper."""
+    return local_zone(name)
 
-    def tz(name: str | None = None):
-        return local_zone(name)
 
+def _resolved_thresholds(
+    settings, movement_threshold_meters: float | None, gap_threshold_minutes: float | None
+) -> tuple[float, float]:
+    """(movement, gap) with the settings fallback applied to omitted params.
+
+    Computed once and returned because the timeline route needs each value
+    twice: passed into multi_day_timeline() and echoed back in the payload.
+    """
+    return (
+        settings.movement_threshold_meters
+        if movement_threshold_meters is None
+        else movement_threshold_meters,
+        settings.gap_threshold_minutes if gap_threshold_minutes is None else gap_threshold_minutes,
+    )
+
+
+def _group_timeline(group_id: int, target, zone) -> list[dict[str, Any]]:
+    """One dict per group member, each holding only that device's points.
+
+    Never returns a single merged list — one entry in the result carries
+    exactly one device_id's observations (invariant 5). The DB access
+    lives in groups.repo so it is not duplicated between here and
+    routes_groups.py / cli/groups.py.
+    """
+    start_utc, end_utc = day_bounds_utc(target, zone)
+    with session_scope() as session:
+        if session.get(Group, group_id) is None:
+            raise HTTPException(status_code=404, detail=f"group {group_id} not found")
+        return list_group_timeline(session, group_id, start_utc, end_utc)
+
+
+def _named_payload(tracks, names: dict[str, str]) -> list[dict[str, Any]]:
+    """Track dicts with device_name overlaid from the devices table.
+
+    A track's own device_name is whatever the provider last reported; the
+    devices table is the authoritative label the user edits.
+    """
+    payload = [t.to_dict() for t in tracks]
+    for track in payload:
+        track["device_name"] = names.get(track["device_id"]) or track["device_name"]
+    return payload
+
+
+def _register_timeline_route(router: APIRouter, *, settings) -> None:
     @router.get("/timeline")
     def timeline(
         day: str | None = Query(default=None, description="YYYY-MM-DD, local date"),
@@ -59,103 +105,76 @@ def build_router(*, settings, check_poll_cooldown) -> APIRouter:
         device instead of the single-device dict shape below — never a
         cross-device-merged list.
         """
-        zone = tz(timezone)
+        zone = _tz(timezone)
         target = _parse_day(day) or datetime.now(zone).date()
 
         if group_id is not None:
             return _group_timeline(group_id, target, zone)
 
+        movement, gap = _resolved_thresholds(
+            settings, movement_threshold_meters, gap_threshold_minutes
+        )
         with session_scope() as session:
             tracks = multi_day_timeline(
                 session,
                 [device_id] if device_id else None,
                 target,
                 tz=zone,
-                movement_threshold_meters=(
-                    settings.movement_threshold_meters
-                    if movement_threshold_meters is None
-                    else movement_threshold_meters
-                ),
-                gap_threshold_minutes=(
-                    settings.gap_threshold_minutes
-                    if gap_threshold_minutes is None
-                    else gap_threshold_minutes
-                ),
+                movement_threshold_meters=movement,
+                gap_threshold_minutes=gap,
             )
             names = {d.device_id: d.name for d in session.scalars(select(Device))}
 
-        payload = [t.to_dict() for t in tracks]
-        for track in payload:
-            track["device_name"] = names.get(track["device_id"]) or track["device_name"]
+        payload = _named_payload(tracks, names)
 
         return {
             "day": target.isoformat(),
             "timezone": str(zone),
             "device_id": device_id,
-            "movement_threshold_meters": (
-                settings.movement_threshold_meters
-                if movement_threshold_meters is None
-                else movement_threshold_meters
-            ),
-            "gap_threshold_minutes": (
-                settings.gap_threshold_minutes
-                if gap_threshold_minutes is None
-                else gap_threshold_minutes
-            ),
+            "movement_threshold_meters": movement,
+            "gap_threshold_minutes": gap,
             "path_disclaimer": "Observed path — actual route between detections may differ.",
             "tracks": payload,
             "total_observations": sum(len(t["points"]) for t in payload),
         }
 
-    def _group_timeline(group_id: int, target, zone) -> list[dict[str, Any]]:
-        """One dict per group member, each holding only that device's points.
 
-        Never returns a single merged list — one entry in the result carries
-        exactly one device_id's observations (invariant 5). The DB access
-        lives in groups.repo so it is not duplicated between here and
-        routes_groups.py / cli/groups.py.
-        """
-        start_utc, end_utc = day_bounds_utc(target, zone)
-        with session_scope() as session:
-            if session.get(Group, group_id) is None:
-                raise HTTPException(status_code=404, detail=f"group {group_id} not found")
-            return list_group_timeline(session, group_id, start_utc, end_utc)
+def days(
+    device_id: str | None = Query(default=None), timezone: str | None = Query(default=None)
+) -> dict[str, Any]:
+    """Local dates holding data. Omit `device_id` for every device."""
+    zone = _tz(timezone)
+    with session_scope() as session:
+        return {"days": days_with_data(session, device_id, zone), "timezone": str(zone)}
 
-    @router.get("/days")
-    def days(
-        device_id: str | None = Query(default=None), timezone: str | None = Query(default=None)
-    ) -> dict[str, Any]:
-        """Local dates holding data. Omit `device_id` for every device."""
-        zone = tz(timezone)
-        with session_scope() as session:
-            return {"days": days_with_data(session, device_id, zone), "timezone": str(zone)}
 
-    @router.get("/latest")
-    def latest(
-        device_id: str | None = Query(default=None),
-        timezone: str | None = Query(default=None),
-    ) -> dict[str, Any]:
-        """Newest stored observation. Reads local history; does not query Google."""
-        zone = tz(timezone)
-        now = datetime.now(UTC)
-        with session_scope() as session:
-            stmt = select(LocationObservation)
-            if device_id:
-                stmt = stmt.where(LocationObservation.device_id == device_id)
-            obs = session.scalar(stmt.order_by(desc(LocationObservation.observed_at)).limit(1))
-            if obs is None:
-                raise HTTPException(status_code=404, detail="No observations recorded yet.")
-            return _serialize_latest(obs, zone, now) or {}
+def latest(
+    device_id: str | None = Query(default=None),
+    timezone: str | None = Query(default=None),
+) -> dict[str, Any]:
+    """Newest stored observation. Reads local history; does not query Google."""
+    zone = _tz(timezone)
+    now = datetime.now(UTC)
+    with session_scope() as session:
+        stmt = select(LocationObservation)
+        if device_id:
+            stmt = stmt.where(LocationObservation.device_id == device_id)
+        obs = session.scalar(stmt.order_by(desc(LocationObservation.observed_at)).limit(1))
+        if obs is None:
+            raise HTTPException(status_code=404, detail="No observations recorded yet.")
+        return _serialize_latest(obs, zone, now) or {}
 
-    @router.get("/poll-runs")
-    def poll_runs(limit: int = Query(default=25, ge=1, le=200)) -> dict[str, Any]:
-        zone = tz()
-        with session_scope() as session:
-            rows = list(
-                session.scalars(select(PollRun).order_by(desc(PollRun.started_at)).limit(limit))
-            )
-            return {"runs": [_serialize_run(r, zone) for r in rows]}
 
+def poll_runs(limit: int = Query(default=25, ge=1, le=200)) -> dict[str, Any]:
+    zone = _tz()
+    with session_scope() as session:
+        rows = list(
+            session.scalars(select(PollRun).order_by(desc(PollRun.started_at)).limit(limit))
+        )
+        return {"runs": [_serialize_run(r, zone) for r in rows]}
+
+
+def _register_poll_now_route(router: APIRouter, *, check_poll_cooldown) -> None:
     @router.post("/poll-now")
     def poll_now() -> dict[str, Any]:
         """Trigger one immediate Find Hub query. Rate-limited to protect the account."""
@@ -188,4 +207,12 @@ def build_router(*, settings, check_poll_cooldown) -> APIRouter:
             ],
         }
 
+
+def build_router(*, settings, check_poll_cooldown) -> APIRouter:
+    router = APIRouter(prefix="/api", tags=["history"])
+    _register_timeline_route(router, settings=settings)
+    router.add_api_route("/days", days, methods=["GET"])
+    router.add_api_route("/latest", latest, methods=["GET"])
+    router.add_api_route("/poll-runs", poll_runs, methods=["GET"])
+    _register_poll_now_route(router, check_poll_cooldown=check_poll_cooldown)
     return router

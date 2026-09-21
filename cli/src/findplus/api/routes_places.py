@@ -5,7 +5,10 @@ Purpose    : Let the dashboard manage saved places and read the geofence
 Outputs    : Place/event/presence dicts. ValueError from the repo layer maps
              to 409 (duplicate name), 404 (not found) or 422 (validation).
 Constraints: Gated by SessionAuthMiddleware like every /api/ path not in
-             _PUBLIC (routes_places is never in that set).
+             _PUBLIC (routes_places is never in that set). Handlers are
+             module-level functions with no factory state to close over, so
+             build_router only registers them (the E13 loop-1 function-cap
+             refactor; paths, methods and signatures are unchanged).
 """
 
 from __future__ import annotations
@@ -91,89 +94,94 @@ def _map_value_error(exc: ValueError) -> HTTPException:
     return HTTPException(status_code=code, detail=text)
 
 
+def get_places() -> list[dict[str, Any]]:
+    with session_scope() as s:
+        return [_place_to_dict(p) for p in list_places(s)]
+
+
+def post_place(body: PlaceCreate) -> dict[str, Any]:
+    with session_scope() as s:
+        try:
+            p = create_place(
+                s,
+                name=body.name,
+                latitude_e7=round(body.latitude * 1e7),
+                longitude_e7=round(body.longitude * 1e7),
+                radius_meters=body.radius_meters,
+                color=body.color,
+                enter_confirmations=body.enter_confirmations,
+                exit_confirmations=body.exit_confirmations,
+            )
+        except ValueError as exc:
+            s.rollback()
+            raise _map_value_error(exc) from exc
+        s.commit()
+        return _place_to_dict(p)
+
+
+def put_place(place_id: int, body: PlaceUpdate) -> dict[str, Any]:
+    kwargs = {k: v for k, v in body.model_dump().items() if v is not None}
+    if "latitude" in kwargs:
+        kwargs["latitude_e7"] = round(kwargs.pop("latitude") * 1e7)
+    if "longitude" in kwargs:
+        kwargs["longitude_e7"] = round(kwargs.pop("longitude") * 1e7)
+    with session_scope() as s:
+        try:
+            p = update_place(s, place_id, **kwargs)
+        except ValueError as exc:
+            s.rollback()
+            raise _map_value_error(exc) from exc
+        s.commit()
+        return _place_to_dict(p)
+
+
+def del_place(place_id: int) -> Response:
+    with session_scope() as s:
+        try:
+            delete_place(s, place_id)
+        except ValueError as exc:
+            s.rollback()
+            raise _map_value_error(exc) from exc
+        s.commit()
+    return Response(status_code=204)
+
+
+def get_events(
+    place_id: int | None = None,
+    device_id: str | None = None,
+    group_id: int | None = None,
+    since: datetime | None = None,
+    until: datetime | None = None,
+    limit: int = 200,
+) -> list[dict[str, Any]]:
+    with session_scope() as s:
+        rows = list_place_events(
+            s,
+            place_id=place_id,
+            device_id=device_id,
+            group_id=group_id,
+            since=since,
+            until=until,
+            limit=limit,
+        )
+        return [_event_to_dict(e) for e in rows]
+
+
+def get_presence(device_id: str | None = None) -> list[dict[str, Any]]:
+    with session_scope() as s:
+        rows = current_presence(s, device_id=device_id)
+        for r in rows:
+            if r["since_observed_at"] is not None:
+                r["since_observed_at"] = r["since_observed_at"].isoformat()
+        return rows
+
+
 def build_router() -> APIRouter:
     router = APIRouter(prefix="/api/places", tags=["places"])
-
-    @router.get("")
-    def get_places() -> list[dict[str, Any]]:
-        with session_scope() as s:
-            return [_place_to_dict(p) for p in list_places(s)]
-
-    @router.post("", status_code=201)
-    def post_place(body: PlaceCreate) -> dict[str, Any]:
-        with session_scope() as s:
-            try:
-                p = create_place(
-                    s,
-                    name=body.name,
-                    latitude_e7=round(body.latitude * 1e7),
-                    longitude_e7=round(body.longitude * 1e7),
-                    radius_meters=body.radius_meters,
-                    color=body.color,
-                    enter_confirmations=body.enter_confirmations,
-                    exit_confirmations=body.exit_confirmations,
-                )
-            except ValueError as exc:
-                s.rollback()
-                raise _map_value_error(exc) from exc
-            s.commit()
-            return _place_to_dict(p)
-
-    @router.put("/{place_id}")
-    def put_place(place_id: int, body: PlaceUpdate) -> dict[str, Any]:
-        kwargs = {k: v for k, v in body.model_dump().items() if v is not None}
-        if "latitude" in kwargs:
-            kwargs["latitude_e7"] = round(kwargs.pop("latitude") * 1e7)
-        if "longitude" in kwargs:
-            kwargs["longitude_e7"] = round(kwargs.pop("longitude") * 1e7)
-        with session_scope() as s:
-            try:
-                p = update_place(s, place_id, **kwargs)
-            except ValueError as exc:
-                s.rollback()
-                raise _map_value_error(exc) from exc
-            s.commit()
-            return _place_to_dict(p)
-
-    @router.delete("/{place_id}", status_code=204)
-    def del_place(place_id: int) -> Response:
-        with session_scope() as s:
-            try:
-                delete_place(s, place_id)
-            except ValueError as exc:
-                s.rollback()
-                raise _map_value_error(exc) from exc
-            s.commit()
-        return Response(status_code=204)
-
-    @router.get("/events")
-    def get_events(
-        place_id: int | None = None,
-        device_id: str | None = None,
-        group_id: int | None = None,
-        since: datetime | None = None,
-        until: datetime | None = None,
-        limit: int = 200,
-    ) -> list[dict[str, Any]]:
-        with session_scope() as s:
-            rows = list_place_events(
-                s,
-                place_id=place_id,
-                device_id=device_id,
-                group_id=group_id,
-                since=since,
-                until=until,
-                limit=limit,
-            )
-            return [_event_to_dict(e) for e in rows]
-
-    @router.get("/presence")
-    def get_presence(device_id: str | None = None) -> list[dict[str, Any]]:
-        with session_scope() as s:
-            rows = current_presence(s, device_id=device_id)
-            for r in rows:
-                if r["since_observed_at"] is not None:
-                    r["since_observed_at"] = r["since_observed_at"].isoformat()
-            return rows
-
+    router.add_api_route("", get_places, methods=["GET"])
+    router.add_api_route("", post_place, methods=["POST"], status_code=201)
+    router.add_api_route("/{place_id}", put_place, methods=["PUT"])
+    router.add_api_route("/{place_id}", del_place, methods=["DELETE"], status_code=204)
+    router.add_api_route("/events", get_events, methods=["GET"])
+    router.add_api_route("/presence", get_presence, methods=["GET"])
     return router

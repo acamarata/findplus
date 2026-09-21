@@ -5,7 +5,10 @@ Outputs    : Rule dicts with place_name/group_name/device_name resolved via a
              joined query (never N+1 selects). ValueError-free: 404s are
              raised directly by this module.
 Constraints: Gated by SessionAuthMiddleware like every /api/ path not in
-             _PUBLIC (routes_alerts is never in that set).
+             _PUBLIC (routes_alerts is never in that set). Handlers close
+             over nothing, so they are module-level functions and
+             build_router only registers them (E13 loop-1 function-cap
+             refactor; routes and signatures unchanged).
 """
 
 from __future__ import annotations
@@ -135,98 +138,105 @@ def _delivery_to_dict(session, d: AlertDelivery, rule_name: str) -> dict[str, An
     }
 
 
+def get_rules() -> list[dict[str, Any]]:
+    with session_scope() as s:
+        return _list_rules(s)
+
+
+def post_rule(body: RuleCreate) -> dict[str, Any]:
+    if (body.group_id is None) == (body.device_id is None):
+        raise HTTPException(
+            status_code=422, detail="exactly one of group_id or device_id is required"
+        )
+    with session_scope() as s:
+        rule = AlertRule(
+            name=body.name,
+            place_id=body.place_id,
+            group_id=body.group_id,
+            device_id=body.device_id,
+            on_enter=body.on_enter,
+            on_exit=body.on_exit,
+            channels=format_channels(body.channels),
+            cooldown_minutes=body.cooldown_minutes,
+            enabled=body.enabled,
+            also_notify_members=body.also_notify_members,
+            created_at=datetime.now(UTC),
+        )
+        s.add(rule)
+        s.commit()
+        rule_id = rule.id
+    with session_scope() as s:
+        return next(r for r in _list_rules(s) if r["id"] == rule_id)
+
+
+def put_rule(rule_id: int, body: RuleUpdate) -> dict[str, Any]:
+    with session_scope() as s:
+        rule = _get_rule_or_404(s, rule_id)
+        for field, value in body.model_dump(exclude_unset=True).items():
+            if field == "channels":
+                rule.channels = format_channels(value)
+                continue
+            setattr(rule, field, value)
+        s.commit()
+    with session_scope() as s:
+        return next(r for r in _list_rules(s) if r["id"] == rule_id)
+
+
+def delete_rule(rule_id: int) -> Response:
+    with session_scope() as s:
+        rule = _get_rule_or_404(s, rule_id)
+        s.delete(rule)
+        s.commit()
+    return Response(status_code=204)
+
+
+def get_deliveries(
+    limit: int = 100, since: int | None = None, channel: str | None = None
+) -> list[dict[str, Any]]:
+    """The delivery log, and the queue the desktop native poller drains.
+
+    `since` is an exclusive delivery-id cursor and replaces `limit` when
+    given: the poller wants everything new, in the order it happened, not a
+    fixed page of the most recent (specs/notifications.md § 2).
+    """
+    with session_scope() as s:
+        stmt = select(AlertDelivery, AlertRule.name).join(
+            AlertRule, AlertRule.id == AlertDelivery.rule_id
+        )
+        if channel is not None:
+            stmt = stmt.filter(AlertDelivery.channel == channel)
+        if since is not None:
+            stmt = stmt.filter(AlertDelivery.id > since).order_by(AlertDelivery.id)
+        else:
+            stmt = stmt.order_by(AlertDelivery.sent_at.desc()).limit(limit)
+        return [_delivery_to_dict(s, d, rule_name) for d, rule_name in s.execute(stmt).all()]
+
+
+def ack_delivery(delivery_id: int) -> Response:
+    """The desktop app confirms it showed a queued native notification.
+
+    404 covers both "no such delivery" and "not queued any more". A repeated
+    ack from a retried request is expected, not a conflict, so the client
+    treats 404 as success-equivalent (specs/notifications.md § 2).
+    """
+    with session_scope() as s:
+        delivery = s.get(AlertDelivery, delivery_id)
+        if delivery is None or delivery.status != "queued":
+            raise HTTPException(status_code=404, detail="delivery not queued")
+        delivery.status = "delivered"
+        delivery.delivered_at = datetime.now(UTC)
+        s.commit()
+    return Response(status_code=204)
+
+
 def build_router() -> APIRouter:
     router = APIRouter(prefix="/api/alerts", tags=["alerts"])
-
-    @router.get("/rules")
-    def get_rules() -> list[dict[str, Any]]:
-        with session_scope() as s:
-            return _list_rules(s)
-
-    @router.post("/rules", status_code=201)
-    def post_rule(body: RuleCreate) -> dict[str, Any]:
-        if (body.group_id is None) == (body.device_id is None):
-            raise HTTPException(
-                status_code=422, detail="exactly one of group_id or device_id is required"
-            )
-        with session_scope() as s:
-            rule = AlertRule(
-                name=body.name,
-                place_id=body.place_id,
-                group_id=body.group_id,
-                device_id=body.device_id,
-                on_enter=body.on_enter,
-                on_exit=body.on_exit,
-                channels=format_channels(body.channels),
-                cooldown_minutes=body.cooldown_minutes,
-                enabled=body.enabled,
-                also_notify_members=body.also_notify_members,
-                created_at=datetime.now(UTC),
-            )
-            s.add(rule)
-            s.commit()
-            rule_id = rule.id
-        with session_scope() as s:
-            return next(r for r in _list_rules(s) if r["id"] == rule_id)
-
-    @router.put("/rules/{rule_id}")
-    def put_rule(rule_id: int, body: RuleUpdate) -> dict[str, Any]:
-        with session_scope() as s:
-            rule = _get_rule_or_404(s, rule_id)
-            for field, value in body.model_dump(exclude_unset=True).items():
-                if field == "channels":
-                    rule.channels = format_channels(value)
-                    continue
-                setattr(rule, field, value)
-            s.commit()
-        with session_scope() as s:
-            return next(r for r in _list_rules(s) if r["id"] == rule_id)
-
-    @router.delete("/rules/{rule_id}", status_code=204)
-    def delete_rule(rule_id: int) -> Response:
-        with session_scope() as s:
-            rule = _get_rule_or_404(s, rule_id)
-            s.delete(rule)
-            s.commit()
-        return Response(status_code=204)
-
-    @router.get("/deliveries")
-    def get_deliveries(
-        limit: int = 100, since: int | None = None, channel: str | None = None
-    ) -> list[dict[str, Any]]:
-        """The delivery log, and the queue the desktop native poller drains.
-
-        `since` is an exclusive delivery-id cursor and replaces `limit` when
-        given: the poller wants everything new, in the order it happened, not a
-        fixed page of the most recent (specs/notifications.md § 2).
-        """
-        with session_scope() as s:
-            stmt = select(AlertDelivery, AlertRule.name).join(
-                AlertRule, AlertRule.id == AlertDelivery.rule_id
-            )
-            if channel is not None:
-                stmt = stmt.filter(AlertDelivery.channel == channel)
-            if since is not None:
-                stmt = stmt.filter(AlertDelivery.id > since).order_by(AlertDelivery.id)
-            else:
-                stmt = stmt.order_by(AlertDelivery.sent_at.desc()).limit(limit)
-            return [_delivery_to_dict(s, d, rule_name) for d, rule_name in s.execute(stmt).all()]
-
-    @router.post("/deliveries/{delivery_id}/ack", status_code=204)
-    def ack_delivery(delivery_id: int) -> Response:
-        """The desktop app confirms it showed a queued native notification.
-
-        404 covers both "no such delivery" and "not queued any more". A repeated
-        ack from a retried request is expected, not a conflict, so the client
-        treats 404 as success-equivalent (specs/notifications.md § 2).
-        """
-        with session_scope() as s:
-            delivery = s.get(AlertDelivery, delivery_id)
-            if delivery is None or delivery.status != "queued":
-                raise HTTPException(status_code=404, detail="delivery not queued")
-            delivery.status = "delivered"
-            delivery.delivered_at = datetime.now(UTC)
-            s.commit()
-        return Response(status_code=204)
-
+    router.add_api_route("/rules", get_rules, methods=["GET"])
+    router.add_api_route("/rules", post_rule, methods=["POST"], status_code=201)
+    router.add_api_route("/rules/{rule_id}", put_rule, methods=["PUT"])
+    router.add_api_route("/rules/{rule_id}", delete_rule, methods=["DELETE"], status_code=204)
+    router.add_api_route("/deliveries", get_deliveries, methods=["GET"])
+    router.add_api_route(
+        "/deliveries/{delivery_id}/ack", ack_delivery, methods=["POST"], status_code=204
+    )
     return router

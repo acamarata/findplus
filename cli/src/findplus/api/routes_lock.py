@@ -4,7 +4,10 @@ Purpose    : PIN-gated session lock for the dashboard. Enforcement lives in the
              SessionAuthMiddleware in api/__init__.py; these routes manage it.
 Inputs     : PIN (unlock), the session cookie.
 Outputs    : Lock state, a session cookie on unlock.
-Constraints: Rate-limited against brute force via SessionStore.
+Constraints: Rate-limited against brute force via SessionStore. The handlers
+             close over the factory's collaborators, so they live in small
+             register-functions and build_router only wires them (the E13
+             loop-1 function-cap refactor; routes and signatures unchanged).
 """
 
 from __future__ import annotations
@@ -20,15 +23,14 @@ from findplus.security import MIN_PIN_LENGTH, SessionStore, reject_padded_pin, v
 log = get_logger(__name__)
 
 
-def build_router(
+def _register_state_routes(
+    router: APIRouter,
     *,
     sessions: SessionStore,
     session_cookie: str,
     current_lock_state,
     sync_idle_timeout,
-) -> APIRouter:
-    router = APIRouter(prefix="/api/lock", tags=["lock"])
-
+) -> None:
     @router.get("/status")
     def lock_status(
         session_token: str | None = Cookie(default=None, alias=session_cookie),
@@ -47,6 +49,36 @@ def build_router(
             "attempts_remaining": sessions.attempts_remaining(),
         }
 
+    @router.post("/lock")
+    def lock_now(
+        response: Response,
+        session_token: str | None = Cookie(default=None, alias=session_cookie),
+    ) -> dict[str, Any]:
+        """Lock immediately (manual button, or the client's idle timer)."""
+        sessions.revoke(session_token)
+        response.delete_cookie(session_cookie, path="/")
+        return {"locked": True}
+
+    @router.get("/requirements")
+    def lock_requirements() -> dict[str, Any]:
+        return {
+            "min_pin_length": MIN_PIN_LENGTH,
+            # The specs/honesty.md sentence, not a second wording of it. The
+            # Settings dialog renders this (#lock-caveat) directly above
+            # /api/config.notices.lock_not_encryption (#fp-notice-lock), so a
+            # paraphrase here put two different lock caveats on one screen.
+            "caveat": honesty.LOCK_NOT_ENCRYPTION,
+        }
+
+
+def _register_unlock_route(
+    router: APIRouter,
+    *,
+    sessions: SessionStore,
+    session_cookie: str,
+    current_lock_state,
+    sync_idle_timeout,
+) -> None:
     @router.post("/unlock")
     def unlock(response: Response, pin: str = Body(..., embed=True)) -> dict[str, Any]:
         """Exchange a correct PIN for a session cookie. Rate-limited."""
@@ -90,25 +122,27 @@ def build_router(
         log.info("unlocked")
         return {"unlocked": True, "idle_minutes": app_settings.idle_minutes}
 
-    @router.post("/lock")
-    def lock_now(
-        response: Response,
-        session_token: str | None = Cookie(default=None, alias=session_cookie),
-    ) -> dict[str, Any]:
-        """Lock immediately (manual button, or the client's idle timer)."""
-        sessions.revoke(session_token)
-        response.delete_cookie(session_cookie, path="/")
-        return {"locked": True}
 
-    @router.get("/requirements")
-    def lock_requirements() -> dict[str, Any]:
-        return {
-            "min_pin_length": MIN_PIN_LENGTH,
-            # The specs/honesty.md sentence, not a second wording of it. The
-            # Settings dialog renders this (#lock-caveat) directly above
-            # /api/config.notices.lock_not_encryption (#fp-notice-lock), so a
-            # paraphrase here put two different lock caveats on one screen.
-            "caveat": honesty.LOCK_NOT_ENCRYPTION,
-        }
-
+def build_router(
+    *,
+    sessions: SessionStore,
+    session_cookie: str,
+    current_lock_state,
+    sync_idle_timeout,
+) -> APIRouter:
+    router = APIRouter(prefix="/api/lock", tags=["lock"])
+    _register_state_routes(
+        router,
+        sessions=sessions,
+        session_cookie=session_cookie,
+        current_lock_state=current_lock_state,
+        sync_idle_timeout=sync_idle_timeout,
+    )
+    _register_unlock_route(
+        router,
+        sessions=sessions,
+        session_cookie=session_cookie,
+        current_lock_state=current_lock_state,
+        sync_idle_timeout=sync_idle_timeout,
+    )
     return router

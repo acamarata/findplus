@@ -203,34 +203,8 @@ class SessionAuthMiddleware(BaseHTTPMiddleware):
         )
 
 
-def create_app(sessions: SessionStore | None = None) -> FastAPI:
-    settings = get_settings()
-    sessions = sessions or SessionStore()
-    app = FastAPI(
-        title="Find+",
-        version=__version__,
-        description="Local Find Hub location history. Not for emergency use.",
-        # Swagger UI and ReDoc fetch their JS/CSS from cdn.jsdelivr.net and a
-        # favicon from fastapi.tiangolo.com — invariant 9 forbids third-party
-        # scripts, and the CSP would blank the page anyway. The machine-
-        # readable schema stays: it is authed and serves no remote asset.
-        # The API reference for humans lives in .github/wiki/API-reference.md.
-        docs_url=None,
-        redoc_url=None,
-        # Schema lives under /api/ so the app lock covers it; at the FastAPI
-        # default (/openapi.json) it sat outside the gated prefix and
-        # described every route to anyone who could reach the port.
-        openapi_url="/api/openapi.json",
-    )
-    # Registration order is inside-out: the LAST middleware added runs FIRST,
-    # so a foreign Host is refused before the lock, the routers or /static see
-    # it, and the security headers land on that refusal too.
-    app.add_middleware(SessionAuthMiddleware, sessions=sessions)
-    app.add_middleware(OriginGuardMiddleware)
-    app.add_middleware(SecurityHeadersMiddleware)
-
-    sync_idle_timeout = _sync_idle_timeout(sessions)
-
+def _register_routers(app: FastAPI, *, settings, sessions, sync_idle_timeout) -> None:
+    """Every router mount, in one place, so create_app stays inside the cap."""
     app.include_router(
         routes_core.build_router(
             settings=settings, static_dir=STATIC_DIR, find_hub_notice=FIND_HUB_NOTICE
@@ -262,6 +236,39 @@ def create_app(sessions: SessionStore | None = None) -> FastAPI:
         routes_history.build_router(settings=settings, check_poll_cooldown=_check_poll_cooldown)
     )
     app.include_router(build_export_router())
+
+
+def create_app(sessions: SessionStore | None = None) -> FastAPI:
+    settings = get_settings()
+    sessions = sessions or SessionStore()
+    app = FastAPI(
+        title="Find+",
+        version=__version__,
+        description="Local Find Hub location history. Not for emergency use.",
+        # Swagger UI and ReDoc fetch their JS/CSS from cdn.jsdelivr.net and a
+        # favicon from fastapi.tiangolo.com — invariant 9 forbids third-party
+        # scripts, and the CSP would blank the page anyway. The machine-
+        # readable schema stays: it is authed and serves no remote asset.
+        # The API reference for humans lives in .github/wiki/API-reference.md.
+        docs_url=None,
+        redoc_url=None,
+        # Schema lives under /api/ so the app lock covers it; at the FastAPI
+        # default (/openapi.json) it sat outside the gated prefix and
+        # described every route to anyone who could reach the port.
+        openapi_url="/api/openapi.json",
+    )
+    # Registration order is inside-out: the LAST middleware added runs FIRST,
+    # so a foreign Host is refused before the lock, the routers or /static see
+    # it, and the security headers land on that refusal too.
+    app.add_middleware(SessionAuthMiddleware, sessions=sessions)
+    app.add_middleware(OriginGuardMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware)
+
+    sync_idle_timeout = _sync_idle_timeout(sessions)
+
+    _register_routers(
+        app, settings=settings, sessions=sessions, sync_idle_timeout=sync_idle_timeout
+    )
 
     if STATIC_DIR.is_dir():
         app.mount("/static", _ComposedSourceGuard(directory=STATIC_DIR), name="static")

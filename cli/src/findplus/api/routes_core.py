@@ -3,7 +3,10 @@
 Purpose    : Meta endpoints the UI polls on load and the "/" shell page.
 Inputs     : Request query params (device_id, timezone); app-level settings.
 Outputs    : JSON meta payloads; the dashboard's index.html.
-Constraints: Reading these never queries Google.
+Constraints: Reading these never queries Google. Handlers needing factory
+             collaborators live in small register-functions; the rest are
+             module-level (E13 loop-1 function-cap refactor; routes and
+             signatures unchanged).
 """
 
 from __future__ import annotations
@@ -61,8 +64,9 @@ def _last_runs(session) -> tuple[Any, Any]:
 def _status_extras(session, settings, last_run, next_poll_at) -> dict[str, Any]:
     """The seven fields api-contract.md § /api/status adds in P1.
 
-    Split out of the handler so `status()` stays inside the 50-line rule; the
-    values are computed from exactly the sources the rest of the handler uses.
+    Split out of the handler so the route function stays inside the 50-line
+    rule; the values are computed from exactly the sources the rest of the
+    handler uses.
     """
     return {
         "provider_health": _provider_health(),
@@ -74,12 +78,31 @@ def _status_extras(session, settings, last_run, next_poll_at) -> dict[str, Any]:
     }
 
 
-def build_router(*, settings, static_dir: Path, find_hub_notice: str) -> APIRouter:
-    router = APIRouter(tags=["core"])
+def version() -> dict[str, Any]:
+    """Public: feeds the lock sweep and `findplus version --check`."""
+    apple_installed = importlib.util.find_spec("findmy") is not None
+    return {
+        "version": __version__,
+        "python": sys.version.split()[0],
+        "platform": platform.platform(),
+        "providers": ["google-find-hub"] + (["apple-find-my"] if apple_installed else []),
+        "apple_extra_installed": apple_installed,
+    }
 
-    def tz(name: str | None = None):
-        return local_zone(name)
 
+def icons() -> list[dict[str, str]]:
+    """The pinned Lucide subset, for the CLI and test tooling.
+
+    The dashboard's icon picker does not read this: it enumerates the
+    `<symbol id="lucide-*">` elements already in the sprite, so the browser
+    fetches icon artwork and grouping in one request.
+    """
+    from findplus import labels
+
+    return labels.lucide_subset()
+
+
+def _register_meta_routes(router: APIRouter, *, settings, find_hub_notice: str) -> None:
     @router.get("/api/health")
     def health() -> dict[str, Any]:
         return {
@@ -89,7 +112,7 @@ def build_router(*, settings, static_dir: Path, find_hub_notice: str) -> APIRout
             "pid": os.getpid(),
             "schema_revision": current_revision(),
             "schema_up_to_date": is_up_to_date(),
-            "timezone": str(tz()),
+            "timezone": str(local_zone()),
             "notice": find_hub_notice,
         }
 
@@ -101,7 +124,7 @@ def build_router(*, settings, static_dir: Path, find_hub_notice: str) -> APIRout
             "gap_threshold_minutes": settings.gap_threshold_minutes,
             "retention_days": settings.retention_days,
             "ui_refresh_seconds": settings.ui_refresh_seconds,
-            "timezone": str(tz()),
+            "timezone": str(local_zone()),
             "notice": find_hub_notice,
             # All six honesty.md sentences (E8 W5): find_hub, apple, alerts_latency,
             # presence_stale, lock_not_encryption, not_affiliated.
@@ -109,30 +132,8 @@ def build_router(*, settings, static_dir: Path, find_hub_notice: str) -> APIRout
             "auth": describe_stored_auth(),
         }
 
-    @router.get("/api/version")
-    def version() -> dict[str, Any]:
-        """Public: feeds the lock sweep and `findplus version --check`."""
-        apple_installed = importlib.util.find_spec("findmy") is not None
-        return {
-            "version": __version__,
-            "python": sys.version.split()[0],
-            "platform": platform.platform(),
-            "providers": ["google-find-hub"] + (["apple-find-my"] if apple_installed else []),
-            "apple_extra_installed": apple_installed,
-        }
 
-    @router.get("/api/icons")
-    def icons() -> list[dict[str, str]]:
-        """The pinned Lucide subset, for the CLI and test tooling.
-
-        The dashboard's icon picker does not read this: it enumerates the
-        `<symbol id="lucide-*">` elements already in the sprite, so the browser
-        fetches icon artwork and grouping in one request.
-        """
-        from findplus import labels
-
-        return labels.lucide_subset()
-
+def _register_widget_route(router: APIRouter, *, settings) -> None:
     @router.get("/api/widget")
     def widget() -> dict[str, Any]:
         """Compact, lock-aware feed for the Tauri menu-bar widget (E16)."""
@@ -164,6 +165,8 @@ def build_router(*, settings, static_dir: Path, find_hub_notice: str) -> APIRout
                 "notice": honesty.ALERTS_LATENCY,
             }
 
+
+def _register_status_route(router: APIRouter, *, settings, find_hub_notice: str) -> None:
     @router.get("/api/status")
     def status(
         device_id: str | None = Query(default=None),
@@ -174,7 +177,7 @@ def build_router(*, settings, static_dir: Path, find_hub_notice: str) -> APIRout
         `device_id` narrows the headline figures to one tracker; without it they
         aggregate across every device that has history.
         """
-        zone = tz(timezone)
+        zone = local_zone(timezone)
         now = datetime.now(UTC)
         with session_scope() as session:
             tracked = get_tracked_devices(session)
@@ -210,6 +213,14 @@ def build_router(*, settings, static_dir: Path, find_hub_notice: str) -> APIRout
                 **_status_extras(session, settings, last_run, next_poll_at),
             }
 
+
+def build_router(*, settings, static_dir: Path, find_hub_notice: str) -> APIRouter:
+    router = APIRouter(tags=["core"])
+    _register_meta_routes(router, settings=settings, find_hub_notice=find_hub_notice)
+    router.add_api_route("/api/version", version, methods=["GET"])
+    router.add_api_route("/api/icons", icons, methods=["GET"])
+    _register_widget_route(router, settings=settings)
+    _register_status_route(router, settings=settings, find_hub_notice=find_hub_notice)
     if static_dir.is_dir():
         # Composed once at startup, not per request: the partials never change
         # while the process runs, and a missing one must fail here rather than

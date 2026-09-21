@@ -3,7 +3,10 @@
 Purpose    : Manage which devices are tracked and which one the UI focuses on.
 Inputs     : device_ids, all_devices flag, a single device_id.
 Outputs    : Device summaries and tracking state.
-Constraints: `refresh` is the only route here that queries Google.
+Constraints: `refresh` is the only route here that queries Google. Handlers
+             that need the settings object sit in small register-functions;
+             the rest are module-level (E13 loop-1 function-cap refactor;
+             routes and signatures unchanged).
 """
 
 from __future__ import annotations
@@ -170,9 +173,62 @@ class DevicePatch(BaseModel):
         return labels.validate_color(v) if v is not None else v
 
 
-def build_router(*, settings) -> APIRouter:
-    router = APIRouter(prefix="/api", tags=["devices"])
+def refresh_devices() -> dict[str, Any]:
+    """Re-query every authenticated provider for its device list.
 
+    The button says "Refresh from your providers", plural, but this
+    constructed FindHubClient directly: an accessory added with
+    `findplus apple add-accessory` never appeared from the dashboard, and
+    nothing on screen said Apple was CLI-only (E1 honesty round 2 F4).
+    A provider that is not installed or not signed in is skipped, not an
+    error -- the common case is exactly one provider configured.
+    """
+    from findplus.ingest import upsert_device
+
+    found, queried, errors = _refresh_from_providers()
+
+    with session_scope() as session:
+        for provider_name, d in found:
+            upsert_device(session, d.device_id, d.name, provider=provider_name)
+    return {"found": len(found), "providers": queried, "errors": errors}
+
+
+def choose_default(device_id: str | None = Body(default=None, embed=True)) -> dict[str, Any]:
+    """Set which device the dashboard focuses on first."""
+    with session_scope() as session:
+        set_default_device(session, device_id)
+        return {"default_device_id": device_id}
+
+
+def patch_device(device_id: str, body: DevicePatch) -> dict[str, Any]:
+    """Edit one device's label, icon, colour or tracked flag.
+
+    `label` is read through `model_fields_set` because clearing a label is
+    `{"label": ""}`, which validates to `None` and must be written; an
+    omitted key must leave the stored label alone. `icon` and `color` are
+    NOT NULL columns with no clear operation, so an explicit `null` for
+    either is a no-op rather than a write.
+    """
+    with session_scope() as session:
+        device = session.get(Device, device_id)
+        if device is None:
+            raise HTTPException(status_code=404, detail=f"device {device_id} not found")
+        if "label" in body.model_fields_set:
+            device.label = body.label
+        if body.icon is not None:
+            device.icon = body.icon
+        if body.color is not None:
+            device.color = body.color
+        if body.tracked is not None:
+            if body.tracked:
+                track_devices(session, [device_id], exclusive=False)
+            else:
+                untrack_devices(session, [device_id])
+        session.flush()
+        return _device_row(session, device)
+
+
+def _register_list_route(router: APIRouter, *, settings) -> None:
     @router.get("/devices")
     def devices() -> dict[str, Any]:
         with session_scope() as session:
@@ -197,26 +253,8 @@ def build_router(*, settings) -> APIRouter:
                 ],
             }
 
-    @router.post("/devices/refresh")
-    def refresh_devices() -> dict[str, Any]:
-        """Re-query every authenticated provider for its device list.
 
-        The button says "Refresh from your providers", plural, but this
-        constructed FindHubClient directly: an accessory added with
-        `findplus apple add-accessory` never appeared from the dashboard, and
-        nothing on screen said Apple was CLI-only (E1 honesty round 2 F4).
-        A provider that is not installed or not signed in is skipped, not an
-        error -- the common case is exactly one provider configured.
-        """
-        from findplus.ingest import upsert_device
-
-        found, queried, errors = _refresh_from_providers()
-
-        with session_scope() as session:
-            for provider_name, d in found:
-                upsert_device(session, d.device_id, d.name, provider=provider_name)
-        return {"found": len(found), "providers": queried, "errors": errors}
-
+def _register_track_routes(router: APIRouter, *, settings) -> None:
     @router.post("/devices/track")
     def set_tracked(
         device_ids: list[str] | None = Body(default=None, embed=True),
@@ -242,39 +280,12 @@ def build_router(*, settings) -> APIRouter:
                 "requests_per_hour": round(len(tracked) * 60 / interval, 1) if interval else None,
             }
 
-    @router.post("/devices/default")
-    def choose_default(device_id: str | None = Body(default=None, embed=True)) -> dict[str, Any]:
-        """Set which device the dashboard focuses on first."""
-        with session_scope() as session:
-            set_default_device(session, device_id)
-            return {"default_device_id": device_id}
 
-    @router.patch("/devices/{device_id}")
-    def patch_device(device_id: str, body: DevicePatch) -> dict[str, Any]:
-        """Edit one device's label, icon, colour or tracked flag.
-
-        `label` is read through `model_fields_set` because clearing a label is
-        `{"label": ""}`, which validates to `None` and must be written; an
-        omitted key must leave the stored label alone. `icon` and `color` are
-        NOT NULL columns with no clear operation, so an explicit `null` for
-        either is a no-op rather than a write.
-        """
-        with session_scope() as session:
-            device = session.get(Device, device_id)
-            if device is None:
-                raise HTTPException(status_code=404, detail=f"device {device_id} not found")
-            if "label" in body.model_fields_set:
-                device.label = body.label
-            if body.icon is not None:
-                device.icon = body.icon
-            if body.color is not None:
-                device.color = body.color
-            if body.tracked is not None:
-                if body.tracked:
-                    track_devices(session, [device_id], exclusive=False)
-                else:
-                    untrack_devices(session, [device_id])
-            session.flush()
-            return _device_row(session, device)
-
+def build_router(*, settings) -> APIRouter:
+    router = APIRouter(prefix="/api", tags=["devices"])
+    _register_list_route(router, settings=settings)
+    router.add_api_route("/devices/refresh", refresh_devices, methods=["POST"])
+    _register_track_routes(router, settings=settings)
+    router.add_api_route("/devices/default", choose_default, methods=["POST"])
+    router.add_api_route("/devices/{device_id}", patch_device, methods=["PATCH"])
     return router

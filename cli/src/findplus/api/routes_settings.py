@@ -4,6 +4,11 @@ Purpose    : User-configurable dashboard settings and PIN management.
 Inputs     : theme, idle_minutes, lock_enabled, PIN values.
 Outputs    : The public (non-secret) settings payload.
 Constraints: A PIN change revokes every session, then re-issues one to the caller.
+             The per-key GET/POST sub-routes (app.start_at_login,
+             widget.show_map, onboarding.*) live in routes_settings_keys.py;
+             handlers that need factory collaborators sit in small
+             register-functions so no function exceeds the 50-line cap
+             (E13 loop-1 refactor; routes and signatures unchanged).
 """
 
 from __future__ import annotations
@@ -20,11 +25,10 @@ from findplus.appsettings import (
     save_theme,
     set_lock_enabled,
 )
-from findplus.config import get_settings
 from findplus.db.session import session_scope
 from findplus.logging_setup import get_logger
 from findplus.security import SessionStore, hash_pin, reject_padded_pin, verify_pin
-from findplus.state import get_setting, set_setting
+from findplus.state import set_setting
 
 from ._settings_fields import (
     _RETENTION_KEY,
@@ -32,22 +36,84 @@ from ._settings_fields import (
     _settings_body,
     _write_config_fields,
     _write_onboarding_fields,
-    validate_step,
 )
-from ._widget import _widget_show_map
 from .middleware import same_origin_problem
+from .routes_settings_keys import register_key_routes
 
 log = get_logger(__name__)
 
-# The desktop app installs into /Applications; --program overrides
-# ProgramArguments[0] so the LaunchAgent points at the bundled sidecar
-# rather than a venv findplus (specs/desktop-app.md § Start at login).
-_APP_PROGRAM = "/Applications/Find+.app/Contents/MacOS/findplus-daemon"
+
+def _apply_writes(
+    session,
+    *,
+    theme: str | None,
+    idle_minutes: int | None,
+    lock_enabled: bool | None,
+    native_detail: bool | None,
+    poll_interval_minutes: int | None,
+    retention_days: int | None,
+    retention_present: bool,
+    raw_body: dict[str, Any],
+    completed_at: str | None,
+    last_step: str | None,
+) -> None:
+    """One PATCH's field writes, in the route's original order."""
+    if theme is not None:
+        save_theme(session, theme)
+    if idle_minutes is not None:
+        save_idle_minutes(session, idle_minutes)
+    if lock_enabled is not None:
+        current = load_settings(session)
+        if lock_enabled and not current.pin_configured:
+            raise HTTPException(
+                status_code=400,
+                detail="Set a PIN before enabling the app lock.",
+            )
+        set_lock_enabled(session, lock_enabled)
+    if native_detail is not None:
+        set_setting(session, "alerts.native_detail", "1" if native_detail else "0")
+    try:
+        _write_config_fields(poll_interval_minutes, retention_days, retention_present)
+        _write_onboarding_fields(session, raw_body, completed_at, last_step)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
-def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeout) -> APIRouter:
-    router = APIRouter(prefix="/api/settings", tags=["settings"])
+def _pin_change_allowed(request: Request, session, current_pin: str | None) -> None:
+    """Prove the caller may rewrite the PIN: the current PIN, or a first-time
+    same-origin POST. Raises 403; returns nothing on success."""
+    existing = load_settings(session)
+    if existing.pin_configured:
+        if not verify_pin(current_pin or "", existing.pin_salt or "", existing.pin_hash or ""):
+            raise HTTPException(status_code=403, detail="Current PIN is incorrect.")
+    else:
+        problem = same_origin_problem(request)
+        if problem is not None:
+            raise HTTPException(status_code=403, detail=problem)
 
+
+def _reissue_session(
+    response: Response,
+    *,
+    sessions: SessionStore,
+    session_cookie: str,
+    updated,
+    sync_idle_timeout,
+) -> None:
+    """A PIN change signs every device out and this browser straight back in."""
+    sessions.revoke_all()
+    sync_idle_timeout(updated)
+    response.set_cookie(
+        session_cookie,
+        sessions.create(),
+        httponly=True,
+        samesite="strict",
+        max_age=None,
+        path="/",
+    )
+
+
+def _register_value_routes(router: APIRouter, *, sync_idle_timeout) -> None:
     @router.get("")
     def read_settings() -> dict[str, Any]:
         with session_scope() as session:
@@ -73,27 +139,19 @@ def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeo
     ) -> dict[str, Any]:
         with session_scope() as session:
             try:
-                if theme is not None:
-                    save_theme(session, theme)
-                if idle_minutes is not None:
-                    save_idle_minutes(session, idle_minutes)
-                if lock_enabled is not None:
-                    current = load_settings(session)
-                    if lock_enabled and not current.pin_configured:
-                        raise HTTPException(
-                            status_code=400,
-                            detail="Set a PIN before enabling the app lock.",
-                        )
-                    set_lock_enabled(session, lock_enabled)
-                if native_detail is not None:
-                    set_setting(session, "alerts.native_detail", "1" if native_detail else "0")
-                try:
-                    _write_config_fields(
-                        poll_interval_minutes, retention_days, _RETENTION_KEY in raw_body
-                    )
-                    _write_onboarding_fields(session, raw_body, completed_at, last_step)
-                except ValueError as exc:
-                    raise HTTPException(status_code=422, detail=str(exc)) from exc
+                _apply_writes(
+                    session,
+                    theme=theme,
+                    idle_minutes=idle_minutes,
+                    lock_enabled=lock_enabled,
+                    native_detail=native_detail,
+                    poll_interval_minutes=poll_interval_minutes,
+                    retention_days=retention_days,
+                    retention_present=_RETENTION_KEY in raw_body,
+                    raw_body=raw_body,
+                    completed_at=completed_at,
+                    last_step=last_step,
+                )
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
             updated = load_settings(session)
@@ -101,6 +159,10 @@ def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeo
         sync_idle_timeout(updated)
         return body
 
+
+def _register_set_pin_route(
+    router: APIRouter, *, sessions: SessionStore, session_cookie: str, sync_idle_timeout
+) -> None:
     @router.post("/pin")
     def set_pin(
         request: Request,
@@ -128,36 +190,25 @@ def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeo
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         with session_scope() as session:
-            existing = load_settings(session)
-            if existing.pin_configured:
-                if not verify_pin(
-                    current_pin or "", existing.pin_salt or "", existing.pin_hash or ""
-                ):
-                    raise HTTPException(status_code=403, detail="Current PIN is incorrect.")
-            else:
-                problem = same_origin_problem(request)
-                if problem is not None:
-                    raise HTTPException(status_code=403, detail=problem)
+            _pin_change_allowed(request, session, current_pin)
             try:
                 salt, digest = hash_pin(new_pin)
             except ValueError as exc:
                 raise HTTPException(status_code=400, detail=str(exc)) from exc
             save_pin(session, salt, digest)
             updated = load_settings(session)
-
-        sessions.revoke_all()
-        sync_idle_timeout(updated)
-        response.set_cookie(
-            session_cookie,
-            sessions.create(),
-            httponly=True,
-            samesite="strict",
-            max_age=None,
-            path="/",
+        _reissue_session(
+            response,
+            sessions=sessions,
+            session_cookie=session_cookie,
+            updated=updated,
+            sync_idle_timeout=sync_idle_timeout,
         )
         log.info("pin_updated")
         return updated.public()
 
+
+def _register_remove_pin_route(router: APIRouter, *, sessions: SessionStore) -> None:
     @router.delete("/pin")
     def remove_pin(current_pin: str = Body(..., embed=True)) -> dict[str, Any]:
         """Remove the PIN and disable the lock. Requires the current PIN.
@@ -183,105 +234,16 @@ def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeo
         log.warning("pin_removed")
         return updated.public()
 
-    @router.get("/app.start_at_login")
-    def get_start_at_login() -> dict[str, Any]:
-        with session_scope() as session:
-            value = get_setting(session, "app.start_at_login", "0")
-        return {"app.start_at_login": value == "1"}
 
-    @router.post("/app.start_at_login")
-    def set_start_at_login(value: bool = Body(..., embed=True)) -> dict[str, Any]:
-        """Toggle the desktop app's LaunchAgent through findplus.service.
-
-        api-contract.md pins this as "toggles the LaunchAgent RunAtLoad flag
-        for com.acamarata.findplus via `findplus.service`". It used to shell
-        out to `findplus-daemon` instead, which is the sidecar binary inside
-        Find+.app and is not on any PATH -- including the sidecar's own, since
-        this code RUNS in that process. Toggling the switch in the dashboard
-        raised OSError and returned 500, every time, on every platform.
-        Calling the facade in-process is the same one implementation the CLI
-        uses (service.runtime.install/uninstall), minus the PATH dependency.
-        """
-        from findplus.service import runtime
-
-        with session_scope() as session:
-            set_setting(session, "app.start_at_login", "1" if value else "0")
-
-        try:
-            if value:
-                runtime.install(confirmed=True, program=_APP_PROGRAM)
-            else:
-                runtime.uninstall()
-        except Exception as exc:  # a launchctl/systemd failure is not a crash
-            log.error("start_at_login_service_update_failed", extra={"error": str(exc)})
-            raise HTTPException(
-                status_code=500, detail=f"Could not update the background service: {exc}"
-            ) from exc
-
-        return {"app.start_at_login": value}
-
-    @router.get("/widget.show_map")
-    def get_widget_show_map() -> dict[str, Any]:
-        """The effective value, resolved exactly as `GET /api/widget` resolves it.
-
-        Reading the settings row alone and defaulting to "0" made the Alerts-tab
-        checkbox disagree with the widget whenever the row did not exist yet and
-        `FINDPLUS_WIDGET_SHOW_MAP=1` was set: the box read off while the widget
-        drew the map. `_widget_show_map` is the one resolver (row wins, config
-        is the fallback), so both surfaces now answer the same question.
-        """
-        with session_scope() as session:
-            return {"widget.show_map": _widget_show_map(session, get_settings())}
-
-    @router.put("/widget.show_map")
-    @router.post("/widget.show_map")
-    def set_widget_show_map(value: bool = Body(..., embed=True)) -> dict[str, Any]:
-        """Persist whether the widget renders a map snapshot.
-
-        Same per-key GET/PUT/POST shape as `app.start_at_login` above. The
-        dashboard's Alerts-tab checkbox (web/app/alerts.js) writes this; the
-        settings-table row it sets is the same one `GET /api/widget` and
-        `findplus widget show-map` read (see `_widget_show_map` in
-        api/_widget.py — a table row always wins over the config env var).
-        """
-        with session_scope() as session:
-            set_setting(session, "widget.show_map", "1" if value else "0")
-        return {"widget.show_map": value}
-
-    @router.get("/onboarding.completed_at")
-    def get_onboarding_completed_at() -> dict[str, Any]:
-        with session_scope() as session:
-            return {"onboarding.completed_at": get_setting(session, "onboarding.completed_at")}
-
-    @router.post("/onboarding.completed_at")
-    def set_onboarding_completed_at(
-        value: str | None = Body(default=None, embed=True),
-    ) -> dict[str, Any]:
-        """Stamp or clear the onboarding completion time (specs/onboarding.md § 2).
-
-        `value: null` un-completes onboarding. Only tests and `findplus setup
-        --reset` send it; the wizard always sends an ISO timestamp.
-        """
-        with session_scope() as session:
-            set_setting(session, "onboarding.completed_at", value)
-        return {"onboarding.completed_at": value}
-
-    @router.get("/onboarding.last_step")
-    def get_onboarding_last_step() -> dict[str, Any]:
-        with session_scope() as session:
-            return {"onboarding.last_step": get_setting(session, "onboarding.last_step")}
-
-    @router.post("/onboarding.last_step")
-    def set_onboarding_last_step(
-        value: str | None = Body(default=None, embed=True),
-    ) -> dict[str, Any]:
-        """Record the wizard's resume point, one of the eight known step ids."""
-        try:
-            validate_step(value)
-        except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-        with session_scope() as session:
-            set_setting(session, "onboarding.last_step", value)
-        return {"onboarding.last_step": value}
-
+def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeout) -> APIRouter:
+    router = APIRouter(prefix="/api/settings", tags=["settings"])
+    _register_value_routes(router, sync_idle_timeout=sync_idle_timeout)
+    _register_set_pin_route(
+        router,
+        sessions=sessions,
+        session_cookie=session_cookie,
+        sync_idle_timeout=sync_idle_timeout,
+    )
+    _register_remove_pin_route(router, sessions=sessions)
+    register_key_routes(router)
     return router

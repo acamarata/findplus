@@ -10,7 +10,10 @@ Constraints: Pulled out of routes_history.py when it grew past the PRI
              exactly like every other routes_*.build_router() — never
              nested inside another `/api`-prefixed router (see
              routes_history.py's module docstring for why). Route paths and
-             behaviour are unchanged from before the split.
+             behaviour are unchanged from before the split. Handlers close
+             over nothing, so they are module-level functions and
+             build_export_router only registers them (E13 loop-1
+             function-cap refactor; routes and signatures unchanged).
 """
 
 from __future__ import annotations
@@ -50,122 +53,124 @@ def _labels_for(session, rows) -> dict[str, str]:
     return {device_id: label for device_id, label in pairs if label}
 
 
+def _download(body: str, fmt: str, filename: str):
+    from fastapi.responses import PlainTextResponse
+
+    headers = {"Content-Disposition": content_disposition(filename)}
+    return PlainTextResponse(content=body, media_type=MEDIA_TYPES[fmt], headers=headers)
+
+
+def _export_group(group_id: str, fmt: str, day, start, end, zone):
+    """One track per member, never merged (`group_id` is `str`: see group_export.py)."""
+    start_utc, end_utc, label = _resolve_range(day, start, end, zone)
+    with session_scope() as session:
+        try:
+            body, name_slug = export_group(session, group_id, fmt, start_utc, end_utc, zone)
+        except GroupNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="group not found") from exc
+    return _download(body, fmt, f"findplus-group-{name_slug}-{label}.{fmt}")
+
+
+def export_history(
+    fmt: str = Query(default="csv", pattern="^(csv|json|gpx|kml)$"),
+    day: str | None = Query(default=None),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
+    device_id: str | None = Query(default=None),
+    group_id: str | None = Query(default=None, description="One track per member"),
+    timezone: str | None = Query(default=None),
+):
+    zone = local_zone(timezone)
+    if group_id is not None:
+        return _export_group(group_id, fmt, day, start, end, zone)
+
+    with session_scope() as session:
+        start_utc, end_utc, label = _resolve_range(day, start, end, zone)
+        rows = fetch_observations(session, device_id, start_utc, end_utc)
+        name = "Find+ history"
+        if device_id:
+            device = session.get(Device, device_id)
+            if device:
+                name = device.name
+                label = f"{device.name.replace(' ', '-')}-{label}"
+        body = export(fmt, rows, zone, name=f"{name} {label}", labels=_labels_for(session, rows))
+    return _download(body, fmt, f"findplus-{label}.{fmt}")
+
+
+def delete_before(
+    before: str = Body(..., embed=True, description="YYYY-MM-DD, local date"),
+    confirm: bool = Body(default=False, embed=True),
+) -> dict[str, Any]:
+    """Delete observations older than a date. Requires explicit confirmation."""
+    from ._helpers import _parse_day
+
+    zone = local_zone()
+    target = _parse_day(before)
+    if target is None:
+        raise HTTPException(status_code=400, detail="`before` must be YYYY-MM-DD.")
+    cutoff_utc, _ = day_bounds_utc(target, zone)
+
+    with session_scope() as session:
+        doomed = session.scalar(
+            select(func.count(LocationObservation.id)).where(
+                LocationObservation.observed_at < cutoff_utc
+            )
+        )
+        if not confirm:
+            return {
+                "deleted": 0,
+                "would_delete": int(doomed or 0),
+                "cutoff_utc": cutoff_utc.isoformat(),
+                "message": "Dry run. Re-send with confirm=true to delete.",
+            }
+        session.query(LocationObservation).filter(
+            LocationObservation.observed_at < cutoff_utc
+        ).delete(synchronize_session=False)
+        log.warning("history_deleted", before=before, count=int(doomed or 0))
+        return {
+            "deleted": int(doomed or 0),
+            "cutoff_utc": cutoff_utc.isoformat(),
+            "message": f"Deleted {doomed} observation(s) before {before}.",
+        }
+
+
+def clear_history(
+    confirm: bool = Body(default=False, embed=True),
+    device_id: str | None = Body(default=None, embed=True),
+) -> dict[str, Any]:
+    """Delete ALL history, optionally for one device.
+
+    Dry run unless `confirm=true`. History is never deleted silently.
+    """
+    with session_scope() as session:
+        stmt = select(func.count(LocationObservation.id))
+        if device_id:
+            stmt = stmt.where(LocationObservation.device_id == device_id)
+        doomed = int(session.scalar(stmt) or 0)
+
+        if not confirm:
+            return {
+                "deleted": 0,
+                "would_delete": doomed,
+                "device_id": device_id,
+                "message": "Dry run. Re-send with confirm=true to delete.",
+            }
+
+        query = session.query(LocationObservation)
+        if device_id:
+            query = query.filter(LocationObservation.device_id == device_id)
+        query.delete(synchronize_session=False)
+        log.warning("history_cleared", device_id=device_id, count=doomed)
+        return {
+            "deleted": doomed,
+            "device_id": device_id,
+            "message": f"Deleted {doomed} observation(s).",
+        }
+
+
 def build_export_router() -> APIRouter:
     router = APIRouter(prefix="/api", tags=["history"])
-
-    def _download(body: str, fmt: str, filename: str):
-        from fastapi.responses import PlainTextResponse
-
-        headers = {"Content-Disposition": content_disposition(filename)}
-        return PlainTextResponse(content=body, media_type=MEDIA_TYPES[fmt], headers=headers)
-
-    def _export_group(group_id: str, fmt: str, day, start, end, zone):
-        """One track per member, never merged (`group_id` is `str`: see group_export.py)."""
-        start_utc, end_utc, label = _resolve_range(day, start, end, zone)
-        with session_scope() as session:
-            try:
-                body, name_slug = export_group(session, group_id, fmt, start_utc, end_utc, zone)
-            except GroupNotFoundError as exc:
-                raise HTTPException(status_code=404, detail="group not found") from exc
-        return _download(body, fmt, f"findplus-group-{name_slug}-{label}.{fmt}")
-
-    @router.get("/export")
-    def export_history(
-        fmt: str = Query(default="csv", pattern="^(csv|json|gpx|kml)$"),
-        day: str | None = Query(default=None),
-        start: str | None = Query(default=None),
-        end: str | None = Query(default=None),
-        device_id: str | None = Query(default=None),
-        group_id: str | None = Query(default=None, description="One track per member"),
-        timezone: str | None = Query(default=None),
-    ):
-        zone = local_zone(timezone)
-        if group_id is not None:
-            return _export_group(group_id, fmt, day, start, end, zone)
-
-        with session_scope() as session:
-            start_utc, end_utc, label = _resolve_range(day, start, end, zone)
-            rows = fetch_observations(session, device_id, start_utc, end_utc)
-            name = "Find+ history"
-            if device_id:
-                device = session.get(Device, device_id)
-                if device:
-                    name = device.name
-                    label = f"{device.name.replace(' ', '-')}-{label}"
-            body = export(
-                fmt, rows, zone, name=f"{name} {label}", labels=_labels_for(session, rows)
-            )
-        return _download(body, fmt, f"findplus-{label}.{fmt}")
-
-    @router.post("/history/delete-before")
-    def delete_before(
-        before: str = Body(..., embed=True, description="YYYY-MM-DD, local date"),
-        confirm: bool = Body(default=False, embed=True),
-    ) -> dict[str, Any]:
-        """Delete observations older than a date. Requires explicit confirmation."""
-        from ._helpers import _parse_day
-
-        zone = local_zone()
-        target = _parse_day(before)
-        if target is None:
-            raise HTTPException(status_code=400, detail="`before` must be YYYY-MM-DD.")
-        cutoff_utc, _ = day_bounds_utc(target, zone)
-
-        with session_scope() as session:
-            doomed = session.scalar(
-                select(func.count(LocationObservation.id)).where(
-                    LocationObservation.observed_at < cutoff_utc
-                )
-            )
-            if not confirm:
-                return {
-                    "deleted": 0,
-                    "would_delete": int(doomed or 0),
-                    "cutoff_utc": cutoff_utc.isoformat(),
-                    "message": "Dry run. Re-send with confirm=true to delete.",
-                }
-            session.query(LocationObservation).filter(
-                LocationObservation.observed_at < cutoff_utc
-            ).delete(synchronize_session=False)
-            log.warning("history_deleted", before=before, count=int(doomed or 0))
-            return {
-                "deleted": int(doomed or 0),
-                "cutoff_utc": cutoff_utc.isoformat(),
-                "message": f"Deleted {doomed} observation(s) before {before}.",
-            }
-
-    @router.post("/history/clear")
-    def clear_history(
-        confirm: bool = Body(default=False, embed=True),
-        device_id: str | None = Body(default=None, embed=True),
-    ) -> dict[str, Any]:
-        """Delete ALL history, optionally for one device.
-
-        Dry run unless `confirm=true`. History is never deleted silently.
-        """
-        with session_scope() as session:
-            stmt = select(func.count(LocationObservation.id))
-            if device_id:
-                stmt = stmt.where(LocationObservation.device_id == device_id)
-            doomed = int(session.scalar(stmt) or 0)
-
-            if not confirm:
-                return {
-                    "deleted": 0,
-                    "would_delete": doomed,
-                    "device_id": device_id,
-                    "message": "Dry run. Re-send with confirm=true to delete.",
-                }
-
-            query = session.query(LocationObservation)
-            if device_id:
-                query = query.filter(LocationObservation.device_id == device_id)
-            query.delete(synchronize_session=False)
-            log.warning("history_cleared", device_id=device_id, count=doomed)
-            return {
-                "deleted": doomed,
-                "device_id": device_id,
-                "message": f"Deleted {doomed} observation(s).",
-            }
-
+    router.add_api_route("/export", export_history, methods=["GET"])
+    router.add_api_route("/history/delete-before", delete_before, methods=["POST"])
+    router.add_api_route("/history/clear", clear_history, methods=["POST"])
     return router

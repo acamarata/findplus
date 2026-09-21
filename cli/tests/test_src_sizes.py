@@ -25,7 +25,17 @@ FILE_CAP = 300
 
 
 def _package_files() -> list[Path]:
-    return [p for p in sorted(PACKAGE_DIR.rglob("*.py")) if "vendor" not in p.parts]
+    # Excludes both source layouts: the editable checkout imports findplus
+    # straight from cli/src (no vendor code under it at all), while an
+    # installed wheel force-includes GoogleFindMyTools at findplus/_vendor/
+    # (see pyproject.toml [tool.hatch.build.targets.wheel.force-include]).
+    # Skip any path with a "vendor" or "_vendor" segment so CI's site-packages
+    # install and a local editable install are scanned identically.
+    return [
+        p
+        for p in sorted(PACKAGE_DIR.rglob("*.py"))
+        if "vendor" not in p.parts and "_vendor" not in p.parts
+    ]
 
 
 def _long_functions(tree: ast.Module) -> list[str]:

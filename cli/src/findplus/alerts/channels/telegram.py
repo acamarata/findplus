@@ -126,13 +126,7 @@ def telegram_setup(token: str, wait_seconds: int = 120, poll: int = 2) -> dict:
     with httpx.Client(timeout=10.0) as client:
         me = _get_me(token, client)
         username = me["username"]
-        print(f"Bot @{username} verified. Open t.me/{username}, press Start or send any message.")
-        print(
-            f"  For a group or channel: add @{username} to it, then send /start@{username} there. "
-            "A bot with group privacy on only sees commands addressed to it, so if nothing "
-            f"arrives, turn privacy off in BotFather (/setprivacy, pick @{username}, Disable) "
-            "and send the command again."
-        )
+        _print_setup_instructions(username)
         offset = 0
         while time.monotonic() < deadline:
             remaining = int(deadline - time.monotonic())
@@ -148,29 +142,48 @@ def telegram_setup(token: str, wait_seconds: int = 120, poll: int = 2) -> dict:
             _raise_for_status(r, "getUpdates")
             for u in r.json().get("result", []):
                 offset = u["update_id"] + 1
-                # `my_chat_member` is the only update a group sends when the
-                # bot is added and privacy mode is on, and `channel_post` the
-                # only one a channel sends. Without both, group and channel
-                # setup hangs until the timeout for no visible reason.
-                msg = u.get("message") or u.get("channel_post") or u.get("my_chat_member")
-                if not msg:
-                    continue
-                chat = msg["chat"]
-                creds = TelegramCreds(
-                    bot_token=token,
-                    chat_id=str(chat["id"]),
-                    chat_title=chat.get("title") or chat.get("username") or "private",
-                    bot_username=username,
-                    captured_at=datetime.datetime.now(datetime.UTC).isoformat(),
-                )
-                save_channel(telegram=creds)
-                send("Find+ connected ✓", token, str(chat["id"]))
-                return {
-                    "chat_id": str(chat["id"]),
-                    "chat_title": creds.chat_title,
-                    "chat_type": chat["type"],
-                    "bot_username": username,
-                }
+                result = _handle_update(u, token, username)
+                if result is not None:
+                    return result
             print(f"  Waiting ({remaining} s remaining)...", end="\r", flush=True)
             time.sleep(poll)
     raise TimeoutError(f"no message received within {wait_seconds} s")
+
+
+def _print_setup_instructions(username: str) -> None:
+    print(f"Bot @{username} verified. Open t.me/{username}, press Start or send any message.")
+    print(
+        f"  For a group or channel: add @{username} to it, then send /start@{username} there. "
+        "A bot with group privacy on only sees commands addressed to it, so if nothing "
+        f"arrives, turn privacy off in BotFather (/setprivacy, pick @{username}, Disable) "
+        "and send the command again."
+    )
+
+
+def _handle_update(u: dict, token: str, username: str) -> dict | None:
+    """Process one getUpdates item; None unless it is a usable chat-connect message.
+
+    `my_chat_member` is the only update a group sends when the bot is added
+    and privacy mode is on, and `channel_post` the only one a channel sends.
+    Without both, group and channel setup hangs until the timeout for no
+    visible reason.
+    """
+    msg = u.get("message") or u.get("channel_post") or u.get("my_chat_member")
+    if not msg:
+        return None
+    chat = msg["chat"]
+    creds = TelegramCreds(
+        bot_token=token,
+        chat_id=str(chat["id"]),
+        chat_title=chat.get("title") or chat.get("username") or "private",
+        bot_username=username,
+        captured_at=datetime.datetime.now(datetime.UTC).isoformat(),
+    )
+    save_channel(telegram=creds)
+    send("Find+ connected ✓", token, str(chat["id"]))
+    return {
+        "chat_id": str(chat["id"]),
+        "chat_title": creds.chat_title,
+        "chat_type": chat["type"],
+        "bot_username": username,
+    }

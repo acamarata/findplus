@@ -74,6 +74,8 @@ packaging/dist/
 packaging/*.dmg
 packaging/*.pkg
 packaging/homebrew/findplus.rb
+/FindPlus-*.dmg
+/FindPlus-*.dmg.sha256
 
 # AI tooling
 .cursor/

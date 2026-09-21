@@ -51,9 +51,10 @@ pub fn dot_color(s: &DotState) -> DotColor {
 /// Map a /api/status JSON body (or a synthetic `{"http_status": 401}` /
 /// `{"http_status": 0}` marker the caller constructs for a failed probe)
 /// onto Status, per specs/desktop-app.md § Status mapping, in priority
-/// order: Down, Locked, Error, Stale, Ok.
+/// order: Down, Locked, Error, Stale, Ok. Each priority tier is its own
+/// classifier below (loop2 C1 — from_api() used to be one 76-line function);
+/// from_api() itself is just the dispatch in that priority order.
 pub fn from_api(json: &Value, interval_min: u64) -> Status {
-    let http_status = json.get("http_status").and_then(|v| v.as_i64());
     let version = json
         .get("version")
         .and_then(|v| v.as_str())
@@ -64,58 +65,77 @@ pub fn from_api(json: &Value, interval_min: u64) -> Status {
         .and_then(|v| v.as_u64())
         .unwrap_or(0) as u32;
 
-    if http_status == Some(0) {
-        return Status {
+    down_or_locked(json, tracked, &version)
+        .or_else(|| error_status(json, tracked, &version))
+        .or_else(|| stale_status(json, interval_min, tracked, &version))
+        .unwrap_or_else(|| ok_status(json, tracked, &version))
+}
+
+/// Down (probe failed entirely) or Locked (401) — the two states that never
+/// look at the rest of the body.
+fn down_or_locked(json: &Value, tracked: u32, version: &str) -> Option<Status> {
+    match json.get("http_status").and_then(|v| v.as_i64()) {
+        Some(0) => Some(Status {
             state: DotState::Down,
             line: "Find+ is not running".to_string(),
             latest: None,
             tracked,
-            version,
-        };
-    }
-    if http_status == Some(401) {
-        return Status {
+            version: version.to_string(),
+        }),
+        Some(401) => Some(Status {
             state: DotState::Locked,
             line: "Locked".to_string(),
             latest: None,
             tracked,
-            version,
-        };
+            version: version.to_string(),
+        }),
+        _ => None,
     }
+}
 
+/// Error: an auth/decrypt failure, or 3+ consecutive failed polls.
+fn error_status(json: &Value, tracked: u32, version: &str) -> Option<Status> {
     let last_error_type = json.get("last_error_type").and_then(|v| v.as_str());
     let consecutive_failures = json
         .get("consecutive_failures")
         .and_then(|v| v.as_u64())
         .unwrap_or(0);
 
-    if matches!(last_error_type, Some("auth") | Some("decrypt")) || consecutive_failures >= 3 {
-        let line = match last_error_type {
-            Some("auth") => "Sign-in needed".to_string(),
-            Some("decrypt") => "Decryption error".to_string(),
-            _ => format!("{consecutive_failures} failed polls"),
-        };
-        return Status {
-            state: DotState::Error,
-            line,
-            latest: latest_line(json),
-            tracked,
-            version,
-        };
+    if !(matches!(last_error_type, Some("auth") | Some("decrypt")) || consecutive_failures >= 3) {
+        return None;
     }
+    let line = match last_error_type {
+        Some("auth") => "Sign-in needed".to_string(),
+        Some("decrypt") => "Decryption error".to_string(),
+        _ => format!("{consecutive_failures} failed polls"),
+    };
+    Some(Status {
+        state: DotState::Error,
+        line,
+        latest: latest_line(json),
+        tracked,
+        version: version.to_string(),
+    })
+}
 
+/// Stale: the last poll is more than 2x the daemon's own interval old.
+fn stale_status(json: &Value, interval_min: u64, tracked: u32, version: &str) -> Option<Status> {
     let last_poll_at = json.get("last_poll_at").and_then(|v| v.as_str());
-    let stale = is_stale(last_poll_at, interval_min);
-    if stale {
-        return Status {
-            state: DotState::Stale,
-            line: format!("Last poll {} ago", age_string(last_poll_at)),
-            latest: latest_line(json),
-            tracked,
-            version,
-        };
+    if !is_stale(last_poll_at, interval_min) {
+        return None;
     }
+    Some(Status {
+        state: DotState::Stale,
+        line: format!("Last poll {} ago", age_string(last_poll_at)),
+        latest: latest_line(json),
+        tracked,
+        version: version.to_string(),
+    })
+}
 
+/// Ok: the fallback when none of the above tiers matched.
+fn ok_status(json: &Value, tracked: u32, version: &str) -> Status {
+    let last_poll_at = json.get("last_poll_at").and_then(|v| v.as_str());
     Status {
         state: DotState::Ok,
         line: format!(
@@ -125,7 +145,7 @@ pub fn from_api(json: &Value, interval_min: u64) -> Status {
         ),
         latest: latest_line(json),
         tracked,
-        version,
+        version: version.to_string(),
     }
 }
 

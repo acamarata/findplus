@@ -32,14 +32,18 @@ def _long_functions(tree: ast.Module) -> list[str]:
 def test_every_function_in_api_package_is_under_the_cap() -> None:
     offenders: list[str] = []
     for path in sorted(API_DIR.glob("*.py")):
-        offenders += [f"{path.name}: {o}" for o in _long_functions(ast.parse(path.read_text()))]
+        offenders += [
+            f"{path.name}: {o}"
+            for o in _long_functions(ast.parse(path.read_text(encoding="utf-8")))
+        ]
     assert not offenders, "over-cap functions:\n" + "\n".join(offenders)
 
 
 def test_every_file_in_api_package_is_under_the_cap() -> None:
     offenders = [
-        f"{path.name} is {len(path.read_text().splitlines())} lines (cap {FILE_CAP})"
+        f"{path.name} is {len(path.read_text(encoding='utf-8').splitlines())} lines "
+        f"(cap {FILE_CAP})"
         for path in sorted(API_DIR.glob("*.py"))
-        if len(path.read_text().splitlines()) > FILE_CAP
+        if len(path.read_text(encoding="utf-8").splitlines()) > FILE_CAP
     ]
     assert not offenders, "over-cap files:\n" + "\n".join(offenders)

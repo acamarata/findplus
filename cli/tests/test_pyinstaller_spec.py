@@ -27,7 +27,7 @@ def _expanded_datas(spec: Path | None = None) -> list[str]:
     ).format_binaries_and_datas
 
     spec = spec or SPEC
-    source = spec.read_text()
+    source = spec.read_text(encoding="utf-8")
     body = source[source.index("ROOT = Path(SPECPATH)") : source.index("hiddenimports = [")]
     namespace: dict = {"Path": Path, "SPECPATH": str(spec.parent)}
     exec(body, namespace)

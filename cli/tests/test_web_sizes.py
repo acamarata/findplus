@@ -102,7 +102,7 @@ def _blank_strings_and_comments(text: str) -> str:
 def _find_functions(path: Path) -> list[tuple[str, int, int]]:
     """Returns (name, start_line, length_in_lines) for every function-shaped
     block: a `{` matched by regex, measured to its own balanced `}`."""
-    raw = path.read_text()
+    raw = path.read_text(encoding="utf-8")
     clean = _blank_strings_and_comments(raw)
     lines = clean.splitlines(keepends=True)
     offsets = []
@@ -147,7 +147,7 @@ def _find_functions(path: Path) -> list[tuple[str, int, int]]:
 def test_every_file_under_web_app_is_under_the_cap() -> None:
     offenders = []
     for path in sorted(WEB_APP_DIR.rglob("*.js")):
-        count = len(path.read_text().splitlines())
+        count = len(path.read_text(encoding="utf-8").splitlines())
         if count > FILE_CAP:
             offenders.append(f"{path.relative_to(WEB_APP_DIR)} is {count} lines (cap {FILE_CAP})")
     assert not offenders, "over-cap files:\n" + "\n".join(offenders)

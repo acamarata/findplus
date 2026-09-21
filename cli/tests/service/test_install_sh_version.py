@@ -17,14 +17,14 @@ ROOT = Path(__file__).resolve().parents[3]
 
 
 def _project_version() -> str:
-    text = (ROOT / "cli" / "pyproject.toml").read_text()
+    text = (ROOT / "cli" / "pyproject.toml").read_text(encoding="utf-8")
     match = re.search(r'^version = "([^"]+)"', text, re.M)
     assert match, "cli/pyproject.toml has no version"
     return match.group(1)
 
 
 def _default_pin() -> str:
-    text = (ROOT / "install.sh").read_text()
+    text = (ROOT / "install.sh").read_text(encoding="utf-8")
     match = re.search(r'^VERSION_PIN="\$\{FINDPLUS_VERSION:-([^}"]+)\}"', text, re.M)
     assert match, "install.sh's VERSION_PIN is not in the expected shape"
     return match.group(1)
@@ -39,7 +39,7 @@ def test_the_installers_default_pin_is_the_project_version() -> None:
 
 def test_bump_version_rewrites_the_installer_pin() -> None:
     """The guard against this drifting again: the bump tool owns both files."""
-    script = (ROOT / "packaging" / "scripts" / "bump-version.sh").read_text()
+    script = (ROOT / "packaging" / "scripts" / "bump-version.sh").read_text(encoding="utf-8")
     assert "install.sh" in script
     assert "VERSION_PIN" in script
 
@@ -60,7 +60,7 @@ def test_the_installer_falls_back_to_the_github_release_sdist() -> None:
     CI only shellchecks the script. Round 2 gave gen-formula.sh this same
     fallback, so the Homebrew route worked while both headline routes did not.
     """
-    install = (ROOT / "install.sh").read_text()
+    install = (ROOT / "install.sh").read_text(encoding="utf-8")
 
     assert "releases/download/v$VERSION_PIN" in install
     assert "pypi.org/pypi/findplus/$VERSION_PIN/json" in install, (

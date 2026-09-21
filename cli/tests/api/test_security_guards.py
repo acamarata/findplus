@@ -272,7 +272,7 @@ def test_the_composed_page_itself_still_has_every_partial(client: TestClient) ->
     assert "@partial" not in res.text
     static_dir = _static_dir()
     for name in partial_names(static_dir):
-        source = (static_dir / "partials" / f"{name}.html").read_text()
+        source = (static_dir / "partials" / f"{name}.html").read_text(encoding="utf-8")
         first_id = re.search(r'id="([^"]+)"', source)
         assert first_id, f"partial {name} has no id to anchor on"
         assert f'id="{first_id.group(1)}"' in res.text, f"partial {name} is missing from /"

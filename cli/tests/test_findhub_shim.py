@@ -54,7 +54,7 @@ def test_the_blanket_deprecation_ignore_stays_out_of_pyproject() -> None:
     from pathlib import Path
 
     pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
-    filters = tomllib.loads(pyproject.read_text())["tool"]["pytest"]["ini_options"][
+    filters = tomllib.loads(pyproject.read_text(encoding="utf-8"))["tool"]["pytest"]["ini_options"][
         "filterwarnings"
     ]
 

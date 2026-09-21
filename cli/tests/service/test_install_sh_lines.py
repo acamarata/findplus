@@ -28,6 +28,6 @@ MAX_LINES = 160
 
 
 def test_install_sh_stays_within_its_line_budget() -> None:
-    lines = len(INSTALL_SH.read_text().splitlines())
+    lines = len(INSTALL_SH.read_text(encoding="utf-8").splitlines())
 
     assert lines <= MAX_LINES, f"install.sh is {lines} lines, budget is {MAX_LINES}"

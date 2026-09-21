@@ -25,7 +25,7 @@ MODULES = [
 @pytest.mark.parametrize("module_name", MODULES)
 def test_module_functions_are_under_the_cap(module_name: str) -> None:
     module = import_module(module_name)
-    source = open(module.__file__)  # noqa: SIM115 - test reads once, immediately
+    source = open(module.__file__, encoding="utf-8")  # noqa: SIM115 - test reads once, immediately
     with source:
         tree = ast.parse(source.read())
     offenders = [
@@ -40,5 +40,5 @@ def test_module_functions_are_under_the_cap(module_name: str) -> None:
 @pytest.mark.parametrize("module_name", MODULES)
 def test_module_file_is_under_the_cap(module_name: str) -> None:
     module = import_module(module_name)
-    count = len(open(module.__file__).read().splitlines())  # noqa: SIM115
+    count = len(open(module.__file__, encoding="utf-8").read().splitlines())  # noqa: SIM115
     assert count <= FILE_CAP, f"{module_name} is {count} lines (cap {FILE_CAP})"

@@ -242,5 +242,5 @@ def test_set_and_harden_precreates_the_store() -> None:
     """
     from findplus.providers.google_findhub import bootstrap
 
-    hook = Path(bootstrap.__file__).read_text().split("def _set_and_harden")[1]
+    hook = Path(bootstrap.__file__).read_text(encoding="utf-8").split("def _set_and_harden")[1]
     assert hook.index("touch(mode=0o600") < hook.index("_original_set(")

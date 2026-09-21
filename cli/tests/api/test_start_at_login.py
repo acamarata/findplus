@@ -80,7 +80,9 @@ def test_no_subprocess_call_remains_in_the_handler() -> None:
 
     src = Path(__file__).resolve().parents[2] / "src" / "findplus" / "api" / "routes_settings.py"
     code = "\n".join(
-        line for line in src.read_text().splitlines() if not line.lstrip().startswith("#")
+        line
+        for line in src.read_text(encoding="utf-8").splitlines()
+        if not line.lstrip().startswith("#")
     )
     # The docstring still NAMES findplus-daemon, to say why it is not called.
     assert "subprocess" not in code

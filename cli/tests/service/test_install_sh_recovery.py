@@ -17,7 +17,7 @@ from __future__ import annotations
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-INSTALL_SH = (REPO_ROOT / "install.sh").read_text()
+INSTALL_SH = (REPO_ROOT / "install.sh").read_text(encoding="utf-8")
 
 
 def test_a_missing_venv_module_names_the_package_to_install() -> None:

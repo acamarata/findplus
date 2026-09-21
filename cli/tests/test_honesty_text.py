@@ -124,7 +124,7 @@ def test_the_docs_do_not_advertise_a_verdict_the_engine_never_produces() -> None
     assert produced == {"all_together", "partial", "unknown"}
 
     for doc in (root / "README.md", root / ".github" / "wiki" / "FAQ.md"):
-        text = doc.read_text()
+        text = doc.read_text(encoding="utf-8")
         for match in re.findall(r"\(together,[^)]*\)", text):
             assert "apart" not in match, f"{doc.name} still advertises 'apart': {match}"
 
@@ -133,7 +133,7 @@ def test_the_readme_does_not_point_at_a_page_that_404s() -> None:
     """honesty round 2 F8: README sent readers to /docs, which is 404 by design."""
     from pathlib import Path
 
-    readme = (Path(__file__).resolve().parents[2] / "README.md").read_text()
+    readme = (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
     assert "8647/docs" not in readme
     assert "8647/redoc" not in readme
     assert "8647/api/openapi.json" in readme
@@ -149,8 +149,8 @@ def test_the_readme_credits_the_dependency_that_is_actually_pinned() -> None:
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[2]
-    readme = (root / "README.md").read_text()
-    pyproject = (root / "cli" / "pyproject.toml").read_text()
+    readme = (root / "README.md").read_text(encoding="utf-8")
+    pyproject = (root / "cli" / "pyproject.toml").read_text(encoding="utf-8")
 
     assert 'apple = ["findmy>=0.10,<0.11"]' in pyproject
     assert "malmeloo/FindMy.py" in readme

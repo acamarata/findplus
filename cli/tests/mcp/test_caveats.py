@@ -63,7 +63,7 @@ def test_the_presence_and_event_tools_ask_for_caveats() -> None:
     from pathlib import Path
 
     src = Path(__file__).resolve().parents[2] / "src" / "findplus" / "mcp" / "tools_read.py"
-    text = src.read_text()
+    text = src.read_text(encoding="utf-8")
 
     for tool in ("get_group_presence", "get_place_events", "get_latest", "list_places"):
         start = text.index(f"async def {tool}(")

@@ -134,5 +134,5 @@ def test_shellcheck_is_clean() -> None:
 
 
 def test_install_sh_is_within_the_one_point_one_budget() -> None:
-    lines = len(INSTALL_SH.read_text().splitlines())
+    lines = len(INSTALL_SH.read_text(encoding="utf-8").splitlines())
     assert lines <= 160, f"install.sh is {lines} lines, the R-P2-21 cap is 160"

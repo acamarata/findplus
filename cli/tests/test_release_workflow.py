@@ -26,7 +26,7 @@ GEN_FORMULA = ROOT / "packaging" / "scripts" / "gen-formula.sh"
 
 def _sign_step() -> dict:
     yaml = pytest.importorskip("yaml")
-    jobs = yaml.safe_load(RELEASE.read_text())["jobs"]
+    jobs = yaml.safe_load(RELEASE.read_text(encoding="utf-8"))["jobs"]
     for step in jobs["build-dmg"]["steps"]:
         if step.get("name") == "Sign sidecar":
             return step
@@ -51,7 +51,7 @@ def test_the_decoded_certificate_is_always_removed() -> None:
 
 
 def test_the_formula_generator_has_a_github_release_branch() -> None:
-    script = GEN_FORMULA.read_text()
+    script = GEN_FORMULA.read_text(encoding="utf-8")
     assert "releases/download/v$VERSION" in script, (
         "PyPI publish is deferred, so the fetchable sdist is the GitHub release asset"
     )
@@ -62,7 +62,7 @@ def test_the_formula_generator_has_a_github_release_branch() -> None:
 
 def test_the_tap_pr_is_gated_on_a_published_release() -> None:
     yaml = pytest.importorskip("yaml")
-    steps = yaml.safe_load(RELEASE.read_text())["jobs"]["update-tap"]["steps"]
+    steps = yaml.safe_load(RELEASE.read_text(encoding="utf-8"))["jobs"]["update-tap"]["steps"]
     assert any("isDraft" in str(s.get("run", "")) for s in steps), (
         "github-release creates a draft, whose assets are not publicly downloadable"
     )
@@ -81,7 +81,9 @@ def test_no_script_writes_key_material_to_a_fixed_path() -> None:
     """
     for script in sorted((ROOT / "packaging" / "scripts").glob("*.sh")):
         code = "\n".join(
-            line for line in script.read_text().splitlines() if not line.lstrip().startswith("#")
+            line
+            for line in script.read_text(encoding="utf-8").splitlines()
+            if not line.lstrip().startswith("#")
         )
         if "base64 -d" not in code:
             continue
@@ -98,7 +100,7 @@ def test_the_bundle_is_checked_for_dotdirs_before_sign_off() -> None:
     the bundle that was actually produced, and no release step had ever looked
     inside one.
     """
-    embed = (ROOT / "packaging" / "scripts" / "embed-widget.sh").read_text()
+    embed = (ROOT / "packaging" / "scripts" / "embed-widget.sh").read_text(encoding="utf-8")
     i = embed.index("-path '*/.claude/*'")
     guard = embed[i : embed.index("codesign --verify", i)]
     assert "exit 1" in guard, "finding .claude/ must fail the release, not just print"
@@ -106,15 +108,15 @@ def test_the_bundle_is_checked_for_dotdirs_before_sign_off() -> None:
 
 def test_ci_lints_every_shell_script() -> None:
     """E1 packaging round 3 F3: the gate covered install.sh only, 1 of 15."""
-    ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     assert "shellcheck install.sh packaging/scripts/*.sh" in ci
 
 
 def test_one_supported_python_window() -> None:
     """E1 packaging round 3 F4: it was stated three different ways."""
-    pyproject = (ROOT / "cli" / "pyproject.toml").read_text()
-    install = (ROOT / "install.sh").read_text()
-    readme = (ROOT / "README.md").read_text()
+    pyproject = (ROOT / "cli" / "pyproject.toml").read_text(encoding="utf-8")
+    install = (ROOT / "install.sh").read_text(encoding="utf-8")
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
     assert 'requires-python = ">=3.12,<3.15"' in pyproject
     assert "(3, 12) <= sys.version_info < (3, 15)" in install

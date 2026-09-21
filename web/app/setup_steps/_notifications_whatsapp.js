@@ -20,7 +20,9 @@
  *              masked form in the API contract at all (matches alerts.js's own
  *              renderWhatsappSection comment). Save clears the field's masked
  *              class BEFORE reading it, so the placeholder bullets can never
- *              be sent as the key (CR-C-E10 F1's fix, reused here).
+ *              be sent as the key (CR-C-E10 F1's fix, reused here). The saved
+ *              status line shows the response's masked phone_masked, never the
+ *              plaintext value just typed (loop2 B5, PII per R-P2-27.6).
  */
 "use strict";
 
@@ -33,33 +35,20 @@ function clearMaskedToken(el) {
   }
 }
 
-export function whatsappControls(section, value, ctx) {
-  const phone = document.createElement("input");
-  phone.type = "text";
-  phone.id = "fp-setup-wa-phone";
-  phone.placeholder = t("alerts.whatsapp.phonePlaceholder");
-
+function buildApikeyInput(configured) {
   const apikey = document.createElement("input");
   apikey.type = "password";
   apikey.id = "fp-setup-wa-apikey";
   apikey.placeholder = t("alerts.whatsapp.apikey");
   apikey.addEventListener("focus", () => clearMaskedToken(apikey));
-
-  const configured = !!(value && value.configured);
   apikey.value = configured ? "••••••••" : "";
   apikey.classList.toggle("fp-token-masked", configured);
+  return apikey;
+}
 
-  const status = document.createElement("p");
-  status.className = "modal-note";
-  if (configured && value.phone_masked) {
-    status.textContent = t("alerts.whatsapp.connected", { phone: value.phone_masked });
-  }
-
-  const save = document.createElement("button");
-  save.type = "button";
-  save.id = "fp-setup-wa-save";
-  save.className = "btn";
-  save.textContent = t("alerts.whatsapp.save");
+/** PUT the credentials, then show the PUT response's own masked phone --
+ * never the plaintext value just typed (loop2 B5). */
+function wireSave(save, phone, apikey, status, ctx) {
   save.addEventListener("click", async () => {
     clearMaskedToken(apikey);
     const phoneVal = phone.value.trim();
@@ -69,7 +58,7 @@ export function whatsappControls(section, value, ctx) {
       return;
     }
     try {
-      await ctx.api("/api/alerts/channels/whatsapp", {
+      const result = await ctx.api("/api/alerts/channels/whatsapp", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: phoneVal, apikey: apikeyVal }),
@@ -77,17 +66,15 @@ export function whatsappControls(section, value, ctx) {
       phone.value = "";
       apikey.value = "••••••••";
       apikey.classList.add("fp-token-masked");
-      status.textContent = t("alerts.whatsapp.connected", { phone: phoneVal });
+      const masked = result && result.whatsapp && result.whatsapp.phone_masked;
+      status.textContent = t("alerts.whatsapp.connected", { phone: masked || phoneVal });
     } catch (err) {
       status.textContent = err.message;
     }
   });
+}
 
-  const test = document.createElement("button");
-  test.type = "button";
-  test.id = "fp-setup-wa-test";
-  test.className = "btn btn-secondary";
-  test.textContent = t("alerts.whatsapp.test");
+function wireTest(test, status, ctx) {
   test.addEventListener("click", async () => {
     try {
       const result = await ctx.api("/api/alerts/test", {
@@ -103,6 +90,35 @@ export function whatsappControls(section, value, ctx) {
       status.textContent = t("alerts.testFailed", { error: err.message });
     }
   });
+}
+
+export function whatsappControls(section, value, ctx) {
+  const configured = !!(value && value.configured);
+  const phone = document.createElement("input");
+  phone.type = "text";
+  phone.id = "fp-setup-wa-phone";
+  phone.placeholder = t("alerts.whatsapp.phonePlaceholder");
+  const apikey = buildApikeyInput(configured);
+
+  const status = document.createElement("p");
+  status.className = "modal-note";
+  if (configured && value.phone_masked) {
+    status.textContent = t("alerts.whatsapp.connected", { phone: value.phone_masked });
+  }
+
+  const save = document.createElement("button");
+  save.type = "button";
+  save.id = "fp-setup-wa-save";
+  save.className = "btn";
+  save.textContent = t("alerts.whatsapp.save");
+  wireSave(save, phone, apikey, status, ctx);
+
+  const test = document.createElement("button");
+  test.type = "button";
+  test.id = "fp-setup-wa-test";
+  test.className = "btn btn-secondary";
+  test.textContent = t("alerts.whatsapp.test");
+  wireTest(test, status, ctx);
 
   section.append(phone, apikey, save, test, status);
 }

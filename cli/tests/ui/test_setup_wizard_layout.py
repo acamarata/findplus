@@ -138,8 +138,12 @@ async def test_notifications_step_whatsapp_save_and_test(page, base_url):
 
     async def save_route(route):
         saved["body"] = json.loads(route.request.post_data)
+        # Real shape: PUT returns _channels_response(), which carries the
+        # masked phone, never the plaintext one just PUT (loop2 B5).
         await route.fulfill(
-            status=200, content_type="application/json", body=json.dumps({"ok": True})
+            status=200,
+            content_type="application/json",
+            body=json.dumps({"whatsapp": {"configured": True, "phone_masked": "+34… masked"}}),
         )
 
     async def test_route(route):
@@ -167,6 +171,14 @@ async def test_notifications_step_whatsapp_save_and_test(page, base_url):
         await page.click("#fp-setup-wa-save")
         await page.wait_for_timeout(300)
         assert saved["body"] == {"phone": "+34999888777", "apikey": "wizard-test-key"}
+
+        # loop2 B5: the status line shows the PUT response's masked phone,
+        # never the plaintext value just typed -- PII per R-P2-27.6.
+        status_text = await page.locator("#fp-setup-wa-phone").evaluate(
+            "(el) => el.closest('[data-channel]').querySelector('.modal-note').textContent"
+        )
+        assert "+34… masked" in status_text
+        assert "+34999888777" not in status_text
 
         await page.click("#fp-setup-wa-test")
         await page.wait_for_timeout(200)

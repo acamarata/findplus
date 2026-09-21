@@ -30,6 +30,10 @@ from findplus.logging_setup import get_logger
 from findplus.poller_outcomes import CycleOutcome as CycleOutcome
 from findplus.poller_outcomes import PollOutcome as PollOutcome
 from findplus.poller_outcomes import _log_outcome, _record, record_config_error_cycle
+
+# Re-exported so `from findplus.poller import PollerService` (cmd_serve.py,
+# tests) keeps resolving after the split (E13 loop2 A3, file-cap only).
+from findplus.poller_service import PollerService as PollerService
 from findplus.providers.base import LocationProvider, get_provider
 from findplus.providers.google_findhub.types import (
     AuthRequiredError,
@@ -87,12 +91,12 @@ def _resolve_provider(provider_name: str) -> tuple[LocationProvider | None, Poll
     return provider, None
 
 
-def _locate_and_ingest(
-    provider: LocationProvider, device_id: str, device_name: str, settings: Settings
-) -> tuple[PollOutcome, list | None]:
-    """Ask the provider for fixes and persist them. Returns (outcome, observations)."""
+def _locate(
+    provider: LocationProvider, device_id: str, device_name: str
+) -> tuple[PollOutcome | None, list | None]:
+    """Call provider.locate(), turning its typed errors into a PollOutcome."""
     try:
-        observations = provider.locate(device_id, device_name)
+        return None, provider.locate(device_id, device_name)
     except AuthRequiredError as exc:
         return PollOutcome(
             status="auth_error", error_type="AuthRequiredError", error_message=str(exc)
@@ -115,14 +119,8 @@ def _locate_and_ingest(
             status="error", error_type=type(exc).__name__, error_message=str(exc)
         ), None
 
-    if not observations:
-        return PollOutcome(status="no_location"), observations
 
-    with session_scope() as session:
-        result = ingest_observations(
-            session, observations, fetched_at=datetime.now(UTC), settings=settings
-        )
-
+def _dispatch_alerts(settings: Settings, device_name: str) -> None:
     # Alert dispatch runs in its own session, after the ingest transaction has
     # already committed (dispatch.process() reads place_events/group_place_events
     # rows that ingest just wrote). Never let a dispatch failure crash the poller.
@@ -133,6 +131,23 @@ def _locate_and_ingest(
             _alert_dispatch.process(_alert_dispatch.load_pending_events(session), session, settings)
     except Exception:
         log.exception("alert_dispatch_failed", device=device_name)
+
+
+def _locate_and_ingest(
+    provider: LocationProvider, device_id: str, device_name: str, settings: Settings
+) -> tuple[PollOutcome, list | None]:
+    """Ask the provider for fixes and persist them. Returns (outcome, observations)."""
+    failure, observations = _locate(provider, device_id, device_name)
+    if failure is not None:
+        return failure, None
+    if not observations:
+        return PollOutcome(status="no_location"), observations
+
+    with session_scope() as session:
+        result = ingest_observations(
+            session, observations, fetched_at=datetime.now(UTC), settings=settings
+        )
+    _dispatch_alerts(settings, device_name)
 
     return PollOutcome(
         status="ok",
@@ -187,12 +202,23 @@ def poll_once(
 
     with session_scope() as session:
         targets = [(d.device_id, d.name, d.provider) for d in get_tracked_devices(session)]
+    targets, early = _select_targets(targets, device_ids)
+    if early is not None:
+        return early
 
+    return _run_poll_cycle(targets, settings, stagger, stop_event)
+
+
+def _select_targets(
+    targets: list[tuple[str, str, str]], device_ids: set[str] | None
+) -> tuple[list[tuple[str, str, str]], CycleOutcome | None]:
+    """(targets, early_outcome) -- early_outcome is set when polling must stop
+    now instead: an unknown requested id, or nothing left to poll."""
     if device_ids:
         known_ids = {device_id for device_id, _name, _provider in targets}
         unknown = set(device_ids) - known_ids
         if unknown:
-            return record_config_error_cycle(
+            return [], record_config_error_cycle(
                 "UnknownDevice",
                 "Not tracked or does not exist: " + ", ".join(sorted(unknown)),
                 "poll_unknown_device",
@@ -201,13 +227,21 @@ def poll_once(
         targets = [t for t in targets if t[0] in device_ids]
 
     if not targets:
-        return record_config_error_cycle(
+        return [], record_config_error_cycle(
             "NoDeviceTracked",
             "No devices are being tracked. Run `findplus devices --track-all`.",
             "poll_no_devices_tracked",
             config_error=True,
         )
+    return targets, None
 
+
+def _run_poll_cycle(
+    targets: list[tuple[str, str, str]],
+    settings: Settings,
+    stagger: float,
+    stop_event: threading.Event | None,
+) -> CycleOutcome:
     cycle = CycleOutcome()
     for index, (device_id, device_name, provider_name) in enumerate(targets):
         if stop_event is not None and stop_event.is_set():
@@ -229,67 +263,3 @@ def poll_once(
         failures=sum(1 for o in cycle.outcomes if not o.ok),
     )
     return cycle
-
-
-class PollerService:
-    """Runs a poll cycle forever with backoff. Stoppable via `stop()`."""
-
-    def __init__(self, settings: Settings | None = None) -> None:
-        self.settings = settings or get_settings()
-        self._stop = threading.Event()
-        self._consecutive_failures = 0
-        self.last_cycle: CycleOutcome | None = None
-
-    def stop(self) -> None:
-        self._stop.set()
-
-    def _next_delay_seconds(self) -> float:
-        base = self.settings.effective_poll_interval_minutes * 60.0
-        if self._consecutive_failures == 0:
-            return base
-        backoff = base * (2 ** min(self._consecutive_failures, 6))
-        return min(backoff, self.settings.poll_max_backoff_minutes * 60.0)
-
-    def run_forever(self) -> None:
-        import os
-
-        interval = self.settings.effective_poll_interval_minutes
-        if self.settings.allow_fast_polling and self.settings.poll_interval_minutes < 5:
-            log.warning(
-                "fast_polling_enabled",
-                interval_minutes=interval,
-                note="Polling faster than 5 minutes risks Google rate-limiting "
-                "or account flags. This was explicitly opted into.",
-            )
-
-        with session_scope() as session:
-            tracked = len(get_tracked_devices(session))
-        log.info(
-            "poller_started",
-            interval_minutes=interval,
-            tracked_devices=tracked,
-            requests_per_hour=round(tracked * 60 / interval, 1) if interval else None,
-            pid=os.getpid(),
-        )
-
-        while not self._stop.is_set():
-            cycle = poll_once(self.settings, stop_event=self._stop)
-            self.last_cycle = cycle
-            if cycle.ok or cycle.config_error:
-                # A config error means "nothing to do yet", not "Google is failing".
-                # Retrying on the normal interval lets the daemon pick up a device
-                # selection promptly instead of sitting in an hour-long backoff.
-                self._consecutive_failures = 0
-            else:
-                self._consecutive_failures += 1
-
-            delay = self._next_delay_seconds()
-            if self._consecutive_failures:
-                log.warning(
-                    "poll_backoff",
-                    consecutive_failures=self._consecutive_failures,
-                    next_attempt_in_seconds=round(delay),
-                )
-            self._stop.wait(delay)
-
-        log.info("poller_stopped")

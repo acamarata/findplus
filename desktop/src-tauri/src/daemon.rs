@@ -28,13 +28,22 @@ mod daemon_util;
 mod daemon_child;
 pub use daemon_child::{child_running, spawn_sidecar, stop_child};
 
-const PORT: u16 = 8647;
+const DEFAULT_PORT: u16 = 8647;
+
+static PORT: OnceLock<u16> = OnceLock::new();
+
+/// The daemon's port: FINDPLUS_PORT, then ~/.findplus/config.env, then
+/// DEFAULT_PORT (G2) -- resolved once per process, since the app reads this
+/// before it ever probes or spawns the daemon, not while one is running.
+pub fn port() -> u16 {
+    *PORT.get_or_init(|| daemon_util::resolved_port(DEFAULT_PORT))
+}
 
 /// The daemon's loopback base URL. The one place the port is spelled out at
 /// runtime: status.rs and notify.rs both poll through this rather than
 /// repeating the literal, so making the port configurable is one edit.
 pub fn daemon_base() -> String {
-    format!("http://127.0.0.1:{PORT}")
+    format!("http://127.0.0.1:{}", port())
 }
 pub const APP_VERSION: &str = env!("FINDPLUS_VERSION");
 
@@ -198,7 +207,7 @@ pub fn restart(app: &tauri::AppHandle) {
 
 /// One pass of the decision table. Returns the new `was_attached` flag.
 fn supervise_once(app: &tauri::AppHandle, was_attached: bool) -> bool {
-    let probed = probe(PORT);
+    let probed = probe(port());
     let probe_tuple = probed.as_ref().map(|(a, v)| (a.as_str(), v.as_str()));
     let pid_alive_now = daemon_util::read_daemon_json_pid().filter(|p| daemon_util::pid_alive(*p));
     let agent = launch_agent_installed();
@@ -215,13 +224,13 @@ fn supervise_once(app: &tauri::AppHandle, was_attached: bool) -> bool {
             return true;
         }
         DaemonState::AnotherApp => {
-            let line = "Port 8647 is used by another program".to_string();
+            let line = format!("Port {} is used by another program", port());
             set_another_app_line(Some(line));
             let _ = app.emit("daemon-another-app", ());
         }
         DaemonState::WaitingLaunchAgent => {
             kickstart();
-            reprobe(PORT);
+            reprobe(port());
         }
         DaemonState::WaitingSidecar => {
             // Never spawn a second sidecar: a previous tick may already own a
@@ -230,11 +239,11 @@ fn supervise_once(app: &tauri::AppHandle, was_attached: bool) -> bool {
             if !child_running() {
                 spawn_sidecar(app);
             }
-            reprobe(PORT);
+            reprobe(port());
         }
         DaemonState::WaitingPid => {
             std::thread::sleep(Duration::from_secs(20));
-            if probe(PORT).is_none() {
+            if probe(port()).is_none() {
                 if was_attached {
                     set_down_reason(DaemonDownReason::Crashed);
                     let _ = app.emit("daemon-crashed", ());

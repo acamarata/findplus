@@ -2,7 +2,8 @@
 //
 // Purpose    : TimelineProvider that fetches GET /api/widget over loopback
 //              and maps the response onto the five widget entry states.
-// Inputs     : http://127.0.0.1:8647/api/widget (3 s request timeout).
+// Inputs     : http://127.0.0.1:<DaemonPort.fallbackPort>/api/widget (3 s
+//              request timeout).
 // Outputs    : WidgetEntry (ok/stale/error from the API; locked on HTTP 401;
 //              down on any URLError).
 // Constraints: Foundation + WidgetKit only — no AppKit, no findplus Python
@@ -11,6 +12,25 @@
 
 import Foundation
 import WidgetKit
+
+/// The daemon's port assumed by every widget-side request (Provider.swift,
+/// Intents.swift) -- one named constant instead of the literal scattered
+/// across both files.
+///
+/// The widget extension is sandboxed with no App Groups entitlement by
+/// design (README.md: "it never opens ~/.findplus directly (App Sandbox, no
+/// App Groups)"), so it cannot read ~/.findplus/config.env or the
+/// FINDPLUS_PORT environment daemon.rs resolves from on the app side (G2's
+/// other half). There is currently no channel for the app to hand the
+/// widget a non-default port, so a daemon started on a custom FINDPLUS_PORT
+/// still breaks the widget until one is added -- adding App Groups is a
+/// signing/entitlements/provisioning change outside this fix's scope (G2
+/// asked to fix this "or document the limit and fall back to 8647"; this is
+/// that documented fallback, not a real fix). Tracked as a known gap rather
+/// than silently left as an unexplained literal.
+enum DaemonPort {
+    static let fallbackPort = 8647
+}
 
 struct FindPlusProvider: TimelineProvider {
     typealias Entry = WidgetEntry
@@ -59,7 +79,7 @@ struct FindPlusProvider: TimelineProvider {
     /// file, can call it directly — Swift's `private` is file-scoped even
     /// under @testable import.
     func fetch() async -> WidgetEntry {
-        guard let url = URL(string: "http://127.0.0.1:8647/api/widget") else {
+        guard let url = URL(string: "http://127.0.0.1:\(DaemonPort.fallbackPort)/api/widget") else {
             return WidgetEntry(date: Date(), response: nil, state: .down, errorMessage: "Find+ is not running")
         }
         configuration.timeoutIntervalForRequest = 3.0

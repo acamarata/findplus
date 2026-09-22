@@ -3,7 +3,8 @@
 // Purpose    : The widget's two interactive affordances: trigger an
 //              immediate poll, and open the Find+ dashboard.
 // Inputs     : None (no parameters).
-// Outputs    : A POST to /api/poll-now; a NSWorkspace open of findplus://open.
+// Outputs    : A POST to /api/poll-now (DaemonPort.fallbackPort, Provider.swift);
+//              a NSWorkspace open of findplus://open.
 // Constraints: Declared at module scope (required for App Intents
 //              registration); perform() is @MainActor for the NSWorkspace
 //              call. PollNowIntent is fire-and-forget — the timeline
@@ -19,7 +20,7 @@ struct PollNowIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        guard let url = URL(string: "http://127.0.0.1:8647/api/poll-now") else {
+        guard let url = URL(string: "http://127.0.0.1:\(DaemonPort.fallbackPort)/api/poll-now") else {
             return .result()
         }
         var req = URLRequest(url: url, timeoutInterval: 3)

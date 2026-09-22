@@ -25,11 +25,13 @@ import XCTest
 final class URLProtocolStub: URLProtocol {
     static var stubbedData: Data?
     static var stubbedStatusCode: Int = 200
+    static var lastRequestedURL: URL?
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
+        URLProtocolStub.lastRequestedURL = request.url
         guard let data = URLProtocolStub.stubbedData else {
             client?.urlProtocol(self, didFailWithError: URLError(.cannotConnectToHost))
             return
@@ -58,6 +60,7 @@ final class ProviderTests: XCTestCase {
     override func tearDown() {
         URLProtocolStub.stubbedData = nil
         URLProtocolStub.stubbedStatusCode = 200
+        URLProtocolStub.lastRequestedURL = nil
         super.tearDown()
     }
 
@@ -163,5 +166,16 @@ final class ProviderTests: XCTestCase {
         XCTAssertEqual(device?.placeText(staleAfter: entry.staleAfterMinutes), "unknown")
         XCTAssertEqual(entry.response?.groups.first?.id, 7)
         XCTAssertEqual(entry.response?.show_map, true)
+    }
+
+    func testFetchRequestsDaemonPortFallbackPort() async {
+        // G2: fetch() must build its URL from the one named DaemonPort
+        // constant, not a re-typed literal that could drift from Intents.swift's.
+        URLProtocolStub.stubbedData = Data("{}".utf8)
+        let provider = FindPlusProvider(configuration: stubbedConfiguration())
+
+        _ = await provider.fetch()
+        XCTAssertEqual(URLProtocolStub.lastRequestedURL?.port, DaemonPort.fallbackPort)
+        XCTAssertEqual(URLProtocolStub.lastRequestedURL?.host, "127.0.0.1")
     }
 }

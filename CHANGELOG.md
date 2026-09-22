@@ -7,6 +7,8 @@ Versioning: [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- The place dialog can now fill its coordinates two ways instead of only a map click: "Use a tracker's last location" picks any tracked device's most recent fix, and an opt-in address search (type an address, press Search) queries OpenStreetMap's Nominatim through the daemon, never the browser, only when you press the button.
+- The Places tab's side panel lists every saved place, with its colour, radius and who is currently inside it, plus Edit, Delete and click-to-centre on each row.
 - Devices and groups can now use a custom uploaded PNG as their badge icon, alongside the bundled Lucide glyphs and letter badges. Upload one from the icon picker's "Your icons" section; an icon still in use cannot be deleted. The macOS widget cannot fetch images, so a custom icon shows there as a letter badge instead.
 - A second macOS widget, "Find+ Places": who is at each saved place right now, with a device or group badge per occupant and the last time it changed. Tapping it opens the dashboard's Places tab.
 - A failed Telegram, WhatsApp or webhook alert now retries automatically when the failure looks temporary (a timeout, a "too many requests" response, or a server error): up to three more tries, one minute, five minutes, then thirty minutes after the first failure. A rejected request, a bad credential or an unconfigured channel is not retried. The delivery log shows a retry in progress and how many tries a delivery has used.
@@ -58,6 +60,8 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - `install.sh` is shorter and points at a new Uninstall wiki page for the manual service-removal commands it prints. Without `--start` its last line now points at `findplus setup`.
 
 ### Fixed
+- The place dialog is now styled like the device and group editors, instead of painting as an unstyled browser-default strip across the map, and "Add place" opens it directly at the map's current centre — no map click required, so it is fully keyboard-reachable.
+- The map's starting view fits your tracked devices' latest fixes, or your saved places when none has reported yet, instead of always opening on a hardcoded US-centred view regardless of where your trackers actually are.
 - The local API's Host and Origin checks now also require the daemon's own port, not just the loopback hostname, closing a DNS-rebinding gap where a page could name any port it liked and still get past the guard.
 - The bottom tab bar on a phone-width dashboard stays clickable once the page is scrolled, instead of the map's overlay layer painting over it.
 - The bundled icon sprite no longer leaves a blank band above the toolbar.

@@ -65,11 +65,19 @@ Silicon) or `FindPlus-<version>-x86_64.dmg` (Intel) from
 ## First run
 
 ```bash
-findplus auth
-findplus start
+findplus setup
 ```
 
-The dashboard opens at http://localhost:8647.
+A guided walkthrough: sign in, pick which trackers to poll, and optionally set up a
+group, a place, notifications and an app-lock PIN. It ends by starting the service and
+opening the dashboard at http://localhost:8647.
+
+In a script (no terminal to answer prompts), use the non-interactive form instead:
+
+```bash
+findplus setup --yes
+findplus start --yes
+```
 
 ## Features
 
@@ -104,6 +112,12 @@ Find+ connects to the following external services during normal operation:
   browser, and sends nothing else.
 
 ## Honesty
+
+Every line below is pinned to the code and shown to you verbatim somewhere in the
+running app -- this section quotes the exact wording rather than paraphrasing it. A
+few only make full sense in that context: "paste it below" refers to the field right
+under that message in the dashboard, and the Chrome message is the literal error you
+see if sign-in cannot find Chrome, not a general statement.
 
 > This history consists of locations reported through Google's Find Hub
 > network. Your trackers use nearby participating Android devices to report their

@@ -27,6 +27,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from findplus.api._bounded_upload import read_bounded_form
 from findplus.config import get_settings
 from findplus.providers.apple_findmy.accessories import add_accessory
 from findplus.providers.apple_findmy.web_auth import (
@@ -87,12 +88,11 @@ _MULTIPART_OVERHEAD_BYTES = 4 * 1024
 def _reject_oversized_content_length(request: Request) -> None:
     """413 from the Content-Length header alone, before the body is parsed.
 
-    E6-CRC-F6: checking `upload.size` after `await request.form()` bounds what
-    gets written to disk but not what Starlette buffers while parsing the
-    multipart body. A well-formed Content-Length lets us refuse the request
-    before any of it is read; a missing/invalid header (chunked transfer) is
-    not fatal here because `_read_accessory_body` still bounds the actual
-    read below.
+    A cheap short-circuit only: a well-formed, truthful header lets us
+    refuse before anything is read. `read_bounded_form()` is the real
+    guard -- it bounds the body as it streams in regardless of what this
+    header says, or whether the client sent one at all (G1: a chunked or
+    lying-length upload must not reach `request.form()` unbounded).
     """
     raw_length = request.headers.get("content-length")
     if raw_length is None:
@@ -127,7 +127,7 @@ async def _read_accessory_body(
     """
     if request.headers.get("content-type", "").startswith("multipart/form-data"):
         _reject_oversized_content_length(request)
-        form = await request.form()
+        form = await read_bounded_form(request, _MAX_PLIST_BYTES + _MULTIPART_OVERHEAD_BYTES)
         raw_name = form.get("name")
         upload = form.get("plist")
         if not isinstance(raw_name, str) or upload is None or isinstance(upload, str):

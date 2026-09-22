@@ -176,6 +176,53 @@ def test_an_unparseable_or_non_object_json_body_is_422_not_500(client: TestClien
     assert _leftovers() == []
 
 
+def _raw_multipart_body(name: str, filename: str, plist_bytes: bytes) -> tuple[bytes, str]:
+    """A hand-built multipart body, so a test can control chunking and the
+    Content-Length header independently of what `files=`/`data=` would send."""
+    boundary = "findplustestboundary"
+    body = (
+        f'--{boundary}\r\nContent-Disposition: form-data; name="name"\r\n\r\n{name}\r\n'
+    ).encode()
+    body += (
+        f'--{boundary}\r\nContent-Disposition: form-data; name="plist"; '
+        f'filename="{filename}"\r\nContent-Type: application/octet-stream\r\n\r\n'
+    ).encode()
+    body += plist_bytes + b"\r\n" + f"--{boundary}--\r\n".encode()
+    return body, f"multipart/form-data; boundary={boundary}"
+
+
+def test_a_chunked_upload_with_no_content_length_is_still_capped(client: TestClient) -> None:
+    """G1: a client that never sends Content-Length (chunked transfer) must
+    still be capped while `read_bounded_form` streams the body, not after."""
+    body, content_type = _raw_multipart_body("Tag 6", "huge.plist", b"x" * 200_000)
+
+    def chunks():
+        step = 4096
+        for i in range(0, len(body), step):
+            yield body[i : i + step]
+
+    res = client.post(URL, content=chunks(), headers={"content-type": content_type})
+    assert "content-length" not in {k.lower() for k in res.request.headers}
+    assert res.status_code == 413
+    assert res.json()["detail"] == "plist too large"
+    assert _leftovers() == []
+
+
+def test_a_lying_content_length_is_still_capped_while_streaming(client: TestClient) -> None:
+    """G1: a Content-Length that understates the real body passes the header
+    check but must still be caught as the oversized body actually streams in."""
+    body, content_type = _raw_multipart_body("Tag 7", "huge.plist", b"x" * 200_000)
+
+    res = client.post(
+        URL,
+        content=body,
+        headers={"content-type": content_type, "content-length": "10"},
+    )
+    assert res.status_code == 413
+    assert res.json()["detail"] == "plist too large"
+    assert _leftovers() == []
+
+
 @pytest.mark.posix_only
 def test_the_uploaded_plist_is_0600_while_it_exists(client: TestClient, monkeypatch) -> None:
     """CR-C-E6 F3: the courier file holds raw key material and was created at the

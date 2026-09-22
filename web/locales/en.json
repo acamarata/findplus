@@ -14,6 +14,7 @@
     "lockTitle": "Find+ is locked",
     "lockSub": "Enter your PIN to continue.",
     "unlock": "Unlock",
+    "wrongPinHint": "Wrong PIN. Forgot it? Run `findplus lock reset` in a terminal.",
     "pin": "PIN",
     "liveDotTitle": "Polling service status",
     "deviceNamePlaceholder": "no tracker selected",
@@ -63,6 +64,7 @@
       "one": "1 device tracked · ~{rate}/hr",
       "other": "{n} devices tracked · ~{rate}/hr"
     },
+    "devicesTrackedRateHint": "About {rate} location fixes per hour, across your tracked devices.",
     "noDevicesTracked": "no devices tracked",
     "pollerActive": "Polling service active (every {interval} min)",
     "pollerStale": "No recent poll — the service may be stopped",
@@ -78,7 +80,8 @@
     "apiUnreachable": "Could not reach the local API: {message}",
     "sectionsNavLabel": "Sections",
     "detailsLandmarkLabel": "Details",
-    "statusRegionLabel": "Status and filters"
+    "statusRegionLabel": "Status and filters",
+    "skipMap": "Skip map, go to timeline"
   },
   "field": {
     "customColor": "Custom colour"
@@ -137,6 +140,7 @@
     "verdictTogetherPartial": "Together ({reporting} of {considered} reporting)",
     "verdictUnknown": "Unknown",
     "verdictDiverged": "Diverged",
+    "verdictDivergedHint": "Diverged: at least one member is not near the rest of the group.",
     "verdictOnlyOneReporting": "Only 1 reporting",
     "verdictPartial": "Partial",
     "listAway": "Away from the others",
@@ -149,15 +153,21 @@
       "name": "Name",
       "icon": "Icon",
       "color": "Colour",
-      "quorum": "Quorum",
-      "quorum_custom": "Custom",
+      "quorum": "Alert when",
+      "quorum_any": "Any member arrives",
+      "quorum_majority": "Most members arrive",
+      "quorum_all": "Every member arrives",
+      "quorum_custom": "Custom number of members",
+      "quorum_hint": "How many members have to be at a place before the group counts as arrived.",
       "radius": "Cluster radius (m)",
+      "radius_hint": "How close together members' locations must be to count as \"in the same place\".",
       "stale": "Stale after (minutes)",
       "stale_hint": "A tag with no recent fix is stale, not at home and not left behind. Find+ reports it as unknown.",
       "members": "Members"
     },
     "error": {
-      "name_required": "Name is required."
+      "name_required": "Name is required.",
+      "members_required": "Select at least one member."
     },
     "empty": "No groups yet. A group tracks presence for a household, a set of pets, or anything you want a together/apart verdict for.",
     "add_button": "Add group",
@@ -183,7 +193,7 @@
   },
   "places": {
     "addPlace": "Add place",
-    "tabHint": "Click the map or use Add place to create a geofence.",
+    "tabHint": "Use Add place to create a geofence.",
     "confirmDelete": "Delete place \"{name}\"?",
     "deleteFailed": "Could not delete that place ({status}).",
     "sinceLabel": "{place} since {time}",
@@ -191,7 +201,36 @@
     "radiusLabel": "Radius (m)",
     "colorLabel": "Color",
     "enterConfirmations": "Enter confirmations",
-    "exitConfirmations": "Exit confirmations"
+    "exitConfirmations": "Exit confirmations",
+    "dialog": {
+      "title_add": "Add place",
+      "title_edit": "Edit {name}"
+    },
+    "field": {
+      "customColor": "Custom colour",
+      "useTrackerLocation": "Use a tracker's last location",
+      "use": "Use",
+      "chooseTracker": "Choose a tracker…",
+      "chooseTrackerFirst": "Choose a tracker first.",
+      "noTrackerFix": "That tracker has no location on record yet."
+    },
+    "search": {
+      "label": "Address search",
+      "placeholder": "Search for an address",
+      "button": "Search",
+      "resultsLabel": "Search results",
+      "noResults": "No results.",
+      "failed": "Search failed: {message}"
+    },
+    "list": {
+      "empty": "No places yet. Use Add place to create one.",
+      "radiusMeta": "{radius} m radius",
+      "whoIsHere": "Currently here: {names}"
+    },
+    "card": {
+      "edit": "Edit {name}",
+      "delete": "Delete {name}"
+    }
   },
   "alerts": {
     "telegramHeading": "Telegram",
@@ -245,6 +284,24 @@
     "skippedNoReason": "suppressed, no reason recorded",
     "retryingStatus": "Retrying (attempt {attempt} of {max}, next at {time})",
     "failedAfterRetries": "Failed after {max} attempts",
+    "channelNotConnected": "{channel} (not connected)",
+    "badBotTokenError": "That doesn't look like a bot token. Get one from @BotFather in Telegram.",
+    "colEnabled": "Enabled",
+    "editRule": "Edit rule",
+    "ruleEnabledLabel": "Enabled: {name}",
+    "ruleUpdateFailed": "Could not update \"{name}\" ({status}).",
+    "statuses": {
+      "sent": "Sent",
+      "failed": "Failed",
+      "skipped": "Skipped",
+      "queued": "Queued",
+      "delivered": "Delivered",
+      "retrying": "Retrying"
+    },
+    "kinds": {
+      "device": "Device",
+      "group": "Group"
+    },
     "whatsapp": {
       "heading": "WhatsApp",
       "phone": "Phone",
@@ -344,14 +401,19 @@
     "done": {
       "button": "Done",
       "title": "You're set up",
-      "summary": "{n} device(s) tracked."
+      "summary": {
+        "one": "1 device tracked.",
+        "other": "{n} devices tracked."
+      }
     },
     "welcome": {
       "title": "Welcome",
       "body": "Find+ tracks your Google Find Hub and Apple Find My devices, entirely on this computer. Nothing you set up here leaves this machine except the direct connections to Google or Apple you set up directly."
     },
     "signin": {
+      "title": "Sign in",
       "google": "Sign in with Google",
+      "google_signed_in": "Signed in ✓ (switch account)",
       "apple": "Sign in with Apple",
       "apple_id": "Apple ID",
       "password": "Password",
@@ -387,7 +449,7 @@
       "whatsapp": "WhatsApp",
       "native": "Notifications",
       "connect": "Connect",
-      "configure_later": "Configure from Settings after finishing setup.",
+      "configure_later": "Configure from the Alerts tab after finishing setup.",
       "enable": "Enable notifications",
       "permission_granted": "Notifications are on.",
       "permission_denied": "Notifications are off. You can turn them on in your system settings.",
@@ -504,7 +566,7 @@
     "miles": "{n} mi"
   },
   "honesty": {
-    "findHub": "This history consists of locations reported through Google's Find Hub network. Moto Tag uses nearby participating Android devices to report its location. Location updates can therefore be delayed, sparse, or unavailable, and this application should not be treated as real-time emergency or child-safety GPS tracking.",
+    "findHub": "This history consists of locations reported through Google's Find Hub network. Your trackers use nearby participating Android devices to report their location. Location updates can therefore be delayed, sparse, or unavailable, and this application should not be treated as real-time emergency or child-safety GPS tracking.",
     "apple": "Apple Find My locations come from nearby Apple devices and can be delayed, sparse or unavailable. Find+ can only query accessories whose keys you hold; genuine AirTags require extracting pairing keys, which most users cannot do.",
     "alertsLatency": "Alerts inherit the network's delay. An arrival or departure may be reported minutes to hours late.",
     "presenceStale": "A tag with no recent fix is stale, not at home and not left behind. Find+ reports it as unknown.",
@@ -514,6 +576,7 @@
     "alertsLocked": "Notifications are held while Find+ is locked. Unlock to see what you missed.",
     "nativeGeneric": "By default, macOS notifications show a generic \"Find+ alert\" instead of who or where, because notification banners can appear on a locked screen. Turn on notification details in Settings to show the person and place — anyone who can see the screen then sees the same thing.",
     "notAffiliated": "Find+ is not affiliated with Apple or Google. Find Hub and Find My are their trademarks.",
-    "chromeRequired": "Google Chrome was not found on this machine. Google sign-in drives Chrome directly and cannot run without it. Install it from https://www.google.com/chrome/ and try again."
+    "chromeRequired": "Google Chrome was not found on this machine. Google sign-in drives Chrome directly and cannot run without it. Install it from https://www.google.com/chrome/ and try again.",
+    "addressSearch": "Address search sends the text you type to OpenStreetMap's Nominatim service, a third party not affiliated with Find+, and only when you press Search."
   }
 }

@@ -230,6 +230,8 @@ html[data-theme="light"] .alert.warn { color: #6b4a00; }
 }
 .setting-row input[type=password],
 .setting-row input[type=date],
+.setting-row input[type=url],
+.setting-row input[type=number],
 .setting-row select {
   background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
   border-radius: 7px; padding: 6px 9px; font-size: 13px; min-width: 190px;
@@ -252,7 +254,6 @@ html[data-theme="light"] .alert.warn { color: #6b4a00; }
 #fp-add-place-btn { margin: 14px 18px 0; }
 .fp-presence-chip { font-size: .72rem; padding: 2px 7px; border-radius: 9999px;
   background: rgba(79,140,247,.18); color: var(--badge-text); margin-left: 6px; }
-#map.fp-crosshair-mode { cursor: crosshair; }
 .fp-place-popup { display: flex; flex-direction: column; gap: 6px; }
 
 /* --- groups tab ---------------------------------------------------------- */

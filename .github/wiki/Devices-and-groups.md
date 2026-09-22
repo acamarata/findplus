@@ -21,7 +21,7 @@ on the device list, and in the macOS widget.
 sent to Google or Apple, and a provider name refresh never overwrites one you
 have set. Clear the field to go back to the provider's own name.
 
-**Icon.** One of four forms:
+**Icon.** One of five forms:
 
 | Form | What it shows |
 |---|---|
@@ -29,6 +29,7 @@ have set. Clear the field to go back to the provider's own name.
 | `letter:<A-Z0-9>` | A badge character you pin once, which never changes. |
 | `letter` | A badge character computed live from the current label or name. |
 | `none` | A plain coloured dot with no glyph. |
+| `custom:<id>` | A PNG image you uploaded. |
 
 Bare `letter` is the default and is dynamic: it always shows the first
 character of the name in force right now, so renaming a device moves its badge
@@ -44,6 +45,15 @@ Forty-eight glyphs will not cover every label anyone writes, and that is fine:
 the coloured letter badge covers any label with no matching glyph, so the
 picker never has a dead end. Run `findplus devices icons` to print every
 available id.
+
+**Custom icons.** The picker's "Your icons" section lets you upload your own
+PNG (16-512 px, roughly square, up to 64 KiB) instead of picking a Lucide
+glyph or a letter. Each upload gets an id derived from its own bytes, so
+uploading the same image twice reuses the first copy rather than storing it
+twice. An icon still assigned to a device or group cannot be deleted — remove
+it from whatever is using it first. The macOS widget cannot fetch images, so
+a custom icon shows there as a coloured letter badge instead, the same
+fallback an unmapped Lucide glyph would get.
 
 **Colour.** One of 12 palette swatches, or any hex colour you pick. A device
 that has never been given one gets a palette colour derived from its id, so two
@@ -73,9 +83,9 @@ together. `stale_after` (minutes) sets how long a fix stays valid before the
 device is treated as unknown for presence purposes.
 
 A group also carries an icon and a colour, set in the group dialog beside the
-quorum rule. The icon defaults to `lucide:users` and follows the same four-form
-grammar devices use. It is what you see on the group card and in the map
-legend.
+quorum rule. The icon defaults to `lucide:users` and follows the same
+five-form grammar devices use, custom icons included. It is what you see on
+the group card and in the map legend.
 
 ## Presence verdicts
 

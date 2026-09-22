@@ -169,6 +169,18 @@
       "delete": "Delete group \"{name}\"?"
     }
   },
+  "icons": {
+    "custom": {
+      "sectionLabel": "Your icons",
+      "label": "Custom icon",
+      "upload": "Upload",
+      "delete": "Delete",
+      "deleteConfirm": "Delete this icon?",
+      "deleteInUse": "This icon is in use and cannot be deleted.",
+      "badFile": "Choose a PNG image first.",
+      "uploadFailed": "Could not upload icon: {message}"
+    }
+  },
   "places": {
     "addPlace": "Add place",
     "tabHint": "Click the map or use Add place to create a geofence.",

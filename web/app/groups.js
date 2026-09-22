@@ -7,7 +7,9 @@
  *              together/diverged/stale member lists and the group note.
  * Inputs     : GET /api/groups (cached for .color, which the presence
  *              endpoint does not carry); GET /api/groups/{id}/presence.
- * Outputs    : An overlay L.layerGroup; a legend; the #fp-presence-panel DOM.
+ * Outputs    : An overlay L.layerGroup; a legend; the #fp-presence-panel DOM;
+ *              and (UAT U8) the map/timeline device filter while a group is
+ *              picked, via state.groupFilter/groupMembers.
  * Constraints: Every element is built with createElement/textContent, never
  *              raw markup assignment. A generation counter discards a
  *              response from a superseded selectGroup() call (CR-C race).
@@ -15,10 +17,12 @@
 "use strict";
 
 import { api } from "./api.js";
-import { esc, fmtAgeMinutes } from "./state.js";
+import { state, esc, fmtAgeMinutes } from "./state.js";
 import { t } from "./i18n.js";
 import { initDialog, purgeDialog } from "./groups_dialog.js";
 import * as groupsList from "./groups_list.js";
+import { renderMap } from "./map.js";
+import { renderTracks } from "./timeline.js";
 
 let map = null;
 let selectedGroupId = null;
@@ -89,10 +93,19 @@ function updateEmptyStateHint(groupCount) {
   if (empty) empty.hidden = groupCount > 0;
 }
 
+/** Narrows the dashboard's map/timeline to `group`'s members (UAT U8). */
+function applyGroupFilter(group) {
+  state.groupFilter = String(group.id);
+  state.groupMembers = new Set(group.members.map((m) => m.device_id));
+  renderMap();
+  renderTracks();
+}
+
 export async function selectGroup(id) {
   selectedGroupId = id;
   const group = groupsById.get(String(id));
   if (!group) return;
+  applyGroupFilter(group);
   const myGeneration = ++generation;
   let presence;
   try {
@@ -113,7 +126,7 @@ export function drawGroupOverlays(presence, group) {
     if (member.status === "stale") return;
     if (member.latitude == null || member.longitude == null) return;
     L.circle([member.latitude, member.longitude], {
-      radius: 80, color: group.color, fillOpacity: 0.2, weight: 1,
+      radius: 80, color: group.color, fillOpacity: 0.2, weight: 1, keyboard: false,
     }).bindTooltip(esc(member.name)).addTo(overlayLayer);
     if (!legend) return;
     const item = document.createElement("span");
@@ -150,6 +163,13 @@ export function verdictLabel(presence) {
   if (presence.verdict !== "partial") return t("groups.verdictUnknown");
   if (presence.diverged && presence.diverged.length > 0) return t("groups.verdictDiverged");
   return reporting === 1 ? t("groups.verdictOnlyOneReporting") : t("groups.verdictPartial");
+}
+
+/** U21: a plain-word explanation for the "Diverged" badge — empty for every
+ * other verdict, so callers can always set it as a `title` unconditionally. */
+export function verdictTitle(presence) {
+  const diverged = presence.verdict === "partial" && presence.diverged && presence.diverged.length > 0;
+  return diverged ? t("groups.verdictDivergedHint") : "";
 }
 
 function ageLabel(member) {
@@ -190,6 +210,7 @@ export function renderPresencePanel(presence) {
   const verdict = document.createElement("p");
   verdict.className = `fp-verdict fp-verdict--${presence.verdict}`;
   verdict.textContent = verdictLabel(presence);
+  verdict.title = verdictTitle(presence);
   panel.appendChild(verdict);
 
   if (presence.note) {
@@ -238,14 +259,14 @@ export function clearGroup() {
   if (panel) while (panel.firstChild) panel.removeChild(panel.firstChild);
   const legend = document.getElementById("fp-group-legend");
   if (legend) while (legend.firstChild) legend.removeChild(legend.firstChild);
+  // "All devices" clears the U8 filter too (select, card click, or purge()).
+  state.groupFilter = "";
+  state.groupMembers = null;
+  if (state.map) { renderMap(); renderTracks(); }
 }
 
-/**
- * Select a group from outside the dropdown, keeping the two in agreement.
- *
- * groups_list.js's card click calls this rather than selectGroup() directly,
- * so the `<select>` never keeps showing the group that was selected before.
- */
+/** groups_list.js's card click uses this instead of selectGroup() directly,
+ * so the `<select>` never keeps showing the group selected before. */
 export function selectGroupById(id) {
   const select = document.getElementById("fp-group-select");
   if (select) select.value = String(id);
@@ -262,12 +283,10 @@ export async function refreshPresence() {
  * group names, the group-select options, the add/edit dialog and the cards.
  *
  * Called from lock.js's purgeRenderedData() on every lock — `clearGroup()`
- * alone left `#fp-group-select`'s option list (group names) and the
- * `groupsById` cache behind, both real data surviving behind the lock
- * screen (PROMPT.md §2). Bumping `generation` also discards any in-flight
- * `selectGroup()` response that would otherwise repopulate the panel right
- * after this purge runs. lock.js still imports this one function: the dialog
- * and the card grid are fanned out to from here, not wired into lock.js.
+ * alone left `#fp-group-select`'s option list and the `groupsById` cache
+ * behind, both real data surviving the lock (PROMPT.md §2). `generation`
+ * also discards any in-flight `selectGroup()` response. lock.js imports only
+ * this one function: the dialog and the card grid fan out from here.
  */
 export function purge() {
   generation++;

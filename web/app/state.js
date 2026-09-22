@@ -29,6 +29,13 @@ export const state = {
   timeline: null,
   devices: [],
   deviceFilter: migrateLegacyKey("bt.deviceFilter", "findplus.deviceFilter") || "",
+  /** The dashboard's group select (#fp-group-select): a group id, or "" for
+   *  every tracked device. Set alongside groupMembers by groups.js. */
+  groupFilter: "",
+  /** Set<device_id> of the selected group's members, or null when no group
+   *  is selected. visibleTracks() below reads this to narrow the map and
+   *  timeline without a second network round trip (UAT U8). */
+  groupMembers: null,
   colors: new Map(),
   selectedId: null,
   movementOnly: false,
@@ -154,6 +161,33 @@ export function fmtDistance(meters) {
 export function todayLocal() {
   const d = new Date();
   return new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
+/**
+ * The identity string every surface shows for a device: the label the user
+ * gave it, or the provider's own name, or its raw id -- never the caller's
+ * own ad-hoc fallback chain (UAT U6: Show dropdown, group members, rule
+ * forms, rules table, cards, map popups and timeline rows all read the same
+ * value). Returns null for no device at all, so a caller with its own
+ * further fallback (a track's stored `device_name`, a group member's own
+ * `name`) can still chain onto it with `displayName(device) || ...`.
+ */
+export function displayName(device) {
+  if (!device) return null;
+  return device.label || device.name || device.device_id || null;
+}
+
+/**
+ * The timeline's tracks, narrowed to the selected group's members.
+ *
+ * `/api/timeline` already returns every tracked device's track in one
+ * response, and a group's member device_ids are already loaded (GET
+ * /api/groups), so the dashboard's group select filters map.js/timeline.js
+ * client-side rather than adding a second, group-scoped fetch (UAT U8).
+ */
+export function visibleTracks(tracks) {
+  if (!state.groupMembers) return tracks;
+  return tracks.filter((track) => state.groupMembers.has(track.device_id));
 }
 
 export function colorFor(deviceId) {

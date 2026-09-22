@@ -10,18 +10,69 @@
  */
 "use strict";
 
-import { state, colorFor, fmtTime, fmtDateTime, fmtDuration, fmtDistance, esc } from "./state.js";
+import { state, colorFor, displayName, visibleTracks, fmtTime, fmtDateTime, fmtDuration, fmtDistance, esc } from "./state.js";
 import { selectPoint } from "./timeline.js";
 import { renderBadge } from "./components/badge.js";
 import { t } from "./i18n.js";
+import { api } from "./api.js";
+
+// U4 (R-P2-30.2): a US-centred default read as "my child is in Kansas" the
+// first time the map had no data to fit. A neutral world view says nothing
+// about anyone's location; setDefaultView() below replaces it with a real
+// fit whenever there is data to fit to. lock.js's purge reuses the same pair
+// so the lock screen never regresses to the old US default either.
+export const WORLD_VIEW_CENTER = [20, 0];
+export const WORLD_VIEW_ZOOM = 2;
 
 export function initMap() {
-  state.map = L.map("map", { zoomControl: true }).setView([39.5, -98.35], 4);
+  state.map = L.map("map", { zoomControl: true }).setView(WORLD_VIEW_CENTER, WORLD_VIEW_ZOOM);
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(state.map);
   state.layer = L.layerGroup().addTo(state.map);
+}
+
+/**
+ * The map's starting view, before any day's timeline has been fitted.
+ *
+ * Order (R-P2-30.2): the tracked devices' latest fixes, else the saved
+ * places, else the plain world view -- never a hardcoded country. A day
+ * that turns out to have observations still wins in the end: renderMap()'s
+ * own fitBounds() runs after this and overrides it, so this is only ever
+ * the view a data-less boot (first run, a quiet day, the wizard) is left
+ * with.
+ */
+export async function setDefaultView() {
+  if (!state.map) return;
+  const points = await _trackedDeviceFixes();
+  if (points.length) {
+    state.map.fitBounds(L.latLngBounds(points), { padding: [42, 42], maxZoom: 14 });
+    return;
+  }
+  const places = await api("/api/places").catch(() => []);
+  if (places.length) {
+    state.map.fitBounds(
+      L.latLngBounds(places.map((p) => [p.latitude, p.longitude])),
+      { padding: [42, 42], maxZoom: 14 },
+    );
+    return;
+  }
+  state.map.setView(WORLD_VIEW_CENTER, WORLD_VIEW_ZOOM);
+}
+
+/** One [lat, lon] per tracked device that has ever reported, skipping any
+ * that have not (a 404 from /api/latest) rather than failing the whole
+ * default-view computation over one silent tracker. */
+async function _trackedDeviceFixes() {
+  const devicesResp = await api("/api/devices").catch(() => null);
+  const tracked = devicesResp ? devicesResp.devices.filter((d) => d.is_tracked) : [];
+  const fixes = await Promise.all(
+    tracked.map((d) =>
+      api(`/api/latest?device_id=${encodeURIComponent(d.device_id)}`).catch(() => null),
+    ),
+  );
+  return fixes.filter(Boolean).map((f) => [f.latitude, f.longitude]);
 }
 
 /**
@@ -38,7 +89,13 @@ export function initMap() {
 function numberedIcon(point, index, total, device) {
   const classes = ["marker-num"];
   if (!point.is_movement) classes.push("jitter");
-  const ring = index === 0 ? "#37c67a" : index === total - 1 ? "#ef5f5f" : "#fff";
+  // The ring colour used to be a per-marker inline style="border-color:…",
+  // which CSP's default `style-src 'self'` (no unsafe-inline) silently drops
+  // -- every marker rendered with a plain white ring and the console filled
+  // with CSP violation warnings (UAT U25). first/last are the only two
+  // non-default rings; components.css owns the actual colours.
+  if (index === 0) classes.push("marker-num--first");
+  else if (index === total - 1) classes.push("marker-num--last");
   const glyph = point.is_movement
     ? renderBadge({
         icon: device.icon,
@@ -51,7 +108,7 @@ function numberedIcon(point, index, total, device) {
   return L.divIcon({
     className: "",
     html:
-      `<div class="${classes.join(" ")}" style="border-color:${ring}">` +
+      `<div class="${classes.join(" ")}">` +
       `<span class="marker-num-glyph">${glyph}</span>` +
       `<span class="marker-num-seq">${point.sequence}</span></div>`,
     iconSize: [26, 26],
@@ -62,7 +119,7 @@ function numberedIcon(point, index, total, device) {
 function popupHtml(point, deviceName) {
   const rows = [
     `<b>${fmtTime(point.observed_at_local)}</b>`,
-    `<div style="opacity:.75">${esc(deviceName)}</div>`,
+    `<div class="fp-popup-sub">${esc(deviceName)}</div>`,
     `<div>${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}</div>`,
   ];
   if (point.accuracy_meters != null) {
@@ -77,11 +134,11 @@ function popupHtml(point, deviceName) {
   }
   const dist = fmtDistance(point.meters_from_previous);
   if (dist) rows.push(`<div>${dist} from previous observation</div>`);
-  if (point.source) rows.push(`<div style="opacity:.7">Report: ${esc(point.source)}</div>`);
+  if (point.source) rows.push(`<div class="fp-popup-meta">Report: ${esc(point.source)}</div>`);
   if (!point.is_movement && point.seconds_since_previous !== null) {
-    rows.push(`<div style="opacity:.7">Below movement threshold</div>`);
+    rows.push(`<div class="fp-popup-meta">Below movement threshold</div>`);
   }
-  rows.push(`<div style="opacity:.6;font-size:11px;margin-top:5px">Retrieved ${fmtDateTime(point.fetched_at)}</div>`);
+  rows.push(`<div class="fp-popup-retrieved">Retrieved ${fmtDateTime(point.fetched_at)}</div>`);
   return rows.join("");
 }
 
@@ -115,7 +172,9 @@ export function renderMap() {
 
   const allLatLngs = [];
 
-  state.timeline.tracks.forEach((track) => {
+  // The dashboard's group select narrows both the map and the timeline to
+  // one group's members client-side, with no second fetch (UAT U8).
+  visibleTracks(state.timeline.tracks).forEach((track) => {
     const points = visiblePoints(track);
     if (!points.length) return;
     const color = colorFor(track.device_id);
@@ -123,13 +182,17 @@ export function renderMap() {
     // D-P2-15: a map marker shows the label as well as the icon and colour.
     // The tooltip, the hover title and the popup are the only text the map
     // has, so they read the label first, exactly as the device list and the
-    // timeline track head do.
-    const shown = device.label || track.device_name;
+    // timeline track head do (UAT U6: the one displayName() helper).
+    const shown = displayName(device) || track.device_name;
     const latlngs = points.map((p) => [p.latitude, p.longitude]);
     allLatLngs.push(...latlngs);
 
     if (latlngs.length > 1) {
-      L.polyline(latlngs, { color, weight: 3, opacity: 0.75, dashArray: "6 5" })
+      // keyboard: false (U31) — Leaflet's default Tab-stop-per-path/marker
+      // behaviour put every point of every track in the Tab order ahead of
+      // the timeline; a keyboard user reaches the timeline directly and picks
+      // a point from there instead (selectPoint() below draws its marker).
+      L.polyline(latlngs, { color, weight: 3, opacity: 0.75, dashArray: "6 5", keyboard: false })
         .addTo(state.layer)
         .bindTooltip(`${esc(shown)} — observed path; actual route between detections may differ.`);
     }
@@ -138,6 +201,7 @@ export function renderMap() {
       const marker = L.marker([point.latitude, point.longitude], {
         icon: numberedIcon(point, index, points.length, device),
         title: `${shown} · ${fmtTime(point.observed_at_local)}`,
+        keyboard: false,
       }).addTo(state.layer);
       marker.bindPopup(popupHtml(point, shown));
       marker.on("click", () => selectPoint(point.id, false));

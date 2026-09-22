@@ -8,7 +8,7 @@
  */
 "use strict";
 
-import { $, state, fmtTime, fmtDateTime, fmtDuration, fmtDistance, todayLocal, showAlert, esc } from "./state.js";
+import { $, state, displayName, visibleTracks, fmtTime, fmtDateTime, fmtDuration, fmtDistance, todayLocal, showAlert, esc } from "./state.js";
 import { api, postJson } from "./api.js";
 import { renderMap, visiblePoints, deviceForTrack } from "./map.js";
 import { renderBadge } from "./components/badge.js";
@@ -93,7 +93,7 @@ function trackHead(track) {
   );
   const name = document.createElement("span");
   name.className = "track-name";
-  name.textContent = device.label || track.device_name || track.device_id;
+  name.textContent = displayName(device) || track.device_name || track.device_id;
   const count = document.createElement("span");
   count.className = "track-count";
   count.textContent = plural("timeline.observations", track.points.length, {
@@ -106,7 +106,10 @@ function trackHead(track) {
 export function renderTracks() {
   const host = $("tracks");
   host.innerHTML = "";
-  if (!state.timeline || !state.timeline.tracks.length) {
+  // The dashboard's group select narrows the timeline to one group's
+  // members, matching the same filter renderMap() applies (UAT U8).
+  const tracks = state.timeline ? visibleTracks(state.timeline.tracks) : [];
+  if (!tracks.length) {
     const empty = document.createElement("div");
     empty.className = "empty";
     // Nothing tracked at all is a different problem from a quiet day, and it
@@ -117,7 +120,7 @@ export function renderTracks() {
     return;
   }
 
-  state.timeline.tracks.forEach((track) => {
+  tracks.forEach((track) => {
     const block = document.createElement("section");
     block.className = "track-block";
     block.appendChild(trackHead(track));

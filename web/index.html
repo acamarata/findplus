@@ -76,6 +76,14 @@
   </div>
 </header>
 
+<!-- CF-P2-E9-2: an untagged axe scan found this block's content (summary
+     cards, the status banner, the day/export filters) sitting outside any
+     landmark -- neither .cards nor .controls carries an accessible name, so
+     axe's "region" rule does not treat either <section> as a landmark on its
+     own. One named region covers all three siblings without touching the
+     .cards/.layout grid CSS, which assumes exactly its own children. -->
+<div class="status-region" role="region" aria-label="Status and filters"
+     data-i18n-attr="aria-label:common.statusRegionLabel">
 <section class="cards" id="cards">
   <div class="card"><span class="label" id="card-observed-label" data-i18n="common.cardObservedLabel">Last observed</span><strong id="card-observed">—</strong><span class="sub" id="card-observed-ago">—</span></div>
   <div class="card"><span class="label" data-i18n="common.cardFetchedLabel">Retrieved by this computer</span><strong id="card-fetched">—</strong><span class="sub" id="card-lag">—</span></div>
@@ -131,6 +139,7 @@
     <button class="btn btn-secondary" id="btn-export" data-i18n="common.download">Download</button>
   </span>
 </section>
+</div><!-- /status-region -->
 
 <nav class="fp-tabs" aria-label="Sections" data-i18n-attr="aria-label:common.sectionsNavLabel">
   <button class="fp-tab active" data-tab="dashboard" data-i18n="common.tabDashboard">Dashboard</button>

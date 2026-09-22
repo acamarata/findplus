@@ -34,6 +34,18 @@ AXE_OPTIONS = {
     "runOnly": {"type": "tag", "values": ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]},
 }
 
+#: `region` is an axe best-practice rule (cat.keyboard), not WCAG-tagged, so
+#: AXE_OPTIONS above never surfaces it even at "serious"/"critical" impact --
+#: an untagged scan is the only way it was ever found (CF-P2-E9-2, 1 moderate
+#: violation, 12 nodes: the cards/alert/filter block sat outside any
+#: landmark). Scanning for it alone, rather than dropping the WCAG runOnly
+#: filter entirely, keeps this gate from going red on unrelated
+#: best-practice rules nothing has audited yet.
+REGION_OPTIONS = {
+    "resultTypes": ["violations"],
+    "runOnly": {"type": "rule", "values": ["region"]},
+}
+
 BLOCKING = ("serious", "critical")
 
 
@@ -77,6 +89,22 @@ async def test_no_serious_axe_violations(page, base_url, tab, theme, width):
 
     blocking = [v for v in violations if v.get("impact") in BLOCKING]
     assert not blocking, "\n".join(_describe(v, tab, theme, width) for v in blocking)
+
+
+@pytest.mark.parametrize("width", WIDTHS)
+async def test_no_region_violations_on_dashboard(page, base_url, width):
+    """CF-P2-E9-2: the cards/alert/filter block now sits inside a named
+    `role="region"` landmark (web/index.html's .status-region), closing the
+    violation this rule alone (not the pinned WCAG tag scan above) can see.
+    """
+    await page.set_viewport_size({"width": width, "height": 800})
+    await page.goto(base_url + "/")
+    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#tracks > *", state="attached")
+
+    results = await Axe().run(page, options=REGION_OPTIONS)
+    violations = results.response["violations"]
+    assert not violations, "\n".join(_describe(v, "dashboard", "n/a", width) for v in violations)
 
 
 DIALOGS = ("devices", "groups")

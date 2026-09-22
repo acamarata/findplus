@@ -7,7 +7,10 @@
  *              own Nominatim proxy. Split out of places_dialog.js so its own
  *              network calls and DOM stay independently testable, the same
  *              way color-picker.js/icon-picker.js are split from the
- *              dialogs that mount them.
+ *              dialogs that mount them. DOM construction lives in
+ *              place_locator_dom.js (PRI rule-7 50-line function cap, E13
+ *              loop-1 follow-up) and the two behaviors below are each their
+ *              own small factory for the same reason.
  * Inputs     : GET /api/devices for the tracker list (fetched fresh on every
  *              refreshTrackers() rather than trusting `state.devices`, which
  *              may still be empty this early in boot); GET
@@ -26,105 +29,22 @@
 
 import { api } from "../api.js";
 import { t } from "../i18n.js";
-import { displayName } from "../state.js";
+import { buildPlaceLocatorDom, searchResultRow, trackerOption } from "./place_locator_dom.js";
 
-function trackerOption(device) {
-  const opt = document.createElement("option");
-  opt.value = device.device_id;
-  opt.textContent = displayName(device) || device.device_id;
-  return opt;
-}
-
-function searchResultRow(row, onPick, results) {
-  const li = document.createElement("li");
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.textContent = row.display_name;
-  btn.addEventListener("click", () => {
-    onPick({ latitude: row.latitude, longitude: row.longitude });
-    results.hidden = true;
-  });
-  li.appendChild(btn);
-  return li;
-}
-
-/**
- * Build the locator section and mount it into `host`.
- *
- * A factory, not a module singleton (createColorPicker's own shape): the
- * dialog owns exactly one instance, created once in ensureDialog(), and
- * calls `refreshTrackers()`/`reset()` on it rather than rebuilding the DOM
- * every time the dialog opens.
- */
-export function createPlaceLocator(host, { onPick }) {
-  const select = document.createElement("select");
-  select.id = "fp-place-tracker-select";
-  const useBtn = document.createElement("button");
-  useBtn.type = "button";
-  // V1: a bare "btn-secondary" only carries background/border, not the
-  // padding/radius/cursor that live on .btn -- it read as a plain browser
-  // button. .btn-tiny matches this row's compact select+button layout.
-  useBtn.className = "btn btn-tiny";
-  useBtn.id = "fp-place-use-tracker-btn";
-  useBtn.textContent = t("places.field.use");
-
-  const trackerRow = document.createElement("div");
-  trackerRow.className = "fp-dialog-field";
-  const trackerLabel = document.createElement("label");
-  trackerLabel.htmlFor = select.id;
-  trackerLabel.textContent = t("places.field.useTrackerLocation");
-  trackerRow.append(trackerLabel, select, useBtn);
-
-  const searchInput = document.createElement("input");
-  searchInput.type = "text";
-  searchInput.id = "fp-place-search-input";
-  searchInput.placeholder = t("places.search.placeholder");
-  const searchBtn = document.createElement("button");
-  searchBtn.type = "button";
-  searchBtn.className = "btn btn-tiny";
-  searchBtn.id = "fp-place-search-btn";
-  searchBtn.textContent = t("places.search.button");
-  const searchInputRow = document.createElement("div");
-  searchInputRow.className = "fp-dialog-field";
-  searchInputRow.append(searchInput, searchBtn);
-
-  const results = document.createElement("ul");
-  results.id = "fp-place-search-results";
-  results.className = "fp-search-results";
-  results.hidden = true;
-  results.setAttribute("aria-label", t("places.search.resultsLabel"));
-
-  const searchHint = document.createElement("p");
-  searchHint.className = "fp-field-hint";
-  searchHint.textContent = t("honesty.addressSearch");
-
-  const searchGroup = document.createElement("fieldset");
-  searchGroup.className = "fp-dialog-group";
-  const searchLegend = document.createElement("legend");
-  searchLegend.textContent = t("places.search.label");
-  searchGroup.append(searchLegend, searchInputRow, searchHint, results);
-
-  const status = document.createElement("p");
-  status.className = "fp-field-hint";
-  status.id = "fp-place-locator-status";
-
-  host.append(trackerRow, searchGroup, status);
-
-  function setStatus(text) {
-    status.textContent = text;
-  }
-
-  function renderResults(rows) {
-    results.textContent = "";
-    if (!rows.length) {
-      const li = document.createElement("li");
-      li.className = "fp-search-empty";
-      li.textContent = t("places.search.noResults");
-      results.appendChild(li);
-    } else {
-      rows.forEach((row) => results.appendChild(searchResultRow(row, onPick, results)));
-    }
-    results.hidden = false;
+/** The "use a tracker's last location" half: its own select + button. */
+function createTrackerPicker(select, useBtn, { onPick, setStatus }) {
+  /** Fetched fresh every call rather than read off `state.devices`: the
+   * dialog can open before devices.js's own boot-time load has landed (a
+   * fast click right after the map appears), which left this select with
+   * only its placeholder option. */
+  async function refreshTrackers() {
+    while (select.firstChild) select.removeChild(select.firstChild);
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = t("places.field.chooseTracker");
+    select.appendChild(placeholder);
+    const resp = await api("/api/devices").catch(() => ({ devices: [] }));
+    resp.devices.filter((d) => d.is_tracked).forEach((d) => select.appendChild(trackerOption(d)));
   }
 
   async function useTrackerLocation() {
@@ -140,6 +60,25 @@ export function createPlaceLocator(host, { onPick }) {
     } catch (_) {
       setStatus(t("places.field.noTrackerFix"));
     }
+  }
+
+  useBtn.addEventListener("click", useTrackerLocation);
+  return { refreshTrackers };
+}
+
+/** The opt-in address-search half: its own input, button and results list. */
+function createAddressSearch(searchInput, searchBtn, results, { onPick, setStatus }) {
+  function renderResults(rows) {
+    results.textContent = "";
+    if (!rows.length) {
+      const li = document.createElement("li");
+      li.className = "fp-search-empty";
+      li.textContent = t("places.search.noResults");
+      results.appendChild(li);
+    } else {
+      rows.forEach((row) => results.appendChild(searchResultRow(row, onPick, results)));
+    }
+    results.hidden = false;
   }
 
   async function runSearch() {
@@ -158,7 +97,6 @@ export function createPlaceLocator(host, { onPick }) {
     }
   }
 
-  useBtn.addEventListener("click", useTrackerLocation);
   searchBtn.addEventListener("click", runSearch);
   searchInput.addEventListener("keydown", (e) => {
     if (e.key !== "Enter") return;
@@ -170,30 +108,35 @@ export function createPlaceLocator(host, { onPick }) {
     e.preventDefault();
     runSearch();
   });
+}
 
-  /** Fetched fresh every call rather than read off `state.devices`: the
-   * dialog can open before devices.js's own boot-time load has landed (a
-   * fast click right after the map appears), which left this select with
-   * only its placeholder option. */
-  async function refreshTrackers() {
-    while (select.firstChild) select.removeChild(select.firstChild);
-    const placeholder = document.createElement("option");
-    placeholder.value = "";
-    placeholder.textContent = t("places.field.chooseTracker");
-    select.appendChild(placeholder);
-    const resp = await api("/api/devices").catch(() => ({ devices: [] }));
-    resp.devices.filter((d) => d.is_tracked).forEach((d) => select.appendChild(trackerOption(d)));
+/**
+ * Build the locator section and mount it into `host`.
+ *
+ * A factory, not a module singleton (createColorPicker's own shape): the
+ * dialog owns exactly one instance, created once in ensureDialog(), and
+ * calls `refreshTrackers()`/`reset()` on it rather than rebuilding the DOM
+ * every time the dialog opens.
+ */
+export function createPlaceLocator(host, { onPick }) {
+  const dom = buildPlaceLocatorDom(host);
+
+  function setStatus(text) {
+    dom.status.textContent = text;
   }
 
+  const tracker = createTrackerPicker(dom.select, dom.useBtn, { onPick, setStatus });
+  createAddressSearch(dom.searchInput, dom.searchBtn, dom.results, { onPick, setStatus });
+
   function reset() {
-    select.value = "";
-    searchInput.value = "";
-    results.hidden = true;
-    results.textContent = "";
+    dom.select.value = "";
+    dom.searchInput.value = "";
+    dom.results.hidden = true;
+    dom.results.textContent = "";
     setStatus("");
   }
 
-  refreshTrackers();
+  tracker.refreshTrackers();
 
-  return { refreshTrackers, reset };
+  return { refreshTrackers: tracker.refreshTrackers, reset };
 }

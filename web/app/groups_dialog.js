@@ -12,7 +12,9 @@
  *              from raw markup, and every badge through components/badge.js.
  *              Every static string comes from the catalog through t().
  *              initDialog()'s onSaved callback is the only way this module
- *              talks back to groups.js, so the dependency runs one way.
+ *              talks back to groups.js, so the dependency runs one way. The
+ *              field-values-to-API-body mapping lives in groups_dialog_save.js
+ *              (same file cap, E13 loop-1).
  */
 "use strict";
 
@@ -24,6 +26,7 @@ import {
   buildDialog, memberRow, renderIconPreview, renderColorPreview,
   closeOpenPopover, closePopoverIfOutside, clampPopoverToViewport,
 } from "./groups_dialog_dom.js";
+import { groupBody, saveGroup } from "./groups_dialog_save.js";
 
 const DEFAULT_ICON = "lucide:users";
 const DEFAULT_COLOR = "#27ae60";
@@ -193,41 +196,6 @@ export function openEditDialog(id, group) {
   fillDialog("edit", id, group).catch(reportFillFailure);
 }
 
-function groupBody() {
-  return {
-    name: fields.name.value.trim(),
-    icon: fields.icon.value,
-    color: fields.color.value,
-    quorum: fields.quorum.value === "custom" ? String(fields.quorumN.value) : fields.quorum.value,
-    cluster_radius_meters: Number(fields.radius.value),
-    stale_after_minutes: Number(fields.stale.value),
-    member_ids: [...fields.members.querySelectorAll("input:checked")].map((c) => c.dataset.deviceId),
-  };
-}
-
-function jsonOpts(method, body) {
-  return { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
-}
-
-/**
- * Save, as one call on add and two on edit.
- *
- * GroupUpdate carries no member_ids and set_members carries nothing else, so an
- * edit is a PUT of the group followed by a PUT of its membership. The second
- * only runs if the first succeeded: a half-applied save with the error still on
- * screen beats silently writing one of the two.
- */
-async function saveGroup(body) {
-  if (dialogEl.dataset.mode !== "edit") {
-    await api("/api/groups", jsonOpts("POST", body));
-    return;
-  }
-  const id = dialogEl.dataset.editId;
-  const { member_ids: memberIds, ...groupFields } = body;
-  await api(`/api/groups/${id}`, jsonOpts("PUT", groupFields));
-  await api(`/api/groups/${id}/members`, jsonOpts("PUT", { member_ids: memberIds }));
-}
-
 function handleSaveError(err) {
   // api() shows the lock screen for a 401; anything else belongs in the dialog.
   if (err.message === "Locked") return;
@@ -257,7 +225,7 @@ async function onSave() {
     return;
   }
   try {
-    await saveGroup(groupBody());
+    await saveGroup(dialogEl.dataset.mode, dialogEl.dataset.editId, groupBody(fields));
     dialogEl.close();
     if (onSaved) await onSaved();
   } catch (err) {

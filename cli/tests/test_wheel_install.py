@@ -47,13 +47,10 @@ def _venv_scripts_dir(venv: Path) -> Path:
     return Path(out.stdout.strip())
 
 
-@pytest.mark.slow
-def test_wheel_installs_and_migrates(tmp_path):
-    """Build wheel, install into throwaway venv, run db upgrade + doctor + version."""
-    fake_home = tmp_path / "home"
-    fake_home.mkdir()
-
-    # Build wheel into tmp_path/dist/ — parents[0]=cli/tests, parents[1]=cli (build root)
+def _build_and_verify_wheel(tmp_path: Path) -> Path:
+    """Build the wheel into tmp_path/dist/, verify migrations/vendor are in
+    it, and return its path -- shared setup for test_wheel_installs_and_migrates."""
+    # parents[0]=cli/tests, parents[1]=cli (build root, where cli/pyproject.toml lives)
     subprocess.run(
         [
             sys.executable,
@@ -62,7 +59,7 @@ def test_wheel_installs_and_migrates(tmp_path):
             "--wheel",
             "--outdir",
             str(tmp_path / "dist"),
-            str(Path(__file__).parents[1]),  # cli/ dir, where cli/pyproject.toml lives
+            str(Path(__file__).parents[1]),
         ],
         check=True,
         capture_output=True,
@@ -72,7 +69,6 @@ def test_wheel_installs_and_migrates(tmp_path):
     assert len(wheels) == 1, f"Expected 1 wheel, got {wheels}"
     wheel = wheels[0]
 
-    # Verify wheel contents
     with zipfile.ZipFile(wheel) as zf:
         names = zf.namelist()
     assert any("migrations/versions/0001" in n for n in names), "migrations not in wheel"
@@ -81,6 +77,15 @@ def test_wheel_installs_and_migrates(tmp_path):
         assert f"findplus/_vendor/GoogleFindMyTools/{mod}" in names, (
             f"{mod} missing from the wheel; ensure_gfmt_importable imports it"
         )
+    return wheel
+
+
+@pytest.mark.slow
+def test_wheel_installs_and_migrates(tmp_path):
+    """Build wheel, install into throwaway venv, run db upgrade + doctor + version."""
+    fake_home = tmp_path / "home"
+    fake_home.mkdir()
+    wheel = _build_and_verify_wheel(tmp_path)
 
     # Create venv
     venv = tmp_path / "venv"
@@ -115,28 +120,13 @@ def test_wheel_installs_and_migrates(tmp_path):
     assert str(fake_home) in r.stdout
 
 
-@pytest.mark.slow
-def test_wheel_builds_from_sdist(tmp_path):
-    """Build an sdist, unpack it, then build a wheel from the unpacked tree.
-
-    Proves cli/hatch_build.py's sdist-case branch (Path(self.root) / "web")
-    actually runs: the sdist carries the dashboard as web/ per
-    [tool.hatch.build.targets.sdist.force-include], and "../web" does not
-    exist once the sdist is unpacked, so this exercises a different code
-    path than the repo-checkout build above.
-    """
-    repo_root = Path(__file__).parents[2]
+def _build_and_extract_sdist(tmp_path: Path, repo_root: Path) -> Path:
+    """Build the sdist, verify LICENSE/CHANGELOG ship and no dotfile dirs
+    leak into it, extract it, and return the extracted root -- shared setup
+    for test_wheel_builds_from_sdist."""
     sdist_out = tmp_path / "sdist"
     subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "build",
-            "--sdist",
-            "--outdir",
-            str(sdist_out),
-            "cli",
-        ],
+        [sys.executable, "-m", "build", "--sdist", "--outdir", str(sdist_out), "cli"],
         cwd=repo_root,
         check=True,
         capture_output=True,
@@ -149,9 +139,9 @@ def test_wheel_builds_from_sdist(tmp_path):
     extracted.mkdir()
     with tarfile.open(tarballs[0]) as tf:
         tf.extractall(extracted)
-
     with tarfile.open(tarballs[0]) as tf:
         sdist_names = tf.getnames()
+
     # The sdist is published to PyPI: it must never carry per-app AI instruction
     # directories (web/.claude, web/.opencode) that the force-included web/ tree
     # would otherwise drag in, since force-include bypasses the VCS ignore rules.
@@ -168,19 +158,14 @@ def test_wheel_builds_from_sdist(tmp_path):
     assert len(sdist_dirs) == 1, f"Expected 1 extracted sdist dir, got {sdist_dirs}"
     sdist_root = sdist_dirs[0]
     assert (sdist_root / "pyproject.toml").is_file()
+    return sdist_root
 
-    wheel_out = tmp_path / "wheel"
-    subprocess.run(
-        [sys.executable, "-m", "build", "--wheel", "--outdir", str(wheel_out)],
-        cwd=sdist_root,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    wheels = list(wheel_out.glob("*.whl"))
-    assert len(wheels) == 1, f"Expected 1 wheel, got {wheels}"
 
-    with zipfile.ZipFile(wheels[0]) as zf:
+def _assert_wheel_carries_dashboard_and_vendor(wheel_path: Path) -> None:
+    """The page-composition, vendor-bootstrap and dotfile-leak checks for the
+    wheel built from an unpacked sdist -- shared assertions for
+    test_wheel_builds_from_sdist."""
+    with zipfile.ZipFile(wheel_path) as zf:
         names = zf.namelist()
     assert "findplus/web/static/index.html" in names
     assert "findplus/web/static/app/main.js" in names
@@ -204,3 +189,29 @@ def test_wheel_builds_from_sdist(tmp_path):
     assert any(n.endswith("dist-info/licenses/LICENSE") for n in names), (
         f"LICENSE missing from wheel dist-info: {names}"
     )
+
+
+@pytest.mark.slow
+def test_wheel_builds_from_sdist(tmp_path):
+    """Build an sdist, unpack it, then build a wheel from the unpacked tree.
+
+    Proves cli/hatch_build.py's sdist-case branch (Path(self.root) / "web")
+    actually runs: the sdist carries the dashboard as web/ per
+    [tool.hatch.build.targets.sdist.force-include], and "../web" does not
+    exist once the sdist is unpacked, so this exercises a different code
+    path than the repo-checkout build above.
+    """
+    repo_root = Path(__file__).parents[2]
+    sdist_root = _build_and_extract_sdist(tmp_path, repo_root)
+
+    wheel_out = tmp_path / "wheel"
+    subprocess.run(
+        [sys.executable, "-m", "build", "--wheel", "--outdir", str(wheel_out)],
+        cwd=sdist_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    wheels = list(wheel_out.glob("*.whl"))
+    assert len(wheels) == 1, f"Expected 1 wheel, got {wheels}"
+    _assert_wheel_carries_dashboard_and_vendor(wheels[0])

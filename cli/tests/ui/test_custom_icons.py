@@ -165,23 +165,31 @@ async def test_lock_purges_every_custom_icon_thumbnail(page, base_url, tmp_path)
         assert await page.locator('image[href^="/api/icons/custom/"]').count() == 0
         assert "/api/icons/custom/" not in await page.content()
     finally:
-        with contextlib.suppress(Exception):
-            await page.request.post(
-                f"{base_url}/api/lock/unlock",
-                data=json.dumps({"pin": PIN}),
-                headers=JSON_HEADERS,
-            )
-        with contextlib.suppress(Exception):
-            del_resp = await page.request.delete(
-                f"{base_url}/api/settings/pin",
-                data=json.dumps({"current_pin": PIN}),
-                headers=JSON_HEADERS,
-            )
-            assert del_resp.ok, await del_resp.text()
-        with contextlib.suppress(Exception):
-            await _restore_seeded_icon(page, base_url)
-        with contextlib.suppress(Exception):
-            await page.request.delete(f"{base_url}/api/icons/custom/{short}")
+        await _unlock_remove_pin_and_cleanup_icon(page, base_url, short)
+
+
+async def _unlock_remove_pin_and_cleanup_icon(page, base_url, short: str) -> None:
+    """Teardown for test_lock_purges_every_custom_icon_thumbnail: unlock with
+    the PIN it set, remove that PIN, then restore the seeded icon and delete
+    the uploaded one -- every step best-effort, so an earlier failure inside
+    it never masks the test's own assertion failure."""
+    with contextlib.suppress(Exception):
+        await page.request.post(
+            f"{base_url}/api/lock/unlock",
+            data=json.dumps({"pin": PIN}),
+            headers=JSON_HEADERS,
+        )
+    with contextlib.suppress(Exception):
+        del_resp = await page.request.delete(
+            f"{base_url}/api/settings/pin",
+            data=json.dumps({"current_pin": PIN}),
+            headers=JSON_HEADERS,
+        )
+        assert del_resp.ok, await del_resp.text()
+    with contextlib.suppress(Exception):
+        await _restore_seeded_icon(page, base_url)
+    with contextlib.suppress(Exception):
+        await page.request.delete(f"{base_url}/api/icons/custom/{short}")
 
 
 async def test_upload_rejects_a_non_png_file(page, base_url, tmp_path):

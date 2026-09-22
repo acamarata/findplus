@@ -66,7 +66,10 @@ function nativeControls(section) {
 
 function laterLink(section) {
   const link = document.createElement("a");
-  link.href = "#settings";
+  // UAT U17: webhook setup lives in the Alerts tab, not Settings -- "#settings"
+  // was a dead end. main.js's applyHashRoute() switches to the Alerts tab and
+  // scrolls #fp-webhook-section into view for this hash.
+  link.href = "#alerts-webhook";
   link.textContent = t("setup.notifications.configure_later");
   section.append(link);
 }

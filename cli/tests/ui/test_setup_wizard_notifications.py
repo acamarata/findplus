@@ -109,6 +109,33 @@ async def test_notifications_step_whatsapp_save_and_test(page, base_url):
         await _set_last_step(page, base_url, None)
 
 
+async def test_webhook_configure_later_opens_alerts_tab_webhook_section(page, base_url):
+    """UAT U17: the link used to point at "#settings", a dead end -- webhook
+    setup lives in the Alerts tab, not Settings."""
+    try:
+        await _open_step(page, base_url, "notifications")
+        link = page.locator("[data-channel='webhook'] a")
+        assert await link.get_attribute("href") == "#alerts-webhook"
+        await link.click()
+
+        await page.wait_for_function(
+            "() => document.getElementById('setup-view').hidden === true", timeout=15000
+        )
+        assert await page.locator("#app-shell").is_visible()
+        assert await page.locator("#tab-alerts").is_hidden() is False
+        await page.wait_for_selector("#fp-webhook-section", state="visible", timeout=15000)
+        # scrollIntoView({block: "start"}) puts the section's top at the
+        # viewport's top edge; a sub-pixel rounding wobble is expected, a
+        # section still scrolled well below the fold is the regression.
+        top = await page.locator("#fp-webhook-section").evaluate(
+            "(el) => el.getBoundingClientRect().top"
+        )
+        assert -1 <= top <= 50, top
+    finally:
+        await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
+        await _set_last_step(page, base_url, None)
+
+
 async def test_places_step_hides_the_observed_path_disclaimer(page, base_url):
     """R-P2-28 point 5 / F3: a first-run, near-empty map has no observed path
     for the dashboard's disclaimer to describe."""

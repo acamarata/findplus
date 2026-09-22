@@ -101,7 +101,10 @@ def test_failed_delivery_does_not_start_the_cooldown(session, settings_enabled) 
     _seed_pending_place_event(session, place_id=1, observed_at=NOW)
     with (
         patch("findplus.alerts.store.load_alerts", return_value=_telegram_configured()),
-        patch("findplus.alerts.channels.telegram.send", side_effect=RuntimeError("boom")),
+        patch(
+            "findplus.alerts.channels.telegram.send",
+            side_effect=RuntimeError("telegram: bot was blocked or kicked (403)"),
+        ),
     ):
         process(load_pending_events(session), session, settings_enabled, now=NOW)
     assert session.query(AlertDelivery).filter_by(status="failed").count() == 1

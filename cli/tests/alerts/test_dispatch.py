@@ -41,7 +41,10 @@ def test_flapping_200_events(rule_row, session, settings_enabled) -> None:
 def test_failure_recorded(rule_row, session, settings_enabled) -> None:
     with (
         patch("findplus.alerts.store.load_alerts", return_value=_telegram_configured()),
-        patch("findplus.alerts.channels.telegram.send", side_effect=RuntimeError("boom")),
+        patch(
+            "findplus.alerts.channels.telegram.send",
+            side_effect=RuntimeError("telegram: bot was blocked or kicked (403)"),
+        ),
     ):
         process([_device_event()], session, settings_enabled, now=NOW)
     row = session.query(AlertDelivery).one()

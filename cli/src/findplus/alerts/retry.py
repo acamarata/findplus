@@ -14,10 +14,23 @@ Constraints:
       lives on the row, never in memory, so a restart mid-backoff resumes
       from exactly where the row says it is.
     - native is never retried -- dispatch.py never writes status="retrying"
-      for it (it has no send to retry, only a queue entry).
+      for it (it has no send to retry, only a queue entry). Native's own
+      OS-lock-screen generic-content rule (notifications.md §2) is enforced
+      by desktop/src-tauri/src/notify.rs against /api/lock/status and never
+      applies here for that reason.
     - A row whose rule or source event was deleted since the first failure
       (rule removed, retention pruning) cannot be resent; it is marked
       failed rather than retried forever against nothing.
+    - Each call drains at most RETRY_DRAIN_LIMIT due rows, oldest-due first,
+      so a large backlog after an outage cannot stall a poll cycle.
+    - A retry always renders the exact text the first attempt rendered
+      (render_message() is called with the row's own first-attempt time,
+      never the retry's own `now`) and never resends a key a newer delivery
+      already cooled down this same cycle.
+    - `sent_at` only ever moves forward, and only once: to the real send
+      time on the attempt that finally succeeds, so cooldowns
+      (dispatch_core.in_cooldown) run from when the message actually went
+      out, not from the first failure.
 """
 
 from __future__ import annotations
@@ -37,6 +50,15 @@ from findplus.groups.quorum import group_event_note, stale_note_for_count
 from findplus.logging_setup import get_logger
 
 log = get_logger(__name__)
+
+#: R2: how many due retries one poll cycle drains. Each send has its own
+#: per-channel timeout (httpx `timeout=10.0` in telegram/webhook/whatsapp),
+#: so an unbounded backlog after an outage would run every due row
+#: synchronously in the poller thread and freeze polling for the whole
+#: outage's worth of rows at once. Capping the drain lets the cycle finish
+#: and the poller keep ticking; the remaining backlog drains progressively,
+#: oldest-due first, over the following cycles.
+RETRY_DRAIN_LIMIT = 20
 
 _DEVICE_EVENT_SQL = """SELECT pe.id, pe.place_id, p.name AS place_name, pe.device_id,
        d.name AS device_name, pe.event_type, pe.observed_at, pe.fetched_at, pe.confidence
@@ -125,6 +147,47 @@ def _load_rule(session, rule_id: int):
     )
 
 
+def _superseded_by_newer_delivery(session, row, rule, event, now: datetime.datetime) -> bool:
+    """R4: true when a fresher "sent" delivery already started this exact
+    cooldown key (rule, channel, event_kind, place) after this row's own
+    first attempt.
+
+    A new crossing can be matched, sent and start a cooldown in the same
+    poll cycle a stale retry becomes due in (dispatch.process() runs before
+    process_retries() every cycle, poller.py's _run_poll_cycle) -- resending
+    the old event anyway would ignore the cooldown that same cycle just
+    started. `row.sent_at` is the row's own first-attempt time (R3 only
+    ever moves it forward on eventual success, never during the ladder), so
+    "newer than row.sent_at" is exactly "happened after this row's own
+    original failure".
+    """
+    if rule.cooldown_minutes == 0:
+        return False
+    from sqlalchemy import select
+
+    from findplus.db.models import GroupPlaceEvent, PlaceEvent
+    from findplus.db.models_alerts import AlertDelivery as AlertDeliveryORM
+
+    model = PlaceEvent if row.event_kind == "device" else GroupPlaceEvent
+    limit = now - datetime.timedelta(minutes=rule.cooldown_minutes)
+    stmt = (
+        select(AlertDeliveryORM.id)
+        .join(model, model.id == AlertDeliveryORM.event_id)
+        .filter(
+            AlertDeliveryORM.rule_id == row.rule_id,
+            AlertDeliveryORM.channel == row.channel,
+            AlertDeliveryORM.event_kind == row.event_kind,
+            AlertDeliveryORM.status == "sent",
+            AlertDeliveryORM.sent_at > limit,
+            AlertDeliveryORM.sent_at > row.sent_at,
+            model.place_id == event.place_id,
+            AlertDeliveryORM.id != row.id,
+        )
+        .limit(1)
+    )
+    return session.execute(stmt).first() is not None
+
+
 def _retry_one(session, row, channels_cfg, now: datetime.datetime) -> None:
     """Resend one due row and update it in place. Never raises."""
     rule = _load_rule(session, row.rule_id)
@@ -135,12 +198,28 @@ def _retry_one(session, row, channels_cfg, now: datetime.datetime) -> None:
         row.next_attempt_at = None
         return
 
+    if _superseded_by_newer_delivery(session, row, rule, event, now):
+        # R4: a newer send already cooled this key down this same cycle --
+        # resending the stale one would double-notify at the same key.
+        row.status = "skipped"
+        row.error = "superseded by a newer delivery in the same cooldown window"
+        row.next_attempt_at = None
+        return
+
+    # R7: render with the row's own first-attempt time, not this retry's
+    # `now` -- render_message()'s only time-dependent choice (same-day vs.
+    # full-date formatting) must not drift attempt to attempt; a retry
+    # sends the exact text the first attempt would have. `now` below (the
+    # real current time) is still used for the retry ladder's own math.
     status, err, status_code, retry_after = _status_for(
-        row.channel, rule, event, row.event_kind, channels_cfg, now
+        row.channel, rule, event, row.event_kind, channels_cfg, row.sent_at
     )
     row.attempts += 1
     if status == "sent":
-        row.status, row.error, row.next_attempt_at = "sent", None, None
+        # R3: cooldowns are keyed on `sent_at` (dispatch_core.in_cooldown) --
+        # leaving the first failure's timestamp here would let the next
+        # crossing fire before the real cooldown window has actually passed.
+        row.status, row.error, row.next_attempt_at, row.sent_at = "sent", None, None, now
         return
     retryable = status == "failed" and is_transient_failure(status_code, err)
     if retryable and row.attempts < MAX_ATTEMPTS:
@@ -148,19 +227,32 @@ def _retry_one(session, row, channels_cfg, now: datetime.datetime) -> None:
         row.error = err
         row.next_attempt_at = compute_next_attempt_at(row.sent_at, row.attempts, now, retry_after)
         return
-    row.status, row.error, row.next_attempt_at = "failed", err, None
+    # R5: `status` here is "failed" or "skipped" (e.g. the channel was
+    # removed/unconfigured during backoff, dispatch_send.py's
+    # channel-not-configured branch) -- never force it to "failed".
+    row.status, row.error, row.next_attempt_at = status, err, None
 
 
 def process_retries(session, now: datetime.datetime | None = None) -> int:
-    """Resend every due retry; returns how many rows were processed."""
+    """Resend up to RETRY_DRAIN_LIMIT due retries, oldest-due first.
+
+    Returns how many rows were processed this call. A backlog larger than
+    the limit is left `status="retrying"` with `next_attempt_at` already in
+    the past -- the very next call (the next poll cycle) picks up where this
+    one stopped, oldest first, so the drain always makes forward progress
+    without ever blocking a cycle on the whole backlog (R2).
+    """
     from sqlalchemy import select
 
     from findplus.alerts.store import load_alerts
     from findplus.db.models_alerts import AlertDelivery as AlertDeliveryORM
 
     now = now or datetime.datetime.now(datetime.UTC)
-    stmt = select(AlertDeliveryORM).filter(
-        AlertDeliveryORM.status == "retrying", AlertDeliveryORM.next_attempt_at <= now
+    stmt = (
+        select(AlertDeliveryORM)
+        .filter(AlertDeliveryORM.status == "retrying", AlertDeliveryORM.next_attempt_at <= now)
+        .order_by(AlertDeliveryORM.next_attempt_at.asc())
+        .limit(RETRY_DRAIN_LIMIT)
     )
     rows = session.execute(stmt).scalars().all()
     if not rows:

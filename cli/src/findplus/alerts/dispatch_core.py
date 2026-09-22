@@ -189,21 +189,55 @@ MAX_ATTEMPTS = 4
 _RETRY_CAP = datetime.timedelta(minutes=RETRY_OFFSETS_MINUTES[-1])
 
 
-def is_transient_failure(status_code: int | None, error: str | None) -> bool:
-    """True for a network error, a timeout, HTTP 429, or any 5xx.
+#: Every error a channel produces with no HTTP status that is NOT a network
+#: condition -- a credential/shape problem the channel validated before ever
+#: opening a connection. Exact-text match, not a substring: a genuine network
+#: failure (connection refused/reset, DNS failure, TLS handshake error) never
+#: happens to produce this exact text, so it never gets misclassified as
+#: permanent by accident. whatsapp_callmebot.send() returns these directly
+#: (never raises); telegram.py's send() raises ValueError for the same class
+#: of problem, always with a "telegram: " prefix (see _looks_like_telegram_
+#: credential_error below) -- neither ever reaches a real socket first.
+_PERMANENT_NO_STATUS_ERRORS = frozenset({"malformed phone", "malformed apikey"})
 
-    Everything else -- a 4xx other than 429, a channel-unconfigured skip, or a
-    credential/shape exception (telegram.py's malformed-token/blocked-bot
-    raises, whatsapp_callmebot's malformed-phone/apikey results) -- is
-    permanent and must never be retried. Those never produce status_code=429
-    or >=500 and never carry the exact literal "timeout" error, so the two
-    checks below are sufficient without inspecting the exception type.
+
+def _is_permanent_no_status_error(error: str | None) -> bool:
+    """True only for a known credential/shape failure, never a network one.
+
+    telegram.py's send() raises ValueError/RuntimeError for a malformed
+    token, an invalid/blocked bot, or a 400 -- always prefixed "telegram: "
+    (dispatch_send.py's except-Exception catch turns the raise into this
+    same (status_code=None, error=str(exc)) shape a real ConnectError would
+    produce, so the prefix is the only thing that still tells them apart).
+    """
+    if error is None:
+        return False
+    if error in _PERMANENT_NO_STATUS_ERRORS:
+        return True
+    return error.startswith("telegram: ")
+
+
+def is_transient_failure(status_code: int | None, error: str | None) -> bool:
+    """True for a connection-level failure, HTTP 429, or any 5xx.
+
+    A connection-level failure (refused, reset, DNS lookup failed, TLS
+    handshake failed, timeout) never carries a status code -- httpx raises
+    before a response ever exists, or (webhook.py) the channel's own
+    try/except turns that raise into a DeliveryResult with status_code=None.
+    Those must be retried the same as a 5xx. What must NOT be retried, even
+    though it also carries status_code=None, is a credential/shape problem
+    the channel caught before opening a connection at all (a malformed
+    token, an invalid/blocked bot, a malformed phone/apikey) --
+    `_is_permanent_no_status_error` is the one place that tells the two
+    apart. A 4xx other than 429 and a channel-unconfigured "skipped" outcome
+    stay permanent as before (status_code is not None and < 500, or the
+    caller never reaches this function for "skipped" at all).
     """
     if status_code == 429:
         return True
-    if status_code is not None and status_code >= 500:
-        return True
-    return status_code is None and error == "timeout"
+    if status_code is not None:
+        return status_code >= 500
+    return not (error is None or _is_permanent_no_status_error(error))
 
 
 def compute_next_attempt_at(

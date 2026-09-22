@@ -79,9 +79,12 @@ def _device_event(**overrides) -> DeviceEvent:
     return DeviceEvent(**base)
 
 
-def _telegram_configured():
+def _telegram_configured(none: bool = False):
+    """`none=True` mimics telegram being removed/unconfigured mid-backoff
+    (test_dispatch_retry.py R5): channels_cfg.telegram is None, so
+    dispatch_send._send() returns None and _status_for classifies "skipped"."""
     return types.SimpleNamespace(
-        telegram=types.SimpleNamespace(bot_token="t", chat_id="1"), webhook=None
+        telegram=None if none else types.SimpleNamespace(bot_token="t", chat_id="1"), webhook=None
     )
 
 

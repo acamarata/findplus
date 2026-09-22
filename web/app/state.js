@@ -6,11 +6,16 @@
  *              device filter, map/marker handles, lock state, etc.) plus the
  *              small pure helpers ($ , fmt*, colorFor, showAlert, applyTheme)
  *              that have no dependency on any sibling module.
- * Constraints: No imports from sibling modules — every other module imports
- *              FROM here, never the reverse, so this stays the leaf of the
- *              dependency graph.
+ * Constraints: No imports from sibling modules except i18n.js (CF-P2-E9-1:
+ *              the fmt* helpers route their unit ladder through t()/plural()
+ *              instead of hardcoding English) — i18n.js itself has no
+ *              sibling imports beyond the bundled catalog, so this stays a
+ *              leaf every other module can safely import FROM, never the
+ *              reverse.
  */
 "use strict";
+
+import { t, plural } from "./i18n.js";
 
 /** Per-device track colours, chosen to stay distinguishable on OSM tiles. */
 export const TRACK_COLORS = [
@@ -106,10 +111,12 @@ export function esc(value) {
  * in Groups and "1 d" in Places (E1 honesty round 3 F12).
  */
 export function fmtAgeMinutes(minutes) {
-  if (minutes == null || Number.isNaN(minutes)) return "unknown";
-  if (minutes < 60) return `${Math.max(0, Math.floor(minutes))} min`;
+  if (minutes == null || Number.isNaN(minutes)) return t("units.unknown");
+  if (minutes < 60) return t("units.minutesShort", { n: Math.max(0, Math.floor(minutes)) });
   const hours = Math.floor(minutes / 60);
-  return hours < 48 ? `${hours} h` : `${Math.floor(hours / 24)} d`;
+  return hours < 48
+    ? t("units.hoursShort", { n: hours })
+    : t("units.daysShort", { n: Math.floor(hours / 24) });
 }
 
 export function fmtTime(iso) {
@@ -125,23 +132,23 @@ export function fmtDateTime(iso) {
 }
 
 export function fmtDuration(seconds) {
-  if (seconds === null || seconds === undefined) return "—";
+  if (seconds === null || seconds === undefined) return t("common.emptyValue");
   const s = Math.max(0, Math.round(seconds));
-  if (s < 60) return `${s} sec`;
+  if (s < 60) return t("units.seconds", { n: s });
   const m = Math.round(s / 60);
-  if (m < 60) return `${m} min`;
+  if (m < 60) return t("units.minutes", { n: m });
   const h = Math.floor(m / 60);
   const rem = m % 60;
-  if (h < 24) return rem ? `${h} hr ${rem} min` : `${h} hr`;
+  if (h < 24) return rem ? t("units.hoursMinutes", { h, m: rem }) : t("units.hours", { n: h });
   const d = Math.floor(h / 24);
-  return `${d} day${d === 1 ? "" : "s"} ${h % 24} hr`;
+  return `${plural("units.days", d, { n: d })} ${t("units.hours", { n: h % 24 })}`;
 }
 
 export function fmtDistance(meters) {
   if (meters === null || meters === undefined) return null;
   const miles = meters / 1609.344;
-  if (miles < 0.1) return `${Math.round(meters)} m`;
-  return `${miles.toFixed(miles < 10 ? 2 : 1)} mi`;
+  if (miles < 0.1) return t("units.meters", { n: Math.round(meters) });
+  return t("units.miles", { n: miles.toFixed(miles < 10 ? 2 : 1) });
 }
 
 export function todayLocal() {

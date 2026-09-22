@@ -268,8 +268,9 @@ export function wireHistoryControls() {
         return;
       }
       if (!window.confirm(t("timeline.confirmClearAll", { count: dry.would_delete }))) return;
-      const typed = window.prompt(t("timeline.promptTypeDelete"));
-      if (typed !== "DELETE") { $("delete-result").textContent = t("timeline.deleteCancelled"); return; }
+      const confirmWord = t("timeline.confirmWord");
+      const typed = window.prompt(t("timeline.promptTypeDelete", { word: confirmWord }));
+      if (typed !== confirmWord) { $("delete-result").textContent = t("timeline.deleteCancelled"); return; }
       const done = await postJson("/api/history/clear", { confirm: true });
       $("delete-result").textContent = done.message;
       await reload();

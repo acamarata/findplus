@@ -77,7 +77,8 @@
     "serviceNotRunning": "The polling service does not appear to be running. Start it with: findplus start",
     "apiUnreachable": "Could not reach the local API: {message}",
     "sectionsNavLabel": "Sections",
-    "detailsLandmarkLabel": "Details"
+    "detailsLandmarkLabel": "Details",
+    "statusRegionLabel": "Status and filters"
   },
   "field": {
     "customColor": "Custom colour"
@@ -417,7 +418,17 @@
       "code": "Code",
       "codeSubmit": "Submit",
       "needs_2fa": "Enter the code sent to your trusted device.",
-      "heading": "Apple Find My"
+      "heading": "Apple Find My",
+      "accessories": {
+        "heading": "Accessory keys",
+        "name": "Accessory name",
+        "file": "Key file (.plist or .json)",
+        "add": "Add accessory",
+        "pickBoth": "Choose a name and a key file first.",
+        "added": "Added \"{name}\".",
+        "badJson": "That file has no readable private key.",
+        "confirmReplace": "\"{name}\" is already registered. Replace the stored key?"
+      }
     },
     "status": {
       "signed_in": "Signed in as {account}",
@@ -455,11 +466,28 @@
     "confirmDeleteBefore": "Permanently delete {count} observation(s) recorded before {date}?\n\nThis cannot be undone.",
     "noHistoryToClear": "There is no history to clear.",
     "confirmClearAll": "Delete ALL {count} observation(s) for every device?\n\nThis erases the entire location history and cannot be undone.",
-    "promptTypeDelete": "Type DELETE to confirm erasing all history:",
+    "confirmWord": "DELETE",
+    "promptTypeDelete": "Type {word} to confirm erasing all history:",
     "deleteCancelled": "Cancelled — nothing deleted.",
     "pickBothDates": "Pick both a start and an end date.",
     "rangeStartAfterEnd": "The range start is after its end.",
     "latestSummary": "{device} — last observed by {network} {observed} · retrieved {fetched} · age {age}"
+  },
+  "units": {
+    "unknown": "unknown",
+    "minutesShort": "{n} min",
+    "hoursShort": "{n} h",
+    "daysShort": "{n} d",
+    "seconds": "{n} sec",
+    "minutes": "{n} min",
+    "hours": "{n} hr",
+    "hoursMinutes": "{h} hr {m} min",
+    "days": {
+      "one": "{n} day",
+      "other": "{n} days"
+    },
+    "meters": "{n} m",
+    "miles": "{n} mi"
   },
   "honesty": {
     "findHub": "This history consists of locations reported through Google's Find Hub network. Moto Tag uses nearby participating Android devices to report its location. Location updates can therefore be delayed, sparse, or unavailable, and this application should not be treated as real-time emergency or child-safety GPS tracking.",

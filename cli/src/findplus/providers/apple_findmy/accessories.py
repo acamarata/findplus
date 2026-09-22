@@ -34,12 +34,32 @@ def _derive_device_id(key_bytes: bytes) -> str:
 
 def _parse_plist(path: pathlib.Path) -> tuple[str, bytes]:
     import plistlib
+    import xml.parsers.expat
 
-    data = plistlib.loads(path.read_bytes())
+    # plistlib.loads raises InvalidFileException for a recognized-but-broken
+    # plist and lets a malformed-XML body's raw ExpatError through unwrapped
+    # (CR-C-m2); both are a bad upload, not a server error, so both become
+    # the same ValueError every other parse failure in this function raises.
+    try:
+        data = plistlib.loads(path.read_bytes())
+    except (plistlib.InvalidFileException, xml.parsers.expat.ExpatError) as exc:
+        raise ValueError("plist is not a valid property list") from exc
+    # An array or scalar plist has no .get(): that used to be an unhandled
+    # AttributeError (CR-C-m2) instead of the same "bad upload" ValueError.
+    if not isinstance(data, dict):
+        raise ValueError("plist must be a dictionary, not a list or scalar")
     raw = data.get("Private Key") or data.get("privateKey")
     if not raw:
         raise ValueError("plist missing 'Private Key' or 'privateKey' field")
     key_bytes = raw if isinstance(raw, bytes) else base64.b64decode(raw)
+    # The JSON/private_key_b64 branch below has always enforced this; the
+    # plist branch skipped it, so a 3-byte "Private Key" plist registered
+    # (CR-C-m3).
+    if len(key_bytes) not in VALID_KEY_LENGTHS:
+        raise ValueError(
+            f"plist key: unexpected length {len(key_bytes)} bytes "
+            f"(expected one of {sorted(VALID_KEY_LENGTHS)})"
+        )
     payload = base64.b64encode(key_bytes).decode()
     return payload, key_bytes
 
@@ -67,10 +87,14 @@ def add_accessory(
         try:
             key_bytes = base64.b64decode(private_key_b64, validate=True)
         except Exception as exc:
-            raise ValueError("--private-key: invalid base64") from exc
+            # CR-C-m4: this message reaches both the CLI and the web
+            # dashboard (routes_auth.py relays str(exc) as the 422 detail
+            # verbatim); no CLI flag wording, so the dashboard never shows
+            # a stray "--private-key:" a web user never typed.
+            raise ValueError("invalid base64") from exc
         if len(key_bytes) not in VALID_KEY_LENGTHS:
             raise ValueError(
-                f"--private-key: unexpected key length {len(key_bytes)} bytes "
+                f"unexpected key length {len(key_bytes)} bytes "
                 f"(expected one of {sorted(VALID_KEY_LENGTHS)})"
             )
         payload = private_key_b64

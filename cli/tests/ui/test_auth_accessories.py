@@ -76,7 +76,10 @@ async def test_a_422_renders_inline(page, base_url, tmp_path):
     key_path.write_text('{"private_key_b64": "not-base64!"}')
 
     async def reply_422(route):
-        await route.fulfill(status=422, json={"detail": "--private-key: invalid base64"})
+        # CR-C-m4: the real server message dropped its CLI-flag wording
+        # ("--private-key: ...") so a web user never sees a flag they never
+        # typed; the mock here matches what the route actually sends now.
+        await route.fulfill(status=422, json={"detail": "invalid base64"})
 
     await page.route(URL_PATTERN, reply_422)
     try:
@@ -84,7 +87,7 @@ async def test_a_422_renders_inline(page, base_url, tmp_path):
         await _add(page, "Bad Key", key_path)
         await page.wait_for_function(
             "() => document.getElementById('fp-auth-accessory-status').textContent"
-            " === '--private-key: invalid base64'"
+            " === 'invalid base64'"
         )
     finally:
         await page.unroute(URL_PATTERN, reply_422)

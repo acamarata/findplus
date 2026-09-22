@@ -9,6 +9,7 @@ mode is exactly what PRI hard rule 9 exists to prevent.
 from __future__ import annotations
 
 import base64
+import json
 import plistlib
 
 import pytest
@@ -35,6 +36,14 @@ def _leftovers() -> list:
     return list(get_settings().state_dir.glob(".accessory-upload-*"))
 
 
+def _saved_record(device_id: str) -> dict:
+    """The permanent on-disk record `add_accessory()` wrote, read back --
+    CR-C-m8: an overwrite test must prove the FILE changed, not just that
+    the HTTP response says so."""
+    path = get_settings().state_dir / "apple" / f"{device_id.replace(':', '_')}.json"
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def test_json_private_key_registers_an_accessory(client: TestClient) -> None:
     res = client.post(URL, json={"name": "My Tag", "private_key_b64": _key_b64()})
     assert res.status_code == 201, res.text
@@ -55,10 +64,13 @@ def test_multipart_plist_registers_an_accessory(client: TestClient) -> None:
 
 def test_a_duplicate_device_id_is_409_not_a_silent_overwrite(client: TestClient) -> None:
     body = {"name": "My Tag", "private_key_b64": _key_b64()}
-    assert client.post(URL, json=body).status_code == 201
+    first = client.post(URL, json=body)
+    assert first.status_code == 201
     res = client.post(URL, json={"name": "Renamed", "private_key_b64": _key_b64()})
     assert res.status_code == 409
     assert "already registered" in res.json()["detail"]
+    # CR-C-m8: a 409 must leave the saved record exactly as it was.
+    assert _saved_record(first.json()["device_id"])["name"] == "My Tag"
 
 
 def test_allow_overwrite_true_replaces_a_duplicate_json(client: TestClient) -> None:
@@ -71,6 +83,8 @@ def test_allow_overwrite_true_replaces_a_duplicate_json(client: TestClient) -> N
     )
     assert res.status_code == 201, res.text
     assert res.json()["name"] == "Renamed"
+    # CR-C-m8: the response alone doesn't prove the record on disk changed.
+    assert _saved_record(res.json()["device_id"])["name"] == "Renamed"
 
 
 def test_allow_overwrite_true_replaces_a_duplicate_multipart(client: TestClient) -> None:
@@ -86,16 +100,21 @@ def test_allow_overwrite_true_replaces_a_duplicate_multipart(client: TestClient)
     assert res.status_code == 201, res.text
     assert res.json()["name"] == "Tag B"
     assert _leftovers() == []
+    # CR-C-m8: the response alone doesn't prove the record on disk changed.
+    assert _saved_record(res.json()["device_id"])["name"] == "Tag B"
 
 
 def test_allow_overwrite_false_string_is_still_a_409(client: TestClient) -> None:
     """Only the literal string "true" (case-insensitive) flips the default."""
     key = _key_b64()
-    assert client.post(URL, json={"name": "My Tag", "private_key_b64": key}).status_code == 201
+    first = client.post(URL, json={"name": "My Tag", "private_key_b64": key})
+    assert first.status_code == 201
     res = client.post(
         URL, json={"name": "Renamed", "private_key_b64": key, "allow_overwrite": "false"}
     )
     assert res.status_code == 409
+    # CR-C-m8: a 409 must leave the saved record exactly as it was.
+    assert _saved_record(first.json()["device_id"])["name"] == "My Tag"
 
 
 def test_json_without_a_name_is_422(client: TestClient) -> None:
@@ -221,6 +240,63 @@ def test_a_lying_content_length_is_still_capped_while_streaming(client: TestClie
     assert res.status_code == 413
     assert res.json()["detail"] == "plist too large"
     assert _leftovers() == []
+
+
+def test_a_malformed_xml_plist_is_422_not_500(client: TestClient) -> None:
+    """CR-C-m2: raw ExpatError used to pass through unwrapped as a 500."""
+    res = client.post(URL, data={"name": "Bad"}, files={"plist": ("bad.plist", b"<not-a-plist>")})
+    assert res.status_code == 422, res.text
+    assert _leftovers() == []
+
+
+def test_an_array_plist_is_422_not_500(client: TestClient) -> None:
+    """CR-C-m2: a top-level array has no .get(), an unhandled AttributeError before."""
+    res = client.post(
+        URL, data={"name": "Bad"}, files={"plist": ("array.plist", plistlib.dumps(["x"]))}
+    )
+    assert res.status_code == 422, res.text
+    assert _leftovers() == []
+
+
+def test_a_short_plist_key_is_422_not_registered(client: TestClient) -> None:
+    """CR-C-m3: the plist branch skipped VALID_KEY_LENGTHS entirely."""
+    short_key_b64 = base64.b64encode(b"XYZ").decode()
+    res = client.post(
+        URL,
+        data={"name": "Bad"},
+        files={"plist": ("short.plist", plistlib.dumps({"Private Key": short_key_b64}))},
+    )
+    assert res.status_code == 422, res.text
+    assert _leftovers() == []
+
+
+def test_a_json_body_over_the_cap_is_413(client: TestClient) -> None:
+    """CR-C-m4: the JSON branch had no cap at all after G1, only multipart did."""
+    res = client.post(URL, json={"name": "Tag 8", "private_key_b64": "x" * 200_000})
+    assert res.status_code == 413, res.text
+    assert _leftovers() == []
+
+
+def test_a_chunked_json_body_over_the_cap_is_still_capped(client: TestClient) -> None:
+    """Same no-Content-Length shape as the chunked multipart test above."""
+    body = json.dumps({"name": "Tag 9", "private_key_b64": "x" * 200_000}).encode()
+
+    def chunks():
+        step = 4096
+        for i in range(0, len(body), step):
+            yield body[i : i + step]
+
+    res = client.post(URL, content=chunks(), headers={"content-type": "application/json"})
+    assert "content-length" not in {k.lower() for k in res.request.headers}
+    assert res.status_code == 413, res.text
+
+
+def test_the_private_key_error_detail_carries_no_cli_flag_wording(client: TestClient) -> None:
+    """CR-C-m4: the dashboard used to show a raw "--private-key: ..." string
+    a web user never typed."""
+    res = client.post(URL, json={"name": "Tag", "private_key_b64": "not-base64!"})
+    assert res.status_code == 422, res.text
+    assert "--private-key" not in res.json()["detail"]
 
 
 @pytest.mark.posix_only

@@ -27,7 +27,11 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from findplus.api._bounded_upload import read_bounded_form
+from findplus.api._bounded_upload import (
+    read_bounded_form,
+    read_bounded_json,
+    reject_oversized_content_length,
+)
 from findplus.config import get_settings
 from findplus.providers.apple_findmy.accessories import add_accessory
 from findplus.providers.apple_findmy.web_auth import (
@@ -85,26 +89,6 @@ _MAX_PLIST_BYTES = 64 * 1024
 _MULTIPART_OVERHEAD_BYTES = 4 * 1024
 
 
-def _reject_oversized_content_length(request: Request) -> None:
-    """413 from the Content-Length header alone, before the body is parsed.
-
-    A cheap short-circuit only: a well-formed, truthful header lets us
-    refuse before anything is read. `read_bounded_form()` is the real
-    guard -- it bounds the body as it streams in regardless of what this
-    header says, or whether the client sent one at all (G1: a chunked or
-    lying-length upload must not reach `request.form()` unbounded).
-    """
-    raw_length = request.headers.get("content-length")
-    if raw_length is None:
-        return
-    try:
-        declared = int(raw_length)
-    except ValueError:
-        return
-    if declared > _MAX_PLIST_BYTES + _MULTIPART_OVERHEAD_BYTES:
-        raise HTTPException(status_code=413, detail="plist too large")
-
-
 def _parse_allow_overwrite(raw: object) -> bool:
     """The JSON bool, or the multipart form's string ("true"/"false").
 
@@ -124,9 +108,13 @@ async def _read_accessory_body(
     FastAPI parses one body as form data or JSON, so Content-Type picks the
     branch. `allow_overwrite` defaults to False in both; the dashboard's
     "Replace existing" confirm is the only caller sending true (CF-P2-19).
+    Both branches share the same size cap: a private key is far smaller
+    than a plist export, but CR-C-m4 found the JSON branch fully buffering
+    a multi-megabyte body before its 422, so it gets the plist-sized limit
+    rather than no limit at all.
     """
+    reject_oversized_content_length(request, _MAX_PLIST_BYTES + _MULTIPART_OVERHEAD_BYTES)
     if request.headers.get("content-type", "").startswith("multipart/form-data"):
-        _reject_oversized_content_length(request)
         form = await read_bounded_form(request, _MAX_PLIST_BYTES + _MULTIPART_OVERHEAD_BYTES)
         raw_name = form.get("name")
         upload = form.get("plist")
@@ -151,7 +139,9 @@ async def _read_accessory_body(
         return raw_name, plist_path, None, _parse_allow_overwrite(form.get("allow_overwrite"))
 
     try:
-        payload = await request.json()
+        payload = await read_bounded_json(request, _MAX_PLIST_BYTES + _MULTIPART_OVERHEAD_BYTES)
+    except HTTPException:
+        raise
     except Exception as exc:
         # An unparseable body is a client error, not a 500. Starlette raises
         # json.JSONDecodeError here, which no handler above would have caught.

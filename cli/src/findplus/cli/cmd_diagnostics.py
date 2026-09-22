@@ -115,6 +115,24 @@ def pin_reset(yes: bool) -> None:
     _clear_app_lock(yes)
 
 
+@click.group("lock")
+def lock_group() -> None:
+    """App-lock status and PIN recovery. Runs at this console only."""
+
+
+@lock_group.command("reset")
+@click.option("--yes", is_flag=True, help="Skip the confirmation prompt.")
+def lock_reset(yes: bool) -> None:
+    """Forgot your PIN? Remove the app lock from this machine.
+
+    A third name for the same `_clear_app_lock` recovery path as
+    `findplus reset-lock` and `findplus pin reset`: the lock screen's
+    forgotten-PIN hint points here (UAT U20), since terminal access to this
+    machine is already full trust -- lock ≠ encryption.
+    """
+    _clear_app_lock(yes)
+
+
 @click.command()
 @click.argument("theme", type=click.Choice(["dark", "light", "system"]))
 def theme(theme: str) -> None:

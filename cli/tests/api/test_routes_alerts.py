@@ -1,4 +1,7 @@
-"""/api/alerts/*: channels, rules CRUD, deliveries, and the app lock."""
+"""/api/alerts/channels/*: telegram/webhook CRUD, the test-send endpoint, and
+the app lock. Rules CRUD and the deliveries log moved to
+test_routes_alerts_rules.py (E13 stage 2, size cap).
+"""
 
 from __future__ import annotations
 
@@ -123,183 +126,6 @@ def test_test_endpoint_sends(client: TestClient) -> None:
     assert res.json()["status"] == "sent"
 
 
-def test_rules_crud(client: TestClient) -> None:
-    create = client.post(
-        "/api/alerts/rules",
-        json={"name": "r1", "device_id": "dev1", "channels": ["telegram"]},
-    )
-    assert create.status_code == 201
-    body = create.json()
-    assert body["device_id"] == "dev1"
-    rule_id = body["id"]
-
-    listed = client.get("/api/alerts/rules").json()
-    assert any(r["id"] == rule_id for r in listed)
-
-    updated = client.put(f"/api/alerts/rules/{rule_id}", json={"enabled": False})
-    assert updated.status_code == 200
-    assert updated.json()["enabled"] is False
-
-    deleted = client.delete(f"/api/alerts/rules/{rule_id}")
-    assert deleted.status_code == 204
-
-    assert client.get("/api/alerts/rules").json() == []
-
-
-def test_rules_create_requires_exactly_one_target(client: TestClient) -> None:
-    res = client.post("/api/alerts/rules", json={"name": "bad", "channels": ["telegram"]})
-    assert res.status_code == 422
-
-
-def test_deliveries_empty(client: TestClient) -> None:
-    assert client.get("/api/alerts/deliveries").json() == []
-
-
-def test_deliveries_limit_is_bounded(client: TestClient) -> None:
-    """CR-C closeout m7: unbounded `limit` could grow `rows` (and the
-    native-channel IN-list batch_delivery_text_bodies builds from it) past
-    SQLite's variable cap and 500. 500 itself is accepted; above it is a
-    plain validation 422, not a query that gets to run at all.
-    """
-    assert client.get("/api/alerts/deliveries", params={"limit": 500}).status_code == 200
-    assert client.get("/api/alerts/deliveries", params={"limit": 501}).status_code == 422
-
-
-def test_deliveries_include_channel(client: TestClient) -> None:
-    """The delivery log names the channel (CF-14).
-
-    It was a join onto the rule until migration 0008 gave alert_deliveries its own
-    channel column; one event under a multi-channel rule now produces one row per
-    channel, so the row has to carry it or the UI cannot show which way each went.
-    """
-    import datetime
-
-    from findplus.db.models_alerts import AlertDelivery, AlertRule
-
-    rule_id = client.post(
-        "/api/alerts/rules",
-        json={"name": "webhook rule", "device_id": "dev1", "channels": ["webhook"]},
-    ).json()["id"]
-
-    with session_scope() as session:
-        rule = session.get(AlertRule, rule_id)
-        assert rule.channels == "webhook"
-        session.add(
-            AlertDelivery(
-                rule_id=rule_id,
-                event_kind="device",
-                event_id=1,
-                channel="webhook",
-                sent_at=datetime.datetime.now(datetime.UTC),
-                status="sent",
-                error=None,
-            )
-        )
-
-    row = client.get("/api/alerts/deliveries").json()[0]
-
-    assert row["channel"] == "webhook"
-    assert row["rule_name"] == "webhook rule"
-    assert row["status"] == "sent"
-
-
-def test_deliveries_include_retry_fields(client: TestClient) -> None:
-    """attempts/next_attempt_at (2026-09-22 retry feature) round-trip through the API."""
-    import datetime
-
-    from findplus.db.models_alerts import AlertDelivery
-
-    rule_id = client.post(
-        "/api/alerts/rules",
-        json={"name": "retry rule", "device_id": "dev1", "channels": ["telegram"]},
-    ).json()["id"]
-    now = datetime.datetime.now(datetime.UTC)
-    next_attempt = now + datetime.timedelta(minutes=1)
-
-    with session_scope() as session:
-        session.add(
-            AlertDelivery(
-                rule_id=rule_id,
-                event_kind="device",
-                event_id=1,
-                channel="telegram",
-                sent_at=now,
-                status="retrying",
-                error="timeout",
-                attempts=1,
-                next_attempt_at=next_attempt,
-            )
-        )
-
-    row = client.get("/api/alerts/deliveries").json()[0]
-    assert row["status"] == "retrying"
-    assert row["attempts"] == 1
-    assert row["next_attempt_at"] is not None
-
-
-def test_deliveries_next_attempt_at_is_null_when_not_retrying(client: TestClient) -> None:
-    import datetime
-
-    from findplus.db.models_alerts import AlertDelivery
-
-    rule_id = client.post(
-        "/api/alerts/rules",
-        json={"name": "sent rule", "device_id": "dev1", "channels": ["telegram"]},
-    ).json()["id"]
-
-    with session_scope() as session:
-        session.add(
-            AlertDelivery(
-                rule_id=rule_id,
-                event_kind="device",
-                event_id=1,
-                channel="telegram",
-                sent_at=datetime.datetime.now(datetime.UTC),
-                status="sent",
-                error=None,
-            )
-        )
-
-    row = client.get("/api/alerts/deliveries").json()[0]
-    assert row["attempts"] == 1
-    assert row["next_attempt_at"] is None
-
-
-def test_401_locked(client: TestClient) -> None:
-    client.post("/api/settings/pin", json={"new_pin": "864213"})
-    client.cookies.clear()
-    res = client.get("/api/alerts/channels")
-    assert res.status_code == 401
-
-
-def test_put_webhook_rejects_lookalike_loopback_host(client: TestClient) -> None:
-    res = client.put(
-        "/api/alerts/channels/webhook",
-        json={"url": "http://localhost.evil.example/hook", "secret": None},
-    )
-    assert res.status_code == 422
-
-
-def test_rules_create_rejects_unknown_channel(client: TestClient) -> None:
-    res = client.post(
-        "/api/alerts/rules", json={"name": "bad", "device_id": "dev1", "channels": ["email"]}
-    )
-    assert res.status_code == 422
-
-
-def test_rules_create_rejects_out_of_range_cooldown(client: TestClient) -> None:
-    res = client.post(
-        "/api/alerts/rules",
-        json={
-            "name": "bad",
-            "device_id": "dev1",
-            "channels": ["telegram"],
-            "cooldown_minutes": 5000,
-        },
-    )
-    assert res.status_code == 422
-
-
 def test_test_endpoint_reports_failure_instead_of_500(client: TestClient) -> None:
     save_alerts(
         AlertsChannels(
@@ -317,56 +143,16 @@ def test_test_endpoint_reports_failure_instead_of_500(client: TestClient) -> Non
     assert res.json()["status"] == "failed"
 
 
-def test_rules_accept_several_channels_and_echo_them_sorted(client: TestClient) -> None:
-    res = client.post(
-        "/api/alerts/rules",
-        json={"name": "multi", "device_id": "dev1", "channels": ["telegram", "native"]},
-    )
-    assert res.status_code == 201
-    assert res.json()["channels"] == ["native", "telegram"]
+def test_401_locked(client: TestClient) -> None:
+    client.post("/api/settings/pin", json={"new_pin": "864213"})
+    client.cookies.clear()
+    res = client.get("/api/alerts/channels")
+    assert res.status_code == 401
 
 
-def test_rules_create_rejects_an_empty_channel_list(client: TestClient) -> None:
-    res = client.post(
-        "/api/alerts/rules", json={"name": "bad", "device_id": "dev1", "channels": []}
-    )
-    assert res.status_code == 422
-
-
-def test_rules_create_rejects_an_unknown_channel_in_a_list(client: TestClient) -> None:
-    res = client.post(
-        "/api/alerts/rules",
-        json={"name": "bad", "device_id": "dev1", "channels": ["telegram", "sms"]},
+def test_put_webhook_rejects_lookalike_loopback_host(client: TestClient) -> None:
+    res = client.put(
+        "/api/alerts/channels/webhook",
+        json={"url": "http://localhost.evil.example/hook", "secret": None},
     )
     assert res.status_code == 422
-
-
-def test_put_channels_leaves_every_other_field_alone(client: TestClient) -> None:
-    rule_id = client.post(
-        "/api/alerts/rules",
-        json={
-            "name": "keepme",
-            "device_id": "dev1",
-            "channels": ["telegram"],
-            "cooldown_minutes": 7,
-            "on_exit": False,
-        },
-    ).json()["id"]
-    res = client.put(f"/api/alerts/rules/{rule_id}", json={"channels": ["whatsapp", "native"]})
-    assert res.status_code == 200
-    body = res.json()
-    assert body["channels"] == ["native", "whatsapp"]
-    assert body["name"] == "keepme"
-    assert body["cooldown_minutes"] == 7
-    assert body["on_exit"] is False
-
-
-def test_put_rejects_an_unknown_channel_without_touching_the_rule(client: TestClient) -> None:
-    rule_id = client.post(
-        "/api/alerts/rules",
-        json={"name": "keepme", "device_id": "dev1", "channels": ["telegram"]},
-    ).json()["id"]
-    assert (
-        client.put(f"/api/alerts/rules/{rule_id}", json={"channels": ["bogus"]}).status_code == 422
-    )
-    assert client.get("/api/alerts/rules").json()[0]["channels"] == ["telegram"]

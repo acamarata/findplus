@@ -35,7 +35,7 @@ from pathlib import Path
 import pytest
 
 pytest.importorskip("playwright", reason="playwright is not installed")
-from playwright.sync_api import Browser, Page, sync_playwright
+from playwright.sync_api import Browser, Page, expect, sync_playwright
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PIN = "409217"
@@ -171,7 +171,14 @@ def _unlock(page: Page) -> None:
 def test_apple_point_with_no_accuracy_shows_unknown_not_a_guessed_number(page: Page) -> None:
     _unlock(page)
     items = page.locator(".tl-item")
-    assert items.count() == 2
+    # A fixed sleep in _unlock() is not a promise the two rows have painted
+    # yet (CR-C closeout m6: flaked 1 run in 4 on a bare `items.count() == 2`).
+    # expect().to_have_count() polls until it holds or its own timeout
+    # expires, so this is a deterministic wait on the render, not a guess at
+    # how long it takes. A generous timeout (default is 5s) covers a loaded
+    # machine without weakening what it proves: it still fails the moment two
+    # rows never show up, just after waiting long enough to be sure.
+    expect(items).to_have_count(2, timeout=15000)
     metas = [items.nth(i).inner_text() for i in range(items.count())]
     joined = "\n".join(metas)
     assert "Accuracy unknown" in joined
@@ -185,5 +192,6 @@ def test_apple_point_with_a_real_accuracy_still_shows_the_figure(page: Page) -> 
     """Guards against the unknown-accuracy branch swallowing every point."""
     _unlock(page)
     items = page.locator(".tl-item")
+    expect(items).to_have_count(2, timeout=15000)
     metas = [items.nth(i).inner_text() for i in range(items.count())]
     assert any("±42 m" in m for m in metas)

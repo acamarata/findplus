@@ -4,13 +4,21 @@ literal English.
 Purpose    : fmtAgeMinutes/fmtDuration/fmtDistance and the clear-all confirm
              word used to build their strings by hand ("{n} min", "DELETE")
              outside t()/plural(). Now every piece comes from
-             web/locales/en.json's `units`/`timeline` namespaces. This proves
-             two things at once: the catalog wiring actually fires (not a
-             silent key-miss falling through to some other literal), and the
-             English output is byte-identical to the pre-fix behaviour, so no
-             existing screenshot/string assertion elsewhere in the suite
-             needed to change.
-Inputs     : cli/tests/ui/conftest.py's `page` / `base_url` fixtures.
+             web/locales/en.json's `units`/`timeline` namespaces. The literal
+             English assertions below prove the output is byte-identical to
+             the pre-fix behaviour, so no existing screenshot/string
+             assertion elsewhere in the suite needed to change -- but on
+             their own they cannot prove the catalog wiring actually fires,
+             since a formatter that silently fell back to a hardcoded
+             literal (or to the bundled CATALOG_EN) would read identically
+             in English (CR-C closeout m6). The last test below closes that
+             gap: it serves a `/static/locales/en.json` with one `units` key
+             replaced by a sentinel and asserts the formatter's OUTPUT
+             contains it, so a fall-back-to-literal regression -- which
+             would still emit the plain "5 min" -- goes red here.
+Inputs     : cli/tests/ui/conftest.py's `page` / `base_url` fixtures; the
+             sentinel test also reads the real web/locales/en.json to patch
+             it in memory, same pattern as test_alerts_catalog_load.py.
 Constraints: The formatters are pure functions with no DOM dependency, so
              they are called directly via a dynamic import in the page
              context (test_honesty_notices.py's established pattern) rather
@@ -19,9 +27,15 @@ Constraints: The formatters are pure functions with no DOM dependency, so
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+CATALOG = REPO_ROOT / "web" / "locales" / "en.json"
 
 
 async def _open_dashboard(page, base_url):
@@ -95,3 +109,35 @@ async def test_clear_all_confirm_word_comes_from_the_catalog(page, base_url):
     )
     assert word == "DELETE"
     assert prompt_text == "Type DELETE to confirm erasing all history:"
+
+
+async def test_fmt_age_minutes_reads_the_served_catalog_not_a_hardcoded_literal(page, base_url):
+    """CR-C closeout m6: the four tests above read identically whether the
+    catalog wiring works or a regression falls back to a hardcoded literal /
+    the bundled CATALOG_EN, because the English text is the same either way.
+    Patch one `units` key with a sentinel and prove `fmtAgeMinutes`'s output
+    carries it, so a fall-back regression -- which would still print the
+    plain "5 min" -- makes this go red.
+    """
+    data = json.loads(CATALOG.read_text(encoding="utf-8"))
+    sentinel = "ZZZ-UNITS-SENTINEL-{n}-ZZZ"
+    assert data["units"]["minutesShort"] != sentinel, "sentinel already in en.json?"
+    data["units"]["minutesShort"] = sentinel
+    body = json.dumps(data)
+
+    async def serve_patched_catalog(route):
+        await route.fulfill(status=200, content_type="application/json", body=body)
+
+    await page.route("**/static/locales/en.json", serve_patched_catalog)
+    try:
+        await _open_dashboard(page, base_url)
+        result = await page.evaluate(
+            """async () => {
+                const state = await import('/static/app/state.js');
+                return state.fmtAgeMinutes(5);
+            }"""
+        )
+    finally:
+        await page.unroute("**/static/locales/en.json", serve_patched_catalog)
+
+    assert result == "ZZZ-UNITS-SENTINEL-5-ZZZ"

@@ -246,6 +246,23 @@ def test_an_accepted_pin_turns_the_lock_on(tmp_db, two_devices, stub_auth: list[
         assert settings.lock_enabled is True
 
 
+def test_declined_sign_in_leaves_setup_unfinished(tmp_db) -> None:
+    """UAT U18: no provider fixture, so declining both offers is a genuine
+    unauthenticated run. The devices step says so instead of "No devices
+    found", the closing message says so instead of "Setup complete", and
+    completed_at is never stamped -- the web wizard stays offered."""
+    result = CliRunner().invoke(main, ["setup"], input="n\nn\nn\nn\nn\n")
+
+    assert result.exit_code == 0, result.output
+    assert "Not signed in yet. Run `findplus auth` to connect a provider first." in result.output
+    assert "Setup complete." not in result.output
+    assert "Not signed in yet. Run `findplus auth` when you're ready" in result.output
+
+    assert _completed_at() is None
+    with session_scope() as session:
+        assert get_setting(session, "onboarding.last_step") == "signin"
+
+
 def test_interactive_done_stamps_and_restamps_completed_at(
     tmp_db, two_devices, stub_auth: list[str]
 ) -> None:

@@ -6,11 +6,13 @@ Purpose    : Terminal guided first-run setup for brew/curl-pipe installs that
 Inputs     : --yes (non-interactive: accept every default, skip every optional
              step).
 Outputs    : Console prompts (interactive) or one summary line per step
-             (--yes). Only the interactive Done step writes
-             onboarding.completed_at, via findplus.state.set_setting directly
-             (no HTTP call); `--yes` writes onboarding.last_step = "headless"
-             instead and leaves completed_at unset, so install.sh --start
-             still leaves the web first-run wizard armed (R-P2-24).
+             (--yes). completed_at is written directly via
+             findplus.state.set_setting (no HTTP call) only when the run
+             ends with at least one provider signed in; `--yes` and an
+             interactive run where every sign-in offer was declined both
+             leave completed_at unset (last_step = "headless" / "signin"),
+             so install.sh --start and a declined-sign-in run both leave the
+             web first-run wizard armed (R-P2-24, UAT U18).
 Constraints: No browser, no GUI dependency. Every step reuses an existing CLI
              code path (auth, groups, alerts, security), never reimplements
              sign-in, group creation, channel connection or PIN hashing.
@@ -50,15 +52,28 @@ def setup(yes: bool) -> None:
 
     from datetime import UTC, datetime
 
+    signed_in = _any_provider_signed_in()
     with session_scope() as session:
         if yes:
             # R-P2-24: headless --yes never stamps completed_at, so the web
             # wizard still shows on the first dashboard visit after a
             # curl-pipe/brew install.
             set_setting(session, "onboarding.last_step", "headless")
-        else:
+        elif signed_in:
             set_setting(session, "onboarding.completed_at", datetime.now(UTC).isoformat())
-    click.secho("Setup complete. Run `findplus start` to begin polling.", fg="green")
+        else:
+            # UAT U18: declining every sign-in offer must not look like a
+            # finished setup -- the web wizard stays offered until a real
+            # sign-in happens.
+            set_setting(session, "onboarding.last_step", "signin")
+
+    if yes or signed_in:
+        click.secho("Setup complete. Run `findplus start` to begin polling.", fg="green")
+    else:
+        click.echo(
+            "Not signed in yet. Run `findplus auth` when you're ready, "
+            "then `findplus setup` again or `findplus start`."
+        )
 
 
 def _step_signin(yes: bool) -> None:
@@ -130,6 +145,25 @@ def _discover_devices() -> None:
                 upsert_device(session, device.device_id, device.name, provider=provider_name)
 
 
+def _any_provider_signed_in() -> bool:
+    """True when at least one installed provider is authenticated.
+
+    Same gating `_discover_devices()` uses (is_available + is_authenticated),
+    so the sign-in the wizard just offered and the sign-in this module later
+    checks to decide its closing message never disagree (UAT U18).
+    """
+    from findplus.providers.base import available_providers, get_provider
+
+    for name in available_providers():
+        try:
+            provider = get_provider(name)
+            if provider.is_available()[0] and provider.is_authenticated():
+                return True
+        except Exception:
+            continue
+    return False
+
+
 def _provider_label(name: str) -> str:
     """Human-readable provider name for the device listing; falls back to the
     registry key itself if the provider cannot be loaded."""
@@ -154,7 +188,10 @@ def _step_devices(yes: bool) -> None:
     with session_scope() as session:
         devices = _listed_devices(session)
         if not devices:
-            click.echo("No devices found on this account.")
+            if _any_provider_signed_in():
+                click.echo("No devices found on this account.")
+            else:
+                click.echo("Not signed in yet. Run `findplus auth` to connect a provider first.")
             return
         for index, device in enumerate(devices, start=1):
             label = _provider_label(device.provider)

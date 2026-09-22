@@ -39,6 +39,54 @@ async def _set_last_step(page, base_url, value):
     )
 
 
+async def test_step_has_a_heading_and_google_button_reflects_signed_in_state(
+    page, base_url
+) -> None:
+    """UAT U33: step 2 had no heading at all, and the Google button still
+    offered a fresh sign-in after the status line above it already said
+    "Signed in as...". The button's own label now carries that state too."""
+
+    async def status_signed_in(route):
+        await route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(
+                {
+                    "providers": [
+                        {
+                            "id": "google-find-hub",
+                            "signed_in": True,
+                            "account": "someone@example.com",
+                            "needs": [],
+                        }
+                    ]
+                }
+            ),
+        )
+
+    await _set_completed_at(page, base_url, None)
+    try:
+        await _set_last_step(page, base_url, "signin")
+        await page.route("**/api/auth/status", status_signed_in)
+        await page.goto(base_url + "/#/setup")
+        await page.wait_for_selector("#fp-setup-signin-status", timeout=15000)
+
+        # text_content(), not inner_text(): h2 is styled text-transform:
+        # uppercase, which inner_text() would reflect as "SIGN IN".
+        assert (await page.locator("#setup-view h2").first.text_content()) == "Sign in"
+        await page.wait_for_function(
+            "() => document.getElementById('fp-setup-signin-status')"
+            ".textContent.includes('Signed in as')",
+            timeout=15000,
+        )
+        button = page.get_by_role("button", name="Signed in ✓ (switch account)")
+        await button.wait_for(state="visible")
+        assert await button.is_enabled()
+    finally:
+        await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
+        await _set_last_step(page, base_url, None)
+
+
 async def test_a_409_rejoins_the_running_sign_in(page, base_url):
     polled: list[str] = []
 

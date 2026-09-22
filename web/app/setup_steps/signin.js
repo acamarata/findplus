@@ -115,14 +115,17 @@ export default {
     container.textContent = "";
     const notices = (ctx.state.config && ctx.state.config.notices) || {};
 
+    const heading = document.createElement("h2");
+    heading.textContent = t("setup.signin.title");
     const status = document.createElement("p");
     status.id = "fp-setup-signin-status";
     const apple = buildAppleBranch(ctx, status);
     const googleBtn = button("setup.signin.google", () => startGoogle(ctx));
     const chrome = new ChromeGate(googleBtn);
-    els = { status, poller: new Poller(status), apple, chrome };
+    els = { status, poller: new Poller(status), apple, chrome, googleBtn };
 
     container.append(
+      heading,
       status,
       providerHeading("google"),
       googleBtn,
@@ -144,5 +147,13 @@ export default {
         })
       : t("setup.signin.not_signed_in");
     els.chrome.show(ctx, ChromeGate.missing(providers));
+    // UAT U33: the button still offered a fresh "Sign in with Google" after
+    // the status line above it already said "Signed in as...". Its own label
+    // now carries the state too, and stays clickable so switching accounts
+    // is still one click, not a dead end.
+    const google = (providers || []).find((p) => p.id === "google-find-hub");
+    els.googleBtn.textContent = t(
+      google && google.signed_in ? "setup.signin.google_signed_in" : "setup.signin.google"
+    );
   },
 };

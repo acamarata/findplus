@@ -7,6 +7,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- The macOS app release now ships an Intel dmg (`FindPlus-<version>-x86_64.dmg`) alongside the existing Apple Silicon one (`FindPlus-<version>-aarch64.dmg`); the release workflow builds, signs and notarises both natively on their own runners.
 - The macOS app opens the dashboard by itself on a first launch, so the setup wizard is the first thing you see, and goes back to being tray-only once setup is finished. The splash window now closes when the daemon is up, instead of staying on top until you quit.
 - Settings now carries the poll interval, how long history is kept, whether Mac notifications may name the person and place, and a Run setup again button.
 - A fresh install opens the setup wizard by itself. If you go somewhere else first, a bar under the toolbar offers to resume it, and stays until setup is actually finished.

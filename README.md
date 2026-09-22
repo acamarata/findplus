@@ -58,7 +58,8 @@ pipx install findplus
 
 Requires Python 3.12, 3.13 or 3.14.
 
-**macOS app (dmg):** download `FindPlus-<version>-aarch64.dmg` from
+**macOS app (dmg):** download `FindPlus-<version>-aarch64.dmg` (Apple
+Silicon) or `FindPlus-<version>-x86_64.dmg` (Intel) from
 [Releases](https://github.com/acamarata/findplus/releases).
 
 ## First run

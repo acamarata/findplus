@@ -52,15 +52,31 @@ def test_a_rebound_hostname_cannot_reach_the_dashboard(client: TestClient) -> No
     assert client.get("/", headers={"Host": "evil.example.com"}).status_code == 421
 
 
-@pytest.mark.parametrize("host", ["127.0.0.1", "127.0.0.1:8647", "localhost:8647", "[::1]:8647"])
+@pytest.mark.parametrize("host", ["127.0.0.1:8647", "localhost:8647", "[::1]:8647"])
 def test_loopback_hostnames_are_accepted(client: TestClient, host: str) -> None:
     assert client.get("/api/health", headers={"Host": host}).status_code == 200
 
 
+@pytest.mark.parametrize("host", ["127.0.0.1", "127.0.0.1:9999", "localhost:1", "[::1]:80"])
+def test_loopback_hostnames_on_the_wrong_port_are_refused(client: TestClient, host: str) -> None:
+    """CF-P2-3: hostname alone used to be enough. A bare Host (implied port 80)
+    or an explicit port other than the daemon's own is now refused the same
+    as a foreign hostname -- a rebinding page can put any port it likes in
+    the URL, and this daemon only ever answers on one."""
+    assert client.get("/api/health", headers={"Host": host}).status_code == 421
+
+
 def test_host_helper_rejects_lookalikes() -> None:
-    assert is_allowed_host("127.0.0.1.evil.com", "127.0.0.1") is False
-    assert is_allowed_host("localhost.evil.com:8647", "127.0.0.1") is False
-    assert is_allowed_host(None, "127.0.0.1") is False
+    assert is_allowed_host("127.0.0.1.evil.com", "127.0.0.1", 8647) is False
+    assert is_allowed_host("localhost.evil.com:8647", "127.0.0.1", 8647) is False
+    assert is_allowed_host(None, "127.0.0.1", 8647) is False
+
+
+def test_host_helper_requires_the_configured_port() -> None:
+    assert is_allowed_host("127.0.0.1:8647", "127.0.0.1", 8647) is True
+    assert is_allowed_host("127.0.0.1:9999", "127.0.0.1", 8647) is False
+    assert is_allowed_host("127.0.0.1", "127.0.0.1", 8647) is False
+    assert is_allowed_host("127.0.0.1", "127.0.0.1", 80) is True
 
 
 # ----------------------------------------------------------- 1/8. origins
@@ -105,10 +121,20 @@ def test_the_cli_and_mcp_send_no_origin_and_are_unaffected(client: TestClient) -
 
 def test_origin_helper_accepts_loopback_and_rejects_the_rest() -> None:
     base = "http://127.0.0.1:8647"
-    assert is_allowed_origin("http://localhost:3000", base) is True
-    assert is_allowed_origin("http://127.0.0.1:9999", base) is True
+    assert is_allowed_origin("http://localhost:8647", base) is True
+    assert is_allowed_origin("http://[::1]:8647", base) is True
     assert is_allowed_origin("null", base) is False
     assert is_allowed_origin("http://127.0.0.1.evil.com", base) is False
+
+
+def test_origin_helper_requires_the_configured_port() -> None:
+    """CF-P2-3: a loopback origin used to be accepted at any port. Some other
+    local process on a different port is still a real machine, but not
+    necessarily this daemon's own page, so only its own port is trusted now."""
+    base = "http://127.0.0.1:8647"
+    assert is_allowed_origin("http://localhost:3000", base) is False
+    assert is_allowed_origin("http://127.0.0.1:9999", base) is False
+    assert is_allowed_origin("http://127.0.0.1", base) is False
 
 
 # ------------------------------------------------- 2. first-PIN takeover

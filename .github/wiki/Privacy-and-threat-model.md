@@ -41,7 +41,7 @@ trademarks.
 | Disk access (stolen drive, another OS booted from it) | Use FileVault. The app lock does not protect data at rest. |
 | Account access (your Google or Apple account is compromised) | Find+ stores tokens locally; revoking the app's access on the provider side stops further polling. |
 | Someone on your network | Find+ binds to `127.0.0.1` only, refused elsewhere unless `FINDPLUS_ALLOW_PUBLIC_BIND=1` is set. |
-| A malicious web page in your browser (DNS rebinding, cross-site requests) | The API validates the request's Host/Origin against the expected loopback address and rejects anything else, so a page from another origin cannot reach it even by resolving a hostname to 127.0.0.1. |
+| A malicious web page in your browser (DNS rebinding, cross-site requests) | The API validates the request's Host/Origin against the expected loopback address *and port* and rejects anything else, so a page from another origin cannot reach it even by resolving a hostname to 127.0.0.1, and cannot bypass the check by naming a different port. |
 
 ## Local API surface
 
@@ -49,8 +49,11 @@ The daemon listens on `127.0.0.1:8647` only. Every state file it writes
 under `~/.findplus/` (the database, `secrets.json`, `alerts.json`,
 `apple-account.json`, and `apple/*.json`) is created at file mode `0600`
 inside a `0700` directory. Binding to any other address, or accepting a
-request whose Host or Origin header does not match the loopback address,
-is refused by default.
+request whose Host or Origin header does not match the loopback address
+on the daemon's own port, is refused by default. A Host or Origin naming
+the right loopback address but a different port is refused the same as a
+foreign one, so a page that rebinds a hostname to 127.0.0.1 cannot pick
+its own port to get past the check.
 
 ---
 [[Home]]

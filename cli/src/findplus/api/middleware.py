@@ -3,11 +3,14 @@
 Purpose    : Stop a page served from another origin from reaching this daemon,
              and stop a DNS name that resolves to 127.0.0.1 (DNS rebinding)
              from being used to drive it through the victim's own browser.
+             Hostname alone is not enough for the Host/Origin checks: they
+             also pin the configured port, so a rebound page that carries
+             the right loopback name but the wrong (or no) port still fails.
 Inputs     : The Host, Origin, Sec-Fetch-Site and Referer request headers.
-Outputs    : 421 for a foreign Host, 403 for a foreign Origin, a cross-site
-             mutation, or a mutation whose only origin signal is a foreign
-             Referer, and the three response headers every dashboard
-             response carries.
+Outputs    : 421 for a foreign or wrong-port Host, 403 for a foreign Origin,
+             a cross-site mutation, or a mutation whose only origin signal is
+             a foreign Referer, and the three response headers every
+             dashboard response carries.
 Constraints:
     - Registered OUTSIDE SessionAuthMiddleware so a rebinding attempt is
       refused before the lock, the routers or the static mount see it.
@@ -69,8 +72,8 @@ CONTENT_SECURITY_POLICY = (
 )
 
 _FOREIGN_HOST_DETAIL = (
-    "This daemon only answers to 127.0.0.1 and localhost. "
-    "A request arriving under another hostname is refused."
+    "This daemon only answers to 127.0.0.1 and localhost on its own port. "
+    "A request arriving under another hostname or port is refused."
 )
 _FOREIGN_ORIGIN_DETAIL = "This request came from another origin and was refused."
 _CROSS_SITE_DETAIL = "This request was initiated by another site and was refused."
@@ -87,13 +90,48 @@ def _hostname(host_header: str) -> str:
     return value
 
 
-def is_allowed_host(host_header: str | None, configured_host: str) -> bool:
-    """True when the Host header names this machine rather than an attacker's domain."""
+def _host_port(host_header: str) -> int | None:
+    """The port carried by a Host header, or None when the header names no port.
+
+    A bare Host (no `:port`) is what a real browser sends only when it means
+    the scheme's default port (80 for http), which this daemon never binds
+    to -- so the caller treats "no port" as "port 80", not as "any port".
+    A trailing segment that isn't a plain integer (`:abc`, a truncated
+    bracket) is not a port a real client would ever send, so it is treated
+    the same as absent rather than guessed at.
+    """
+    value = host_header.strip()
+    if value.startswith("["):
+        end = value.find("]")
+        rest = value[end + 1 :] if end != -1 else ""
+    else:
+        rest = value[value.rfind(":") :] if value.count(":") == 1 else ""
+    if not rest.startswith(":"):
+        return None
+    try:
+        return int(rest[1:])
+    except ValueError:
+        return None
+
+
+def is_allowed_host(host_header: str | None, configured_host: str, configured_port: int) -> bool:
+    """True when the Host header names this machine, on this exact port.
+
+    Checking the hostname alone is not enough: DNS rebinding only changes
+    which IP a name resolves to, not which port the attacker's page asks
+    for, but nothing stops the page from putting a *different* loopback
+    port in the URL either -- and this daemon only ever answers on one. A
+    bare Host with no `:port` is accepted only when the configured port
+    is 80 (the implied default for http), which findplus never uses.
+    """
     if not host_header:
         return False
     name = _hostname(host_header).lower()
     configured = configured_host.strip().lower()
-    return name in LOOPBACK_HOSTNAMES or name in {configured, f"[{configured}]"}
+    if name not in LOOPBACK_HOSTNAMES and name not in {configured, f"[{configured}]"}:
+        return False
+    port = _host_port(host_header)
+    return port == configured_port if port is not None else configured_port == 80
 
 
 def _is_loopback_hostname(host: str) -> bool:
@@ -109,14 +147,31 @@ def _is_loopback_hostname(host: str) -> bool:
         return host == "localhost"
 
 
+def _port_of(url: str) -> int:
+    """The port a URL implies: explicit, or the scheme's default (80/443)."""
+    parts = urlsplit(url)
+    if parts.port is not None:
+        return parts.port
+    return 443 if parts.scheme == "https" else 80
+
+
 def is_allowed_origin(origin: str, base_url: str) -> bool:
-    """True for our own base URL, any loopback origin, and the desktop shell."""
+    """True for our own base URL, a loopback origin on our own port, and the
+    desktop shell.
+
+    A loopback IP at some OTHER port used to be accepted outright. That is
+    still a real machine, but not necessarily this daemon's own page -- any
+    other local process bound to a different port could carry that origin,
+    so only the configured port is trusted, same as the Host check above.
+    """
     if origin in TAURI_ORIGINS or origin == base_url:
         return True
     parts = urlsplit(origin)
     if parts.scheme not in {"http", "https"}:
         return False
-    return _is_loopback_hostname((parts.hostname or "").lower())
+    if not _is_loopback_hostname((parts.hostname or "").lower()):
+        return False
+    return _port_of(origin) == _port_of(base_url)
 
 
 def _origin_of(url: str) -> str:
@@ -159,7 +214,8 @@ class OriginGuardMiddleware(BaseHTTPMiddleware):
     """Refuse foreign Host headers outright, and foreign origins on /api/."""
 
     async def dispatch(self, request: Request, call_next):
-        if not is_allowed_host(request.headers.get("host"), get_settings().host):
+        settings = get_settings()
+        if not is_allowed_host(request.headers.get("host"), settings.host, settings.port):
             return JSONResponse(status_code=421, content={"detail": _FOREIGN_HOST_DETAIL})
         if request.url.path.startswith("/api/"):
             problem = same_origin_problem(request)

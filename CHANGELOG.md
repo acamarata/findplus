@@ -18,7 +18,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - Sign in to Apple Find My from the dashboard, 2FA included: `POST /api/auth/apple/start` then `POST /api/auth/apple/code`. Your Apple password is used for the sign-in call and is never stored, logged or sent back.
 - `GET /api/auth/status` reports, per provider, whether you are signed in, which account, and what is still missing (Chrome, or the Apple extra).
 - `findplus auth --status` prints that same report as a table, or as JSON with `--json`.
-- Register an Apple Find My accessory from the dashboard, by uploading a key plist (up to 64 KiB) or pasting a private key: `POST /api/apple/accessories`. A tag you have already registered is reported rather than quietly replaced.
+- Register an Apple Find My accessory from the dashboard's Apple card, by choosing a key file (a `.plist` export or a `.json` holding the base64 private key): `POST /api/apple/accessories`. A tag you have already registered asks before it is replaced, rather than quietly replacing or silently refusing it.
 - `findplus doctor` now checks the Chrome profile directory is owner-only, and repairs it with `--repair`.
 - `findplus setup`, a guided first-run walkthrough in the terminal for installs that never open the dashboard. Pass `--yes` to accept every default without a prompt.
 - The daemon prunes location history, place visits and group events older than the retention window once a day, with no restart needed after changing it.
@@ -54,6 +54,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - `install.sh` is shorter and points at a new Uninstall wiki page for the manual service-removal commands it prints. Without `--start` its last line now points at `findplus setup`.
 
 ### Fixed
+- The local API's Host and Origin checks now also require the daemon's own port, not just the loopback hostname, closing a DNS-rebinding gap where a page could name any port it liked and still get past the guard.
 - The bottom tab bar on a phone-width dashboard stays clickable once the page is scrolled, instead of the map's overlay layer painting over it.
 - The bundled icon sprite no longer leaves a blank band above the toolbar.
 - The test suite's warning filters name the specific warnings Find+ suppresses, instead of ignoring every deprecation warning.
@@ -95,8 +96,8 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - The setup wizard renders inside a proper card with the same field and button styling as the rest of the app, instead of raw, unstyled rows, and offers WhatsApp as an inline setup step alongside Telegram.
 - A group's CSV, JSON, GPX and KML exports now carry each member's label, falling back to its device ID when no label is set, the same as a single device's export already did.
 - Pressing Next on the setup wizard's app lock step with a PIN typed and confirmed now sets it, instead of silently discarding it; a mismatched pair shows an inline error and stays on the step instead of advancing with no lock set.
-
 - Apple Find My fixes carry the accuracy the source actually gives, which is none: Find+ no longer invents a metres figure from Apple's confidence label. The dashboard now shows "Accuracy unknown" for these fixes instead of a made-up `±N m` reading, and a database upgrade nulls out any invented figures a previous version already stored.
+
 ## [1.0.0] - 2026-09-19
 
 ### Added

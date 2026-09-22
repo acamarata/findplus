@@ -104,6 +104,13 @@ def _bind_or_exit(host: str | None, port: int | None) -> tuple[str, int]:
     I9 is enforced by Settings.host and by `config set HOST`; --host reached
     uvicorn without passing either, so refuse here too, before daemon.json is
     written or the server is constructed.
+
+    `--host`/`--port` are exported back into FINDPLUS_HOST/FINDPLUS_PORT so
+    every later `get_settings()` call agrees with the actual bind address --
+    OriginGuardMiddleware re-reads settings on every request (CF-P2-3: it now
+    checks the port too), and without this a `--port` override would still
+    bind there while the guard kept comparing against the default port and
+    refusing every request.
     """
     settings = get_settings()
     bind_host = host or settings.host
@@ -112,6 +119,10 @@ def _bind_or_exit(host: str | None, port: int | None) -> tuple[str, int]:
         raise click.ClickException(
             f"Non-loopback host '{bind_host}' rejected. Set FINDPLUS_ALLOW_PUBLIC_BIND=1 to allow."
         )
+    if host is not None:
+        os.environ["FINDPLUS_HOST"] = bind_host
+    if port is not None:
+        os.environ["FINDPLUS_PORT"] = str(bind_port)
     return bind_host, bind_port
 
 

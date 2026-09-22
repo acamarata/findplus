@@ -431,7 +431,10 @@
       "empty": "No devices found yet — refresh once you've added a tracker",
       "label_placeholder": "Your name for this tracker",
       "refresh": "Refresh from your providers",
-      "edit": "Edit"
+      "edit": "Edit",
+      "track": "Track",
+      "trackFor": "Track {name}",
+      "confirm_none_tracked": "Track nothing? Find+ will not poll any tracker until you come back and tick one (or run findplus devices --track-all later)."
     },
     "groups": {
       "title": "Groups (optional)",

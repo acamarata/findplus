@@ -4,8 +4,11 @@
  * Purpose    : The tick box, badge, name, label field and Edit button that
  *              make up a row, kept out of devices.js so that file stays the
  *              step (render/onEnter/onNext) and nothing else.
- * Inputs     : ctx (api/showAlert), one device from GET /api/devices, and the
- *              refresh callback to run after the edit dialog closes.
+ * Inputs     : ctx (api/showAlert), one device from GET /api/devices, the
+ *              refresh callback to run after the edit dialog closes, and
+ *              defaultChecked (UAT U15: devices.js's "nobody tracked yet"
+ *              flag, so a fresh account starts every row ticked instead of
+ *              every row silently unticked).
  * Outputs    : An Element; PATCH /api/devices/{id} on a debounced label edit.
  * Constraints: createElement and textContent only — a tracker's name comes
  *              from the provider account, so it is never written as markup.
@@ -57,12 +60,17 @@ function editButton(ctx, device, onClosed) {
   return btn;
 }
 
-function trackBox(device) {
+function trackBox(device, defaultChecked) {
   const track = document.createElement("input");
   track.type = "checkbox";
-  track.checked = !!device.is_tracked;
+  // UAT U15: a device already tracked (e.g. re-entering this step) keeps its
+  // own state; on a fresh account where nothing is tracked yet, defaultChecked
+  // (every row gets the same value: "no one is tracked yet") ticks every row
+  // instead of leaving all of them silently unticked.
+  track.checked = device.is_tracked || defaultChecked;
   track.dataset.track = "";
   track.dataset.deviceId = device.device_id;
+  track.setAttribute("aria-label", t("setup.devices.trackFor", { name: device.name || device.device_id }));
   return track;
 }
 
@@ -81,9 +89,12 @@ function labelInput(ctx, device) {
   return label;
 }
 
-export function deviceRow(ctx, device, onClosed) {
+export function deviceRow(ctx, device, onClosed, defaultChecked) {
   const row = document.createElement("div");
-  row.className = "fp-dialog-field";
+  // fp-setup-device-row: this row has five children (track, badge, name,
+  // label input, edit button), not the simple label+control pair the
+  // generic .fp-dialog-field mobile rule assumes; see responsive.css.
+  row.className = "fp-dialog-field fp-setup-device-row";
   const badge = document.createElement("span");
   badge.className = "fp-device-badge";
   badge.append(
@@ -98,7 +109,7 @@ export function deviceRow(ctx, device, onClosed) {
   const name = document.createElement("span");
   name.textContent = device.name || device.device_id;
   row.append(
-    trackBox(device),
+    trackBox(device, defaultChecked),
     badge,
     name,
     labelInput(ctx, device),

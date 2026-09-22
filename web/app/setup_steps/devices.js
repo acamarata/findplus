@@ -28,8 +28,15 @@ function renderRows(ctx, devices) {
     els.list.append(empty);
     return;
   }
+  // UAT U15: on a fresh account nothing is tracked yet, so every row's own
+  // is_tracked is false and every checkbox started unticked with nothing to
+  // say so. Default every row to ticked in that one case; a re-entry that
+  // already has some devices tracked keeps each row's own state instead.
+  const noneTrackedYet = !devices.some((d) => d.is_tracked);
   const reload = () => refresh(ctx).catch(() => {});
-  devices.forEach((device) => els.list.append(deviceRow(ctx, device, reload)));
+  devices.forEach((device) =>
+    els.list.append(deviceRow(ctx, device, reload, noneTrackedYet))
+  );
 }
 
 async function refresh(ctx) {
@@ -46,6 +53,14 @@ export default {
     container.textContent = "";
     const heading = document.createElement("h2");
     heading.textContent = t("setup.devices.title");
+
+    // UAT U15: the row checkboxes had no visible or accessible column
+    // header; each row's own checkbox also carries an aria-label
+    // ("Track {name}", _device_row.js) so a screen reader announces the
+    // same word even without this text sitting directly above it.
+    const listHeader = document.createElement("p");
+    listHeader.className = "fp-field-hint";
+    listHeader.textContent = t("setup.devices.track");
 
     const list = document.createElement("div");
     list.id = "fp-setup-devices-list";
@@ -65,7 +80,7 @@ export default {
     note.textContent = (ctx.state.config && ctx.state.config.notices.presence_stale) || "";
 
     els = { list };
-    container.append(heading, list, refreshBtn, note);
+    container.append(heading, listHeader, list, refreshBtn, note);
   },
   async onEnter(ctx) {
     await refresh(ctx);
@@ -74,6 +89,12 @@ export default {
     const ids = [...els.list.querySelectorAll("[data-track]")]
       .filter((el) => el.checked)
       .map((el) => el.dataset.deviceId);
+    // UAT U15: Next used to POST an empty track list with no word about it,
+    // silently leaving nothing tracked. A row exists to tick (the empty
+    // step above already returns early) but none is ticked -- ask first.
+    if (!ids.length && !window.confirm(t("setup.devices.confirm_none_tracked"))) {
+      return false;
+    }
     await ctx.postJson("/api/devices/track", { device_ids: ids });
     // UAT U2: ctx.state.devices was still the pre-track snapshot from
     // onEnter's refresh(), so the Done step's count read is_tracked off

@@ -224,6 +224,124 @@ async def test_devices_step_done_count_reflects_what_was_just_tracked(page, base
     assert summary == "1 device tracked."
 
 
+async def test_devices_step_track_header_default_ticks_and_confirm_on_none(page, base_url) -> None:
+    """UAT U15: no "Track" header, every row started unticked even on a
+    fresh account, and Next silently tracked nothing with none ticked."""
+
+    async def get_devices(route):
+        await route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(
+                {
+                    "devices": [
+                        {
+                            "device_id": "TAG-1",
+                            "name": "Keys",
+                            "provider": "google-find-hub",
+                            "is_tracked": False,
+                            "label": None,
+                            "icon": None,
+                            "color": None,
+                        },
+                        {
+                            "device_id": "TAG-2",
+                            "name": "Bag",
+                            "provider": "google-find-hub",
+                            "is_tracked": False,
+                            "label": None,
+                            "icon": None,
+                            "color": None,
+                        },
+                    ]
+                }
+            ),
+        )
+
+    async def ok(route):
+        await route.fulfill(status=200, content_type="application/json", body="{}")
+
+    await page.route("**/api/devices/refresh", ok)
+    await page.route("**/api/devices/track", ok)
+    await page.route("**/api/devices", get_devices)
+
+    await _set_last_step(page, base_url, "devices")
+    await page.goto(base_url + "/#/setup")
+    await page.wait_for_selector("#fp-setup-devices-list input[data-track]", timeout=15000)
+
+    assert "Track" in await page.locator("#setup-view").inner_text()
+
+    boxes = page.locator("#fp-setup-devices-list input[data-track]")
+    assert await boxes.count() == 2
+    assert await boxes.nth(0).is_checked()
+    assert await boxes.nth(1).is_checked()
+    assert await boxes.nth(0).get_attribute("aria-label") == "Track Keys"
+
+    await boxes.nth(0).uncheck()
+    await boxes.nth(1).uncheck()
+
+    dialogs: list[str] = []
+
+    async def dismiss(dialog):
+        dialogs.append(dialog.message)
+        await dialog.dismiss()
+
+    page.on("dialog", dismiss)
+    try:
+        await page.click("#fp-wizard-next")
+        await page.wait_for_timeout(300)
+        assert dialogs, "Next with nothing ticked must ask to confirm"
+        # Declining must not advance past the step.
+        assert await page.locator("#fp-setup-devices-list").is_visible()
+    finally:
+        page.remove_listener("dialog", dismiss)
+
+
+async def test_devices_step_checkbox_stays_inline_with_name_at_375(page, base_url) -> None:
+    """UAT U15: the row's own 5 children tripped the generic mobile rule that
+    stacks a .fp-dialog-field with a text input into one column per child,
+    leaving the checkbox alone above the device name."""
+
+    async def get_devices(route):
+        await route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(
+                {
+                    "devices": [
+                        {
+                            "device_id": "TAG-1",
+                            "name": "Keys",
+                            "provider": "google-find-hub",
+                            "is_tracked": False,
+                            "label": None,
+                            "icon": None,
+                            "color": None,
+                        }
+                    ]
+                }
+            ),
+        )
+
+    async def ok(route):
+        await route.fulfill(status=200, content_type="application/json", body="{}")
+
+    await page.route("**/api/devices/refresh", ok)
+    await page.route("**/api/devices", get_devices)
+    await page.set_viewport_size({"width": 375, "height": 800})
+    try:
+        await _set_last_step(page, base_url, "devices")
+        await page.goto(base_url + "/#/setup")
+        await page.wait_for_selector("#fp-setup-devices-list input[data-track]", timeout=15000)
+
+        box_box = await page.locator("#fp-setup-devices-list input[data-track]").bounding_box()
+        name_box = await page.locator("#fp-setup-devices-list .fp-device-badge").bounding_box()
+        assert abs(box_box["y"] - name_box["y"]) < 10, (box_box, name_box)
+    finally:
+        await page.set_viewport_size({"width": 1280, "height": 900})
+        await _set_last_step(page, base_url, None)
+
+
 async def test_groups_step_add_with_no_members_blocks_save(page, base_url):
     """UAT U16: the wizard's own Add (separate code path from the dashboard's
     group dialog) used to create a zero-member group silently."""

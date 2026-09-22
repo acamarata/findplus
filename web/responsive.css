@@ -28,10 +28,11 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
 }
 .lock-error { color: var(--err); font-size: 12.5px; min-height: 18px; margin: 12px 0 0; }
 
-/* UAT U11: a channel with no stored credentials cannot be ticked in the
-   add/edit-rule dialog (channel-picker.js disables its checkbox); this only
-   dims the row so the reason ("(not connected)", supplied by the caller's
-   label text) is legible rather than looking like a rendering glitch. */
+/* UAT U11: a channel with no stored credentials is flagged, not disabled --
+   channel-picker.js still lets it be ticked (a fresh install with nothing
+   connected yet must be able to create its first rule). This dims the row so
+   the reason ("(not connected)", supplied by the caller's label text) reads
+   as a state, not a rendering glitch. */
 .fp-channel-picker-option--disconnected { opacity: .6; }
 
 /* U26: a label and its control wrapped onto separate lines when .controls
@@ -163,6 +164,18 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
     flex-direction: column; align-items: stretch; gap: 4px;
   }
   .fp-dialog-field > label { flex: none; }
+
+  /* UAT U15: the wizard's device row has five children (track checkbox,
+     badge, name, label text input, Edit button), not the simple
+     label+control pair the rule above assumes -- it stacked every child
+     into its own line, leaving the checkbox alone above the device name.
+     Keep the checkbox with the badge and name on one wrapping row; only the
+     label input and button drop to their own line. */
+  .fp-setup-device-row {
+    flex-direction: row !important;
+    align-items: center !important;
+    flex-wrap: wrap;
+  }
 
   /* The rules table (8 columns) is wider than a phone viewport; scroll the
      wrapper instead of the whole page so the rest of the tab stays put

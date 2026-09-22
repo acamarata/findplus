@@ -58,6 +58,14 @@ async function addGroup(ctx) {
   const memberIds = [...els.members.querySelectorAll("input:checked")].map(
     (box) => box.dataset.deviceId
   );
+  // UAT U16: Add used to create a zero-member group with no word about it,
+  // which then showed "Unknown" in the list -- a quorum with nobody to count
+  // is never meaningful.
+  if (!memberIds.length) {
+    els.error.textContent = t("groups.error.members_required");
+    return;
+  }
+  els.error.textContent = "";
   await ctx.postJson("/api/groups", {
     name, color: pickers.getColor(), icon: pickers.getIcon(), member_ids: memberIds,
   });
@@ -104,14 +112,21 @@ export default {
 
     const add = document.createElement("button");
     add.type = "button";
+    add.id = "fp-setup-group-add";
     add.className = "btn";
     add.textContent = t("setup.groups.add");
     add.addEventListener("click", () => {
       addGroup(ctx).catch((err) => ctx.showAlert(err.message, "err"));
     });
 
-    els = { list, name, members };
-    container.append(heading, list, name, pickers.iconWrap, pickers.colorWrap, members, add);
+    const error = document.createElement("p");
+    error.className = "fp-dialog-error";
+    error.id = "fp-setup-group-error";
+
+    els = { list, name, members, error };
+    container.append(
+      heading, list, name, pickers.iconWrap, pickers.colorWrap, members, error, add
+    );
     container.addEventListener("click", (e) => pickers.closeIfOutside(e.target));
   },
   async onEnter(ctx) {

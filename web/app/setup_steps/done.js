@@ -12,7 +12,7 @@
  */
 "use strict";
 
-import { t } from "../i18n.js";
+import { plural, t } from "../i18n.js";
 
 export default {
   id: "done",
@@ -23,7 +23,7 @@ export default {
     const heading = document.createElement("h2");
     heading.textContent = t("setup.done.title");
     const summary = document.createElement("p");
-    summary.textContent = t("setup.done.summary", { n: trackedCount });
+    summary.textContent = plural("setup.done.summary", trackedCount, { n: trackedCount });
     container.append(heading, summary);
   },
 };

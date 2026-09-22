@@ -75,6 +75,12 @@ export default {
       .filter((el) => el.checked)
       .map((el) => el.dataset.deviceId);
     await ctx.postJson("/api/devices/track", { device_ids: ids });
+    // UAT U2: ctx.state.devices was still the pre-track snapshot from
+    // onEnter's refresh(), so the Done step's count read is_tracked off
+    // devices nobody had ticked yet. Re-fetch so every later step (Done,
+    // and Groups if it never fetched its own copy) sees what was just set.
+    const body = await ctx.api("/api/devices");
+    ctx.state.devices = body.devices || [];
     return true;
   },
 };

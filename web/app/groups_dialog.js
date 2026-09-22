@@ -248,6 +248,14 @@ async function onSave() {
     fields.error.textContent = t("groups.error.name_required");
     return;
   }
+  // UAT U16: a zero-member group saved silently and then showed "Unknown" in
+  // the list with nothing to explain why -- a quorum with nobody to count is
+  // never meaningful, so it is blocked here rather than accepted and left to
+  // confuse later.
+  if (!fields.members.querySelectorAll("input:checked").length) {
+    fields.error.textContent = t("groups.error.members_required");
+    return;
+  }
   try {
     await saveGroup(groupBody());
     dialogEl.close();

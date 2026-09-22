@@ -163,6 +163,118 @@ async def test_done_completes_onboarding_and_returns_to_dashboard(page, base_url
     assert await page.locator("#app-shell").is_visible()
 
 
+async def test_devices_step_done_count_reflects_what_was_just_tracked(page, base_url):
+    """UAT U2: Done's count read the Devices step's pre-track snapshot of
+    ctx.state.devices, so ticking every tracker still showed "0 device(s)
+    tracked." devices.js's onNext now re-fetches before the transition, and
+    done.js renders through plural() so the count also reads grammatically."""
+    devices_gets = 0
+
+    async def get_devices(route):
+        nonlocal devices_gets
+        devices_gets += 1
+        # Untracked on the Devices step's own onEnter refresh(); tracked once
+        # onNext's POST /api/devices/track has "landed" and re-fetches.
+        tracked = devices_gets > 1
+        await route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(
+                {
+                    "devices": [
+                        {
+                            "device_id": "TAG-1",
+                            "name": "Keys",
+                            "provider": "google-find-hub",
+                            "is_tracked": tracked,
+                            "label": None,
+                            "icon": None,
+                            "color": None,
+                        }
+                    ]
+                }
+            ),
+        )
+
+    async def ok(route):
+        await route.fulfill(status=200, content_type="application/json", body="{}")
+
+    await page.route("**/api/devices/refresh", ok)
+    await page.route("**/api/devices/track", ok)
+    await page.route("**/api/devices", get_devices)
+
+    await _set_last_step(page, base_url, "devices")
+    await page.goto(base_url + "/#/setup")
+    await page.wait_for_selector("#fp-setup-devices-list input[data-track]", timeout=15000)
+
+    await page.check("#fp-setup-devices-list input[data-track]")
+    await page.click("#fp-wizard-next")
+
+    # Groups, Places, Notifications, App lock: all optional, skip straight
+    # through to Done without touching their own fields.
+    for _ in range(4):
+        await page.wait_for_selector("#fp-wizard-skip:not([hidden])", timeout=15000)
+        await page.click("#fp-wizard-skip")
+
+    await page.wait_for_function(
+        "() => document.querySelector('#setup-view h2')?.textContent === \"You're set up\"",
+        timeout=15000,
+    )
+    summary = await page.locator("#setup-view p").first.inner_text()
+    assert summary == "1 device tracked."
+
+
+async def test_groups_step_add_with_no_members_blocks_save(page, base_url):
+    """UAT U16: the wizard's own Add (separate code path from the dashboard's
+    group dialog) used to create a zero-member group silently."""
+    calls: list[str] = []
+
+    async def get_devices(route):
+        await route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(
+                {
+                    "devices": [
+                        {
+                            "device_id": "TAG-1",
+                            "name": "Keys",
+                            "provider": "google-find-hub",
+                            "is_tracked": True,
+                            "label": None,
+                            "icon": None,
+                            "color": None,
+                        }
+                    ]
+                }
+            ),
+        )
+
+    async def handle_groups(route):
+        if route.request.method == "POST":
+            calls.append(route.request.url)
+            await route.fulfill(status=201, content_type="application/json", body="{}")
+        else:
+            await route.continue_()
+
+    await page.route("**/api/devices", get_devices)
+    await page.route("**/api/groups", handle_groups)
+
+    await _set_last_step(page, base_url, "groups")
+    await page.goto(base_url + "/#/setup")
+    await page.wait_for_selector("#fp-setup-group-name", timeout=15000)
+
+    await page.fill("#fp-setup-group-name", "No Members")
+    await page.click("#fp-setup-group-add")
+
+    await page.wait_for_function(
+        "() => document.getElementById('fp-setup-group-error')?.textContent.length > 0",
+        timeout=15000,
+    )
+    assert "Select at least one member." in await page.locator("#fp-setup-group-error").inner_text()
+    assert calls == []
+
+
 async def test_reload_mid_wizard_resumes_on_same_step(page, base_url):
     await page.goto(base_url + "/#/setup")
     await page.wait_for_selector("#setup-view .fp-wizard-step", timeout=15000)

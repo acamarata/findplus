@@ -186,7 +186,7 @@ Run Alembic migrations to head. Safe to run repeatedly (idempotent).
 **Usage:** `findplus db upgrade [OPTIONS]`
 
 ## findplus devices
-List every tracker Find+ knows about and choose which ones to track.
+List the trackers Find+ knows about and choose which ones to track.
 
 **Usage:** `findplus devices [OPTIONS]`
 
@@ -196,7 +196,7 @@ List every tracker Find+ knows about and choose which ones to track.
 | --track-all |  | Track every device on the account. |
 | --untrack |  | Stop tracking a device id. |
 | --default |  | Device the dashboard opens on. |
-| --refresh |  | Re-query Find Hub for the list. |
+| --refresh |  | Re-query Find Hub for the list before printing it (needs a signed-in account). |
 | --json |  | Print the device list as JSON. |
 
 ## findplus devices icons
@@ -338,6 +338,15 @@ Start the background service: auth check, then discover-and-track, then
 Show, then optionally install, the watchdog job.
 
 **Usage:** `findplus install-watchdog [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --yes |  | Skip the confirmation prompt. |
+
+## findplus lock reset
+Forgot your PIN? Remove the app lock from this machine.
+
+**Usage:** `findplus lock reset [OPTIONS]`
 
 | option | default | help |
 |---|---|---|

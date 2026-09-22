@@ -98,6 +98,11 @@ jobs:
       - run: |
           python packaging/scripts/gen-honesty-json.py
           git diff --exit-code web/locales/en.json || (echo 'web/locales/en.json honesty block is stale' && exit 1)
+      # No committed output to diff (L2-1): gen-resources.py's real result is
+      # spliced into the gitignored packaging/homebrew/findplus.rb, which
+      # needs a built sdist and PyPI. --check instead validates
+      # cli/pyproject.toml's dependency specs offline, no pip/network call.
+      - run: python packaging/scripts/gen-resources.py --check
 
   # notify.rs's own unit tests, separate from the desktop lane's clippy/build
   # signal (specs/notifications.md 5). The sidecar stub is what lets build.rs

@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 
 from findplus.alerts.channels_field import format_channels, parse_channels
-from findplus.api._delivery_render import delivery_text_body
+from findplus.api._delivery_render import batch_delivery_text_bodies
 from findplus.db.models import Device, Group, Place
 from findplus.db.models_alerts import AlertDelivery, AlertRule
 from findplus.db.session import session_scope
@@ -110,18 +110,18 @@ def _get_rule_or_404(session, rule_id: int) -> AlertRule:
 
 
 def _delivery_to_dict(
-    session, d: AlertDelivery, rule_name: str, render_native: bool = False
+    d: AlertDelivery,
+    rule_name: str,
+    rendered: dict[tuple[str, int], tuple[str | None, str | None]],
 ) -> dict[str, Any]:
     """One delivery row. `text`/`body` are rendered on read, for native rows only.
 
-    No join field (place_name, device_name, group_name, event_type) is exposed:
-    a caller that wants any of them already has the rendered text.
+    `rendered` is the whole page's text/body lookup, built once by
+    `batch_delivery_text_bodies` (CF-P2-16) -- never a per-row query. No join
+    field (place_name, device_name, group_name, event_type) is exposed: a
+    caller that wants any of them already has the rendered text.
     """
-    text, body = (
-        delivery_text_body(session, d.event_kind, d.event_id)
-        if d.channel == "native" and render_native
-        else (None, None)
-    )
+    text, body = rendered.get((d.event_kind, d.event_id), (None, None))
     return {
         "id": d.id,
         "rule_id": d.rule_id,
@@ -211,10 +211,15 @@ def get_deliveries(
             stmt = stmt.filter(AlertDelivery.id > since).order_by(AlertDelivery.id).limit(limit)
         else:
             stmt = stmt.order_by(AlertDelivery.sent_at.desc()).limit(limit)
-        return [
-            _delivery_to_dict(s, d, rule_name, render_native=(channel == "native"))
-            for d, rule_name in s.execute(stmt).all()
+        rows = s.execute(stmt).all()
+        render_native = channel == "native"
+        keys = [
+            (d.event_kind, d.event_id)
+            for d, _rule_name in rows
+            if render_native and d.channel == "native"
         ]
+        rendered = batch_delivery_text_bodies(s, keys) if keys else {}
+        return [_delivery_to_dict(d, rule_name, rendered) for d, rule_name in rows]
 
 
 def ack_delivery(delivery_id: int) -> Response:

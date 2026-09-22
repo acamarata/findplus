@@ -24,6 +24,7 @@ from pathlib import Path
 
 import sqlalchemy as sa
 from alembic import command
+from alembic.script import ScriptDirectory
 
 from findplus.db.migrate import get_alembic_config
 
@@ -214,11 +215,19 @@ def test_downgrade_is_a_documented_no_op_and_does_not_error(tmp_path: Path) -> N
     assert _accuracy_by_id(engine) == {1: None}
 
 
-def test_full_head_upgrade_reaches_0009(tmp_path: Path) -> None:
-    """The whole chain from scratch still lands on 0009 with no errors."""
+def test_full_head_upgrade_reaches_head(tmp_path: Path) -> None:
+    """The whole chain from scratch lands on the newest revision with no errors.
+
+    Was pinned to "0009" (the newest revision when this test was written);
+    0010_alert_delivery_retry landed after it, so "head" now means 0010.
+    Comparing against the migrations directory's own head_revision keeps
+    this test correct the next time a migration is appended, instead of
+    silently asserting a revision that is no longer actually head.
+    """
     cfg, db_path = _cfg(tmp_path)
     command.upgrade(cfg, "head")
     engine = sa.create_engine(f"sqlite:///{db_path}")
     with engine.begin() as conn:
         version = conn.execute(sa.text("SELECT version_num FROM alembic_version")).scalar_one()
-    assert version == "0009"
+    script = ScriptDirectory.from_config(cfg)
+    assert version == script.get_current_head()

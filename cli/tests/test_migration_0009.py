@@ -120,45 +120,55 @@ def _place_event_accuracy_by_id(engine: sa.Engine) -> dict[int, float | None]:
     return {r.id: r.accuracy_meters for r in rows}
 
 
+def _seed_invented_and_genuine_accuracy_rows(conn) -> None:
+    """Observations + place_events covering every case
+    test_upgrade_nulls_only_apple_rows_with_an_invented_value checks: an
+    invented apple-find-my value, a genuine Google value, a Google value that
+    coincidentally matches an invented constant, an already-null Apple row,
+    and an Apple row with a genuinely different value.
+    """
+    _seed_device(conn, "apple:abc")
+    _seed_device(conn, "goog:xyz")
+    # One row per invented constant, all from apple-find-my: must be nulled.
+    for i, value in enumerate(_INVENTED, start=1):
+        _seed_observation(conn, "apple:abc", i, "apple-find-my", value)
+    # A genuinely measured Google accuracy that happens to share no value
+    # with the invented set: must survive untouched.
+    _seed_observation(conn, "goog:xyz", 10, "crowdsourced", 42.0)
+    # A Google row whose accuracy coincidentally equals one of the four
+    # invented numbers: source isn't apple-find-my, so it must survive.
+    _seed_observation(conn, "goog:xyz", 11, "crowdsourced", 30.0)
+    # An Apple row already null (the current, honest behaviour): stays null.
+    _seed_observation(conn, "apple:abc", 12, "apple-find-my", None)
+    # An Apple row with a value NOT in the invented set (e.g. a future,
+    # genuinely-measured source): must survive.
+    _seed_observation(conn, "apple:abc", 13, "apple-find-my", 42.0)
+
+    # place_events derived from the same observations (geofence.py copies
+    # the triggering fix's own accuracy_meters onto the event, m5).
+    _seed_place(conn, 1, "Home")
+    # Linked to an invented apple-find-my observation: must be nulled.
+    _seed_place_event(conn, 100, 1, "apple:abc", 1, 10.0)
+    # Linked to the genuinely-measured Google observation: source isn't
+    # apple-find-my, so it must survive even though nothing here matches
+    # an invented value anyway.
+    _seed_place_event(conn, 101, 1, "goog:xyz", 10, 42.0)
+    # Linked to the Google observation whose value coincidentally equals
+    # an invented constant: still not apple-find-my, must survive.
+    _seed_place_event(conn, 102, 1, "goog:xyz", 11, 30.0)
+    # Linked to the already-null Apple observation: nothing to null.
+    _seed_place_event(conn, 103, 1, "apple:abc", 12, None)
+    # Linked to the Apple observation with a genuinely different (non-
+    # invented) value: must survive.
+    _seed_place_event(conn, 104, 1, "apple:abc", 13, 42.0)
+
+
 def test_upgrade_nulls_only_apple_rows_with_an_invented_value(tmp_path: Path) -> None:
     cfg, db_path = _cfg(tmp_path)
     command.upgrade(cfg, "0008")
     engine = sa.create_engine(f"sqlite:///{db_path}")
     with engine.begin() as conn:
-        _seed_device(conn, "apple:abc")
-        _seed_device(conn, "goog:xyz")
-        # One row per invented constant, all from apple-find-my: must be nulled.
-        for i, value in enumerate(_INVENTED, start=1):
-            _seed_observation(conn, "apple:abc", i, "apple-find-my", value)
-        # A genuinely measured Google accuracy that happens to share no value
-        # with the invented set: must survive untouched.
-        _seed_observation(conn, "goog:xyz", 10, "crowdsourced", 42.0)
-        # A Google row whose accuracy coincidentally equals one of the four
-        # invented numbers: source isn't apple-find-my, so it must survive.
-        _seed_observation(conn, "goog:xyz", 11, "crowdsourced", 30.0)
-        # An Apple row already null (the current, honest behaviour): stays null.
-        _seed_observation(conn, "apple:abc", 12, "apple-find-my", None)
-        # An Apple row with a value NOT in the invented set (e.g. a future,
-        # genuinely-measured source): must survive.
-        _seed_observation(conn, "apple:abc", 13, "apple-find-my", 42.0)
-
-        # place_events derived from the same observations (geofence.py copies
-        # the triggering fix's own accuracy_meters onto the event, m5).
-        _seed_place(conn, 1, "Home")
-        # Linked to an invented apple-find-my observation: must be nulled.
-        _seed_place_event(conn, 100, 1, "apple:abc", 1, 10.0)
-        # Linked to the genuinely-measured Google observation: source isn't
-        # apple-find-my, so it must survive even though nothing here matches
-        # an invented value anyway.
-        _seed_place_event(conn, 101, 1, "goog:xyz", 10, 42.0)
-        # Linked to the Google observation whose value coincidentally equals
-        # an invented constant: still not apple-find-my, must survive.
-        _seed_place_event(conn, 102, 1, "goog:xyz", 11, 30.0)
-        # Linked to the already-null Apple observation: nothing to null.
-        _seed_place_event(conn, 103, 1, "apple:abc", 12, None)
-        # Linked to the Apple observation with a genuinely different (non-
-        # invented) value: must survive.
-        _seed_place_event(conn, 104, 1, "apple:abc", 13, 42.0)
+        _seed_invented_and_genuine_accuracy_rows(conn)
 
     command.upgrade(cfg, "0009")
 

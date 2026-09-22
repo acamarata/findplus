@@ -100,6 +100,35 @@ def _parse_allow_overwrite(raw: object) -> bool:
     return isinstance(raw, str) and raw.strip().lower() == "true"
 
 
+async def _read_multipart_accessory_body(
+    request: Request, settings
+) -> tuple[str, Path | None, str | None, bool]:
+    """The multipart/form-data half of _read_accessory_body, split out to
+    keep both branches under the per-function line cap."""
+    form = await read_bounded_form(request, _MAX_PLIST_BYTES + _MULTIPART_OVERHEAD_BYTES)
+    raw_name = form.get("name")
+    upload = form.get("plist")
+    if not isinstance(raw_name, str) or upload is None or isinstance(upload, str):
+        raise HTTPException(
+            status_code=422, detail="multipart body requires 'name' and a 'plist' file"
+        )
+    if upload.size is not None and upload.size > _MAX_PLIST_BYTES:
+        raise HTTPException(status_code=413, detail="plist too large")
+
+    plist_bytes = await upload.read(_MAX_PLIST_BYTES + 1)
+    # Checked on the bytes already read, before any write.
+    if len(plist_bytes) > _MAX_PLIST_BYTES:
+        raise HTTPException(status_code=413, detail="plist too large")
+    plist_path = settings.state_dir / f".accessory-upload-{uuid.uuid4().hex}.plist"
+    # 0600 BEFORE the key material is written, the same order save_account()
+    # and add_accessory() use. state_dir is 0700, but a private key must not
+    # rest in a default-mode file even for the length of one request.
+    plist_path.touch(mode=0o600, exist_ok=False)
+    plist_path.chmod(0o600)
+    plist_path.write_bytes(plist_bytes)
+    return raw_name, plist_path, None, _parse_allow_overwrite(form.get("allow_overwrite"))
+
+
 async def _read_accessory_body(
     request: Request, settings
 ) -> tuple[str, Path | None, str | None, bool]:
@@ -108,35 +137,12 @@ async def _read_accessory_body(
     FastAPI parses one body as form data or JSON, so Content-Type picks the
     branch. `allow_overwrite` defaults to False in both; the dashboard's
     "Replace existing" confirm is the only caller sending true (CF-P2-19).
-    Both branches share the same size cap: a private key is far smaller
-    than a plist export, but CR-C-m4 found the JSON branch fully buffering
-    a multi-megabyte body before its 422, so it gets the plist-sized limit
-    rather than no limit at all.
+    Both share the same size cap (CR-C-m4): the JSON branch used to buffer
+    an unbounded body before its 422.
     """
     reject_oversized_content_length(request, _MAX_PLIST_BYTES + _MULTIPART_OVERHEAD_BYTES)
     if request.headers.get("content-type", "").startswith("multipart/form-data"):
-        form = await read_bounded_form(request, _MAX_PLIST_BYTES + _MULTIPART_OVERHEAD_BYTES)
-        raw_name = form.get("name")
-        upload = form.get("plist")
-        if not isinstance(raw_name, str) or upload is None or isinstance(upload, str):
-            raise HTTPException(
-                status_code=422, detail="multipart body requires 'name' and a 'plist' file"
-            )
-        if upload.size is not None and upload.size > _MAX_PLIST_BYTES:
-            raise HTTPException(status_code=413, detail="plist too large")
-
-        plist_bytes = await upload.read(_MAX_PLIST_BYTES + 1)
-        # Checked on the bytes already read, before any write.
-        if len(plist_bytes) > _MAX_PLIST_BYTES:
-            raise HTTPException(status_code=413, detail="plist too large")
-        plist_path = settings.state_dir / f".accessory-upload-{uuid.uuid4().hex}.plist"
-        # 0600 BEFORE the key material is written, the same order save_account()
-        # and add_accessory() use. state_dir is 0700, but a private key must not
-        # rest in a default-mode file even for the length of one request.
-        plist_path.touch(mode=0o600, exist_ok=False)
-        plist_path.chmod(0o600)
-        plist_path.write_bytes(plist_bytes)
-        return raw_name, plist_path, None, _parse_allow_overwrite(form.get("allow_overwrite"))
+        return await _read_multipart_accessory_body(request, settings)
 
     try:
         payload = await read_bounded_json(request, _MAX_PLIST_BYTES + _MULTIPART_OVERHEAD_BYTES)

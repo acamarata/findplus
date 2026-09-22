@@ -87,10 +87,7 @@ def add_accessory(
         try:
             key_bytes = base64.b64decode(private_key_b64, validate=True)
         except Exception as exc:
-            # CR-C-m4: this message reaches both the CLI and the web
-            # dashboard (routes_auth.py relays str(exc) as the 422 detail
-            # verbatim); no CLI flag wording, so the dashboard never shows
-            # a stray "--private-key:" a web user never typed.
+            # CR-C-m4: no CLI flag wording -- this reaches the dashboard too.
             raise ValueError("invalid base64") from exc
         if len(key_bytes) not in VALID_KEY_LENGTHS:
             raise ValueError(

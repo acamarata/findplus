@@ -140,7 +140,8 @@ def _print_listing(json_out: bool) -> None:
             return
 
         if not rows:
-            click.echo("No devices found on this account.")
+            click.echo("No devices known yet.")
+            click.echo("Sign in with `findplus auth`, then `findplus devices --refresh`.")
             return
 
         _print_device_table(session)
@@ -154,7 +155,11 @@ def _print_listing(json_out: bool) -> None:
 )
 @click.option("--untrack", "untrack_ids", multiple=True, help="Stop tracking a device id.")
 @click.option("--default", "default_id", default=None, help="Device the dashboard opens on.")
-@click.option("--refresh/--no-refresh", default=True, help="Re-query Find Hub for the list.")
+@click.option(
+    "--refresh/--no-refresh",
+    default=False,
+    help="Re-query Find Hub for the list before printing it (needs a signed-in account).",
+)
 @click.option("--json", "json_out", is_flag=True, help="Print the device list as JSON.")
 @click.pass_context
 def devices(
@@ -166,17 +171,15 @@ def devices(
     refresh: bool,
     json_out: bool,
 ) -> None:
-    """List every tracker Find+ knows about and choose which ones to track.
+    """List the trackers Find+ knows about and choose which ones to track.
 
-    The table covers all providers, because an Apple accessory that has
-    reported once has a device row too. `--refresh` re-reads the Google Find
-    Hub account only; Apple accessories are added with `findplus apple`.
-    Any number of devices can be tracked at once. Tracking N devices costs N
-    provider requests per poll cycle, so the effective request rate is shown.
-
-    `devices` is a group with its own callback: `findplus devices --track-all`
-    still runs this listing body, while `findplus devices label ...` and
-    `findplus devices icons` dispatch to the subcommands below instead.
+    Lists from the local database by default, so it works without a signed-in
+    account or a network call. Pass `--refresh` to re-read the Google Find
+    Hub account first; Apple accessories are added with `findplus apple`. The
+    table covers every provider, because an Apple accessory that has reported
+    once has a device row too. Any number of devices can be tracked at once;
+    tracking N devices costs N provider requests per poll cycle, so the
+    effective request rate is shown.
     """
     if ctx.invoked_subcommand is not None:
         return

@@ -158,6 +158,38 @@ def test_start_install_branch_without_yes_shows_plan(
     assert watchdog_calls == []
 
 
+# --------------------------------------------- g2/g3: interactive confirm (U1)
+def test_start_interactive_confirm_yes_installs(
+    tmp_db, monkeypatch: pytest.MonkeyPatch, _no_browser: list[str]
+) -> None:
+    _track_one_device(monkeypatch)
+    monkeypatch.setattr("findplus.service.is_installed", lambda: False)
+    monkeypatch.setattr("findplus.cli.cmd_service._interactive", lambda: True)
+    install_calls: list[dict] = []
+    monkeypatch.setattr("findplus.service.install", lambda *a, **k: install_calls.append(k))
+    monkeypatch.setattr("findplus.service.install_watchdog", lambda *a, **k: None)
+
+    result = CliRunner().invoke(main, ["start"], input="y\n")
+    assert result.exit_code == 0, result.output
+    assert "Install and start the service now?" in result.output
+    assert install_calls and install_calls[0]["confirmed"] is True
+
+
+def test_start_interactive_confirm_no_does_not_install(
+    tmp_db, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _track_one_device(monkeypatch)
+    monkeypatch.setattr("findplus.service.is_installed", lambda: False)
+    monkeypatch.setattr("findplus.cli.cmd_service._interactive", lambda: True)
+    install_calls: list[dict] = []
+    monkeypatch.setattr("findplus.service.install", lambda *a, **k: install_calls.append(k))
+
+    result = CliRunner().invoke(main, ["start"], input="n\n")
+    assert result.exit_code == 0, result.output
+    assert "Pass --yes" in result.output
+    assert install_calls == []
+
+
 # ------------------------------------------------------------- i: start --yes
 def test_start_yes_installs_confirmed(
     tmp_db, monkeypatch: pytest.MonkeyPatch, _no_browser: list[str]

@@ -111,6 +111,46 @@ def test_devices_default_still_lists_with_no_subcommand(selected) -> None:
     assert "TAG-001" in result.output
 
 
+# ------------------------------------------------------------- UAT U24
+def test_devices_default_lists_local_without_refresh_even_when_unauthed(
+    selected, monkeypatch
+) -> None:
+    """Bare `findplus devices` must not need a signed-in account: it lists
+    what is already stored and never calls the network unless `--refresh`
+    is passed. Before the fix, `--refresh` defaulted on and this exited 1."""
+
+    def _fail(self):
+        raise AssertionError("findplus devices must not refresh by default")
+
+    monkeypatch.setattr(
+        "findplus.providers.google_findhub.client.FindHubClient.list_devices", _fail
+    )
+
+    result = CliRunner().invoke(main, ["devices"])
+
+    assert result.exit_code == 0, result.output
+    assert "TAG-001" in result.output
+
+
+def test_devices_refresh_flag_still_queries_the_provider(selected, monkeypatch) -> None:
+    calls: list[bool] = []
+    monkeypatch.setattr(
+        "findplus.providers.google_findhub.client.FindHubClient.list_devices",
+        lambda self: calls.append(True) or [],
+    )
+
+    result = CliRunner().invoke(main, ["devices", "--refresh"])
+
+    assert result.exit_code == 0, result.output
+    assert calls == [True]
+
+
+def test_devices_help_has_no_internal_group_callback_note() -> None:
+    result = CliRunner().invoke(main, ["devices", "--help"])
+    assert result.exit_code == 0, result.output
+    assert "own callback" not in result.output
+
+
 def test_devices_label_sets_all_three_fields(selected) -> None:
     result = CliRunner().invoke(
         main,

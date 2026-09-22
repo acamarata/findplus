@@ -80,6 +80,49 @@ def test_rules_add_and_remove(tmp_db: str) -> None:
 def test_deliveries_empty(tmp_db: str) -> None:
     result = CliRunner().invoke(main, ["alerts", "deliveries"])
     assert result.exit_code == 0
+    assert "CHANNEL" in result.output
+    assert "ERROR" in result.output
+
+
+def test_deliveries_table_shows_channel_and_error_with_aligned_columns(tmp_db: str) -> None:
+    """UAT U23: the delivery log omitted the channel and error entirely, and
+    the surrounding columns must stay separated regardless of content width."""
+    from datetime import UTC, datetime
+
+    from findplus.db.models_alerts import AlertDelivery
+    from findplus.db.session import session_scope
+    from findplus.ingest import upsert_device
+
+    runner = CliRunner()
+    with session_scope() as s:
+        upsert_device(s, "dev1", "Tag1")
+    add_result = runner.invoke(
+        main, ["alerts", "rules", "add", "r1", "--device-id", "dev1", "--channel", "telegram"]
+    )
+    rule_id = int(add_result.output.split("Created rule ", 1)[1].split(":", 1)[0])
+    with session_scope() as s:
+        s.add(
+            AlertDelivery(
+                rule_id=rule_id,
+                event_kind="device",
+                event_id=1,
+                sent_at=datetime.now(UTC),
+                status="failed",
+                error="bot_token is invalid",
+                channel="telegram",
+            )
+        )
+
+    result = runner.invoke(main, ["alerts", "deliveries"])
+
+    assert result.exit_code == 0, result.output
+    assert "telegram" in result.output
+    assert "bot_token is invalid" in result.output
+    # Adjacent columns never run together: every header has a real gap after it.
+    header_line = result.output.splitlines()[0]
+    for header in ("ID", "RULE", "CHANNEL", "KIND", "SENT_AT", "STATUS", "ATTEMPTS"):
+        idx = header_line.index(header)
+        assert header_line[idx + len(header) : idx + len(header) + 2] in ("  ", "")
 
 
 def test_alerts_help_lists_subcommands(tmp_db: str) -> None:

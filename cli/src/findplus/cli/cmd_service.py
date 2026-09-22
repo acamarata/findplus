@@ -28,6 +28,7 @@ import httpx
 from findplus.config import get_settings
 
 from ._fmt import (
+    _interactive,
     _prep,
     _print_device_table,
     _print_nothing_tracked_hint,
@@ -159,7 +160,12 @@ def _install_or_start(service, program: str, yes: bool) -> bool:
         return True
     _show_service_plan(service.plan(program=program))
     _show_service_plan(service.watchdog_plan(program=program))
-    if not yes:
+    # R-P2-30.1 (UAT U1): an interactive terminal gets a real prompt instead
+    # of a dead end; a script or pipe (install.sh, cron, CI) never blocks on
+    # stdin and still needs --yes. Short-circuits on `not yes` first, so a
+    # caller who already passed --yes never hits _interactive()/confirm() at all.
+    prompt = "Install and start the service now?"
+    if not yes and not (_interactive() and click.confirm(prompt, default=True)):
         click.echo("Pass --yes to write these files and load the service.")
         return False
     service.install(confirmed=True, program=program)

@@ -23,6 +23,12 @@ from findplus.db.models_alerts import AlertDelivery, AlertRule
 from findplus.db.session import session_scope
 
 from . import alerts_channels
+from ._fmt import _render_table
+
+#: A table row's error stays skimmable; the full text is still in the API
+#: and the dashboard's delivery log (UAT U23 asked for the column, not for
+#: reproducing an unbounded webhook/Telegram error inline).
+_ERROR_CELL_MAX = 60
 
 alerts_cmd = click.Group(name="alerts", help="Manage alert channels, rules, and delivery history.")
 alerts_channels.register(alerts_cmd)
@@ -165,12 +171,35 @@ def deliveries_cmd(limit: int) -> None:
             .limit(limit)
             .all()
         )
-    click.echo(
-        f"{'ID':<6}{'RULE':<16}{'KIND':<8}{'SENT_AT':<26}{'STATUS':<10}{'ATTEMPTS':<9}NEXT_ATTEMPT"
+    headers = (
+        "ID",
+        "RULE",
+        "CHANNEL",
+        "KIND",
+        "SENT_AT",
+        "STATUS",
+        "ATTEMPTS",
+        "NEXT_ATTEMPT",
+        "ERROR",
     )
+    aligns = "<<<<<<>><"
+    table_rows = []
     for d, rule_name in rows:
         next_attempt = d.next_attempt_at.isoformat() if d.next_attempt_at else ""
-        click.echo(
-            f"{d.id:<6}{rule_name:<16}{d.event_kind or '':<8}"
-            f"{d.sent_at.isoformat():<26}{d.status or '':<10}{d.attempts:<9}{next_attempt}"
+        error = d.error or ""
+        if len(error) > _ERROR_CELL_MAX:
+            error = error[: _ERROR_CELL_MAX - 1] + "…"
+        table_rows.append(
+            (
+                d.id,
+                rule_name,
+                d.channel,
+                d.event_kind or "",
+                d.sent_at.isoformat(),
+                d.status or "",
+                d.attempts,
+                next_attempt,
+                error,
+            )
         )
+    _render_table(headers, aligns, table_rows)

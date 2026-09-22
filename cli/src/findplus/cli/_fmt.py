@@ -11,11 +11,24 @@ Constraints: No command logic here — pure helpers only, so each cmd_* module
 
 from __future__ import annotations
 
+import sys
+
 import click
 
 from findplus.config import get_settings
 from findplus.db.migrate import upgrade_to_head
 from findplus.logging_setup import configure_logging
+
+
+def _interactive() -> bool:
+    """True when stdin is a real terminal.
+
+    Gates prompts that must never hang a script or a pipe (`findplus start`'s
+    install confirmation, R-P2-30.1): a plain function, not an inline
+    `sys.stdin.isatty()` call, so a test can monkeypatch it after Click's
+    CliRunner has already swapped `sys.stdin` for its own stream.
+    """
+    return sys.stdin.isatty()
 
 
 def _prep(to_file: bool = False) -> None:
@@ -65,6 +78,28 @@ def _print_device_table(session) -> None:
         mark = click.style(" [x]", fg="green") if d.is_tracked else " [ ]"
         click.echo(f"{mark} {d.name:<30} {counts.get(d.device_id, 0):>7}  {d.device_id}")
     click.echo("")
+
+
+def _render_table(headers: tuple[str, ...], aligns: str, rows: list[tuple]) -> None:
+    """Print a table with a guaranteed 2-space gap between columns.
+
+    Each column's width is the max of its own header and cell lengths, not a
+    fixed guess -- a fixed-width column whose content reached its width left
+    zero gap before the next one ("RADIUSCOLOR", "200#3b82f6": UAT U23).
+    `aligns` is one `<`/`>` per column, same length as `headers`.
+    """
+    str_rows = [[str(c) if c is not None else "" for c in row] for row in rows]
+    widths = [
+        max(len(headers[i]), *(len(r[i]) for r in str_rows)) if str_rows else len(headers[i])
+        for i in range(len(headers))
+    ]
+
+    def _line(cells: list[str]) -> str:
+        return "  ".join(f"{c:{a}{w}}" for c, a, w in zip(cells, aligns, widths, strict=True))
+
+    click.secho(_line(list(headers)), bold=True)
+    for r in str_rows:
+        click.echo(_line(r))
 
 
 def _print_nothing_tracked_hint() -> None:

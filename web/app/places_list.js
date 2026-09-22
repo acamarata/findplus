@@ -88,9 +88,11 @@ function renderCard(place, presenceByPlace, devicesById) {
     name,
     meta,
     who,
-    cardButton("fp-card-edit", t("common.edit"), t("places.card.edit", { name: place.name }),
+    // V1: these had no button class at all (fully browser-default); devices.js's
+    // own row-edit button is the precedent for this exact "btn btn-tiny" pairing.
+    cardButton("fp-card-edit btn btn-tiny", t("common.edit"), t("places.card.edit", { name: place.name }),
       () => editPlace(place.id)),
-    cardButton("fp-card-delete", t("common.delete"), t("places.card.delete", { name: place.name }),
+    cardButton("fp-card-delete btn btn-tiny", t("common.delete"), t("places.card.delete", { name: place.name }),
       () => deletePlace(place.id)),
   );
   card.addEventListener("click", (event) => onCardClick(event, place));

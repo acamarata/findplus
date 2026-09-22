@@ -61,7 +61,10 @@ export function createPlaceLocator(host, { onPick }) {
   select.id = "fp-place-tracker-select";
   const useBtn = document.createElement("button");
   useBtn.type = "button";
-  useBtn.className = "btn-secondary";
+  // V1: a bare "btn-secondary" only carries background/border, not the
+  // padding/radius/cursor that live on .btn -- it read as a plain browser
+  // button. .btn-tiny matches this row's compact select+button layout.
+  useBtn.className = "btn btn-tiny";
   useBtn.id = "fp-place-use-tracker-btn";
   useBtn.textContent = t("places.field.use");
 
@@ -78,6 +81,7 @@ export function createPlaceLocator(host, { onPick }) {
   searchInput.placeholder = t("places.search.placeholder");
   const searchBtn = document.createElement("button");
   searchBtn.type = "button";
+  searchBtn.className = "btn btn-tiny";
   searchBtn.id = "fp-place-search-btn";
   searchBtn.textContent = t("places.search.button");
   const searchInputRow = document.createElement("div");

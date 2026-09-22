@@ -8,11 +8,11 @@ helper functions in the meantime.
 Stage 1 (2026-09-22) reported 6 over-cap files and 18 over-cap functions
 under `xfail`. Stage 2 split every one of those into siblings/helper modules
 (see git log for `test: split <file>` and `test: shrink <function>` commits
-the same day) and now enforces both caps for real. Four files were still
-under active edit by other builders past the 3-hour wait this ticket
-allows (test-infra/delivery-retry/UI builders), so they are named in the
-allowlists below instead of silently skipped -- remove an entry only in the
-same commit that actually splits/shrinks that file.
+the same day) and now enforces both caps for real. T1 (2026-09-22, findings
+queue) split/shrunk the last four allowlisted entries -- both dicts below are
+now empty on purpose, kept (not deleted) so a future over-cap file has a
+named place to land for the length of its own 3-hour wait, same convention
+as stage 2.
 """
 
 from __future__ import annotations
@@ -25,28 +25,10 @@ FUNCTION_CAP = 50
 FILE_CAP = 300
 
 #: path (relative to cli/tests/) -> why it isn't split yet.
-FILE_CAP_ALLOWLIST: dict[str, str] = {
-    "service/test_service_cmds.py": (
-        "E13 stage 2 (2026-09-22): over cap and under active edit by another "
-        "builder past the 3-hour wait; split it and remove this entry."
-    ),
-    "ui/test_places.py": (
-        "E13 stage 2 (2026-09-22): over cap and under active edit by another "
-        "builder past the 3-hour wait; split it and remove this entry."
-    ),
-}
+FILE_CAP_ALLOWLIST: dict[str, str] = {}
 
 #: (path relative to cli/tests/, function name) -> why it isn't shrunk yet.
-FUNCTION_CAP_ALLOWLIST: dict[tuple[str, str], str] = {
-    ("test_api_routes_snapshot.py", "test_route_paths_present"): (
-        "E13 stage 2 (2026-09-22): over cap and under active edit by another "
-        "builder past the 3-hour wait; shrink it and remove this entry."
-    ),
-    ("ui/test_setup_wizard.py", "test_devices_step_done_count_reflects_what_was_just_tracked"): (
-        "E13 stage 2 (2026-09-22): over cap and under active edit by another "
-        "builder past the 3-hour wait; shrink it and remove this entry."
-    ),
-}
+FUNCTION_CAP_ALLOWLIST: dict[tuple[str, str], str] = {}
 
 
 def _test_tree_files() -> list[Path]:

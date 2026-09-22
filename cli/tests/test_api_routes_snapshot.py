@@ -29,7 +29,8 @@ Constraints: Zero behavior change from the pre-split monolith is the bar —
              /api/settings/onboarding.last_step, bringing it to 73;
              the P2 custom-icons ticket adds POST/GET /api/icons/custom,
              GET /api/icons/custom/{icon_id}.png and
-             DELETE /api/icons/custom/{icon_id}, bringing it to 77.
+             DELETE /api/icons/custom/{icon_id}, bringing it to 77; the UAT
+             U4 fix adds GET /api/places/search, bringing it to 78.
 """
 
 from __future__ import annotations
@@ -74,7 +75,7 @@ def _app_routes(app):
 def test_route_count():
     app = create_app()
     routes = _app_routes(app)
-    assert len(routes) == 77
+    assert len(routes) == 78
 
 
 def test_route_paths_present():
@@ -124,6 +125,7 @@ def test_route_paths_present():
         "/api/places/{place_id}",
         "/api/places/events",
         "/api/places/presence",
+        "/api/places/search",
         "/api/version",
         "/api/widget",
         "/api/groups",

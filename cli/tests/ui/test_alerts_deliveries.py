@@ -87,6 +87,24 @@ async def test_delivery_log_shows_channel_and_status(page, base_url, ui_db):
     assert cells[7] == "connection refused"
 
 
+async def _open_alerts_at_viewport(page, base_url: str, viewport: dict) -> None:
+    """Navigate to the dashboard at `viewport` and land on the alerts tab.
+
+    Below 600px .fp-tabs (button[data-tab]) is display:none and the bottom
+    .fp-tabbar takes over (components/tabbar.js) -- same split
+    test_responsive.py's _open_tab() already follows for the phone tier.
+    Split out of the two viewport-parametrized tests below so each stays
+    under the function size cap (T1, findings queue item 1).
+    """
+    await page.set_viewport_size(viewport)
+    await page.goto(base_url + "/")
+    if viewport["width"] < 600:
+        await page.click('.fp-tabbar [data-tabbar-tab="alerts"]')
+    else:
+        await page.click('button[data-tab="alerts"]')
+    await page.wait_for_selector("#fp-telegram-section")
+
+
 @pytest.mark.parametrize("viewport", [{"width": 1280, "height": 900}])
 async def test_delivery_log_channel_and_kind_text_stays_inside_its_cell(
     page, base_url, ui_db, viewport
@@ -124,16 +142,7 @@ async def test_delivery_log_channel_and_kind_text_stays_inside_its_cell(
         ],
     )
 
-    await page.set_viewport_size(viewport)
-    await page.goto(base_url + "/")
-    # Below 600px .fp-tabs (button[data-tab]) is display:none and the bottom
-    # .fp-tabbar takes over (components/tabbar.js) -- same split
-    # test_responsive.py's _open_tab() already follows for the phone tier.
-    if viewport["width"] < 600:
-        await page.click('.fp-tabbar [data-tabbar-tab="alerts"]')
-    else:
-        await page.click('button[data-tab="alerts"]')
-    await page.wait_for_selector("#fp-telegram-section")
+    await _open_alerts_at_viewport(page, base_url, viewport)
     row = page.locator("#fp-deliveries-tbody tr", has_text=rule_name)
     await row.wait_for(state="visible")
 
@@ -160,14 +169,18 @@ async def test_delivery_log_is_readable_as_cards_at_375px(page, base_url, ui_db)
         ],
     )
 
-    await page.set_viewport_size({"width": 375, "height": 812})
-    await page.goto(base_url + "/")
-    await page.click('.fp-tabbar [data-tabbar-tab="alerts"]')
-    await page.wait_for_selector("#fp-telegram-section")
+    await _open_alerts_at_viewport(page, base_url, {"width": 375, "height": 812})
     row = page.locator("#fp-deliveries-tbody tr", has_text=rule_name)
     await row.wait_for(state="visible")
 
-    result = await page.evaluate(
+    _assert_card_layout(await _read_delivery_card_layout(page, rule_name))
+
+
+async def _read_delivery_card_layout(page, rule_name: str) -> dict:
+    """Evaluate the rendered Channel cell's card-mode layout for `rule_name`'s
+    row. Split out of test_delivery_log_is_readable_as_cards_at_375px so that
+    test stays under the function size cap (T1, findings queue item 1)."""
+    return await page.evaluate(
         """(name) => {
             const row = [...document.querySelectorAll('#fp-deliveries-tbody tr')]
                 .find((r) => r.textContent.includes(name));
@@ -186,6 +199,10 @@ async def test_delivery_log_is_readable_as_cards_at_375px(page, base_url, ui_db)
         }""",
         rule_name,
     )
+
+
+def _assert_card_layout(result: dict) -> None:
+    """UAT U9 assertions for the 375px card layout."""
     assert result["overflowX"] <= 1, f"page scrolls horizontally: {result['overflowX']}px"
     assert result["channelLabel"] == "Channel", (
         "the card needs its own label with the header hidden"

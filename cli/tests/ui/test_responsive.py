@@ -133,3 +133,32 @@ async def test_export_download_button_joins_the_export_row(page, base_url):
             === document.getElementById('export-format').closest('.export-group')"""
     )
     assert same_group
+
+
+async def test_map_top_within_first_viewport_at_phone_width(page, base_url):
+    """UAT U26: the map used to sit entirely below a full 812px screen of
+    stacked cards and wrapped filters. The compact 2-column cards and
+    tighter filter spacing (responsive.css) bring its top edge back inside
+    the first screen instead of a full scroll down."""
+    await page.set_viewport_size({"width": PHONE_WIDTH, "height": PHONE_HEIGHT})
+    await page.goto(base_url + "/")
+    await page.wait_for_selector("#app-shell:not(.hidden)")
+
+    box = await page.locator("#map").bounding_box()
+    assert box is not None
+    assert box["y"] < PHONE_HEIGHT * 0.75, f"#map top at y={box['y']}, not within the first screen"
+
+
+async def test_group_label_stays_with_its_select_at_phone_width(page, base_url):
+    """UAT U26: "Group:" used to wrap onto its own line, separated from the
+    select it labels, when .controls wrapped at phone width."""
+    await page.set_viewport_size({"width": PHONE_WIDTH, "height": PHONE_HEIGHT})
+    await page.goto(base_url + "/")
+    await page.wait_for_selector("#app-shell:not(.hidden)")
+
+    label_box = await page.locator('label[for="fp-group-select"]').bounding_box()
+    select_box = await page.locator("#fp-group-select").bounding_box()
+    assert label_box is not None and select_box is not None
+    assert abs(label_box["y"] - select_box["y"]) < 10, (
+        "Group: label not on the same row as its select"
+    )

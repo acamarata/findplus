@@ -86,9 +86,7 @@ async def test_widget_map_toggle_persists(page, base_url):
     # U27: the widget toggle is macOS-only and hidden without this stub
     # (window.__findplus_native, set only by the Tauri window at runtime —
     # see test_setup_wizard_native.py for the hidden-by-default coverage).
-    await page.add_init_script(
-        "window.__findplus_native = true;"
-    )
+    await page.add_init_script("window.__findplus_native = true;")
     await open_alerts_tab(page, base_url)
     toggle = page.locator("#fp-widget-map-toggle")
     await toggle.wait_for(state="visible")
@@ -161,3 +159,108 @@ async def test_the_cooldown_default_matches_the_api(page, base_url):
         }"""
     )
     assert value == "30"
+
+
+async def test_reopening_add_rule_never_inherits_the_previous_rules_ticks(page, base_url):
+    """UAT U12: rule 1 additionally ticked webhook; rule 2's dialog must open
+    with only the "telegram" default ticked, not webhook carried over."""
+    await open_alerts_tab(page, base_url)
+    await page.click("#fp-add-rule-btn")
+    await page.wait_for_selector("#fp-add-rule-dialog[open]")
+    await page.fill("#fp-rule-name", "U12 rule 1")
+    await page.select_option("#fp-rule-device", label="Ali's Keys")
+    await page.check("#fp-rule-channels input[data-channel=webhook]")
+    await page.click("#fp-rule-save")
+    await page.wait_for_function("() => !document.getElementById('fp-add-rule-dialog').open")
+
+    await page.click("#fp-add-rule-btn")
+    await page.wait_for_selector("#fp-add-rule-dialog[open]")
+    checked = await page.eval_on_selector_all(
+        "#fp-rule-channels input[type=checkbox]:checked",
+        "els => els.map((el) => el.dataset.channel)",
+    )
+    assert checked == ["telegram"], f"leftover ticks from the previous rule: {checked}"
+
+
+async def test_add_rule_dialog_disables_an_unconnected_channel(page, base_url):
+    """UAT U11: a channel with no stored credentials cannot be ticked -- a
+    rule cannot be saved targeting a channel that will only ever fail.
+
+    Telegram is explicitly cleared first (idempotent DELETE) rather than
+    assumed unconnected from a clean DB: test_alerts_telegram.py in the same
+    session may have connected it before this file's tests run.
+    """
+    clear_resp = await page.request.delete(base_url + "/api/alerts/channels/telegram")
+    assert clear_resp.ok, await clear_resp.text()
+    await open_alerts_tab(page, base_url)
+    await page.click("#fp-add-rule-btn")
+    await page.wait_for_selector("#fp-add-rule-dialog[open]")
+    telegram = page.locator("#fp-rule-channels input[data-channel=telegram]")
+    await page.wait_for_function(
+        "document.querySelector('#fp-rule-channels input[data-channel=telegram]').disabled === true"
+    )
+    assert await telegram.is_checked() is False
+    assert await telegram.is_disabled() is True
+
+
+async def test_edit_rule_prefills_and_updates_the_row(page, base_url):
+    """UAT U13: Edit opens the same dialog pre-filled and PUTs, never re-POSTs
+    a duplicate row; the target radios are locked since the API cannot
+    retarget a rule (routes_alerts_rules.py's RuleUpdate)."""
+    create_resp = await page.request.post(
+        base_url + "/api/alerts/rules",
+        data=json.dumps(
+            {"name": "U13 edit rule", "device_id": "TAG-HOME", "channels": ["webhook"]}
+        ),
+        headers={"Content-Type": "application/json"},
+    )
+    assert create_resp.ok, await create_resp.text()
+    rule_id = (await create_resp.json())["id"]
+
+    await open_alerts_tab(page, base_url)
+    row = page.locator("#fp-rules-tbody tr", has_text="U13 edit rule")
+    await row.wait_for(state="visible")
+    await row.get_by_text("Edit", exact=True).click()
+    await page.wait_for_selector("#fp-add-rule-dialog[open]")
+    assert await page.input_value("#fp-rule-name") == "U13 edit rule"
+    assert await page.is_disabled("#fp-rule-target-device") is True
+
+    await page.fill("#fp-rule-name", "U13 edit rule (renamed)")
+    await page.click("#fp-rule-save")
+    await page.wait_for_function("() => !document.getElementById('fp-add-rule-dialog').open")
+
+    rules = await (await page.request.get(base_url + "/api/alerts/rules")).json()
+    matching = [r for r in rules if r["id"] == rule_id]
+    assert len(matching) == 1, "editing must PUT the existing row, never create a second one"
+    assert matching[0]["name"] == "U13 edit rule (renamed)"
+
+
+async def test_the_enabled_toggle_disables_a_rule_without_deleting_it(page, base_url):
+    """UAT U13: dispatch.py already filters on `enabled` server-side -- this
+    proves the dashboard's toggle reaches that same column."""
+    create_resp = await page.request.post(
+        base_url + "/api/alerts/rules",
+        data=json.dumps(
+            {"name": "U13 toggle rule", "device_id": "TAG-HOME", "channels": ["webhook"]}
+        ),
+        headers={"Content-Type": "application/json"},
+    )
+    assert create_resp.ok, await create_resp.text()
+    rule_id = (await create_resp.json())["id"]
+
+    await open_alerts_tab(page, base_url)
+    row = page.locator("#fp-rules-tbody tr", has_text="U13 toggle rule")
+    await row.wait_for(state="visible")
+    toggle = row.locator("input[type=checkbox]")
+    await toggle.wait_for(state="visible")
+    assert await toggle.is_checked() is True
+
+    await toggle.uncheck()
+    await page.wait_for_function(
+        """async (id) => {
+            const r = await fetch('/api/alerts/rules');
+            const rule = (await r.json()).find((r) => r.id === id);
+            return rule && rule.enabled === false;
+        }""",
+        arg=rule_id,
+    )

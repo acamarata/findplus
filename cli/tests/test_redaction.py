@@ -81,7 +81,9 @@ def test_the_delivery_status_path_redacts_before_storing(monkeypatch) -> None:
     monkeypatch.setattr(dispatch_send, "render_message", lambda *a, **k: "msg")
     monkeypatch.setattr(dispatch_send, "_send", lambda *a, **k: _Result())
 
-    status, err = dispatch_send._status_for("webhook", _Rule(), object(), "device", None, None)
+    status, err, _status_code, _retry_after = dispatch_send._status_for(
+        "webhook", _Rule(), object(), "device", None, None
+    )
 
     assert status == "failed"
     assert "874216" not in err
@@ -100,7 +102,9 @@ def test_an_exception_message_is_redacted_too(monkeypatch) -> None:
     monkeypatch.setattr(dispatch_send, "render_message", lambda *a, **k: "msg")
     monkeypatch.setattr(dispatch_send, "_send", _boom)
 
-    status, err = dispatch_send._status_for("webhook", _Rule(), object(), "device", None, None)
+    status, err, _status_code, _retry_after = dispatch_send._status_for(
+        "webhook", _Rule(), object(), "device", None, None
+    )
 
     assert status == "failed"
     assert "874216" not in err

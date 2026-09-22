@@ -210,6 +210,8 @@ def test_no_join_field_leaks_into_the_response(client: TestClient) -> None:
         "delivered_at",
         "status",
         "error",
+        "attempts",
+        "next_attempt_at",
         "text",
         "body",
     }
@@ -270,6 +272,8 @@ def test_batched_rendering_is_byte_identical_to_the_old_per_row_output(
             "delivered_at": None,
             "status": "queued",
             "error": None,
+            "attempts": 1,
+            "next_attempt_at": None,
             "text": "Tag arrived at Home",
             "body": (
                 "Observed 2026-09-20 08:00 EDT · reported 08:00 · 0 min late\n"
@@ -289,6 +293,8 @@ def test_batched_rendering_is_byte_identical_to_the_old_per_row_output(
             "delivered_at": None,
             "status": "queued",
             "error": None,
+            "attempts": 1,
+            "next_attempt_at": None,
             "text": None,
             "body": None,
         },
@@ -303,6 +309,8 @@ def test_batched_rendering_is_byte_identical_to_the_old_per_row_output(
             "delivered_at": None,
             "status": "queued",
             "error": None,
+            "attempts": 1,
+            "next_attempt_at": None,
             "text": "Family arrived at Home",
             "body": (
                 "Observed 2026-09-20 08:00 EDT · reported unknown · lag unknown\n"

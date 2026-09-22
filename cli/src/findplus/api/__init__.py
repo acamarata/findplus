@@ -47,6 +47,7 @@ from . import (
     routes_providers,
     routes_settings,
 )
+from ._app_instance import new_fastapi_app
 from ._routes_history_export import build_export_router
 from .middleware import OriginGuardMiddleware, SecurityHeadersMiddleware
 
@@ -259,22 +260,7 @@ def create_app(
     """
     settings = get_settings()
     sessions = sessions or SessionStore()
-    app = FastAPI(
-        title="Find+",
-        version=__version__,
-        description="Local Find Hub location history. Not for emergency use.",
-        # Swagger UI and ReDoc fetch their JS/CSS from cdn.jsdelivr.net and a
-        # favicon from fastapi.tiangolo.com — invariant 9 forbids third-party
-        # scripts, and the CSP would blank the page anyway. The machine-
-        # readable schema stays: it is authed and serves no remote asset.
-        # The API reference for humans lives in .github/wiki/API-reference.md.
-        docs_url=None,
-        redoc_url=None,
-        # Schema lives under /api/ so the app lock covers it; at the FastAPI
-        # default (/openapi.json) it sat outside the gated prefix and
-        # described every route to anyone who could reach the port.
-        openapi_url="/api/openapi.json",
-    )
+    app = new_fastapi_app(__version__)
     app.state.bound_host = bound_host or settings.host
     app.state.bound_port = bound_port or settings.port
     # Registration order is inside-out: the LAST middleware added runs FIRST,

@@ -20,7 +20,7 @@ def test_telegram_setup_rejects_a_malformed_token_before_any_request(
     tmp_db: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     setup_mock = MagicMock()
-    monkeypatch.setattr("findplus.cli.alerts.telegram_setup", setup_mock)
+    monkeypatch.setattr("findplus.cli.alerts_channels.telegram_setup", setup_mock)
     result = CliRunner().invoke(main, ["alerts", "telegram-setup", "--token", "tok"])
     assert result.exit_code != 0
     assert "BotFather" in result.output
@@ -33,13 +33,13 @@ def test_webhook_set_invalid_url(tmp_db: str) -> None:
 
 
 def test_webhook_set_https_ok(tmp_db: str, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("findplus.cli.alerts.save_channel", MagicMock())
+    monkeypatch.setattr("findplus.cli.alerts_channels.save_channel", MagicMock())
     result = CliRunner().invoke(main, ["alerts", "webhook-set", "https://example.com/hook"])
     assert result.exit_code == 0
 
 
 def test_test_channel_not_configured(tmp_db: str, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("findplus.cli.alerts.load_alerts", lambda: AlertsChannels())
+    monkeypatch.setattr("findplus.cli.alerts_channels.load_alerts", lambda: AlertsChannels())
     result = CliRunner().invoke(main, ["alerts", "test", "--channel", "telegram"])
     assert result.exit_code != 0
     assert "not configured" in result.output
@@ -139,7 +139,7 @@ def test_whatsapp_set_then_clear_round_trips(tmp_db: str) -> None:
 
 
 def test_test_channel_whatsapp_not_configured(tmp_db: str, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("findplus.cli.alerts.load_alerts", lambda: AlertsChannels())
+    monkeypatch.setattr("findplus.cli.alerts_channels.load_alerts", lambda: AlertsChannels())
     result = CliRunner().invoke(main, ["alerts", "test", "--channel", "whatsapp"])
     assert result.exit_code != 0
     assert "WhatsApp not configured" in result.output

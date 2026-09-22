@@ -30,8 +30,11 @@ SEEDED_ICON = "lucide:key"
 
 
 def _png_chunk(chunk_type: bytes, data: bytes) -> bytes:
-    return struct.pack(">I", len(data)) + chunk_type + data + struct.pack(
-        ">I", zlib.crc32(chunk_type + data)
+    return (
+        struct.pack(">I", len(data))
+        + chunk_type
+        + data
+        + struct.pack(">I", zlib.crc32(chunk_type + data))
     )
 
 

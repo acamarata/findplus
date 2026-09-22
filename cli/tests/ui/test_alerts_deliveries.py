@@ -73,24 +73,31 @@ async def test_delivery_log_shows_channel_and_status(page, base_url, ui_db):
     await row.wait_for(state="visible")
     cells = await row.locator("td").all_text_contents()
 
-    assert cells[1] == "webhook"
+    # UAT U22: channel/status render through the alerts.channels/statuses
+    # catalogs, not the raw stored id ("webhook"/"failed").
+    assert cells[1] == "Webhook"
     # text/body are rendered server-side for native rows only (notifications.md
     # §2), so a webhook row shows the empty-value placeholder in both.
     assert cells[3] == "—"
     assert cells[4] == "—"
-    assert cells[6] == "failed"
+    # U22: "Sent" stays empty for a failed row -- it never went out at that
+    # timestamp, `sent_at` is really "first attempted at" (alerts/retry.py).
+    assert cells[5] == "—"
+    assert cells[6] == "Failed"
     assert cells[7] == "connection refused"
 
 
-@pytest.mark.parametrize(
-    "viewport", [{"width": 1280, "height": 900}, {"width": 375, "height": 812}]
-)
+@pytest.mark.parametrize("viewport", [{"width": 1280, "height": 900}])
 async def test_delivery_log_channel_and_kind_text_stays_inside_its_cell(
     page, base_url, ui_db, viewport
 ):
     """loop2 L2-6: Channel/Kind painted past their own cell into the
-    neighbouring column's text at 1280 and 375 -- components.css truncated
+    neighbouring column's text at 1280 -- components.css truncated
     Text/Body/Error with an ellipsis but not these two.
+
+    375px dropped from this parametrize at UAT U9: the delivery log is a
+    stacked card layout below 600px now (responsive.css), which deliberately
+    stops truncating -- see test_delivery_log_is_readable_as_cards_at_375px.
 
     `text-overflow: ellipsis` only changes what is PAINTED, not the box model:
     a Range spanning the cell's text reports the same unclipped
@@ -132,6 +139,65 @@ async def test_delivery_log_channel_and_kind_text_stays_inside_its_cell(
 
     for index, column in ((1, "Channel"), (2, "Kind")):
         await _assert_cell_clips_its_overflow(page, rule_name, index, column, viewport["width"])
+
+
+async def test_delivery_log_is_readable_as_cards_at_375px(page, base_url, ui_db):
+    """UAT U9: below 600px the 8-column table becomes one labelled card per
+    delivery (responsive.css) instead of ellipsis-truncated, 7-line-wrapped
+    columns -- the opposite of L2-6's desktop assertion: nothing needs to
+    clip because nothing is squeezed into a fixed-width column any more."""
+    rule_name = "U9 card rule"
+    rule_id = await _create_rule(page, base_url, rule_name, ["telegram"])
+    _insert_delivery_rows(
+        ui_db,
+        [
+            (
+                "INSERT INTO alert_deliveries"
+                " (rule_id, event_kind, event_id, channel, sent_at, status, error)"
+                " VALUES (?, 'device', 9001, 'telegram', '2026-09-20 12:00:00', 'sent', NULL)",
+                (rule_id,),
+            )
+        ],
+    )
+
+    await page.set_viewport_size({"width": 375, "height": 812})
+    await page.goto(base_url + "/")
+    await page.click('.fp-tabbar [data-tabbar-tab="alerts"]')
+    await page.wait_for_selector("#fp-telegram-section")
+    row = page.locator("#fp-deliveries-tbody tr", has_text=rule_name)
+    await row.wait_for(state="visible")
+
+    result = await page.evaluate(
+        """(name) => {
+            const row = [...document.querySelectorAll('#fp-deliveries-tbody tr')]
+                .find((r) => r.textContent.includes(name));
+            const channelCell = row.children[1];
+            const style = getComputedStyle(channelCell);
+            const thead = document.querySelector('#fp-deliveries-table thead');
+            const html = document.documentElement;
+            return {
+                overflowX: html.scrollWidth - html.clientWidth,
+                channelLabel: channelCell.dataset.label,
+                overflow: style.overflow,
+                whiteSpace: style.whiteSpace,
+                rowDisplay: getComputedStyle(row).display,
+                theadDisplay: getComputedStyle(thead).display,
+            };
+        }""",
+        rule_name,
+    )
+    assert result["overflowX"] <= 1, f"page scrolls horizontally: {result['overflowX']}px"
+    assert result["channelLabel"] == "Channel", (
+        "the card needs its own label with the header hidden"
+    )
+    assert result["overflow"] == "visible", (
+        f"Channel cell overflow is {result['overflow']!r}, still clipping"
+    )
+    assert result["whiteSpace"] == "normal", f"Channel cell white-space is {result['whiteSpace']!r}"
+    assert result["rowDisplay"] == "block", "a row should stack as a card, not stay a table row"
+    assert result["theadDisplay"] == "none", (
+        "the column headers are replaced by each td's data-label"
+    )
 
 
 async def _assert_cell_clips_its_overflow(

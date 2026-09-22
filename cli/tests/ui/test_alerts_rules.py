@@ -163,28 +163,50 @@ async def test_the_cooldown_default_matches_the_api(page, base_url):
 
 async def test_reopening_add_rule_never_inherits_the_previous_rules_ticks(page, base_url):
     """UAT U12: rule 1 additionally ticked webhook; rule 2's dialog must open
-    with only the "telegram" default ticked, not webhook carried over."""
-    await open_alerts_tab(page, base_url)
-    await page.click("#fp-add-rule-btn")
-    await page.wait_for_selector("#fp-add-rule-dialog[open]")
-    await page.fill("#fp-rule-name", "U12 rule 1")
-    await page.select_option("#fp-rule-device", label="Ali's Keys")
-    await page.check("#fp-rule-channels input[data-channel=webhook]")
-    await page.click("#fp-rule-save")
-    await page.wait_for_function("() => !document.getElementById('fp-add-rule-dialog').open")
+    with only the "telegram" default ticked, not webhook carried over.
 
-    await page.click("#fp-add-rule-btn")
-    await page.wait_for_selector("#fp-add-rule-dialog[open]")
-    checked = await page.eval_on_selector_all(
-        "#fp-rule-channels input[type=checkbox]:checked",
-        "els => els.map((el) => el.dataset.channel)",
+    Webhook is connected first (a plain PUT, no network call -- see U11's own
+    test for why telegram/webhook/whatsapp start disconnected and disabled in
+    this suite's seed data): otherwise U11's own fix disables the checkbox
+    this test needs to tick, for an unrelated reason.
+    """
+    put_resp = await page.request.put(
+        base_url + "/api/alerts/channels/webhook",
+        data='{"url": "https://example.com/hook"}',
+        headers={"Content-Type": "application/json"},
     )
-    assert checked == ["telegram"], f"leftover ticks from the previous rule: {checked}"
+    assert put_resp.ok, await put_resp.text()
+    try:
+        await open_alerts_tab(page, base_url)
+        await page.click("#fp-add-rule-btn")
+        await page.wait_for_selector("#fp-add-rule-dialog[open]")
+        await page.fill("#fp-rule-name", "U12 rule 1")
+        await page.select_option("#fp-rule-device", label="Ali's Keys")
+        await page.wait_for_function(
+            "document.querySelector('#fp-rule-channels input[data-channel=webhook]').disabled"
+            " === false"
+        )
+        await page.check("#fp-rule-channels input[data-channel=webhook]")
+        await page.click("#fp-rule-save")
+        await page.wait_for_function("() => !document.getElementById('fp-add-rule-dialog').open")
+
+        await page.click("#fp-add-rule-btn")
+        await page.wait_for_selector("#fp-add-rule-dialog[open]")
+        checked = await page.eval_on_selector_all(
+            "#fp-rule-channels input[type=checkbox]:checked",
+            "els => els.map((el) => el.dataset.channel)",
+        )
+        assert checked == ["telegram"], f"leftover ticks from the previous rule: {checked}"
+    finally:
+        await page.request.delete(base_url + "/api/alerts/channels/webhook")
 
 
-async def test_add_rule_dialog_disables_an_unconnected_channel(page, base_url):
-    """UAT U11: a channel with no stored credentials cannot be ticked -- a
-    rule cannot be saved targeting a channel that will only ever fail.
+async def test_add_rule_dialog_flags_an_unconnected_channel(page, base_url):
+    """UAT U11: a channel with no stored credentials is flagged in the
+    dialog -- dimmed, and its label carries a "(not connected)" suffix
+    (channelLabels() in alerts_rule_channels.js) -- but still tickable: a
+    fresh install with nothing connected yet must still be able to create its
+    first rule (channels is a required, non-empty field server-side).
 
     Telegram is explicitly cleared first (idempotent DELETE) rather than
     assumed unconnected from a clean DB: test_alerts_telegram.py in the same
@@ -195,12 +217,14 @@ async def test_add_rule_dialog_disables_an_unconnected_channel(page, base_url):
     await open_alerts_tab(page, base_url)
     await page.click("#fp-add-rule-btn")
     await page.wait_for_selector("#fp-add-rule-dialog[open]")
-    telegram = page.locator("#fp-rule-channels input[data-channel=telegram]")
+    telegram_option = page.locator("#fp-rule-channels label:has(input[data-channel=telegram])")
     await page.wait_for_function(
-        "document.querySelector('#fp-rule-channels input[data-channel=telegram]').disabled === true"
+        """document.querySelector('#fp-rule-channels label:has(input[data-channel=telegram])')
+            .classList.contains('fp-channel-picker-option--disconnected')"""
     )
-    assert await telegram.is_checked() is False
-    assert await telegram.is_disabled() is True
+    telegram = page.locator("#fp-rule-channels input[data-channel=telegram]")
+    assert await telegram.is_disabled() is False, "still tickable -- U11 flags, it does not block"
+    assert "not connected" in await telegram_option.inner_text()
 
 
 async def test_edit_rule_prefills_and_updates_the_row(page, base_url):

@@ -13,10 +13,11 @@
  *              module has no top-level side effects of its own.
  */
 "use strict";
-import { $, state, showAlert } from "./state.js";
+import { $, state, displayName, showAlert } from "./state.js";
 import { api } from "./api.js";
 import { t } from "./i18n.js";
 import { renderChannelPicker, readChannelPicker } from "./components/channel-picker.js";
+import { BASE_CHANNELS, availableChannels, connectedChannels, channelLabels } from "./alerts_rule_channels.js";
 
 export async function loadRules() {
   renderRulesTable(await api("/api/alerts/rules"));
@@ -30,6 +31,33 @@ function cell(text) {
   td.textContent = text;
   return td;
 }
+/** UAT U13: enabled/disabled toggle, PUT-ing the single field. Dispatch
+ *  already filters on `enabled` server-side (dispatch.py); this is the only
+ *  piece that was missing. */
+function enabledToggleCell(rule) {
+  const td = document.createElement("td");
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.checked = rule.enabled;
+  input.setAttribute("aria-label", t("alerts.ruleEnabledLabel", { name: rule.name }));
+  input.addEventListener("change", async () => {
+    const next = input.checked;
+    try {
+      await api(`/api/alerts/rules/${rule.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: next }),
+      });
+    } catch (err) {
+      input.checked = !next;
+      if (err.message !== "Locked") {
+        showAlert(t("alerts.ruleUpdateFailed", { name: rule.name, status: err.message }), "err");
+      }
+    }
+  });
+  td.appendChild(input);
+  return td;
+}
 function buildRuleRow(rule) {
   const tr = document.createElement("tr");
   tr.append(
@@ -37,13 +65,18 @@ function buildRuleRow(rule) {
     cell(rule.on_enter ? t("common.yes") : t("common.no")),
     cell(rule.on_exit ? t("common.yes") : t("common.no")),
     cell(rule.channels.join(", ")),
+    enabledToggleCell(rule),
   );
   const actions = document.createElement("td");
+  const editBtn = document.createElement("button");
+  editBtn.type = "button";
+  editBtn.textContent = t("common.edit");
+  editBtn.addEventListener("click", () => openRuleDialog(rule));
   const delBtn = document.createElement("button");
   delBtn.type = "button";
   delBtn.textContent = t("common.delete");
   delBtn.addEventListener("click", () => deleteRule(rule.id, rule.name));
-  actions.appendChild(delBtn);
+  actions.append(editBtn, delBtn);
   tr.appendChild(actions);
   return tr;
 }
@@ -109,7 +142,8 @@ async function populateRuleSelects() {
     ensureDevices(),
   ]);
   fillOptions($("fp-rule-place"), places, (p) => [String(p.id), p.name]);
-  fillOptions($("fp-rule-device"), devices, (d) => [d.device_id, d.name]);
+  // UAT U6: the rule form's own Device select shows the label too.
+  fillOptions($("fp-rule-device"), devices, (d) => [d.device_id, displayName(d)]);
   let groups = [];
   try {
     groups = await api("/api/groups");
@@ -121,66 +155,70 @@ export function updateRuleTargetVisibility() {
   $("fp-rule-device").classList.toggle("hidden", !isDevice);
   $("fp-rule-group").classList.toggle("hidden", isDevice);
 }
-/* Native alerts need the menu bar app's poller, which is macOS-only in 1.1.
- * Resolved on the first dialog open and cached from then on -- deliberately NOT
- * at module load, which would put a fetch on the boot path competing with the
- * devices load every page does. /api/version is public (api/__init__.py's
- * _PUBLIC), so this never trips the lock screen. ANY failure leaves native out
- * of the list, so a fetch error can never offer a channel that will not fire. */
-const BASE_CHANNELS = ["telegram", "webhook", "whatsapp"];
-let availableChannels = null;
-function loadAvailableChannels() {
-  availableChannels ||= fetch("/api/version")
-    .then((r) => (r.ok ? r.json() : {}))
-    .then((version) =>
-      typeof version.platform === "string" && version.platform.startsWith("macOS")
-        ? [...BASE_CHANNELS, "native"]
-        : BASE_CHANNELS,
-    )
-    .catch(() => BASE_CHANNELS);
-  return availableChannels;
-}
 
-/** The caller resolves every label; channel-picker.js imports no i18n. */
-function channelLabels() {
-  return Object.fromEntries(
-    [...BASE_CHANNELS, "native"].map((id) => [id, t("alerts.channels." + id)]),
-  );
-}
+/** null for "Add rule"; the rule row being edited otherwise (UAT U13). */
+let editingRuleId = null;
 
-export async function openAddRuleDialog() {
+/**
+ * Open the add/edit-rule dialog, always reset to `rule`'s values (or blank
+ * defaults for a new rule) -- never to whatever the dialog last held, so a
+ * second "Add rule" can never inherit an earlier rule's ticks (UAT U12).
+ *
+ * RuleUpdate has no device_id/group_id field (the API never lets an edit
+ * retarget a rule -- routes_alerts_rules.py's RuleUpdate), so both target
+ * inputs are disabled while editing; saveRule() below matches by only
+ * sending a target on create.
+ */
+export async function openRuleDialog(rule = null) {
+  editingRuleId = rule ? rule.id : null;
+  $("fp-add-rule-dialog").setAttribute("aria-label", t(rule ? "alerts.editRule" : "alerts.addRule"));
   // Everything the dialog shows without a round trip is set first and the
   // dialog opens at once; the three selects carry a "Loading…" placeholder
   // until their data lands, rather than the dialog hanging shut on a fetch.
   ["fp-rule-place", "fp-rule-device", "fp-rule-group"].forEach((id) => fillLoading($(id)));
-  $("fp-rule-name").value = "";
-  $("fp-rule-on-enter").checked = true;
-  $("fp-rule-on-exit").checked = false;
+  $("fp-rule-name").value = rule ? rule.name : "";
+  $("fp-rule-on-enter").checked = rule ? rule.on_enter : true;
+  $("fp-rule-on-exit").checked = rule ? !!rule.on_exit : false;
   // The API default (routes_alerts_rules.py:33) and the CLI's, so a rule
   // created here does not suppress for twice as long as one created
   // with `findplus alerts add` (E1 honesty round 3 F9).
-  $("fp-rule-cooldown").value = "30";
-  $("fp-rule-target-device").checked = true;
+  $("fp-rule-cooldown").value = String(rule ? rule.cooldown_minutes : 30);
+  const isGroup = !!(rule && rule.group_id != null);
+  $("fp-rule-target-device").checked = !isGroup;
+  $("fp-rule-target-group").checked = isGroup;
+  $("fp-rule-target-device").disabled = $("fp-rule-target-group").disabled = !!rule;
   updateRuleTargetVisibility();
   $("fp-rule-error").textContent = "";
-  
+
+  const initialChannels = rule ? rule.channels : ["telegram"];
   renderChannelPicker($("fp-rule-channels"), {
-    selected: ["telegram"],
+    selected: initialChannels,
     available: BASE_CHANNELS,
-    labels: channelLabels(),
+    labels: channelLabels(null),
   });
-  
+
   $("fp-add-rule-dialog").showModal();
 
   // In parallel, not in series: the channel list is usually already resolved,
   // and it must never add a round-trip to the time the dialog takes to open.
-  const [, available] = await Promise.all([populateRuleSelects(), loadAvailableChannels()]);
+  const [, available, connected] = await Promise.all([
+    populateRuleSelects(), availableChannels(), connectedChannels(),
+  ]);
+  if (rule) {
+    $("fp-rule-place").value = rule.place_id != null ? String(rule.place_id) : "";
+    $("fp-rule-device").value = rule.device_id || "";
+    $("fp-rule-group").value = rule.group_id != null ? String(rule.group_id) : "";
+  }
+  // `initialChannels`, never readChannelPicker() off the current DOM (UAT
+  // U12): a fresh open's selection always traces back to `rule`/the default.
   renderChannelPicker($("fp-rule-channels"), {
-    selected: readChannelPicker($("fp-rule-channels")),
+    selected: initialChannels,
     available,
-    labels: channelLabels(),
+    labels: channelLabels(connected),
+    connected,
   });
 }
+export const openAddRuleDialog = () => openRuleDialog(null);
 /** "" -> null, so an unchosen select is not silently id 0. */
 function numberOrNull(value) {
   const n = Number(value);
@@ -196,8 +234,6 @@ export async function saveRule() {
     // so PRAGMA foreign_keys=ON turned the save into a raw 500 in the dialog
     // (E1 honesty round 3 F8). null is what "nothing chosen" means.
     place_id: numberOrNull($("fp-rule-place").value),
-    device_id: (isDevice ? $("fp-rule-device").value : "") || null,
-    group_id: isDevice ? null : numberOrNull($("fp-rule-group").value),
     on_enter: $("fp-rule-on-enter").checked,
     on_exit: $("fp-rule-on-exit").checked,
     // No client-side guard on an empty set: the server's 422 is the one
@@ -205,9 +241,18 @@ export async function saveRule() {
     channels: readChannelPicker($("fp-rule-channels")),
     cooldown_minutes: Number($("fp-rule-cooldown").value),
   };
+  if (!editingRuleId) {
+    // RuleUpdate has no device_id/group_id field, and the dialog disables
+    // both target inputs while editing to match (UAT U13).
+    body.device_id = (isDevice ? $("fp-rule-device").value : "") || null;
+    body.group_id = isDevice ? null : numberOrNull($("fp-rule-group").value);
+  }
+  const [path, method] = editingRuleId
+    ? [`/api/alerts/rules/${editingRuleId}`, "PUT"]
+    : ["/api/alerts/rules", "POST"];
   try {
-    await api("/api/alerts/rules", {
-      method: "POST",
+    await api(path, {
+      method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });

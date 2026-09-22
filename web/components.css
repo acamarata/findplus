@@ -13,29 +13,39 @@
    under two ids while both held uncommitted hunks here; this is the merge the
    comment there asked the epic landing last to do (T0 relay, 2026-09-20). */
 #fp-group-dialog,
-#fp-device-dialog {
+#fp-device-dialog,
+#fp-place-dialog {
   background: var(--panel); color: var(--text); border: 1px solid var(--line);
   border-radius: 12px; padding: 18px 20px; min-width: 320px; max-width: 420px;
 }
 #fp-group-dialog::backdrop,
-#fp-device-dialog::backdrop { background: rgba(5,8,13,.72); }
+#fp-device-dialog::backdrop,
+#fp-place-dialog::backdrop { background: rgba(5,8,13,.72); }
 #fp-group-dialog h2,
-#fp-device-dialog h2 { margin: 0 0 12px; font-size: 16px; }
+#fp-device-dialog h2,
+#fp-place-dialog h2 { margin: 0 0 12px; font-size: 16px; }
 #fp-group-dialog footer,
-#fp-device-dialog footer { display: flex; gap: 8px; margin-top: 14px; }
+#fp-device-dialog footer,
+#fp-place-dialog footer { display: flex; gap: 8px; margin-top: 14px; }
 /* W3 visual gate finding 2: these two dialogs had no input/select styling at
    all (native white boxes on the dark panel), unlike .setting-row's own
    inputs. Same declarations, reused rather than forked. Native checkbox and
-   range chrome is left alone, matching the settings dialog's own choice. */
+   range chrome is left alone, matching the settings dialog's own choice.
+   UAT U3: #fp-place-dialog had NO rule here at all (a browser-default white
+   strip across the dark map) -- folded into the same selector list. */
 #fp-group-dialog input[type="text"],
 #fp-group-dialog input[type="number"],
 #fp-group-dialog select,
 #fp-device-dialog input[type="text"],
-#fp-device-dialog select {
+#fp-device-dialog select,
+#fp-place-dialog input[type="text"],
+#fp-place-dialog input[type="number"],
+#fp-place-dialog select {
   background: var(--panel-2); color: var(--text); border: 1px solid var(--line-strong);
   border-radius: 7px; padding: 6px 9px; font-size: 13px;
 }
-#fp-group-dialog input[type="range"] { accent-color: var(--accent); }
+#fp-group-dialog input[type="range"],
+#fp-place-dialog input[type="range"] { accent-color: var(--accent); }
 .fp-picker-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
 .fp-picker-label { flex: 0 0 108px; color: var(--muted); font-size: 13px; }
 .fp-picker-control { position: relative; display: inline-flex; }
@@ -119,6 +129,14 @@
   position: relative; z-index: 1; text-shadow: 0 1px 2px rgba(0,0,0,.9);
   background: rgba(0,0,0,0.6); padding: 0 4px; border-radius: 6px;
 }
+/* First/last-of-track ring colour, moved out of map.js's inline style="" (CSP
+   default style-src 'self' silently drops it -- UAT U25). */
+.marker-num--first { border-color: #37c67a; }
+.marker-num--last { border-color: #ef5f5f; }
+/* Map popup rows, replacing map.js's inline opacity/size styles (same U25). */
+.fp-popup-sub { opacity: .75; }
+.fp-popup-meta { opacity: .7; }
+.fp-popup-retrieved { opacity: .6; font-size: 11px; margin-top: 5px; }
 
 /* --- timeline track heads ------------------------------------------------- */
 .track-swatch svg { width: 100%; height: 100%; display: block; }
@@ -300,3 +318,28 @@ dialog a:hover,
 #fp-icon-sprite {
   position: absolute; width: 0; height: 0; overflow: hidden;
 }
+
+/* --- place dialog: tracker locator + address search (UAT U4) ------------- */
+#fp-place-use-tracker-btn { flex: 0 0 auto; }
+.fp-search-results {
+  list-style: none; margin: 6px 0 0; padding: 0; max-height: 160px;
+  overflow-y: auto; border: 1px solid var(--line); border-radius: 8px;
+}
+.fp-search-results li { border-bottom: 1px solid var(--line); }
+.fp-search-results li:last-child { border-bottom: none; }
+.fp-search-results button {
+  display: block; width: 100%; text-align: left; padding: 7px 9px;
+  background: none; border: 0; color: var(--text); font-size: 12.5px; cursor: pointer;
+}
+.fp-search-results button:hover { background: var(--panel-2); }
+.fp-search-empty { padding: 7px 9px; color: var(--muted); font-size: 12.5px; }
+
+/* --- places list (UAT U5, same field/button shapes as .fp-group-card) ---- */
+#fp-places-list { padding: 0 18px; margin-top: 10px; }
+.fp-place-card { display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--panel-2); margin-bottom: 6px; cursor: pointer; }
+.fp-place-card .fp-color-swatch { width: 16px; height: 16px; cursor: default; }
+.fp-place-card-meta,
+.fp-place-card-who { font-size: 12px; color: var(--muted); }
+.fp-place-card-who:empty { display: none; }

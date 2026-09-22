@@ -109,6 +109,42 @@ async def test_timeline_swatch_shows_icon_and_label(page, base_url):
     assert LABEL in await block.locator(".track-name").first.inner_text()
 
 
+async def test_map_marker_and_popup_render_with_no_csp_violation(page, base_url):
+    """UAT U25: map.js used to build marker/popup HTML with inline style=""
+    attributes, which the daemon's `default-src 'self'` CSP (no unsafe-inline
+    for style-src) silently drops -- the ring colour and popup styling were
+    gone and the console filled with violation warnings on every load."""
+    console_events: list[str] = []
+    page.on("console", lambda msg: console_events.append(f"{msg.type}: {msg.text}"))
+    await page.goto(base_url + "/")
+    await page.wait_for_selector(".marker-num-glyph svg")
+    await page.locator(f'.leaflet-marker-icon[title^="{LABEL}"]').first.click()
+    await page.wait_for_selector(".leaflet-popup-content")
+    popup_text = await page.locator(".leaflet-popup-content").inner_text()
+    assert LABEL in popup_text
+    violations = [e for e in console_events if "Content Security Policy" in e]
+    assert violations == [], f"CSP violations: {violations}"
+
+
+async def test_edit_label_updates_the_dashboard_without_a_reload(page, base_url):
+    """UAT U14: saving a new label/icon/colour in the Devices dialog used to
+    leave the map, timeline and topbar showing the stale value until the
+    user manually reloaded the page."""
+    await _open_edit_dialog(page, base_url)
+    try:
+        await page.fill("#fp-device-label", "Sara's Keys")
+        await page.click("#fp-device-dialog button:has-text('Save')")
+        await page.wait_for_selector("#fp-device-dialog:not([open])", state="attached")
+        # No page.reload() / page.goto() here: the dashboard behind the
+        # dialog must have refreshed itself.
+        track_name = page.locator(".track-block", has_text="Sara's Keys").locator(".track-name")
+        await track_name.wait_for(state="visible")
+        title = page.locator('.leaflet-marker-icon[title^="Sara\'s Keys"]')
+        await title.first.wait_for(state="attached")
+    finally:
+        await _set_label(page, base_url, LABEL)
+
+
 async def test_purge_on_lock_clears_the_dialog(page, base_url):
     """The dialog holds a device id and a label; a lock has to destroy both.
 

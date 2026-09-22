@@ -44,7 +44,9 @@ async def test_add_rule_creates_row(page, base_url):
     await page.wait_for_selector("#fp-add-rule-dialog[open]")
     await page.fill("#fp-rule-name", "Home arrival test")
     await page.select_option("#fp-rule-place", label="Home")
-    await page.select_option("#fp-rule-device", label="Home Tag")
+    # TAG-HOME carries label "Ali's Keys" (cli/tests/ui/_seed_script.py); the
+    # Device select shows the label, not the raw provider name (UAT U6).
+    await page.select_option("#fp-rule-device", label="Ali's Keys")
     await page.check("#fp-rule-on-enter")
     await page.click("#fp-rule-save")
     await page.wait_for_function("() => !document.getElementById('fp-add-rule-dialog').open")
@@ -81,6 +83,12 @@ async def test_delete_rule_removes_row(page, base_url):
 
 
 async def test_widget_map_toggle_persists(page, base_url):
+    # U27: the widget toggle is macOS-only and hidden without this stub
+    # (window.__findplus_native, set only by the Tauri window at runtime —
+    # see test_setup_wizard_native.py for the hidden-by-default coverage).
+    await page.add_init_script(
+        "window.__findplus_native = true;"
+    )
     await open_alerts_tab(page, base_url)
     toggle = page.locator("#fp-widget-map-toggle")
     await toggle.wait_for(state="visible")

@@ -17,10 +17,11 @@
 "use strict";
 
 import { api } from "./api.js";
+import { displayName } from "./state.js";
 import { t } from "./i18n.js";
 import { renderBadge } from "./components/badge.js";
 import { showAddDialog, openEditDialog } from "./groups_dialog.js";
-import { loadGroups, selectGroupById, verdictLabel } from "./groups.js";
+import { loadGroups, selectGroupById, verdictLabel, verdictTitle } from "./groups.js";
 
 /** Avatars shown before the grid collapses the rest into a "+N" chip. */
 const MAX_AVATARS = 6;
@@ -73,14 +74,18 @@ function memberAvatars(group, devicesById) {
   const wrap = span("fp-card-members");
   group.members.slice(0, MAX_AVATARS).forEach((member) => {
     const device = devicesById.get(member.device_id);
+    // UAT U6: the group member list is one of the surfaces that must show
+    // the label, not the raw provider name -- member.name is the fallback
+    // for a device row that has since been deleted (see the docstring above).
+    const shown = displayName(device) || member.name;
     const avatar = span("fp-avatar");
-    avatar.title = member.name;
+    avatar.title = shown;
     avatar.appendChild(
       renderBadge({
         icon: (device && device.icon) || "letter",
         color: (device && device.color) || "#888888",
         label: (device && device.label) || null,
-        name: member.name,
+        name: shown,
         size: 16,
       }),
     );
@@ -115,9 +120,9 @@ function renderCard(group, devicesById) {
     span("fp-card-name", group.name),
     memberAvatars(group, devicesById),
     span("fp-card-verdict"),
-    cardButton("fp-card-edit", t("common.edit"), t("groups.card.edit", { name: group.name }),
+    cardButton("fp-card-edit btn-tiny btn-secondary", t("common.edit"), t("groups.card.edit", { name: group.name }),
       () => openEditDialog(group.id, group)),
-    cardButton("fp-card-delete", t("common.delete"), t("groups.card.delete", { name: group.name }),
+    cardButton("fp-card-delete btn-tiny btn-secondary", t("common.delete"), t("groups.card.delete", { name: group.name }),
       () => onDelete(group)),
   );
   card.addEventListener("click", (event) => onCardClick(event, group));
@@ -139,6 +144,7 @@ async function fetchVerdict(card, groupId) {
   if (!badge) return;
   badge.className = `fp-card-verdict fp-verdict fp-verdict--${presence.verdict}`;
   badge.textContent = verdictLabel(presence);
+  badge.title = verdictTitle(presence);
 }
 
 async function onDelete(group) {

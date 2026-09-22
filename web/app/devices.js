@@ -7,9 +7,9 @@
  */
 "use strict";
 
-import { $, state, colorFor, showAlert } from "./state.js";
+import { $, state, colorFor, displayName, showAlert } from "./state.js";
 import { api } from "./api.js";
-import { applyHashRoute } from "./main.js";
+import { applyHashRoute, reload } from "./main.js";
 import { loadPresence } from "./places.js";
 import { t } from "./i18n.js";
 import { renderBadge } from "./components/badge.js";
@@ -47,7 +47,7 @@ export function renderDeviceFilter() {
       const opt = document.createElement("option");
       opt.value = d.device_id;
       opt.textContent =
-        d.name + " (" + providerLabel(d.provider) + ")" + (d.is_tracked ? "" : t("devices.notPolledSuffix"));
+        displayName(d) + " (" + providerLabel(d.provider) + ")" + (d.is_tracked ? "" : t("devices.notPolledSuffix"));
       select.appendChild(opt);
     });
   select.value = current;
@@ -199,6 +199,11 @@ export function wireDeviceControls() {
   initDialog(async () => {
     await loadDevices();
     renderDeviceModal();
+    // A saved label/icon/colour used to sit stale on the dashboard behind
+    // the dialog until the next manual reload (UAT U14): the map markers,
+    // timeline track heads, topbar name and cards all read state.devices,
+    // so the same reload() the toolbar's other actions use catches them up.
+    await reload();
   });
 
   $("device-filter").addEventListener("change", async (e) => {

@@ -11,10 +11,8 @@
  * Outputs    : { dlg, fields } — the dialog element and every input in it by
  *              name, so the caller never queries the DOM to read a field.
  *              pickerRow()/renderIconPreview()/renderColorPreview()/
- *              closeOpenPopover()/clampPopoverToViewport() are also exported:
- *              setup_steps/groups.js reuses them for the wizard's own icon
- *              and colour triggers (R-P2-28 point 2) rather than forking the
- *              popover-trigger pattern a second time.
+ *              closeOpenPopover()/clampPopoverToViewport() are also exported for
+ *              setup_steps/groups.js's wizard icon/colour triggers (R-P2-28.2).
  * Constraints: Pure construction, no network, no module state. Every element is
  *              built with createElement/textContent, never raw markup, and
  *              every static string comes from the catalog through t().
@@ -22,6 +20,7 @@
 "use strict";
 
 import { t } from "./i18n.js";
+import { displayName } from "./state.js";
 import { renderBadge } from "./components/badge.js";
 
 const DEFAULT_ICON = "lucide:users";
@@ -80,11 +79,8 @@ function popoverHost(id) {
 
 /**
  * A picker trigger row: a visible label, then the button that opens the
- * popover. `swatchClass` reuses icon-picker.js's/color-picker.js's own
- * swatch styling (`.fp-icon-swatch`/`.fp-color-swatch`) for the closed
- * button instead of a bare unstyled `<button>` (visual gate W3 finding 1 —
- * the closed colour button had no class and no content, so it rendered as
- * an empty sliver next to the icon preview).
+ * popover. `swatchClass` reuses icon-picker.js's/color-picker.js's own swatch
+ * styling instead of a bare unstyled `<button>` (visual gate W3 finding 1).
  */
 export function pickerRow(id, labelText, hiddenInput, swatchClass) {
   const btn = document.createElement("button");
@@ -105,20 +101,36 @@ export function pickerRow(id, labelText, hiddenInput, swatchClass) {
   return { btn, host, wrap };
 }
 
+// value is validation.py's own grammar ("any"/"majority"/"all"/a number as a
+// string) and is never changed; only the displayed option text is plain
+// words (U21: raw "any/majority/all" read as unexplained jargon).
+const QUORUM_LABEL_KEYS = {
+  any: "groups.field.quorum_any", majority: "groups.field.quorum_majority", all: "groups.field.quorum_all",
+};
+
+/** A one-line `<p class="fp-field-hint">` under a field, e.g. the quorum,
+ * radius and stale-after rows below (U21: plain-word help text). */
+function fieldHint(text) {
+  const hint = document.createElement("p");
+  hint.className = "fp-field-hint";
+  hint.textContent = text;
+  return hint;
+}
+
 function quorumRow() {
   const select = document.createElement("select");
   select.id = "fp-group-quorum";
   for (const value of ["any", "majority", "all", "custom"]) {
     const opt = document.createElement("option");
     opt.value = value;
-    // any/majority/all are validation.py's own grammar values, not prose; the
-    // catalog pins a key for "custom" alone (specs/groups-ui.md § i18n keys).
-    opt.textContent = value === "custom" ? t("groups.field.quorum_custom") : value;
+    opt.textContent = value === "custom"
+      ? t("groups.field.quorum_custom")
+      : t(QUORUM_LABEL_KEYS[value]);
     select.appendChild(opt);
   }
   const n = field("number", { id: "fp-group-quorum-n", min: "1", max: "20", value: "2", hidden: true });
   const wrap = document.createElement("div");
-  wrap.append(labeled(t("groups.field.quorum"), select, select.id), n);
+  wrap.append(labeled(t("groups.field.quorum"), select, select.id), n, fieldHint(t("groups.field.quorum_hint")));
   return { select, n, wrap };
 }
 
@@ -134,18 +146,15 @@ function radiusRow() {
   label.textContent = t("groups.field.radius");
   const wrap = document.createElement("div");
   wrap.className = "fp-dialog-field";
-  wrap.append(label, input, out);
+  wrap.append(label, input, out, fieldHint(t("groups.field.radius_hint")));
   return { input, out, wrap };
 }
 
+// honesty.PRESENCE_STALE, verbatim: a stale tag is not a tag left behind.
 function staleRow() {
   const input = field("number", { id: "fp-group-stale", min: "10", max: "1440", value: DEFAULT_STALE });
-  const hint = document.createElement("p");
-  hint.className = "fp-field-hint";
-  // honesty.PRESENCE_STALE, verbatim: a stale tag is not a tag left behind.
-  hint.textContent = t("groups.field.stale_hint");
   const wrap = document.createElement("div");
-  wrap.append(labeled(t("groups.field.stale"), input, input.id), hint);
+  wrap.append(labeled(t("groups.field.stale"), input, input.id), fieldHint(t("groups.field.stale_hint")));
   return { input, wrap };
 }
 
@@ -171,7 +180,8 @@ export function memberRow(device) {
     }),
   );
   const name = document.createElement("span");
-  name.textContent = device.name;
+  // UAT U6: the group dialog's own member picker shows the label too.
+  name.textContent = displayName(device);
   row.append(box, badge, name);
   return row;
 }

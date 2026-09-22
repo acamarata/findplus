@@ -82,6 +82,10 @@ function wireStaticControls() {
 async function loadWidgetToggle() {
   const toggle = $("fp-widget-map-toggle");
   if (!toggle) return;
+  // U27: the widget is macOS-only, so this row stays hidden in a plain
+  // browser tab (window.__findplus_native set only by the Tauri window).
+  if (window.__findplus_native !== true) return;
+  $("fp-widget-map-section").hidden = false;
   try {
     toggle.checked = (await api(WIDGET_SETTING))["widget.show_map"] === true;
   } catch (_) { /* locked at boot; a later refreshAll() after unlock repopulates it */ }

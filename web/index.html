@@ -99,8 +99,10 @@
     <option value="" data-i18n="devices.allTracked">All tracked devices</option>
   </select>
 
-  <label for="fp-group-select" data-i18n="common.groupLabel">Group:</label>
-  <select id="fp-group-select"></select>
+  <span class="fp-control-group">
+    <label for="fp-group-select" data-i18n="common.groupLabel">Group:</label>
+    <select id="fp-group-select"></select>
+  </span>
 
   <label for="day-picker" data-i18n="common.day">Day</label>
   <input type="date" id="day-picker">
@@ -141,12 +143,22 @@
 </section>
 </div><!-- /status-region -->
 
-<nav class="fp-tabs" aria-label="Sections" data-i18n-attr="aria-label:common.sectionsNavLabel">
-  <button class="fp-tab active" data-tab="dashboard" data-i18n="common.tabDashboard">Dashboard</button>
-  <button class="fp-tab" data-tab="places" data-i18n="common.tabPlaces">Places</button>
-  <button class="fp-tab" data-tab="groups" data-i18n="common.tabGroups">Groups</button>
-  <button class="fp-tab" data-tab="alerts" data-i18n="common.tabAlerts">Alerts</button>
+<!-- role="tablist"/"tab": U31's WAI-ARIA tabs pattern (arrow-key roving
+     tabindex wired in main.js's wireTabs()). Only the active tab is a Tab
+     stop; ArrowLeft/Right/Home/End move focus between the other three. -->
+<nav class="fp-tabs" role="tablist" aria-label="Sections" data-i18n-attr="aria-label:common.sectionsNavLabel">
+  <button class="fp-tab active" role="tab" id="fp-tab-dashboard" aria-selected="true" aria-controls="tab-dashboard" tabindex="0" data-tab="dashboard" data-i18n="common.tabDashboard">Dashboard</button>
+  <button class="fp-tab" role="tab" id="fp-tab-places" aria-selected="false" aria-controls="tab-places" tabindex="-1" data-tab="places" data-i18n="common.tabPlaces">Places</button>
+  <button class="fp-tab" role="tab" id="fp-tab-groups" aria-selected="false" aria-controls="tab-groups" tabindex="-1" data-tab="groups" data-i18n="common.tabGroups">Groups</button>
+  <button class="fp-tab" role="tab" id="fp-tab-alerts" aria-selected="false" aria-controls="tab-alerts" tabindex="-1" data-tab="alerts" data-i18n="common.tabAlerts">Alerts</button>
 </nav>
+
+<!-- U31: a visible, focusable link past the map so a keyboard user reaches
+     the timeline in one Tab press instead of walking every marker (map
+     markers/paths also stop being Tab stops themselves — see map.js
+     `keyboard: false`). Off-screen until focused, matching .sr-only's own
+     technique but visible on focus (components.css). -->
+<a href="#timeline-pane" class="fp-skip-map" data-i18n="common.skipMap">Skip map, go to timeline</a>
 
 <main class="layout">
   <div class="map-pane">
@@ -159,17 +171,17 @@
   <!-- tabindex: the pane scrolls its own content above 600px, and a
        scrollable region has to be reachable by keyboard (axe
        scrollable-region-focusable, WCAG 2.1.1). -->
-  <aside class="timeline-pane" tabindex="0" aria-label="Details" data-i18n-attr="aria-label:common.detailsLandmarkLabel">
-    <div class="fp-tab-panel" id="tab-dashboard">
+  <aside id="timeline-pane" class="timeline-pane" tabindex="0" aria-label="Details" data-i18n-attr="aria-label:common.detailsLandmarkLabel">
+    <div class="fp-tab-panel" id="tab-dashboard" role="tabpanel" aria-labelledby="fp-tab-dashboard">
       <!-- @partial: dashboard -->
     </div>
-    <div class="fp-tab-panel" id="tab-places" hidden>
+    <div class="fp-tab-panel" id="tab-places" role="tabpanel" aria-labelledby="fp-tab-places" hidden>
       <!-- @partial: places -->
     </div>
-    <div id="tab-groups" class="fp-tab-panel" hidden>
+    <div id="tab-groups" class="fp-tab-panel" role="tabpanel" aria-labelledby="fp-tab-groups" hidden>
       <!-- @partial: groups -->
     </div>
-    <div id="tab-alerts" class="fp-tab-panel" hidden>
+    <div id="tab-alerts" class="fp-tab-panel" role="tabpanel" aria-labelledby="fp-tab-alerts" hidden>
       <!-- @partial: alerts -->
     </div>
   </aside>

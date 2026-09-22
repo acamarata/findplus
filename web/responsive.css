@@ -28,6 +28,28 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
 }
 .lock-error { color: var(--err); font-size: 12.5px; min-height: 18px; margin: 12px 0 0; }
 
+/* UAT U11: a channel with no stored credentials cannot be ticked in the
+   add/edit-rule dialog (channel-picker.js disables its checkbox); this only
+   dims the row so the reason ("(not connected)", supplied by the caller's
+   label text) is legible rather than looking like a rendering glitch. */
+.fp-channel-picker-option--disconnected { opacity: .6; }
+
+/* U26: a label and its control wrapped onto separate lines when .controls
+   wrapped ("Group:" landed alone, the select on the next row). One flex item
+   keeps the pair together at every width, the same way .export-group already
+   keeps Download with its format/scope controls. */
+.fp-control-group { display: flex; align-items: center; gap: 6px; }
+
+/* U31: off-screen like .sr-only until Tab focuses it, then a visible link
+   above the map/timeline. Map markers/paths are keyboard: false (map.js), so
+   this is the fastest keyboard route past them to #tracks. */
+.fp-skip-map {
+  position: absolute; left: -9999px; top: 8px; z-index: 950;
+  background: var(--accent); color: #fff; padding: 8px 14px; border-radius: 7px;
+  font-size: 13px; text-decoration: none;
+}
+.fp-skip-map:focus { left: 18px; }
+
 /* --- bottom tab bar (components/tabbar.js) -------------------------------
    z-index 900 is above Leaflet's own panes (overlay 400, popup 700, controls
    800) and below the modal overlay (9000) and lock screen (10000). Leaflet's
@@ -75,6 +97,18 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
   #btn-more { display: inline-flex; }
 
   #map { height: 50vh; min-height: 280px; }
+
+  /* U26: the map sat below a full page of stacked content (four one-per-row
+     cards plus the wrapped filter row easily filled an 812px viewport on
+     their own). Two columns halves the cards' height; tighter padding/gaps
+     on both blocks recover the rest, so the map starts inside the first
+     screen instead of a full scroll down. */
+  .cards { grid-template-columns: 1fr 1fr; gap: 7px; padding: 10px 12px 0; }
+  .card { padding: 8px 10px; gap: 1px; }
+  .card .label { font-size: 10px; }
+  .card strong { font-size: 16px; }
+  .card .sub { font-size: 11px; }
+  .controls { padding: 10px 12px 0; gap: 7px; }
   /* An inner scroll region under a fixed bottom bar fights the page scroll
      on touch, so the pane scrolls the page instead. min-width: 0 overrides
      the grid item's default min-width: auto, which otherwise lets a wide
@@ -117,6 +151,7 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
   .setting-row input[type=date],
   .setting-row input[type=text],
   .setting-row input[type=url],
+  .setting-row input[type=number],
   .setting-row select { width: 100%; min-width: 0; }
 
   /* Device/group dialog field rows: same reasoning as .setting-row above
@@ -129,10 +164,43 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
   }
   .fp-dialog-field > label { flex: none; }
 
-  /* The rules and delivery-log tables (7 and 6 columns) are wider than a
-     phone viewport; scroll the wrapper instead of the whole page so the
-     rest of the tab stays put (visual gate W2 finding). */
+  /* The rules table (8 columns) is wider than a phone viewport; scroll the
+     wrapper instead of the whole page so the rest of the tab stays put
+     (visual gate W2 finding). */
   .fp-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* UAT U9: the delivery log's 8 fixed-width columns (components.css)
+     squeezed into a 360px pane read as "w...", "gr...", 7-line cells --
+     unreadable, not just tight. Below 600px it becomes one card per
+     delivery: each td's own data-label (alerts_deliveries.js's cell())
+     stands in for the now-hidden header, and content wraps instead of the
+     ellipsis truncation the desktop table still uses (components.css). */
+  #fp-deliveries-table, #fp-deliveries-table tbody, #fp-deliveries-table tr {
+    display: block; width: auto;
+  }
+  #fp-deliveries-table thead, #fp-deliveries-table colgroup { display: none; }
+  #fp-deliveries-table tr {
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 0 0 8px;
+  }
+  #fp-deliveries-table td {
+    display: flex; gap: 10px; justify-content: space-between; align-items: baseline;
+    padding: 3px 0; border: none; width: auto;
+  }
+  /* Matches components.css's own nth-child list + specificity (id, pseudo-
+     class, type) so this, loaded after it, actually wins the cascade: the
+     desktop ellipsis/nowrap truncation is exactly what made these columns
+     unreadable at 360px in the first place. */
+  #fp-deliveries-table td:nth-child(2), #fp-deliveries-table td:nth-child(3),
+  #fp-deliveries-table td:nth-child(4), #fp-deliveries-table td:nth-child(5),
+  #fp-deliveries-table td:nth-child(8) {
+    white-space: normal; overflow: visible; text-overflow: clip;
+  }
+  #fp-deliveries-table td::before {
+    content: attr(data-label); flex: 0 0 auto; color: var(--muted);
+    font-size: 11px; text-transform: uppercase; letter-spacing: .02em;
+  }
+  #fp-deliveries-table td:empty { display: none; }
+  #fp-deliveries-table details summary { cursor: pointer; color: var(--accent); }
 
   /* Grouped so "Download" always wraps together with the format/scope
      controls instead of landing alone on its own row (visual gate W2

@@ -8,7 +8,7 @@
  */
 "use strict";
 
-import { $, state, applyTheme, showAlert } from "./state.js";
+import { $, state, applyTheme } from "./state.js";
 import { api, postJson } from "./api.js";
 import { showLock, startIdleTimer } from "./lock.js";
 import { t } from "./i18n.js";
@@ -16,6 +16,22 @@ import { trapFocus } from "./components/dialog-trap.js";
 
 /** The focus trap for #settings-modal while it is open, or null. */
 let settingsTrap = null;
+
+/**
+ * Every error and confirmation this dialog produces (PIN set/changed/
+ * removed, a rejected poll interval, a failed toggle…) renders here, inside
+ * the open dialog, instead of the page banner behind it (UAT U19: "poll.
+ * interval_minutes must be between 5 and 1440." was read in #alert, hidden
+ * by the modal backdrop). `kind: "warn"` (a confirmation, not a failure)
+ * reuses .modal-rate's tone; anything else is .fp-dialog-error's red.
+ */
+function showSettingsMessage(message, kind) {
+  const el = $("settings-message");
+  if (!el) return;
+  el.textContent = message || "";
+  el.className = kind === "warn" ? "modal-rate" : "fp-dialog-error";
+  if (message) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
 
 export async function loadSettings() {
   state.settings = await api("/api/settings");
@@ -89,6 +105,7 @@ export async function saveSettings(patch) {
 export async function openSettings() {
   $("settings-modal").classList.remove("hidden");
   settingsTrap = trapFocus($("settings-modal"), closeSettings);
+  showSettingsMessage(null); // never a stale message from the previous open
   try {
     await loadSettings();
     const req = await api("/api/lock/requirements");
@@ -104,8 +121,15 @@ export async function openSettings() {
       timezone: health.timezone,
       interval: state.config.poll_interval_minutes,
     });
-    const startAtLogin = await api("/api/settings/app.start_at_login");
-    $("setting-start-at-login").checked = startAtLogin["app.start_at_login"];
+    // U27: desktop-only, so a plain browser tab at :8647 never asks the OS to
+    // start a process it cannot run there. window.__findplus_native is set
+    // only by the Tauri window's init script (R-P2-13), same gate as the
+    // native-detail row above.
+    if (window.__findplus_native === true) {
+      $("setting-group-desktop").hidden = false;
+      const startAtLogin = await api("/api/settings/app.start_at_login");
+      $("setting-start-at-login").checked = startAtLogin["app.start_at_login"];
+    }
     // Re-read the sign-in status on every open (ruling R-P2-8): a sign-in
     // completed in a Chrome window or another tab is visible next time.
     // Dynamic, so settings.js keeps no static dependency on auth.js. Awaited
@@ -115,7 +139,7 @@ export async function openSettings() {
     const auth = await import("./auth.js");
     await auth.mountAuthPanel($("fp-settings-signin"));
   } catch (e) {
-    showAlert(e.message, "err");
+    showSettingsMessage(e.message, "err");
   }
 }
 
@@ -132,14 +156,14 @@ export function closeSettings() {
 async function setPin() {
   const pin = $("new-pin").value.trim();
   const confirm = $("confirm-pin").value.trim();
-  if (pin !== confirm) { showAlert(t("settings.pinsDoNotMatch"), "warn"); return; }
+  if (pin !== confirm) { showSettingsMessage(t("settings.pinsDoNotMatch"), "warn"); return; }
   try {
     await postJson("/api/settings/pin", { new_pin: pin });
     $("new-pin").value = $("confirm-pin").value = "";
     await loadSettings();
-    showAlert(t("settings.pinSet"), "warn");
+    showSettingsMessage(t("settings.pinSet"), "warn");
   } catch (e) {
-    showAlert(e.message, "err");
+    showSettingsMessage(e.message, "err");
   }
 }
 
@@ -147,21 +171,21 @@ async function setPin() {
 async function changePin() {
   const current = $("current-pin").value.trim();
   const next = $("change-pin").value.trim();
-  if (!next) { showAlert(t("settings.enterNewPin"), "warn"); return; }
+  if (!next) { showSettingsMessage(t("settings.enterNewPin"), "warn"); return; }
   try {
     await postJson("/api/settings/pin", { new_pin: next, current_pin: current });
     $("current-pin").value = $("change-pin").value = "";
-    showAlert(t("settings.pinChanged"), "warn");
+    showSettingsMessage(t("settings.pinChanged"), "warn");
     showLock();
   } catch (e) {
-    showAlert(e.message, "err");
+    showSettingsMessage(e.message, "err");
   }
 }
 
 /** Remove the PIN, which disables the lock entirely. Confirmed twice. */
 async function removePin() {
   const current = $("current-pin").value.trim();
-  if (!current) { showAlert(t("settings.enterCurrentPin"), "warn"); return; }
+  if (!current) { showSettingsMessage(t("settings.enterCurrentPin"), "warn"); return; }
   if (!window.confirm(t("settings.confirmRemovePin"))) return;
   try {
     await api("/api/settings/pin", {
@@ -171,9 +195,9 @@ async function removePin() {
     });
     $("current-pin").value = "";
     await loadSettings();
-    showAlert(t("settings.pinRemoved"), "warn");
+    showSettingsMessage(t("settings.pinRemoved"), "warn");
   } catch (e) {
-    showAlert(e.message, "err");
+    showSettingsMessage(e.message, "err");
   }
 }
 
@@ -191,17 +215,17 @@ function wireThemeAndLockControls() {
   $("setting-theme").addEventListener("change", async (e) => {
     applyTheme(e.target.value);  // instant feedback
     try { await saveSettings({ theme: e.target.value }); }
-    catch (err) { showAlert(err.message, "err"); }
+    catch (err) { showSettingsMessage(err.message, "err"); }
   });
 
   $("setting-idle").addEventListener("change", async (e) => {
     try { await saveSettings({ idle_minutes: Number(e.target.value) }); }
-    catch (err) { showAlert(err.message, "err"); }
+    catch (err) { showSettingsMessage(err.message, "err"); }
   });
 
   $("setting-lock-enabled").addEventListener("change", async (e) => {
     try { await saveSettings({ lock_enabled: e.target.checked }); }
-    catch (err) { showAlert(err.message, "err"); e.target.checked = !e.target.checked; }
+    catch (err) { showSettingsMessage(err.message, "err"); e.target.checked = !e.target.checked; }
   });
 }
 
@@ -211,14 +235,14 @@ function wirePollingControls() {
     try {
       await postJson("/api/settings/app.start_at_login", { value: e.target.checked });
     } catch (err) {
-      showAlert(err.message, "err");
+      showSettingsMessage(err.message, "err");
       e.target.checked = !e.target.checked;
     }
   });
 
   $("setting-poll-interval").addEventListener("change", async (e) => {
     try { await saveSettings({ "poll.interval_minutes": Number(e.target.value) }); }
-    catch (err) { showAlert(err.message, "err"); }
+    catch (err) { showSettingsMessage(err.message, "err"); }
   });
 
   $("setting-retention-days").addEventListener("change", async (e) => {
@@ -226,14 +250,14 @@ function wirePollingControls() {
       await saveSettings({
         "history.retention_days": e.target.value === "" ? null : Number(e.target.value),
       });
-    } catch (err) { showAlert(err.message, "err"); }
+    } catch (err) { showSettingsMessage(err.message, "err"); }
   });
 
   // Reverted on failure: a stale number in a box is harmless, but a tick box
   // left in the post-click state would misstate what the server actually holds.
   $("setting-native-detail").addEventListener("change", async (e) => {
     try { await saveSettings({ "alerts.native_detail": e.target.checked }); }
-    catch (err) { showAlert(err.message, "err"); e.target.checked = !e.target.checked; }
+    catch (err) { showSettingsMessage(err.message, "err"); e.target.checked = !e.target.checked; }
   });
 }
 

@@ -78,7 +78,7 @@
             <thead>
               <tr>
                 <th data-i18n="alerts.colName">Name</th><th data-i18n="alerts.colPlace">Place</th><th data-i18n="alerts.colTarget">Device or Group</th>
-                <th data-i18n="alerts.colOnEnter">On enter</th><th data-i18n="alerts.colOnExit">On exit</th><th data-i18n="alerts.rules.channelsHeader">Channels</th><th data-i18n="alerts.colActions">Actions</th>
+                <th data-i18n="alerts.colOnEnter">On enter</th><th data-i18n="alerts.colOnExit">On exit</th><th data-i18n="alerts.rules.channelsHeader">Channels</th><th data-i18n="alerts.colEnabled">Enabled</th><th data-i18n="alerts.colActions">Actions</th>
               </tr>
             </thead>
             <tbody id="fp-rules-tbody"></tbody>
@@ -113,7 +113,9 @@
         </div>
       </section>
 
-      <section class="fp-alerts-section">
+      <!-- Hidden in a plain browser (U27): the widget is a macOS-only surface;
+           unhidden only when window.__findplus_native is true, see alerts.js. -->
+      <section class="fp-alerts-section" id="fp-widget-map-section" hidden>
         <label class="setting-row">
           <span data-i18n="alerts.showMapInWidget">Show map in widget</span>
           <input type="checkbox" id="fp-widget-map-toggle">

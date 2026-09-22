@@ -4,6 +4,12 @@
               data-i18n="common.close" data-i18n-attr="aria-label:common.close">Close</button>
     </header>
 
+    <!-- UAT U19: every field in this dialog used to report its error/confirm
+         message to the page banner (#alert), which sits BEHIND this modal's
+         backdrop and was never seen. settings.js's showSettingsMessage()
+         writes here instead, for every section (sign-in included). -->
+    <p id="settings-message" class="fp-dialog-error" role="alert"></p>
+
     <!-- The sign-in panel is the FIRST section of this dialog (ruling R-P2-8).
          The two button fallbacks below are the short provider-free wording on
          purpose: test_honesty_notices.py forbids the literal "Google" anywhere
@@ -109,7 +115,9 @@
       <p class="modal-note" id="setting-native-detail-note" data-i18n="settings.native_detail.note" hidden></p>
     </section>
 
-    <section class="setting-group" id="setting-group-desktop">
+    <!-- Hidden in a plain browser (U27): unhidden only when
+         window.__findplus_native is true, see settings.js loadSettings(). -->
+    <section class="setting-group" id="setting-group-desktop" hidden>
       <h3 data-i18n="settings.desktopHeading">Desktop app</h3>
       <label class="setting-row">
         <span data-i18n="settings.startAtLogin">Start Find+ at login</span>

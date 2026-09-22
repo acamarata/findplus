@@ -27,6 +27,15 @@ approach `0006`'s and `0008`'s data cleanups use, and the alternative (a
 `is_estimated` flag never added to 1.0/1.1's `location_observations` schema)
 is not available to retrofit here.
 
+Closeout review G3 raised exactly that ambiguity -- a genuine Apple reading of
+10.0/30.0/65.0/150.0 metres nulled by mistake -- and it was ruled no change:
+v1.0.0 shipped with no measured Apple Find My accuracy source at all (Find
+My.py surfaces only the confidence label this heuristic mapped from, never a
+metres figure of its own), so every non-null `accuracy_meters` an Apple
+observation carried before `d2403b2` was this heuristic's output, never a
+real measurement. There is no genuine value in that window for the WHERE
+clause to lose.
+
 downgrade() cannot restore the original invented figures -- they are gone,
 which is the point of this migration -- so it is a documented no-op.
 """

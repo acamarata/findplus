@@ -133,6 +133,48 @@ def _annotate_place_names(
             point["place_name"] = _place_name_for_point(point, place_specs) if place_specs else None
 
 
+def _device_timeline_payload(
+    settings,
+    device_id: str | None,
+    target,
+    zone,
+    movement_threshold_meters: float | None,
+    gap_threshold_minutes: float | None,
+) -> dict[str, Any]:
+    """Single-device (or all-device) `/timeline` payload for one local day.
+
+    Split out of `_register_timeline_route` to keep the route function
+    under the PRI function-size cap (E13 loop-1 follow-up); behavior and
+    the returned shape are unchanged.
+    """
+    movement, gap = _resolved_thresholds(settings, movement_threshold_meters, gap_threshold_minutes)
+    with session_scope() as session:
+        tracks = multi_day_timeline(
+            session,
+            [device_id] if device_id else None,
+            target,
+            tz=zone,
+            movement_threshold_meters=movement,
+            gap_threshold_minutes=gap,
+        )
+        names = {d.device_id: d.name for d in session.scalars(select(Device))}
+        place_specs = _place_specs(session)
+
+    payload = _named_payload(tracks, names)
+    _annotate_place_names(payload, place_specs)
+
+    return {
+        "day": target.isoformat(),
+        "timezone": str(zone),
+        "device_id": device_id,
+        "movement_threshold_meters": movement,
+        "gap_threshold_minutes": gap,
+        "path_disclaimer": "Observed path — actual route between detections may differ.",
+        "tracks": payload,
+        "total_observations": sum(len(t["points"]) for t in payload),
+    }
+
+
 def _register_timeline_route(router: APIRouter, *, settings) -> None:
     @router.get("/timeline")
     def timeline(
@@ -157,34 +199,9 @@ def _register_timeline_route(router: APIRouter, *, settings) -> None:
         if group_id is not None:
             return _group_timeline(group_id, target, zone)
 
-        movement, gap = _resolved_thresholds(
-            settings, movement_threshold_meters, gap_threshold_minutes
+        return _device_timeline_payload(
+            settings, device_id, target, zone, movement_threshold_meters, gap_threshold_minutes
         )
-        with session_scope() as session:
-            tracks = multi_day_timeline(
-                session,
-                [device_id] if device_id else None,
-                target,
-                tz=zone,
-                movement_threshold_meters=movement,
-                gap_threshold_minutes=gap,
-            )
-            names = {d.device_id: d.name for d in session.scalars(select(Device))}
-            place_specs = _place_specs(session)
-
-        payload = _named_payload(tracks, names)
-        _annotate_place_names(payload, place_specs)
-
-        return {
-            "day": target.isoformat(),
-            "timezone": str(zone),
-            "device_id": device_id,
-            "movement_threshold_meters": movement,
-            "gap_threshold_minutes": gap,
-            "path_disclaimer": "Observed path — actual route between detections may differ.",
-            "tracks": payload,
-            "total_observations": sum(len(t["points"]) for t in payload),
-        }
 
 
 def days(

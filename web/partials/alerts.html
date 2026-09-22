@@ -72,7 +72,7 @@
              tabindex: a scrollable region has to be reachable by keyboard
              (axe scrollable-region-focusable, WCAG 2.1.1) -- same pattern as
              .timeline-pane in web/index.html. -->
-        <div class="fp-table-scroll" tabindex="0" aria-label="Rules table, scrollable"
+        <div class="fp-table-scroll" role="region" tabindex="0" aria-label="Rules table, scrollable"
              data-i18n-attr="aria-label:alerts.rulesTableScrollLabel">
           <table id="fp-rules-table">
             <thead>
@@ -88,7 +88,7 @@
 
       <section class="fp-alerts-section">
         <h3 data-i18n="alerts.deliveryLogHeading">Delivery log</h3>
-        <div class="fp-table-scroll" tabindex="0" aria-label="Delivery log table, scrollable"
+        <div class="fp-table-scroll" role="region" tabindex="0" aria-label="Delivery log table, scrollable"
              data-i18n-attr="aria-label:alerts.deliveryLogScrollLabel">
           <table id="fp-deliveries-table">
             <!-- R-P2-28 point 6 (F6): fixed widths so Status (7th) stays inside

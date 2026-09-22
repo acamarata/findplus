@@ -18,7 +18,7 @@ import re
 
 import httpx
 
-from findplus.alerts.channels.telegram import DeliveryResult
+from findplus.alerts.channels.telegram import DeliveryResult, parse_retry_after_seconds
 
 #: https anywhere, or plain http only to a real loopback HOST. The host part is
 #: anchored (\Z, a port, or a path) so "http://localhost.example.com" is rejected.
@@ -76,7 +76,13 @@ def send_webhook(
             r = client.post(url, content=body, headers=headers)
         if 200 <= r.status_code < 300:
             return DeliveryResult(success=True, status_code=r.status_code, error=None)
-        return DeliveryResult(success=False, status_code=r.status_code, error=r.text[:200])
+        retry_after = parse_retry_after_seconds(r) if r.status_code == 429 else None
+        return DeliveryResult(
+            success=False,
+            status_code=r.status_code,
+            error=r.text[:200],
+            retry_after_seconds=retry_after,
+        )
     except httpx.TimeoutException:
         return DeliveryResult(success=False, status_code=None, error="timeout")
     except Exception as exc:

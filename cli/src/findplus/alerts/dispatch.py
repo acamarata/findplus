@@ -2,16 +2,14 @@
 
 Purpose : Turn confirmed geofence/group crossings into outbound notifications.
 Inputs  : place_events/group_place_events rows with notified_at IS NULL.
-Outputs : Sent Telegram/webhook messages; alert_deliveries rows; notified_at
-          stamped on the source row.
+Outputs : Sent messages; alert_deliveries rows; notified_at stamped on the
+          source row.
 Constraints:
-    - The pure matching/suppression/cooldown/render rules live in
+    - Pure matching/suppression/cooldown/render/retry rules live in
       dispatch_core.py (re-exported below) and take no DB or network.
-    - process() must never raise into the poller: every send is wrapped, is
-      never retried, and a failed send must not start the next cooldown.
-Reuse: dispatch_core (match/suppressed_by_group/in_cooldown/render_message),
-       alerts.channels.telegram.send, alerts.channels.webhook.send_webhook /
-       build_payload, alerts.store.load_alerts.
+    - process() never raises into the poller: every send is wrapped. A
+      transient failure is scheduled for retry (alerts/retry.py drains it);
+      a permanent failure/skip must not start the next cooldown.
 """
 
 from __future__ import annotations
@@ -26,6 +24,7 @@ from findplus.alerts.dispatch_core import (
     GroupEvent,
     Rule,
     as_utc,
+    classify_new_delivery,
     in_cooldown,
     match,
     render_message,
@@ -156,11 +155,7 @@ def _load_rules(session) -> list[Rule]:
 
 
 def _delivery_place_ids(session, rows) -> dict[tuple[str, int], int | None]:
-    """Derived place_id per (event_kind, event_id), via an ORM join -- never text() SQL.
-
-    alert_deliveries has no place_id column, so cooldown scoping by place is
-    resolved here once per load.
-    """
+    """Derived place_id per (event_kind, event_id): alert_deliveries has no place_id column."""
     from findplus.db.models import GroupPlaceEvent, PlaceEvent
 
     out: dict[tuple[str, int], int | None] = {}
@@ -201,12 +196,9 @@ def _already_delivered(session, rule_id: int, kind: str, eid: int, channel: str)
 
 
 def _resolve_status(channel: str, rule: Rule, event, kind: str, channels_cfg, now):
-    # "native": no send and no DeliveryResult -- the row IS the queue entry
-    # the desktop app drains (specs/notifications.md § 2). Ruling F2 still
-    # holds: a "queued" row is a one-time entry, never a pending retry, so if
-    # the app never polls the alert is simply never shown.
+    # "native" has no send and no DeliveryResult, never a retry candidate.
     if channel == "native":
-        return "queued", None
+        return "queued", None, None, None
     return _status_for(channel, rule, event, kind, channels_cfg, now)
 
 
@@ -221,7 +213,12 @@ def _deliver_one(
     if _already_delivered(session, rule.id, kind, eid, channel):
         return None
 
-    status, err = _resolve_status(channel, rule, event, kind, channels_cfg, now)
+    status, err, status_code, retry_after = _resolve_status(
+        channel, rule, event, kind, channels_cfg, now
+    )
+    status, attempts, next_attempt_at = classify_new_delivery(
+        status, err, status_code, retry_after, now
+    )
 
     session.add(
         AlertDeliveryORM(
@@ -232,6 +229,8 @@ def _deliver_one(
             sent_at=now,
             status=status,
             error=err,
+            attempts=attempts,
+            next_attempt_at=next_attempt_at,
         )
     )
     try:
@@ -240,9 +239,8 @@ def _deliver_one(
         # Another poller won the race between the dedup SELECT and this commit.
         session.rollback()
         return None
-    # status travels with the row: process() appends this to the in-memory
-    # cooldown list, and Delivery.status defaults to "sent", so a failed
-    # send would otherwise suppress the next same-key alert this run.
+    # status travels with the row so a failed/retrying send does not start
+    # this run's in-memory cooldown (Delivery.status defaults to "sent").
     return Delivery(
         rule_id=rule.id,
         event_kind=kind,

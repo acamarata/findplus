@@ -193,6 +193,68 @@ def test_deliveries_include_channel(client: TestClient) -> None:
     assert row["status"] == "sent"
 
 
+def test_deliveries_include_retry_fields(client: TestClient) -> None:
+    """attempts/next_attempt_at (2026-09-22 retry feature) round-trip through the API."""
+    import datetime
+
+    from findplus.db.models_alerts import AlertDelivery
+
+    rule_id = client.post(
+        "/api/alerts/rules",
+        json={"name": "retry rule", "device_id": "dev1", "channels": ["telegram"]},
+    ).json()["id"]
+    now = datetime.datetime.now(datetime.UTC)
+    next_attempt = now + datetime.timedelta(minutes=1)
+
+    with session_scope() as session:
+        session.add(
+            AlertDelivery(
+                rule_id=rule_id,
+                event_kind="device",
+                event_id=1,
+                channel="telegram",
+                sent_at=now,
+                status="retrying",
+                error="timeout",
+                attempts=1,
+                next_attempt_at=next_attempt,
+            )
+        )
+
+    row = client.get("/api/alerts/deliveries").json()[0]
+    assert row["status"] == "retrying"
+    assert row["attempts"] == 1
+    assert row["next_attempt_at"] is not None
+
+
+def test_deliveries_next_attempt_at_is_null_when_not_retrying(client: TestClient) -> None:
+    import datetime
+
+    from findplus.db.models_alerts import AlertDelivery
+
+    rule_id = client.post(
+        "/api/alerts/rules",
+        json={"name": "sent rule", "device_id": "dev1", "channels": ["telegram"]},
+    ).json()["id"]
+
+    with session_scope() as session:
+        session.add(
+            AlertDelivery(
+                rule_id=rule_id,
+                event_kind="device",
+                event_id=1,
+                channel="telegram",
+                sent_at=datetime.datetime.now(datetime.UTC),
+                status="sent",
+                error=None,
+            )
+        )
+
+    row = client.get("/api/alerts/deliveries").json()[0]
+    assert row["attempts"] == 1
+    assert row["next_attempt_at"] is None
+
+
 def test_401_locked(client: TestClient) -> None:
     client.post("/api/settings/pin", json={"new_pin": "864213"})
     client.cookies.clear()

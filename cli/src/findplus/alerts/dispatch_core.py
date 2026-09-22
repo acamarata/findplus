@@ -178,6 +178,73 @@ def in_cooldown(
 _LATENCY_TAIL = f"\n{ALERTS_LATENCY}"
 
 
+#: Minutes after the first failure that retry 1/2/3 (attempts 2/3/4) are due.
+#: Indexed by `attempts - 1`, where `attempts` is the count already made.
+RETRY_OFFSETS_MINUTES = (1, 5, 30)
+
+#: 1 initial send + 3 retries. `attempts` reaching this with no success means
+#: give up -- the row's final status is "failed", not "retrying" again.
+MAX_ATTEMPTS = 4
+
+_RETRY_CAP = datetime.timedelta(minutes=RETRY_OFFSETS_MINUTES[-1])
+
+
+def is_transient_failure(status_code: int | None, error: str | None) -> bool:
+    """True for a network error, a timeout, HTTP 429, or any 5xx.
+
+    Everything else -- a 4xx other than 429, a channel-unconfigured skip, or a
+    credential/shape exception (telegram.py's malformed-token/blocked-bot
+    raises, whatsapp_callmebot's malformed-phone/apikey results) -- is
+    permanent and must never be retried. Those never produce status_code=429
+    or >=500 and never carry the exact literal "timeout" error, so the two
+    checks below are sufficient without inspecting the exception type.
+    """
+    if status_code == 429:
+        return True
+    if status_code is not None and status_code >= 500:
+        return True
+    return status_code is None and error == "timeout"
+
+
+def compute_next_attempt_at(
+    sent_at: datetime.datetime,
+    attempts: int,
+    now: datetime.datetime,
+    retry_after_seconds: int | None,
+) -> datetime.datetime:
+    """When the attempt after `attempts` is due.
+
+    The ladder (RETRY_OFFSETS_MINUTES) is anchored to `sent_at`, the first
+    failure -- not to `now` -- so the schedule reads the same regardless of
+    when the poller actually gets around to running it. A Retry-After header
+    only ever pushes the wait later (never shorter than the ladder's own
+    value), and the total wait from the first failure is capped at 30
+    minutes either way.
+    """
+    ladder_at = sent_at + datetime.timedelta(minutes=RETRY_OFFSETS_MINUTES[attempts - 1])
+    if retry_after_seconds is not None:
+        requested_at = now + datetime.timedelta(seconds=max(0, retry_after_seconds))
+        ladder_at = max(ladder_at, requested_at)
+    return min(ladder_at, sent_at + _RETRY_CAP)
+
+
+def classify_new_delivery(
+    status: str,
+    error: str | None,
+    status_code: int | None,
+    retry_after_seconds: int | None,
+    sent_at: datetime.datetime,
+) -> tuple[str, int, datetime.datetime | None]:
+    """(status, attempts, next_attempt_at) for a row being written for the
+    first time. Only a transient "failed" outcome becomes "retrying"; every
+    other status (sent/skipped/queued, or a permanent failure) is stored as
+    given, with attempts=1 and nothing scheduled.
+    """
+    if status == "failed" and is_transient_failure(status_code, error):
+        return "retrying", 1, compute_next_attempt_at(sent_at, 1, sent_at, retry_after_seconds)
+    return status, 1, None
+
+
 def as_utc(value: datetime.datetime | str | None) -> datetime.datetime | None:
     """Coerce a timestamp to aware UTC.
 

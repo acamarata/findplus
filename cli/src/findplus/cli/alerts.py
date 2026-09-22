@@ -291,9 +291,12 @@ def deliveries_cmd(limit: int) -> None:
             .limit(limit)
             .all()
         )
-    click.echo(f"{'ID':<6}{'RULE':<16}{'KIND':<8}{'SENT_AT':<26}{'STATUS':<8}")
+    click.echo(
+        f"{'ID':<6}{'RULE':<16}{'KIND':<8}{'SENT_AT':<26}{'STATUS':<10}{'ATTEMPTS':<9}NEXT_ATTEMPT"
+    )
     for d, rule_name in rows:
+        next_attempt = d.next_attempt_at.isoformat() if d.next_attempt_at else ""
         click.echo(
             f"{d.id:<6}{rule_name:<16}{d.event_kind or '':<8}"
-            f"{d.sent_at.isoformat():<26}{d.status or '':<8}"
+            f"{d.sent_at.isoformat():<26}{d.status or '':<10}{d.attempts:<9}{next_attempt}"
         )

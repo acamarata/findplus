@@ -15,8 +15,13 @@ at once: the rule form uses checkboxes, not a single dropdown, and each ticked c
 delivered and cooled down on its own. When a qualifying enter or exit event is confirmed,
 Find+ sends a notification. A
 cooldown period (default 30 minutes) prevents repeated alerts for the same tag at the same
-place. Delivery is best-effort: a failed send is recorded in the alert log and is not
-retried, and a failed send never starts the cooldown on its own.
+place. Delivery is best-effort: a failed send is recorded in the alert log, and a failed or
+skipped send never starts the cooldown on its own. A failure that looks temporary -- a
+timeout, a "too many requests" response, or the channel's server erroring out -- is retried
+automatically, up to three more times at one minute, five minutes, then thirty minutes after
+the first failure. A rejected request (a bad credential, a malformed number, anything the
+channel refused outright) is not retried, and Mac notifications are never retried; they are
+a one-time queue entry for the app to pick up, not a send that can fail this way.
 
 ## Privacy: outbound connections
 
@@ -40,8 +45,8 @@ The Alerts tab lists what Find+ actually sent, most recent first:
 | Kind | `device` for a single tracker, `group` for a quorum crossing. |
 | Text | The notification's first line, rendered fresh on every read. Mac notifications only; every other channel shows a dash. |
 | Body | The place and the observed/lag line beneath it. Mac notifications only. |
-| Sent | When the attempt was made, in your local time. |
-| Status | `sent`, `failed`, or `skipped`. |
+| Sent | When the first attempt was made, in your local time. |
+| Status | `sent`, `failed`, `skipped`, or `retrying`. |
 | Error | Why it failed, or why it was skipped. |
 
 `skipped` means the rule matched but nothing was sent, most often because the
@@ -49,6 +54,14 @@ rule names a channel with no credentials, such as a Telegram rule created
 before setup finished, or one left enabled after the Telegram connection was
 deleted. A skipped or failed delivery does not start the rule's cooldown, so
 the next crossing is still eligible.
+
+`retrying` means the first attempt failed with something that looks
+temporary, and Find+ will try again automatically; the Status column also
+shows which attempt is next and when (for example "Retrying (attempt 2 of 4,
+next at 14:35)"). If every retry fails, the row's status becomes `failed`
+and says "Failed after 4 attempts" instead of a bare `failed`, so you can
+tell a delivery that exhausted its retries from one that never qualified
+for one.
 
 Errors are stored with credentials masked. A webhook that carries its key in
 the query string will show the URL with that value replaced.

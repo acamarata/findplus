@@ -135,6 +135,11 @@ def _delivery_to_dict(
         "delivered_at": d.delivered_at.isoformat() if d.delivered_at else None,
         "status": d.status,
         "error": d.error,
+        # Retry scheduling (2026-09-22 feature): attempts is 1 for every row
+        # that has never been retried; next_attempt_at is set only while
+        # status == "retrying".
+        "attempts": d.attempts,
+        "next_attempt_at": d.next_attempt_at.isoformat() if d.next_attempt_at else None,
         "text": text,
         "body": body,
     }

@@ -231,6 +231,8 @@
     "groupFallback": "group {id}",
     "ruleFallback": "rule {id}",
     "skippedNoReason": "suppressed, no reason recorded",
+    "retryingStatus": "Retrying (attempt {attempt} of {max}, next at {time})",
+    "failedAfterRetries": "Failed after {max} attempts",
     "whatsapp": {
       "heading": "WhatsApp",
       "phone": "Phone",

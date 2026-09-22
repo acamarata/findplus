@@ -17,9 +17,34 @@
  *              (honesty round 2 F14).
  */
 "use strict";
-import { $, fmtDateTime } from "./state.js";
+import { $, fmtDateTime, fmtTime } from "./state.js";
 import { api } from "./api.js";
 import { t } from "./i18n.js";
+
+// Mirrors findplus.alerts.dispatch_core.MAX_ATTEMPTS (1 initial send + 3
+// retries): the server enforces the real cap, this only picks the wording.
+const MAX_DELIVERY_ATTEMPTS = 4;
+
+/**
+ * "sent"/"skipped" render as-is. A "retrying" row reports the attempt that is
+ * coming next (attempts + 1) and when; a "failed" row that used up every
+ * retry says so, distinct from a "failed" row that never qualified for one
+ * (attempts stays 1 for those, per notifications.md's retry ruling).
+ */
+function statusText(delivery) {
+  const attempts = delivery.attempts || 1;
+  if (delivery.status === "retrying") {
+    return t("alerts.retryingStatus", {
+      attempt: attempts + 1,
+      max: MAX_DELIVERY_ATTEMPTS,
+      time: fmtTime(delivery.next_attempt_at),
+    });
+  }
+  if (delivery.status === "failed" && attempts >= MAX_DELIVERY_ATTEMPTS) {
+    return t("alerts.failedAfterRetries", { max: MAX_DELIVERY_ATTEMPTS });
+  }
+  return delivery.status;
+}
 
 function cell(text) {
   const td = document.createElement("td");
@@ -44,7 +69,7 @@ function buildDeliveryRow(delivery) {
     cell(delivery.text || t("common.emptyValue")),
     cell(delivery.body || t("common.emptyValue")),
     cell(fmtDateTime(delivery.sent_at)),
-    cell(delivery.status),
+    cell(statusText(delivery)),
     // A "skipped" row arrived with an empty Error cell and no hint why; the
     // API now sends the reason in `error`, and a bare skip still says so.
     cell(delivery.error || (delivery.status === "skipped" ? t("alerts.skippedNoReason") : "")),

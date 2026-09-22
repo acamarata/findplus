@@ -60,10 +60,18 @@ function timelineHtml(track) {
       meta.push(t("timeline.belowThreshold"));
     }
 
+    // Coordinates stay in the title attribute for hover even when a place name
+    // is shown in their place (U30b) — the API resolves place_name server-side
+    // (routes_history.py::_annotate_place_names) against every saved place.
+    const coordsTitle = `${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}`;
+    const coordsLine = point.place_name
+      ? `<div class="tl-coords" title="${esc(coordsTitle)}">📍 ${esc(point.place_name)}</div>`
+      : `<div class="tl-coords">📍 ${esc(coordsTitle)}</div>`;
+
     html +=
       `<li class="tl-item${point.is_movement ? "" : " jitter"}" data-id="${point.id}">` +
       `<div><span class="tl-seq">${point.sequence}.</span> <span class="tl-time">${fmtTime(point.observed_at_local)}</span></div>` +
-      `<div class="tl-coords">📍 ${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}</div>` +
+      coordsLine +
       (meta.length ? `<div class="tl-meta">${esc(meta.join(" · "))}</div>` : "") +
       `</li>`;
   });

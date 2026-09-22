@@ -76,6 +76,26 @@ def test_timeline_stats_label_distance_as_approximate(client: TestClient) -> Non
     assert stats["distance_label"] == "Approximate distance between observed locations"
 
 
+def test_timeline_labels_a_point_inside_a_saved_place(client: TestClient) -> None:
+    """U30b: a fix inside a saved place gets that place's name; others get None."""
+    res = client.post(
+        "/api/places",
+        json={"name": "Home", "latitude": 41.100, "longitude": -80.123456, "radius_meters": 50},
+    )
+    assert res.status_code == 201, res.text
+    points = client.get("/api/timeline?day=2026-09-18&timezone=UTC").json()["tracks"][0]["points"]
+    assert points[0]["place_name"] == "Home"
+    assert points[1]["place_name"] is None
+    assert points[2]["place_name"] is None
+    # Coordinates stay on the point even when a place_name is present, for hover.
+    assert points[0]["latitude"] == pytest.approx(41.100)
+
+
+def test_timeline_place_name_is_none_with_no_saved_places(client: TestClient) -> None:
+    points = client.get("/api/timeline?day=2026-09-18&timezone=UTC").json()["tracks"][0]["points"]
+    assert all(p["place_name"] is None for p in points)
+
+
 def test_empty_day_returns_an_empty_timeline_not_an_error(client: TestClient) -> None:
     body = client.get("/api/timeline?day=2020-01-01&timezone=UTC").json()
     assert body["tracks"] == []

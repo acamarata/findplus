@@ -23,7 +23,7 @@ Reuse: findplus.geo.haversine_meters (distance only; no other geo logic here).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 
 from findplus.geo import haversine_meters
@@ -112,6 +112,33 @@ def classify(place: PlaceSpec, fix: Fix, default_accuracy: float = 100.0) -> Cla
     return Classification(
         side=side, confidence=confidence, distance_meters=distance, accuracy_meters=acc
     )
+
+
+def classify_point(
+    place: PlaceSpec,
+    latitude: float,
+    longitude: float,
+    accuracy_meters: float | None,
+    default_accuracy: float = 100.0,
+) -> Classification:
+    """classify() for a read-only lookup with no observation_id/device_id in hand.
+
+    Used by the timeline API (U30b) to label an already-stored point with the
+    saved place it falls inside, without touching the hysteresis state machine
+    (that stays the sole owner of ENTER/EXIT truth in advance()). `observed_at`
+    only needs to be tz-aware for classify()'s guard, not any real timestamp,
+    since side/confidence never depend on it.
+    """
+    fix = Fix(
+        observation_id=0,
+        device_id="",
+        latitude_e7=round(latitude * 1e7),
+        longitude_e7=round(longitude * 1e7),
+        accuracy_meters=accuracy_meters,
+        observed_at=datetime.now(UTC),
+        fetched_at=datetime.now(UTC),
+    )
+    return classify(place, fix, default_accuracy)
 
 
 def _crossing(

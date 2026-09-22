@@ -32,6 +32,8 @@ from findplus.db.models import Device, Group, LocationObservation, PollRun
 from findplus.db.session import session_scope
 from findplus.groups.repo import list_group_timeline
 from findplus.logging_setup import get_logger
+from findplus.places.geofence import PlaceSpec, classify_point
+from findplus.places.repo import list_places
 from findplus.timeline import day_bounds_utc, days_with_data, local_zone, multi_day_timeline
 
 from ._helpers import _parse_day, _serialize_latest, _serialize_run
@@ -87,6 +89,50 @@ def _named_payload(tracks, names: dict[str, str]) -> list[dict[str, Any]]:
     return payload
 
 
+def _place_specs(session) -> list[tuple[PlaceSpec, str]]:
+    """(geofence, name) pairs for every saved place, for timeline point labels."""
+    return [
+        (
+            PlaceSpec(
+                id=p.id,
+                latitude_e7=p.latitude_e7,
+                longitude_e7=p.longitude_e7,
+                radius_meters=p.radius_meters,
+                enter_confirmations=p.enter_confirmations,
+                exit_confirmations=p.exit_confirmations,
+            ),
+            p.name,
+        )
+        for p in list_places(session)
+    ]
+
+
+def _place_name_for_point(
+    point: dict[str, Any], place_specs: list[tuple[PlaceSpec, str]]
+) -> str | None:
+    """First saved place (alphabetical, from list_places) the point falls inside, or None."""
+    for spec, name in place_specs:
+        cls = classify_point(spec, point["latitude"], point["longitude"], point["accuracy_meters"])
+        if cls.side == "inside":
+            return name
+    return None
+
+
+def _annotate_place_names(
+    payload: list[dict[str, Any]], place_specs: list[tuple[PlaceSpec, str]]
+) -> None:
+    """Adds `place_name` to every point in-place (U30b).
+
+    Read-only display convenience: the geofence hysteresis state machine
+    (places/geofence.py advance()) is still the sole owner of ENTER/EXIT
+    truth. Coordinates stay on the point alongside `place_name` so a hover
+    can still show the raw fix.
+    """
+    for track in payload:
+        for point in track["points"]:
+            point["place_name"] = _place_name_for_point(point, place_specs) if place_specs else None
+
+
 def _register_timeline_route(router: APIRouter, *, settings) -> None:
     @router.get("/timeline")
     def timeline(
@@ -124,8 +170,10 @@ def _register_timeline_route(router: APIRouter, *, settings) -> None:
                 gap_threshold_minutes=gap,
             )
             names = {d.device_id: d.name for d in session.scalars(select(Device))}
+            place_specs = _place_specs(session)
 
         payload = _named_payload(tracks, names)
+        _annotate_place_names(payload, place_specs)
 
         return {
             "day": target.isoformat(),

@@ -219,4 +219,72 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(sfSymbol(for: "letter", label: "ßtart", name: "Tag"), "S.circle.fill")
         XCTAssertEqual(sfSymbol(for: "letter", label: "ﬁnder", name: "Tag"), "F.circle.fill")
     }
+
+    // ------------------------------------------------------- places (P2-E13)
+
+    /// A 1.0.x/1.1-pre daemon sends no `places` key at all; `decode(state:)`'s
+    /// fixture already omits it, so the whole response must still decode
+    /// (same fallback R-P2-23 pins for device icon/color).
+    func testWidgetResponseDecodesWithoutPlacesKey() throws {
+        let response = try decode(state: "ok")
+        XCTAssertEqual(response.places, [])
+    }
+
+    func testWidgetResponseDecodesPlaces() throws {
+        let json = """
+        {"state":"ok","version":"1.0","last_poll_at":null,"next_poll_at":null,
+         "tracked_count":1,"stale_after_minutes":90,"devices":[],"groups":[],
+         "show_map":false,"notice":"\(pinnedLatencyNotice)",
+         "places":[{"id":3,"name":"Home","device_ids":["d1"],"group_ids":[7],
+                    "last_change_at":"2026-01-01T00:00:00Z"}]}
+        """
+        let response = try JSONDecoder().decode(WidgetResponse.self, from: Data(json.utf8))
+        XCTAssertEqual(response.places.count, 1)
+        let place = response.places[0]
+        XCTAssertEqual(place.id, 3)
+        XCTAssertEqual(place.name, "Home")
+        XCTAssertEqual(place.device_ids, ["d1"])
+        XCTAssertEqual(place.group_ids, [7])
+        XCTAssertEqual(place.last_change_at, "2026-01-01T00:00:00Z")
+    }
+
+    func testWidgetPlaceDecodesNullLastChangeAt() throws {
+        let json = """
+        {"id":1,"name":"Empty","device_ids":[],"group_ids":[],"last_change_at":null}
+        """
+        let place = try JSONDecoder().decode(WidgetPlace.self, from: Data(json.utf8))
+        XCTAssertNil(place.last_change_at)
+    }
+
+    /// R-P2-23's badge grammar: a place references occupants by id, so the
+    /// widget looks their icon/color up in the same response's devices/groups.
+    func testWidgetResponseLooksUpDeviceAndGroupById() throws {
+        let json = """
+        {"state":"ok","version":"1.0","last_poll_at":null,"next_poll_at":null,
+         "tracked_count":1,"stale_after_minutes":90,
+         "devices":[{"device_id":"d1","name":"Keys","provider":"google-find-hub",
+           "last_observed_at":"2026-01-01T00:00:00Z","age_minutes":0,
+           "latitude":0,"longitude":0,"place":null,"group":null,
+           "icon":"lucide:key","color":"#4f8cf7"}],
+         "groups":[{"id":7,"name":"Family","icon":"lucide:users",
+           "verdict":"together","note":"n"}],
+         "show_map":false,"notice":"\(pinnedLatencyNotice)","places":[]}
+        """
+        let response = try JSONDecoder().decode(WidgetResponse.self, from: Data(json.utf8))
+        XCTAssertEqual(response.device(id: "d1")?.name, "Keys")
+        XCTAssertNil(response.device(id: "missing"))
+        XCTAssertEqual(response.group(id: 7)?.name, "Family")
+        XCTAssertNil(response.group(id: 99))
+    }
+
+    func testMinutesSinceParsesAnApiTimestamp() {
+        let now = ISO8601DateFormatter().date(from: "2026-01-01T00:10:00Z")!
+        let minutes = minutesSince("2026-01-01T00:00:00Z", now: now)
+        XCTAssertEqual(minutes, 10)
+    }
+
+    func testMinutesSinceIsNilForMissingOrMalformedInput() {
+        XCTAssertNil(minutesSince(nil))
+        XCTAssertNil(minutesSince("not-a-date"))
+    }
 }

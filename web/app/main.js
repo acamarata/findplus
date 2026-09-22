@@ -148,6 +148,10 @@ export async function applyHashRoute({ closeOthers = true } = {}) {
   await closeSetupRoute();
   if (hash === "#settings") await openSettings();
   else if (hash === "#devices") await openDevices();
+  // The Places widget's tap target (findplus://places -> windows::open_places
+  // -> this hash): switch to the tab the widget promises, rather than leaving
+  // the dashboard on whatever tab was last active.
+  else if (hash === "#places") switchTab("places");
   else if (closeOthers) closeModals();
 }
 

@@ -7,6 +7,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- A second macOS widget, "Find+ Places": who is at each saved place right now, with a device or group badge per occupant and the last time it changed. Tapping it opens the dashboard's Places tab.
 - A failed Telegram, WhatsApp or webhook alert now retries automatically when the failure looks temporary (a timeout, a "too many requests" response, or a server error): up to three more tries, one minute, five minutes, then thirty minutes after the first failure. A rejected request, a bad credential or an unconfigured channel is not retried. The delivery log shows a retry in progress and how many tries a delivery has used.
 - The macOS app release now ships an Intel dmg (`FindPlus-<version>-x86_64.dmg`) alongside the existing Apple Silicon one (`FindPlus-<version>-aarch64.dmg`); the release workflow builds, signs and notarises both natively on their own runners.
 - The macOS app opens the dashboard by itself on a first launch, so the setup wizard is the first thing you see, and goes back to being tray-only once setup is finished. The splash window now closes when the daemon is up, instead of staying on top until you quit.

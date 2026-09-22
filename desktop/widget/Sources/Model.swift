@@ -137,6 +137,18 @@ extension WidgetGroup {
     }
 }
 
+/// One row of `GET /api/widget`'s `places` array — feeds the PlacesWidget
+/// widget kind. `device_ids`/`group_ids` reference `WidgetResponse.devices`/
+/// `.groups` by id rather than repeating icon/color, so a badge's look comes
+/// from the same lookup R-P2-23 already pins for the device widget.
+struct WidgetPlace: Codable, Equatable {
+    let id: Int
+    let name: String
+    let device_ids: [String]
+    let group_ids: [Int]
+    let last_change_at: String?
+}
+
 struct WidgetResponse: Codable {
     let state: WidgetState
     let version: String
@@ -148,6 +160,44 @@ struct WidgetResponse: Codable {
     let groups: [WidgetGroup]
     let show_map: Bool
     let notice: String
+    // `var`, not `let`: a `let` with a default value is assigned by that
+    // default in EVERY initializer, including the custom init(from:) below,
+    // and reassigning it there is a compile error ("may only be initialized
+    // once"). `var` keeps the default (so the synthesized memberwise init
+    // keeps `places:` optional -- Provider.swift's placeholder() builds a
+    // WidgetResponse without one, and this struct must not force an edit
+    // onto a file this ticket does not own) while still letting the decoder
+    // set the real value. Nothing outside this file ever mutates it again.
+    var places: [WidgetPlace] = []
+}
+
+extension WidgetResponse {
+    /// `places` decoded as optional, defaulting to `[]`: a 1.0.x/1.1-pre
+    /// daemon answers `GET /api/widget` with no `places` key at all, and the
+    /// rest of the payload (state/devices/groups) must still decode rather
+    /// than losing everything because one new key is missing (same rule as
+    /// R-P2-23's device/group icon fallback). The init sits in an extension
+    /// so the memberwise initialiser survives for Provider.swift's
+    /// placeholder() and the tests.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        state = try c.decode(WidgetState.self, forKey: .state)
+        version = try c.decode(String.self, forKey: .version)
+        last_poll_at = try c.decodeIfPresent(String.self, forKey: .last_poll_at)
+        next_poll_at = try c.decodeIfPresent(String.self, forKey: .next_poll_at)
+        tracked_count = try c.decode(Int.self, forKey: .tracked_count)
+        stale_after_minutes = try c.decode(Int.self, forKey: .stale_after_minutes)
+        devices = try c.decode([WidgetDevice].self, forKey: .devices)
+        groups = try c.decode([WidgetGroup].self, forKey: .groups)
+        show_map = try c.decode(Bool.self, forKey: .show_map)
+        notice = try c.decode(String.self, forKey: .notice)
+        places = try c.decodeIfPresent([WidgetPlace].self, forKey: .places) ?? []
+    }
+
+    /// Badge lookups: a place stores its occupants' ids, not their icon/color,
+    /// so the two widgets never disagree about how a device or group looks.
+    func device(id: String) -> WidgetDevice? { devices.first { $0.device_id == id } }
+    func group(id: Int) -> WidgetGroup? { groups.first { $0.id == id } }
 }
 
 struct WidgetEntry: TimelineEntry {
@@ -204,4 +254,15 @@ func formatAge(minutes: Int) -> String {
         return "\(minutes / 60) h ago"
     }
     return "\(minutes / 1440) d ago"
+}
+
+/// Minutes elapsed since an API `...Z` instant, or nil if it does not parse.
+///
+/// Places carries `last_change_at` as a timestamp rather than a
+/// pre-computed age the way device rows carry `age_minutes` (the server has
+/// no single "the" device to compute it against per place), so the widget
+/// derives it the same way it would format any other served instant.
+func minutesSince(_ iso: String?, now: Date = Date()) -> Int? {
+    guard let iso, let date = ISO8601DateFormatter().date(from: iso) else { return nil }
+    return max(0, Int(now.timeIntervalSince(date) / 60))
 }

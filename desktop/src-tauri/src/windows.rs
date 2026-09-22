@@ -77,6 +77,31 @@ pub fn open_settings(app: &AppHandle) {
     .build();
 }
 
+pub fn open_places(app: &AppHandle) {
+    if refuse_if_another_app(app) {
+        return;
+    }
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.eval("window.location.hash = '#places'");
+        let _ = win.show();
+        let _ = win.set_focus();
+        return;
+    }
+    let _ = WebviewWindowBuilder::new(
+        app,
+        "main",
+        WebviewUrl::External("http://127.0.0.1:8647/#places".parse().unwrap()),
+    )
+    .title("Find+")
+    .inner_size(1280.0, 820.0)
+    .decorations(true)
+    // Runs before any page script, including main.js. The only writer of the
+    // flag every native-only branch gates on, so a plain browser tab pointed at
+    // :8647 never sees it (R-P2-13).
+    .initialization_script("window.__findplus_native = true;")
+    .build();
+}
+
 pub fn open_splash(app: &AppHandle) {
     if app.get_webview_window("splash").is_some() {
         return;

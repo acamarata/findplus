@@ -150,8 +150,8 @@ async def _dialog_input_values(page) -> dict:
                 open: dlg.open,
                 editId: dlg.dataset.editId || '',
                 values: inputs.map((i) => i.value).join('|'),
-                name: (dlg.querySelector('input[type=text]') || {}).value || '',
-                lat: (dlg.querySelector('input[type=hidden]') || {}).value || '',
+                name: (dlg.querySelector('#fp-place-name') || {}).value || '',
+                lat: (dlg.querySelector('#fp-place-lat') || {}).value || '',
             };
         }"""
     )
@@ -162,9 +162,14 @@ async def test_lock_purges_the_place_dialog_and_the_webhook_secret(page, base_ur
 
     purgeRenderedData()'s contract is that locking DESTROYS rendered location
     data, not that it hides it. places.js only called `dialog.close()`, so the
-    hidden lat/lon inputs kept the exact point the user had just clicked and
-    the name input kept the place name — both readable from DevTools with the
+    hidden lat/lon inputs kept the exact point the dialog opened at and the
+    name input kept the place name — both readable from DevTools with the
     lock screen up. The webhook secret input had nothing clearing it at all.
+
+    "Add place" opens the dialog directly at the map's current centre (U4/U10,
+    commit eff581d) rather than arming a map-click crosshair, so the dialog is
+    already open and modal by the time this test would otherwise click the
+    map underneath it — no map click is needed to fill the coordinates.
     """
     await _setup_purge_fixture(page, base_url)
     try:
@@ -173,10 +178,12 @@ async def test_lock_purges_the_place_dialog_and_the_webhook_secret(page, base_ur
 
         await page.click('button[data-tab="places"]')
         await page.click("#fp-add-place-btn")
-        await page.click("#map", position={"x": 10, "y": 10})
         dialog = page.locator("#fp-place-dialog")
         await dialog.wait_for(state="visible")
-        await dialog.locator('input[type="text"]').fill("Safe house")
+        # #fp-place-name, not a bare input[type="text"]: place_locator.js's own
+        # opt-in address-search box (U4/U10) is a second text input in this
+        # dialog now, and a strict-mode locator rejects an ambiguous match.
+        await dialog.locator("#fp-place-name").fill("Safe house")
         # Cancel, not Save: the point is that closing the dialog is not purging it.
         await dialog.get_by_text("Cancel", exact=True).click()
         await page.wait_for_function("() => !document.getElementById('fp-place-dialog').open")

@@ -157,37 +157,37 @@ def test_serve_starts_and_joins_a_retention_thread(tmp_db, monkeypatch: pytest.M
     assert not any(t.name == "retention" for t in threading.enumerate())
 
 
-# --------------------------------------------------- j: port/host env export
-# CF-P2-3: OriginGuardMiddleware calls get_settings() fresh on every request,
-# so a `--port`/`--host` override must land in FINDPLUS_PORT/FINDPLUS_HOST --
-# not only in the value uvicorn binds to -- or the guard keeps comparing
-# against the untouched default and refuses every request on the real port.
-# _bind_or_exit mutates os.environ directly (not through monkeypatch), so
-# each case restores whatever was there before it ran, itself.
-def test_bind_or_exit_exports_a_port_override_to_settings(tmp_db) -> None:
-    original = os.environ.get("FINDPLUS_PORT")
-    try:
-        _bind_host, bind_port = _bind_or_exit(None, 19999)
-        assert bind_port == 19999
-        assert get_settings().port == 19999
-    finally:
-        if original is None:
-            os.environ.pop("FINDPLUS_PORT", None)
-        else:
-            os.environ["FINDPLUS_PORT"] = original
+# --------------------------------------------------- j: port/host resolution
+# Closeout C-M1: OriginGuardMiddleware no longer re-reads get_settings() per
+# request -- it reads app.state.bound_host/bound_port, set once by
+# create_app(bound_host=, bound_port=) at startup (_start_uvicorn). A
+# --port/--host override therefore only has to reach _bind_or_exit's return
+# value; it used to also have to land in FINDPLUS_PORT/FINDPLUS_HOST via a
+# direct (non-monkeypatch) os.environ write, which is exactly what leaked
+# FINDPLUS_PORT=8641 out of test_sigterm.py's CliRunner invocation into every
+# test that ran afterward in the same process (CF-P2-3 follow-up). These
+# cases now pin the opposite: _bind_or_exit touches neither os.environ nor
+# get_settings()'s own return value.
+def test_bind_or_exit_resolves_a_port_override_without_touching_the_environment(
+    tmp_db,
+) -> None:
+    assert "FINDPLUS_PORT" not in os.environ
+    default_port = get_settings().port
+    _bind_host, bind_port = _bind_or_exit(None, 19999)
+    assert bind_port == 19999
+    assert "FINDPLUS_PORT" not in os.environ
+    assert get_settings().port == default_port
 
 
-def test_bind_or_exit_exports_a_host_override_to_settings(tmp_db) -> None:
-    original = os.environ.get("FINDPLUS_HOST")
-    try:
-        bind_host, _bind_port = _bind_or_exit("127.0.0.1", None)
-        assert bind_host == "127.0.0.1"
-        assert get_settings().host == "127.0.0.1"
-    finally:
-        if original is None:
-            os.environ.pop("FINDPLUS_HOST", None)
-        else:
-            os.environ["FINDPLUS_HOST"] = original
+def test_bind_or_exit_resolves_a_host_override_without_touching_the_environment(
+    tmp_db,
+) -> None:
+    assert "FINDPLUS_HOST" not in os.environ
+    default_host = get_settings().host
+    bind_host, _bind_port = _bind_or_exit("127.0.0.1", None)
+    assert bind_host == "127.0.0.1"
+    assert "FINDPLUS_HOST" not in os.environ
+    assert get_settings().host == default_host
 
 
 def test_bind_or_exit_leaves_settings_untouched_with_no_override(tmp_db) -> None:

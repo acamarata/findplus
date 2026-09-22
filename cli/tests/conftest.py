@@ -40,7 +40,9 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 #: it is not a loopback name — exactly the DNS-rebinding case it exists to
 #: refuse. Every client in this suite therefore speaks as a loopback browser
 #: does; the guard's own rejections are tested by setting Host explicitly.
-LOOPBACK_BASE_URL = "http://127.0.0.1:8647"
+LOOPBACK_HOST = "127.0.0.1"
+LOOPBACK_PORT = 8647
+LOOPBACK_BASE_URL = f"http://{LOOPBACK_HOST}:{LOOPBACK_PORT}"
 
 
 def _default_testclient_to_loopback() -> None:
@@ -255,7 +257,11 @@ def client(tmp_db):
             ],
             fetched_at=datetime(2026, 9, 18, 13, 5, tzinfo=UTC),
         )
-    return TestClient(create_app())
+    # Closeout C-M1: bind explicitly to what LOOPBACK_BASE_URL's Host header
+    # claims, rather than letting create_app() capture get_settings() at
+    # creation time -- airtight against test-order pollution independent of
+    # _isolate_bind_env_vars above.
+    return TestClient(create_app(bound_host=LOOPBACK_HOST, bound_port=LOOPBACK_PORT))
 
 
 @pytest.fixture

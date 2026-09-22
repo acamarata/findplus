@@ -41,6 +41,7 @@ from . import (
     routes_devices,
     routes_groups,
     routes_history,
+    routes_icons,
     routes_lock,
     routes_places,
     routes_providers,
@@ -226,6 +227,7 @@ def _register_routers(app: FastAPI, *, settings, sessions, sync_idle_timeout) ->
         )
     )
     app.include_router(routes_devices.build_router(settings=settings))
+    app.include_router(routes_icons.build_router())
     app.include_router(routes_providers.build_router())
     app.include_router(routes_auth.build_router())
     app.include_router(routes_places.build_router())
@@ -238,7 +240,23 @@ def _register_routers(app: FastAPI, *, settings, sessions, sync_idle_timeout) ->
     app.include_router(build_export_router())
 
 
-def create_app(sessions: SessionStore | None = None) -> FastAPI:
+def create_app(
+    sessions: SessionStore | None = None,
+    *,
+    bound_host: str | None = None,
+    bound_port: int | None = None,
+) -> FastAPI:
+    """Build the app. `bound_host`/`bound_port` are the address uvicorn will
+    actually bind to (closeout C-M1): OriginGuardMiddleware reads them off
+    `app.state` for the lifetime of this app object, never `get_settings()`
+    re-read per request, so a `findplus config set port ...` written while
+    this daemon is already running cannot move the port the guard answers
+    on out from under the bind it is actually serving. Callers that build
+    and immediately bind a real server (cmd_serve.py's `_start_uvicorn`) must
+    pass the resolved host/port here; every other caller (tests, the
+    module-level `app` below) gets `get_settings()`'s value, captured once
+    at this call, same as before CF-P2-3 introduced the per-request re-read.
+    """
     settings = get_settings()
     sessions = sessions or SessionStore()
     app = FastAPI(
@@ -257,6 +275,8 @@ def create_app(sessions: SessionStore | None = None) -> FastAPI:
         # described every route to anyone who could reach the port.
         openapi_url="/api/openapi.json",
     )
+    app.state.bound_host = bound_host or settings.host
+    app.state.bound_port = bound_port or settings.port
     # Registration order is inside-out: the LAST middleware added runs FIRST,
     # so a foreign Host is refused before the lock, the routers or /static see
     # it, and the security headers land on that refusal too.

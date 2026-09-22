@@ -38,8 +38,6 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from findplus.config import get_settings
-
 __all__ = [
     "CONTENT_SECURITY_POLICY",
     "OriginGuardMiddleware",
@@ -49,7 +47,7 @@ __all__ = [
     "same_origin_problem",
 ]
 
-#: Host header values this daemon answers to, on top of `settings.host`.
+#: Host header values this daemon answers to, on top of its own bound host.
 LOOPBACK_HOSTNAMES = frozenset({"127.0.0.1", "localhost", "::1", "[::1]"})
 
 #: The desktop shell's own protocol origins (macOS uses tauri://, Windows
@@ -190,14 +188,28 @@ def _origin_of(url: str) -> str:
     return f"{parts.scheme}://{parts.netloc}" if parts.scheme and parts.netloc else url
 
 
+def _bound_base_url(request: Request) -> str:
+    """`http://host:port` for the address this app was actually bound to.
+
+    `app.state.bound_host`/`bound_port` are set once by `create_app()`
+    (closeout C-M1) -- never `get_settings()` re-read per request, so a
+    `findplus config set port ...` written while this daemon is already
+    running cannot move the port the guard checks against out from under
+    the bind it is actually serving.
+    """
+    state = request.app.state
+    return f"http://{state.bound_host}:{state.bound_port}"
+
+
 def same_origin_problem(request: Request) -> str | None:
     """The reason to refuse this request, or None when it looks same-origin.
 
     Shared by the middleware and by the first-time `POST /api/settings/pin`
     route, which applies it even to a request the middleware would let past.
     """
+    base_url = _bound_base_url(request)
     origin = request.headers.get("origin")
-    if origin and not is_allowed_origin(origin, get_settings().base_url):
+    if origin and not is_allowed_origin(origin, base_url):
         return _FOREIGN_ORIGIN_DETAIL
     site = request.headers.get("sec-fetch-site")
     if request.method in _MUTATING_METHODS and site and site not in SAME_SITE_FETCH_VALUES:
@@ -210,7 +222,7 @@ def same_origin_problem(request: Request) -> str | None:
         # because it skips _require_origin_signal on purpose -- still carries
         # one, and that is what this closes (blind cap B3).
         referer = request.headers.get("referer")
-        if referer and not is_allowed_origin(_origin_of(referer), get_settings().base_url):
+        if referer and not is_allowed_origin(_origin_of(referer), base_url):
             return _FOREIGN_ORIGIN_DETAIL
     return None
 
@@ -219,8 +231,8 @@ class OriginGuardMiddleware(BaseHTTPMiddleware):
     """Refuse foreign Host headers outright, and foreign origins on /api/."""
 
     async def dispatch(self, request: Request, call_next):
-        settings = get_settings()
-        if not is_allowed_host(request.headers.get("host"), settings.host, settings.port):
+        state = request.app.state
+        if not is_allowed_host(request.headers.get("host"), state.bound_host, state.bound_port):
             return JSONResponse(status_code=421, content={"detail": _FOREIGN_HOST_DETAIL})
         if request.url.path.startswith("/api/"):
             problem = same_origin_problem(request)

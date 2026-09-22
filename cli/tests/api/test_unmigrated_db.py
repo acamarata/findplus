@@ -33,7 +33,11 @@ def unmigrated_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestCl
     # base_url pins a loopback Host on the daemon's own port: OriginGuardMiddleware
     # refuses anything else (wrong hostname or wrong port) with a 421 before the
     # lock gate is ever reached (CF-P2-3: a bare Host with no port is now refused too).
-    return TestClient(create_app(), base_url="http://127.0.0.1:8647")
+    # bound_host/bound_port (closeout C-M1) match it explicitly rather than
+    # relying on get_settings() at creation time.
+    return TestClient(
+        create_app(bound_host="127.0.0.1", bound_port=8647), base_url="http://127.0.0.1:8647"
+    )
 
 
 def test_gated_route_returns_503_not_500_on_an_unmigrated_db(unmigrated_client) -> None:

@@ -36,7 +36,9 @@ def client(tmp_db):
         upsert_device(session, "TAG-001", "Moto Tag 2")
         track_devices(session, ["TAG-001"], exclusive=True)
         ingest_observations(session, [make_observation(minutes=0)])
-    return TestClient(create_app())
+    # Closeout C-M1: bind explicitly to 8647 -- this file's Host/Origin
+    # parametrizations assert against that literal port.
+    return TestClient(create_app(bound_host="127.0.0.1", bound_port=8647))
 
 
 # ------------------------------------------------------- 1. DNS rebinding

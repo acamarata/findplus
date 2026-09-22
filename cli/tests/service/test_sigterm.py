@@ -134,6 +134,14 @@ def test_serve_exits_1_when_the_server_cannot_start(
             return  # uvicorn gives up on the bind and the thread ends at once
 
     monkeypatch.setattr("uvicorn.Server", _DeadServer)
+    # `--port 8641` no longer reaches os.environ (closeout C-M1 removed
+    # _bind_or_exit's FINDPLUS_PORT export), but this swaps in a private copy
+    # of os.environ for the duration of the test regardless -- belt and
+    # suspenders against any future code path along `serve`'s invoke that
+    # writes to it directly, the way _bind_or_exit itself used to (CF-P2-3
+    # follow-up: that write, uncaught here, once leaked FINDPLUS_PORT=8641
+    # into every test that ran afterward in the same process).
+    monkeypatch.setattr(os, "environ", os.environ.copy())
     result = CliRunner().invoke(serve, ["--foreground", "--no-poller", "--port", "8641"])
     assert result.exit_code == 1, result.output
     assert "may already be in use" in result.output

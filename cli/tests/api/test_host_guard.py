@@ -38,7 +38,10 @@ _ROUTES = [
 
 @pytest.fixture
 def client(tmp_db) -> TestClient:
-    return TestClient(create_app())
+    # Closeout C-M1: bind explicitly to CONFIGURED_PORT rather than letting
+    # create_app() capture get_settings() at creation time -- this file's
+    # whole premise is pinning what "the configured port" means to the guard.
+    return TestClient(create_app(bound_host="127.0.0.1", bound_port=CONFIGURED_PORT))
 
 
 def _request(client: TestClient, method: str, path: str, host: str | None):
@@ -129,3 +132,27 @@ def test_a_bare_testserver_host_is_still_refused_in_production_settings(
     refuses it, independent of whatever a test's own client happens to send."""
     res = _request(client, method, path, "testserver")
     assert res.status_code == 421, f"{method} {path} Host=testserver -> {res.status_code}"
+
+
+def test_a_config_change_does_not_move_the_guard_off_its_bound_port(tmp_db) -> None:
+    """Closeout C-M1: `findplus config set port 8648` against a daemon that
+    is still bound to (and answering on) CONFIGURED_PORT must not move what
+    the guard checks incoming requests against -- only a restart (a fresh
+    `create_app(bound_port=...)` call) does that. Before C-M1 the guard read
+    `get_settings()` fresh on every request, so writing config.env under a
+    live daemon would have refused its own real traffic on the port it is
+    actually serving."""
+    from findplus.config import get_settings, write_config_key
+
+    app = create_app(bound_host="127.0.0.1", bound_port=CONFIGURED_PORT)
+    client = TestClient(app, base_url=f"http://127.0.0.1:{CONFIGURED_PORT}")
+
+    write_config_key(get_settings(), "PORT", "8648")
+    assert get_settings().port == 8648  # the config write itself took effect
+
+    res = client.get("/api/health", headers={"Host": f"127.0.0.1:{CONFIGURED_PORT}"})
+    assert res.status_code == 200, res.text  # the already-bound app is unaffected
+
+    # And the OLD (now-stale) port is refused, same as any other wrong port.
+    res = client.get("/api/health", headers={"Host": "127.0.0.1:8648"})
+    assert res.status_code == 421, res.text

@@ -36,6 +36,21 @@ observation carried before `d2403b2` was this heuristic's output, never a
 real measurement. There is no genuine value in that window for the WHERE
 clause to lose.
 
+CR-C closeout m5 (2026-09-22): `places/geofence.py::classify_and_persist`
+copies a `PlaceEvent`'s `accuracy_meters` straight from the triggering
+`Fix.accuracy_meters` (geofence.py:135-138, deliberately never the
+`default_accuracy`-substituted `Classification.accuracy_meters`), so any
+`place_events` row generated from one of these invented observations during
+that ~26-hour window carries the same invented figure. The upgrade below
+nulls those rows too, joined back to the observation it came from (not by
+value alone, since `place_events.accuracy_meters` has no `source` column of
+its own): `place_events.observation_id` in the set of
+`location_observations.id` this migration just nulled, where
+`place_events.accuracy_meters` still equals the constant that row's
+observation carried before this UPDATE ran. This still only touches rows
+this heuristic could actually have produced -- observation-linked, not
+value-only -- so it does not have the ambiguity G3 raised.
+
 downgrade() cannot restore the original invented figures -- they are gone,
 which is the point of this migration -- so it is a documented no-op.
 """
@@ -61,6 +76,28 @@ def upgrade() -> None:
             "UPDATE location_observations SET accuracy_meters = NULL "
             "WHERE source = 'apple-find-my' AND accuracy_meters IN "
             "(:v0, :v1, :v2, :v3)"
+        ).bindparams(
+            v0=_INVENTED_VALUES[0],
+            v1=_INVENTED_VALUES[1],
+            v2=_INVENTED_VALUES[2],
+            v3=_INVENTED_VALUES[3],
+        )
+    )
+    # place_events.accuracy_meters is a copy taken at ENTER/EXIT time from the
+    # same invented observation (geofence.py:138), never independently
+    # measured. Identify it by its observation, not by value alone: the
+    # observation it links to has to be an apple-find-my row (any accuracy --
+    # the UPDATE above already nulled the ones this migration is fixing, and
+    # a still-null one is the honest post-d2403b2 case, so either state
+    # identifies the source correctly), and the event itself still has to
+    # hold one of the four invented constants.
+    op.execute(
+        sa.text(
+            "UPDATE place_events SET accuracy_meters = NULL "
+            "WHERE accuracy_meters IN (:v0, :v1, :v2, :v3) "
+            "AND observation_id IN ("
+            "  SELECT id FROM location_observations WHERE source = 'apple-find-my'"
+            ")"
         ).bindparams(
             v0=_INVENTED_VALUES[0],
             v1=_INVENTED_VALUES[1],

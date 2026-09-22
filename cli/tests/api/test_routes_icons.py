@@ -1,67 +1,21 @@
-"""POST/GET/DELETE /api/icons/custom: PNG validation, dedup, serving, delete-in-use.
+"""POST/GET /api/icons/custom: PNG validation, dedup, serving, size caps.
 
 Mirrors test_routes_apple_accessories.py's shape: every rejection case also
 asserts nothing was written to `icons_dir`, since a courier file left behind
 at the umask's mode is exactly what PRI hard rule 9 exists to prevent.
+
+DELETE, malformed-id rejection, delete-in-use guards and the 0600/0700
+permission check moved to test_routes_icons_delete.py (E13 stage 2, size cap).
 """
 
 from __future__ import annotations
-
-import struct
-import zlib
-from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
 
 from findplus.api import create_app
-from findplus.config import get_settings
-from findplus.db.models import Group
-from findplus.db.session import session_scope
-from findplus.ingest import upsert_device
 
-URL = "/api/icons/custom"
-
-
-def _png_chunk(chunk_type: bytes, data: bytes) -> bytes:
-    return (
-        struct.pack(">I", len(data))
-        + chunk_type
-        + data
-        + struct.pack(">I", zlib.crc32(chunk_type + data))
-    )
-
-
-def _make_png(width: int, height: int) -> bytes:
-    """A real, valid grayscale PNG at the given dimensions."""
-    ihdr = struct.pack(">IIBBBBB", width, height, 8, 0, 0, 0, 0)
-    raw = b"".join(b"\x00" + b"\x00" * width for _ in range(height))
-    idat = zlib.compress(raw)
-    return (
-        b"\x89PNG\r\n\x1a\n"
-        + _png_chunk(b"IHDR", ihdr)
-        + _png_chunk(b"IDAT", idat)
-        + _png_chunk(b"IEND", b"")
-    )
-
-
-def _make_apng(size: int = 32) -> bytes:
-    """A structurally valid PNG whose `acTL` chunk marks it animated."""
-    ihdr = struct.pack(">IIBBBBB", size, size, 8, 0, 0, 0, 0)
-    actl = struct.pack(">II", 1, 0)  # num_frames=1, num_plays=0 (loop forever)
-    raw = b"".join(b"\x00" + b"\x00" * size for _ in range(size))
-    idat = zlib.compress(raw)
-    return (
-        b"\x89PNG\r\n\x1a\n"
-        + _png_chunk(b"IHDR", ihdr)
-        + _png_chunk(b"acTL", actl)
-        + _png_chunk(b"IDAT", idat)
-        + _png_chunk(b"IEND", b"")
-    )
-
-
-def _icons_on_disk() -> list:
-    return list(get_settings().icons_dir.glob("*.png"))
+from ._icons_helpers import URL, _icons_on_disk, _make_apng, _make_png
 
 
 @pytest.fixture
@@ -187,142 +141,3 @@ def test_an_oversized_content_length_is_rejected_before_the_body_is_parsed(
     assert res.status_code == 413
     assert res.json()["detail"] == "icon too large"
     assert _icons_on_disk() == []
-
-
-def test_get_unknown_icon_is_404(client: TestClient) -> None:
-    res = client.get(f"{URL}/00000000ffffffff.png")
-    assert res.status_code == 404
-
-
-def test_delete_removes_the_file(client: TestClient) -> None:
-    icon_id = client.post(URL, files={"file": ("i.png", _make_png(20, 20), "image/png")}).json()[
-        "id"
-    ]
-    short = icon_id.split(":", 1)[1]
-    res = client.delete(f"{URL}/{short}")
-    assert res.status_code == 204
-    assert _icons_on_disk() == []
-    assert client.get(f"{URL}/{short}.png").status_code == 404
-
-
-def test_delete_unknown_icon_is_404(client: TestClient) -> None:
-    assert client.delete(f"{URL}/00000000ffffffff").status_code == 404
-
-
-@pytest.mark.parametrize(
-    "bad_id",
-    [
-        "..",
-        "../../../etc/passwd",
-        "0123456789ABCDEF",  # uppercase
-        "0123456789abcde",  # 15 chars
-        "0123456789abcdef0",  # 17 chars
-        "0123456789abcdeg",  # non-hex char
-        "..%2f..%2fetc%2fpasswd",
-    ],
-)
-def test_get_rejects_a_malformed_icon_id_before_touching_the_filesystem(
-    client: TestClient, bad_id: str
-) -> None:
-    """N2 (review, 2026-09-22): `_validate_icon_id` refuses anything that is
-    not exactly 16 lowercase hex chars, by design -- before a Path is ever
-    built from it, regardless of whether Starlette's own `{icon_id}`
-    converter (which already excludes "/") would have caught a given case."""
-    res = client.get(f"{URL}/{bad_id}.png")
-    assert res.status_code == 404, res.text
-
-
-@pytest.mark.parametrize(
-    "bad_id",
-    [
-        "..",
-        "../../../etc/passwd",
-        "0123456789ABCDEF",
-        "0123456789abcde",
-        "0123456789abcdef0",
-        "0123456789abcdeg",
-        "..%2f..%2fetc%2fpasswd",
-    ],
-)
-def test_delete_rejects_a_malformed_icon_id_before_touching_the_filesystem(
-    client: TestClient, bad_id: str
-) -> None:
-    res = client.delete(f"{URL}/{bad_id}")
-    # A bare ".." with no further suffix (DELETE has none; GET's path always
-    # ends in ".png") gets collapsed by URL normalization before routing --
-    # "/api/icons/custom/.." resolves to "/api/icons", an existing GET-only
-    # route, so it never reaches this handler at all and answers 405 instead
-    # of 404. Either way nothing here was read, deleted, or reached by path.
-    assert res.status_code in (404, 405), res.text
-
-
-def test_a_malformed_icon_id_never_reaches_a_real_uploaded_file(client: TestClient) -> None:
-    """The regex check runs before any lookup, so a well-formed-looking but
-    wrong-case id cannot be used to fetch or delete a real upload."""
-    icon_id = client.post(URL, files={"file": ("i.png", _make_png(20, 20), "image/png")}).json()[
-        "id"
-    ]
-    short = icon_id.split(":", 1)[1]
-    assert client.get(f"{URL}/{short.upper()}.png").status_code == 404
-    assert client.delete(f"{URL}/{short.upper()}").status_code == 404
-    assert len(_icons_on_disk()) == 1
-
-
-def test_delete_refuses_while_a_device_uses_the_icon(client: TestClient) -> None:
-    with session_scope() as session:
-        upsert_device(session, "dev1", "Tag1")
-    icon_id = client.post(URL, files={"file": ("i.png", _make_png(20, 20), "image/png")}).json()[
-        "id"
-    ]
-    short = icon_id.split(":", 1)[1]
-    patched = client.patch("/api/devices/dev1", json={"icon": icon_id})
-    assert patched.status_code == 200, patched.text
-    res = client.delete(f"{URL}/{short}")
-    assert res.status_code == 409
-    assert _icons_on_disk() != []
-    # Unassign, then the delete succeeds.
-    client.patch("/api/devices/dev1", json={"icon": "letter"})
-    assert client.delete(f"{URL}/{short}").status_code == 204
-
-
-def test_delete_refuses_while_a_group_uses_the_icon(client: TestClient) -> None:
-    icon_id = client.post(URL, files={"file": ("i.png", _make_png(20, 20), "image/png")}).json()[
-        "id"
-    ]
-    short = icon_id.split(":", 1)[1]
-    with session_scope() as session:
-        session.add(Group(name="Family", icon=icon_id, created_at=datetime.now(UTC)))
-    res = client.delete(f"{URL}/{short}")
-    assert res.status_code == 409
-    assert _icons_on_disk() != []
-
-
-def test_labels_validate_icon_accepts_an_uploaded_custom_icon(client: TestClient) -> None:
-    with session_scope() as session:
-        upsert_device(session, "dev1", "Tag1")
-    icon_id = client.post(URL, files={"file": ("i.png", _make_png(20, 20), "image/png")}).json()[
-        "id"
-    ]
-    res = client.patch("/api/devices/dev1", json={"icon": icon_id})
-    assert res.status_code == 200, res.text
-    assert res.json()["icon"] == icon_id
-
-
-def test_labels_validate_icon_rejects_an_unknown_custom_icon(client: TestClient) -> None:
-    with session_scope() as session:
-        upsert_device(session, "dev1", "Tag1")
-    res = client.patch("/api/devices/dev1", json={"icon": "custom:0000000000000000"})
-    assert res.status_code == 422
-    assert "custom icon" in res.json()["detail"][0]["msg"]
-
-
-@pytest.mark.posix_only
-def test_the_uploaded_icon_is_0600_and_the_dir_is_0700(client: TestClient) -> None:
-    import os
-    import stat
-
-    client.post(URL, files={"file": ("i.png", _make_png(20, 20), "image/png")})
-    icons_dir = get_settings().icons_dir
-    assert stat.S_IMODE(os.stat(icons_dir).st_mode) == 0o700
-    (path,) = _icons_on_disk()
-    assert stat.S_IMODE(os.stat(path).st_mode) == 0o600

@@ -41,7 +41,6 @@ from . import (
     routes_devices,
     routes_groups,
     routes_history,
-    routes_icons,
     routes_lock,
     routes_places,
     routes_providers,
@@ -227,7 +226,6 @@ def _register_routers(app: FastAPI, *, settings, sessions, sync_idle_timeout) ->
         )
     )
     app.include_router(routes_devices.build_router(settings=settings))
-    app.include_router(routes_icons.build_router())
     app.include_router(routes_providers.build_router())
     app.include_router(routes_auth.build_router())
     app.include_router(routes_places.build_router())

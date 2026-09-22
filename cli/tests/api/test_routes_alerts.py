@@ -155,6 +155,16 @@ def test_deliveries_empty(client: TestClient) -> None:
     assert client.get("/api/alerts/deliveries").json() == []
 
 
+def test_deliveries_limit_is_bounded(client: TestClient) -> None:
+    """CR-C closeout m7: unbounded `limit` could grow `rows` (and the
+    native-channel IN-list batch_delivery_text_bodies builds from it) past
+    SQLite's variable cap and 500. 500 itself is accepted; above it is a
+    plain validation 422, not a query that gets to run at all.
+    """
+    assert client.get("/api/alerts/deliveries", params={"limit": 500}).status_code == 200
+    assert client.get("/api/alerts/deliveries", params={"limit": 501}).status_code == 422
+
+
 def test_deliveries_include_channel(client: TestClient) -> None:
     """The delivery log names the channel (CF-14).
 

@@ -16,7 +16,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 
@@ -198,13 +198,19 @@ def delete_rule(rule_id: int) -> Response:
 
 
 def get_deliveries(
-    limit: int = 100, since: int | None = None, channel: str | None = None
+    limit: int = Query(default=100, le=500), since: int | None = None, channel: str | None = None
 ) -> list[dict[str, Any]]:
     """The delivery log, and the queue the desktop native poller drains.
 
     `since` is an exclusive delivery-id cursor and replaces `limit` when
     given: the poller wants everything new, in the order it happened, not a
     fixed page of the most recent (specs/notifications.md § 2).
+
+    `limit` is capped at 500 (422 above it, CR-C closeout m7): unbounded, it
+    let `rows` grow past SQLite's ~32766-variable cap once `batch_delivery_
+    text_bodies` turned it into an IN-list of (event_kind, event_id) pairs
+    for a native-channel request, a 500 where the old row-by-row code was
+    only slow.
     """
     with session_scope() as s:
         stmt = select(AlertDelivery, AlertRule.name).join(

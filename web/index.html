@@ -143,14 +143,21 @@
 </section>
 </div><!-- /status-region -->
 
-<!-- role="tablist"/"tab": U31's WAI-ARIA tabs pattern (arrow-key roving
-     tabindex wired in main.js's wireTabs()). Only the active tab is a Tab
-     stop; ArrowLeft/Right/Home/End move focus between the other three. -->
-<nav class="fp-tabs" role="tablist" aria-label="Sections" data-i18n-attr="aria-label:common.sectionsNavLabel">
-  <button class="fp-tab active" role="tab" id="fp-tab-dashboard" aria-selected="true" aria-controls="tab-dashboard" tabindex="0" data-tab="dashboard" data-i18n="common.tabDashboard">Dashboard</button>
-  <button class="fp-tab" role="tab" id="fp-tab-places" aria-selected="false" aria-controls="tab-places" tabindex="-1" data-tab="places" data-i18n="common.tabPlaces">Places</button>
-  <button class="fp-tab" role="tab" id="fp-tab-groups" aria-selected="false" aria-controls="tab-groups" tabindex="-1" data-tab="groups" data-i18n="common.tabGroups">Groups</button>
-  <button class="fp-tab" role="tab" id="fp-tab-alerts" aria-selected="false" aria-controls="tab-alerts" tabindex="-1" data-tab="alerts" data-i18n="common.tabAlerts">Alerts</button>
+<!-- axe "region": a role="tablist" on the <nav> itself overrides its implicit
+     navigation-landmark role, so the tabs sat in no landmark at all. The
+     landmark now lives on the outer <nav>; role="tablist"/"tab" (U31's
+     WAI-ARIA tabs pattern, arrow-key roving tabindex in main.js's
+     wireTabs()) moves to the inner div -- `.fp-tabs` stays on that div
+     unchanged, so main.js/tabs_a11y.js's `.fp-tabs` selectors still resolve
+     the same element set. Only the active tab is a Tab stop; ArrowLeft/
+     Right/Home/End move focus between the other three. -->
+<nav aria-label="Sections" data-i18n-attr="aria-label:common.sectionsNavLabel">
+  <div class="fp-tabs" role="tablist">
+    <button class="fp-tab active" role="tab" id="fp-tab-dashboard" aria-selected="true" aria-controls="tab-dashboard" tabindex="0" data-tab="dashboard" data-i18n="common.tabDashboard">Dashboard</button>
+    <button class="fp-tab" role="tab" id="fp-tab-places" aria-selected="false" aria-controls="tab-places" tabindex="-1" data-tab="places" data-i18n="common.tabPlaces">Places</button>
+    <button class="fp-tab" role="tab" id="fp-tab-groups" aria-selected="false" aria-controls="tab-groups" tabindex="-1" data-tab="groups" data-i18n="common.tabGroups">Groups</button>
+    <button class="fp-tab" role="tab" id="fp-tab-alerts" aria-selected="false" aria-controls="tab-alerts" tabindex="-1" data-tab="alerts" data-i18n="common.tabAlerts">Alerts</button>
+  </div>
 </nav>
 
 <!-- U31: a visible, focusable link past the map so a keyboard user reaches

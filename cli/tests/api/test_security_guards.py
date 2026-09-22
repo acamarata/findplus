@@ -139,6 +139,28 @@ def test_origin_helper_requires_the_configured_port() -> None:
     assert is_allowed_origin("http://127.0.0.1", base) is False
 
 
+def test_origin_helper_survives_an_unbracketed_ipv6_base_url() -> None:
+    """C-m1: FINDPLUS_HOST=::1 (a loopback the Host guard already accepts)
+    builds base_url as "http://::1:8647" -- unbracketed. urlsplit reads the
+    extra colons as more host:port separators and used to raise ValueError
+    out of _port_of the moment any Origin header arrived at all, turning a
+    same-origin check into a 500 instead of a 200/403."""
+    base = "http://::1:8647"
+    assert is_allowed_origin("http://[::1]:8647", base) is True
+    assert is_allowed_origin(EVIL, base) is False
+    assert is_allowed_origin("http://[::1]:9999", base) is False
+
+
+def test_an_ipv6_bound_daemon_answers_origin_requests_without_a_500(tmp_db) -> None:
+    """The end-to-end shape of C-m1's repro: bind to ::1, send an Origin
+    header, and the guard must 200/403 -- never 500."""
+    ipv6_client = TestClient(create_app(bound_host="::1", bound_port=8647))
+    same_origin = ipv6_client.get("/api/health", headers={"Origin": "http://[::1]:8647"})
+    assert same_origin.status_code == 200, same_origin.text
+    foreign = ipv6_client.get("/api/health", headers={"Origin": EVIL})
+    assert foreign.status_code == 403, foreign.text
+
+
 # ------------------------------------------------- 2. first-PIN takeover
 def test_a_foreign_page_cannot_claim_the_first_pin(client: TestClient) -> None:
     """The attack: no PIN is set yet, so no current PIN is required; a page on

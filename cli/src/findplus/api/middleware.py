@@ -150,11 +150,36 @@ def _is_loopback_hostname(host: str) -> bool:
         return host == "localhost"
 
 
-def _port_of(url: str) -> int:
-    """The port a URL implies: explicit, or the scheme's default (80/443)."""
-    parts = urlsplit(url)
-    if parts.port is not None:
-        return parts.port
+def _bracketed_ipv6(url: str) -> str:
+    """Bracket a bare IPv6 host before parsing, e.g. `http://::1:8647` ->
+    `http://[::1]:8647` (C-m1). `Settings.base_url`/`_bound_base_url` build
+    an f-string from the configured host with no bracketing of their own, so
+    `FINDPLUS_HOST=::1` (a loopback address the Host guard already accepts)
+    produces exactly this unbracketed shape. urlsplit then reads the extra
+    colons as more host:port separators and `.port` raises ValueError --
+    turning a same-origin check into a 500 instead of a refusal. Anything
+    already bracketed, or without enough colons to be IPv6, passes through.
+    """
+    scheme, sep, authority = url.partition("://")
+    if not sep or authority.startswith("[") or authority.count(":") < 2:
+        return url
+    host, _, port = authority.rpartition(":")
+    if not port.isdigit():
+        return url
+    return f"{scheme}://[{host}]:{port}"
+
+
+def _port_of(url: str) -> int | None:
+    """The port a URL implies: explicit, or the scheme's default (80/443);
+    None when the authority cannot be parsed at all -- the caller then
+    refuses the request instead of raising (C-m1)."""
+    parts = urlsplit(_bracketed_ipv6(url))
+    try:
+        port = parts.port
+    except ValueError:
+        return None
+    if port is not None:
+        return port
     return 443 if parts.scheme == "https" else 80
 
 
@@ -169,12 +194,13 @@ def is_allowed_origin(origin: str, base_url: str) -> bool:
     """
     if origin in TAURI_ORIGINS or origin == base_url:
         return True
-    parts = urlsplit(origin)
+    parts = urlsplit(_bracketed_ipv6(origin))
     if parts.scheme not in {"http", "https"}:
         return False
     if not _is_loopback_hostname((parts.hostname or "").lower()):
         return False
-    return _port_of(origin) == _port_of(base_url)
+    origin_port, base_port = _port_of(origin), _port_of(base_url)
+    return origin_port is not None and origin_port == base_port
 
 
 def _origin_of(url: str) -> str:

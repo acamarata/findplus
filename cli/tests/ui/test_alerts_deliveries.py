@@ -151,3 +151,61 @@ async def test_delivery_log_channel_and_kind_text_stays_inside_its_cell(
             f"{column}: text-overflow is {box['textOverflow']!r}"
         )
         assert box["whiteSpace"] == "nowrap", f"{column}: white-space is {box['whiteSpace']!r}"
+
+
+async def test_delivery_log_shows_retrying_and_failed_after_retries(page, base_url, ui_db):
+    """R8: alerts_deliveries.js's statusText() renders the retry ladder state
+    (retry.py MAX_ATTEMPTS=4: 1 initial send + 3 retries) -- a 'retrying' row
+    names the coming attempt and when, and a 'failed' row that used up every
+    retry (attempts=4) reads differently from one that never qualified for a
+    retry at all (test_delivery_log_shows_channel_and_status's attempts=1
+    'failed' row, unchanged)."""
+    import sqlite3
+
+    rule = await page.request.post(
+        base_url + "/api/alerts/rules",
+        data=json.dumps(
+            {"name": "Retry log rule", "device_id": "TAG-HOME", "channels": ["telegram"]}
+        ),
+        headers={"Content-Type": "application/json"},
+    )
+    assert rule.ok, await rule.text()
+    rule_id = (await rule.json())["id"]
+
+    conn = sqlite3.connect(ui_db)
+    try:
+        conn.execute(
+            "INSERT INTO alert_deliveries"
+            " (rule_id, event_kind, event_id, channel, sent_at, status, error,"
+            "  attempts, next_attempt_at)"
+            " VALUES (?, 'device', 5001, 'telegram', '2026-09-20 12:00:00', 'retrying',"
+            " 'timeout', 1, '2026-09-20 12:01:00')",
+            (rule_id,),
+        )
+        conn.execute(
+            "INSERT INTO alert_deliveries"
+            " (rule_id, event_kind, event_id, channel, sent_at, status, error, attempts)"
+            " VALUES (?, 'device', 5002, 'telegram', '2026-09-20 12:00:00', 'failed',"
+            " 'timeout', 4)",
+            (rule_id,),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    await open_alerts_tab(page, base_url)
+    await page.wait_for_selector("#fp-deliveries-table")
+
+    rows = page.locator("#fp-deliveries-tbody tr", has_text="Retry log rule")
+    await rows.first.wait_for(state="visible")
+    assert await rows.count() == 2
+
+    statuses = []
+    for i in range(await rows.count()):
+        cells = await rows.nth(i).locator("td").all_text_contents()
+        statuses.append(cells[6])  # Status column (index per the header row above)
+
+    retrying_status = next((s for s in statuses if s.startswith("Retrying")), None)
+    assert retrying_status is not None, f"no 'Retrying' status among {statuses}"
+    assert retrying_status.startswith("Retrying (attempt 2 of 4, next at ")
+    assert "Failed after 4 attempts" in statuses

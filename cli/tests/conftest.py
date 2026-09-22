@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import socket
+import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -172,6 +173,20 @@ def session(tmp_db: str):
 @pytest.fixture
 def eastern() -> ZoneInfo:
     return ZoneInfo("America/New_York")
+
+
+@pytest.fixture
+def pinned_tz(monkeypatch: pytest.MonkeyPatch):
+    """Pin the local zone render_message() reads. Setter: `pinned_tz("America/New_York")`."""
+    original = os.environ.get("TZ")
+
+    def _set(zone: str) -> None:
+        monkeypatch.setenv("TZ", zone)
+        time.tzset()
+
+    yield _set
+    monkeypatch.setenv("TZ", original) if original else monkeypatch.delenv("TZ", raising=False)
+    time.tzset()
 
 
 @pytest.fixture

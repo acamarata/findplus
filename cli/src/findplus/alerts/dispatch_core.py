@@ -215,23 +215,30 @@ def render_message(event: DeviceEvent | GroupEvent, now: datetime.datetime) -> s
     Two honesty rules are load-bearing here, because an alert arrives with no
     surrounding context:
       - a bare "Observed 14:20" reads as today, so the date is spelled out
-        whenever the observation fell on a different UTC day than now;
+        whenever the observation fell on a different local day than now;
       - with no `fetched_at` the lag is unknown, not zero. Printing "0 min
         late" would claim the report was instant.
 
-    Always rendered in UTC, never the host's local timezone: this text is
-    persisted (AlertDelivery.body) and served back verbatim by the API, so a
-    machine-timezone-dependent rendering would make the API response itself
-    non-deterministic across hosts (found via CI-vs-local mismatch, P2).
+    Rendered in the local timezone of the machine running Find+ -- this text
+    is what a person reads on a WhatsApp/Telegram/desktop notification, not
+    an API payload (the API's own timestamp fields stay UTC ISO-8601; only
+    this rendered body is local). Both times always carry their zone
+    abbreviation (e.g. "14:32 EDT") so the text stays unambiguous on its own,
+    including when the reader is in a different zone than the machine that
+    rendered it. A prior version of this function forced UTC here to chase a
+    CI-vs-local snapshot mismatch (P2); that mismatch was the zone
+    abbreviation itself being untested across zones, not a reason to drop
+    local time -- fixed by pinning TZ in the tests instead (see
+    cli/tests/conftest.py `pinned_tz`).
     """
     subject = event.device_name if isinstance(event, DeviceEvent) else event.group_name
     verb = "arrived at" if event.event_type == "ENTER" else "left"
     observed = as_utc(event.observed_at)
     ft = as_utc(getattr(event, "fetched_at", None))
-    observed_utc = observed.astimezone(datetime.UTC)
-    same_day = observed_utc.date() == now.astimezone(datetime.UTC).date()
-    obs = observed_utc.strftime("%H:%M" if same_day else "%Y-%m-%d %H:%M %Z")
-    rep = ft.astimezone(datetime.UTC).strftime("%H:%M") if ft else "unknown"
+    observed_local = observed.astimezone()
+    same_day = observed_local.date() == now.astimezone().date()
+    obs = observed_local.strftime("%H:%M %Z" if same_day else "%Y-%m-%d %H:%M %Z")
+    rep = ft.astimezone().strftime("%H:%M %Z") if ft else "unknown"
     lag = f"{round((ft - observed).total_seconds() / 60)} min late" if ft else "lag unknown"
     note = getattr(event, "note", "")
     msg = (

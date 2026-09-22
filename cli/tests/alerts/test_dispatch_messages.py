@@ -7,9 +7,21 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+import pytest
+
 from findplus import honesty
 
 from ._helpers import NOW, _device_event, _group_event
+
+
+@pytest.fixture(autouse=True)
+def _pin_render_tz(pinned_tz):
+    """render_message() renders in the machine's local zone (restored after
+    the P2 UTC-only regression, R-P2 ruling 2026-09-22): pin one zone so
+    every test in this file gets the same "Observed"/"reported" text on any
+    host. America/New_York exercises a real, non-UTC abbreviation (EDT/EST).
+    """
+    pinned_tz("America/New_York")
 
 
 def test_lag_in_message() -> None:
@@ -35,7 +47,7 @@ def test_message_omits_the_date_for_a_same_day_observation() -> None:
 
     msg = render_message(_device_event(), NOW)
     observed_local = NOW.astimezone()
-    assert f"Observed {observed_local:%H:%M} ·" in msg
+    assert f"Observed {observed_local:%H:%M %Z} ·" in msg
     assert f"{observed_local:%Y-%m-%d}" not in msg
 
 

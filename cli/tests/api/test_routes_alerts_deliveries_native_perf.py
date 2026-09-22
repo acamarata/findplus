@@ -22,8 +22,19 @@ def client(tmp_db):
     return TestClient(create_app())
 
 
+@pytest.fixture(autouse=True)
+def _pin_render_tz(pinned_tz):
+    """The rendered body is in the machine's local zone (render_message()),
+    while the seeded event time below is a fixed UTC instant -- pin the
+    process to UTC so the snapshot text below is the same on any host. This
+    is a render-timezone choice, not an API-timestamp one: `sent_at` etc. in
+    `_BASE_ROW` stay UTC ISO-8601 either way.
+    """
+    pinned_tz("UTC")
+
+
 _DEVICE_BODY = (
-    "Observed 2026-09-20 12:00 UTC · reported 12:00 · 0 min late\n"
+    "Observed 2026-09-20 12:00 UTC · reported 12:00 UTC · 0 min late\n"
     "Confidence: high.\n"
     "Alerts inherit the network's delay. An arrival or departure may be "
     "reported minutes to hours late."

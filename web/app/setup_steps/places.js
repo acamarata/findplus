@@ -1,7 +1,7 @@
 /*
  * Onboarding step 5 — Places (optional).
  *
- * Purpose    : List the geofences that exist and offer the same click-the-map
+ * Purpose    : List the geofences that exist and offer the same "Add place"
  *              flow places_dialog.js already implements, rather than a second
  *              copy of it (specs/onboarding.md § 4 row 5).
  * Inputs     : ctx.api / ctx.state, handed down by the Wizard.
@@ -19,7 +19,7 @@
 "use strict";
 
 import { t } from "../i18n.js";
-import { activateCrosshairMode } from "../places_dialog.js";
+import { showAddDialog } from "../places_dialog.js";
 
 /** Where `.map-pane` came from, so onLeave can put it back exactly there. */
 let borrowed = null;
@@ -28,8 +28,8 @@ let els = null;
 /**
  * Move the shared map into the step, remembering where it was.
  *
- * #app-shell is hidden while the wizard is open, so the map has to come to the
- * wizard for the crosshair click to be reachable at all.
+ * #app-shell is hidden while the wizard is open, so the map has to come to
+ * the wizard for "Add place" to have a centre to open the dialog at.
  */
 function borrowMap(host) {
   const pane = document.querySelector(".map-pane");
@@ -76,7 +76,10 @@ export default {
     add.type = "button";
     add.className = "btn";
     add.textContent = t("setup.places.add");
-    add.addEventListener("click", () => activateCrosshairMode());
+    // U4/U10: opens the dialog at the borrowed map's own current centre,
+    // same as the dashboard's "Add place" — no map click required here
+    // either.
+    add.addEventListener("click", () => showAddDialog(ctx.state.map.getCenter()));
 
     const mapHost = document.createElement("div");
     mapHost.id = "fp-setup-map-host";

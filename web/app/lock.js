@@ -15,6 +15,7 @@ import { $, state, applyTheme } from "./state.js";
 import { postJson, api } from "./api.js";
 import { t } from "./i18n.js";
 import { closeModals, bootDashboard } from "./main.js";
+import { WORLD_VIEW_CENTER, WORLD_VIEW_ZOOM } from "./map.js";
 
 /**
  * Show the lock screen.
@@ -92,7 +93,9 @@ export async function purgeRenderedData() {
   state.selectedId = null;
   state.markers.clear();
   if (state.layer) state.layer.clearLayers();
-  if (state.map) state.map.setView([39.5, -98.35], 4);
+  // U4: the same neutral world view initMap() starts at, not the old US
+  // default -- a locked screen must not hint at a last-viewed region either.
+  if (state.map) state.map.setView(WORLD_VIEW_CENTER, WORLD_VIEW_ZOOM);
 
   $("tracks").innerHTML = "";
   $("device-list").innerHTML = "";
@@ -209,11 +212,15 @@ export async function submitPin(pin) {
   const btn = $("lock-submit");
   btn.disabled = true;
   try {
-    await postJson("/api/lock/unlock", { pin });
+    // skipLock: this route's own 401 means "wrong PIN", not "locked
+    // underneath us" (we are already on the lock screen) — the generic 401
+    // handler in api.js would otherwise replace the real reason with the bare
+    // word "Locked" (UAT U20).
+    await postJson("/api/lock/unlock", { pin }, { skipLock: true });
     err.textContent = "";
     await hideLockAndRestore();
   } catch (e) {
-    err.textContent = e.message;
+    err.textContent = e.status === 401 ? t("common.wrongPinHint") : e.message;
     $("lock-pin").value = "";
     $("lock-pin").focus();
   } finally {

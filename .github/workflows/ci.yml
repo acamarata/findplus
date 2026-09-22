@@ -62,7 +62,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install '.[dev]'
+      # apple: test_auth_accessories.py's happy-path test hits the real
+      # /api/apple/* routes (no mock); without findmy installed the daemon
+      # answers 503 and the test hangs waiting on a status update that never
+      # comes (run 35792891295).
+      - run: pip install '.[dev,apple]'
         working-directory: cli
       - run: playwright install chromium
       - run: python -m pytest cli/tests -q -m browser --ignore=cli/tests/ui/test_a11y.py

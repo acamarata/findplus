@@ -23,13 +23,13 @@ def client(tmp_db):
 
 
 _DEVICE_BODY = (
-    "Observed 2026-09-20 08:00 EDT · reported 08:00 · 0 min late\n"
+    "Observed 2026-09-20 12:00 UTC · reported 12:00 · 0 min late\n"
     "Confidence: high.\n"
     "Alerts inherit the network's delay. An arrival or departure may be "
     "reported minutes to hours late."
 )
 _GROUP_BODY = (
-    "Observed 2026-09-20 08:00 EDT · reported unknown · lag unknown\n"
+    "Observed 2026-09-20 12:00 UTC · reported unknown · lag unknown\n"
     "Confidence: medium. 2 of 3 tags entered Home; 1 tag has no recent fix.\n"
     "Alerts inherit the network's delay. An arrival or departure may be "
     "reported minutes to hours late."

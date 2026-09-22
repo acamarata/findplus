@@ -27,6 +27,7 @@ from ._widget import (
     WIDGET_STALE_AFTER_MINUTES,
     _group_rows,
     _widget_devices,
+    _widget_places,
     _widget_show_map,
     _widget_state,
 )
@@ -46,6 +47,7 @@ __all__ = [
     "_serialize_latest",
     "_serialize_run",
     "_widget_devices",
+    "_widget_places",
     "_widget_show_map",
     "_widget_state",
 ]

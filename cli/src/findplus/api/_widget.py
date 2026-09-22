@@ -133,6 +133,75 @@ def _group_rows(session) -> list[dict[str, Any]]:
     return rows
 
 
+def _place_members(session) -> dict[int, list[str]]:
+    """group_id -> member device_ids, for the widget's full-group place badges.
+
+    Raw SQL against the pinned migration-0005 schema, same reasoning as
+    `_group_by_device`: only membership pairs are needed here, not the ORM's
+    Group/Device rows.
+    """
+    try:
+        rows = session.execute(text("SELECT group_id, device_id FROM device_group")).all()
+    except OperationalError:
+        return {}
+    out: dict[int, list[str]] = {}
+    for row in rows:
+        out.setdefault(row.group_id, []).append(row.device_id)
+    return out
+
+
+def _widget_places(
+    session, now: datetime, stale_after_minutes: int = WIDGET_STALE_AFTER_MINUTES
+) -> list[dict[str, Any]]:
+    """`[{id, name, device_ids, group_ids, last_change_at}]`, place-name order.
+
+    Feeds the PlacesWidget widget kind (E13 seed, shipped 1.1). A device
+    counts as present only when `list_places` already counts it inside --
+    honesty.PRESENCE_STALE's rule, so a silent tracker never reads "here"
+    here either. A group is a badge only when EVERY member is inside this
+    place; a partial group stays its individual present members, never a
+    badge implying someone is here who is not (groups/presence.py's partial
+    verdict holds to the same bar).
+    """
+    from findplus.places.repo import current_presence, list_places
+
+    try:
+        places = list_places(session, stale_after_minutes=stale_after_minutes, now=now)
+    except OperationalError:
+        return []
+    presence = current_presence(session, stale_after_minutes=stale_after_minutes, now=now)
+    since_by_place_device = {
+        (row["place_id"], row["device_id"]): row["since_observed_at"]
+        for row in presence
+        if row["state"] == "inside"
+    }
+    members = _place_members(session)
+    out: list[dict[str, Any]] = []
+    for place in places:
+        device_ids = list(place._devices_inside)
+        present = set(device_ids)
+        group_ids = sorted(
+            gid
+            for gid, member_ids in members.items()
+            if member_ids and set(member_ids).issubset(present)
+        )
+        changes = [
+            since_by_place_device[(place.id, d)]
+            for d in device_ids
+            if since_by_place_device.get((place.id, d)) is not None
+        ]
+        out.append(
+            {
+                "id": place.id,
+                "name": place.name,
+                "device_ids": device_ids,
+                "group_ids": group_ids,
+                "last_change_at": _iso_z(max(changes)) if changes else None,
+            }
+        )
+    return out
+
+
 def _widget_device_row(
     session,
     device,

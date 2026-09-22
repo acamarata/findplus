@@ -29,6 +29,7 @@ def test_widget_unlocked(client: TestClient) -> None:
         "stale_after_minutes",
         "devices",
         "groups",
+        "places",
         "show_map",
         "notice",
     ):

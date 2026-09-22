@@ -110,3 +110,39 @@ def test_main_dispatches_check_without_requiring_a_sdist_argument(monkeypatch) -
     _no_network(monkeypatch, module)
     monkeypatch.setattr(module.sys, "argv", ["gen-resources.py", "--check"])
     assert module.main() == 0
+
+
+def test_check_flags_an_undocumented_lower_bound(tmp_path, monkeypatch) -> None:
+    """G5: `>=` (and `~=`/`<=`) used to be accepted from any dependency. A
+    name not in _DOCUMENTED_BOUND_EXCEPTIONS must now fail --check."""
+    module = _load()
+    _no_network(monkeypatch, module)
+    monkeypatch.setattr(module, "PYPROJECT", _write_pyproject(tmp_path, ["not-a-real-dep>=1.0"]))
+    assert module.check() == 1
+
+
+def test_check_accepts_a_documented_lower_bound(tmp_path, monkeypatch) -> None:
+    """The other half of G5: a name that IS in _DOCUMENTED_BOUND_EXCEPTIONS
+    (every current real runtime dependency is) still passes with `>=`."""
+    module = _load()
+    _no_network(monkeypatch, module)
+    monkeypatch.setattr(module, "PYPROJECT", _write_pyproject(tmp_path, ["fastapi>=0.115"]))
+    assert module.check() == 0
+
+
+def test_check_flags_a_letter_led_fake_version(tmp_path, monkeypatch) -> None:
+    """G5: `foo==latest` used to match the old regex's alnum-led version
+    class even though "latest" is not a PEP 440 version pip can reproduce."""
+    module = _load()
+    _no_network(monkeypatch, module)
+    monkeypatch.setattr(module, "PYPROJECT", _write_pyproject(tmp_path, ["fastapi==latest"]))
+    assert module.check() == 1
+
+
+def test_check_accepts_a_documented_multi_specifier_bound(tmp_path, monkeypatch) -> None:
+    """The real project's `mcp>=2.2,<3` shape: two non-exact operators on a
+    documented name must still pass, comma and all."""
+    module = _load()
+    _no_network(monkeypatch, module)
+    monkeypatch.setattr(module, "PYPROJECT", _write_pyproject(tmp_path, ["mcp>=2.2,<3"]))
+    assert module.check() == 0

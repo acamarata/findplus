@@ -25,6 +25,28 @@ from playwright.sync_api import Page
 
 from .conftest import PIN, _unlock
 
+
+def _unlock_and_load_past_onboarding(page: Page, server: str) -> None:
+    """Authenticate via the API (never-locked session state), mark onboarding
+    complete, then load the page -- the setup
+    test_dashboard_boots_past_alerts_init_with_no_error_banner's own
+    docstring explains is required to see the boot-time banner regression."""
+    unlocked = page.request.post(
+        server + "/api/lock/unlock",
+        data=json.dumps({"pin": PIN}),
+        headers={"Content-Type": "application/json"},
+    )
+    assert unlocked.ok, unlocked.text()
+    onboarded = page.request.post(
+        server + "/api/settings/onboarding.completed_at",
+        data=json.dumps({"value": "2026-01-01T00:00:00Z"}),
+        headers={"Content-Type": "application/json"},
+    )
+    assert onboarded.ok, onboarded.text()
+    page.goto(server, wait_until="networkidle")
+    page.wait_for_timeout(600)
+
+
 # ------------------------------------------------------------- unlocked state
 
 
@@ -111,20 +133,7 @@ def test_dashboard_boots_past_alerts_init_with_no_error_banner(page: Page, serve
     for, checked by its fixed prefix, read from the live catalog rather than
     retyped (test_auth_panel.py's rule).
     """
-    unlocked = page.request.post(
-        server + "/api/lock/unlock",
-        data=json.dumps({"pin": PIN}),
-        headers={"Content-Type": "application/json"},
-    )
-    assert unlocked.ok, unlocked.text()
-    onboarded = page.request.post(
-        server + "/api/settings/onboarding.completed_at",
-        data=json.dumps({"value": "2026-01-01T00:00:00Z"}),
-        headers={"Content-Type": "application/json"},
-    )
-    assert onboarded.ok, onboarded.text()
-    page.goto(server, wait_until="networkidle")
-    page.wait_for_timeout(600)
+    _unlock_and_load_past_onboarding(page, server)
 
     catalog = page.request.get(server + "/static/locales/en.json").json()
     api_unreachable_prefix = catalog["common"]["apiUnreachable"].split("{message}")[0]

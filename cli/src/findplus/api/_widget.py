@@ -137,8 +137,7 @@ def _place_members(session) -> dict[int, list[str]]:
     """group_id -> member device_ids, for the widget's full-group place badges.
 
     Raw SQL against the pinned migration-0005 schema, same reasoning as
-    `_group_by_device`: only membership pairs are needed here, not the ORM's
-    Group/Device rows.
+    `_group_by_device`.
     """
     try:
         rows = session.execute(text("SELECT group_id, device_id FROM device_group")).all()
@@ -155,13 +154,11 @@ def _widget_places(
 ) -> list[dict[str, Any]]:
     """`[{id, name, device_ids, group_ids, last_change_at}]`, place-name order.
 
-    Feeds the PlacesWidget widget kind (E13 seed, shipped 1.1). A device
-    counts as present only when `list_places` already counts it inside --
-    honesty.PRESENCE_STALE's rule, so a silent tracker never reads "here"
-    here either. A group is a badge only when EVERY member is inside this
-    place; a partial group stays its individual present members, never a
-    badge implying someone is here who is not (groups/presence.py's partial
-    verdict holds to the same bar).
+    Feeds the PlacesWidget widget kind. Presence follows `list_places`'s own
+    staleness rule (honesty.PRESENCE_STALE). A group is a badge only when
+    EVERY member is inside this place -- a partial group stays its
+    individual present members. `WidgetGroup` has no member list, so
+    `device_ids` excludes any device already covered by a `group_ids` badge.
     """
     from findplus.places.repo import current_presence, list_places
 
@@ -178,16 +175,18 @@ def _widget_places(
     members = _place_members(session)
     out: list[dict[str, Any]] = []
     for place in places:
-        device_ids = list(place._devices_inside)
-        present = set(device_ids)
+        present_ids = list(place._devices_inside)
+        present = set(present_ids)
         group_ids = sorted(
             gid
             for gid, member_ids in members.items()
             if member_ids and set(member_ids).issubset(present)
         )
+        covered = set().union(*(members[gid] for gid in group_ids)) if group_ids else set()
+        device_ids = [d for d in present_ids if d not in covered]
         changes = [
             since_by_place_device[(place.id, d)]
-            for d in device_ids
+            for d in present_ids
             if since_by_place_device.get((place.id, d)) is not None
         ]
         out.append(

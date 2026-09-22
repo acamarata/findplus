@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 from findplus.api._widget import _widget_places
-from findplus.db.models import PlaceState
+from findplus.db.models import Device, PlaceState
 from findplus.groups.repo import create_group
 from findplus.places.repo import create_place
 
@@ -76,7 +76,12 @@ def test_stale_device_is_not_a_present_badge(session):
     assert rows[0]["last_change_at"] is None
 
 
-def test_a_full_group_is_served_as_a_group_badge(session):
+def test_a_full_group_is_served_as_a_group_badge_and_not_duplicated_as_devices(session):
+    """`WidgetGroup` carries no member list, so the widget cannot dedupe a
+
+    grouped member against its own device badge -- the server excludes a
+    covered device from `device_ids` instead.
+    """
     place = create_place(session, name="Home", latitude_e7=0, longitude_e7=0, radius_meters=100)
     group = create_group(session, name="Family", member_ids=["dev1", "dev2"])
     for device_id, minutes_ago in (("dev1", 2), ("dev2", 4)):
@@ -86,7 +91,26 @@ def test_a_full_group_is_served_as_a_group_badge(session):
     rows = _widget_places(session, NOW)
 
     assert rows[0]["group_ids"] == [group.id]
-    assert set(rows[0]["device_ids"]) == {"dev1", "dev2"}
+    assert rows[0]["device_ids"] == []
+    # last_change_at still reflects every present device, grouped or not.
+    assert rows[0]["last_change_at"] == "2026-09-22T11:58:00Z"
+
+
+def test_a_present_device_outside_any_full_group_still_gets_its_own_badge(session):
+    session.add(
+        Device(device_id="dev3", name="Tag3", is_tracked=False, first_seen_at=NOW, last_seen_at=NOW)
+    )
+    session.flush()
+    place = create_place(session, name="Home", latitude_e7=0, longitude_e7=0, radius_meters=100)
+    group = create_group(session, name="Family", member_ids=["dev1", "dev2"])
+    for device_id, minutes_ago in (("dev1", 2), ("dev2", 4), ("dev3", 1)):
+        _make_observation(session, device_id, NOW - timedelta(minutes=minutes_ago))
+        _inside(session, place, device_id, since=NOW - timedelta(minutes=minutes_ago))
+
+    rows = _widget_places(session, NOW)
+
+    assert rows[0]["group_ids"] == [group.id]
+    assert rows[0]["device_ids"] == ["dev3"]
 
 
 def test_a_partial_group_is_not_a_group_badge(session):

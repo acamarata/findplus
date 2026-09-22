@@ -57,6 +57,54 @@ def test_hook_failure_never_loses_the_batch(session, monkeypatch):
     assert session.scalar(select(PlaceEvent)) is not None  # geofence's row survives too
 
 
+def _seed_group_alert_scenario(s, now):
+    """Group quorum="any" with 3 device fixes, "a" outside, and one telegram
+    group rule -- the fixture test_group_event_reaches_dispatch_in_the_same_poll
+    needs before it locates+ingests a fresh fix for "a"."""
+    from findplus.db.models_alerts import AlertRule
+
+    group, place = _seed_group(s, quorum="any")
+    for device_id in ("a", "b", "c"):
+        _add_fix(s, device_id, now - timedelta(minutes=5))
+    s.add(
+        PlaceState(
+            place_id=place.id,
+            device_id="a",
+            state="outside",
+            streak=0,
+            streak_side=None,
+            since_observed_at=None,
+            last_observation_id=None,
+            updated_at=now,
+        )
+    )
+    s.add(
+        AlertRule(
+            name="family-home",
+            place_id=place.id,
+            group_id=group.id,
+            device_id=None,
+            on_enter=True,
+            on_exit=True,
+            channels="telegram",
+            cooldown_minutes=30,
+            enabled=True,
+            also_notify_members=False,
+            created_at=now,
+        )
+    )
+
+
+class _OneFixProvider:
+    """Returns one fresh observation for whichever device id it is asked to locate."""
+
+    def __init__(self, now) -> None:
+        self._now = now
+
+    def locate(self, device_id, device_name):
+        return [_raw_obs(device_id, self._now)]
+
+
 def test_group_event_reaches_dispatch_in_the_same_poll(tmp_db, monkeypatch):
     """One poll must ingest the fix, fire the quorum AND deliver the group alert.
 
@@ -70,49 +118,15 @@ def test_group_event_reaches_dispatch_in_the_same_poll(tmp_db, monkeypatch):
     from findplus.alerts.channels.telegram import DeliveryResult
     from findplus.alerts.store import AlertsChannels, TelegramCreds
     from findplus.config import get_settings
-    from findplus.db.models_alerts import AlertDelivery, AlertRule
+    from findplus.db.models_alerts import AlertDelivery
     from findplus.db.session import session_scope
     from findplus.poller import _locate_and_ingest
 
     now = datetime.now(UTC)
     with session_scope() as s:
-        group, place = _seed_group(s, quorum="any")
-        for device_id in ("a", "b", "c"):
-            _add_fix(s, device_id, now - timedelta(minutes=5))
-        s.add(
-            PlaceState(
-                place_id=place.id,
-                device_id="a",
-                state="outside",
-                streak=0,
-                streak_side=None,
-                since_observed_at=None,
-                last_observation_id=None,
-                updated_at=now,
-            )
-        )
-        s.add(
-            AlertRule(
-                name="family-home",
-                place_id=place.id,
-                group_id=group.id,
-                device_id=None,
-                on_enter=True,
-                on_exit=True,
-                channels="telegram",
-                cooldown_minutes=30,
-                enabled=True,
-                also_notify_members=False,
-                created_at=now,
-            )
-        )
+        _seed_group_alert_scenario(s, now)
 
     creds = TelegramCreds("123:abc", "42", "Family", "findplus_bot", now.isoformat())
-
-    class _Provider:
-        def locate(self, device_id, device_name):
-            return [_raw_obs(device_id, now)]
-
     with (
         patch(
             "findplus.alerts.store.load_alerts",
@@ -123,7 +137,7 @@ def test_group_event_reaches_dispatch_in_the_same_poll(tmp_db, monkeypatch):
             return_value=DeliveryResult(success=True, status_code=200, error=None),
         ) as send_mock,
     ):
-        outcome, _ = _locate_and_ingest(_Provider(), "a", "a", get_settings())
+        outcome, _ = _locate_and_ingest(_OneFixProvider(now), "a", "a", get_settings())
 
     assert outcome.status == "ok"
     with session_scope() as s:

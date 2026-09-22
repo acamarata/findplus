@@ -91,6 +91,22 @@ def test_a_legitimate_loopback_host_still_reaches_the_handler(
 
 
 @pytest.mark.parametrize("method,path", _ROUTES)
+@pytest.mark.parametrize(
+    "host",
+    [f"localhost.:{CONFIGURED_PORT}", f"127.0.0.1.:{CONFIGURED_PORT}"],
+    ids=["localhost-trailing-dot", "ipv4-loopback-trailing-dot"],
+)
+def test_a_trailing_dot_loopback_host_still_reaches_the_handler(
+    client: TestClient, method: str, path: str, host: str
+) -> None:
+    """G4: the absolute-FQDN form (a trailing dot after the hostname) is the
+    same host to DNS and must not be refused just because it doesn't exactly
+    match LOOPBACK_HOSTNAMES."""
+    res = _request(client, method, path, host)
+    assert res.status_code != 421, f"{method} {path} Host={host} -> {res.status_code}"
+
+
+@pytest.mark.parametrize("method,path", _ROUTES)
 def test_a_missing_host_header_is_refused(client: TestClient, method: str, path: str) -> None:
     """An empty Host is what `is_allowed_host(None, ...)` models: httpx will
     not send a request with no Host header at all, so this is the closest a

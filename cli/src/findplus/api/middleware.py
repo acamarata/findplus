@@ -80,14 +80,19 @@ _CROSS_SITE_DETAIL = "This request was initiated by another site and was refused
 
 
 def _hostname(host_header: str) -> str:
-    """The hostname part of a Host header, port removed, `[::1]` kept bracketed."""
+    """The hostname part of a Host header, port removed, `[::1]` kept
+    bracketed, and a single trailing dot (the absolute-FQDN form a browser
+    or curl may send, e.g. `localhost.`) stripped before the allowlist
+    check ever compares it (G4) -- DNS treats the trailing dot as a no-op,
+    so `localhost.` and `127.0.0.1.` name the same host as their bare form.
+    """
     value = host_header.strip()
     if value.startswith("["):
         end = value.find("]")
         return value if end == -1 else value[: end + 1]
     if value.count(":") == 1:
-        return value.rsplit(":", 1)[0]
-    return value
+        value = value.rsplit(":", 1)[0]
+    return value[:-1] if value.endswith(".") else value
 
 
 def _host_port(host_header: str) -> int | None:

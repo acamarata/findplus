@@ -163,6 +163,29 @@ def test_end_to_end_from_db_rows_sends(rule_row, session, settings_enabled) -> N
     assert "4 min late" in send_mock.call_args[0][0]
 
 
+class _RacySession:
+    """Delegates to the real session, but the dedup SELECT always misses.
+
+    Used by test_concurrent_duplicate_delivery_is_rolled_back to simulate a
+    second poller's insert racing the UNIQUE constraint.
+    """
+
+    def __init__(self, real) -> None:
+        self._real = real
+
+    def __getattr__(self, name):
+        return getattr(self._real, name)
+
+    def query(self, *_args, **_kwargs):
+        return self
+
+    def filter_by(self, **_kwargs):
+        return self
+
+    def first(self):
+        return None
+
+
 def test_concurrent_duplicate_delivery_is_rolled_back(rule_row, session) -> None:
     """A second poller's insert loses to the UNIQUE constraint instead of raising."""
     from findplus.alerts.dispatch import Rule, _deliver_one
@@ -191,24 +214,6 @@ def test_concurrent_duplicate_delivery_is_rolled_back(rule_row, session) -> None
         )
     )
     session.commit()
-
-    class _RacySession:
-        """Delegates to the real session, but the dedup SELECT always misses."""
-
-        def __init__(self, real) -> None:
-            self._real = real
-
-        def __getattr__(self, name):
-            return getattr(self._real, name)
-
-        def query(self, *_args, **_kwargs):
-            return self
-
-        def filter_by(self, **_kwargs):
-            return self
-
-        def first(self):
-            return None
 
     with (
         patch("findplus.alerts.store.load_alerts", return_value=_telegram_configured()),

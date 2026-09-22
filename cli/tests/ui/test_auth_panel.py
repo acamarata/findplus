@@ -182,19 +182,11 @@ async def test_the_lock_purge_empties_the_sign_in_panel(page, base_url) -> None:
     assert await page.locator("#fp-auth-apple-status").inner_text() == ""
 
 
-async def test_in_flight_status_response_does_not_repopulate_after_purge(page, base_url) -> None:
-    """R-P2-8 / CI 35557336869: the test above raced a real GET /api/auth/status
-    against purgeRenderedData() and was order-flaky (L3-1) because the request
-    sometimes landed after the purge and refilled "Not signed in". This test
-    holds the response open with page.route so the race is deterministic
-    instead of depending on scheduler timing: it waits for openSettings()'s
-    own GET /api/auth/status to actually reach the server (`request_started`)
-    before purging, so the purge is guaranteed to land while that request is
-    genuinely in flight, then releases it and checks it was a no-op. A final
-    fresh load (standing in for the real unlock -> reopen path) checks the
-    generation guard blocks only that one superseded request, not every
-    request after it.
-    """
+async def _hold_status_response_then_purge_and_release(page, base_url) -> None:
+    """Hold GET /api/auth/status open with page.route until purgeRenderedData()
+    has genuinely run, then release it and confirm the generation guard made
+    the now-superseded response a no-op -- the deterministic race
+    test_in_flight_status_response_does_not_repopulate_after_purge needs."""
     request_started = asyncio.Event()
     hold = asyncio.Event()
 
@@ -225,6 +217,22 @@ async def test_in_flight_status_response_does_not_repopulate_after_purge(page, b
         assert await page.locator("#fp-auth-apple-status").inner_text() == ""
     finally:
         await page.unroute("**/api/auth/status", delay_status)
+
+
+async def test_in_flight_status_response_does_not_repopulate_after_purge(page, base_url) -> None:
+    """R-P2-8 / CI 35557336869: the test above raced a real GET /api/auth/status
+    against purgeRenderedData() and was order-flaky (L3-1) because the request
+    sometimes landed after the purge and refilled "Not signed in". This test
+    holds the response open with page.route so the race is deterministic
+    instead of depending on scheduler timing: it waits for openSettings()'s
+    own GET /api/auth/status to actually reach the server (`request_started`)
+    before purging, so the purge is guaranteed to land while that request is
+    genuinely in flight, then releases it and checks it was a no-op. A final
+    fresh load (standing in for the real unlock -> reopen path) checks the
+    generation guard blocks only that one superseded request, not every
+    request after it.
+    """
+    await _hold_status_response_then_purge_and_release(page, base_url)
 
     # A fresh load after the purge -- the generation guard blocks only the
     # one superseded request, not every request after it (polling resumes

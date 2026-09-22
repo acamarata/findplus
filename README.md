@@ -11,7 +11,7 @@ browser dashboard, a CLI, a REST API, an MCP server, and a macOS menu-bar
 app.
 
 > This history consists of locations reported through Google's Find Hub
-> network. Moto Tag uses nearby participating Android devices to report its
+> network. Your trackers use nearby participating Android devices to report their
 > location. Location updates can therefore be delayed, sparse, or
 > unavailable, and this application should not be treated as real-time
 > emergency or child-safety GPS tracking.
@@ -93,10 +93,20 @@ extracting pairing keys, which most users cannot do.
 All data lives in `~/.findplus/` (SQLite). There is no cloud sync. Find+
 sends no analytics or telemetry.
 
+Find+ connects to the following external services during normal operation:
+
+- The location network (Google Find Hub or Apple Find My) to poll for tag updates.
+- Map tiles from OpenStreetMap, fetched directly by your browser.
+- api.telegram.org, your webhook URL, or CallMeBot's WhatsApp relay -- only when
+  that alert channel is configured.
+- OpenStreetMap's Nominatim geocoder -- only when you type an address into the
+  place dialog and press Search. The daemon makes this request, not your
+  browser, and sends nothing else.
+
 ## Honesty
 
 > This history consists of locations reported through Google's Find Hub
-> network. Moto Tag uses nearby participating Android devices to report its
+> network. Your trackers use nearby participating Android devices to report their
 > location. Location updates can therefore be delayed, sparse, or
 > unavailable, and this application should not be treated as real-time
 > emergency or child-safety GPS tracking.
@@ -140,6 +150,10 @@ sends no analytics or telemetry.
 > Google Chrome was not found on this machine. Google sign-in drives
 > Chrome directly and cannot run without it. Install it from
 > https://www.google.com/chrome/ and try again.
+>
+> Address search sends the text you type to OpenStreetMap's Nominatim
+> service, a third party not affiliated with Find+, and only when you
+> press Search.
 
 ## CLI
 

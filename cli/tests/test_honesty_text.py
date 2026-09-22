@@ -21,7 +21,7 @@ REPO_ROOT = Path(__file__).parent.parent.parent
 EXPECTED = {
     "find_hub": (
         "This history consists of locations reported through Google's Find Hub network. "
-        "Moto Tag uses nearby participating Android devices to report its location. "
+        "Your trackers use nearby participating Android devices to report their location. "
         "Location updates can therefore be delayed, sparse, or unavailable, and this "
         "application should not be treated as real-time emergency or child-safety GPS tracking."
     ),
@@ -68,6 +68,10 @@ EXPECTED = {
         "Google Chrome was not found on this machine. Google sign-in drives Chrome directly "
         "and cannot run without it. Install it from https://www.google.com/chrome/ and try "
         "again."
+    ),
+    "address_search": (
+        "Address search sends the text you type to OpenStreetMap's Nominatim service, a "
+        "third party not affiliated with Find+, and only when you press Search."
     ),
 }
 
@@ -176,7 +180,7 @@ def test_expected_is_a_subset_of_the_notices_dict():
 # and EM_DASH_ALLOWED), so a future notice dropped from the README fails with
 # the specific key rather than a generic diff.
 README_FRAGMENTS = {
-    "find_hub": "Moto Tag uses nearby participating Android devices",
+    "find_hub": "Your trackers use nearby participating Android devices",
     "apple": "genuine AirTags require extracting pairing keys",
     "alerts_latency": "Alerts inherit the network's delay",
     "presence_stale": "stale, not at home and not left behind",
@@ -187,6 +191,7 @@ README_FRAGMENTS = {
     "native_generic": "place — anyone who can see",
     "not_affiliated": "not affiliated with Apple or Google",
     "chrome_required": "cannot run without it",
+    "address_search": "a third party not affiliated with Find+",
 }
 
 

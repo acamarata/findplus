@@ -26,7 +26,7 @@ Apple's own network.
 ## Notices
 
 > This history consists of locations reported through Google's Find Hub
-> network. Moto Tag uses nearby participating Android devices to report its
+> network. Your trackers use nearby participating Android devices to report their
 > location. Location updates can therefore be delayed, sparse, or
 > unavailable, and this application should not be treated as real-time
 > emergency or child-safety GPS tracking.

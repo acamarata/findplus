@@ -18,7 +18,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from findplus.alerts.channels_field import format_channels, parse_channels
 from findplus.api._delivery_render import batch_delivery_text_bodies
@@ -89,8 +89,11 @@ def _rule_to_dict(
 
 
 def _list_rules(session) -> list[dict[str, Any]]:
+    # COALESCE(Device.label, Device.name): the rules table and the rule form's
+    # own Device select both show the tracker's label, falling back to the
+    # provider's name only when unset (UAT U6).
     stmt = (
-        select(AlertRule, Place.name, Group.name, Device.name)
+        select(AlertRule, Place.name, Group.name, func.coalesce(Device.label, Device.name))
         .outerjoin(Place, Place.id == AlertRule.place_id)
         .outerjoin(Group, Group.id == AlertRule.group_id)
         .outerjoin(Device, Device.device_id == AlertRule.device_id)

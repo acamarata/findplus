@@ -29,7 +29,7 @@ from findplus.db.models_alerts import AlertRule
 NOW = datetime(2026, 9, 19, 12, 0, 0, tzinfo=UTC)
 
 
-def _seed_place_and_device(s, place_id=1, device_id="dev1") -> None:
+def _seed_place_and_device(s, place_id=1, device_id="dev1", label=None) -> None:
     if s.get(Place, place_id) is None:
         s.add(
             Place(
@@ -47,6 +47,7 @@ def _seed_place_and_device(s, place_id=1, device_id="dev1") -> None:
             Device(
                 device_id=device_id,
                 name="Tag",
+                label=label,
                 is_tracked=True,
                 provider="google-find-hub",
                 first_seen_at=NOW,

@@ -53,6 +53,15 @@ def test_a_native_row_carries_the_rendered_text_and_body(client: TestClient) -> 
     assert "Observed" in row["body"]
 
 
+def test_a_native_row_uses_the_device_label_when_set(client: TestClient) -> None:
+    """UAT U7: the queued notification's own text is rendered on read, so it
+    must resolve the tracker's label the same way the other channels do."""
+    rule_id, event_id = _seed(label="Biscuit (dog)")
+    _add_delivery(rule_id, event_id, "native")
+    row = client.get("/api/alerts/deliveries?channel=native").json()[0]
+    assert row["text"] == "Biscuit (dog) arrived at Home"
+
+
 def test_a_non_native_row_has_no_text_or_body(client: TestClient) -> None:
     rule_id, event_id = _seed()
     _add_delivery(rule_id, event_id, "telegram", status="sent")

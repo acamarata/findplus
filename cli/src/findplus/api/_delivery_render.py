@@ -32,20 +32,23 @@ def _batch_device_events(session, event_ids: list[int]) -> dict[int, DeviceEvent
     if not event_ids:
         return {}
     rows = (
-        session.query(PlaceEvent, Place.name, Device.name)
+        session.query(PlaceEvent, Place.name, Device.name, Device.label)
         .join(Place, Place.id == PlaceEvent.place_id)
         .join(Device, Device.device_id == PlaceEvent.device_id)
         .filter(PlaceEvent.id.in_(event_ids))
         .all()
     )
     out: dict[int, DeviceEvent] = {}
-    for event, place_name, device_name in rows:
+    for event, place_name, device_name, device_label in rows:
         out[event.id] = DeviceEvent(
             place_event_id=event.id,
             place_id=event.place_id,
             place_name=place_name,
             device_id=event.device_id,
-            device_name=device_name,
+            # The label the user gave the tracker, falling back to the
+            # provider's own name (UAT U7): a native notification renders
+            # this same text on read.
+            device_name=device_label or device_name,
             event_type=event.event_type,
             observed_at=event.observed_at,
             fetched_at=event.fetched_at,

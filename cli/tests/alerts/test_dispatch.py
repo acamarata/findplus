@@ -18,6 +18,7 @@ from findplus.db.models_alerts import AlertDelivery
 from ._helpers import (
     NOW,
     _device_event,
+    _seed_pending_place_event,
     _seed_place_and_device,
     _telegram_configured,
 )
@@ -262,3 +263,20 @@ def test_a_skipped_delivery_does_not_start_a_cooldown(rule_row, session, setting
 
     rows = session.query(AlertDelivery).all()
     assert [r.status for r in rows] == ["skipped", "skipped"]
+
+
+def test_load_pending_events_prefers_the_device_label(session) -> None:
+    """UAT U7: an alert names the tracker the way its owner labelled it, not
+    the raw provider name the device row was first seen with."""
+    _seed_place_and_device(session, label="Biscuit (dog)")
+    _seed_pending_place_event(session, place_id=1, observed_at=NOW)
+    ev = load_pending_events(session)[0]
+    assert ev.device_name == "Biscuit (dog)"
+
+
+def test_load_pending_events_falls_back_to_the_provider_name(session) -> None:
+    """No label set -- the provider's own name is still the honest fallback."""
+    _seed_place_and_device(session)
+    _seed_pending_place_event(session, place_id=1, observed_at=NOW)
+    ev = load_pending_events(session)[0]
+    assert ev.device_name == "Tag"

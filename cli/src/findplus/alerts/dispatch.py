@@ -47,8 +47,10 @@ __all__ = [
     "suppressed_by_group",
 ]
 
+#: COALESCE(d.label, d.name): an alert names the tracker by its label (UAT U7).
 _DEVICE_EVENTS_SQL = """SELECT pe.id, pe.place_id, p.name AS place_name, pe.device_id,
-       d.name AS device_name, pe.event_type, pe.observed_at, pe.fetched_at, pe.confidence
+       COALESCE(d.label, d.name) AS device_name, pe.event_type, pe.observed_at, pe.fetched_at,
+       pe.confidence
 FROM place_events pe JOIN places p ON p.id = pe.place_id
 JOIN devices d ON d.device_id = pe.device_id
 WHERE pe.notified_at IS NULL ORDER BY pe.observed_at ASC"""

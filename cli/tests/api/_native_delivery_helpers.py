@@ -59,7 +59,7 @@ def _seed_place_event(s) -> int:
     return event.id
 
 
-def _seed(place_event: bool = True) -> tuple[int, int]:
+def _seed(place_event: bool = True, label: str | None = None) -> tuple[int, int]:
     """One rule plus (optionally) one place_event; returns (rule_id, place_event_id)."""
     with session_scope() as s:
         s.add(
@@ -77,6 +77,7 @@ def _seed(place_event: bool = True) -> tuple[int, int]:
             Device(
                 device_id="dev1",
                 name="Tag",
+                label=label,
                 is_tracked=True,
                 first_seen_at=NOW,
                 last_seen_at=NOW,

@@ -60,8 +60,10 @@ log = get_logger(__name__)
 #: oldest-due first, over the following cycles.
 RETRY_DRAIN_LIMIT = 20
 
+#: COALESCE(d.label, d.name): a retry resolves the label the same way dispatch.py does (UAT U7).
 _DEVICE_EVENT_SQL = """SELECT pe.id, pe.place_id, p.name AS place_name, pe.device_id,
-       d.name AS device_name, pe.event_type, pe.observed_at, pe.fetched_at, pe.confidence
+       COALESCE(d.label, d.name) AS device_name, pe.event_type, pe.observed_at, pe.fetched_at,
+       pe.confidence
 FROM place_events pe JOIN places p ON p.id = pe.place_id
 JOIN devices d ON d.device_id = pe.device_id
 WHERE pe.id = :id"""

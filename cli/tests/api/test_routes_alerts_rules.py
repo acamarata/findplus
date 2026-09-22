@@ -48,6 +48,22 @@ def test_rules_create_requires_exactly_one_target(client: TestClient) -> None:
     assert res.status_code == 422
 
 
+def test_rules_list_shows_the_device_label_not_the_provider_name(client: TestClient) -> None:
+    """UAT U6: the rules table and the rule form's own Device select both
+    read this same field, so it must be the label the user gave the tracker."""
+    with session_scope() as session:
+        from findplus.db.models import Device
+
+        session.get(Device, "dev1").label = "Sara's backpack"
+        session.commit()
+    create = client.post(
+        "/api/alerts/rules",
+        json={"name": "r1", "device_id": "dev1", "channels": ["telegram"]},
+    )
+    assert create.json()["device_name"] == "Sara's backpack"
+    assert client.get("/api/alerts/rules").json()[0]["device_name"] == "Sara's backpack"
+
+
 def test_deliveries_empty(client: TestClient) -> None:
     assert client.get("/api/alerts/deliveries").json() == []
 

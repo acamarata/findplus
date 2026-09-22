@@ -211,3 +211,17 @@ def test_retrying_status_does_not_start_a_cooldown(rule_row, session, settings_e
     # Control: an otherwise-identical "sent" delivery DOES start the cooldown.
     assert in_cooldown(rule, "telegram", _device_event(), [sent], NOW) is True
     assert in_cooldown(rule, "telegram", _device_event(), [retrying], NOW) is False
+
+
+def test_retry_reloads_the_device_label(session) -> None:
+    """UAT U7: a retry re-renders with the tracker's label, the same way the
+    first attempt (dispatch.py's own query) did."""
+    from findplus.alerts.retry import _load_event
+
+    from ._helpers import _seed_place_and_device
+
+    _seed_place_and_device(session, label="Biscuit (dog)")
+    _seed_pending_place_event(session, place_id=1, observed_at=NOW)
+    event_id = session.query(PlaceEvent).order_by(PlaceEvent.id.desc()).first().id
+    event = _load_event(session, "device", event_id)
+    assert event.device_name == "Biscuit (dog)"

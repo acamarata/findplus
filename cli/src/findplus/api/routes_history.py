@@ -162,7 +162,8 @@ def latest(
         obs = session.scalar(stmt.order_by(desc(LocationObservation.observed_at)).limit(1))
         if obs is None:
             raise HTTPException(status_code=404, detail="No observations recorded yet.")
-        return _serialize_latest(obs, zone, now) or {}
+        device = session.get(Device, obs.device_id)
+        return _serialize_latest(obs, zone, now, device.label if device else None) or {}
 
 
 def poll_runs(limit: int = Query(default=25, ge=1, le=200)) -> dict[str, Any]:

@@ -61,6 +61,43 @@ def test_a_duplicate_device_id_is_409_not_a_silent_overwrite(client: TestClient)
     assert "already registered" in res.json()["detail"]
 
 
+def test_allow_overwrite_true_replaces_a_duplicate_json(client: TestClient) -> None:
+    """CF-P2-19: the dashboard's "Replace existing" confirm retries with this
+    field set. Still 409 without it (default False, tested above)."""
+    key = _key_b64()
+    assert client.post(URL, json={"name": "My Tag", "private_key_b64": key}).status_code == 201
+    res = client.post(
+        URL, json={"name": "Renamed", "private_key_b64": key, "allow_overwrite": True}
+    )
+    assert res.status_code == 201, res.text
+    assert res.json()["name"] == "Renamed"
+
+
+def test_allow_overwrite_true_replaces_a_duplicate_multipart(client: TestClient) -> None:
+    """The multipart form sends "true" as a string, not a JSON bool."""
+    plist_bytes = plistlib.dumps({"Private Key": _key_b64(b"z")})
+    first = client.post(URL, data={"name": "Tag A"}, files={"plist": ("a.plist", plist_bytes)})
+    assert first.status_code == 201
+    res = client.post(
+        URL,
+        data={"name": "Tag B", "allow_overwrite": "true"},
+        files={"plist": ("a.plist", plist_bytes)},
+    )
+    assert res.status_code == 201, res.text
+    assert res.json()["name"] == "Tag B"
+    assert _leftovers() == []
+
+
+def test_allow_overwrite_false_string_is_still_a_409(client: TestClient) -> None:
+    """Only the literal string "true" (case-insensitive) flips the default."""
+    key = _key_b64()
+    assert client.post(URL, json={"name": "My Tag", "private_key_b64": key}).status_code == 201
+    res = client.post(
+        URL, json={"name": "Renamed", "private_key_b64": key, "allow_overwrite": "false"}
+    )
+    assert res.status_code == 409
+
+
 def test_json_without_a_name_is_422(client: TestClient) -> None:
     res = client.post(URL, json={"private_key_b64": _key_b64()})
     assert res.status_code == 422

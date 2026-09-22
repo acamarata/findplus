@@ -105,13 +105,25 @@ def _reject_oversized_content_length(request: Request) -> None:
         raise HTTPException(status_code=413, detail="plist too large")
 
 
-async def _read_accessory_body(request: Request, settings) -> tuple[str, Path | None, str | None]:
-    """(name, plist_path, private_key_b64) from whichever body shape arrived.
+def _parse_allow_overwrite(raw: object) -> bool:
+    """The JSON bool, or the multipart form's string ("true"/"false").
 
-    FastAPI cannot declare Form/File and a JSON model on one path operation —
-    Starlette parses a body once, as form data or as JSON — so the shape is
-    chosen from Content-Type and each branch validates its own fields. The
-    Content-Type only routes; the parse still rejects garbage on its own.
+    Anything else (missing, "false", a stray non-bool) keeps the strict
+    web default: no overwrite unless the caller says so (CF-P2-19).
+    """
+    if isinstance(raw, bool):
+        return raw
+    return isinstance(raw, str) and raw.strip().lower() == "true"
+
+
+async def _read_accessory_body(
+    request: Request, settings
+) -> tuple[str, Path | None, str | None, bool]:
+    """(name, plist_path, private_key_b64, allow_overwrite) from whichever body shape arrived.
+
+    FastAPI parses one body as form data or JSON, so Content-Type picks the
+    branch. `allow_overwrite` defaults to False in both; the dashboard's
+    "Replace existing" confirm is the only caller sending true (CF-P2-19).
     """
     if request.headers.get("content-type", "").startswith("multipart/form-data"):
         _reject_oversized_content_length(request)
@@ -136,7 +148,7 @@ async def _read_accessory_body(request: Request, settings) -> tuple[str, Path | 
         plist_path.touch(mode=0o600, exist_ok=False)
         plist_path.chmod(0o600)
         plist_path.write_bytes(plist_bytes)
-        return raw_name, plist_path, None
+        return raw_name, plist_path, None, _parse_allow_overwrite(form.get("allow_overwrite"))
 
     try:
         payload = await request.json()
@@ -149,7 +161,8 @@ async def _read_accessory_body(request: Request, settings) -> tuple[str, Path | 
     name = payload.get("name")
     if not isinstance(name, str):
         raise HTTPException(status_code=422, detail="'name' is required")
-    return name, None, payload.get("private_key_b64")
+    overwrite = _parse_allow_overwrite(payload.get("allow_overwrite"))
+    return name, None, payload.get("private_key_b64"), overwrite
 
 
 def _require_apple_provider() -> None:
@@ -247,14 +260,16 @@ async def apple_accessories(request: Request) -> dict[str, Any]:
     # state dir; an HTTP request has not, and _accessories_dir() does not
     # create parents. 0700 for the same reason ensure_dirs() does it.
     settings.ensure_dirs()
-    name, plist_path, private_key_b64 = await _read_accessory_body(request, settings)
+    name, plist_path, private_key_b64, allow_overwrite = await _read_accessory_body(
+        request, settings
+    )
     try:
         record = add_accessory(
             name,
             settings,
             plist_path=plist_path,
             private_key_b64=private_key_b64,
-            allow_overwrite=False,
+            allow_overwrite=allow_overwrite,
         )
     except FileExistsError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc

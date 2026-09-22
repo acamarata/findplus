@@ -7,7 +7,9 @@
  *              web/partials/settings.html.
  * Inputs     : GET /api/auth/status, POST /api/auth/google/start,
  *              GET /api/auth/google/progress, POST /api/auth/apple/start,
- *              POST /api/auth/apple/code.
+ *              POST /api/auth/apple/code. Accessory-key registration
+ *              (POST /api/apple/accessories) is auth_accessories.js, mounted
+ *              and purged from here (CF-P2-19).
  * Outputs    : The two provider cards inside #fp-settings-signin.
  * Constraints: textContent only, never raw markup — a status line comes from
  *              the API and can never run as script. The Apple password and the
@@ -22,6 +24,7 @@
 import { $, showAlert } from "./state.js";
 import { api, postJson } from "./api.js";
 import { t, loadCatalog } from "./i18n.js";
+import { mountAccessoriesPanel, purgeAccessories } from "./auth_accessories.js";
 
 const GOOGLE_PROVIDER = "google-find-hub";
 const APPLE_PROVIDER = "apple-find-my";
@@ -242,6 +245,7 @@ export function mountAuthPanel(root, { refresh = true } = {}) {
     $("fp-auth-google-signin").addEventListener("click", startGoogleSignIn);
     $("fp-auth-apple-signin").addEventListener("click", submitAppleSignIn);
     $("fp-auth-apple-code-submit").addEventListener("click", submitAppleCode);
+    mountAccessoriesPanel();
     mounted = true;
   }
   // Locked or unreachable: the lock screen is already up and there is nothing
@@ -272,6 +276,7 @@ export function purge() {
   }
   appleJobId = null;
   showApple2fa(false);
+  purgeAccessories();
 }
 
 /**

@@ -187,6 +187,12 @@
    the body text, like .setting-group h3 but not uppercase. */
 .fp-auth-provider { font-size: 13px; font-weight: 600; margin: 14px 0 4px; }
 #fp-auth-google-card > .fp-auth-provider { margin-top: 4px; }
+/* A sub-section inside a provider card (Apple's accessory-keys block, CF-P2-19)
+   -- distinct from .fp-auth-provider so test_each_provider_card_says_which_
+   provider_it_is's single-heading-per-card selector still resolves to one
+   element; visually smaller and muted so it doesn't compete with the card's
+   own "Apple Find My" heading above it. */
+.fp-auth-subheading { font-size: 12px; font-weight: 600; margin: 16px 0 4px; color: var(--muted); }
 #fp-auth-chrome-download { display: inline-block; margin-top: 8px; font-size: .8rem; }
 
 /* --- links inside dialogs, modals and cards -------------------------------- */

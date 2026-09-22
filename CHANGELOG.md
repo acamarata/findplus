@@ -96,6 +96,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - A group's CSV, JSON, GPX and KML exports now carry each member's label, falling back to its device ID when no label is set, the same as a single device's export already did.
 - Pressing Next on the setup wizard's app lock step with a PIN typed and confirmed now sets it, instead of silently discarding it; a mismatched pair shows an inline error and stays on the step instead of advancing with no lock set.
 
+- Apple Find My fixes carry the accuracy the source actually gives, which is none: Find+ no longer invents a metres figure from Apple's confidence label. The dashboard now shows "Accuracy unknown" for these fixes instead of a made-up `±N m` reading, and a database upgrade nulls out any invented figures a previous version already stored.
 ## [1.0.0] - 2026-09-19
 
 ### Added

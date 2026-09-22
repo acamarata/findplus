@@ -269,3 +269,40 @@ def test_kml_placemarks_fall_back_to_device_id_without_a_label(rows) -> None:
     ]
     assert names
     assert all(name.startswith("TAG-001 (") for name in names)
+
+
+# ------------------------------------------------- unknown accuracy (CF-P2-6)
+@pytest.fixture
+def apple_row(session) -> LocationObservation:
+    """One Apple Find My observation with no accuracy: `accuracy=None` is what
+    the provider always writes (CF-P2-6) -- never an invented metres figure.
+    """
+    ingest_observations(
+        session,
+        [make_observation(device_id="apple:abc", source="apple-find-my", accuracy=None)],
+    )
+    return session.scalar(select(LocationObservation))
+
+
+def test_csv_accuracy_column_is_empty_not_zero(apple_row) -> None:
+    parsed = _parsed(to_csv([apple_row], EASTERN))
+    assert parsed[0]["accuracy_meters"] == ""
+
+
+def test_json_accuracy_field_is_null_not_a_guessed_number(apple_row) -> None:
+    payload = json.loads(to_json([apple_row], EASTERN))
+    assert payload["observations"][0]["accuracy_meters"] is None
+
+
+def test_gpx_omits_hdop_when_accuracy_is_unknown(apple_row) -> None:
+    ns = {"g": "http://www.topografix.com/GPX/1/1"}
+    root = ElementTree.fromstring(to_gpx([apple_row], EASTERN))
+    point = root.find(".//g:trkpt", ns)
+    assert point.find("g:hdop", ns) is None
+
+
+def test_kml_omits_the_accuracy_detail_when_unknown(apple_row) -> None:
+    ns = {"k": "http://www.opengis.net/kml/2.2"}
+    root = ElementTree.fromstring(to_kml([apple_row], EASTERN))
+    descriptions = [pm.find("k:description", ns).text for pm in root.findall(".//k:Placemark", ns)]
+    assert not any(d and "accuracy" in d for d in descriptions)

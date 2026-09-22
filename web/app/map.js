@@ -13,6 +13,7 @@
 import { state, colorFor, fmtTime, fmtDateTime, fmtDuration, fmtDistance, esc } from "./state.js";
 import { selectPoint } from "./timeline.js";
 import { renderBadge } from "./components/badge.js";
+import { t } from "./i18n.js";
 
 export function initMap() {
   state.map = L.map("map", { zoomControl: true }).setView([39.5, -98.35], 4);
@@ -66,6 +67,10 @@ function popupHtml(point, deviceName) {
   ];
   if (point.accuracy_meters != null) {
     rows.push(`<div>Accuracy ~${Math.round(point.accuracy_meters)} m</div>`);
+  } else {
+    // Apple Find My never reports a metres figure (CF-P2-6): say so plainly
+    // instead of just omitting the line, which could read as "exact".
+    rows.push(`<div>${esc(t("timeline.accuracyUnknown"))}</div>`);
   }
   if (point.seconds_since_previous !== null) {
     rows.push(`<div>${fmtDuration(point.seconds_since_previous)} since previous observation</div>`);

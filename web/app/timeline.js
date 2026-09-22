@@ -51,6 +51,10 @@ function timelineHtml(track) {
     if (dist) meta.push(t("timeline.fromPrevious", { distance: dist }));
     if (point.accuracy_meters != null) {
       meta.push(t("timeline.accuracy", { meters: Math.round(point.accuracy_meters) }));
+    } else {
+      // Apple Find My never reports a metres figure (CF-P2-6): say so plainly
+      // instead of just omitting the line, which could read as "exact".
+      meta.push(t("timeline.accuracyUnknown"));
     }
     if (!point.is_movement && point.seconds_since_previous !== null) {
       meta.push(t("timeline.belowThreshold"));

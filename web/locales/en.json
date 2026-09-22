@@ -447,6 +447,7 @@
     "noDetectionsFor": "NO NEW DETECTIONS FOR {duration}",
     "fromPrevious": "{distance} from previous observation",
     "accuracy": "±{meters} m",
+    "accuracyUnknown": "Accuracy unknown",
     "belowThreshold": "below movement threshold",
     "loadFailed": "Could not load {day}: {message}",
     "pickDateFirst": "Pick a date first.",

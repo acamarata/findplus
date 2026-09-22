@@ -42,8 +42,12 @@ DEVICE_PALETTE = [
     "#d65f5f",
 ]
 
-_ICON_RE = re.compile(r"^(lucide:[a-z0-9-]+|letter:[A-Z0-9]|letter|none)$")
+_ICON_RE = re.compile(r"^(lucide:[a-z0-9-]+|letter:[A-Z0-9]|letter|none|custom:[0-9a-f]{16})$")
 _COLOR_RE = re.compile(r"^#[0-9a-f]{6}$")
+
+_ICON_GRAMMAR_MSG = (
+    "icon must match lucide:<name>, letter:<char>, letter, none, or custom:<16 hex chars>"
+)
 
 
 def palette_color_for(device_id: str) -> str:
@@ -85,12 +89,28 @@ def validate_label(label: str | None) -> str | None:
     return trimmed or None
 
 
+def _custom_icon_exists(icon: str) -> bool:
+    """Whether `custom:<id>`'s uploaded PNG is still on disk.
+
+    Lazy-imports `findplus.config` (the same pattern `_data_path()` uses
+    above) so this module never pays for config's heavier import chain
+    unless a caller actually validates a custom icon.
+    """
+    from findplus.config import get_settings
+
+    icon_id = icon.split(":", 1)[1]
+    return (get_settings().icons_dir / f"{icon_id}.png").is_file()
+
+
 def validate_icon(icon: str) -> str:
-    """One of `lucide:<name>` (pinned set), `letter:<X>`, `letter`, `none`."""
+    """One of `lucide:<name>` (pinned set), `letter:<X>`, `letter`, `none`,
+    or `custom:<16-hex-id>` (an uploaded PNG, § specs/labels-and-icons.md)."""
     if not _ICON_RE.match(icon):
-        raise ValueError("icon must match lucide:<name>, letter:<char>, letter, or none")
+        raise ValueError(_ICON_GRAMMAR_MSG)
     if icon.startswith("lucide:") and icon.split(":", 1)[1] not in _lucide_ids():
         raise ValueError("icon must be one of the available lucide icon ids")
+    if icon.startswith("custom:") and not _custom_icon_exists(icon):
+        raise ValueError("icon must reference an uploaded custom icon")
     return icon
 
 

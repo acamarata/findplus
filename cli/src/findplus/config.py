@@ -185,6 +185,17 @@ class Settings(BaseSettings):
 
     @computed_field
     @property
+    def icons_dir(self) -> Path:
+        """Uploaded custom device/group icons, one `<16-hex-id>.png` per file.
+
+        Content-addressed by `labels.py`'s upload route, so this directory
+        never needs a listing beyond what is already on disk (§ specs/
+        labels-and-icons.md custom icon amendment).
+        """
+        return self.state_dir / "icons"
+
+    @computed_field
+    @property
     def chrome_profile_dir(self) -> Path:
         # Never the user's own profile; browser.py makes it 0700 on first use.
         return self.state_dir / "chrome-profile"

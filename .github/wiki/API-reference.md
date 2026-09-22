@@ -468,6 +468,27 @@ Replace the tracked set. `all_devices=true` tracks everything.
 }
 ```
 
+## icons
+### DELETE /api/icons/custom/{icon_id}
+Delete Custom Icon
+
+| name | in | required | type |
+|---|---|---|---|
+| icon_id | path | True | string |
+
+### GET /api/icons/custom
+Every uploaded icon's id, sorted, so a picker's list is stable.
+
+### GET /api/icons/custom/{icon_id}.png
+Get Custom Icon
+
+| name | in | required | type |
+|---|---|---|---|
+| icon_id | path | True | string |
+
+### POST /api/icons/custom
+Upload Custom Icon
+
 ## history
 ### GET /api/days
 Local dates holding data. Omit `device_id` for every device.

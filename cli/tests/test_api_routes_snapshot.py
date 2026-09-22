@@ -26,7 +26,10 @@ Constraints: Zero behavior change from the pre-split monolith is the bar —
              /api/alerts/deliveries/{delivery_id}/ack, bringing it to 69;
              P2-E11-W4-S1-T1 adds GET/POST
              /api/settings/onboarding.completed_at and GET/POST
-             /api/settings/onboarding.last_step, bringing it to 73.
+             /api/settings/onboarding.last_step, bringing it to 73;
+             the P2 custom-icons ticket adds POST/GET /api/icons/custom,
+             GET /api/icons/custom/{icon_id}.png and
+             DELETE /api/icons/custom/{icon_id}, bringing it to 77.
 """
 
 from __future__ import annotations
@@ -71,7 +74,7 @@ def _app_routes(app):
 def test_route_count():
     app = create_app()
     routes = _app_routes(app)
-    assert len(routes) == 73
+    assert len(routes) == 77
 
 
 def test_route_paths_present():
@@ -98,6 +101,9 @@ def test_route_paths_present():
         "/api/devices/default",
         "/api/devices/{device_id}",
         "/api/icons",
+        "/api/icons/custom",
+        "/api/icons/custom/{icon_id}.png",
+        "/api/icons/custom/{icon_id}",
         "/api/timeline",
         "/api/days",
         "/api/latest",

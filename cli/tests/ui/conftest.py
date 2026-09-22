@@ -11,6 +11,11 @@ Constraints: FINDPLUS_DATABASE_PATH / FINDPLUS_STATE_DIR are the ONLY env
              names silently target the real ~/.findplus (build-notes.md §
              E2) — deviation from this ticket's literal env dict, verified
              against cli/tests/ui/boot/conftest.py's proven fixture.
+
+The subprocess seed script and the alerts-tab navigation helper moved to
+`_seed_script.py` / `_alerts_helpers.py` (E13 stage 2, size cap) and are
+re-imported below so `from .conftest import open_alerts_tab` etc. still work
+for every file that already imports them that way.
 """
 
 from __future__ import annotations
@@ -31,86 +36,10 @@ pytest.importorskip("playwright", reason="playwright is not installed")
 import pytest_asyncio
 from playwright.async_api import async_playwright
 
+from ._alerts_helpers import open_alerts_tab as open_alerts_tab
+from ._seed_script import SEED_SCRIPT as _SEED_SCRIPT
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-
-_SEED_SCRIPT = """
-from datetime import UTC, datetime, timedelta
-from findplus.db.migrate import upgrade_to_head
-from findplus.db.models import Device
-from findplus.db.session import session_scope
-from findplus.findhub.types import RawObservation
-from findplus.groups.repo import create_group
-from findplus.ingest import ingest_observations, upsert_device
-from findplus.places.repo import create_place
-from findplus.state import set_setting, track_devices
-
-upgrade_to_head()
-
-HOME_LAT, HOME_LON = 41.100000, -80.100000
-
-
-def obs(device_id, device_name, lat, lon):
-    return RawObservation(
-        device_id=device_id, device_name=device_name,
-        latitude_e7=round(lat * 1e7), longitude_e7=round(lon * 1e7),
-        observed_at=datetime.now(UTC) - timedelta(minutes=1),
-        accuracy_meters=15.0, source="crowdsourced", is_own_report=False,
-    )
-
-
-with session_scope() as session:
-    upsert_device(session, "TAG-HOME", "Home Tag")
-    upsert_device(session, "TAG-AWAY", "Away Tag")
-    upsert_device(session, "TAG-STALE", "Stale Tag")
-    # Untracked on purpose: it gives the footer an Apple tracker to notice
-    # (test_honesty_notices.py) without changing tracked_count for any other test.
-    upsert_device(session, "TAG-AIR", "AirTag", provider="apple-find-my")
-    # One device carries a real label, icon and colour rather than the 0007
-    # defaults, so the badge, dialog, map and timeline tests have something
-    # specific to assert (P2-E4-W3-S1-T6). The raw name stays "Home Tag";
-    # every existing selector that matches on it still matches.
-    home = session.get(Device, "TAG-HOME")
-    home.label = "Ali's Keys"
-    home.icon = "lucide:key"
-    home.color = "#4f8cf7"
-    track_devices(session, ["TAG-HOME", "TAG-AWAY", "TAG-STALE"], exclusive=True)
-
-# The place must exist BEFORE the observations are ingested: ingest.py's
-# geofence hook only evaluates places already on disk at ingest time.
-with session_scope() as session:
-    create_place(
-        session, name="Home", latitude_e7=round(HOME_LAT * 1e7),
-        longitude_e7=round(HOME_LON * 1e7), radius_meters=200,
-        color="#3b82f6", enter_confirmations=1, exit_confirmations=1,
-    )
-
-with session_scope() as session:
-    ingest_observations(
-        session,
-        [
-            obs("TAG-HOME", "Home Tag", HOME_LAT, HOME_LON),
-            obs("TAG-AWAY", "Away Tag", HOME_LAT + 0.00045, HOME_LON),
-        ],
-        fetched_at=datetime.now(UTC),
-    )
-
-# TAG-STALE is a tracked group member with no observation ever ingested —
-# member_status() treats "no fix" the same as a fix older than stale_after.
-with session_scope() as session:
-    create_group(
-        session, name="Family", color="#27ae60", quorum="majority",
-        cluster_radius_meters=150, stale_after_minutes=90,
-        member_ids=["TAG-HOME", "TAG-AWAY", "TAG-STALE"],
-    )
-
-# This suite drives a COMPLETED install. Without the stamp, main.js's
-# onboarding check redirects every `page.goto("/")` to #/setup and hides
-# #app-shell, so every dashboard assertion in this directory fails on an
-# element the wizard is covering (P2-E11-W4-S1-T4). The wizard's own tests
-# clear it per test through the `onboarding_incomplete` fixture below.
-with session_scope() as session:
-    set_setting(session, "onboarding.completed_at", "2026-01-01T00:00:00Z")
-"""
 
 #: What the seed stamps, and what every wizard test restores afterwards.
 SEEDED_COMPLETED_AT = "2026-01-01T00:00:00Z"
@@ -246,29 +175,6 @@ async def set_theme(page, theme: str) -> None:
     that scans several themes on one page calls it more than once.
     """
     await page.evaluate("(t) => { document.documentElement.dataset.theme = t; }", theme)
-
-
-async def open_alerts_tab(page, base_url) -> None:
-    """Navigate to `/` and switch to the Alerts tab; shared by every
-    test_alerts_*.py file (split from test_alerts.py, E13 loop3 L3-4).
-
-    #fp-telegram-section is static markup, present at first paint (R-P2-20):
-    it says nothing about whether alerts.js's init() has run yet. main.js's
-    boot chain (main() -> bootDashboard() -> alerts.js init()) has no
-    top-level `await`, so page.goto()'s 'load' wait does not cover it either
-    -- a click right after this helper returns can land before
-    wireStaticControls() has wired #fp-add-rule-btn/#fp-webhook-save/etc., or
-    while the boot-time refreshAll() is still in flight and about to stomp
-    whatever the test just typed or set (E13 loop3, CI 35560066419: three
-    independent timeouts/assertion failures across test_alerts_rules.py,
-    test_alerts_telegram.py and test_alerts_webhook.py, all through this one
-    helper). alerts.js sets data-fp-ready once its init() -- wiring included
-    -- has fully run; waiting for it here closes the gap for every caller.
-    """
-    await page.goto(base_url + "/")
-    await page.click('button[data-tab="alerts"]')
-    await page.wait_for_selector("#fp-telegram-section")
-    await page.wait_for_selector('[data-fp-ready="alerts"]')
 
 
 @pytest.fixture

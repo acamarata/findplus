@@ -114,3 +114,18 @@ def test_a_missing_host_header_is_refused(client: TestClient, method: str, path:
     against with `if not host_header`."""
     res = _request(client, method, path, "")
     assert res.status_code == 421, f"{method} {path} -> {res.status_code}"
+
+
+@pytest.mark.parametrize("method,path", _ROUTES)
+def test_a_bare_testserver_host_is_still_refused_in_production_settings(
+    client: TestClient, method: str, path: str
+) -> None:
+    """`http://testserver` is httpx/Starlette's own TestClient default base_url,
+    and this suite only avoids tripping on it because conftest.py's `client`
+    fixture overrides it to a real loopback Host (LOOPBACK_BASE_URL). Nothing
+    about `is_allowed_host` itself special-cases it: it is exactly the shape
+    a rebinding page would use (a hostname that is not 127.0.0.1/localhost,
+    no configured port), and this pins that the production guard still
+    refuses it, independent of whatever a test's own client happens to send."""
+    res = _request(client, method, path, "testserver")
+    assert res.status_code == 421, f"{method} {path} Host=testserver -> {res.status_code}"

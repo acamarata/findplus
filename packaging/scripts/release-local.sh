@@ -18,8 +18,13 @@ set -euo pipefail
 
 VERSION=${1:?Usage: release-local.sh <version>  e.g. 1.0.0}
 if [ -f "$HOME/.claude/vault.env" ]; then
+  # The vault holds plain NAME=value lines. Export them, or sign-sidecar.sh and
+  # embed-widget.sh (child processes) never see the signing identity and the
+  # sidecar silently ships unsigned.
+  set -a
   # shellcheck disable=SC1091
   . "$HOME/.claude/vault.env"
+  set +a
 fi
 
 # --- ARCH ---------------------------------------------------------------

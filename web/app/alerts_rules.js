@@ -27,9 +27,13 @@ function ruleTargetLabel(rule) {
   if (rule.group_id) return rule.group_name || t("alerts.groupFallback", { id: rule.group_id });
   return rule.device_name || rule.device_id || t("common.emptyValue");
 }
-function cell(text) {
+/** A labelled `<td>` for the phone-tier/narrow-pane card layout (components.css
+ *  turns data-label into the row's own heading below a 500px container,
+ *  UAT3 N16 -- the same convention alerts_deliveries.js's cell() uses). */
+function cell(text, label) {
   const td = document.createElement("td");
   td.textContent = text;
+  td.dataset.label = label;
   return td;
 }
 /** UAT U13: enabled/disabled toggle, PUT-ing the single field. Dispatch
@@ -37,6 +41,7 @@ function cell(text) {
  *  piece that was missing. */
 function enabledToggleCell(rule) {
   const td = document.createElement("td");
+  td.dataset.label = t("alerts.colEnabled");
   const input = document.createElement("input");
   input.type = "checkbox";
   input.checked = rule.enabled;
@@ -59,22 +64,34 @@ function enabledToggleCell(rule) {
   td.appendChild(input);
   return td;
 }
+/** UAT3 N16: at 1280 the table renders inside the ~348px side pane, and at
+ *  375 the phone-tier pane is ~307px -- both already under the 500px
+ *  `@container` gate components.css keys the delivery-log's card layout off
+ *  (#tab-alerts sets container-type: inline-size), so the same data-label
+ *  convention turns each row into a card there instead of an 8-column table
+ *  wider than either box. Edit/Delete get their own labelled cell like every
+ *  other column, rather than sitting unlabelled at the end of the card. */
 function buildRuleRow(rule) {
   const tr = document.createElement("tr");
   tr.append(
-    cell(rule.name), cell(rule.place_name || t("common.emptyValue")), cell(ruleTargetLabel(rule)),
-    cell(rule.on_enter ? t("common.yes") : t("common.no")),
-    cell(rule.on_exit ? t("common.yes") : t("common.no")),
-    cell(rule.channels.join(", ")),
+    cell(rule.name, t("alerts.colName")),
+    cell(rule.place_name || t("common.emptyValue"), t("alerts.colPlace")),
+    cell(ruleTargetLabel(rule), t("alerts.colTarget")),
+    cell(rule.on_enter ? t("common.yes") : t("common.no"), t("alerts.colOnEnter")),
+    cell(rule.on_exit ? t("common.yes") : t("common.no"), t("alerts.colOnExit")),
+    cell(rule.channels.join(", "), t("alerts.rules.channelsHeader")),
     enabledToggleCell(rule),
   );
   const actions = document.createElement("td");
+  actions.dataset.label = t("alerts.colActions");
   const editBtn = document.createElement("button");
   editBtn.type = "button";
+  editBtn.className = "btn btn-tiny";
   editBtn.textContent = t("common.edit");
   editBtn.addEventListener("click", () => openRuleDialog(rule));
   const delBtn = document.createElement("button");
   delBtn.type = "button";
+  delBtn.className = "btn btn-tiny";
   delBtn.textContent = t("common.delete");
   delBtn.addEventListener("click", () => deleteRule(rule.id, rule.name));
   actions.append(editBtn, delBtn);

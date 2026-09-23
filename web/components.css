@@ -89,6 +89,9 @@
   justify-content: center; font-size: 10px; color: var(--muted); }
 .fp-card-verdict { font-size: .75rem; padding: 2px 8px; border-radius: 9999px;
   background: var(--panel); }
+/* UAT3 N24: Edit and Delete as one flex item, so the wrap above puts them on
+   their own line together instead of splitting between them. */
+.fp-card-actions { display: flex; flex: 0 0 auto; gap: 6px; }
 .fp-empty-state { color: var(--muted); font-size: 12.5px; padding: 10px 0; }
 
 /* --- colour picker (device and group badges) ----------------------------- */
@@ -358,26 +361,34 @@ dialog a:hover,
 #fp-deliveries-table col:nth-child(7) { width: 12%; }
 #fp-deliveries-table col:nth-child(8) { width: 23%; }
 
-/* --- delivery log: narrow-container card layout (UAT2 U9) -----------------
-   responsive.css's phone tier already turns this table into one card per
-   delivery below a 599px VIEWPORT -- but at 1280 the log renders inside
+/* --- delivery log / rules table: narrow-container card layout (UAT2 U9,
+   UAT3 N16) -----------------------------------------------------------------
+   responsive.css's phone tier already turns these tables into one card per
+   row below a 599px VIEWPORT -- but at 1280 both render inside
    .timeline-pane, the .layout grid's 380px side column (~348px of usable
    width once its own padding is out), not the viewport. A table this narrow
-   still packed all 8 fixed-width columns in ("W...", 5-line cells) because
-   nothing was keyed off the PANE's own width. A container query is the
-   simpler fix over moving the whole section out of the side pane: one
-   ruleset, keyed to whichever ancestor is actually narrow, covers both the
-   phone tier and this desktop pane without duplicating the layout. */
+   still packed every fixed-width column in (8 for deliveries, 8 for rules --
+   N16: "On exit", Channels, Enabled and Edit/Delete off-screen, reachable
+   only by a sideways scroll inside the pane) because nothing was keyed off
+   the PANE's own width. A container query is the simpler fix over moving
+   either section out of the side pane: one ruleset, keyed to whichever
+   ancestor is actually narrow, covers both the phone tier and this desktop
+   pane without duplicating the layout, and covers both tables since they
+   share the same data-label convention (alerts_deliveries.js / alerts_rules.js). */
 #tab-alerts { container-type: inline-size; }
 @container (max-width: 500px) {
-  #fp-deliveries-table, #fp-deliveries-table tbody, #fp-deliveries-table tr {
+  #fp-deliveries-table, #fp-deliveries-table tbody, #fp-deliveries-table tr,
+  #fp-rules-table, #fp-rules-table tbody, #fp-rules-table tr {
     display: block; width: auto;
   }
-  #fp-deliveries-table thead, #fp-deliveries-table colgroup { display: none; }
-  #fp-deliveries-table tr {
+  #fp-deliveries-table thead, #fp-deliveries-table colgroup,
+  #fp-rules-table thead {
+    display: none;
+  }
+  #fp-deliveries-table tr, #fp-rules-table tr {
     border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 0 0 8px;
   }
-  #fp-deliveries-table td {
+  #fp-deliveries-table td, #fp-rules-table td {
     display: flex; gap: 10px; justify-content: space-between; align-items: baseline;
     padding: 3px 0; border: none; width: auto;
   }
@@ -386,12 +397,16 @@ dialog a:hover,
   #fp-deliveries-table td:nth-child(8) {
     white-space: normal; overflow: visible; text-overflow: clip;
   }
-  #fp-deliveries-table td::before {
+  #fp-deliveries-table td::before, #fp-rules-table td::before {
     content: attr(data-label); flex: 0 0 auto; color: var(--muted);
     font-size: 11px; text-transform: uppercase; letter-spacing: .02em;
   }
   #fp-deliveries-table td:empty { display: none; }
   #fp-deliveries-table details summary { cursor: pointer; color: var(--accent); }
+  /* Actions is two buttons, not a value to line up against a label -- drop
+     the label prefix and let them sit together at the row's trailing edge. */
+  #fp-rules-table td:last-child { gap: 8px; }
+  #fp-rules-table td:last-child::before { content: none; }
 }
 
 /* --- hidden rows ---------------------------------------------------------- */

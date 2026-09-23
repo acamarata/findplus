@@ -199,6 +199,52 @@ async def test_edit_rule_prefills_and_updates_the_row(page, base_url):
     assert matching[0]["name"] == "U13 edit rule (renamed)"
 
 
+async def test_rule_actions_visible_within_pane_at_1280_and_375(page, base_url):
+    """UAT3 N16: the rules table (8 cols) rendered 599px wide inside a ~348px
+    side pane at 1280 and a ~307px pane at 375 -- "On exit", Channels,
+    Enabled and Edit/Delete sat off-screen, reachable only by a sideways
+    scroll inside the pane. The container-query card layout (matching U9's
+    delivery-log fix) keeps every rule's Edit/Delete inside the pane's own
+    visible box at both widths, with no horizontal scroll needed to reach them."""
+    create_resp = await page.request.post(
+        base_url + "/api/alerts/rules",
+        data=json.dumps(
+            {"name": "N16 visible rule", "device_id": "TAG-HOME", "channels": ["native"]}
+        ),
+        headers={"Content-Type": "application/json"},
+    )
+    assert create_resp.ok, await create_resp.text()
+
+    for width in (1280, 375):
+        await page.set_viewport_size({"width": width, "height": 900})
+        await page.goto(base_url + "/")
+        # Below 600px .fp-tabs (the top nav open_alerts_tab() drives) is
+        # hidden by CSS in favour of the bottom .fp-tabbar -- same distinction
+        # test_responsive.py's own _open_tab() makes.
+        tab_selector = (
+            'button[data-tab="alerts"]' if width >= 600 else '.fp-tabbar [data-tabbar-tab="alerts"]'
+        )
+        await page.click(tab_selector)
+        await page.wait_for_selector("#fp-telegram-section")
+        await page.wait_for_selector('[data-fp-ready="alerts"]')
+        row = page.locator("#fp-rules-tbody tr", has_text="N16 visible rule")
+        await row.wait_for(state="visible")
+
+        pane_box = await page.locator("#tab-alerts").bounding_box()
+        edit_box = await row.get_by_text("Edit", exact=True).bounding_box()
+        delete_box = await row.get_by_text("Delete", exact=True).bounding_box()
+        assert pane_box and edit_box and delete_box, f"missing box at {width}px"
+
+        assert edit_box["x"] >= pane_box["x"] - 1, f"Edit left of the pane at {width}px"
+        assert edit_box["x"] + edit_box["width"] <= pane_box["x"] + pane_box["width"] + 1, (
+            f"Edit right of the pane at {width}px"
+        )
+        assert delete_box["x"] >= pane_box["x"] - 1, f"Delete left of the pane at {width}px"
+        assert delete_box["x"] + delete_box["width"] <= pane_box["x"] + pane_box["width"] + 1, (
+            f"Delete right of the pane at {width}px"
+        )
+
+
 async def test_the_enabled_toggle_disables_a_rule_without_deleting_it(page, base_url):
     """UAT U13: dispatch.py already filters on `enabled` server-side -- this
     proves the dashboard's toggle reaches that same column."""

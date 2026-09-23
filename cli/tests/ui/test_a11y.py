@@ -205,6 +205,41 @@ async def _set_last_step(page, base_url, value):
     )
 
 
+async def _ok(route):
+    await route.fulfill(status=200, content_type="application/json", body="{}")
+
+
+async def _stub_one_device(page):
+    """The Devices step's onEnter POSTs /api/devices/refresh before its GET,
+    which for real would query Google Find Hub -- stubbed here the same way
+    test_setup_wizard_devices.py's `_ok` + one-device GET does, so the step
+    can render `.fp-setup-device-row` without a signed-in provider."""
+
+    async def get_devices(route):
+        await route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(
+                {
+                    "devices": [
+                        {
+                            "device_id": "TAG-1",
+                            "name": "Keys",
+                            "provider": "google-find-hub",
+                            "is_tracked": False,
+                            "label": None,
+                            "icon": None,
+                            "color": None,
+                        }
+                    ]
+                }
+            ),
+        )
+
+    await page.route("**/api/devices/refresh", _ok)
+    await page.route("**/api/devices", get_devices)
+
+
 @pytest.mark.parametrize("step", sorted(WIZARD_STEPS))
 async def test_no_serious_axe_violations_in_the_wizard(page, base_url, step):
     """UAT3 N26: the Devices and Notifications steps had placeholder-only
@@ -214,6 +249,8 @@ async def test_no_serious_axe_violations_in_the_wizard(page, base_url, step):
     test, the same technique test_setup_wizard_signin.py uses, rather than
     clicking Next through the whole wizard once per parametrize case."""
     await page.set_viewport_size({"width": 1280, "height": 800})
+    if step == "devices":
+        await _stub_one_device(page)
     await _set_completed_at(page, base_url, None)
     try:
         await _set_last_step(page, base_url, step)

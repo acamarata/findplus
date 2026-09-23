@@ -160,6 +160,12 @@ async def test_signed_in_hides_the_chrome_notice_even_with_a_stale_needs_chrome(
         await _set_last_step(page, base_url, "signin")
         await page.route("**/api/auth/status", status)
         await page.goto(base_url + "/#/setup")
+        # wait_for_selector first: wait_for_function's predicate throws on a
+        # null element rather than retrying past it (unlike wait_for_selector,
+        # which polls for attachment), so calling it before the element exists
+        # surfaces "Cannot read properties of null" instead of a clean
+        # timeout -- same ordering test_step_has_a_heading_... above uses.
+        await page.wait_for_selector("#fp-setup-signin-status", timeout=15000)
         await page.wait_for_function(
             "() => document.getElementById('fp-setup-signin-status')"
             ".textContent.includes('Signed in as')",
@@ -186,6 +192,7 @@ async def test_signed_out_and_chrome_missing_shows_the_notice(page, base_url) ->
         await _set_last_step(page, base_url, "signin")
         await page.route("**/api/auth/status", status)
         await page.goto(base_url + "/#/setup")
+        await page.wait_for_selector("#fp-setup-signin-status", timeout=15000)
         await page.wait_for_function(
             "() => document.getElementById('fp-setup-signin-status')"
             ".textContent.includes('Not signed in')",

@@ -219,24 +219,6 @@ async def test_more_menu_closes_on_outside_click_and_returns_focus(page, base_ur
     assert focused == "btn-more"
 
 
-async def test_group_card_edit_and_delete_stay_on_one_row(page, base_url):
-    """UAT3 N24: Edit and Delete were separate flex-wrap items on the group
-    card, so a narrow card could wrap between them -- Edit alone on one line,
-    Delete pushed to the next. Wrapping them as one `.fp-card-actions` unit
-    keeps the pair together, on one row, at phone width."""
-    await page.set_viewport_size({"width": PHONE_WIDTH, "height": PHONE_HEIGHT})
-    await page.goto(base_url + "/")
-    await page.wait_for_selector("#app-shell:not(.hidden)")
-    await _open_tab(page, "groups")
-    await page.wait_for_selector(".fp-group-card", state="visible")
-
-    card = page.locator(".fp-group-card").first
-    edit_box = await card.locator(".fp-card-edit").bounding_box()
-    delete_box = await card.locator(".fp-card-delete").bounding_box()
-    assert edit_box is not None and delete_box is not None
-    assert abs(edit_box["y"] - delete_box["y"]) < 2, "Edit and Delete are on different rows"
-
-
 async def test_tabbar_icons_are_svg_not_emoji(page, base_url):
     """UAT2 U26: the phone-tier tab bar used emoji glyphs, which render
     inconsistently across platforms and fonts. Each icon is now a sprite

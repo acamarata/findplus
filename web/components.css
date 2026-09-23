@@ -77,21 +77,28 @@
 /* --- group cards --------------------------------------------------------- */
 #fp-add-group-btn { margin: 14px 18px 0; }
 #fp-groups-list { padding: 0 18px; margin-top: 10px; }
-/* Wrapping, not squeezing: at 375px the badge, name, six avatars and the two
-   buttons do not fit on one line, and a non-wrapping row grew the whole page
-   wider than the viewport (visual gate W2). */
-.fp-group-card { display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
-  padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px;
-  background: var(--panel-2); margin-bottom: 6px; }
+/* Three fixed rows (badge/name/avatars, verdict, Edit+Delete) rather than a
+   wrapping flex row. The verdict pill fills in after the card renders
+   (fetchVerdict), and in the 380px pane the old wrap moved the pair down a
+   row when it did, under a tap already on its way (CI run 35909159774). The
+   verdict row keeps its height while empty, so nothing below it moves. */
+.fp-group-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "icon name members" "verdict verdict verdict" "actions actions actions";
+  align-items: center; gap: 6px 10px; padding: 9px 10px; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--panel-2); margin-bottom: 6px; }
+.fp-group-card > .fp-card-icon { grid-area: icon; }
+.fp-group-card > .fp-card-name { grid-area: name; }
+.fp-group-card > .fp-card-members { grid-area: members; justify-content: flex-end; }
 .fp-card-name { font-weight: 550; flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
 .fp-card-members { display: flex; flex-wrap: wrap; gap: 4px; }
 .fp-avatar { display: inline-flex; width: 16px; height: 16px; align-items: center;
   justify-content: center; font-size: 10px; color: var(--muted); }
-.fp-card-verdict { font-size: .75rem; padding: 2px 8px; border-radius: 9999px;
+.fp-card-verdict { grid-area: verdict; justify-self: start; box-sizing: border-box;
+  min-height: 22px; font-size: .75rem; padding: 2px 8px; border-radius: 9999px;
   background: var(--panel); }
-/* UAT3 N24: Edit and Delete as one flex item, so the wrap above puts them on
-   their own line together instead of splitting between them. */
-.fp-card-actions { display: flex; flex: 0 0 auto; gap: 6px; }
+.fp-card-verdict:empty { background: transparent; }
+/* UAT3 N24: Edit and Delete as one unit on their own row, never split. */
+.fp-card-actions { grid-area: actions; justify-self: end; display: flex; gap: 6px; }
 .fp-empty-state { color: var(--muted); font-size: 12.5px; padding: 10px 0; }
 
 /* --- colour picker (device and group badges) ----------------------------- */

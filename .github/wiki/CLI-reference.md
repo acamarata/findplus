@@ -10,6 +10,7 @@ Show the most recent alert deliveries, newest first.
 | option | default | help |
 |---|---|---|
 | --limit | 100 |  |
+| --json |  | Output JSON. |
 
 ## findplus alerts rules add
 Create an alert rule for a place, targeting a group or a single device.

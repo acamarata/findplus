@@ -100,7 +100,10 @@
     "notPolledSuffix": " (not polled)",
     "emptyState": "No devices known yet. Use \"Refresh from your providers\".",
     "obsCount": "{n} obs",
-    "rateTracked": "{count} device(s) tracked → about {rate} {requests} requests per hour, polled sequentially every {interval} min.",
+    "rateTracked": {
+      "one": "1 device tracked → about {rate} {requests} requests per hour, polled sequentially every {interval} min.",
+      "other": "{count} devices tracked → about {rate} {requests} requests per hour, polled sequentially every {interval} min."
+    },
     "rateNothing": "Nothing tracked — the poller will not query {requests} at all.",
     "pollingLabel": "Polling…",
     "askingProvidersLabel": "Asking your providers…",

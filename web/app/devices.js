@@ -11,7 +11,7 @@ import { $, state, colorFor, displayName, showAlert } from "./state.js";
 import { api } from "./api.js";
 import { applyHashRoute, reload } from "./main.js";
 import { loadPresence } from "./places.js";
-import { t } from "./i18n.js";
+import { plural, t } from "./i18n.js";
 import { renderBadge } from "./components/badge.js";
 import { initDialog, openEditDialog } from "./devices_dialog.js";
 import { trapFocus } from "./components/dialog-trap.js";
@@ -151,7 +151,7 @@ export function updateModalRate() {
   const rate = Math.round((checked * 60) / interval);
   const w = providerWording();
   $("device-rate").textContent = checked
-    ? t("devices.rateTracked", { count: checked, rate, requests: w.requests, interval })
+    ? plural("devices.rateTracked", checked, { count: checked, rate, requests: w.requests, interval })
     : t("devices.rateNothing", { requests: w.requests });
 }
 

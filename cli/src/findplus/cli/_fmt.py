@@ -135,3 +135,14 @@ def _local_short_time(value) -> str:
 def _yes_no(value: bool) -> str:
     """Plain yes/no instead of Python's True/False for table output (UAT3 N25)."""
     return "yes" if value else "no"
+
+
+def _plural(n: int, singular: str, plural_word: str | None = None) -> str:
+    """English pluralization: `n == 1` keeps `singular`; anything else
+    (including 0) takes `plural_word` (default: `singular` + "s").
+
+    Mirrors web/app/i18n.js's `plural()` rule (n===1 picks .one, everything
+    else picks .other) so CLI and dashboard text agree on the same count
+    (UAT4 N43: "Tracking 6 of 6 device(s)" never resolved the "(s)").
+    """
+    return singular if n == 1 else (plural_word or f"{singular}s")

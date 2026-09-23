@@ -2,8 +2,9 @@
 
 Purpose    : Alert rules CRUD and the delivery log, all without a running
              daemon. Channel setup (telegram/webhook/whatsapp) and the
-             "test" send live in alerts_channels.py (PRI hard rule 7:
-             <=300 lines/file) and are attached here via register().
+             "test" send live in alerts_channels.py, and the `--json`/table
+             row builders live in alerts_fmt.py (PRI hard rule 7:
+             <=300 lines/file) -- both attached/imported here.
 Inputs     : Click options/arguments (see specs/cli-reference.md § alerts).
 Outputs    : Table/JSON to stdout; a rule id or error to stderr on add.
 Constraints: Rules and deliveries use direct DB access via session_scope
@@ -25,7 +26,8 @@ from findplus.db.models_alerts import AlertDelivery, AlertRule
 from findplus.db.session import session_scope
 
 from . import alerts_channels
-from ._fmt import _local_short_time, _render_table, _yes_no
+from ._fmt import _render_table
+from .alerts_fmt import _delivery_records, _delivery_table_rows, _rule_records, _rule_table_rows
 
 #: A table row's error stays skimmable; the full text is still in the API
 #: and the dashboard's delivery log (UAT U23 asked for the column, not for
@@ -38,23 +40,6 @@ alerts_channels.register(alerts_cmd)
 
 rules_cmd = click.Group(name="rules", help="Manage alert rules.")
 alerts_cmd.add_command(rules_cmd)
-
-_RULE_KEYS = (
-    "id",
-    "name",
-    "place_id",
-    "place_name",
-    "group_id",
-    "group_name",
-    "device_id",
-    "device_name",
-    "on_enter",
-    "on_exit",
-    "channels",
-    "cooldown_minutes",
-    "enabled",
-    "also_notify_members",
-)
 
 
 def _list_rules(s) -> list[tuple]:
@@ -84,49 +69,10 @@ def rules_list(as_json: bool) -> None:
     with session_scope() as s:
         rows = _list_rules(s)
     if as_json:
-        records = [
-            dict(
-                zip(
-                    _RULE_KEYS,
-                    (
-                        r.id,
-                        r.name,
-                        r.place_id,
-                        place_name,
-                        r.group_id,
-                        group_name,
-                        r.device_id,
-                        device_name,
-                        r.on_enter,
-                        r.on_exit,
-                        r.channels,
-                        r.cooldown_minutes,
-                        r.enabled,
-                        r.also_notify_members,
-                    ),
-                    strict=True,
-                )
-            )
-            for r, place_name, group_name, device_name in rows
-        ]
-        click.echo(json.dumps(records, indent=2))
+        click.echo(json.dumps(_rule_records(rows), indent=2))
         return
     headers = ("ID", "NAME", "PLACE", "GROUP", "DEVICE", "CHANNELS", "COOLDOWN", "ENABLED")
-    aligns = "<<<<<<>>"
-    table_rows = [
-        (
-            r.id,
-            r.name,
-            place_name or "",
-            group_name or "",
-            device_name or "",
-            r.channels,
-            r.cooldown_minutes,
-            _yes_no(r.enabled),
-        )
-        for r, place_name, group_name, device_name in rows
-    ]
-    _render_table(headers, aligns, table_rows)
+    _render_table(headers, "<<<<<<>>", _rule_table_rows(rows))
 
 
 @rules_cmd.command("add")
@@ -200,7 +146,8 @@ def rules_remove(id: int, yes: bool) -> None:
 
 @alerts_cmd.command("deliveries")
 @click.option("--limit", default=100, show_default=True)
-def deliveries_cmd(limit: int) -> None:
+@click.option("--json", "as_json", is_flag=True, help="Output JSON.")
+def deliveries_cmd(limit: int, as_json: bool) -> None:
     """Show the most recent alert deliveries, newest first."""
     with session_scope() as s:
         rows = (
@@ -210,6 +157,9 @@ def deliveries_cmd(limit: int) -> None:
             .limit(limit)
             .all()
         )
+    if as_json:
+        click.echo(json.dumps(_delivery_records(rows), indent=2))
+        return
     headers = (
         "ID",
         "RULE",
@@ -221,23 +171,4 @@ def deliveries_cmd(limit: int) -> None:
         "NEXT_ATTEMPT",
         "ERROR",
     )
-    aligns = "<<<<<<>><"
-    table_rows = []
-    for d, rule_name in rows:
-        error = d.error or ""
-        if len(error) > _ERROR_CELL_MAX:
-            error = error[: _ERROR_CELL_MAX - 1] + "…"
-        table_rows.append(
-            (
-                d.id,
-                rule_name,
-                d.channel,
-                d.event_kind or "",
-                _local_short_time(d.sent_at),
-                d.status or "",
-                d.attempts,
-                _local_short_time(d.next_attempt_at),
-                error,
-            )
-        )
-    _render_table(headers, aligns, table_rows)
+    _render_table(headers, "<<<<<<>><", _delivery_table_rows(rows, _ERROR_CELL_MAX))

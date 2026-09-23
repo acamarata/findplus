@@ -111,6 +111,32 @@ def test_devices_default_still_lists_with_no_subcommand(selected) -> None:
     assert "TAG-001" in result.output
 
 
+# ------------------------------------------------------------- UAT4 N43
+def test_devices_rate_line_is_singular_for_one_device(selected) -> None:
+    """ "Tracking 1 of 1 device(s)." never resolved the "(s)" -- exactly one
+    tracked device out of one known device reads as singular throughout."""
+    result = CliRunner().invoke(main, ["devices", "--no-refresh"])
+    assert result.exit_code == 0, result.output
+    assert "Tracking 1 of 1 device." in result.output
+    assert "(1 device every" in result.output
+    assert "device(s)" not in result.output
+
+
+def test_devices_rate_line_is_plural_for_two_devices(tmp_db) -> None:
+    """Two tracked devices out of two known ones reads as plural throughout."""
+    with session_scope() as session:
+        upsert_device(session, "TAG-001", "Moto Tag 2", provider="test-fake")
+        upsert_device(session, "TAG-002", "Moto Tag 3", provider="test-fake")
+        track_devices(session, ["TAG-001", "TAG-002"], exclusive=True)
+
+    result = CliRunner().invoke(main, ["devices", "--no-refresh"])
+
+    assert result.exit_code == 0, result.output
+    assert "Tracking 2 of 2 devices." in result.output
+    assert "(2 devices every" in result.output
+    assert "device(s)" not in result.output
+
+
 # ------------------------------------------------------------- UAT U24
 def test_devices_default_lists_local_without_refresh_even_when_unauthed(
     selected, monkeypatch

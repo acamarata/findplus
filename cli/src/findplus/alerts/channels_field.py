@@ -15,6 +15,18 @@ from __future__ import annotations
 
 VALID_CHANNELS = frozenset({"telegram", "webhook", "whatsapp", "native"})
 
+#: The same display names web/locales/en.json's `alerts.channels` catalog
+#: uses (UAT4 N38): a rule's raw ids read as implementation detail everywhere
+#: they were shown as-is ("native, whatsapp") -- the rule dialog and the
+#: delivery log already render these; the rules table/list were the two
+#: holdouts. `--json` output keeps the raw ids, unaffected by this dict.
+CHANNEL_DISPLAY_NAMES: dict[str, str] = {
+    "telegram": "Telegram",
+    "webhook": "Webhook",
+    "whatsapp": "WhatsApp",
+    "native": "Desktop notification",
+}
+
 
 def _checked(values: list[str]) -> list[str]:
     if not values:
@@ -33,3 +45,13 @@ def parse_channels(s: str) -> list[str]:
 def format_channels(values: list[str]) -> str:
     """List of channel ids -> the sorted, de-duplicated comma string to store."""
     return ",".join(_checked(list(values)))
+
+
+def display_channels(s: str) -> str:
+    """Stored comma string -> "Desktop notification, WhatsApp" for table output.
+
+    Falls back to the raw id for anything `CHANNEL_DISPLAY_NAMES` does not
+    know (there is nothing outside `VALID_CHANNELS` today, but a table
+    renderer should never raise over a display-name gap).
+    """
+    return ", ".join(CHANNEL_DISPLAY_NAMES.get(c, c) for c in parse_channels(s))

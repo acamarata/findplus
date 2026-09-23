@@ -79,7 +79,10 @@ function buildRuleRow(rule) {
     cell(ruleTargetLabel(rule), t("alerts.colTarget")),
     cell(rule.on_enter ? t("common.yes") : t("common.no"), t("alerts.colOnEnter")),
     cell(rule.on_exit ? t("common.yes") : t("common.no"), t("alerts.colOnExit")),
-    cell(rule.channels.join(", "), t("alerts.rules.channelsHeader")),
+    cell(
+      rule.channels.map((c) => t("alerts.channels." + c)).join(", "),
+      t("alerts.rules.channelsHeader"),
+    ),
     enabledToggleCell(rule),
   );
   const actions = document.createElement("td");

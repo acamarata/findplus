@@ -15,7 +15,7 @@ import click
 from findplus.config import get_settings
 from findplus.db.session import session_scope
 
-from ._fmt import _prep, _print_device_table, _print_nothing_tracked_hint
+from ._fmt import _plural, _prep, _print_device_table, _print_nothing_tracked_hint
 
 
 def _devices_as_json(session, rows) -> str:
@@ -115,10 +115,13 @@ def _print_rate_or_hint(settings, tracked_count: int, total: int) -> None:
     interval = settings.effective_poll_interval_minutes
     if tracked_count:
         rate = tracked_count * 60 / interval
-        click.echo(f"Tracking {tracked_count} of {total} device(s).")
+        # UAT4 N43: "device(s)" never resolved a real count -- proper
+        # plurals for both the total and the tracked count in this line.
+        click.echo(f"Tracking {tracked_count} of {total} {_plural(total, 'device')}.")
         click.echo(
             f"That is about {rate:.0f} Google requests/hour "
-            f"({tracked_count} device(s) every {interval:g} min), polled sequentially."
+            f"({tracked_count} {_plural(tracked_count, 'device')} every {interval:g} min),"
+            " polled sequentially."
         )
     else:
         _print_nothing_tracked_hint()

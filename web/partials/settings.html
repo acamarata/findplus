@@ -151,6 +151,12 @@
                  placeholder="at least 6 characters"
                  data-i18n-attr="placeholder:settings.newPinPlaceholder">
         </label>
+        <!-- UAT3 N21: a mismatch or the server's 6-character-minimum 422 used to
+             render only in #settings-message, at the top of a scrollable dialog --
+             the pre-fix U19 pattern. Same field-error convention as
+             #setting-poll-interval-error (settings_polling.js), scoped to the
+             two fields it covers. -->
+        <p id="setting-new-pin-error" class="fp-dialog-error hidden"></p>
         <label class="setting-row">
           <span data-i18n="settings.confirmPin">Confirm PIN</span>
           <input type="password" id="confirm-pin" inputmode="numeric" autocomplete="new-password">

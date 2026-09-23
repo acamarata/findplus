@@ -41,19 +41,46 @@ async def test_poll_interval_error_renders_inside_the_dialog(page, base_url):
     assert "5 and 1440" not in alert_text, "the error was ALSO echoed to the page banner"
 
 
-async def test_pin_mismatch_renders_inside_the_dialog(page, base_url):
+async def test_pin_mismatch_renders_beside_the_field(page, base_url):
+    """UAT3 N21 (re-walk): the mismatch line moved beside New PIN, the same
+    field-level convention as the poll interval, instead of #settings-message
+    at the top of the dialog."""
     await _open_settings(page, base_url)
     await page.fill("#new-pin", "aaaaaa")
     await page.fill("#confirm-pin", "bbbbbb")
     await page.click("#btn-set-pin")
 
-    await page.wait_for_function(
-        "document.getElementById('settings-message').textContent.length > 0"
-    )
+    await page.wait_for_selector("#setting-new-pin-error:not(.hidden)")
+    field_error = await page.locator("#setting-new-pin-error").inner_text()
+    assert "do not match" in field_error
+    invalid = await page.get_attribute("#new-pin", "aria-invalid")
+    assert invalid == "true"
+
     message = await page.locator("#settings-message").inner_text()
-    assert "do not match" in message
+    assert "do not match" not in message, "the error was ALSO echoed to #settings-message"
     alert_text = await page.locator("#alert").inner_text()
     assert "do not match" not in alert_text, "the error was ALSO echoed to the page banner"
+
+
+async def test_short_pin_error_renders_beside_the_field(page, base_url):
+    """UAT3 N21 repro: Settings > App lock, PIN 2468, Set PIN -- the server's
+    "PIN must be at least 6 characters." 422 used to land in #settings-message,
+    scrolled out of view (the pre-fix U19 pattern)."""
+    await _open_settings(page, base_url)
+    await page.fill("#new-pin", "2468")
+    await page.fill("#confirm-pin", "2468")
+    await page.click("#btn-set-pin")
+
+    await page.wait_for_selector("#setting-new-pin-error:not(.hidden)")
+    field_error = await page.locator("#setting-new-pin-error").inner_text()
+    assert "at least 6" in field_error
+    invalid = await page.get_attribute("#new-pin", "aria-invalid")
+    assert invalid == "true"
+
+    message = await page.locator("#settings-message").inner_text()
+    assert message == "", "the raw validator text leaked into #settings-message"
+    alert_text = await page.locator("#alert").inner_text()
+    assert "at least 6" not in alert_text, "the error was ALSO echoed to the page banner"
 
 
 async def test_reopening_settings_clears_the_previous_message(page, base_url):

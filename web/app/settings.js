@@ -53,6 +53,19 @@ function renderLockSection() {
     $("setting-lock-enabled").checked = state.settings.lock_enabled;
     $("setting-idle").value = String(state.settings.idle_minutes);
   }
+  showNewPinError(null); // never a stale rejection from a previous open
+}
+
+/** The New PIN field's own error line (UAT3 N21, matching settings_polling.js's
+ * showPollIntervalError): a mismatch or the server's 6-character minimum
+ * render here, beside the field, rather than in #settings-message at the top
+ * of the dialog. `message` null/empty clears it. */
+function showNewPinError(message) {
+  const el = $("setting-new-pin-error");
+  if (!el) return;
+  el.textContent = message || "";
+  el.classList.toggle("hidden", !message);
+  $("new-pin").setAttribute("aria-invalid", String(!!message));
 }
 
 export async function saveSettings(patch) {
@@ -141,14 +154,19 @@ export function closeSettings() {
 async function setPin() {
   const pin = $("new-pin").value.trim();
   const confirm = $("confirm-pin").value.trim();
-  if (pin !== confirm) { showSettingsMessage(t("settings.pinsDoNotMatch"), "warn"); return; }
+  showNewPinError(null); // clear a stale rejection before revalidating
+  if (pin !== confirm) { showNewPinError(t("settings.pinsDoNotMatch")); return; }
   try {
     await postJson("/api/settings/pin", { new_pin: pin });
     $("new-pin").value = $("confirm-pin").value = "";
     await loadSettings();
     showSettingsMessage(t("settings.pinSet"), "warn");
   } catch (e) {
-    showSettingsMessage(e.message, "err");
+    // routes_settings.py's set_pin(): reject_padded_pin() answers 422, and the
+    // 6-character minimum (security.py's hash_pin()) answers 400 -- both are
+    // about what was typed into these two fields, not a dialog-level failure.
+    if (e.status === 400 || e.status === 422) showNewPinError(e.message);
+    else showSettingsMessage(e.message, "err");
   }
 }
 

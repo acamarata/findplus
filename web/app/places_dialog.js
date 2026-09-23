@@ -23,6 +23,7 @@ import { api } from "./api.js";
 import { t } from "./i18n.js";
 import { createColorPicker } from "./components/color-picker.js";
 import { createPlaceLocator } from "./components/place_locator.js";
+import { duplicateNameMessage } from "./dialog_errors.js";
 
 const DEFAULT_COLOR = "#3b82f6";
 const DEFAULT_RADIUS = "200";
@@ -258,8 +259,12 @@ async function onSave() {
     dlg.close();
     if (onSaved) await onSaved();
   } catch (err) {
-    // api() shows the lock screen for a 401; anything else (409, 422) is shown here.
-    if (err.message !== "Locked") fields.error.textContent = err.message;
+    // api() shows the lock screen for a 401; anything else (409, 422) is shown
+    // here. N48: the raw server text named the field and quoted the name in
+    // Python repr style ("place name 'Grandma' already exists") -- a catalog
+    // sentence when that is what happened, the raw message for anything else.
+    if (err.message === "Locked") return;
+    fields.error.textContent = duplicateNameMessage(err, "places.duplicateName") || err.message;
   }
 }
 

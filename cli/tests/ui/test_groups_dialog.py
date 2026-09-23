@@ -199,14 +199,16 @@ async def test_delete_group_confirm_removes_from_list_and_selector(page, base_ur
 
 
 async def test_duplicate_name_shows_409_on_name_field(page, base_url):
-    """The server's own words, in the dialog, with the dialog still open."""
+    """N48: the catalog sentence, not the server's raw repr-quoted text
+    ("group name 'Family' already exists"), with the dialog still open."""
     await _open_add_dialog(page, base_url)
     await page.fill("#fp-group-name", "Family")
     await page.check('#fp-group-members input[data-device-id="TAG-HOME"]')
     await _save(page)
     error = page.locator("#fp-group-dialog-error")
     await error.wait_for(state="visible")
-    assert "already exists" in await error.inner_text()
+    assert await error.inner_text() == "A group named Family already exists."
+    assert "'" not in await error.inner_text()
     assert await page.locator("#fp-group-dialog").get_attribute("open") is not None
 
 

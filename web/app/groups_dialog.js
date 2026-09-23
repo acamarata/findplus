@@ -27,6 +27,7 @@ import {
   closeOpenPopover, closePopoverIfOutside, clampPopoverToViewport,
 } from "./groups_dialog_dom.js";
 import { groupBody, saveGroup } from "./groups_dialog_save.js";
+import { duplicateNameMessage } from "./dialog_errors.js";
 
 const DEFAULT_ICON = "lucide:users";
 const DEFAULT_COLOR = "#27ae60";
@@ -205,8 +206,12 @@ function handleSaveError(err) {
     if (onSaved) onSaved();
     return;
   }
-  fields.error.textContent = err.message;
-  if (err.message.includes("already exists")) fields.name.focus();
+  // N48: the raw server text named the field and quoted the name in Python
+  // repr style ("group name 'Pets' already exists") -- a catalog sentence
+  // when that is what happened, the raw message for anything else.
+  const duplicate = duplicateNameMessage(err, "groups.error.duplicate_name");
+  fields.error.textContent = duplicate || err.message;
+  if (duplicate) fields.name.focus();
 }
 
 async function onSave() {

@@ -172,7 +172,8 @@
     },
     "error": {
       "name_required": "Name is required.",
-      "members_required": "Select at least one member."
+      "members_required": "Select at least one member.",
+      "duplicate_name": "A group named {name} already exists."
     },
     "empty": "No groups yet. A group tracks presence for a household, a set of pets, or anything you want a together/apart verdict for.",
     "add_button": "Add group",
@@ -201,6 +202,7 @@
     "tabHint": "Use Add place to create a geofence.",
     "confirmDelete": "Delete place \"{name}\"?",
     "deleteFailed": "Could not delete that place ({status}).",
+    "duplicateName": "A place named {name} already exists.",
     "sinceLabel": "{place} since {time}",
     "nameLabel": "Name",
     "radiusLabel": "Radius (m)",

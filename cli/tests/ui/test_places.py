@@ -161,6 +161,26 @@ async def test_add_place_saves(page, base_url):
     assert "Office" in names
 
 
+async def test_add_place_duplicate_name_shows_catalog_sentence(page, base_url):
+    """N48: the 409 for a duplicate name used to reach the dialog as the
+    server's raw text ("place name 'Home' already exists"), Python repr
+    quoting and all. It now reads as the catalog sentence."""
+    await _open_dashboard(page, base_url)
+    await page.click('button[data-tab="places"]')
+    await page.click("#fp-add-place-btn")
+    dialog = page.locator("#fp-place-dialog")
+    await dialog.wait_for(state="visible")
+
+    await dialog.locator("#fp-place-name").fill("Home")
+    await dialog.get_by_text("Save", exact=True).click()
+
+    error = page.locator("#fp-place-dialog-error")
+    await error.wait_for(state="visible")
+    assert await error.inner_text() == "A place named Home already exists."
+    assert "'" not in await error.inner_text()
+    assert await dialog.get_attribute("open") is not None
+
+
 async def test_use_tracker_location_fills_coordinates(page, base_url):
     """U4: 'Use a tracker's last location' calls the real /api/latest — no
     mock needed, the seeded devices have real fixes."""

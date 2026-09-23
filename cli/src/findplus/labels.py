@@ -42,8 +42,12 @@ DEVICE_PALETTE = [
     "#d65f5f",
 ]
 
-_ICON_RE = re.compile(r"^(lucide:[a-z0-9-]+|letter:[A-Z0-9]|letter|none)$")
+_ICON_RE = re.compile(r"^(lucide:[a-z0-9-]+|letter:[A-Z0-9]|letter|none|custom:[0-9a-f]{16})$")
 _COLOR_RE = re.compile(r"^#[0-9a-f]{6}$")
+
+_ICON_GRAMMAR_MSG = (
+    "icon must match lucide:<name>, letter:<char>, letter, none, or custom:<16 hex chars>"
+)
 
 
 def palette_color_for(device_id: str) -> str:
@@ -85,12 +89,28 @@ def validate_label(label: str | None) -> str | None:
     return trimmed or None
 
 
+def _custom_icon_exists(icon: str) -> bool:
+    """Whether `custom:<id>`'s uploaded PNG is still on disk.
+
+    Lazy-imports `findplus.config` (the same pattern `_data_path()` uses
+    above) so this module never pays for config's heavier import chain
+    unless a caller actually validates a custom icon.
+    """
+    from findplus.config import get_settings
+
+    icon_id = icon.split(":", 1)[1]
+    return (get_settings().icons_dir / f"{icon_id}.png").is_file()
+
+
 def validate_icon(icon: str) -> str:
-    """One of `lucide:<name>` (pinned set), `letter:<X>`, `letter`, `none`."""
+    """One of `lucide:<name>` (pinned set), `letter:<X>`, `letter`, `none`,
+    or `custom:<16-hex-id>` (an uploaded PNG, § specs/labels-and-icons.md)."""
     if not _ICON_RE.match(icon):
-        raise ValueError("icon must match lucide:<name>, letter:<char>, letter, or none")
+        raise ValueError(_ICON_GRAMMAR_MSG)
     if icon.startswith("lucide:") and icon.split(":", 1)[1] not in _lucide_ids():
         raise ValueError("icon must be one of the available lucide icon ids")
+    if icon.startswith("custom:") and not _custom_icon_exists(icon):
+        raise ValueError("icon must reference an uploaded custom icon")
     return icon
 
 
@@ -99,6 +119,23 @@ def validate_color(color: str) -> str:
     if not _COLOR_RE.match(color):
         raise ValueError("color must be a lowercase #rrggbb hex value")
     return color
+
+
+def display_name(label: str | None, name: str | None, device_id: str | None = None) -> str | None:
+    """The identity string every surface shows for a device: the label the
+    user gave it, or the provider's own name, or its raw id -- the server-side
+    twin of web/app/state.js's displayName() (UAT2 N2/N4/N11/N14). Group
+    presence notes, the widget payload and device-facing dialog titles all
+    called this a different way before this landed, so a renamed tag read as
+    its raw provider name everywhere except the dashboard's own device list.
+    """
+    trimmed_label = (label or "").strip()
+    if trimmed_label:
+        return trimmed_label
+    trimmed_name = (name or "").strip()
+    if trimmed_name:
+        return trimmed_name
+    return device_id or None
 
 
 def resolve_icon_letter(icon: str, label: str | None, name: str) -> str | None:

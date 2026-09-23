@@ -36,7 +36,29 @@ jobs:
 
   build-dmg:
     needs: build-python
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macos-latest is Apple Silicon. Intel: `macos-13` (the label named
+          # when this lane was scoped) no longer exists on GitHub-hosted
+          # runners -- `actionlint` against this file lists the current
+          # labels, and the free Intel image is now `macos-15-intel` (there
+          # is also `macos-26-intel`; 15 is the more conservative pick).
+          # Both are free for public repos (ASI Policy 8 — never pay
+          # GitHub). Each leg builds its own sidecar and app natively — no
+          # cross-compiled Python.
+          - arch: aarch64
+            target: aarch64-apple-darwin
+            runner: macos-latest
+            spec: packaging/pyinstaller/findplus-daemon.spec
+            widget_arch: arm64
+          - arch: x86_64
+            target: x86_64-apple-darwin
+            runner: macos-15-intel
+            spec: packaging/pyinstaller/findplus-daemon-x86_64.spec
+            widget_arch: x86_64
+    runs-on: ${{ matrix.runner }}
     env:
       APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
       APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -58,9 +80,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: desktop/src-tauri
+          # Without an arch-qualified key, the aarch64 and x86_64 legs would
+          # share one cache key (same OS, same Cargo.lock) and clobber each
+          # other's target/ output between runs.
+          key: ${{ matrix.arch }}
       - run: pip install '.[dev,bundle]'
         working-directory: cli
-      - run: pyinstaller packaging/pyinstaller/findplus-daemon.spec --noconfirm
+      - run: pyinstaller ${{ matrix.spec }} --noconfirm
       - name: Sign sidecar
         if: env.APPLE_CERTIFICATE_P12_BASE64 != ''
         run: |
@@ -95,7 +121,7 @@ jobs:
           bash packaging/scripts/sign-sidecar.sh
       - name: Install Tauri CLI
         run: |
-          rustup target add aarch64-apple-darwin
+          rustup target add ${{ matrix.target }}
           cargo install tauri-cli --version '^2.11' --locked
       - name: Build app and dmg
         run: |
@@ -105,28 +131,28 @@ jobs:
           # fail with "no identity found" instead of skipping signing.
           if [ -z "$APPLE_SIGNING_IDENTITY" ]; then unset APPLE_SIGNING_IDENTITY; fi
           cd desktop/src-tauri
-          cargo tauri build --target aarch64-apple-darwin
+          cargo tauri build --target ${{ matrix.target }}
       - name: Build widget (signed path only)
         if: env.APPLE_SIGNING_IDENTITY != ''
         run: |
           xcodebuild -project desktop/widget/FindPlusWidget.xcodeproj \
-            -scheme FindPlusWidgetExtension -configuration Release -arch arm64 build \
+            -scheme FindPlusWidgetExtension -configuration Release -arch ${{ matrix.widget_arch }} build \
             -derivedDataPath desktop/widget/build ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO
       - name: Embed widget, sign, notarise, rebuild dmg
         if: env.APPLE_SIGNING_IDENTITY != ''
         run: |
-          APP_PATH="desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Find+.app"
+          APP_PATH="desktop/src-tauri/target/${{ matrix.target }}/release/bundle/macos/Find+.app"
           if [ -n "$APPLE_API_KEY_P8_BASE64" ]; then
             echo "$APPLE_API_KEY_P8_BASE64" | base64 -d > /tmp/api-key.p8
             export APPLE_API_KEY=/tmp/api-key.p8
             export APPLE_API_ISSUER="$APPLE_API_ISSUER_ID"
           fi
-          APP_PATH="$APP_PATH" bash packaging/scripts/embed-widget.sh
+          APP_PATH="$APP_PATH" ARCH_SUFFIX="${{ matrix.arch }}" bash packaging/scripts/embed-widget.sh
       - name: Rename dmg (unsigned path, no widget)
         if: env.APPLE_SIGNING_IDENTITY == ''
         run: |
           mkdir -p dist
-          DMG=$(find desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg -name 'Find+_*.dmg' | head -1)
+          DMG=$(find desktop/src-tauri/target/${{ matrix.target }}/release/bundle/dmg -name 'Find+_*.dmg' | head -1)
           cp "$DMG" "dist/FindPlus-unsigned.dmg"
       - name: Finalise artefact
         run: |
@@ -137,11 +163,13 @@ jobs:
           SUFFIX=""
           if [ -z "$APPLE_SIGNING_IDENTITY" ]; then SUFFIX="-UNSIGNED"; fi
           DMG=$(find dist -maxdepth 1 -name 'FindPlus-*.dmg' | head -1)
-          cp "$DMG" "FindPlus-${VERSION}-aarch64${SUFFIX}.dmg"
-          shasum -a 256 "FindPlus-${VERSION}-aarch64${SUFFIX}.dmg" > "FindPlus-${VERSION}-aarch64${SUFFIX}.dmg.sha256"
+          cp "$DMG" "FindPlus-${VERSION}-${{ matrix.arch }}${SUFFIX}.dmg"
+          shasum -a 256 "FindPlus-${VERSION}-${{ matrix.arch }}${SUFFIX}.dmg" > "FindPlus-${VERSION}-${{ matrix.arch }}${SUFFIX}.dmg.sha256"
       - uses: actions/upload-artifact@v7
         with:
-          name: macos-dmg
+          # Arch-qualified: the two matrix legs run concurrently and
+          # upload-artifact rejects two uploads under the same name.
+          name: macos-dmg-${{ matrix.arch }}
           path: |
             FindPlus-*.dmg
             FindPlus-*.dmg.sha256
@@ -175,8 +203,9 @@ jobs:
       - uses: actions/download-artifact@v8
         if: steps.existing.outputs.skip != 'true'
         with:
-          name: macos-dmg
+          pattern: macos-dmg-*
           path: .
+          merge-multiple: true
         continue-on-error: true
       - name: Bake the released version into install.sh
         if: steps.existing.outputs.skip != 'true'

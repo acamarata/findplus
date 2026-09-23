@@ -104,3 +104,48 @@ def test_missing_key_material_rejected(tmp_path) -> None:
 def test_list_empty(tmp_path) -> None:
     settings = _settings(tmp_path)
     assert list_accessories(settings) == []
+
+
+def test_malformed_xml_plist_rejected(tmp_path) -> None:
+    """CR-C-m2: raw ExpatError used to pass through unwrapped as a 500."""
+    settings = _settings(tmp_path)
+    plist_path = tmp_path / "bad.plist"
+    plist_path.write_bytes(b"<not-a-plist>")
+    with pytest.raises(ValueError, match="not a valid property list"):
+        add_accessory("Tag", settings, plist_path=plist_path)
+
+
+def test_array_plist_rejected(tmp_path) -> None:
+    """CR-C-m2: a top-level array has no .get(), so this used to be an
+    unhandled AttributeError instead of a 422-shaped ValueError."""
+    import plistlib
+
+    settings = _settings(tmp_path)
+    plist_path = tmp_path / "array.plist"
+    plist_path.write_bytes(plistlib.dumps(["not", "a", "dict"]))
+    with pytest.raises(ValueError, match="must be a dictionary"):
+        add_accessory("Tag", settings, plist_path=plist_path)
+
+
+def test_plist_key_length_is_checked(tmp_path) -> None:
+    """CR-C-m3: the plist branch skipped VALID_KEY_LENGTHS entirely, so a
+    3/10-byte "Private Key" plist registered."""
+    import plistlib
+
+    settings = _settings(tmp_path)
+    plist_path = tmp_path / "short.plist"
+    short_key_b64 = base64.b64encode(b"X" * 10).decode()
+    plist_path.write_bytes(plistlib.dumps({"Private Key": short_key_b64}))
+    with pytest.raises(ValueError, match="unexpected length"):
+        add_accessory("Tag", settings, plist_path=plist_path)
+
+
+def test_valid_plist_still_registers(tmp_path) -> None:
+    """The length check must not reject a real, correctly-sized plist key."""
+    import plistlib
+
+    settings = _settings(tmp_path)
+    plist_path = tmp_path / "ok.plist"
+    plist_path.write_bytes(plistlib.dumps({"Private Key": base64.b64encode(KEY_28).decode()}))
+    record = add_accessory("Tag", settings, plist_path=plist_path)
+    assert record["kind"] == "plist"

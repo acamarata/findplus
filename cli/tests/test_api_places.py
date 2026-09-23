@@ -95,6 +95,53 @@ def test_presence_empty(client: TestClient) -> None:
     assert client.get("/api/places/presence").json() == []
 
 
+def test_presence_matches_widget_and_group_default_window(client: TestClient) -> None:
+    """UAT3 N17: the Places tab used to call a 70-minute-old fix stale (its
+    own 60-minute default) while the widget and a fresh group's own default
+    both called the same fix current at 90 minutes -- three surfaces giving
+    three different answers about whether the same tracker was still nearby.
+    Settings.presence_window_minutes (config.py) is now the one canonical
+    default every one of them reads, so this is no longer stale at 70 minutes.
+    """
+    from datetime import UTC, datetime, timedelta
+
+    from findplus.ingest import ingest_observations
+    from findplus.places.repo import create_place
+    from findplus.providers.google_findhub.types import RawObservation
+
+    now = datetime.now(UTC)
+    with session_scope() as session:
+        create_place(
+            session,
+            name="Home",
+            latitude_e7=411000000,
+            longitude_e7=-806400000,
+            radius_meters=200,
+        )
+    with session_scope() as session:
+        ingest_observations(
+            session,
+            [
+                RawObservation(
+                    device_id="dev1",
+                    device_name="Tag1",
+                    latitude_e7=411000000,
+                    longitude_e7=-806400000,
+                    observed_at=now - timedelta(minutes=70),
+                    accuracy_meters=15.0,
+                    source="crowdsourced",
+                    is_own_report=False,
+                )
+            ],
+            fetched_at=now,
+        )
+
+    presence = client.get("/api/places/presence").json()
+    assert presence[0]["stale"] is False
+    assert presence[0]["state"] == "inside"
+    assert client.get("/api/places").json()[0]["devices_inside"] == ["dev1"]
+
+
 def test_locked(client: TestClient) -> None:
     client.post("/api/settings/pin", json={"new_pin": "864213"})
     client.cookies.clear()

@@ -28,6 +28,7 @@ import httpx
 from findplus.config import get_settings
 
 from ._fmt import (
+    _interactive,
     _prep,
     _print_device_table,
     _print_nothing_tracked_hint,
@@ -159,7 +160,12 @@ def _install_or_start(service, program: str, yes: bool) -> bool:
         return True
     _show_service_plan(service.plan(program=program))
     _show_service_plan(service.watchdog_plan(program=program))
-    if not yes:
+    # R-P2-30.1 (UAT U1): an interactive terminal gets a real prompt instead
+    # of a dead end; a script or pipe (install.sh, cron, CI) never blocks on
+    # stdin and still needs --yes. Short-circuits on `not yes` first, so a
+    # caller who already passed --yes never hits _interactive()/confirm() at all.
+    prompt = "Install and start the service now?"
+    if not yes and not (_interactive() and click.confirm(prompt, default=True)):
         click.echo("Pass --yes to write these files and load the service.")
         return False
     service.install(confirmed=True, program=program)
@@ -175,6 +181,12 @@ def stop() -> None:
     _prep()
     from findplus import service
 
+    # A clean-machine check found "Stopped." printed with no service ever
+    # installed: say what actually happened instead.
+    if not service.is_installed():
+        click.echo("Find+ is not installed as a background service, so nothing was stopped.")
+        click.echo("A daemon started with `findplus serve` stops with Ctrl+C.")
+        return
     service.stop()
     click.echo("Stopped. The unit files are kept and the service returns at the next login.")
     click.echo("Run `findplus uninstall --yes` to remove the unit files and daemon.json.")
@@ -190,6 +202,17 @@ def restart() -> None:
     click.echo("Restarted.")
 
 
+def _probe_url(sd, settings) -> str:
+    """The `/api/status` URL to probe: daemon.json's own port when the
+    service recorded one, since a daemon started with `--port` (e.g.
+    `findplus serve --port 18749`) never runs on settings.base_url's default
+    8647. Falls back to settings.base_url with no daemon.json, or with one
+    that predates the port field."""
+    if sd.port is not None:
+        return f"http://127.0.0.1:{sd.port}/api/status"
+    return f"{settings.base_url}/api/status"
+
+
 @click.command()
 @click.option("--json", "json_flag", is_flag=True, help="Print machine-readable JSON.")
 def status(json_flag: bool) -> None:
@@ -202,7 +225,7 @@ def status(json_flag: bool) -> None:
 
     op: dict = {}
     try:
-        r = httpx.get(f"{settings.base_url}/api/status", timeout=2.0)
+        r = httpx.get(_probe_url(sd, settings), timeout=2.0)
         if r.status_code == 200:
             op = r.json()
         elif r.status_code == 401:

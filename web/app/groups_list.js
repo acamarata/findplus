@@ -17,10 +17,12 @@
 "use strict";
 
 import { api } from "./api.js";
+import { displayName } from "./state.js";
 import { t } from "./i18n.js";
 import { renderBadge } from "./components/badge.js";
 import { showAddDialog, openEditDialog } from "./groups_dialog.js";
-import { loadGroups, selectGroupById, verdictLabel } from "./groups.js";
+import { loadGroups, selectGroupById, clearGroup, isGroupSelected } from "./groups.js";
+import { verdictLabel, verdictTitle } from "./groups_presence_render.js";
 
 /** Avatars shown before the grid collapses the rest into a "+N" chip. */
 const MAX_AVATARS = 6;
@@ -73,14 +75,18 @@ function memberAvatars(group, devicesById) {
   const wrap = span("fp-card-members");
   group.members.slice(0, MAX_AVATARS).forEach((member) => {
     const device = devicesById.get(member.device_id);
+    // UAT U6: the group member list is one of the surfaces that must show
+    // the label, not the raw provider name -- member.name is the fallback
+    // for a device row that has since been deleted (see the docstring above).
+    const shown = displayName(device) || member.name;
     const avatar = span("fp-avatar");
-    avatar.title = member.name;
+    avatar.title = shown;
     avatar.appendChild(
       renderBadge({
         icon: (device && device.icon) || "letter",
         color: (device && device.color) || "#888888",
         label: (device && device.label) || null,
-        name: member.name,
+        name: shown,
         size: 16,
       }),
     );
@@ -110,15 +116,24 @@ function renderCard(group, devicesById) {
   icon.appendChild(
     renderBadge({ icon: group.icon, color: group.color, label: null, name: group.name, size: 24 }),
   );
+  // UAT3 N24: Edit and Delete were two separate flex-wrap items, so a narrow
+  // card could wrap between them (Edit alone on one line, Delete on the
+  // next) instead of together. One wrapper makes them a single item: they
+  // wrap as a pair or not at all, like the dashboard's .export-group (U26).
+  const actions = document.createElement("div");
+  actions.className = "fp-card-actions";
+  actions.append(
+    cardButton("fp-card-edit btn-tiny btn-secondary", t("common.edit"), t("groups.card.edit", { name: group.name }),
+      () => openEditDialog(group.id, group)),
+    cardButton("fp-card-delete btn-tiny btn-secondary", t("common.delete"), t("groups.card.delete", { name: group.name }),
+      () => onDelete(group)),
+  );
   card.append(
     icon,
     span("fp-card-name", group.name),
     memberAvatars(group, devicesById),
     span("fp-card-verdict"),
-    cardButton("fp-card-edit", t("common.edit"), t("groups.card.edit", { name: group.name }),
-      () => openEditDialog(group.id, group)),
-    cardButton("fp-card-delete", t("common.delete"), t("groups.card.delete", { name: group.name }),
-      () => onDelete(group)),
+    actions,
   );
   card.addEventListener("click", (event) => onCardClick(event, group));
   return card;
@@ -139,12 +154,17 @@ async function fetchVerdict(card, groupId) {
   if (!badge) return;
   badge.className = `fp-card-verdict fp-verdict fp-verdict--${presence.verdict}`;
   badge.textContent = verdictLabel(presence);
+  badge.title = verdictTitle(presence);
 }
 
 async function onDelete(group) {
   if (!window.confirm(t("groups.confirm.delete", { name: group.name }))) return;
   try {
     await api(`/api/groups/${group.id}`, { method: "DELETE" });
+    // UAT4 N31: deleting the group the presence panel is currently showing
+    // must clear it, not leave the deleted group's verdict/note on screen --
+    // loadGroups() below only refreshes the selector and card grid.
+    if (isGroupSelected(group.id)) clearGroup();
     // loadGroups() refreshes the selector and then calls loadCards() itself
     // (the T3 wiring), so calling both here would render the grid twice.
     await loadGroups();

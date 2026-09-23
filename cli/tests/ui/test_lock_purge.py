@@ -18,14 +18,36 @@ from .test_lock import PIN
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
-LEAKED_STRINGS = ("Home Tag", "Away Tag", "Stale Tag", "Family", "Lock purge rule", "41.1")
+LEAKED_STRINGS = ("Ali's Keys", "Away Tag", "Stale Tag", "Family", "Lock purge rule", "41.1")
 
 
 async def _populate_places_groups_alerts(page, base_url):
-    """Render the place circle, group presence panel/legend/select and the
-    alerts rules table — everything `purge()` must destroy on lock."""
+    """Render the place circle, group presence panel/legend/select, the
+    alerts rules table AND the timeline -- everything `purge()` must destroy
+    on lock.
+
+    The three tab waits below only prove places.js/groups.js/alerts.js have
+    rendered; none of them waits on the timeline, which is a separate async
+    chain inside main.js's bootDashboard() that starts running before this
+    function's first click and can still be in flight once all three tabs
+    have settled. "41.1" (the seeded "Home" fix's coordinates, in a
+    `.tl-coords` title/text) comes only from that chain, so an explicit wait
+    for it is required -- without it this coordinate is present about a
+    second after the places circle on a quiet box, but a slower cold boot
+    (CPU contention from a full parallel suite, or another file's earlier
+    tests leaving rows in the DB for bootDashboard's fetches to churn
+    through) can still be mid-render when the tab waits below are long done,
+    which is what made this test order-dependent rather than reliably
+    flaky-or-not on its own (findings-queue F1).
+    """
     await page.click('button[data-tab="places"]')
     await page.wait_for_selector("#map svg path.leaflet-interactive")
+    # "attached", not the default "visible": the timeline sits under a
+    # different tab section, hidden (not removed) while "places" is active,
+    # so a "visible" wait here would never resolve. Attached is exactly what
+    # this function's own final check needs -- page.content() reads markup,
+    # not paint state.
+    await page.wait_for_selector(".tl-coords", state="attached")
     await page.click('button[data-tab="groups"]')
     await page.select_option("#fp-group-select", label="Family")
     await page.wait_for_selector("#fp-presence-panel .fp-verdict")
@@ -62,7 +84,9 @@ async def _setup_purge_fixture(page, base_url):
     rule_resp = await page.request.post(
         base_url + "/api/alerts/rules",
         data=json.dumps(
-            {"name": "Lock purge rule", "device_id": "TAG-HOME", "channels": ["webhook"]}
+            # "native" needs no configured credentials (UAT2 U11's
+            # server-side check); this fixture only needs a rule to exist.
+            {"name": "Lock purge rule", "device_id": "TAG-HOME", "channels": ["native"]}
         ),
         headers={"Content-Type": "application/json"},
     )
@@ -100,12 +124,25 @@ async def _teardown_purge_fixture(page, base_url):
     await _delete_rule_named(page, base_url, "Lock purge rule")
 
 
-async def test_lock_purges_places_groups_and_alerts_from_the_dom(page, base_url):
+async def test_lock_purges_places_groups_and_alerts_from_the_dom(
+    page, base_url, reset_alert_and_observation_state
+):
     """reviewer-E10 finding: locking only added `.hidden` to #app-shell —
     place/group-member circles stayed in `.leaflet-overlay-pane`, the
     presence panel/legend/group-select kept names, and the alerts rules
     table kept place/device names. Fixed by places.js/groups.js/alerts.js
     each exporting `purge()`, called from lock.js's purgeRenderedData().
+
+    This is a real cold boot (page.goto()), so it owns its fixture data the
+    same way test_groups_dialog_purge.py's and test_lock.py's locked-boot
+    tests do: `reset_alert_and_observation_state` clears the alert rules and
+    deliveries earlier files in the session-scoped suite (test_alerts_*.py)
+    create and never delete. Left in place, that accumulation slows the
+    cold boot's alerts-tab fetch/render enough that this test's own wait for
+    "Lock purge rule" can resolve before the *other* tabs' async renders
+    (places/groups) have actually landed, so `_populate_places_groups_alerts`
+    intermittently found the map circle and the "Family" verdict but not
+    "41.1" (E13 loop3-shaped flake, same root cause, different symptom).
     """
     await _setup_purge_fixture(page, base_url)
     try:
@@ -150,8 +187,8 @@ async def _dialog_input_values(page) -> dict:
                 open: dlg.open,
                 editId: dlg.dataset.editId || '',
                 values: inputs.map((i) => i.value).join('|'),
-                name: (dlg.querySelector('input[type=text]') || {}).value || '',
-                lat: (dlg.querySelector('input[type=hidden]') || {}).value || '',
+                name: (dlg.querySelector('#fp-place-name') || {}).value || '',
+                lat: (dlg.querySelector('#fp-place-lat') || {}).value || '',
             };
         }"""
     )
@@ -162,9 +199,14 @@ async def test_lock_purges_the_place_dialog_and_the_webhook_secret(page, base_ur
 
     purgeRenderedData()'s contract is that locking DESTROYS rendered location
     data, not that it hides it. places.js only called `dialog.close()`, so the
-    hidden lat/lon inputs kept the exact point the user had just clicked and
-    the name input kept the place name — both readable from DevTools with the
+    hidden lat/lon inputs kept the exact point the dialog opened at and the
+    name input kept the place name — both readable from DevTools with the
     lock screen up. The webhook secret input had nothing clearing it at all.
+
+    "Add place" opens the dialog directly at the map's current centre (U4/U10,
+    commit eff581d) rather than arming a map-click crosshair, so the dialog is
+    already open and modal by the time this test would otherwise click the
+    map underneath it — no map click is needed to fill the coordinates.
     """
     await _setup_purge_fixture(page, base_url)
     try:
@@ -173,10 +215,12 @@ async def test_lock_purges_the_place_dialog_and_the_webhook_secret(page, base_ur
 
         await page.click('button[data-tab="places"]')
         await page.click("#fp-add-place-btn")
-        await page.click("#map", position={"x": 10, "y": 10})
         dialog = page.locator("#fp-place-dialog")
         await dialog.wait_for(state="visible")
-        await dialog.locator('input[type="text"]').fill("Safe house")
+        # #fp-place-name, not a bare input[type="text"]: place_locator.js's own
+        # opt-in address-search box (U4/U10) is a second text input in this
+        # dialog now, and a strict-mode locator rejects an ambiguous match.
+        await dialog.locator("#fp-place-name").fill("Safe house")
         # Cancel, not Save: the point is that closing the dialog is not purging it.
         await dialog.get_by_text("Cancel", exact=True).click()
         await page.wait_for_function("() => !document.getElementById('fp-place-dialog').open")

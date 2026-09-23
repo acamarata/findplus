@@ -348,7 +348,7 @@ Persist whether the widget renders a map snapshot.
 Devices
 
 ### PATCH /api/devices/{device_id}
-Edit one device's label, icon, colour or tracked flag.
+Edit one device's label, icon, color or tracked flag.
 
 | name | in | required | type |
 |---|---|---|---|
@@ -467,6 +467,27 @@ Replace the tracked set. `all_devices=true` tracks everything.
   "title": "Body_set_tracked_api_devices_track_post"
 }
 ```
+
+## icons
+### DELETE /api/icons/custom/{icon_id}
+Delete Custom Icon
+
+| name | in | required | type |
+|---|---|---|---|
+| icon_id | path | True | string |
+
+### GET /api/icons/custom
+Every uploaded icon's id, sorted, so a picker's list is stable.
+
+### GET /api/icons/custom/{icon_id}.png
+Get Custom Icon
+
+| name | in | required | type |
+|---|---|---|---|
+| icon_id | path | True | string |
+
+### POST /api/icons/custom
+Upload Custom Icon
 
 ## history
 ### GET /api/days
@@ -604,6 +625,13 @@ Get Presence
 | name | in | required | type |
 |---|---|---|---|
 | device_id | query | False | string |
+
+### GET /api/places/search
+Get Search
+
+| name | in | required | type |
+|---|---|---|---|
+| q | query | False | string |
 
 ### POST /api/places
 Post Place

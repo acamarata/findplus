@@ -4,6 +4,12 @@
               data-i18n="common.close" data-i18n-attr="aria-label:common.close">Close</button>
     </header>
 
+    <!-- UAT U19: every field in this dialog used to report its error/confirm
+         message to the page banner (#alert), which sits BEHIND this modal's
+         backdrop and was never seen. settings.js's showSettingsMessage()
+         writes here instead, for every section (sign-in included). -->
+    <p id="settings-message" class="fp-dialog-error" role="alert"></p>
+
     <!-- The sign-in panel is the FIRST section of this dialog (ruling R-P2-8).
          The two button fallbacks below are the short provider-free wording on
          purpose: test_honesty_notices.py forbids the literal "Google" anywhere
@@ -12,7 +18,9 @@
          web/app/auth.js:mountAuthPanel() wires it; settings.js re-mounts it on
          every open so a sign-in finished elsewhere shows up. The Chrome
          sentence (#fp-auth-chrome-notice) is filled by notices.js from
-         /api/config, never typed here. -->
+         /api/config, never typed here; auth.js's renderGoogleCard() shows it
+         (and the download link) only while `needs` actually names "chrome"
+         and the provider is not signed in (UAT2 N1) -- it starts hidden. -->
     <section id="fp-settings-signin" class="setting-group">
       <h3 data-i18n="settings.signInHeading">Sign-in</h3>
       <div id="fp-auth-google-card">
@@ -28,7 +36,7 @@
         <p id="fp-auth-google-progress" class="modal-note hidden"></p>
         <a id="fp-auth-chrome-download" href="https://www.google.com/chrome/" target="_blank"
            rel="noopener" class="hidden" data-i18n="auth.google.downloadChrome">Download Chrome</a>
-        <p id="fp-auth-chrome-notice" class="modal-note"></p>
+        <p id="fp-auth-chrome-notice" class="modal-note hidden"></p>
       </div>
       <div id="fp-auth-apple-card">
         <h4 class="fp-auth-provider" data-i18n="auth.apple.heading">Apple Find My</h4>
@@ -47,6 +55,20 @@
             <input type="text" id="fp-auth-apple-code" inputmode="numeric" autocomplete="one-time-code"></label>
           <button class="btn" id="fp-auth-apple-code-submit" type="button"
                   data-i18n="auth.apple.codeSubmit">Submit</button>
+        </div>
+        <!-- Accessory keys work without an Apple ID sign-in (extracted pairing
+             keys, same as `findplus apple add-accessory`), so this stays visible
+             regardless of fp-auth-apple-form's signed-in state (CF-P2-19). -->
+        <div id="fp-auth-apple-accessories">
+          <h4 class="fp-auth-subheading" data-i18n="auth.apple.accessories.heading">Accessory keys</h4>
+          <p class="modal-note" id="fp-auth-apple-accessory-notice"></p>
+          <label class="setting-row"><span data-i18n="auth.apple.accessories.name">Accessory name</span>
+            <input type="text" id="fp-auth-accessory-name"></label>
+          <label class="setting-row"><span data-i18n="auth.apple.accessories.file">Key file (.plist or .json)</span>
+            <input type="file" id="fp-auth-accessory-file" accept=".plist,.json"></label>
+          <button class="btn" id="fp-auth-accessory-add" type="button"
+                  data-i18n="auth.apple.accessories.add">Add accessory</button>
+          <p id="fp-auth-accessory-status"></p>
         </div>
       </div>
     </section>
@@ -67,9 +89,17 @@
       <h3 data-i18n="settings.polling.title">Polling and retention</h3>
       <label class="setting-row">
         <span data-i18n="settings.polling.interval_label">Poll every</span>
-        <input type="number" id="setting-poll-interval" min="5" max="1440" step="1">
+        <input type="number" id="setting-poll-interval" min="5" max="1440" step="1"
+               aria-describedby="setting-poll-interval-error">
         <span data-i18n="settings.polling.interval_unit">minutes</span>
       </label>
+      <!-- UAT U19: an out-of-range value used to report only in
+           #settings-message at the top of the dialog, which can be scrolled
+           out of view. settings.js's validatePollInterval() writes the
+           friendly range wording here instead, right beside the field, both
+           for a client-side rejection and for the server's own 422. -->
+      <p id="setting-poll-interval-error" class="fp-dialog-error hidden"
+         data-i18n="settings.polling.interval_range_error">Choose 5 to 1440 minutes.</p>
       <p class="modal-note" data-i18n="settings.polling.interval_note">
         Find+ never polls faster than every 5 minutes, to avoid rate-limiting your account.
         Takes effect after Find+ restarts. An environment variable, if one is set, wins over
@@ -95,7 +125,9 @@
       <p class="modal-note" id="setting-native-detail-note" data-i18n="settings.native_detail.note" hidden></p>
     </section>
 
-    <section class="setting-group" id="setting-group-desktop">
+    <!-- Hidden in a plain browser (U27): unhidden only when
+         window.__findplus_native is true, see settings.js loadSettings(). -->
+    <section class="setting-group" id="setting-group-desktop" hidden>
       <h3 data-i18n="settings.desktopHeading">Desktop app</h3>
       <label class="setting-row">
         <span data-i18n="settings.startAtLogin">Start Find+ at login</span>
@@ -117,12 +149,19 @@
         <label class="setting-row">
           <span data-i18n="settings.newPin">New PIN</span>
           <input type="password" id="new-pin" inputmode="numeric" autocomplete="new-password"
-                 placeholder="at least 6 characters"
+                 placeholder="at least 6 characters" aria-describedby="setting-new-pin-error"
                  data-i18n-attr="placeholder:settings.newPinPlaceholder">
         </label>
+        <!-- UAT3 N21: a mismatch or the server's 6-character-minimum 422 used to
+             render only in #settings-message, at the top of a scrollable dialog --
+             the pre-fix U19 pattern. Same field-error convention as
+             #setting-poll-interval-error (settings_polling.js), scoped to the
+             two fields it covers. -->
+        <p id="setting-new-pin-error" class="fp-dialog-error hidden"></p>
         <label class="setting-row">
           <span data-i18n="settings.confirmPin">Confirm PIN</span>
-          <input type="password" id="confirm-pin" inputmode="numeric" autocomplete="new-password">
+          <input type="password" id="confirm-pin" inputmode="numeric" autocomplete="new-password"
+                 aria-describedby="setting-new-pin-error">
         </label>
         <button class="btn" id="btn-set-pin" data-i18n="settings.setPin">Set PIN</button>
       </div>

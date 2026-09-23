@@ -7,6 +7,10 @@ monitors whether each tracked tag is inside or outside each place by applying th
 engine to incoming location fixes. Confirmations are required before emitting an enter or
 exit event, which reduces false alerts from location jitter.
 
+The Places tab's side panel lists every saved place -- its color, its radius, and which
+tracked devices are inside it right now -- with Edit and Delete on each row and a click
+anywhere else on the row to centre the map on that place.
+
 ## Alert rules
 
 An alert rule ties a place, a device or group, and one or more notification channels
@@ -15,8 +19,13 @@ at once: the rule form uses checkboxes, not a single dropdown, and each ticked c
 delivered and cooled down on its own. When a qualifying enter or exit event is confirmed,
 Find+ sends a notification. A
 cooldown period (default 30 minutes) prevents repeated alerts for the same tag at the same
-place. Delivery is best-effort: a failed send is recorded in the alert log and is not
-retried, and a failed send never starts the cooldown on its own.
+place. Delivery is best-effort: a failed send is recorded in the alert log, and a failed or
+skipped send never starts the cooldown on its own. A failure that looks temporary -- a
+timeout, a "too many requests" response, or the channel's server erroring out -- is retried
+automatically, up to three more times at one minute, five minutes, then thirty minutes after
+the first failure. A rejected request (a bad credential, a malformed number, anything the
+channel refused outright) is not retried, and Mac notifications are never retried; they are
+a one-time queue entry for the app to pick up, not a send that can fail this way.
 
 ## Privacy: outbound connections
 
@@ -25,9 +34,31 @@ Find+ connects to the following external services during normal operation:
 - The location network (Google Find Hub or Apple Find My) to poll for tag updates.
 - api.telegram.org -- only when Telegram is configured as an alert channel.
 - Your webhook URL -- only when a webhook is configured.
+- api.callmebot.com -- only when WhatsApp is configured as an alert channel; it carries the
+  phone number and API key needed to relay the message, as described under WhatsApp below.
+- OpenStreetMap's Nominatim geocoder -- only when you type an address into the place
+  dialog and press Search. The daemon makes this request itself (not your browser), so
+  your search text never reaches Nominatim without your pressing Search, and the request
+  carries a Find+ User-Agent rather than your browser's. See "Address search" below.
 
 Map tiles are loaded by your browser directly from OpenStreetMap tile servers. The Find+
 daemon does not proxy or log tile requests.
+
+## Places: default map view and address search
+
+A first-time Places tab, or the setup wizard's own Places step, opens the map fit to your
+tracked devices' latest known fixes; if none has ever reported yet, it fits your saved
+places instead; if there are none of those either, it shows a plain world view rather than
+guessing a location. "Add place" opens the dialog with the map's current centre already
+filled in -- no map click is required, so the dialog and the whole flow are reachable by
+keyboard alone.
+
+Inside the dialog, "Use a tracker's last location" fills the coordinates from any one
+tracked device's most recent fix. Address search is opt-in: typing in the search box does
+nothing on its own, and only pressing Search sends that text to OpenStreetMap's Nominatim
+service (nominatim.org), a third party not affiliated with Find+. Nominatim's own usage
+policy caps Find+ at one request per second and asks for a descriptive User-Agent, both of
+which the daemon enforces on every search.
 
 ## Delivery log
 
@@ -40,8 +71,8 @@ The Alerts tab lists what Find+ actually sent, most recent first:
 | Kind | `device` for a single tracker, `group` for a quorum crossing. |
 | Text | The notification's first line, rendered fresh on every read. Mac notifications only; every other channel shows a dash. |
 | Body | The place and the observed/lag line beneath it. Mac notifications only. |
-| Sent | When the attempt was made, in your local time. |
-| Status | `sent`, `failed`, or `skipped`. |
+| Sent | When the first attempt was made, in your local time. |
+| Status | `sent`, `failed`, `skipped`, `retrying`, `queued` or `delivered`. |
 | Error | Why it failed, or why it was skipped. |
 
 `skipped` means the rule matched but nothing was sent, most often because the
@@ -49,6 +80,18 @@ rule names a channel with no credentials, such as a Telegram rule created
 before setup finished, or one left enabled after the Telegram connection was
 deleted. A skipped or failed delivery does not start the rule's cooldown, so
 the next crossing is still eligible.
+
+`retrying` means the first attempt failed with something that looks
+temporary, and Find+ will try again automatically; the Status column also
+shows which attempt is next and when (for example "Retrying (attempt 2 of 4,
+next at 14:35)"). If every retry fails, the row's status becomes `failed`
+and says "Failed after 4 attempts" instead of a bare `failed`, so you can
+tell a delivery that exhausted its retries from one that never qualified
+for one.
+
+`queued` and `delivered` only appear on native (Mac notification) rows: `queued` means
+the desktop app has not shown it yet, and `delivered` means it has -- neither is a network
+send that can fail or retry, just a one-time entry waiting to be picked up.
 
 Errors are stored with credentials masked. A webhook that carries its key in
 the query string will show the URL with that value replaced.
@@ -60,6 +103,10 @@ Alerts inherit the network's delay. An arrival or departure may be reported minu
 Google Find Hub and Apple Find My report locations through nearby participating devices. A
 tag that has not passed near a participating device will not report until it does. Find+
 sends the alert as soon as the fix arrives; the delay is in the network, not in Find+.
+
+The alert text itself (Telegram, native and the Delivery log's Text/Body columns) shows the
+observed and reported times in your machine's local time with its zone abbreviation, for
+example "14:35 EDT", not UTC.
 
 ## Webhook payload
 
@@ -94,16 +141,12 @@ instructions:
    WhatsApp.
 3. CallMeBot replies with an API key within about two minutes.
 4. Paste your phone number in E.164 form and the API key into the Alerts tab's
-   WhatsApp card, and click **Connect**.
+   WhatsApp card, and click **Save**.
 5. Click **Send test** to confirm delivery.
 
 WhatsApp alerts are relayed through CallMeBot, a third-party free service. Your alert
 text transits CallMeBot's servers before reaching WhatsApp. Delivery is best-effort with
 no guarantee. Find+ is not affiliated with WhatsApp, Meta or CallMeBot.
-
-To connect WhatsApp: add +34 623 91 22 04 to your phone's contacts, then send it the
-message "I allow callmebot to send me messages" from your own WhatsApp. CallMeBot
-replies with an API key within about two minutes — paste it below.
 
 The API key is never sent back to the browser and the number is shown masked.
 Both live in `~/.findplus/alerts.json` (mode `0600`). From the terminal:

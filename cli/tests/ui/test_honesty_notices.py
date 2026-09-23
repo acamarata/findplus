@@ -17,7 +17,7 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 async def _open_dashboard(page, base_url):
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
 
 
 async def test_footer_shows_the_apple_sentence_when_an_apple_tracker_is_present(page, base_url):
@@ -114,19 +114,10 @@ async def test_the_footer_sentences_are_blanked_by_the_lock(page, base_url):
     assert blanked is True
 
 
-async def test_the_chrome_around_the_footer_names_the_right_network(page, base_url):
-    """honesty round 2 F3: round 1 gated the sentence and left the chrome Google-only.
-
-    An Apple-only user still read "Last observed by Find Hub", "Queries Google
-    once, now", "Devices on this Google account" and "about N Google requests
-    per hour" — seven strings around the one sentence that had been fixed.
-    """
-    await _open_dashboard(page, base_url)
-    await page.wait_for_function(
-        "() => document.getElementById('findhub-notice').textContent !== ''",
-        timeout=5000,
-    )
-
+async def _assert_chrome_names_apple_only_when_every_device_is_apple(page) -> None:
+    """Set every device to apple-find-my, re-sync the chrome, and confirm no
+    surface still reads "Google"/"Find Hub" -- half of
+    test_the_chrome_around_the_footer_names_the_right_network's check."""
     apple_only = await page.evaluate(
         """async () => {
             const [state, devices] = await Promise.all([
@@ -150,6 +141,22 @@ async def test_the_chrome_around_the_footer_names_the_right_network(page, base_u
         assert "Find Hub" not in text, f"{where} still says Find Hub: {text}"
     assert apple_only["observed"] == "Last observed by Find My"
     assert apple_only["heading"] == "Devices on this Apple account"
+
+
+async def test_the_chrome_around_the_footer_names_the_right_network(page, base_url):
+    """honesty round 2 F3: round 1 gated the sentence and left the chrome Google-only.
+
+    An Apple-only user still read "Last observed by Find Hub", "Queries Google
+    once, now", "Devices on this Google account" and "about N Google requests
+    per hour" — seven strings around the one sentence that had been fixed.
+    """
+    await _open_dashboard(page, base_url)
+    await page.wait_for_function(
+        "() => document.getElementById('findhub-notice').textContent !== ''",
+        timeout=5000,
+    )
+
+    await _assert_chrome_names_apple_only_when_every_device_is_apple(page)
 
     google_only = await page.evaluate(
         """async () => {

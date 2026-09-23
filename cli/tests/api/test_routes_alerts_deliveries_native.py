@@ -3,20 +3,21 @@
 Purpose : Pin the queue contract the desktop native poller drains -- the cursor,
           the channel filter, the rendered text, the ack's 204-then-404, and the
           401 a locked session gets from both routes.
+
+The CF-P2-16 batched-rendering snapshot and statement-count tests moved to
+test_routes_alerts_deliveries_native_perf.py (E13 stage 2, size cap); the
+shared seed helpers moved to _native_delivery_helpers.py.
 """
 
 from __future__ import annotations
 
-import datetime
-
 import pytest
 from fastapi.testclient import TestClient
 
-from findplus.db.models import Device, LocationObservation, Place, PlaceEvent
-from findplus.db.models_alerts import AlertDelivery, AlertRule
+from findplus.db.models_alerts import AlertDelivery
 from findplus.db.session import session_scope
 
-NOW = datetime.datetime(2026, 9, 20, 12, 0, 0, tzinfo=datetime.UTC)
+from ._native_delivery_helpers import _add_delivery, _seed
 
 
 @pytest.fixture
@@ -24,89 +25,6 @@ def client(tmp_db):
     from findplus.api import create_app
 
     return TestClient(create_app())
-
-
-def _seed(place_event: bool = True) -> tuple[int, int]:
-    """One rule plus one place_event; returns (rule_id, place_event_id)."""
-    with session_scope() as s:
-        s.add(
-            Place(
-                id=1,
-                name="Home",
-                latitude_e7=0,
-                longitude_e7=0,
-                radius_meters=100,
-                created_at=NOW,
-                updated_at=NOW,
-            )
-        )
-        s.add(
-            Device(
-                device_id="dev1",
-                name="Tag",
-                is_tracked=True,
-                first_seen_at=NOW,
-                last_seen_at=NOW,
-            )
-        )
-        s.flush()
-        rule = AlertRule(
-            name="native rule",
-            place_id=1,
-            device_id="dev1",
-            on_enter=True,
-            on_exit=True,
-            channels="native",
-            cooldown_minutes=30,
-            enabled=True,
-            also_notify_members=False,
-            created_at=NOW,
-        )
-        s.add(rule)
-        event_id = 0
-        if place_event:
-            obs = LocationObservation(
-                device_id="dev1",
-                device_name="Tag",
-                latitude_e7=0,
-                longitude_e7=0,
-                observed_at=NOW,
-                first_fetched_at=NOW,
-                last_fetched_at=NOW,
-                times_returned=1,
-            )
-            s.add(obs)
-            s.flush()
-            event = PlaceEvent(
-                place_id=1,
-                device_id="dev1",
-                event_type="ENTER",
-                observed_at=NOW,
-                fetched_at=NOW,
-                observation_id=obs.id,
-                confidence="high",
-                distance_meters=10.0,
-            )
-            s.add(event)
-            s.flush()
-            event_id = event.id
-        s.commit()
-        return rule.id, event_id
-
-
-def _add_delivery(rule_id: int, event_id: int, channel: str, status: str = "queued") -> int:
-    with session_scope() as s:
-        row = AlertDelivery(
-            rule_id=rule_id,
-            event_kind="device",
-            event_id=event_id,
-            channel=channel,
-            sent_at=NOW,
-            status=status,
-        )
-        s.add(row)
-        s.commit()
-        return row.id
 
 
 def test_channel_filter_returns_only_that_channel(client: TestClient) -> None:
@@ -135,9 +53,44 @@ def test_a_native_row_carries_the_rendered_text_and_body(client: TestClient) -> 
     assert "Observed" in row["body"]
 
 
-def test_a_non_native_row_has_no_text_or_body(client: TestClient) -> None:
+def test_a_native_row_uses_the_device_label_when_set(client: TestClient) -> None:
+    """UAT U7: the queued notification's own text is rendered on read, so it
+    must resolve the tracker's label the same way the other channels do."""
+    rule_id, event_id = _seed(label="Biscuit (dog)")
+    _add_delivery(rule_id, event_id, "native")
+    row = client.get("/api/alerts/deliveries?channel=native").json()[0]
+    assert row["text"] == "Biscuit (dog) arrived at Home"
+
+
+def test_a_native_row_renders_even_when_the_request_is_unfiltered(client: TestClient) -> None:
+    """UAT3 N18: the dashboard's delivery log calls GET /api/alerts/deliveries
+    with no `channel` filter at all -- rendering used to be gated on the
+    REQUEST'S filter equalling "native", not on the row's own channel, so
+    every row (including native ones) came back text:null unless the caller
+    filtered to exactly `?channel=native`."""
+    rule_id, event_id = _seed()
+    _add_delivery(rule_id, event_id, "native")
+    row = client.get("/api/alerts/deliveries").json()[0]
+    assert row["text"] == "Tag arrived at Home"
+    assert "Observed" in row["body"]
+
+
+def test_a_non_native_row_renders_text_and_body_too(client: TestClient) -> None:
+    """UAT4 N32: a telegram/whatsapp/webhook row's (event_kind, event_id) is
+    exactly as renderable as a native row's -- gating on `channel == "native"`
+    only hid text the server could already produce."""
     rule_id, event_id = _seed()
     _add_delivery(rule_id, event_id, "telegram", status="sent")
+    row = client.get("/api/alerts/deliveries").json()[0]
+    assert row["text"] == "Tag arrived at Home"
+    assert "Observed" in row["body"]
+
+
+def test_a_non_native_purged_source_event_gives_a_null_text_too(client: TestClient) -> None:
+    """The one real gap left after N32: a purged source event still renders
+    (None, None) for any channel, not just native."""
+    rule_id, _ = _seed(place_event=False)
+    _add_delivery(rule_id, 999_999, "telegram", status="sent")
     row = client.get("/api/alerts/deliveries").json()[0]
     assert row["text"] is None
     assert row["body"] is None
@@ -167,6 +120,8 @@ def test_no_join_field_leaks_into_the_response(client: TestClient) -> None:
         "delivered_at",
         "status",
         "error",
+        "attempts",
+        "next_attempt_at",
         "text",
         "body",
     }

@@ -1,4 +1,8 @@
-"""GET /api/version, /api/widget, and the E8 additions to /api/status and /api/config."""
+"""GET /api/version and /api/widget.
+
+Split (E13 stage 2, size cap): /api/status, /api/config and the
+`_widget_state` unit tests moved to test_core_endpoints_status.py.
+"""
 
 from __future__ import annotations
 
@@ -9,7 +13,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from findplus import honesty
-from findplus.api._helpers import _widget_state
 
 
 def test_version(client: TestClient) -> None:
@@ -29,6 +32,7 @@ def test_widget_unlocked(client: TestClient) -> None:
         "stale_after_minutes",
         "devices",
         "groups",
+        "places",
         "show_map",
         "notice",
     ):
@@ -53,7 +57,7 @@ def test_widget_hides_the_place_of_a_stale_device(session, monkeypatch) -> None:
     observed = datetime(2026, 9, 18, 12, 0, tzinfo=UTC)
     ingest_observations(session, [make_observation(observed_at=observed)])
     track_all(session)
-    monkeypatch.setattr(_widget, "_place_by_device", lambda s: {"TAG-001": "Home"})
+    monkeypatch.setattr(_widget, "_place_by_device", lambda s, now, mins: {"TAG-001": "Home"})
 
     fresh = _widget._widget_devices(session, observed + timedelta(minutes=90), 90)
     assert fresh[0]["age_minutes"] == 90
@@ -64,6 +68,66 @@ def test_widget_hides_the_place_of_a_stale_device(session, monkeypatch) -> None:
     assert stale[0]["place"] is None
     # Everything else still reports honestly: the tag is known, just not placed.
     assert stale[0]["device_id"] == "TAG-001"
+
+
+def _home_with_tag_001_inside(session, at):
+    """A "Home" place with TAG-001 already marked `inside` it, since `at`."""
+    from findplus.db.models import Place, PlaceState
+
+    place = Place(
+        name="Home",
+        latitude_e7=411234560,
+        longitude_e7=-801234560,
+        radius_meters=100,
+        color="#2f80ed",
+        enter_confirmations=1,
+        exit_confirmations=2,
+        created_at=at,
+        updated_at=at,
+    )
+    session.add(place)
+    session.flush()
+    session.add(
+        PlaceState(
+            place_id=place.id,
+            device_id="TAG-001",
+            state="inside",
+            since_observed_at=at,
+            streak=1,
+            streak_side="inside",
+            last_observation_id=None,
+            updated_at=at,
+        )
+    )
+    session.flush()
+
+
+def test_widget_device_row_and_places_array_agree_on_a_75_minute_fix(session) -> None:
+    """UAT2 N4: one staleness cutoff everywhere, not two.
+
+    `_place_by_device` used to call `current_presence()` with no threshold,
+    which fell back to `Settings.presence_window_minutes` (60) while the
+    places array used the widget's own `WIDGET_STALE_AFTER_MINUTES` (90,
+    D18). A 75-minute-old fix is stale at 60 but fresh at 90, so a device row
+    read `place: null` while the very same payload's `places` array still
+    counted that device as inside -- and a full group's place badge with it.
+    """
+    from findplus.api._widget import WIDGET_STALE_AFTER_MINUTES, _place_by_device, _widget_places
+    from findplus.ingest import ingest_observations
+    from findplus.state import track_all
+    from tests.conftest import make_observation
+
+    now = datetime(2026, 9, 18, 14, 0, tzinfo=UTC)
+    observed = now - timedelta(minutes=75)
+    ingest_observations(session, [make_observation(observed_at=observed)])
+    track_all(session)
+    _home_with_tag_001_inside(session, observed)
+
+    device_places = _place_by_device(session, now, WIDGET_STALE_AFTER_MINUTES)
+    place_rows = _widget_places(session, now, WIDGET_STALE_AFTER_MINUTES)
+
+    assert device_places.get("TAG-001") == "Home"
+    assert place_rows[0]["device_ids"] == ["TAG-001"]
 
 
 def _widget_group(session, *, name: str):
@@ -104,6 +168,21 @@ def _widget_member(session, group, device_id: str, *, minutes_ago: float | None)
             )
         )
     session.flush()
+
+
+def test_widget_group_note_uses_label_over_raw_provider_name(session) -> None:
+    """UAT2 N2 end-to-end: `/api/widget`'s group rows read the same
+    label-first note groups/repo.py now builds, not a raw provider name."""
+    from findplus.api._widget import _group_rows
+    from findplus.db.models import Device
+
+    group = _widget_group(session, name="family")
+    _widget_member(session, group, "dev1", minutes_ago=2)
+    session.get(Device, "dev1").label = "Omar's backpack"
+    session.flush()
+
+    rows = _group_rows(session)
+    assert rows[0]["note"] == "Only Omar's backpack is reporting (2 min ago)."
 
 
 def test_widget_group_verdict_all_together(session) -> None:
@@ -182,103 +261,6 @@ def test_widget_show_map_table_row_wins_over_config_env(
     assert body["show_map"] is False
 
 
-def test_status_new_fields(client: TestClient) -> None:
-    body = client.get("/api/status").json()
-    assert isinstance(body["provider_health"], list)
-    assert isinstance(body["alerts_configured"], bool)
-    assert isinstance(body["consecutive_failures"], int)
-    assert body["last_error_type"] is None or isinstance(body["last_error_type"], str)
-
-
-def test_config_notices(client: TestClient) -> None:
-    notices = client.get("/api/config").json()["notices"]
-    # The key set comes from honesty.NOTICES, never a retyped list: a later
-    # ticket adding a sentence (chrome_required, the E8 alert notices) should
-    # only have to edit honesty.py (R-P2-5).
-    assert set(notices) == set(honesty.NOTICES)
-    for value in notices.values():
-        assert isinstance(value, str) and value
-    assert notices["find_hub"] == honesty.FIND_HUB
-
-
-@pytest.mark.parametrize(
-    "error_type,failures,age_minutes,expected",
-    [
-        (None, 0, 1, "ok"),
-        (None, 2, 1, "ok"),
-        ("network", 0, 1, "ok"),
-        ("auth", 0, 1, "error"),
-        ("decrypt", 0, 1, "error"),
-        (None, 3, 1, "error"),
-        (None, 0, 11, "stale"),
-        (None, 0, 9, "ok"),  # just inside 2 x the 5-minute interval
-        # Both conditions true at once: api-contract.md orders error first.
-        ("auth", 4, 60, "error"),
-        (None, 4, 60, "error"),
-        (None, None, None, "ok"),
-    ],
-)
-def test_widget_state_priority(error_type, failures, age_minutes, expected) -> None:
-    """`_widget_state` returns only ok|stale|error, error winning over stale."""
-    last_poll_at = (
-        None if age_minutes is None else datetime.now(UTC) - timedelta(minutes=age_minutes)
-    )
-    state = _widget_state(error_type, failures or 0, last_poll_at, 5 * 60)
-    assert state == expected
-
-
-def test_widget_state_never_returns_down() -> None:
-    """`down` is rendered by the widget client on a connection failure (widget.md)."""
-    for error_type in (None, "auth", "decrypt", "network", "down"):
-        for failures in (0, 3, 99):
-            assert _widget_state(error_type, failures, None, 300) in {"ok", "stale", "error"}
-
-
-@pytest.mark.parametrize("error_type", ["AuthRequiredError", "DecryptionError", "unauthenticated"])
-def test_widget_state_flags_the_error_types_the_poller_really_writes(error_type) -> None:
-    """The widget must show `error` on the FIRST auth/decrypt failure.
-
-    api-contract.md spells the trigger set `{auth, decrypt}`, but poller.py has
-    never stored those two words — it stores the exception class name or the
-    provider's verdict. Matching the spec's words alone meant a revoked Google
-    session (the one failure a user must act on) read `ok` or `stale` until
-    `consecutive_failures >= 3` finally fired, three poll cycles later.
-    """
-    assert _widget_state(error_type, 0, datetime.now(UTC), 5 * 60) == "error"
-
-
-def test_error_state_types_covers_every_auth_or_decrypt_error_the_poller_stores() -> None:
-    """Guard the coupling: poller.py is the only writer of `PollRun.error_type`.
-
-    If a new auth/decrypt failure path adds another literal there, this test
-    fails and ERROR_STATE_TYPES has to be widened with it, instead of the
-    widget silently under-reporting again.
-    """
-    import re
-    from pathlib import Path
-
-    from findplus import poller
-    from findplus.api._widget import ERROR_STATE_TYPES
-
-    source = Path(poller.__file__).read_text(encoding="utf-8")
-    literals = set(re.findall(r'error_type="([A-Za-z_]+)"', source))
-    auth_or_decrypt = {name for name in literals if re.search(r"auth|decrypt", name, re.I)}
-    assert auth_or_decrypt, "poller.py stores no auth/decrypt error_type literal any more"
-    assert auth_or_decrypt <= ERROR_STATE_TYPES, sorted(auth_or_decrypt - ERROR_STATE_TYPES)
-
-
-def test_get_icons_returns_48_pinned_ids(client: TestClient) -> None:
-    res = client.get("/api/icons")
-    assert res.status_code == 200
-    rows = res.json()
-    assert len(rows) == 48
-    assert all(row["id"].startswith("lucide:") and row["group"] for row in rows)
-
-
-def test_get_icons_requires_unlock(locked_client: TestClient) -> None:
-    assert locked_client.get("/api/icons").status_code == 401
-
-
 def test_widget_device_rows_carry_icon_and_color(client: TestClient) -> None:
     from findplus.db.models import Device
     from findplus.db.session import session_scope
@@ -302,17 +284,3 @@ def test_widget_group_rows_carry_icon(client: TestClient) -> None:
         create_group(session, name="Family", icon="lucide:dog")
 
     assert client.get("/api/widget").json()["groups"][0]["icon"] == "lucide:dog"
-
-
-def test_get_icons_missing_table(client, monkeypatch) -> None:
-    from findplus import labels
-
-    def raise_missing():
-        raise RuntimeError("icon table missing; reinstall findplus")
-
-    monkeypatch.setattr(labels, "lucide_subset", lambda: (_ for _ in ()).throw(raise_missing()))
-
-    import pytest
-
-    with pytest.raises(RuntimeError, match="icon table missing; reinstall findplus"):
-        client.get("/api/icons")

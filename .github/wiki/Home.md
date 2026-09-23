@@ -5,9 +5,11 @@ Local location history for Google Find Hub and Apple Find My trackers.
 Find+ polls your Find Hub and Find My accounts on a schedule, stores every
 distinct sighting in a local SQLite database, and serves a map, timeline,
 places, groups, and alerts through a browser dashboard, a CLI, a REST API,
-and an MCP server. Everything runs on this computer. Nothing is uploaded
-anywhere except the location queries themselves, which go to Google or
-Apple's own network.
+and an MCP server. Everything runs on this computer. Your location history
+stays on this machine. Map tiles always load from OpenStreetMap; anything
+else leaves only when you turn it on: signing in to Google or Apple, address
+search, and any alert channel you connect (Telegram, WhatsApp or a webhook).
+See [Privacy and threat model](Privacy-and-threat-model).
 
 ## Get started
 
@@ -26,7 +28,7 @@ Apple's own network.
 ## Notices
 
 > This history consists of locations reported through Google's Find Hub
-> network. Moto Tag uses nearby participating Android devices to report its
+> network. Your trackers use nearby participating Android devices to report their
 > location. Location updates can therefore be delayed, sparse, or
 > unavailable, and this application should not be treated as real-time
 > emergency or child-safety GPS tracking.

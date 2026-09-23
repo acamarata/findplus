@@ -131,11 +131,46 @@ def check_port(state_dir: Path, port: int) -> DoctorCheck:
 
 
 def check_chrome() -> DoctorCheck:
-    candidates = [
+    """Whether the Google sign-in flow will find a Chrome to launch.
+
+    UAT2 N1: a machine with Chrome installed still read "not found" because
+    this only checked `google-chrome`/`google-chrome-stable` on PATH plus the
+    system `/Applications` bundle. The candidate list mirrors
+    `cli/vendor/GoogleFindMyTools/chrome_driver.py:find_chrome()`'s search
+    (PRI rule 8: that file is never edited, so the check is kept in step with
+    it here instead), so "found" here means the vendored flow will find it.
+
+    Windows CI (E-windows-ci): the old else-branch fell through to the POSIX
+    paths on win32 too, so this always said "not found" there. The win32
+    branch checks `chrome`/`chrome.exe` on PATH plus find_chrome()'s three
+    install roots, resolved from the real env vars (PROGRAMFILES,
+    PROGRAMFILES(X86), LOCALAPPDATA) rather than its literal `%USERNAME%`.
+    """
+    candidates: list[str | None] = [
         shutil.which("google-chrome"),
         shutil.which("google-chrome-stable"),
-        "/Applications/Google Chrome.app" if sys.platform == "darwin" else None,
+        shutil.which("chromium"),
+        shutil.which("chromium-browser"),
     ]
+    if sys.platform == "darwin":
+        candidates += [
+            "/Applications/Google Chrome.app",
+            str(Path.home() / "Applications" / "Google Chrome.app"),
+        ]
+    elif sys.platform == "win32":
+        candidates += [shutil.which("chrome"), shutil.which("chrome.exe")]
+        for env_var in ("PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA"):
+            program_dir = os.environ.get(env_var)
+            if program_dir:
+                p = Path(program_dir, "Google", "Chrome", "Application", "chrome.exe")
+                candidates.append(str(p))
+    else:
+        candidates += [
+            "/usr/bin/google-chrome",
+            "/usr/local/bin/google-chrome",
+            "/opt/google/chrome/chrome",
+            "/snap/bin/chromium",
+        ]
     passed = any(c and Path(c).exists() for c in candidates)
     return DoctorCheck("chrome", "Google Chrome", passed, "found" if passed else "not found")
 

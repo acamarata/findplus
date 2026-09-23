@@ -18,6 +18,7 @@ from findplus.db.models_alerts import AlertDelivery
 from ._helpers import (
     NOW,
     _device_event,
+    _seed_pending_place_event,
     _seed_place_and_device,
     _telegram_configured,
 )
@@ -41,7 +42,10 @@ def test_flapping_200_events(rule_row, session, settings_enabled) -> None:
 def test_failure_recorded(rule_row, session, settings_enabled) -> None:
     with (
         patch("findplus.alerts.store.load_alerts", return_value=_telegram_configured()),
-        patch("findplus.alerts.channels.telegram.send", side_effect=RuntimeError("boom")),
+        patch(
+            "findplus.alerts.channels.telegram.send",
+            side_effect=RuntimeError("telegram: bot was blocked or kicked (403)"),
+        ),
     ):
         process([_device_event()], session, settings_enabled, now=NOW)
     row = session.query(AlertDelivery).one()
@@ -160,6 +164,29 @@ def test_end_to_end_from_db_rows_sends(rule_row, session, settings_enabled) -> N
     assert "4 min late" in send_mock.call_args[0][0]
 
 
+class _RacySession:
+    """Delegates to the real session, but the dedup SELECT always misses.
+
+    Used by test_concurrent_duplicate_delivery_is_rolled_back to simulate a
+    second poller's insert racing the UNIQUE constraint.
+    """
+
+    def __init__(self, real) -> None:
+        self._real = real
+
+    def __getattr__(self, name):
+        return getattr(self._real, name)
+
+    def query(self, *_args, **_kwargs):
+        return self
+
+    def filter_by(self, **_kwargs):
+        return self
+
+    def first(self):
+        return None
+
+
 def test_concurrent_duplicate_delivery_is_rolled_back(rule_row, session) -> None:
     """A second poller's insert loses to the UNIQUE constraint instead of raising."""
     from findplus.alerts.dispatch import Rule, _deliver_one
@@ -188,24 +215,6 @@ def test_concurrent_duplicate_delivery_is_rolled_back(rule_row, session) -> None
         )
     )
     session.commit()
-
-    class _RacySession:
-        """Delegates to the real session, but the dedup SELECT always misses."""
-
-        def __init__(self, real) -> None:
-            self._real = real
-
-        def __getattr__(self, name):
-            return getattr(self._real, name)
-
-        def query(self, *_args, **_kwargs):
-            return self
-
-        def filter_by(self, **_kwargs):
-            return self
-
-        def first(self):
-            return None
 
     with (
         patch("findplus.alerts.store.load_alerts", return_value=_telegram_configured()),
@@ -254,3 +263,20 @@ def test_a_skipped_delivery_does_not_start_a_cooldown(rule_row, session, setting
 
     rows = session.query(AlertDelivery).all()
     assert [r.status for r in rows] == ["skipped", "skipped"]
+
+
+def test_load_pending_events_prefers_the_device_label(session) -> None:
+    """UAT U7: an alert names the tracker the way its owner labelled it, not
+    the raw provider name the device row was first seen with."""
+    _seed_place_and_device(session, label="Biscuit (dog)")
+    _seed_pending_place_event(session, place_id=1, observed_at=NOW)
+    ev = load_pending_events(session)[0]
+    assert ev.device_name == "Biscuit (dog)"
+
+
+def test_load_pending_events_falls_back_to_the_provider_name(session) -> None:
+    """No label set -- the provider's own name is still the honest fallback."""
+    _seed_place_and_device(session)
+    _seed_pending_place_event(session, place_id=1, observed_at=NOW)
+    ev = load_pending_events(session)[0]
+    assert ev.device_name == "Tag"

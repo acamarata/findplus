@@ -69,6 +69,55 @@ async def test_lock_not_encryption_notice_present(page, base_url):
     assert copies == 1, f"the caveat renders {copies} times in one dialog"
 
 
+async def _set_pin_and_lock(page, base_url) -> None:
+    set_resp = await page.request.post(
+        base_url + "/api/settings/pin",
+        data=json.dumps({"new_pin": PIN}),
+        headers={"Content-Type": "application/json"},
+    )
+    assert set_resp.ok, await set_resp.text()
+    lock_resp = await page.request.post(base_url + "/api/lock/lock")
+    assert lock_resp.ok
+
+
+async def _remove_pin(page, base_url) -> None:
+    del_resp = await page.request.delete(
+        f"{base_url}/api/settings/pin",
+        data=json.dumps({"current_pin": PIN}),
+        headers={"Content-Type": "application/json"},
+    )
+    assert del_resp.ok, await del_resp.text()
+
+
+async def test_no_console_errors_on_a_locked_cold_boot(page, base_url):
+    """UAT2 N12: notices.js used to self-invoke a GET /api/config at parse
+    time, before refreshLockState() had a chance to show the lock screen --
+    every locked cold boot logged "loadNotices: /api/config returned 401"
+    plus the browser's own failed-request console error. loadNotices() now
+    only runs from main.js's boot chain, after the lock check confirms the
+    app is not locked.
+    """
+    await _set_pin_and_lock(page, base_url)
+    console_errors: list[str] = []
+    page.on(
+        "console",
+        lambda msg: console_errors.append(msg.text) if msg.type == "error" else None,
+    )
+    try:
+        await page.goto(base_url + "/")
+        await page.wait_for_selector("#lock-screen:not(.hidden)")
+        await page.wait_for_timeout(500)  # let any stray boot-time fetches settle
+        assert console_errors == [], f"console errors on a locked load: {console_errors}"
+    finally:
+        unlock_resp = await page.request.post(
+            f"{base_url}/api/lock/unlock",
+            data=json.dumps({"pin": PIN}),
+            headers={"Content-Type": "application/json"},
+        )
+        assert unlock_resp.ok, await unlock_resp.text()
+        await _remove_pin(page, base_url)
+
+
 async def test_places_repopulate_after_unlock_without_reload(
     page, base_url, reset_alert_and_observation_state
 ):
@@ -87,15 +136,7 @@ async def test_places_repopulate_after_unlock_without_reload(
     dashboard (E13 loop3 L3-3, same accumulation test_groups_dialog_purge.py's
     locked-boot test hit).
     """
-    set_resp = await page.request.post(
-        base_url + "/api/settings/pin",
-        data=json.dumps({"new_pin": PIN}),
-        headers={"Content-Type": "application/json"},
-    )
-    assert set_resp.ok, await set_resp.text()
-    lock_resp = await page.request.post(base_url + "/api/lock/lock")
-    assert lock_resp.ok
-
+    await _set_pin_and_lock(page, base_url)
     try:
         await page.goto(base_url + "/")
         await page.wait_for_selector("#lock-screen:not(.hidden)")
@@ -114,12 +155,7 @@ async def test_places_repopulate_after_unlock_without_reload(
         await page.click("#btn-settings")
         assert "The app lock stops casual browsing." in await _wait_for_lock_caveat(page)
     finally:
-        del_resp = await page.request.delete(
-            f"{base_url}/api/settings/pin",
-            data=json.dumps({"current_pin": PIN}),
-            headers={"Content-Type": "application/json"},
-        )
-        assert del_resp.ok, await del_resp.text()
+        await _remove_pin(page, base_url)
 
 
 async def test_lock_redirects_api_when_locked(page, base_url):
@@ -166,7 +202,7 @@ async def test_the_lock_screen_states_the_lock_is_not_encryption(page, base_url)
     from findplus import honesty
 
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
     set_resp = await page.request.post(
         base_url + "/api/settings/pin",
         data=json.dumps({"new_pin": PIN}),

@@ -16,12 +16,13 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from findplus.alerts.channels_field import format_channels, parse_channels
-from findplus.api._delivery_render import delivery_text_body
+from findplus.alerts.store import load_alerts
+from findplus.api._delivery_render import batch_delivery_text_bodies
 from findplus.db.models import Device, Group, Place
 from findplus.db.models_alerts import AlertDelivery, AlertRule
 from findplus.db.session import session_scope
@@ -37,6 +38,29 @@ def _validate_channels(value: list[str] | None) -> list[str] | None:
         return None
     format_channels(value)
     return value
+
+
+def _require_a_connected_channel(channels: list[str]) -> None:
+    """UAT2 U11: the dialog no longer defaults to an unconnected channel and
+    disables/unticks the rest, but nothing stops a direct API call (or a
+    dialog open before `connected` resolves) from saving a rule whose every
+    channel would only ever fail to deliver. `native` needs no credentials
+    (routes_alerts_channels.py never gates it behind `load_alerts()`), so it
+    always counts; telegram/webhook/whatsapp count only once configured.
+    """
+    ch = load_alerts()
+    configured = {"native"}
+    if ch.telegram:
+        configured.add("telegram")
+    if ch.webhook:
+        configured.add("webhook")
+    if ch.whatsapp:
+        configured.add("whatsapp")
+    if not set(channels) & configured:
+        raise HTTPException(
+            status_code=422,
+            detail="at least one selected channel must be connected before the rule can be saved",
+        )
 
 
 class RuleCreate(BaseModel):
@@ -89,8 +113,11 @@ def _rule_to_dict(
 
 
 def _list_rules(session) -> list[dict[str, Any]]:
+    # COALESCE(Device.label, Device.name): the rules table and the rule form's
+    # own Device select both show the tracker's label, falling back to the
+    # provider's name only when unset (UAT U6).
     stmt = (
-        select(AlertRule, Place.name, Group.name, Device.name)
+        select(AlertRule, Place.name, Group.name, func.coalesce(Device.label, Device.name))
         .outerjoin(Place, Place.id == AlertRule.place_id)
         .outerjoin(Group, Group.id == AlertRule.group_id)
         .outerjoin(Device, Device.device_id == AlertRule.device_id)
@@ -110,18 +137,20 @@ def _get_rule_or_404(session, rule_id: int) -> AlertRule:
 
 
 def _delivery_to_dict(
-    session, d: AlertDelivery, rule_name: str, render_native: bool = False
+    d: AlertDelivery,
+    rule_name: str,
+    rendered: dict[tuple[str, int], tuple[str | None, str | None]],
 ) -> dict[str, Any]:
-    """One delivery row. `text`/`body` are rendered on read, for native rows only.
+    """One delivery row. `text`/`body` are rendered on read, for every channel
+    (UAT4 N32 widened this from native-only -- the renderer needs only the
+    event, never the channel, and `None` means the source event was purged).
 
-    No join field (place_name, device_name, group_name, event_type) is exposed:
-    a caller that wants any of them already has the rendered text.
+    `rendered` is the whole page's text/body lookup, built once by
+    `batch_delivery_text_bodies` (CF-P2-16) -- never a per-row query. No join
+    field (place_name, device_name, group_name, event_type) is exposed: a
+    caller that wants any of them already has the rendered text.
     """
-    text, body = (
-        delivery_text_body(session, d.event_kind, d.event_id)
-        if d.channel == "native" and render_native
-        else (None, None)
-    )
+    text, body = rendered.get((d.event_kind, d.event_id), (None, None))
     return {
         "id": d.id,
         "rule_id": d.rule_id,
@@ -135,6 +164,11 @@ def _delivery_to_dict(
         "delivered_at": d.delivered_at.isoformat() if d.delivered_at else None,
         "status": d.status,
         "error": d.error,
+        # Retry scheduling (2026-09-22 feature): attempts is 1 for every row
+        # that has never been retried; next_attempt_at is set only while
+        # status == "retrying".
+        "attempts": d.attempts,
+        "next_attempt_at": d.next_attempt_at.isoformat() if d.next_attempt_at else None,
         "text": text,
         "body": body,
     }
@@ -150,6 +184,7 @@ def post_rule(body: RuleCreate) -> dict[str, Any]:
         raise HTTPException(
             status_code=422, detail="exactly one of group_id or device_id is required"
         )
+    _require_a_connected_channel(body.channels)
     with session_scope() as s:
         rule = AlertRule(
             name=body.name,
@@ -172,9 +207,12 @@ def post_rule(body: RuleCreate) -> dict[str, Any]:
 
 
 def put_rule(rule_id: int, body: RuleUpdate) -> dict[str, Any]:
+    updates = body.model_dump(exclude_unset=True)
+    if updates.get("channels") is not None:
+        _require_a_connected_channel(updates["channels"])
     with session_scope() as s:
         rule = _get_rule_or_404(s, rule_id)
-        for field, value in body.model_dump(exclude_unset=True).items():
+        for field, value in updates.items():
             if field == "channels":
                 rule.channels = format_channels(value)
                 continue
@@ -193,13 +231,19 @@ def delete_rule(rule_id: int) -> Response:
 
 
 def get_deliveries(
-    limit: int = 100, since: int | None = None, channel: str | None = None
+    limit: int = Query(default=100, le=500), since: int | None = None, channel: str | None = None
 ) -> list[dict[str, Any]]:
     """The delivery log, and the queue the desktop native poller drains.
 
     `since` is an exclusive delivery-id cursor and replaces `limit` when
     given: the poller wants everything new, in the order it happened, not a
     fixed page of the most recent (specs/notifications.md § 2).
+
+    `limit` is capped at 500 (422 above it, CR-C closeout m7): unbounded, it
+    let `rows` grow past SQLite's ~32766-variable cap once `batch_delivery_
+    text_bodies` turned it into an IN-list of (event_kind, event_id) pairs
+    for a native-channel request, a 500 where the old row-by-row code was
+    only slow.
     """
     with session_scope() as s:
         stmt = select(AlertDelivery, AlertRule.name).join(
@@ -211,10 +255,17 @@ def get_deliveries(
             stmt = stmt.filter(AlertDelivery.id > since).order_by(AlertDelivery.id).limit(limit)
         else:
             stmt = stmt.order_by(AlertDelivery.sent_at.desc()).limit(limit)
-        return [
-            _delivery_to_dict(s, d, rule_name, render_native=(channel == "native"))
-            for d, rule_name in s.execute(stmt).all()
-        ]
+        rows = s.execute(stmt).all()
+        # Every row gets rendered, not only when the REQUEST itself filters
+        # to `?channel=native` (UAT3 N18) and not only native rows (UAT4
+        # N32): a telegram/whatsapp row's (event_kind, event_id) resolves
+        # through the exact same batched renderer a native row does, so
+        # gating on `d.channel == "native"` only hid text the server could
+        # already produce. `limit` (capped at 500 above) already bounds how
+        # many keys this can ever build, so widening this costs nothing.
+        keys = [(d.event_kind, d.event_id) for d, _rule_name in rows]
+        rendered = batch_delivery_text_bodies(s, keys) if keys else {}
+        return [_delivery_to_dict(d, rule_name, rendered) for d, rule_name in rows]
 
 
 def ack_delivery(delivery_id: int) -> Response:

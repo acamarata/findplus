@@ -7,11 +7,11 @@
  */
 "use strict";
 
-import { $, state, colorFor, showAlert } from "./state.js";
+import { $, state, colorFor, displayName, showAlert } from "./state.js";
 import { api } from "./api.js";
-import { applyHashRoute } from "./main.js";
+import { applyHashRoute, reload } from "./main.js";
 import { loadPresence } from "./places.js";
-import { t } from "./i18n.js";
+import { plural, t } from "./i18n.js";
 import { renderBadge } from "./components/badge.js";
 import { initDialog, openEditDialog } from "./devices_dialog.js";
 import { trapFocus } from "./components/dialog-trap.js";
@@ -47,7 +47,7 @@ export function renderDeviceFilter() {
       const opt = document.createElement("option");
       opt.value = d.device_id;
       opt.textContent =
-        d.name + " (" + providerLabel(d.provider) + ")" + (d.is_tracked ? "" : t("devices.notPolledSuffix"));
+        displayName(d) + " (" + providerLabel(d.provider) + ")" + (d.is_tracked ? "" : t("devices.notPolledSuffix"));
       select.appendChild(opt);
     });
   select.value = current;
@@ -82,7 +82,9 @@ function nameCell(d) {
 function editButton(d) {
   const edit = el("button", "fp-device-edit btn btn-tiny", t("common.edit"));
   edit.type = "button";
-  edit.setAttribute("aria-label", t("devices.card.edit", { name: d.name }));
+  // UAT2 N11: this read "Edit Moto Tag 1" (the raw provider name) even when
+  // the tag had a label -- every other surface reads displayName() first.
+  edit.setAttribute("aria-label", t("devices.card.edit", { name: displayName(d) }));
   edit.addEventListener("click", (e) => {
     e.preventDefault();
     openEditDialog(d.device_id, d);
@@ -149,7 +151,7 @@ export function updateModalRate() {
   const rate = Math.round((checked * 60) / interval);
   const w = providerWording();
   $("device-rate").textContent = checked
-    ? t("devices.rateTracked", { count: checked, rate, requests: w.requests, interval })
+    ? plural("devices.rateTracked", checked, { count: checked, rate, requests: w.requests, interval })
     : t("devices.rateNothing", { requests: w.requests });
 }
 
@@ -199,6 +201,11 @@ export function wireDeviceControls() {
   initDialog(async () => {
     await loadDevices();
     renderDeviceModal();
+    // A saved label/icon/colour used to sit stale on the dashboard behind
+    // the dialog until the next manual reload (UAT U14): the map markers,
+    // timeline track heads, topbar name and cards all read state.devices,
+    // so the same reload() the toolbar's other actions use catches them up.
+    await reload();
   });
 
   $("device-filter").addEventListener("change", async (e) => {

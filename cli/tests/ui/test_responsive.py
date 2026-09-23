@@ -133,3 +133,159 @@ async def test_export_download_button_joins_the_export_row(page, base_url):
             === document.getElementById('export-format').closest('.export-group')"""
     )
     assert same_group
+
+
+async def test_map_top_within_first_viewport_at_phone_width(page, base_url):
+    """UAT U26: the map used to sit entirely below a full 812px screen of
+    stacked cards and wrapped filters. The compact 2-column cards and
+    tighter filter spacing (responsive.css) bring its top edge back inside
+    the first screen instead of a full scroll down."""
+    await page.set_viewport_size({"width": PHONE_WIDTH, "height": PHONE_HEIGHT})
+    await page.goto(base_url + "/")
+    await page.wait_for_selector("#app-shell:not(.hidden)")
+
+    box = await page.locator("#map").bounding_box()
+    assert box is not None
+    assert box["y"] < PHONE_HEIGHT * 0.75, f"#map top at y={box['y']}, not within the first screen"
+
+
+async def test_group_label_stays_with_its_select_at_phone_width(page, base_url):
+    """UAT U26: "Group:" used to wrap onto its own line, separated from the
+    select it labels, when .controls wrapped at phone width."""
+    await page.set_viewport_size({"width": PHONE_WIDTH, "height": PHONE_HEIGHT})
+    await page.goto(base_url + "/")
+    await page.wait_for_selector("#app-shell:not(.hidden)")
+
+    label_box = await page.locator('label[for="fp-group-select"]').bounding_box()
+    select_box = await page.locator("#fp-group-select").bounding_box()
+    assert label_box is not None and select_box is not None
+    assert abs(label_box["y"] - select_box["y"]) < 10, (
+        "Group: label not on the same row as its select"
+    )
+
+
+async def test_day_label_stays_with_its_date_input_at_phone_width(page, base_url):
+    """UAT2 U26 (leftover from U26's own fix): "Day" wrapped onto the Group
+    row while its own #day-picker input dropped to a line by itself, since
+    only the Group label+select were grouped as one flex item."""
+    await page.set_viewport_size({"width": PHONE_WIDTH, "height": PHONE_HEIGHT})
+    await page.goto(base_url + "/")
+    await page.wait_for_selector("#app-shell:not(.hidden)")
+
+    label_box = await page.locator('label[for="day-picker"]').bounding_box()
+    input_box = await page.locator("#day-picker").bounding_box()
+    assert label_box is not None and input_box is not None
+    assert abs(label_box["y"] - input_box["y"]) < 10, (
+        "Day label not on the same row as its date input"
+    )
+
+
+async def test_more_menu_closes_on_escape_and_returns_focus(page, base_url):
+    """UAT3 N22: the More menu stayed open after Escape, with no handler for
+    the key at all. Closing now also hands focus back to #btn-more, the
+    element that opened it."""
+    await page.set_viewport_size({"width": PHONE_WIDTH, "height": PHONE_HEIGHT})
+    await page.goto(base_url + "/")
+    await page.wait_for_selector("#app-shell:not(.hidden)")
+
+    await page.click("#btn-more")
+    await page.wait_for_selector("#fp-more-menu:not(.hidden)")
+    await page.keyboard.press("Escape")
+    # Not wait_for_selector("#fp-more-menu.hidden", the default "visible"
+    # state): a hidden menu is never visible by definition, so that would
+    # never resolve (same reasoning as test_settings_errors.py's _open_settings).
+    await page.wait_for_function(
+        "document.getElementById('fp-more-menu').classList.contains('hidden')"
+    )
+    assert await page.get_attribute("#btn-more", "aria-expanded") == "false"
+    focused = await page.evaluate("document.activeElement.id")
+    assert focused == "btn-more"
+
+
+async def test_more_menu_closes_on_outside_click_and_returns_focus(page, base_url):
+    """UAT3 N22: a tap outside the open menu used to do nothing."""
+    await page.set_viewport_size({"width": PHONE_WIDTH, "height": PHONE_HEIGHT})
+    await page.goto(base_url + "/")
+    await page.wait_for_selector("#app-shell:not(.hidden)")
+
+    await page.click("#btn-more")
+    await page.wait_for_selector("#fp-more-menu:not(.hidden)")
+    await page.mouse.click(10, 10)  # outside the menu and the More button
+    await page.wait_for_function(
+        "document.getElementById('fp-more-menu').classList.contains('hidden')"
+    )
+    assert await page.get_attribute("#btn-more", "aria-expanded") == "false"
+    focused = await page.evaluate("document.activeElement.id")
+    assert focused == "btn-more"
+
+
+async def test_group_card_edit_and_delete_stay_on_one_row(page, base_url):
+    """UAT3 N24: Edit and Delete were separate flex-wrap items on the group
+    card, so a narrow card could wrap between them -- Edit alone on one line,
+    Delete pushed to the next. Wrapping them as one `.fp-card-actions` unit
+    keeps the pair together, on one row, at phone width."""
+    await page.set_viewport_size({"width": PHONE_WIDTH, "height": PHONE_HEIGHT})
+    await page.goto(base_url + "/")
+    await page.wait_for_selector("#app-shell:not(.hidden)")
+    await _open_tab(page, "groups")
+    await page.wait_for_selector(".fp-group-card", state="visible")
+
+    card = page.locator(".fp-group-card").first
+    edit_box = await card.locator(".fp-card-edit").bounding_box()
+    delete_box = await card.locator(".fp-card-delete").bounding_box()
+    assert edit_box is not None and delete_box is not None
+    assert abs(edit_box["y"] - delete_box["y"]) < 2, "Edit and Delete are on different rows"
+
+
+async def test_tabbar_icons_are_svg_not_emoji(page, base_url):
+    """UAT2 U26: the phone-tier tab bar used emoji glyphs, which render
+    inconsistently across platforms and fonts. Each icon is now a sprite
+    <use> reference; the visible text label (never aria-hidden) still gives
+    each button its accessible name."""
+    await page.set_viewport_size({"width": PHONE_WIDTH, "height": PHONE_HEIGHT})
+    await page.goto(base_url + "/")
+    await page.wait_for_selector("#app-shell:not(.hidden)")
+
+    buttons = page.locator(".fp-tabbar button")
+    assert await buttons.count() == 4
+    for i in range(await buttons.count()):
+        btn = buttons.nth(i)
+        assert await btn.locator("svg.fp-tabbar-icon use").count() == 1
+        text = await btn.inner_text()
+        assert text.strip(), "tab button has no visible accessible-name text"
+        for emoji in ("\U0001f3e0", "\U0001f4cd", "\U0001f465", "\U0001f514"):
+            assert emoji not in text
+
+
+async def test_more_button_label_is_vertically_centered(page, base_url):
+    """UAT4 N42: the forced 44px touch-target height (responsive.css) left
+    "More"'s single-line label pinned to the top of the button, with the
+    extra height as dead space below it, instead of centred in the middle of
+    the tall box."""
+    await page.set_viewport_size({"width": PHONE_WIDTH, "height": PHONE_HEIGHT})
+    await page.goto(base_url + "/")
+    await page.wait_for_selector("#btn-more", state="visible")
+
+    boxes = await page.evaluate(
+        """() => {
+            const btn = document.getElementById('btn-more');
+            const btnRect = btn.getBoundingClientRect();
+            const textNode = [...btn.childNodes].find(
+                (n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim()
+            );
+            const range = document.createRange();
+            range.selectNodeContents(textNode);
+            const textRect = range.getBoundingClientRect();
+            return {
+                btnTop: btnRect.top, btnHeight: btnRect.height,
+                textTop: textRect.top, textHeight: textRect.height,
+            };
+        }"""
+    )
+    btn_center = boxes["btnTop"] + boxes["btnHeight"] / 2
+    text_center = boxes["textTop"] + boxes["textHeight"] / 2
+    assert abs(btn_center - text_center) <= 3, (
+        f"'More' label not vertically centred: button center {btn_center}, "
+        f"label center {text_center}"
+    )
+    assert boxes["btnHeight"] >= 44, "the 44px touch target itself must not shrink"

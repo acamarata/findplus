@@ -13,7 +13,25 @@ from __future__ import annotations
 import datetime
 from dataclasses import dataclass
 
+from findplus.alerts.retry_classify import (
+    MAX_ATTEMPTS,
+    RETRY_OFFSETS_MINUTES,
+    classify_new_delivery,
+    compute_next_attempt_at,
+    is_transient_failure,
+)
 from findplus.honesty import ALERTS_LATENCY
+
+#: Re-exported so existing `from findplus.alerts.dispatch_core import ...`
+#: call sites (dispatch.py, dispatch_send.py's docstring, retry.py, tests)
+#: are unchanged now that the retry math itself lives in retry_classify.py.
+__all__ = [
+    "MAX_ATTEMPTS",
+    "RETRY_OFFSETS_MINUTES",
+    "classify_new_delivery",
+    "compute_next_attempt_at",
+    "is_transient_failure",
+]
 
 
 @dataclass(frozen=True)
@@ -191,6 +209,19 @@ def as_utc(value: datetime.datetime | str | None) -> datetime.datetime | None:
     return value if value.tzinfo else value.replace(tzinfo=datetime.UTC)
 
 
+def local_zone() -> datetime.tzinfo:
+    """The local timezone render_message() renders alert text in.
+
+    A single seam so tests can pin a zone by patching this function instead
+    of setting TZ + calling time.tzset() -- tzset() does not exist on
+    Windows, and Windows' astimezone(tz=None) reads the OS setting directly
+    rather than the TZ env var anyway (see cli/tests/conftest.py
+    `pinned_tz`). Default behaviour is identical to bare astimezone(): the
+    machine's real local zone.
+    """
+    return datetime.datetime.now().astimezone().tzinfo
+
+
 def render_message(event: DeviceEvent | GroupEvent, now: datetime.datetime) -> str:
     """One alert line-set.
 
@@ -200,15 +231,28 @@ def render_message(event: DeviceEvent | GroupEvent, now: datetime.datetime) -> s
         whenever the observation fell on a different local day than now;
       - with no `fetched_at` the lag is unknown, not zero. Printing "0 min
         late" would claim the report was instant.
+
+    Rendered in the local timezone of the machine running Find+ -- this text
+    is what a person reads on a WhatsApp/Telegram/desktop notification, not
+    an API payload (the API's own timestamp fields stay UTC ISO-8601; only
+    this rendered body is local). Both times always carry their zone
+    abbreviation (e.g. "14:32 EDT") so the text stays unambiguous on its own,
+    including when the reader is in a different zone than the machine that
+    rendered it. A prior version of this function forced UTC here to chase a
+    CI-vs-local snapshot mismatch (P2); that mismatch was the zone
+    abbreviation itself being untested across zones, not a reason to drop
+    local time -- fixed by pinning TZ in the tests instead (see
+    cli/tests/conftest.py `pinned_tz`).
     """
     subject = event.device_name if isinstance(event, DeviceEvent) else event.group_name
     verb = "arrived at" if event.event_type == "ENTER" else "left"
     observed = as_utc(event.observed_at)
     ft = as_utc(getattr(event, "fetched_at", None))
-    observed_local = observed.astimezone()
-    same_day = observed_local.date() == now.astimezone().date()
-    obs = observed_local.strftime("%H:%M" if same_day else "%Y-%m-%d %H:%M %Z")
-    rep = ft.astimezone().strftime("%H:%M") if ft else "unknown"
+    zone = local_zone()
+    observed_local = observed.astimezone(zone)
+    same_day = observed_local.date() == now.astimezone(zone).date()
+    obs = observed_local.strftime("%H:%M %Z" if same_day else "%Y-%m-%d %H:%M %Z")
+    rep = ft.astimezone(zone).strftime("%H:%M %Z") if ft else "unknown"
     lag = f"{round((ft - observed).total_seconds() / 60)} min late" if ft else "lag unknown"
     note = getattr(event, "note", "")
     msg = (

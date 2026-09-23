@@ -16,6 +16,7 @@
 "use strict";
 
 import { t } from "../i18n.js";
+import { googleChromeNoticeNeeded } from "../provider_chrome.js";
 
 /** 2 s per poll, 150 polls: the vendor's own 5-minute sign-in budget. */
 export const POLL_MS = 2000;
@@ -72,8 +73,12 @@ export class ChromeGate {
   }
 
   static missing(providers) {
+    // UAT3 N20: used to check `needs` alone, so a signed-in account with a
+    // stale `needs: ["chrome"]` still showed this notice. Shares Settings'
+    // own gate (auth.js renderGoogleCard) via provider_chrome.js so the two
+    // surfaces cannot drift apart again.
     const google = (providers || []).find((p) => p.id === "google-find-hub");
-    return !!(google && (google.needs || []).includes("chrome"));
+    return googleChromeNoticeNeeded(google);
   }
 }
 

@@ -5,16 +5,15 @@
  *              small pieces it rebuilds as data arrives (the icon-button
  *              preview and one member row). Split out of groups_dialog.js at
  *              the PRI rule-7 300-line file cap, the same way provider_chrome.js
- *              came out of devices.js.
+ *              came out of devices.js; the quorum/radius/stale/members row
+ *              builders live in groups_dialog_fields.js (same cap, E13 loop-1).
  * Inputs     : The save and cancel handlers groups_dialog.js owns; one device
  *              row from GET /api/devices for memberRow().
  * Outputs    : { dlg, fields } — the dialog element and every input in it by
  *              name, so the caller never queries the DOM to read a field.
  *              pickerRow()/renderIconPreview()/renderColorPreview()/
- *              closeOpenPopover()/clampPopoverToViewport() are also exported:
- *              setup_steps/groups.js reuses them for the wizard's own icon
- *              and colour triggers (R-P2-28 point 2) rather than forking the
- *              popover-trigger pattern a second time.
+ *              closeOpenPopover()/clampPopoverToViewport() are also exported for
+ *              setup_steps/groups.js's wizard icon/colour triggers (R-P2-28.2).
  * Constraints: Pure construction, no network, no module state. Every element is
  *              built with createElement/textContent, never raw markup, and
  *              every static string comes from the catalog through t().
@@ -22,12 +21,12 @@
 "use strict";
 
 import { t } from "./i18n.js";
+import { displayName } from "./state.js";
 import { renderBadge } from "./components/badge.js";
+import { field, labeled, quorumRow, radiusRow, staleRow, membersFieldset } from "./groups_dialog_fields.js";
 
 const DEFAULT_ICON = "lucide:users";
 const DEFAULT_COLOR = "#27ae60";
-const DEFAULT_RADIUS = "150";
-const DEFAULT_STALE = "90";
 
 function button(text, onClick, className) {
   const btn = document.createElement("button");
@@ -36,30 +35,6 @@ function button(text, onClick, className) {
   if (className) btn.className = className;
   btn.addEventListener("click", onClick);
   return btn;
-}
-
-function field(type, attrs) {
-  const el = document.createElement("input");
-  el.type = type;
-  Object.assign(el, attrs);
-  return el;
-}
-
-/**
- * A `.fp-dialog-field` row: a real `<label for>` beside its control, never
- * text and input sharing one `<label>` (that pairing has no gap between them
- * and the two painted on top of each other — visual gate W3 finding). Same
- * wrapper devices_dialog.js's own `labeled()` builds, so one CSS rule in
- * components.css covers both dialogs' field rows.
- */
-function labeled(text, input, id) {
-  const label = document.createElement("label");
-  if (id) label.htmlFor = id;
-  label.textContent = text;
-  const wrap = document.createElement("div");
-  wrap.className = "fp-dialog-field";
-  wrap.append(label, input);
-  return wrap;
 }
 
 function popoverHost(id) {
@@ -80,11 +55,8 @@ function popoverHost(id) {
 
 /**
  * A picker trigger row: a visible label, then the button that opens the
- * popover. `swatchClass` reuses icon-picker.js's/color-picker.js's own
- * swatch styling (`.fp-icon-swatch`/`.fp-color-swatch`) for the closed
- * button instead of a bare unstyled `<button>` (visual gate W3 finding 1 —
- * the closed colour button had no class and no content, so it rendered as
- * an empty sliver next to the icon preview).
+ * popover. `swatchClass` reuses icon-picker.js's/color-picker.js's own swatch
+ * styling instead of a bare unstyled `<button>` (visual gate W3 finding 1).
  */
 export function pickerRow(id, labelText, hiddenInput, swatchClass) {
   const btn = document.createElement("button");
@@ -105,59 +77,6 @@ export function pickerRow(id, labelText, hiddenInput, swatchClass) {
   return { btn, host, wrap };
 }
 
-function quorumRow() {
-  const select = document.createElement("select");
-  select.id = "fp-group-quorum";
-  for (const value of ["any", "majority", "all", "custom"]) {
-    const opt = document.createElement("option");
-    opt.value = value;
-    // any/majority/all are validation.py's own grammar values, not prose; the
-    // catalog pins a key for "custom" alone (specs/groups-ui.md § i18n keys).
-    opt.textContent = value === "custom" ? t("groups.field.quorum_custom") : value;
-    select.appendChild(opt);
-  }
-  const n = field("number", { id: "fp-group-quorum-n", min: "1", max: "20", value: "2", hidden: true });
-  const wrap = document.createElement("div");
-  wrap.append(labeled(t("groups.field.quorum"), select, select.id), n);
-  return { select, n, wrap };
-}
-
-function radiusRow() {
-  const input = field("range", {
-    id: "fp-group-radius", min: "25", max: "2000", step: "25", value: DEFAULT_RADIUS,
-  });
-  const out = document.createElement("output");
-  out.htmlFor = input.id;
-  out.textContent = input.value;
-  const label = document.createElement("label");
-  label.htmlFor = input.id;
-  label.textContent = t("groups.field.radius");
-  const wrap = document.createElement("div");
-  wrap.className = "fp-dialog-field";
-  wrap.append(label, input, out);
-  return { input, out, wrap };
-}
-
-function staleRow() {
-  const input = field("number", { id: "fp-group-stale", min: "10", max: "1440", value: DEFAULT_STALE });
-  const hint = document.createElement("p");
-  hint.className = "fp-field-hint";
-  // honesty.PRESENCE_STALE, verbatim: a stale tag is not a tag left behind.
-  hint.textContent = t("groups.field.stale_hint");
-  const wrap = document.createElement("div");
-  wrap.append(labeled(t("groups.field.stale"), input, input.id), hint);
-  return { input, wrap };
-}
-
-function membersFieldset() {
-  const fieldset = document.createElement("fieldset");
-  fieldset.id = "fp-group-members";
-  const legend = document.createElement("legend");
-  legend.textContent = t("groups.field.members");
-  fieldset.appendChild(legend);
-  return { fieldset, legend };
-}
-
 /** One tracked device: its checkbox, its badge and its name. */
 export function memberRow(device) {
   const row = document.createElement("label");
@@ -171,7 +90,8 @@ export function memberRow(device) {
     }),
   );
   const name = document.createElement("span");
-  name.textContent = device.name;
+  // UAT U6: the group dialog's own member picker shows the label too.
+  name.textContent = displayName(device);
   row.append(box, badge, name);
   return row;
 }

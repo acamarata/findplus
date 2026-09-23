@@ -35,6 +35,19 @@ The small widget shows status only. It carries no action buttons; at that size
 a mis-tap is too easy, and Poll Now and Lock are both one click away in the
 menu bar.
 
+## Places widget
+
+A second widget, "Find+ Places", shows who is at each saved place: its name,
+badges for whoever is currently inside (a device badge, or a group badge when
+every one of a group's members is there together), and how long ago that
+changed. A place with no one inside reads "Nobody here". Add it the same way
+as the status widget, then pick "Find+ Places" instead of "Find+". The small
+size shows up to two places; medium shows up to four and adds the last
+change time. Tapping the widget opens the dashboard's Places tab.
+
+Locked and offline states behave exactly like the status widget: no place
+names or badges are shown, only the lock glyph or "Find+ is not running".
+
 ## Gatekeeper
 
 Find+ is distributed outside the Mac App Store. Release builds are signed
@@ -61,15 +74,24 @@ the same daemon the CLI installs; the app never runs a second copy.
 
 ## Widget manual checklist
 
-Deferred to 1.1: PlacesWidget.
-
 - [ ] Gallery shows three sizes (systemSmall, systemMedium, systemLarge)
 - [ ] systemSmall shows no action buttons
 - [ ] The headline device is the newest fix, not the first name alphabetically
 - [ ] Locked state shows lock glyph and 'Locked', no device data
 - [ ] Poll Now intent triggers a poll (check daemon log)
 - [ ] Open Find+ intent opens the dashboard
-- [ ] Dark mode: all text and dots adapt, no hardcoded light colours
+- [ ] Dark mode: all text and dots adapt, no hardcoded light colors
+
+## Places widget manual checklist
+
+- [ ] Gallery shows "Find+ Places" as a separate gallery entry, two sizes
+      (systemSmall, systemMedium)
+- [ ] A place with someone inside shows their device/group badge(s)
+- [ ] A place with no one inside reads "Nobody here"
+- [ ] A fully-present group shows its own badge, not one badge per member
+- [ ] Locked state shows lock glyph and 'Locked', no place data
+- [ ] Tapping the widget opens the dashboard on the Places tab
+- [ ] Dark mode: all text and badges adapt, no hardcoded light colors
 
 ---
 [[Home]]

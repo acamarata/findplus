@@ -60,7 +60,7 @@ class AlertDelivery(Base):
     __table_args__ = (
         CheckConstraint("event_kind IN ('device','group')", name="ck_alert_deliveries_kind"),
         CheckConstraint(
-            "status IN ('sent','failed','skipped','queued','delivered')",
+            "status IN ('sent','failed','skipped','queued','delivered','retrying')",
             name="ck_alert_deliveries_status",
         ),
         UniqueConstraint(
@@ -85,3 +85,8 @@ class AlertDelivery(Base):
     #: Stamped by POST /api/alerts/deliveries/{id}/ack when the desktop app has
     #: actually shown a queued native notification.
     delivered_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    #: Send attempts made so far. 1 for a row that has never been retried
+    #: (every pre-migration-0010 row, and every non-retrying row today).
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    #: When the next retry is due, for status='retrying' only; NULL otherwise.
+    next_attempt_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)

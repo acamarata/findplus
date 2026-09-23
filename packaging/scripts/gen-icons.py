@@ -59,8 +59,15 @@ def render() -> tuple[str, int]:
     """Return the whole sprite document and how many symbols it holds."""
     entries = json.loads(SUBSET.read_text(encoding="utf-8"))
     symbols = [_symbol(e["id"].split(":", 1)[1], e["group"]) for e in entries]
+    # UAT2 N3: `style="display:none"` used to hide this root inline -- the
+    # page's CSP has no 'unsafe-inline' in style-src, so the browser applies
+    # neither the hiding NOR silence: it drops the attribute and logs a
+    # violation on every load, from icon_sprite.js's DOMParser().parseFromString
+    # call. components.css's `#fp-icon-sprite` rule already does the same
+    # hiding (position/width/height/overflow) by id selector, so the inline
+    # attribute was always redundant, never load-bearing.
     text = (
-        '<svg id="fp-icon-sprite" xmlns="http://www.w3.org/2000/svg" style="display:none">\n'
+        '<svg id="fp-icon-sprite" xmlns="http://www.w3.org/2000/svg">\n'
         + "\n".join(symbols)
         + "\n</svg>\n"
     )

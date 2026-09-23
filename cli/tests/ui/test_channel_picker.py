@@ -23,22 +23,28 @@ _MAKE_HOST = """() => {
 }"""
 
 
-async def _mount(page, base_url, selected, available, labels=None):
+async def _mount(page, base_url, selected, available, labels=None, connected=None):
     await page.goto(base_url + "/")
     await page.evaluate(_MAKE_HOST)
     return await page.evaluate(
-        """async ({selected, available, labels}) => {
+        """async ({selected, available, labels, connected}) => {
             const mod = await import('/static/app/components/channel-picker.js');
             const host = document.getElementById('channel-host');
-            mod.renderChannelPicker(host, { selected, available, labels: labels || {} });
+            mod.renderChannelPicker(host, {
+                selected, available, labels: labels || {},
+                connected: connected ? new Set(connected) : null,
+            });
             window.__readPicker = () => mod.readChannelPicker(host);
+            const dcls = 'fp-channel-picker-option--disconnected';
             return Array.from(host.querySelectorAll('input[type=checkbox]')).map((el) => ({
                 id: el.dataset.channel,
                 checked: el.checked,
+                disabled: el.disabled,
+                disconnected: el.parentElement.classList.contains(dcls),
                 label: el.parentElement.textContent.trim(),
             }));
         }""",
-        {"selected": selected, "available": available, "labels": labels},
+        {"selected": selected, "available": available, "labels": labels, "connected": connected},
     )
 
 
@@ -90,3 +96,29 @@ async def test_a_second_render_replaces_the_first(page, base_url) -> None:
     rendered = await _mount(page, base_url, ["webhook"], ["telegram", "webhook"])
     assert len(rendered) == 2
     assert [r["checked"] for r in rendered] == [False, True]
+
+
+async def test_a_channel_absent_from_connected_is_flagged_not_disabled(page, base_url) -> None:
+    """UAT U11: a channel with no stored credentials is flagged (dimmed class
+    + whatever "(not connected)" suffix the caller put in its label), not
+    disabled -- a fresh install with nothing connected yet must still be able
+    to create its first rule (channels is a required, non-empty field
+    server-side), so blocking every checkbox would make that impossible."""
+    rendered = await _mount(
+        page, base_url, ["telegram", "webhook"], ["telegram", "webhook"], connected=["webhook"]
+    )
+    telegram, webhook = rendered
+    assert telegram["disabled"] is False
+    assert telegram["checked"] is True, "flagged, not force-unticked"
+    assert telegram["disconnected"] is True
+    assert webhook["disabled"] is False
+    assert webhook["checked"] is True
+    assert webhook["disconnected"] is False
+
+
+async def test_no_connected_set_means_nothing_is_flagged(page, base_url) -> None:
+    """Backward compatibility: a caller that never learned about U11 (omits
+    `connected`) gets the pre-U11 behaviour, nothing flagged."""
+    rendered = await _mount(page, base_url, ["telegram"], ["telegram", "webhook"])
+    assert all(r["disabled"] is False for r in rendered)
+    assert all(r["disconnected"] is False for r in rendered)

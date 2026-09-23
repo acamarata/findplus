@@ -17,12 +17,15 @@ from findplus.alerts.channels.telegram import DeliveryResult, send, telegram_set
 TOKEN = "9876543210:ABCdefGHIjklMNOpqrSTUvwxyz012345678"
 
 
-def _response(status_code: int, json_body: dict | None = None, text: str = "") -> MagicMock:
+def _response(
+    status_code: int, json_body: dict | None = None, text: str = "", headers: dict | None = None
+) -> MagicMock:
     resp = MagicMock()
     resp.status_code = status_code
     resp.text = text
     resp.json.return_value = json_body or {}
     resp.raise_for_status = MagicMock()
+    resp.headers = headers or {}
     return resp
 
 
@@ -49,6 +52,23 @@ def test_send_timeout() -> None:
         instance.post.side_effect = httpx.TimeoutException("timed out")
         result = send("hi", TOKEN, "1")
     assert result == DeliveryResult(False, None, "timeout")
+
+
+def test_send_429_carries_retry_after() -> None:
+    with patch("findplus.alerts.channels.telegram.httpx.Client") as mock_client:
+        resp = _response(429, text="Too Many Requests", headers={"Retry-After": "30"})
+        mock_client.return_value.__enter__.return_value.post.return_value = resp
+        result = send("hi", TOKEN, "1")
+    assert result.success is False
+    assert result.status_code == 429
+    assert result.retry_after_seconds == 30
+
+
+def test_send_429_with_no_retry_after_header() -> None:
+    with patch("findplus.alerts.channels.telegram.httpx.Client") as mock_client:
+        mock_client.return_value.__enter__.return_value.post.return_value = _response(429)
+        result = send("hi", TOKEN, "1")
+    assert result.retry_after_seconds is None
 
 
 def test_send_401_raises() -> None:

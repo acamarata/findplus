@@ -22,6 +22,14 @@ const SETUP_ERROR_KEYS = {
   409: "alerts.setupErrorConflict",
 };
 
+/** UAT U19: a 422's `detail` is routes_alerts_channels.py's raw English
+ *  (never localized), so the one client-known reason gets a catalog string;
+ *  anything else still falls through to alerts.connectionFailed below rather
+ *  than showing nothing. */
+const VALIDATION_DETAIL_KEYS = {
+  "bot_token must look like a BotFather token": "alerts.badBotTokenError",
+};
+
 function renderTelegramSection(telegram) {
   const tokenInput = $("fp-tg-token");
   if (telegram.configured) {
@@ -153,7 +161,9 @@ async function startTelegramSetup() {
     } else if (SETUP_ERROR_KEYS[res.status]) {
       statusEl.textContent = t(SETUP_ERROR_KEYS[res.status]);
     } else {
-      statusEl.textContent = t("alerts.connectionFailed", { detail: await errorDetail(res) });
+      const detail = await errorDetail(res);
+      const mappedKey = res.status === 422 ? VALIDATION_DETAIL_KEYS[detail] : null;
+      statusEl.textContent = mappedKey ? t(mappedKey) : t("alerts.connectionFailed", { detail });
     }
   } catch (err) {
     statusEl.textContent = t("alerts.connectionFailed", { detail: err.message });

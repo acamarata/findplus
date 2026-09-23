@@ -120,6 +120,24 @@ def _locate(
         ), None
 
 
+def _process_alert_retries(settings: Settings) -> None:
+    """Resend any alert delivery whose scheduled retry is due, once per cycle.
+
+    Runs after every device has been polled, not only when one produced new
+    events -- a retry can be due on a cycle with nothing new to alert on, and
+    this is the periodic task the retry ladder hangs off of (no new thread).
+    """
+    if not getattr(settings, "alerts_enabled", True):
+        return
+    try:
+        with session_scope() as session:
+            from findplus.alerts.retry import process_retries
+
+            process_retries(session)
+    except Exception:
+        log.exception("alert_retry_cycle_failed")
+
+
 def _dispatch_alerts(settings: Settings, device_name: str) -> None:
     # Alert dispatch runs in its own session, after the ingest transaction has
     # already committed (dispatch.process() reads place_events/group_place_events
@@ -255,6 +273,7 @@ def _run_poll_cycle(
                 threading.Event().wait(stagger)
         cycle.outcomes.append(poll_device(device_id, device_name, provider_name, settings))
 
+    _process_alert_retries(settings)
     log.info(
         "poll_cycle_complete",
         devices=len(cycle.outcomes),

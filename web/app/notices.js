@@ -6,12 +6,16 @@
  *
  * Purpose    : PROMPT.md §2 invariant 4 — honesty text must be rendered
  *              verbatim, sourced from one place (honesty.py via /api/config).
- * Outputs    : textContent of ten elements (loop2 B6: E8/E10/E13 each added
- *              entries after the original six; only five still follow the
- *              #fp-notice-* id pattern the map started with -- see the
- *              per-entry comments below for the rest).
- * Constraints: Module scripts are deferred, so the DOM is ready when this
- *              runs; no DOMContentLoaded hook or caller is needed.
+ * Outputs    : textContent of eleven elements (loop2 B6: E8/E10/E13/CF-P2-19
+ *              each added entries after the original six; only five still
+ *              follow the #fp-notice-* id pattern the map started with --
+ *              see the per-entry comments below for the rest).
+ * Constraints: Called from main.js's boot chain, after refreshLockState()
+ *              confirms the app is not locked (UAT2 N12) -- this module used
+ *              to self-invoke at parse time, firing this GET /api/config
+ *              before the lock screen had a chance to show, so every locked
+ *              cold boot logged a 401. lock.js's hideLockAndRestore() also
+ *              calls loadNotices() again after every unlock.
  */
 "use strict";
 
@@ -42,6 +46,11 @@ export async function loadNotices() {
     // The sign-in panel's Google card. Same server-sourced mechanism as every
     // other honesty sentence: honesty.CHROME_REQUIRED via /api/config.
     "fp-auth-chrome-notice": n.chrome_required,
+    // The sign-in panel's Apple accessory-keys control (CF-P2-19): the same
+    // honesty.APPLE sentence the Notices section already shows at
+    // fp-notice-apple, repeated here because it explains accessory keys
+    // specifically, right where a user is about to upload one.
+    "fp-auth-apple-accessory-notice": n.apple,
     "fp-notice-presence-stale": n.presence_stale,
     // lock_not_encryption is NOT here: the Settings dialog renders it once,
     // beside the App lock setting (#lock-caveat, from /api/lock/requirements),
@@ -54,5 +63,3 @@ export async function loadNotices() {
     if (el && text) el.textContent = text;
   }
 }
-
-loadNotices().catch(() => {});

@@ -27,6 +27,7 @@ TAG_ORDER = [
     "lock",
     "settings",
     "devices",
+    "icons",
     "history",
     "places",
     "groups",

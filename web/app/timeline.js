@@ -8,7 +8,7 @@
  */
 "use strict";
 
-import { $, state, fmtTime, fmtDateTime, fmtDuration, fmtDistance, todayLocal, showAlert, esc } from "./state.js";
+import { $, state, displayName, visibleTracks, fmtTime, fmtDateTime, fmtDuration, fmtDistance, todayLocal, showAlert, esc } from "./state.js";
 import { api, postJson } from "./api.js";
 import { renderMap, visiblePoints, deviceForTrack } from "./map.js";
 import { renderBadge } from "./components/badge.js";
@@ -51,15 +51,27 @@ function timelineHtml(track) {
     if (dist) meta.push(t("timeline.fromPrevious", { distance: dist }));
     if (point.accuracy_meters != null) {
       meta.push(t("timeline.accuracy", { meters: Math.round(point.accuracy_meters) }));
+    } else {
+      // Apple Find My never reports a metres figure (CF-P2-6): say so plainly
+      // instead of just omitting the line, which could read as "exact".
+      meta.push(t("timeline.accuracyUnknown"));
     }
     if (!point.is_movement && point.seconds_since_previous !== null) {
       meta.push(t("timeline.belowThreshold"));
     }
 
+    // Coordinates stay in the title attribute for hover even when a place name
+    // is shown in their place (U30b) — the API resolves place_name server-side
+    // (routes_history.py::_annotate_place_names) against every saved place.
+    const coordsTitle = `${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}`;
+    const coordsLine = point.place_name
+      ? `<div class="tl-coords" title="${esc(coordsTitle)}">📍 ${esc(point.place_name)}</div>`
+      : `<div class="tl-coords">📍 ${esc(coordsTitle)}</div>`;
+
     html +=
       `<li class="tl-item${point.is_movement ? "" : " jitter"}" data-id="${point.id}">` +
       `<div><span class="tl-seq">${point.sequence}.</span> <span class="tl-time">${fmtTime(point.observed_at_local)}</span></div>` +
-      `<div class="tl-coords">📍 ${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}</div>` +
+      coordsLine +
       (meta.length ? `<div class="tl-meta">${esc(meta.join(" · "))}</div>` : "") +
       `</li>`;
   });
@@ -89,7 +101,7 @@ function trackHead(track) {
   );
   const name = document.createElement("span");
   name.className = "track-name";
-  name.textContent = device.label || track.device_name || track.device_id;
+  name.textContent = displayName(device) || track.device_name || track.device_id;
   const count = document.createElement("span");
   count.className = "track-count";
   count.textContent = plural("timeline.observations", track.points.length, {
@@ -102,7 +114,10 @@ function trackHead(track) {
 export function renderTracks() {
   const host = $("tracks");
   host.innerHTML = "";
-  if (!state.timeline || !state.timeline.tracks.length) {
+  // The dashboard's group select narrows the timeline to one group's
+  // members, matching the same filter renderMap() applies (UAT U8).
+  const tracks = state.timeline ? visibleTracks(state.timeline.tracks) : [];
+  if (!tracks.length) {
     const empty = document.createElement("div");
     empty.className = "empty";
     // Nothing tracked at all is a different problem from a quiet day, and it
@@ -113,7 +128,7 @@ export function renderTracks() {
     return;
   }
 
-  state.timeline.tracks.forEach((track) => {
+  tracks.forEach((track) => {
     const block = document.createElement("section");
     block.className = "track-block";
     block.appendChild(trackHead(track));
@@ -264,8 +279,9 @@ export function wireHistoryControls() {
         return;
       }
       if (!window.confirm(t("timeline.confirmClearAll", { count: dry.would_delete }))) return;
-      const typed = window.prompt(t("timeline.promptTypeDelete"));
-      if (typed !== "DELETE") { $("delete-result").textContent = t("timeline.deleteCancelled"); return; }
+      const confirmWord = t("timeline.confirmWord");
+      const typed = window.prompt(t("timeline.promptTypeDelete", { word: confirmWord }));
+      if (typed !== confirmWord) { $("delete-result").textContent = t("timeline.deleteCancelled"); return; }
       const done = await postJson("/api/history/clear", { confirm: true });
       $("delete-result").textContent = done.message;
       await reload();

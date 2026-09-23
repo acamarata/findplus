@@ -38,6 +38,26 @@ class DeliveryResult:
     success: bool
     status_code: int | None
     error: str | None
+    #: Seconds a 429's Retry-After header asked for, when one was sent.
+    #: None for every other outcome (dispatch_core.compute_next_attempt_at
+    #: falls back to the fixed retry ladder in that case).
+    retry_after_seconds: int | None = None
+
+
+def parse_retry_after_seconds(response: httpx.Response) -> int | None:
+    """A Retry-After header as whole seconds, or None if absent/unparseable.
+
+    Only the delta-seconds form is handled -- an HTTP-date Retry-After is rare
+    enough on a JSON bot API that treating it as absent is a safe
+    simplification, not a silent misread.
+    """
+    value = response.headers.get("Retry-After")
+    if value is None:
+        return None
+    try:
+        return max(0, int(value.strip()))
+    except ValueError:
+        return None
 
 
 def _migrated_chat_id(response: httpx.Response) -> str | None:
@@ -89,7 +109,13 @@ def send(text: str, bot_token: str, chat_id: str, timeout: float = 10.0) -> Deli
         if r.status_code >= 500 and attempt == 0:
             time.sleep(1)
             continue
-        return DeliveryResult(success=False, status_code=r.status_code, error=r.text[:200])
+        retry_after = parse_retry_after_seconds(r) if r.status_code == 429 else None
+        return DeliveryResult(
+            success=False,
+            status_code=r.status_code,
+            error=r.text[:200],
+            retry_after_seconds=retry_after,
+        )
     return DeliveryResult(success=False, status_code=None, error="max retries exceeded")
 
 

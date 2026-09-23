@@ -28,6 +28,29 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
 }
 .lock-error { color: var(--err); font-size: 12.5px; min-height: 18px; margin: 12px 0 0; }
 
+/* UAT U11: a channel with no stored credentials is flagged, not disabled --
+   channel-picker.js still lets it be ticked (a fresh install with nothing
+   connected yet must be able to create its first rule). This dims the row so
+   the reason ("(not connected)", supplied by the caller's label text) reads
+   as a state, not a rendering glitch. */
+.fp-channel-picker-option--disconnected { opacity: .6; }
+
+/* U26: a label and its control wrapped onto separate lines when .controls
+   wrapped ("Group:" landed alone, the select on the next row). One flex item
+   keeps the pair together at every width, the same way .export-group already
+   keeps Download with its format/scope controls. */
+.fp-control-group { display: flex; align-items: center; gap: 6px; }
+
+/* U31: off-screen like .sr-only until Tab focuses it, then a visible link
+   above the map/timeline. Map markers/paths are keyboard: false (map.js), so
+   this is the fastest keyboard route past them to #tracks. */
+.fp-skip-map {
+  position: absolute; left: -9999px; top: 8px; z-index: 950;
+  background: var(--accent); color: #fff; padding: 8px 14px; border-radius: 7px;
+  font-size: 13px; text-decoration: none;
+}
+.fp-skip-map:focus { left: 18px; }
+
 /* --- bottom tab bar (components/tabbar.js) -------------------------------
    z-index 900 is above Leaflet's own panes (overlay 400, popup 700, controls
    800) and below the modal overlay (9000) and lock screen (10000). Leaflet's
@@ -48,7 +71,10 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
   font-size: 11px; cursor: pointer;
 }
 .fp-tabbar button[aria-current="page"] { color: var(--text); }
-.fp-tabbar .fp-tabbar-icon { font-size: 18px; line-height: 1; }
+/* UAT2 U26: was font-size for the retired emoji glyphs; the sprite's <use>
+   inherits the button's own `color` via `stroke="currentColor"` (the same
+   mechanism badge.js's Lucide glyphs use), so no colour rule is needed here. */
+.fp-tabbar .fp-tabbar-icon { width: 20px; height: 20px; }
 
 /* --- topbar overflow menu (phone tier) ----------------------------------- */
 #btn-more { display: none; }
@@ -58,7 +84,16 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
   background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
 }
 #fp-more-menu.hidden { display: none; }
-#fp-more-menu button { min-height: 44px; text-align: left; }
+/* N42: min-height alone left a single-line label pinned to the top of the
+   44px touch target (a plain button box does not vertically centre its
+   content), the same issue #btn-more had below. flex + align-items: center
+   fixes it while text-align: left keeps the menu's left-aligned layout. */
+#fp-more-menu button { min-height: 44px; text-align: left; display: flex; align-items: center; }
+/* N30: `#fp-more-menu button`'s own `display: flex` above beats `.hidden`'s
+   `display: none` at equal specificity, so a relayed item (e.g. Lock with no
+   PIN set) kept painting after tabbar.js added the class. Re-state it here,
+   same shape as style.css's `.modal.hidden` fix. */
+#fp-more-menu button.hidden { display: none; }
 
 /* --- phone tier (<600px) -------------------------------------------------
    The desktop grid above 900px is untouched. Below 600px the top nav is
@@ -72,9 +107,24 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
 
   .topbar #device-name { display: none; }
   .topbar-actions > *:not(#btn-more) { display: none; }
-  #btn-more { display: inline-flex; }
+  /* UAT4 N42: inline-flex alone stretches the "More" label to the button's
+     forced 44px min-height (below) and leaves it sitting at the top of the
+     tall box; align-items/justify-content centre it both ways. */
+  #btn-more { display: inline-flex; align-items: center; justify-content: center; }
 
   #map { height: 50vh; min-height: 280px; }
+
+  /* U26: the map sat below a full page of stacked content (four one-per-row
+     cards plus the wrapped filter row easily filled an 812px viewport on
+     their own). Two columns halves the cards' height; tighter padding/gaps
+     on both blocks recover the rest, so the map starts inside the first
+     screen instead of a full scroll down. */
+  .cards { grid-template-columns: 1fr 1fr; gap: 7px; padding: 10px 12px 0; }
+  .card { padding: 8px 10px; gap: 1px; }
+  .card .label { font-size: 10px; }
+  .card strong { font-size: 16px; }
+  .card .sub { font-size: 11px; }
+  .controls { padding: 10px 12px 0; gap: 7px; }
   /* An inner scroll region under a fixed bottom bar fights the page scroll
      on touch, so the pane scrolls the page instead. min-width: 0 overrides
      the grid item's default min-width: auto, which otherwise lets a wide
@@ -117,6 +167,7 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
   .setting-row input[type=date],
   .setting-row input[type=text],
   .setting-row input[type=url],
+  .setting-row input[type=number],
   .setting-row select { width: 100%; min-width: 0; }
 
   /* Device/group dialog field rows: same reasoning as .setting-row above
@@ -129,10 +180,41 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
   }
   .fp-dialog-field > label { flex: none; }
 
-  /* The rules and delivery-log tables (7 and 6 columns) are wider than a
-     phone viewport; scroll the wrapper instead of the whole page so the
-     rest of the tab stays put (visual gate W2 finding). */
+  /* UAT U15: the wizard's device row has five children (track checkbox,
+     badge, name, label text input, Edit button), not the simple
+     label+control pair the rule above assumes -- it stacked every child
+     into its own line, leaving the checkbox alone above the device name.
+     Keep the checkbox with the badge and name on one wrapping row; only the
+     label input and button drop to their own line. */
+  .fp-setup-device-row {
+    flex-direction: row !important;
+    align-items: center !important;
+    flex-wrap: wrap;
+  }
+  /* UAT N13: components.css's `.fp-dialog-field input[type="text"] { flex: 1;
+     min-width: 0; }` let the label input shrink to fit whatever was left on
+     the checkbox/badge/name line instead of wrapping -- "Your name for this
+     tracker" read as "Your na" at 375px. A real flex-basis and min-width
+     means it no longer fits that leftover space, so it (and the Edit button
+     after it) wrap to their own line with room to read the placeholder. */
+  .fp-setup-device-row input[type="text"] {
+    flex: 1 1 160px;
+    min-width: 160px;
+  }
+
+  /* The rules table (8 columns) is wider than a phone viewport; scroll the
+     wrapper instead of the whole page so the rest of the tab stays put
+     (visual gate W2 finding). */
   .fp-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* UAT U9/UAT2 U9: the delivery log's card layout (one card per delivery,
+     each td's data-label standing in for the hidden header) used to live
+     only here, gated on the VIEWPORT. It is a `@container (max-width: 500px)`
+     rule in components.css now, scoped to #tab-alerts's own rendered width --
+     that covers this phone tier (the pane is always well under 500px below
+     600px viewport) AND the narrow ~380px desktop side pane the viewport-only
+     version never reached (UAT2 found the 1280 case still an 8-column table
+     squeezed into ~348px). Nothing left to duplicate here. */
 
   /* Grouped so "Download" always wraps together with the format/scope
      controls instead of landing alone on its own row (visual gate W2

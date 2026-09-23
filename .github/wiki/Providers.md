@@ -12,7 +12,7 @@ Android token and the end-to-end-encryption owner key needed to decrypt tag
 locations, and polls on your configured interval.
 
 > This history consists of locations reported through Google's Find Hub
-> network. Moto Tag uses nearby participating Android devices to report its
+> network. Your trackers use nearby participating Android devices to report their
 > location. Location updates can therefore be delayed, sparse, or
 > unavailable, and this application should not be treated as real-time
 > emergency or child-safety GPS tracking.
@@ -33,11 +33,20 @@ cannot do.
 
 ### Accuracy values
 
-Apple reports a confidence label rather than a radius in metres. Find+ maps
-each label to a fixed figure so the accuracy column has something to show:
-excellent 10 m, good 30 m, medium 65 m, poor 150 m. An unrecognised or
-missing label is treated as poor. These figures are estimates chosen for
-display. They are not measured, and Apple publishes no metre equivalent.
+Apple reports a confidence label (excellent, good, medium or poor) rather
+than a radius in metres, and Apple publishes no metre equivalent for that
+label. Find+ does not invent one: an Apple observation's accuracy is always
+stored as unknown (`null`), never a guessed figure. The dashboard shows
+"Accuracy unknown" for these fixes instead of the `±N m` reading Google
+observations carry, and exports leave the accuracy column empty. The
+confidence label itself is still kept alongside the observation for anyone
+who wants it, just never converted into a number.
+
+Geofence enter/exit decisions still need *some* radius to reason about
+sparse or missing accuracy. That fallback (`geofence_default_accuracy_meters`
+in Settings) is a documented, conservative constant used only to decide
+which side of a place boundary a fix is on. It never becomes the observation's
+stored or displayed accuracy.
 
 ## Checking provider status
 

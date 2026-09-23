@@ -1,20 +1,17 @@
 """Browser tests for the wizard's presentation fixes (R-P2-28, visual gate W4).
 
-Purpose    : Pins the six points of ruling R-P2-28: the wizard renders inside a
-             bounded, centred card (point 1); the Groups step's icon/colour
-             pickers are popover triggers, not a bare grid (point 2); the
-             Notifications step offers WhatsApp inline (point 3); the Places
-             step hides the dashboard's "Observed path" disclaimer while its
-             map is borrowed (point 5). Point 4 (sign-in sub-headings) and
-             point 6 (delivery-log Status column) are covered by
-             test_setup_wizard_signin.py's fixtures being extended here rather
-             than a new file, and by the alerts suite respectively — see the
-             two tests at the bottom of this file.
-Constraints: Own file, matching test_setup_wizard_native.py's reasoning: these
-             are new coverage, not one of the six specs/onboarding.md § 10
-             cases test_setup_wizard.py already owns. `live_server` is shared
-             and assumes a finished setup, so every wizard test here restores
-             the stamp in a `finally` the same way the sibling files do.
+Purpose    : Pins R-P2-28 points 1, 2 and 6: the wizard renders inside a
+             bounded, centred card; the Groups step's icon/colour pickers
+             are popover triggers, not a bare grid; the delivery-log Status
+             column stays inside the pane at 1280px. The axe matrix for the
+             four touched steps closes the file.
+Constraints: `live_server` is shared and assumes a finished setup, so every
+             wizard test here restores the stamp in a `finally`, matching
+             every sibling wizard test file.
+
+Points 3 and 5 (WhatsApp inline setup, the Places-step disclaimer) and the
+sign-in points moved to test_setup_wizard_notifications.py (E13 stage 2,
+size cap).
 """
 
 from __future__ import annotations
@@ -23,8 +20,6 @@ import json
 
 import pytest
 from axe_playwright_python.async_playwright import Axe
-
-from findplus.honesty import CHROME_REQUIRED, WHATSAPP_RELAY, WHATSAPP_SETUP
 
 from .conftest import SEEDED_COMPLETED_AT, set_theme
 from .test_a11y import AXE_OPTIONS, BLOCKING, _describe
@@ -130,220 +125,60 @@ async def test_groups_step_uses_popover_pickers_not_a_bare_grid(page, base_url):
         await _set_last_step(page, base_url, None)
 
 
-async def test_notifications_step_whatsapp_save_and_test(page, base_url):
-    """R-P2-28 point 3 / F4: WhatsApp gets inline phone/API-key/Save/Test,
-    exactly like Telegram, instead of only a "configure later" link."""
-    saved = {}
-    tested = {}
-
-    async def save_route(route):
-        saved["body"] = json.loads(route.request.post_data)
-        # Real shape: PUT returns _channels_response(), which carries the
-        # masked phone, never the plaintext one just PUT (loop2 B5).
-        await route.fulfill(
-            status=200,
-            content_type="application/json",
-            body=json.dumps({"whatsapp": {"configured": True, "phone_masked": "+34… masked"}}),
-        )
-
-    async def test_route(route):
-        tested["body"] = json.loads(route.request.post_data)
-        await route.fulfill(
-            status=200, content_type="application/json", body=json.dumps({"status": "sent"})
-        )
-
-    try:
-        await page.route("**/api/alerts/channels/whatsapp", save_route)
-        await page.route("**/api/alerts/test", test_route)
-        await _open_step(page, base_url, "notifications")
-        await page.wait_for_selector("[data-channel='whatsapp']", timeout=15000)
-
-        assert await page.locator("#fp-setup-wa-phone").count() == 1
-        assert await page.locator("#fp-setup-wa-apikey").count() == 1
-
-        # T0 addendum B3: both honesty sentences render above the fields.
-        section_text = await page.locator("[data-channel='whatsapp']").inner_text()
-        assert WHATSAPP_RELAY in section_text
-        assert WHATSAPP_SETUP in section_text
-
-        await page.fill("#fp-setup-wa-phone", "+34999888777")
-        await page.fill("#fp-setup-wa-apikey", "wizard-test-key")
-        await page.click("#fp-setup-wa-save")
-        await page.wait_for_timeout(300)
-        assert saved["body"] == {"phone": "+34999888777", "apikey": "wizard-test-key"}
-
-        # loop2 B5: the status line shows the PUT response's masked phone,
-        # never the plaintext value just typed -- PII per R-P2-27.6.
-        status_text = await page.locator("#fp-setup-wa-phone").evaluate(
-            "(el) => el.closest('[data-channel]').querySelector('.modal-note').textContent"
-        )
-        assert "+34… masked" in status_text
-        assert "+34999888777" not in status_text
-
-        await page.click("#fp-setup-wa-test")
-        await page.wait_for_timeout(200)
-        assert tested["body"] == {"channel": "whatsapp"}
-
-        # Webhook still only offers the "configure later" link, styled with
-        # the app's link token rather than the browser default blue (F5).
-        link = page.locator("[data-channel='webhook'] a")
-        color = await link.evaluate("(el) => getComputedStyle(el).color")
-        assert color not in ("rgb(0, 0, 238)", ""), color
-    finally:
-        await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
-        await _set_last_step(page, base_url, None)
-
-
-async def test_places_step_hides_the_observed_path_disclaimer(page, base_url):
-    """R-P2-28 point 5 / F3: a first-run, near-empty map has no observed path
-    for the dashboard's disclaimer to describe."""
+async def test_wizard_map_controls_keep_leaflets_own_contrast_in_dark_theme(page, base_url):
+    """UAT4 N37: #setup-view a (components.css) recolors every link inside
+    the wizard card, including Leaflet's own zoom +/- and OSM attribution
+    links once the Places step borrows the dashboard map into #setup-view --
+    --badge-text is a pale blue in dark theme, unreadable against Leaflet's
+    white control background. Pins the two override rules restoring exactly
+    what leaflet.css itself sets."""
     try:
         await _open_step(page, base_url, "places")
-        await page.wait_for_selector("#fp-setup-map-host #map", timeout=15000)
-        assert await page.locator("#path-disclaimer").is_hidden()
-    finally:
-        await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
-        await _set_last_step(page, base_url, None)
+        await set_theme(page, "dark")
+        await page.wait_for_selector("#map .leaflet-control-zoom-in", timeout=15000)
 
-
-async def test_places_step_restores_the_disclaimer_on_leaving(page, base_url):
-    try:
-        await _open_step(page, base_url, "places")
-        await page.wait_for_selector("#fp-setup-map-host #map", timeout=15000)
-        await page.evaluate("() => { window.location.hash = ''; }")
-        await page.wait_for_function(
-            "() => document.getElementById('setup-view').hidden === true", timeout=15000
+        zoom_color = await page.locator("#map .leaflet-control-zoom-in").evaluate(
+            "el => getComputedStyle(el).color"
         )
-        assert await page.locator("#path-disclaimer").is_visible()
+        attribution_color = await page.locator(
+            "#map .leaflet-control-attribution a"
+        ).first.evaluate("el => getComputedStyle(el).color")
+        assert zoom_color == "rgb(0, 0, 0)", zoom_color
+        assert attribution_color == "rgb(51, 51, 51)", attribution_color
     finally:
         await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
         await _set_last_step(page, base_url, None)
 
 
-async def test_deliveries_status_column_visible_at_1280_without_horizontal_scroll(page, base_url):
-    """R-P2-28 point 6 / F6: Status (7th of 8 columns) used to sit past the
-    380px side pane's edge, reachable only by scrolling the whole page.
+async def test_deliveries_table_causes_no_horizontal_scroll_at_1280(page, base_url):
+    """R-P2-28 point 6 / F6, updated for UAT2 U9: the table's own columns
+    used to sit past the 380px side pane's edge at 1280, reachable only by
+    scrolling the whole page. UAT2 found that fix (fixed pixel widths) was
+    still unreadable in that same narrow pane -- U9's real fix is the
+    `@container` card layout (components.css), which drops the header
+    row entirely rather than fitting it, so this test's own job narrows to
+    what still has to hold at 1280: no page-level horizontal scroll, and the
+    pane is in card mode (thead hidden), not the old fixed-width table.
 
-    The headers are enough to pin the layout: this suite's seed data carries
-    no alert_deliveries rows (nothing here runs the poll/evaluate loop that
-    would create one), and test_alerts_whatsapp.py's own delivery-log test
-    makes the same choice — it waits for the table, not for a row.
+    Seed data carries no alert_deliveries rows (nothing here runs the
+    poll/evaluate loop that would create one); card mode does not need a row
+    to prove itself -- the thead's display alone does.
     """
     await page.set_viewport_size({"width": 1280, "height": 900})
     await page.goto(base_url + "/#dashboard")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
     await page.click('button[data-tab="alerts"]')
-    await page.wait_for_selector("#fp-deliveries-table", timeout=15000)
+    await page.wait_for_selector("#fp-deliveries-table", state="attached", timeout=15000)
 
-    status_header = page.locator("#fp-deliveries-table thead th").nth(6)
-    assert await status_header.text_content() == "Status"
-    box = await status_header.bounding_box()
-    pane = await page.locator(".timeline-pane").bounding_box()
-    assert box is not None and pane is not None
-    assert box["x"] + box["width"] <= pane["x"] + pane["width"] + 1, (box, pane)
+    thead_display = await page.locator("#fp-deliveries-table thead").evaluate(
+        "el => getComputedStyle(el).display"
+    )
+    assert thead_display == "none", "the 380px pane at 1280 should be in card mode"
 
     page_overflow = await page.evaluate(
         "() => document.documentElement.scrollWidth - document.documentElement.clientWidth"
     )
     assert page_overflow <= 1, page_overflow
-
-
-async def test_signin_step_shows_chrome_notice_before_any_click(page, base_url):
-    """T0 addendum B5: GET /api/auth/status's `needs: ["chrome"]` (already
-    computed by providers/auth_status.py) is read on entry, not only after a
-    failed click, and the Google button is disabled while it applies."""
-
-    async def status_route(route):
-        await route.fulfill(
-            status=200,
-            content_type="application/json",
-            body=json.dumps(
-                {
-                    "providers": [
-                        {
-                            "id": "google-find-hub",
-                            "signed_in": False,
-                            "account": None,
-                            "needs": ["chrome"],
-                        }
-                    ]
-                }
-            ),
-        )
-
-    try:
-        await page.route("**/api/auth/status", status_route)
-        await _open_step(page, base_url, "signin")
-        await page.wait_for_selector("#fp-setup-chrome-notice:not([hidden])", timeout=15000)
-        assert await page.locator("#fp-setup-chrome-notice").inner_text() == CHROME_REQUIRED
-        assert await page.get_by_role("button", name="Sign in with Google").is_disabled()
-    finally:
-        await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
-        await _set_last_step(page, base_url, None)
-
-
-async def test_signin_step_maps_a_400_to_the_honesty_sentence_not_raw_text(page, base_url):
-    """T0 addendum B5: the route's only 400 is ChromeNotFoundError, but this
-    never trusts the thrown message's text — it renders the live notice."""
-
-    async def start_route(route):
-        # Deliberately NOT honesty.CHROME_REQUIRED's text, to prove the UI
-        # does not just echo whatever the 400 body happens to say.
-        await route.fulfill(
-            status=400,
-            content_type="application/json",
-            body=json.dumps({"detail": "ChromeNotFoundError: no chrome binary on PATH"}),
-        )
-
-    try:
-        await _open_step(page, base_url, "signin")
-        await page.route("**/api/auth/google/start", start_route)
-        await page.get_by_role("button", name="Sign in with Google").click()
-        await page.wait_for_selector("#fp-setup-chrome-notice:not([hidden])", timeout=15000)
-        notice = await page.locator("#fp-setup-chrome-notice").inner_text()
-        assert notice == CHROME_REQUIRED
-        assert "ChromeNotFoundError" not in notice
-    finally:
-        await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
-        await _set_last_step(page, base_url, None)
-
-
-async def test_signin_step_clears_status_line_on_chrome_missing_400(page, base_url):
-    """loop2 B1: the status line must not keep reading "Starting Chrome..."
-    once the Chrome-missing notice is showing -- that pairs a "please wait"
-    message with a "this cannot proceed" one, a contradictory UI state."""
-
-    async def start_route(route):
-        await route.fulfill(
-            status=400,
-            content_type="application/json",
-            body=json.dumps({"detail": "ChromeNotFoundError: no chrome binary on PATH"}),
-        )
-
-    try:
-        await _open_step(page, base_url, "signin")
-        await page.route("**/api/auth/google/start", start_route)
-        await page.get_by_role("button", name="Sign in with Google").click()
-        await page.wait_for_selector("#fp-setup-chrome-notice:not([hidden])", timeout=15000)
-        status = await page.locator("#fp-setup-signin-status").inner_text()
-        assert status == "", f"status line still reads {status!r} beside the Chrome-missing notice"
-    finally:
-        await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
-        await _set_last_step(page, base_url, None)
-
-
-async def test_notifications_step_telegram_help_lines(page, base_url):
-    """T0 addendum B6: where the token comes from, and how Find+ finds the
-    chat id — the same two things `findplus alerts telegram-setup` explains."""
-    try:
-        await _open_step(page, base_url, "notifications")
-        await page.wait_for_selector("[data-channel='telegram']", timeout=15000)
-        section_text = await page.locator("[data-channel='telegram']").inner_text()
-        assert "BotFather" in section_text
-        assert "chat id" in section_text
-    finally:
-        await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
-        await _set_last_step(page, base_url, None)
 
 
 #: The four steps R-P2-28 changed the layout/markup of.

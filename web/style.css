@@ -42,7 +42,20 @@ h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .07em; color: v
 }
 .btn:hover { filter: brightness(1.1); }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
-.btn-secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); }
+/* UAT2 U32: several callers (places_dialog.js, devices_dialog.js,
+   groups_dialog_dom.js, the add-rule dialog's own Cancel) set only
+   `className = "btn-secondary"`, never "btn btn-secondary" -- a pattern
+   place_locator_dom.js's own V1 comment already worked around locally by
+   adding "btn" alongside it. Carrying the full base here (not just the
+   colour/border override) fixes every one of those buttons at the source,
+   the same shape as .btn, rather than requiring "btn btn-secondary" at
+   every call site. */
+.btn-secondary {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 7px; padding: 7px 13px; font-size: 13px; font-weight: 550; cursor: pointer;
+}
+.btn-secondary:hover { filter: brightness(1.1); }
+.btn-secondary:disabled { opacity: .5; cursor: not-allowed; }
 .btn-tiny { padding: 5px 9px; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); }
 
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
@@ -230,6 +243,8 @@ html[data-theme="light"] .alert.warn { color: #6b4a00; }
 }
 .setting-row input[type=password],
 .setting-row input[type=date],
+.setting-row input[type=url],
+.setting-row input[type=number],
 .setting-row select {
   background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
   border-radius: 7px; padding: 6px 9px; font-size: 13px; min-width: 190px;
@@ -252,7 +267,6 @@ html[data-theme="light"] .alert.warn { color: #6b4a00; }
 #fp-add-place-btn { margin: 14px 18px 0; }
 .fp-presence-chip { font-size: .72rem; padding: 2px 7px; border-radius: 9999px;
   background: rgba(79,140,247,.18); color: var(--badge-text); margin-left: 6px; }
-#map.fp-crosshair-mode { cursor: crosshair; }
 .fp-place-popup { display: flex; flex-direction: column; gap: 6px; }
 
 /* --- groups tab ---------------------------------------------------------- */

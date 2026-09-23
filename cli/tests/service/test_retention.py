@@ -40,6 +40,47 @@ OLD = datetime.now(UTC) - timedelta(days=90)
 RECENT = datetime.now(UTC) - timedelta(days=1)
 
 
+def _seed_history_row(session, when, place_id: int, group_id: int) -> None:
+    """One observation + PlaceEvent + GroupPlaceEvent all timestamped `when`."""
+    observation = LocationObservation(
+        device_id="TAG-1",
+        device_name="Keys",
+        latitude_e7=1,
+        longitude_e7=2,
+        observed_at=when,
+        first_fetched_at=when,
+        last_fetched_at=when,
+        source="test",
+    )
+    session.add(observation)
+    session.flush()
+    session.add(
+        PlaceEvent(
+            place_id=place_id,
+            device_id="TAG-1",
+            event_type="ENTER",
+            observed_at=when,
+            fetched_at=when,
+            observation_id=observation.id,
+            confidence="high",
+            distance_meters=1.0,
+            accuracy_meters=5.0,
+        )
+    )
+    session.add(
+        GroupPlaceEvent(
+            group_id=group_id,
+            place_id=place_id,
+            event_type="ENTER",
+            observed_at=when,
+            member_event_ids="[]",
+            members_crossed=1,
+            members_considered=1,
+            members_stale=0,
+        )
+    )
+
+
 def _seed() -> None:
     """One old and one recent row per history table, plus three config rows."""
     now = datetime.now(UTC)
@@ -59,43 +100,7 @@ def _seed() -> None:
         place_id, group_id = place.id, group.id
 
         for when in (OLD, RECENT):
-            observation = LocationObservation(
-                device_id="TAG-1",
-                device_name="Keys",
-                latitude_e7=1,
-                longitude_e7=2,
-                observed_at=when,
-                first_fetched_at=when,
-                last_fetched_at=when,
-                source="test",
-            )
-            session.add(observation)
-            session.flush()
-            session.add(
-                PlaceEvent(
-                    place_id=place_id,
-                    device_id="TAG-1",
-                    event_type="ENTER",
-                    observed_at=when,
-                    fetched_at=when,
-                    observation_id=observation.id,
-                    confidence="high",
-                    distance_meters=1.0,
-                    accuracy_meters=5.0,
-                )
-            )
-            session.add(
-                GroupPlaceEvent(
-                    group_id=group_id,
-                    place_id=place_id,
-                    event_type="ENTER",
-                    observed_at=when,
-                    member_event_ids="[]",
-                    members_crossed=1,
-                    members_considered=1,
-                    members_stale=0,
-                )
-            )
+            _seed_history_row(session, when, place_id, group_id)
 
 
 def _counts() -> tuple[int, int, int]:

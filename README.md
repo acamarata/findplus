@@ -11,7 +11,7 @@ browser dashboard, a CLI, a REST API, an MCP server, and a macOS menu-bar
 app.
 
 > This history consists of locations reported through Google's Find Hub
-> network. Moto Tag uses nearby participating Android devices to report its
+> network. Your trackers use nearby participating Android devices to report their
 > location. Location updates can therefore be delayed, sparse, or
 > unavailable, and this application should not be treated as real-time
 > emergency or child-safety GPS tracking.
@@ -58,28 +58,41 @@ pipx install findplus
 
 Requires Python 3.12, 3.13 or 3.14.
 
-**macOS app (dmg):** download `FindPlus-<version>-aarch64.dmg` from
+**macOS app (dmg):** download `FindPlus-<version>-aarch64.dmg` (Apple
+Silicon) or `FindPlus-<version>-x86_64.dmg` (Intel) from
 [Releases](https://github.com/acamarata/findplus/releases).
 
 ## First run
 
 ```bash
-findplus auth
-findplus start
+findplus setup
 ```
 
-The dashboard opens at http://localhost:8647.
+A guided walkthrough: sign in, pick which trackers to poll, and optionally set up a
+group, a place, notifications and an app-lock PIN. It ends by starting the service and
+opening the dashboard at http://localhost:8647.
+
+In a script (no terminal to answer prompts), use the non-interactive form instead:
+
+```bash
+findplus setup --yes
+findplus start --yes
+```
 
 ## Features
 
 - Location history with a map and chronological timeline.
 - Places and geofence alerts, with configurable enter/exit confirmations.
+- Address search when adding a place, via OpenStreetMap's Nominatim geocoder --
+  opt-in, only when you type an address and press Search.
 - Groups and quorum-based presence (together, partial, unknown).
-- Telegram and webhook alert channels.
+- Telegram, WhatsApp (via CallMeBot), webhook, and native macOS notification
+  alert channels, with automatic delivery retry.
 - MCP server exposing devices, places, groups and history as LLM tools.
-- macOS menu-bar app (Tauri) with a WidgetKit widget.
-- Device and group labels with a 48-icon picker or a coloured letter badge, and 12 accent colours.
-- WhatsApp alerts via CallMeBot, alongside Telegram, webhook, and native macOS notifications.
+- macOS menu-bar app (Tauri) with a WidgetKit status widget and a places widget.
+- Device and group labels with a 49-icon picker, your own uploaded custom
+  icons, or a colored letter badge, and 12 accent colors.
+- Apple Find My accessory key upload from the dashboard, the CLI, or the API.
 - In-dashboard sign-in for Google Find Hub and Apple Find My, no terminal required.
 - Guided first-run setup wizard covering sign-in, devices, groups, places, notifications and app lock.
 - Configurable poll interval (5-1440 minutes) and history retention.
@@ -92,10 +105,26 @@ extracting pairing keys, which most users cannot do.
 All data lives in `~/.findplus/` (SQLite). There is no cloud sync. Find+
 sends no analytics or telemetry.
 
+Find+ connects to the following external services during normal operation:
+
+- The location network (Google Find Hub or Apple Find My) to poll for tag updates.
+- Map tiles from OpenStreetMap, fetched directly by your browser.
+- api.telegram.org, your webhook URL, or CallMeBot's WhatsApp relay -- only when
+  that alert channel is configured.
+- OpenStreetMap's Nominatim geocoder -- only when you type an address into the
+  place dialog and press Search. The daemon makes this request, not your
+  browser, and sends nothing else.
+
 ## Honesty
 
+Every line below is pinned to the code and shown to you verbatim somewhere in the
+running app -- this section quotes the exact wording rather than paraphrasing it. A
+few only make full sense in that context: "paste it below" refers to the field right
+under that message in the dashboard, and the Chrome message is the literal error you
+see if sign-in cannot find Chrome, not a general statement.
+
 > This history consists of locations reported through Google's Find Hub
-> network. Moto Tag uses nearby participating Android devices to report its
+> network. Your trackers use nearby participating Android devices to report their
 > location. Location updates can therefore be delayed, sparse, or
 > unavailable, and this application should not be treated as real-time
 > emergency or child-safety GPS tracking.
@@ -139,6 +168,10 @@ sends no analytics or telemetry.
 > Google Chrome was not found on this machine. Google sign-in drives
 > Chrome directly and cannot run without it. Install it from
 > https://www.google.com/chrome/ and try again.
+>
+> Address search sends the text you type to OpenStreetMap's Nominatim
+> service, a third party not affiliated with Find+, and only when you
+> press Search.
 
 ## CLI
 

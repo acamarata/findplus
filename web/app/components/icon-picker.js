@@ -13,9 +13,14 @@
  *              boot. No fetch, no dependency on GET /api/icons (that route
  *              serves the CLI and tests), no CustomEvent — onChange is the one
  *              notification path, as places_dialog.js does it. Every element is
- *              built with createElement/setAttribute, never raw markup.
+ *              built with createElement/setAttribute, never raw markup. The
+ *              one exception to "no fetch": the "Your icons" section
+ *              (custom-icons.js) is per-installation and cannot live in the
+ *              static sprite, so it fetches its own list independently.
  */
 "use strict";
+
+import { createCustomIconsSection } from "./custom-icons.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const SPRITE_SELECTOR = '#fp-icon-sprite symbol[id^="lucide-"]';
@@ -121,50 +126,65 @@ function applyPressedState(root, letterInput, id) {
   }
 }
 
-/** Wire swatch clicks and the letter input, and return the picker's public handle. */
-function wireIconPicker(host, root, letterInput, initial, onChange) {
-  let current = initial;
-
-  function emit(id) {
-    current = id;
-    applyPressedState(root, letterInput, id);
-    if (onChange) onChange(id);
+/** The one static-grid swatch click: bare "letter" emits immediately (it is
+ * already a complete, valid value, the 0007 default) and reveals the input;
+ * everything else hides it and emits its own id. */
+function onSwatchClick(btn, letterInput, emit) {
+  const id = btn.dataset.iconId;
+  if (id === "letter") {
+    emit("letter");
+    letterInput.hidden = false;
+    letterInput.focus();
+    return;
   }
+  letterInput.hidden = true;
+  emit(id);
+}
 
-  function onSwatchClick(btn) {
-    const id = btn.dataset.iconId;
-    if (id === "letter") {
-      // Bare "letter" is already a complete, valid value (the 0007 default),
-      // so the click itself must emit -- typing a character afterward just
-      // narrows it to "letter:X" via the input listener below.
-      emit("letter");
-      letterInput.hidden = false;
-      letterInput.focus();
-      return;
-    }
-    letterInput.hidden = true;
-    emit(id);
-  }
-
+/** Wire every static-grid swatch and the letter input to `emit`. */
+function wireStaticInputs(root, letterInput, emit) {
   root.querySelectorAll(".fp-icon-swatch").forEach((btn) => {
-    btn.addEventListener("click", () => onSwatchClick(btn));
+    btn.addEventListener("click", () => onSwatchClick(btn, letterInput, emit));
   });
-
   letterInput.addEventListener("input", () => {
     const char = letterInput.value.trim();
     if (/^[A-Za-z0-9]$/.test(char)) emit(`letter:${char.toUpperCase()}`);
     else if (char === "") emit("letter");
   });
+}
 
+/** Wire swatch clicks and the letter input, and return the picker's public handle.
+ *
+ * `onPressedExtra`, when given, is told about every selection (including the
+ * initial one) so the "Your icons" section — mounted after this returns,
+ * since its own contents arrive asynchronously — can keep its swatches'
+ * aria-pressed in sync with a selection made anywhere else in the picker. */
+function wireIconPicker(host, root, letterInput, initial, onChange, onPressedExtra) {
+  let current = initial;
+
+  function emit(id) {
+    current = id;
+    applyPressedState(root, letterInput, id);
+    if (onPressedExtra) onPressedExtra(id);
+    if (onChange) onChange(id);
+  }
+
+  wireStaticInputs(root, letterInput, emit);
   applyPressedState(root, letterInput, current);
 
   return {
     setValue(id) {
       current = id;
       applyPressedState(root, letterInput, id);
+      if (onPressedExtra) onPressedExtra(id);
     },
     getValue() {
       return current;
+    },
+    /** Selection entry point for a swatch this module did not wire itself —
+     * today, only custom-icons.js's asynchronously-rendered swatches. */
+    selectExternal(id) {
+      emit(id);
     },
     destroy() {
       host.innerHTML = "";
@@ -182,5 +202,14 @@ export function createIconPicker(host, { value, onChange, letterLabel = "Letter"
   root.appendChild(otherSection(letterInput, letterLabel));
   host.appendChild(root);
 
-  return wireIconPicker(host, root, letterInput, value || "letter", onChange);
+  let customIcons = null;
+  const handle = wireIconPicker(host, root, letterInput, value || "letter", onChange, (id) => {
+    if (customIcons) customIcons.setPressed(id);
+  });
+  customIcons = createCustomIconsSection(root, {
+    value: handle.getValue(),
+    onSelect: (id) => handle.selectExternal(id),
+  });
+
+  return handle;
 }

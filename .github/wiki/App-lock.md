@@ -10,8 +10,10 @@ shows a lock screen; unlocking returns you to exactly the view you were on.
   never), and whenever the service restarts or the machine reboots.
 - The PIN is stored only as a salted scrypt hash. Five wrong attempts
   trigger a 60-second lockout, which applies to the correct PIN too.
-- Forgot it? `findplus reset-lock --yes` removes the lock from this
-  machine. There is no cloud reset by design.
+- Forgot it? `findplus lock reset --yes` removes the lock from this
+  machine (`findplus reset-lock` and `findplus pin reset` are the same
+  command under two other names). There is no cloud reset by design. A
+  wrong PIN on the lock screen shows this hint directly.
 
 ## What this does not do
 

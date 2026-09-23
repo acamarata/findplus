@@ -68,6 +68,7 @@ def test_notices_dict_matches_named_constants() -> None:
         "native_generic": honesty.NATIVE_GENERIC,
         "not_affiliated": honesty.NOT_AFFILIATED,
         "chrome_required": honesty.CHROME_REQUIRED,
+        "address_search": honesty.ADDRESS_SEARCH,
     }
 
 

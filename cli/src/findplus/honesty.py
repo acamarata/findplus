@@ -17,7 +17,7 @@ from __future__ import annotations
 
 FIND_HUB = (
     "This history consists of locations reported through Google's Find Hub network. "
-    "Moto Tag uses nearby participating Android devices to report its location. "
+    "Your trackers use nearby participating Android devices to report their location. "
     "Location updates can therefore be delayed, sparse, or unavailable, and this "
     "application should not be treated as real-time emergency or child-safety GPS tracking."
 )
@@ -74,6 +74,11 @@ CHROME_REQUIRED = (
     "again."
 )
 
+ADDRESS_SEARCH = (
+    "Address search sends the text you type to OpenStreetMap's Nominatim service, a "
+    "third party not affiliated with Find+, and only when you press Search."
+)
+
 NOTICES: dict[str, str] = {
     "find_hub": FIND_HUB,
     "apple": APPLE,
@@ -86,4 +91,5 @@ NOTICES: dict[str, str] = {
     "native_generic": NATIVE_GENERIC,
     "not_affiliated": NOT_AFFILIATED,
     "chrome_required": CHROME_REQUIRED,
+    "address_search": ADDRESS_SEARCH,
 }

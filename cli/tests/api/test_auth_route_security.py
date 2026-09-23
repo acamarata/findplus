@@ -189,8 +189,19 @@ def test_the_chrome_profile_dir_ends_up_0700(tmp_path, monkeypatch) -> None:
     browser._active_job_id = None
 
     browser.start_google_auth(settings)
+    # stub_patch runs on a background thread and does mkdir() then chmod() as
+    # two separate calls (real code, PRI hard rule 9: mode= on mkdir() is
+    # masked by umask). Polling only `.exists()` races that gap: mkdir()
+    # makes the directory exist a moment before chmod() lands, and under a
+    # full-suite run with other daemon threads contending for the GIL that
+    # gap can outlast this loop's 10 ms tick, so the assertion below could
+    # observe the pre-chmod mode. Wait for the actual end state (the mode
+    # bits themselves) instead of a proxy for it.
     deadline = time.monotonic() + 2.0
-    while time.monotonic() < deadline and not settings.chrome_profile_dir.exists():
+    while time.monotonic() < deadline and not (
+        settings.chrome_profile_dir.is_dir()
+        and os.stat(settings.chrome_profile_dir).st_mode & 0o777 == 0o700
+    ):
         time.sleep(0.01)
 
     assert settings.chrome_profile_dir.is_dir()

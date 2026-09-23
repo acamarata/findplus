@@ -21,6 +21,35 @@ def test_list_json_empty(tmp_db: str) -> None:
     assert json.loads(result.output) == []
 
 
+def test_list_table_columns_never_run_together(tmp_db: str) -> None:
+    """UAT U23: a fixed 8-char RADIUS column left zero gap before a 10-char
+    COLOR column ("200#3b82f6"); the shared renderer guarantees a 2-space
+    gap between every pair of columns regardless of content width."""
+    runner = CliRunner()
+    runner.invoke(
+        main,
+        [
+            "places",
+            "add",
+            "Home",
+            "--lat",
+            "41.1",
+            "--lon",
+            "-80.64",
+            "--radius",
+            "200",
+            "--color",
+            "#3b82f6",
+        ],
+    )
+    result = runner.invoke(main, ["places", "list"])
+    assert result.exit_code == 0, result.output
+    assert "RADIUS  COLOR" in result.output
+    assert "200  #3b82f6" in result.output
+    for header in ("ID", "NAME", "LAT", "LON", "RADIUS", "COLOR", "ENTER", "EXIT"):
+        assert header in result.output
+
+
 def test_add(tmp_db: str) -> None:
     result = CliRunner().invoke(
         main, ["places", "add", "Home", "--lat", "41.1", "--lon", "-80.64", "--radius", "100"]

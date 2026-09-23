@@ -98,6 +98,33 @@ def test_overlapping_places_report_the_most_specific_one(session, group) -> None
     assert [s.place for s in statuses] == ["Home"]
 
 
+def test_member_note_uses_label_over_raw_provider_name(session, group) -> None:
+    """UAT2 N2: group_presence's prose reads a device's label, not its raw
+    provider name. `_member_inputs` used to select `Device.name` only, so a
+    note read "Pebblebee Clip has no recent fix" for a tag the user had
+    labelled "Omar's backpack" -- the same label shown everywhere else.
+    """
+    session.add(
+        Device(
+            device_id="dev2",
+            name="Pebblebee Clip",
+            label="Omar's backpack",
+            first_seen_at=NOW,
+            last_seen_at=NOW,
+        )
+    )
+    session.flush()
+    session.add(DeviceGroup(device_id="dev2", group_id=group.id))
+    session.flush()
+
+    presence, statuses = build_presence(
+        session, group, window_minutes=60, movement_threshold_meters=25
+    )
+    assert "Omar's backpack" in presence.note
+    assert "Pebblebee Clip" not in presence.note
+    assert {s.name for s in statuses} == {"Tag1", "Omar's backpack"}
+
+
 def test_group_event_log_carries_the_note(session, group) -> None:
     """api-contract.md § routes_groups.py pins `note` on GET /api/groups/events."""
     place = _place(session, "Home", 100)

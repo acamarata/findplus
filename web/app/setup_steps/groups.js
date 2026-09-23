@@ -40,6 +40,19 @@ function memberRow(device) {
   return row;
 }
 
+/** N45: a duplicate name (409) used to only log to the console -- ctx.showAlert
+ * writes into #alert inside #app-shell, hidden for the whole time the wizard
+ * is open (applock.js's own comment on the same trap). role="alert" makes
+ * this line's text change announced, the same way applock's own field error
+ * is meant to read even without an aria-live attribute of its own. */
+function groupErrorEl() {
+  const error = document.createElement("p");
+  error.className = "fp-dialog-error";
+  error.id = "fp-setup-group-error";
+  error.setAttribute("role", "alert");
+  return error;
+}
+
 function groupRow(group) {
   const row = document.createElement("div");
   row.className = "fp-dialog-field";
@@ -58,6 +71,14 @@ async function addGroup(ctx) {
   const memberIds = [...els.members.querySelectorAll("input:checked")].map(
     (box) => box.dataset.deviceId
   );
+  // UAT U16: Add used to create a zero-member group with no word about it,
+  // which then showed "Unknown" in the list -- a quorum with nobody to count
+  // is never meaningful.
+  if (!memberIds.length) {
+    els.error.textContent = t("groups.error.members_required");
+    return;
+  }
+  els.error.textContent = "";
   await ctx.postJson("/api/groups", {
     name, color: pickers.getColor(), icon: pickers.getIcon(), member_ids: memberIds,
   });
@@ -94,6 +115,11 @@ export default {
     name.type = "text";
     name.id = "fp-setup-group-name";
     name.placeholder = t("setup.groups.name_placeholder");
+    // UAT4 N34: the placeholder was the field's only name, and a placeholder
+    // disappears once something is typed -- an aria-label keeps a screen
+    // reader's announcement even then (_notifications_telegram.js's own
+    // aria-label pattern, N26).
+    name.setAttribute("aria-label", t("setup.groups.name_placeholder"));
 
     // Built after `name` exists: the icon preview reads it live for the
     // bare-"letter" fallback initial.
@@ -104,14 +130,21 @@ export default {
 
     const add = document.createElement("button");
     add.type = "button";
+    add.id = "fp-setup-group-add";
     add.className = "btn";
     add.textContent = t("setup.groups.add");
     add.addEventListener("click", () => {
-      addGroup(ctx).catch((err) => ctx.showAlert(err.message, "err"));
+      addGroup(ctx).catch((err) => {
+        els.error.textContent = err.message;
+      });
     });
 
-    els = { list, name, members };
-    container.append(heading, list, name, pickers.iconWrap, pickers.colorWrap, members, add);
+    const error = groupErrorEl();
+
+    els = { list, name, members, error };
+    container.append(
+      heading, list, name, pickers.iconWrap, pickers.colorWrap, members, error, add
+    );
     container.addEventListener("click", (e) => pickers.closeIfOutside(e.target));
   },
   async onEnter(ctx) {

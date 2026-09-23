@@ -61,7 +61,9 @@ _HEADERLESS_ROUTES = [r for r in _ROUTES if r not in _REQUIRES_OWN_SIGNAL]
 
 @pytest.fixture
 def client(tmp_db):
-    return TestClient(create_app())
+    # Closeout C-M1: bind explicitly to 8647 -- SAME_ORIGIN_HEADERS asserts
+    # against that literal Origin.
+    return TestClient(create_app(bound_host="127.0.0.1", bound_port=8647))
 
 
 def test_the_sweep_finds_the_full_mutating_surface() -> None:

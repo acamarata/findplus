@@ -15,7 +15,7 @@ Reuse: session pattern matches findplus.places.repo.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -40,6 +40,7 @@ from findplus.groups.presence import (
 from findplus.groups.quorum import group_event_note, stale_note_for_count
 from findplus.groups.timeline import list_group_timeline  # re-exported, see timeline.py
 from findplus.groups.validation import validate_group_fields
+from findplus.labels import display_name
 
 
 def list_groups(session: Session) -> list[Group]:
@@ -141,39 +142,35 @@ def set_members(session: Session, group_id: int, member_ids: list[str]) -> Group
     return group
 
 
-def _member_inputs(session: Session, group: Group, window_minutes: int) -> list[MemberInput]:
-    lookback = max(window_minutes, group.stale_after_minutes)
-    cutoff = datetime.now(UTC) - timedelta(minutes=lookback)
+def _member_inputs(session: Session, group: Group) -> list[MemberInput]:
     members: list[MemberInput] = []
-    for device_id, name in session.execute(
-        select(Device.device_id, Device.name)
+    for device_id, name, label in session.execute(
+        select(Device.device_id, Device.name, Device.label)
         .join(DeviceGroup, DeviceGroup.device_id == Device.device_id)
         .where(DeviceGroup.group_id == group.id)
     ).all():
-        obs = list(
-            session.scalars(
-                select(LocationObservation)
-                .where(
-                    LocationObservation.device_id == device_id,
-                    LocationObservation.observed_at >= cutoff,
-                )
-                .order_by(LocationObservation.observed_at.desc())
-                .limit(2)
-            ).all()
-        )
+        # Label-first, like every other surface (UAT2 N2).
+        name = display_name(label, name, device_id)
+        # No `observed_at >= cutoff` filter (UAT3 N19): a stale member's last
+        # fix is exactly what the UI needs for "no fix for N min", and the old
+        # lookback window dropped that row, so member_status() saw last_fix=
+        # None instead. The (device_id, observed_at) index keeps this cheap.
+        obs = session.scalars(
+            select(LocationObservation)
+            .where(LocationObservation.device_id == device_id)
+            .order_by(LocationObservation.observed_at.desc())
+            .limit(2)
+        ).all()
         last_fix = _to_fix(device_id, obs[0]) if obs else None
         prev_fix = _to_fix(device_id, obs[1]) if len(obs) > 1 else None
-        # Smallest circle first: member_status() reports inside_places[0], so
-        # a device standing inside "Home" and inside a wider "Neighbourhood"
-        # must name the more specific place, deterministically, every call.
-        inside_places = list(
-            session.scalars(
-                select(Place.name)
-                .join(PlaceState, PlaceState.place_id == Place.id)
-                .where(PlaceState.device_id == device_id, PlaceState.state == "inside")
-                .order_by(Place.radius_meters, Place.name)
-            ).all()
-        )
+        # Smallest circle first: member_status() reports inside_places[0] (the
+        # more specific place), deterministically, every call.
+        inside_places = session.scalars(
+            select(Place.name)
+            .join(PlaceState, PlaceState.place_id == Place.id)
+            .where(PlaceState.device_id == device_id, PlaceState.state == "inside")
+            .order_by(Place.radius_meters, Place.name)
+        ).all()
         members.append(
             MemberInput(
                 device_id=device_id,
@@ -203,13 +200,12 @@ def build_presence(
 ) -> tuple[GroupPresence, list[MemberStatus]]:
     """Gather each member's recent fixes and delegate to the pure presence engine.
 
-    Returns the group-level verdict alongside the per-member statuses the
-    engine computed internally — group_presence()'s pinned return shape
-    (specs/engines.md) carries no member list, but both the API and the CLI
-    need one (per-device rows), so it is recomputed here with member_status()
-    using the exact same inputs rather than duplicated inside the engine.
+    Returns the verdict alongside per-member statuses: group_presence()'s
+    pinned return shape (specs/engines.md) carries no member list, but the API
+    and CLI both need one, so member_status() recomputes it from the same
+    inputs rather than duplicating it inside the engine.
     """
-    members = _member_inputs(session, group, window_minutes)
+    members = _member_inputs(session, group)
     now = datetime.now(UTC)
     statuses = [
         member_status(m, now, group.stale_after_minutes, movement_threshold_meters, window_minutes)

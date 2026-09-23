@@ -17,37 +17,98 @@
  *              (honesty round 2 F14).
  */
 "use strict";
-import { $, fmtDateTime } from "./state.js";
+import { $, fmtDateTime, fmtTime } from "./state.js";
 import { api } from "./api.js";
 import { t } from "./i18n.js";
 
-function cell(text) {
+// Mirrors findplus.alerts.dispatch_core.MAX_ATTEMPTS (1 initial send + 3
+// retries): the server enforces the real cap, this only picks the wording.
+const MAX_DELIVERY_ATTEMPTS = 4;
+
+/**
+ * "sent"/"skipped"/… go through the alerts.statuses.* catalog (UAT U22). A
+ * "retrying" row reports the attempt that is coming next (attempts + 1) and
+ * when; a "failed" row that used up every retry says so, distinct from a
+ * "failed" row that never qualified for one (attempts stays 1 for those, per
+ * notifications.md's retry ruling).
+ */
+function statusText(delivery) {
+  const attempts = delivery.attempts || 1;
+  if (delivery.status === "retrying") {
+    return t("alerts.retryingStatus", {
+      attempt: attempts + 1,
+      max: MAX_DELIVERY_ATTEMPTS,
+      time: fmtTime(delivery.next_attempt_at),
+    });
+  }
+  if (delivery.status === "failed" && attempts >= MAX_DELIVERY_ATTEMPTS) {
+    return t("alerts.failedAfterRetries", { max: MAX_DELIVERY_ATTEMPTS });
+  }
+  return t("alerts.statuses." + delivery.status);
+}
+
+/** "Sent" reads as "this went out" -- a "failed" or still-"queued" row never
+ *  did, so the timestamp (really "first attempted at", alerts/retry.py) stays
+ *  out of that column for those two statuses rather than implying it (U22). */
+function sentText(delivery) {
+  if (delivery.status === "failed" || delivery.status === "queued") return t("common.emptyValue");
+  return fmtDateTime(delivery.sent_at);
+}
+
+/** A labelled `<td>` for the phone-tier card layout (responsive.css turns
+ *  data-label into the row's own heading below 600px, UAT U9). */
+function cell(text, label) {
   const td = document.createElement("td");
   td.textContent = text;
-  // Text/Body/Error truncate with an ellipsis at 1280 (components.css,
-  // R-P2-28 point 6); the title carries the full value for anyone who wants
-  // it without needing to widen the pane.
+  td.dataset.label = label;
+  // Title carries the full value for anyone who wants it without widening
+  // the pane; below 600px the card layout wraps instead of truncating.
   if (text) td.title = text;
+  return td;
+}
+
+/** Text/Body (notifications.md §2's rendered message) render for every
+ *  channel now (UAT3 N18: the server used to render it only when the
+ *  request itself was filtered to `?channel=native`, so the unfiltered
+ *  delivery log the dashboard actually loads showed the dash on every row,
+ *  including its own Desktop notifications; UAT4 N32: the server then
+ *  widened rendering to every channel, not native only -- a telegram/
+ *  whatsapp/webhook row's source event resolves through the exact same
+ *  batched renderer, so there is no longer a channel-shaped reason for one
+ *  row to show real text and another to show a placeholder note). A `null`
+ *  text now means one thing for every channel: the source event was purged
+ *  by retention before this row was ever shown, so the dash the app uses
+ *  everywhere for "we don't know" is the honest answer here too. Long
+ *  values collapse behind a native `<details>` once they are long enough to
+ *  squeeze the 360px pane (U9); a short value renders plainly. */
+function detailsCell(text, label, threshold = 30) {
+  const value = text || t("common.emptyValue");
+  if (!text || text.length <= threshold) return cell(value, label);
+  const td = document.createElement("td");
+  td.dataset.label = label;
+  const details = document.createElement("details");
+  const summary = document.createElement("summary");
+  summary.textContent = value.slice(0, threshold) + "…";
+  const body = document.createElement("p");
+  body.textContent = value;
+  details.append(summary, body);
+  td.appendChild(details);
   return td;
 }
 
 function buildDeliveryRow(delivery) {
   const tr = document.createElement("tr");
   tr.append(
-    cell(delivery.rule_name || t("alerts.ruleFallback", { id: delivery.rule_id })),
-    cell(delivery.channel || t("common.emptyValue")),
-    cell(delivery.event_kind),
-    // notifications.md §2: `text` (subject + verb) and `body` (place and the
-    // observed/lag line) are rendered server-side per row, so an edited place
-    // or device name is reflected on the next read. They are only computed for
-    // native rows; every other channel sends the em dash placeholder.
-    cell(delivery.text || t("common.emptyValue")),
-    cell(delivery.body || t("common.emptyValue")),
-    cell(fmtDateTime(delivery.sent_at)),
-    cell(delivery.status),
+    cell(delivery.rule_name || t("alerts.ruleFallback", { id: delivery.rule_id }), t("alerts.colRule")),
+    cell(delivery.channel ? t("alerts.channels." + delivery.channel) : t("common.emptyValue"), t("alerts.colChannel")),
+    cell(delivery.event_kind ? t("alerts.kinds." + delivery.event_kind) : t("common.emptyValue"), t("alerts.colKind")),
+    detailsCell(delivery.text, t("alerts.deliveries.text")),
+    detailsCell(delivery.body, t("alerts.deliveries.body")),
+    cell(sentText(delivery), t("alerts.colSent")),
+    cell(statusText(delivery), t("alerts.colStatus")),
     // A "skipped" row arrived with an empty Error cell and no hint why; the
     // API now sends the reason in `error`, and a bare skip still says so.
-    cell(delivery.error || (delivery.status === "skipped" ? t("alerts.skippedNoReason") : "")),
+    cell(delivery.error || (delivery.status === "skipped" ? t("alerts.skippedNoReason") : ""), t("alerts.colError")),
   );
   return tr;
 }

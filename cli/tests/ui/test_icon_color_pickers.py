@@ -16,9 +16,14 @@ Constraints: None of the three is mounted anywhere yet, so each test imports
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from findplus.labels import resolve_icon_letter
+
+SUBSET = Path(__file__).resolve().parents[3] / "packaging" / "data" / "lucide-subset.json"
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -63,7 +68,10 @@ async def test_icon_picker_renders_grouped_sections(page, base_url) -> None:
     assert await pets.count() == 1
     other = page.locator("#picker-host section[data-group='other'] button[data-icon-id='letter']")
     assert await other.count() == 1
-    assert await page.locator("#picker-host .fp-icon-swatch").count() == 50
+    # Every vendored Lucide icon plus the two non-glyph swatches (letter, none);
+    # derived from the subset so adding an icon never silently breaks this.
+    expected = len(json.loads(SUBSET.read_text(encoding="utf-8"))) + 2
+    assert await page.locator("#picker-host .fp-icon-swatch").count() == expected
 
 
 async def test_icon_picker_css_lands(page, base_url) -> None:
@@ -184,7 +192,7 @@ async def test_color_picker_renders_twelve_swatches_and_emits(page, base_url) ->
     assert await page.locator("#picker-host .fp-color-swatch").count() == 12
     assert await page.locator("#picker-host input[type='color']").count() == 1
     custom = page.locator("#picker-host .fp-color-custom")
-    assert await custom.get_attribute("aria-label") == "Custom colour"
+    assert await custom.get_attribute("aria-label") == "Custom color"
     await page.locator("#picker-host .fp-color-swatch").nth(2).click()
     emitted = await page.evaluate("window.__lastValue")
     assert emitted == third

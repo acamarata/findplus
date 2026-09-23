@@ -11,11 +11,24 @@ Constraints: No command logic here — pure helpers only, so each cmd_* module
 
 from __future__ import annotations
 
+import sys
+
 import click
 
 from findplus.config import get_settings
 from findplus.db.migrate import upgrade_to_head
 from findplus.logging_setup import configure_logging
+
+
+def _interactive() -> bool:
+    """True when stdin is a real terminal.
+
+    Gates prompts that must never hang a script or a pipe (`findplus start`'s
+    install confirmation, R-P2-30.1): a plain function, not an inline
+    `sys.stdin.isatty()` call, so a test can monkeypatch it after Click's
+    CliRunner has already swapped `sys.stdin` for its own stream.
+    """
+    return sys.stdin.isatty()
 
 
 def _prep(to_file: bool = False) -> None:
@@ -60,11 +73,37 @@ def _print_device_table(session) -> None:
     rows = list(session.scalars(sa_select(Device).order_by(Device.name)))
     counts = observation_counts(session, [d.device_id for d in rows])
     click.echo("")
-    click.secho(f"{'':4} {'NAME':<30} {'OBS':>7}  DEVICE ID", bold=True)
+    # LABEL alongside the provider NAME (UAT N9): the dashboard and `alerts
+    # rules list` (U23) both show the user's own label first, and the table
+    # had no column for it at all.
+    click.secho(f"{'':4} {'NAME':<30} {'LABEL':<20} {'OBS':>7}  DEVICE ID", bold=True)
     for d in rows:
         mark = click.style(" [x]", fg="green") if d.is_tracked else " [ ]"
-        click.echo(f"{mark} {d.name:<30} {counts.get(d.device_id, 0):>7}  {d.device_id}")
+        obs = counts.get(d.device_id, 0)
+        click.echo(f"{mark} {d.name:<30} {d.label or '':<20} {obs:>7}  {d.device_id}")
     click.echo("")
+
+
+def _render_table(headers: tuple[str, ...], aligns: str, rows: list[tuple]) -> None:
+    """Print a table with a guaranteed 2-space gap between columns.
+
+    Each column's width is the max of its own header and cell lengths, not a
+    fixed guess -- a fixed-width column whose content reached its width left
+    zero gap before the next one ("RADIUSCOLOR", "200#3b82f6": UAT U23).
+    `aligns` is one `<`/`>` per column, same length as `headers`.
+    """
+    str_rows = [[str(c) if c is not None else "" for c in row] for row in rows]
+    widths = [
+        max(len(headers[i]), *(len(r[i]) for r in str_rows)) if str_rows else len(headers[i])
+        for i in range(len(headers))
+    ]
+
+    def _line(cells: list[str]) -> str:
+        return "  ".join(f"{c:{a}{w}}" for c, a, w in zip(cells, aligns, widths, strict=True))
+
+    click.secho(_line(list(headers)), bold=True)
+    for r in str_rows:
+        click.echo(_line(r))
 
 
 def _print_nothing_tracked_hint() -> None:
@@ -72,3 +111,38 @@ def _print_nothing_tracked_hint() -> None:
     click.echo("Nothing is being tracked yet. Choose what to poll:")
     click.echo("  findplus devices --track-all")
     click.echo("  findplus devices --track <ID> --track <ID>")
+
+
+def _local_short_time(value) -> str:
+    """A UTC timestamp as a short local-time string for table output.
+
+    `alerts deliveries` and `alerts rules list` used to print raw UTC ISO
+    strings straight from the ORM (UAT3 N25) -- this renders them the way a
+    person reads them. Shares `dispatch_core.local_zone()`, the same seam
+    `render_message()` reads and `cli/tests/conftest.py`'s `pinned_tz`
+    fixture pins, so a test can pin the zone the same way alert-message
+    tests do, without a second TZ mechanism. `--json` output is untouched by
+    this -- it stays raw UTC ISO so a script never has to guess which zone
+    it parsed.
+    """
+    if value is None:
+        return ""
+    from findplus.alerts.dispatch_core import as_utc, local_zone
+
+    return as_utc(value).astimezone(local_zone()).strftime("%Y-%m-%d %H:%M %Z")
+
+
+def _yes_no(value: bool) -> str:
+    """Plain yes/no instead of Python's True/False for table output (UAT3 N25)."""
+    return "yes" if value else "no"
+
+
+def _plural(n: int, singular: str, plural_word: str | None = None) -> str:
+    """English pluralization: `n == 1` keeps `singular`; anything else
+    (including 0) takes `plural_word` (default: `singular` + "s").
+
+    Mirrors web/app/i18n.js's `plural()` rule (n===1 picks .one, everything
+    else picks .other) so CLI and dashboard text agree on the same count
+    (UAT4 N43: "Tracking 6 of 6 device(s)" never resolved the "(s)").
+    """
+    return singular if n == 1 else (plural_word or f"{singular}s")

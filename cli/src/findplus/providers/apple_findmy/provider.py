@@ -17,15 +17,6 @@ from findplus.providers.base import ProviderDevice, RawObservation
 
 log = logging.getLogger(__name__)
 
-#: Approximate accuracy in meters per findmy confidence label. Values are
-#: forge choices, not measured — documented in wiki Providers.md § Apple Find My.
-CONFIDENCE_TO_ACCURACY: dict[str, float] = {
-    "excellent": 10.0,
-    "good": 30.0,
-    "medium": 65.0,
-    "poor": 150.0,
-}
-
 
 class AppleFindMyProvider:
     """LocationProvider wrapper over FindMy.py's AppleAccount + accessory registry."""
@@ -112,6 +103,15 @@ def _to_observation(report, device_id: str, name: str) -> RawObservation:
 
     Every Report attribute is read with getattr and a default: the installed
     FindMy.py version may not expose all of them.
+
+    `accuracy_meters` is always None: FindMy.py's `Report` exposes a
+    `confidence` label (excellent/good/medium/poor), never a metre figure,
+    and Apple publishes no metre equivalent for that label. An earlier
+    revision mapped the label to an invented constant per label and stored
+    that as if it were a measured accuracy (CF-P2-6 / R-P2-27 item 2) — the
+    label is preserved in `metadata["confidence"]` for anyone who wants it,
+    but it never becomes a number in `accuracy_meters`. See
+    `.github/wiki/Providers.md § Apple Find My` for the user-facing note.
     """
     import datetime
 

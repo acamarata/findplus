@@ -26,6 +26,21 @@ final class ViewHelpersTests: XCTestCase {
         XCTAssertEqual(sfSymbol(for: "letter", label: nil, name: "Wallet"), "W.circle.fill")
     }
 
+    /// `custom:<id>` is a client-uploaded PNG (specs/labels-and-icons.md
+    /// custom icon amendment); the sandboxed widget never fetches images, so
+    /// it is not in `table` and falls back to the letter circle exactly like
+    /// `none` and an unmapped `lucide:*` id do -- no dedicated branch needed,
+    /// since it simply does not start with "lucide:".
+    func testSfSymbolCustomFallsBackToLetter() {
+        XCTAssertEqual(
+            sfSymbol(for: "custom:0123456789abcdef", label: "Mom", name: "Tag 1"), "M.circle.fill"
+        )
+        XCTAssertEqual(
+            sfSymbol(for: "custom:0123456789abcdef", label: nil, name: "Backpack"),
+            "B.circle.fill"
+        )
+    }
+
     // ------------------------------------------------------------- Color(hex:)
 
     func testColorHexParsesEachChannel() {

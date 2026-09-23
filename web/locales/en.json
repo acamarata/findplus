@@ -14,6 +14,7 @@
     "lockTitle": "Find+ is locked",
     "lockSub": "Enter your PIN to continue.",
     "unlock": "Unlock",
+    "wrongPinHint": "Wrong PIN. Forgot it? Run `findplus lock reset` in a terminal.",
     "pin": "PIN",
     "liveDotTitle": "Polling service status",
     "deviceNamePlaceholder": "no tracker selected",
@@ -63,6 +64,7 @@
       "one": "1 device tracked · ~{rate}/hr",
       "other": "{n} devices tracked · ~{rate}/hr"
     },
+    "devicesTrackedRateHint": "About {rate} location fixes per hour, across your tracked devices.",
     "noDevicesTracked": "no devices tracked",
     "pollerActive": "Polling service active (every {interval} min)",
     "pollerStale": "No recent poll — the service may be stopped",
@@ -77,10 +79,13 @@
     "serviceNotRunning": "The polling service does not appear to be running. Start it with: findplus start",
     "apiUnreachable": "Could not reach the local API: {message}",
     "sectionsNavLabel": "Sections",
-    "detailsLandmarkLabel": "Details"
+    "detailsLandmarkLabel": "Details",
+    "statusRegionLabel": "Status and filters",
+    "skipMap": "Skip map, go to timeline"
   },
   "field": {
-    "customColor": "Custom colour"
+    "customColor": "Custom color",
+    "telegramToken": "Telegram bot token"
   },
   "devices": {
     "title": "Your devices",
@@ -95,7 +100,10 @@
     "notPolledSuffix": " (not polled)",
     "emptyState": "No devices known yet. Use \"Refresh from your providers\".",
     "obsCount": "{n} obs",
-    "rateTracked": "{count} device(s) tracked → about {rate} {requests} requests per hour, polled sequentially every {interval} min.",
+    "rateTracked": {
+      "one": "1 device tracked → about {rate} {requests} requests per hour, polled sequentially every {interval} min.",
+      "other": "{count} devices tracked → about {rate} {requests} requests per hour, polled sequentially every {interval} min."
+    },
     "rateNothing": "Nothing tracked — the poller will not query {requests} at all.",
     "pollingLabel": "Polling…",
     "askingProvidersLabel": "Asking your providers…",
@@ -117,10 +125,10 @@
     "field": {
       "label": "Label",
       "icon": "Icon",
-      "color": "Colour",
+      "color": "Color",
       "tracked": "Tracked",
       "letter": "Badge letter",
-      "customColor": "Custom colour"
+      "customColor": "Custom color"
     },
     "dialog": {
       "title_edit": "Edit {name}"
@@ -136,10 +144,12 @@
     "verdictTogetherPartial": "Together ({reporting} of {considered} reporting)",
     "verdictUnknown": "Unknown",
     "verdictDiverged": "Diverged",
+    "verdictDivergedHint": "Diverged: at least one member is not near the rest of the group.",
     "verdictOnlyOneReporting": "Only 1 reporting",
     "verdictPartial": "Partial",
     "listAway": "Away from the others",
     "staleBadge": "{name} — no fix for {age}",
+    "staleBadgeNoFix": "{name} — no fix yet",
     "dialog": {
       "title_add": "Add group",
       "title_edit": "Edit group"
@@ -147,16 +157,23 @@
     "field": {
       "name": "Name",
       "icon": "Icon",
-      "color": "Colour",
-      "quorum": "Quorum",
-      "quorum_custom": "Custom",
+      "color": "Color",
+      "quorum": "Alert when",
+      "quorum_any": "Any member arrives",
+      "quorum_majority": "Most members arrive",
+      "quorum_all": "Every member arrives",
+      "quorum_custom": "Custom number of members",
+      "quorum_hint": "How many members have to be at a place before the group counts as arrived.",
       "radius": "Cluster radius (m)",
+      "radius_hint": "How close together members' locations must be to count as \"in the same place\".",
       "stale": "Stale after (minutes)",
       "stale_hint": "A tag with no recent fix is stale, not at home and not left behind. Find+ reports it as unknown.",
       "members": "Members"
     },
     "error": {
-      "name_required": "Name is required."
+      "name_required": "Name is required.",
+      "members_required": "Select at least one member.",
+      "duplicate_name": "A group named {name} already exists."
     },
     "empty": "No groups yet. A group tracks presence for a household, a set of pets, or anything you want a together/apart verdict for.",
     "add_button": "Add group",
@@ -168,17 +185,60 @@
       "delete": "Delete group \"{name}\"?"
     }
   },
+  "icons": {
+    "custom": {
+      "sectionLabel": "Your icons",
+      "label": "Custom icon",
+      "upload": "Upload",
+      "delete": "Delete",
+      "deleteConfirm": "Delete this icon?",
+      "deleteInUse": "This icon is in use and cannot be deleted.",
+      "badFile": "Choose a PNG image first.",
+      "uploadFailed": "Could not upload icon: {message}"
+    }
+  },
   "places": {
     "addPlace": "Add place",
-    "tabHint": "Click the map or use Add place to create a geofence.",
+    "tabHint": "Use Add place to create a geofence.",
     "confirmDelete": "Delete place \"{name}\"?",
     "deleteFailed": "Could not delete that place ({status}).",
+    "duplicateName": "A place named {name} already exists.",
     "sinceLabel": "{place} since {time}",
     "nameLabel": "Name",
     "radiusLabel": "Radius (m)",
     "colorLabel": "Color",
     "enterConfirmations": "Enter confirmations",
-    "exitConfirmations": "Exit confirmations"
+    "exitConfirmations": "Exit confirmations",
+    "dialog": {
+      "title_add": "Add place",
+      "title_edit": "Edit {name}"
+    },
+    "field": {
+      "customColor": "Custom color",
+      "useTrackerLocation": "Use a tracker's last location",
+      "use": "Use",
+      "chooseTracker": "Choose a tracker…",
+      "chooseTrackerFirst": "Choose a tracker first.",
+      "noTrackerFix": "That tracker has no location on record yet.",
+      "locationSet": "Location set from {name}."
+    },
+    "search": {
+      "label": "Address search",
+      "placeholder": "Search for an address",
+      "button": "Search",
+      "resultsLabel": "Search results",
+      "noResults": "No results.",
+      "failed": "Search failed: {message}"
+    },
+    "list": {
+      "empty": "No places yet. Use Add place to create one.",
+      "radiusMeta": "{radius} m radius",
+      "whoIsHere": "Currently here: {names}"
+    },
+    "card": {
+      "edit": "Edit {name}",
+      "delete": "Delete {name}"
+    }
   },
   "alerts": {
     "telegramHeading": "Telegram",
@@ -230,10 +290,32 @@
     "groupFallback": "group {id}",
     "ruleFallback": "rule {id}",
     "skippedNoReason": "suppressed, no reason recorded",
+    "retryingStatus": "Retrying (attempt {attempt} of {max}, next at {time})",
+    "failedAfterRetries": "Failed after {max} attempts",
+    "channelNotConnected": "{channel} (not connected)",
+    "badBotTokenError": "That doesn't look like a bot token. Get one from @BotFather in Telegram.",
+    "colEnabled": "Enabled",
+    "editRule": "Edit rule",
+    "newRule": "New rule",
+    "noConnectedChannel": "Connect at least one selected channel before saving.",
+    "ruleEnabledLabel": "Enabled: {name}",
+    "ruleUpdateFailed": "Could not update \"{name}\" ({status}).",
+    "statuses": {
+      "sent": "Sent",
+      "failed": "Failed",
+      "skipped": "Skipped",
+      "queued": "Queued",
+      "delivered": "Delivered",
+      "retrying": "Retrying"
+    },
+    "kinds": {
+      "device": "Device",
+      "group": "Group"
+    },
     "whatsapp": {
       "heading": "WhatsApp",
       "phone": "Phone",
-      "phonePlaceholder": "+E164",
+      "phonePlaceholder": "+1 555 555 0123",
       "apikey": "API key",
       "save": "Save",
       "test": "Send test",
@@ -298,6 +380,7 @@
     "noticesHeading": "Notices",
     "about": "findplus {version} · schema {schema} · timezone {timezone} · polling every {interval} min",
     "pinsDoNotMatch": "The two PINs do not match.",
+    "pinTooShort": "PIN must be at least 6 characters.",
     "pinSet": "PIN set. The app will lock when idle and whenever the service restarts.",
     "enterNewPin": "Enter the new PIN.",
     "pinChanged": "PIN changed. All existing sessions were signed out.",
@@ -310,6 +393,7 @@
       "interval_label": "Poll every",
       "interval_unit": "minutes",
       "interval_note": "Find+ never polls faster than every 5 minutes, to avoid rate-limiting your account. Takes effect after Find+ restarts. An environment variable, if one is set, wins over this box, and the value shown then stays the one already in force.",
+      "interval_range_error": "Choose 5 to 1440 minutes.",
       "retention_label": "Keep history for",
       "retention_unit": "days (blank = forever)",
       "retention_placeholder": "forever",
@@ -329,14 +413,19 @@
     "done": {
       "button": "Done",
       "title": "You're set up",
-      "summary": "{n} device(s) tracked."
+      "summary": {
+        "one": "1 device tracked.",
+        "other": "{n} devices tracked."
+      }
     },
     "welcome": {
       "title": "Welcome",
-      "body": "Find+ tracks your Google Find Hub and Apple Find My devices, entirely on this computer. Nothing you set up here leaves this machine except the direct connections to Google or Apple you set up directly."
+      "body": "Find+ tracks your Google Find Hub and Apple Find My devices. Your location history stays on this machine. Map tiles always load from OpenStreetMap. Anything else leaves only when you turn it on: signing in to Google or Apple, address search, and any alert channel you connect (Telegram, WhatsApp or a webhook)."
     },
     "signin": {
+      "title": "Sign in",
       "google": "Sign in with Google",
+      "google_signed_in": "Signed in ✓ (switch account)",
       "apple": "Sign in with Apple",
       "apple_id": "Apple ID",
       "password": "Password",
@@ -354,7 +443,11 @@
       "empty": "No devices found yet — refresh once you've added a tracker",
       "label_placeholder": "Your name for this tracker",
       "refresh": "Refresh from your providers",
-      "edit": "Edit"
+      "edit": "Edit",
+      "track": "Track",
+      "trackFor": "Track {name}",
+      "labelFor": "Label for {name}",
+      "confirm_none_tracked": "Track nothing? Find+ will not poll any tracker until you come back and tick one (or run findplus devices --track-all later)."
     },
     "groups": {
       "title": "Groups (optional)",
@@ -372,7 +465,7 @@
       "whatsapp": "WhatsApp",
       "native": "Notifications",
       "connect": "Connect",
-      "configure_later": "Configure from Settings after finishing setup.",
+      "configure_later": "Configure from the Alerts tab after finishing setup.",
       "enable": "Enable notifications",
       "permission_granted": "Notifications are on.",
       "permission_denied": "Notifications are off. You can turn them on in your system settings.",
@@ -403,6 +496,7 @@
     "signInGoogle": "Sign in with Google",
     "google": {
       "signin": "Sign in with Google",
+      "switchAccount": "Switch account",
       "launching": "Starting Chrome…",
       "waiting": "Sign in inside the Chrome window that just opened.",
       "capturing": "Finishing up…",
@@ -417,7 +511,17 @@
       "code": "Code",
       "codeSubmit": "Submit",
       "needs_2fa": "Enter the code sent to your trusted device.",
-      "heading": "Apple Find My"
+      "heading": "Apple Find My",
+      "accessories": {
+        "heading": "Accessory keys",
+        "name": "Accessory name",
+        "file": "Key file (.plist or .json)",
+        "add": "Add accessory",
+        "pickBoth": "Choose a name and a key file first.",
+        "added": "Added \"{name}\".",
+        "badJson": "That file has no readable private key.",
+        "confirmReplace": "\"{name}\" is already registered. Replace the stored key?"
+      }
     },
     "status": {
       "signed_in": "Signed in as {account}",
@@ -447,6 +551,7 @@
     "noDetectionsFor": "NO NEW DETECTIONS FOR {duration}",
     "fromPrevious": "{distance} from previous observation",
     "accuracy": "±{meters} m",
+    "accuracyUnknown": "Accuracy unknown",
     "belowThreshold": "below movement threshold",
     "loadFailed": "Could not load {day}: {message}",
     "pickDateFirst": "Pick a date first.",
@@ -454,14 +559,32 @@
     "confirmDeleteBefore": "Permanently delete {count} observation(s) recorded before {date}?\n\nThis cannot be undone.",
     "noHistoryToClear": "There is no history to clear.",
     "confirmClearAll": "Delete ALL {count} observation(s) for every device?\n\nThis erases the entire location history and cannot be undone.",
-    "promptTypeDelete": "Type DELETE to confirm erasing all history:",
+    "confirmWord": "DELETE",
+    "promptTypeDelete": "Type {word} to confirm erasing all history:",
     "deleteCancelled": "Cancelled — nothing deleted.",
     "pickBothDates": "Pick both a start and an end date.",
     "rangeStartAfterEnd": "The range start is after its end.",
     "latestSummary": "{device} — last observed by {network} {observed} · retrieved {fetched} · age {age}"
   },
+  "units": {
+    "unknown": "unknown",
+    "minutesShort": "{n} min",
+    "hoursShort": "{n} h",
+    "hoursMinutesShort": "{h} h {m} min",
+    "daysShort": "{n} d",
+    "seconds": "{n} sec",
+    "minutes": "{n} min",
+    "hours": "{n} hr",
+    "hoursMinutes": "{h} hr {m} min",
+    "days": {
+      "one": "{n} day",
+      "other": "{n} days"
+    },
+    "meters": "{n} m",
+    "miles": "{n} mi"
+  },
   "honesty": {
-    "findHub": "This history consists of locations reported through Google's Find Hub network. Moto Tag uses nearby participating Android devices to report its location. Location updates can therefore be delayed, sparse, or unavailable, and this application should not be treated as real-time emergency or child-safety GPS tracking.",
+    "findHub": "This history consists of locations reported through Google's Find Hub network. Your trackers use nearby participating Android devices to report their location. Location updates can therefore be delayed, sparse, or unavailable, and this application should not be treated as real-time emergency or child-safety GPS tracking.",
     "apple": "Apple Find My locations come from nearby Apple devices and can be delayed, sparse or unavailable. Find+ can only query accessories whose keys you hold; genuine AirTags require extracting pairing keys, which most users cannot do.",
     "alertsLatency": "Alerts inherit the network's delay. An arrival or departure may be reported minutes to hours late.",
     "presenceStale": "A tag with no recent fix is stale, not at home and not left behind. Find+ reports it as unknown.",
@@ -471,6 +594,7 @@
     "alertsLocked": "Notifications are held while Find+ is locked. Unlock to see what you missed.",
     "nativeGeneric": "By default, macOS notifications show a generic \"Find+ alert\" instead of who or where, because notification banners can appear on a locked screen. Turn on notification details in Settings to show the person and place — anyone who can see the screen then sees the same thing.",
     "notAffiliated": "Find+ is not affiliated with Apple or Google. Find Hub and Find My are their trademarks.",
-    "chromeRequired": "Google Chrome was not found on this machine. Google sign-in drives Chrome directly and cannot run without it. Install it from https://www.google.com/chrome/ and try again."
+    "chromeRequired": "Google Chrome was not found on this machine. Google sign-in drives Chrome directly and cannot run without it. Install it from https://www.google.com/chrome/ and try again.",
+    "addressSearch": "Address search sends the text you type to OpenStreetMap's Nominatim service, a third party not affiliated with Find+, and only when you press Search."
   }
 }

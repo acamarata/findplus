@@ -31,9 +31,9 @@ from ._time import _iso_z
 #: the same one the dashboard and CLI would show right now.
 WIDGET_GROUP_WINDOW_MINUTES = 60
 
-#: Widget staleness threshold in minutes (D18, the same number groups default to).
-#: Served as `stale_after_minutes` on GET /api/widget so the Swift views read one
-#: agreed figure instead of hardcoding a second, looser one of their own.
+#: Widget staleness threshold (D18; also Settings.presence_window_minutes's
+#: default since N17/R-P2-32, kept literal here, bound at import). Served as
+#: `stale_after_minutes` on GET /api/widget so the Swift views read one figure.
 WIDGET_STALE_AFTER_MINUTES = 90
 
 #: `PollRun.error_type` values that put the widget straight into `error`,
@@ -48,22 +48,23 @@ WIDGET_STALE_AFTER_MINUTES = 90
 #: cycles before `consecutive_failures >= 3` finally fired. Both vocabularies
 #: are accepted so the spec's words keep working if the poller ever adopts them.
 ERROR_STATE_TYPES = frozenset(
-    {
-        "auth",
-        "decrypt",
-        "AuthRequiredError",
-        "DecryptionError",
-        "unauthenticated",
-    }
+    {"auth", "decrypt", "AuthRequiredError", "DecryptionError", "unauthenticated"}
 )
 
 
-def _place_by_device(session) -> dict[str, str]:
-    """Lowest-`place_id` 'inside' place name per device; `{}` before places exist."""
+def _place_by_device(
+    session, now: datetime, stale_after_minutes: int = WIDGET_STALE_AFTER_MINUTES
+) -> dict[str, str]:
+    """Lowest-`place_id` 'inside' place name per device; `{}` before places exist.
+
+    Must use the SAME cutoff `_widget_places` uses (UAT2 N4): with no
+    threshold this fell back to `presence_window_minutes` (60) while
+    `places[]` used `WIDGET_STALE_AFTER_MINUTES` (90, D18).
+    """
     from findplus.places.repo import current_presence
 
     try:
-        rows = current_presence(session)
+        rows = current_presence(session, stale_after_minutes=stale_after_minutes, now=now)
     except OperationalError:
         return {}
     inside = sorted((r for r in rows if r["state"] == "inside"), key=lambda r: r["place_id"])
@@ -133,6 +134,74 @@ def _group_rows(session) -> list[dict[str, Any]]:
     return rows
 
 
+def _place_members(session) -> dict[int, list[str]]:
+    """group_id -> member device_ids, for the widget's full-group place badges.
+
+    Raw SQL against the pinned migration-0005 schema, same reasoning as
+    `_group_by_device`.
+    """
+    try:
+        rows = session.execute(text("SELECT group_id, device_id FROM device_group")).all()
+    except OperationalError:
+        return {}
+    out: dict[int, list[str]] = {}
+    for row in rows:
+        out.setdefault(row.group_id, []).append(row.device_id)
+    return out
+
+
+def _widget_places(
+    session, now: datetime, stale_after_minutes: int = WIDGET_STALE_AFTER_MINUTES
+) -> list[dict[str, Any]]:
+    """`[{id, name, device_ids, group_ids, last_change_at}]`, place-name order.
+
+    Feeds the PlacesWidget widget kind. Presence follows `list_places`'s own
+    staleness rule (honesty.PRESENCE_STALE). A group is a badge only when
+    EVERY member is inside this place -- a partial group stays its
+    individual present members. `WidgetGroup` has no member list, so
+    `device_ids` excludes any device already covered by a `group_ids` badge.
+    """
+    from findplus.places.repo import current_presence, list_places
+
+    try:
+        places = list_places(session, stale_after_minutes=stale_after_minutes, now=now)
+    except OperationalError:
+        return []
+    presence = current_presence(session, stale_after_minutes=stale_after_minutes, now=now)
+    since_by_place_device = {
+        (row["place_id"], row["device_id"]): row["since_observed_at"]
+        for row in presence
+        if row["state"] == "inside"
+    }
+    members = _place_members(session)
+    out: list[dict[str, Any]] = []
+    for place in places:
+        present_ids = list(place._devices_inside)
+        present = set(present_ids)
+        group_ids = sorted(
+            gid
+            for gid, member_ids in members.items()
+            if member_ids and set(member_ids).issubset(present)
+        )
+        covered = set().union(*(members[gid] for gid in group_ids)) if group_ids else set()
+        device_ids = [d for d in present_ids if d not in covered]
+        changes = [
+            since_by_place_device[(place.id, d)]
+            for d in present_ids
+            if since_by_place_device.get((place.id, d)) is not None
+        ]
+        out.append(
+            {
+                "id": place.id,
+                "name": place.name,
+                "device_ids": device_ids,
+                "group_ids": group_ids,
+                "last_change_at": _iso_z(max(changes)) if changes else None,
+            }
+        )
+    return out
+
+
 def _widget_device_row(
     session,
     device,
@@ -183,7 +252,7 @@ def _widget_devices(
     not at a place, so its last known place must never be handed to a caller
     as if the tag were still there.
     """
-    places = _place_by_device(session)
+    places = _place_by_device(session, now, stale_after_minutes)
     device_groups = _group_by_device(session)
     out: list[dict[str, Any]] = []
     for device in get_tracked_devices(session):

@@ -15,7 +15,7 @@ import click
 from findplus.config import get_settings
 from findplus.db.session import session_scope
 
-from ._fmt import _prep, _print_device_table, _print_nothing_tracked_hint
+from ._fmt import _plural, _prep, _print_device_table, _print_nothing_tracked_hint
 
 
 def _devices_as_json(session, rows) -> str:
@@ -36,6 +36,7 @@ def _devices_as_json(session, rows) -> str:
             {
                 "device_id": d.device_id,
                 "name": d.name,
+                "label": d.label,
                 "provider": d.provider,
                 "is_tracked": d.is_tracked,
                 "observation_count": int(count or 0),
@@ -114,10 +115,18 @@ def _print_rate_or_hint(settings, tracked_count: int, total: int) -> None:
     interval = settings.effective_poll_interval_minutes
     if tracked_count:
         rate = tracked_count * 60 / interval
-        click.echo(f"Tracking {tracked_count} of {total} device(s).")
+        # UAT4 N43: "device(s)" never resolved a real count -- proper
+        # plurals for both the total and the tracked count in this line.
+        click.echo(f"Tracking {tracked_count} of {total} {_plural(total, 'device')}.")
+        # GP-R5-4: this line used to say "Google requests/hour" unconditionally,
+        # which is wrong once an Apple Find My device is tracked alongside (or
+        # instead of) a Google one -- "provider" covers whichever accounts are
+        # actually configured, the same neutral wording catalog-en.js's
+        # rateTracked/trackedResult strings already use for this dialog.
         click.echo(
-            f"That is about {rate:.0f} Google requests/hour "
-            f"({tracked_count} device(s) every {interval:g} min), polled sequentially."
+            f"That is about {rate:.0f} provider requests/hour "
+            f"({tracked_count} {_plural(tracked_count, 'device')} every {interval:g} min),"
+            " polled sequentially."
         )
     else:
         _print_nothing_tracked_hint()
@@ -140,7 +149,8 @@ def _print_listing(json_out: bool) -> None:
             return
 
         if not rows:
-            click.echo("No devices found on this account.")
+            click.echo("No devices known yet.")
+            click.echo("Sign in with `findplus auth`, then `findplus devices --refresh`.")
             return
 
         _print_device_table(session)
@@ -154,7 +164,11 @@ def _print_listing(json_out: bool) -> None:
 )
 @click.option("--untrack", "untrack_ids", multiple=True, help="Stop tracking a device id.")
 @click.option("--default", "default_id", default=None, help="Device the dashboard opens on.")
-@click.option("--refresh/--no-refresh", default=True, help="Re-query Find Hub for the list.")
+@click.option(
+    "--refresh/--no-refresh",
+    default=False,
+    help="Re-query Find Hub for the list before printing it (needs a signed-in account).",
+)
 @click.option("--json", "json_out", is_flag=True, help="Print the device list as JSON.")
 @click.pass_context
 def devices(
@@ -166,17 +180,15 @@ def devices(
     refresh: bool,
     json_out: bool,
 ) -> None:
-    """List every tracker Find+ knows about and choose which ones to track.
+    """List the trackers Find+ knows about and choose which ones to track.
 
-    The table covers all providers, because an Apple accessory that has
-    reported once has a device row too. `--refresh` re-reads the Google Find
-    Hub account only; Apple accessories are added with `findplus apple`.
-    Any number of devices can be tracked at once. Tracking N devices costs N
-    provider requests per poll cycle, so the effective request rate is shown.
-
-    `devices` is a group with its own callback: `findplus devices --track-all`
-    still runs this listing body, while `findplus devices label ...` and
-    `findplus devices icons` dispatch to the subcommands below instead.
+    Lists from the local database by default, so it works without a signed-in
+    account or a network call. Pass `--refresh` to re-read the Google Find
+    Hub account first; Apple accessories are added with `findplus apple`. The
+    table covers every provider, because an Apple accessory that has reported
+    once has a device row too. Any number of devices can be tracked at once;
+    tracking N devices costs N provider requests per poll cycle, so the
+    effective request rate is shown.
     """
     if ctx.invoked_subcommand is not None:
         return
@@ -205,7 +217,7 @@ def devices(
 @click.option("--icon", "icon_value", default=None, help="lucide:<name>, letter:<X>, letter, none.")
 @click.option("--color", "color_value", default=None, help="Lowercase #rrggbb.")
 def label_device_cmd(device_id, label_value, icon_value, color_value):
-    """Set a device's label, icon and/or colour."""
+    """Set a device's label, icon and/or color."""
     if label_value is None and icon_value is None and color_value is None:
         click.echo("Error: give at least one of --label, --icon, --color", err=True)
         sys.exit(2)

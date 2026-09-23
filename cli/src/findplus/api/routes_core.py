@@ -44,6 +44,7 @@ from ._helpers import (
     _provider_health,
     _serialize_run,
     _widget_devices,
+    _widget_places,
     _widget_show_map,
     _widget_state,
 )
@@ -160,6 +161,7 @@ def _register_widget_route(router: APIRouter, *, settings) -> None:
                 "stale_after_minutes": WIDGET_STALE_AFTER_MINUTES,
                 "devices": _widget_devices(session, now, WIDGET_STALE_AFTER_MINUTES),
                 "groups": _group_rows(session),
+                "places": _widget_places(session, now, WIDGET_STALE_AFTER_MINUTES),
                 "show_map": _widget_show_map(session, settings),
                 # The exact honesty.md sentence, not a paraphrase of it.
                 "notice": honesty.ALERTS_LATENCY,

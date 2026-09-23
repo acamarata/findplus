@@ -67,13 +67,19 @@ def _send(
 
 def _status_for(
     channel: str, rule: Rule, event, kind: str, channels_cfg, now: datetime.datetime
-) -> tuple[str, str | None]:
-    """Send one alert and classify the outcome as (status, error) for the row."""
+) -> tuple[str, str | None, int | None, int | None]:
+    """Send one alert; classify the outcome as (status, error, status_code, retry_after).
+
+    status_code and retry_after (seconds, from a 429's Retry-After header) are
+    None whenever the channel raised, was unconfigured, or never carried
+    either value -- dispatch.py's classify_new_delivery() treats a None
+    status_code as non-retryable unless the error is exactly "timeout".
+    """
     try:
         text_msg = render_message(event, now)
         result = _send(channel, rule, event, kind, text_msg, channels_cfg)
     except Exception as exc:  # a channel failure must never crash dispatch/the poller
-        return "failed", redact_text(str(exc)[:500])
+        return "failed", redact_text(str(exc)[:500]), None, None
     if result is None:
         # The rule names a channel that has no credentials — a telegram rule
         # created before telegram-setup finished, or one left enabled after
@@ -82,7 +88,10 @@ def _status_for(
         # stamped notified_at, so the event was swallowed for good and never
         # appeared in GET /api/alerts/deliveries. Record it instead; the
         # cooldown filter keys on status == "sent", so this starts none.
-        return "skipped", f"{channel} is not configured"
+        return "skipped", f"{channel} is not configured", None, None
     # CF-14 displays this column, and httpx status errors carry the request URL
     # -- a webhook with its key in the query string would otherwise show it.
-    return ("sent" if result.success else "failed"), redact_text(result.error)
+    status_code = getattr(result, "status_code", None)
+    retry_after = getattr(result, "retry_after_seconds", None)
+    status = "sent" if result.success else "failed"
+    return status, redact_text(result.error), status_code, retry_after

@@ -67,8 +67,7 @@ def _engine(url: str) -> sa.Engine:
     return engine
 
 
-def _seed_1_0_x_database(conn: sa.Connection) -> None:
-    """Two devices, a place, a group, and one row per cascading child table."""
+def _seed_devices_and_observation(conn: sa.Connection) -> None:
     for device_id, name in (("dev1", "Moto Tag 1"), ("dev2", "Moto Tag 2")):
         conn.execute(
             sa.text(
@@ -85,6 +84,9 @@ def _seed_1_0_x_database(conn: sa.Connection) -> None:
         ),
         {"now": NOW},
     )
+
+
+def _seed_place_and_events(conn: sa.Connection) -> None:
     conn.execute(
         sa.text(
             "INSERT INTO places (id, name, latitude_e7, longitude_e7, radius_meters, "
@@ -107,6 +109,9 @@ def _seed_1_0_x_database(conn: sa.Connection) -> None:
         ),
         {"now": NOW},
     )
+
+
+def _seed_group_and_alerts(conn: sa.Connection) -> None:
     conn.execute(
         sa.text("INSERT INTO groups (id, name, created_at) VALUES (1, 'Family', :now)"),
         {"now": NOW},
@@ -148,6 +153,13 @@ def _seed_1_0_x_database(conn: sa.Connection) -> None:
             ),
             {"rid": rule_id, "eid": event_id, "now": NOW},
         )
+
+
+def _seed_1_0_x_database(conn: sa.Connection) -> None:
+    """Two devices, a place, a group, and one row per cascading child table."""
+    _seed_devices_and_observation(conn)
+    _seed_place_and_events(conn)
+    _seed_group_and_alerts(conn)
 
 
 def _counts(conn: sa.Connection) -> dict[str, int]:
@@ -221,6 +233,22 @@ def test_fk_disabled_actually_toggles_the_pragma_off_then_on(tmp_path: Path) -> 
     get_engine.cache_clear()
 
 
+def _seed_mixed_channel_deliveries(conn: sa.Connection) -> None:
+    """Three deliveries for the same (rule, event_kind, event_id): the
+    narrowed 0007 UNIQUE has no channel column, so these collide unless
+    downgrade dedupes first. Statuses cover both of 0008's new states."""
+    deliveries = (("telegram", "sent"), ("native", "queued"), ("whatsapp", "delivered"))
+    for channel, status in deliveries:
+        conn.execute(
+            sa.text(
+                "INSERT INTO alert_deliveries "
+                "(rule_id, event_kind, event_id, channel, sent_at, status) "
+                "VALUES (1, 'device', 99, :ch, :now, :st)"
+            ),
+            {"ch": channel, "now": NOW, "st": status},
+        )
+
+
 def test_downgrade_then_upgrade_round_trips_a_live_1_1_database(tmp_path: Path) -> None:
     """CR-C-E8 F3: downgrade 0006 must survive queued/delivered + multi-channel rows.
 
@@ -238,19 +266,7 @@ def test_downgrade_then_upgrade_round_trips_a_live_1_1_database(tmp_path: Path) 
 
     engine2 = _engine(url)
     with engine2.begin() as conn:
-        # Three deliveries for the same (rule, event_kind, event_id): the
-        # narrowed 0007 UNIQUE has no channel column, so these collide unless
-        # downgrade dedupes first. Statuses cover both of 0008's new states.
-        deliveries = (("telegram", "sent"), ("native", "queued"), ("whatsapp", "delivered"))
-        for channel, status in deliveries:
-            conn.execute(
-                sa.text(
-                    "INSERT INTO alert_deliveries "
-                    "(rule_id, event_kind, event_id, channel, sent_at, status) "
-                    "VALUES (1, 'device', 99, :ch, :now, :st)"
-                ),
-                {"ch": channel, "now": NOW, "st": status},
-            )
+        _seed_mixed_channel_deliveries(conn)
 
     # Must not raise: this is exactly the constraint mismatch CR-C-E8 F3 found.
     command.downgrade(cfg, "0006")

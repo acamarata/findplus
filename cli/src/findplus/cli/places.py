@@ -25,6 +25,8 @@ from findplus.places.repo import (
     update_place,
 )
 
+from ._fmt import _render_table
+
 places_cmd = click.Group(name="places", help="Manage saved places and view geofence events.")
 
 _PLACE_KEYS = (
@@ -83,14 +85,13 @@ def list_places_cmd(as_json: bool) -> None:
         out = [dict(zip(_PLACE_KEYS, _place_values(r), strict=True)) for r in rows]
         click.echo(json.dumps(out, indent=2))
         return
-    click.echo(
-        f"{'ID':<6}{'NAME':<26}{'LAT':>10}{'LON':>12}{'RADIUS':>8}{'COLOR':<10}{'ENTER':>6}{'EXIT':>5}"
-    )
+    headers = ("ID", "NAME", "LAT", "LON", "RADIUS", "COLOR", "ENTER", "EXIT")
+    aligns = "<<>>><>>"
+    table_rows = []
     for r in rows:
         i, name, lat, lon, radius, color, enter, exit_ = _place_values(r)
-        click.echo(
-            f"{i:<6}{name:<26}{lat:>10.6f}{lon:>12.6f}{radius:>8}{color:<10}{enter:>6}{exit_:>5}"
-        )
+        table_rows.append((i, name, f"{lat:.6f}", f"{lon:.6f}", radius, color, enter, exit_))
+    _render_table(headers, aligns, table_rows)
 
 
 @places_cmd.command("add")

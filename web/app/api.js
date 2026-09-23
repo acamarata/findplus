@@ -52,8 +52,26 @@ function withStatus(error, status) {
   return error;
 }
 
+/** The response body's `detail`, formatted, or `fallback` if there is none. */
+async function _detailOr(res, fallback) {
+  try {
+    const payload = await res.json();
+    if (payload && payload.detail) return formatDetail(payload.detail);
+  } catch (_) {}
+  return fallback;
+}
+
 export async function api(path, options) {
-  const res = await fetch(path, options);
+  // skipLock: the unlock route itself answers 401 for a WRONG PIN, not for
+  // "the app locked underneath us" — showLock() is redundant there (the lock
+  // screen is already up) and it would discard the real "Incorrect PIN..."
+  // detail in favour of the generic "Locked" message (UAT U20). Stripped
+  // before the options object reaches fetch().
+  const { skipLock, ...fetchOptions } = options || {};
+  const res = await fetch(path, fetchOptions);
+  if (res.status === 401 && skipLock) {
+    throw withStatus(new Error(await _detailOr(res, "Locked")), 401);
+  }
   if (res.status === 401) {
     // The server refused: the app locked underneath us (idle timeout, restart,
     // or a PIN change). Show the lock screen rather than a confusing error.
@@ -86,10 +104,11 @@ export async function api(path, options) {
   return res.json();
 }
 
-export function postJson(path, body) {
+export function postJson(path, body, options) {
   return api(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body || {}),
+    ...options,
   });
 }

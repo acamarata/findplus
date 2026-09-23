@@ -26,7 +26,11 @@ Constraints: Zero behavior change from the pre-split monolith is the bar —
              /api/alerts/deliveries/{delivery_id}/ack, bringing it to 69;
              P2-E11-W4-S1-T1 adds GET/POST
              /api/settings/onboarding.completed_at and GET/POST
-             /api/settings/onboarding.last_step, bringing it to 73.
+             /api/settings/onboarding.last_step, bringing it to 73;
+             the P2 custom-icons ticket adds POST/GET /api/icons/custom,
+             GET /api/icons/custom/{icon_id}.png and
+             DELETE /api/icons/custom/{icon_id}, bringing it to 77; the UAT
+             U4 fix adds GET /api/places/search, bringing it to 78.
 """
 
 from __future__ import annotations
@@ -71,72 +75,81 @@ def _app_routes(app):
 def test_route_count():
     app = create_app()
     routes = _app_routes(app)
-    assert len(routes) == 73
+    assert len(routes) == 78
+
+
+#: T1 (2026-09-22, PRI rule-7 50-line function cap): pulled out of
+#: test_route_paths_present's body so the assertion itself stays short --
+#: same literal, same coverage, no behavior change.
+_EXPECTED_PATHS = {
+    "/",
+    "/api/health",
+    "/api/config",
+    "/api/status",
+    "/api/lock/status",
+    "/api/lock/unlock",
+    "/api/lock/lock",
+    "/api/lock/requirements",
+    "/api/settings",
+    "/api/settings/pin",
+    "/api/settings/app.start_at_login",
+    "/api/settings/widget.show_map",
+    "/api/settings/onboarding.completed_at",
+    "/api/settings/onboarding.last_step",
+    "/api/devices",
+    "/api/devices/refresh",
+    "/api/devices/track",
+    "/api/devices/default",
+    "/api/devices/{device_id}",
+    "/api/icons",
+    "/api/icons/custom",
+    "/api/icons/custom/{icon_id}.png",
+    "/api/icons/custom/{icon_id}",
+    "/api/timeline",
+    "/api/days",
+    "/api/latest",
+    "/api/poll-runs",
+    "/api/poll-now",
+    "/api/export",
+    "/api/history/delete-before",
+    "/api/history/clear",
+    "/api/providers",
+    "/api/auth/status",
+    "/api/auth/google/start",
+    "/api/auth/google/progress",
+    "/api/auth/apple/start",
+    "/api/auth/apple/code",
+    "/api/auth/apple/progress",
+    "/api/apple/accessories",
+    "/api/places",
+    "/api/places/{place_id}",
+    "/api/places/events",
+    "/api/places/presence",
+    "/api/places/search",
+    "/api/version",
+    "/api/widget",
+    "/api/groups",
+    "/api/groups/{group_id}",
+    "/api/groups/{group_id}/members",
+    "/api/groups/{group_id}/presence",
+    "/api/groups/events",
+    "/api/alerts/channels",
+    "/api/alerts/channels/telegram",
+    "/api/alerts/channels/telegram/setup",
+    "/api/alerts/channels/webhook",
+    "/api/alerts/channels/whatsapp",
+    "/api/alerts/test",
+    "/api/alerts/rules",
+    "/api/alerts/rules/{rule_id}",
+    "/api/alerts/deliveries",
+    "/api/alerts/deliveries/{delivery_id}/ack",
+}
 
 
 def test_route_paths_present():
     app = create_app()
     paths = {r.path for r in _app_routes(app)}
-    expected = {
-        "/",
-        "/api/health",
-        "/api/config",
-        "/api/status",
-        "/api/lock/status",
-        "/api/lock/unlock",
-        "/api/lock/lock",
-        "/api/lock/requirements",
-        "/api/settings",
-        "/api/settings/pin",
-        "/api/settings/app.start_at_login",
-        "/api/settings/widget.show_map",
-        "/api/settings/onboarding.completed_at",
-        "/api/settings/onboarding.last_step",
-        "/api/devices",
-        "/api/devices/refresh",
-        "/api/devices/track",
-        "/api/devices/default",
-        "/api/devices/{device_id}",
-        "/api/icons",
-        "/api/timeline",
-        "/api/days",
-        "/api/latest",
-        "/api/poll-runs",
-        "/api/poll-now",
-        "/api/export",
-        "/api/history/delete-before",
-        "/api/history/clear",
-        "/api/providers",
-        "/api/auth/status",
-        "/api/auth/google/start",
-        "/api/auth/google/progress",
-        "/api/auth/apple/start",
-        "/api/auth/apple/code",
-        "/api/auth/apple/progress",
-        "/api/apple/accessories",
-        "/api/places",
-        "/api/places/{place_id}",
-        "/api/places/events",
-        "/api/places/presence",
-        "/api/version",
-        "/api/widget",
-        "/api/groups",
-        "/api/groups/{group_id}",
-        "/api/groups/{group_id}/members",
-        "/api/groups/{group_id}/presence",
-        "/api/groups/events",
-        "/api/alerts/channels",
-        "/api/alerts/channels/telegram",
-        "/api/alerts/channels/telegram/setup",
-        "/api/alerts/channels/webhook",
-        "/api/alerts/channels/whatsapp",
-        "/api/alerts/test",
-        "/api/alerts/rules",
-        "/api/alerts/rules/{rule_id}",
-        "/api/alerts/deliveries",
-        "/api/alerts/deliveries/{delivery_id}/ack",
-    }
-    assert expected.issubset(paths)
+    assert _EXPECTED_PATHS.issubset(paths)
 
 
 def test_no_docs_or_redoc_routes_registered():

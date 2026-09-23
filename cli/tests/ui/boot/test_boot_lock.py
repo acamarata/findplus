@@ -32,4 +32,10 @@ def test_wrong_pin_stays_locked_and_reports_it(page: Page) -> None:
     page.click("#lock-submit")
     page.wait_for_timeout(1200)
     assert page.is_visible("#lock-screen")
-    assert page.inner_text("#lock-error").strip()
+    # UAT U20: the generic 401 handler used to swallow the real reason and
+    # show the bare word "Locked"; a wrong PIN now names itself and points at
+    # the recovery command, not just "something failed".
+    error_text = page.inner_text("#lock-error").strip()
+    assert error_text != "Locked"
+    assert "Wrong PIN" in error_text
+    assert "findplus lock reset" in error_text

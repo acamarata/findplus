@@ -13,29 +13,42 @@
    under two ids while both held uncommitted hunks here; this is the merge the
    comment there asked the epic landing last to do (T0 relay, 2026-09-20). */
 #fp-group-dialog,
-#fp-device-dialog {
+#fp-device-dialog,
+#fp-place-dialog {
   background: var(--panel); color: var(--text); border: 1px solid var(--line);
   border-radius: 12px; padding: 18px 20px; min-width: 320px; max-width: 420px;
 }
 #fp-group-dialog::backdrop,
-#fp-device-dialog::backdrop { background: rgba(5,8,13,.72); }
+#fp-device-dialog::backdrop,
+#fp-place-dialog::backdrop { background: rgba(5,8,13,.72); }
+/* UAT2 N11: style.css's global `h2` rule uppercases every h2 including this
+   one, so the device dialog's title read "EDIT CHIPOLO ONE POINT". Dialog
+   titles carry a device's own label/name and read as a name, not a label. */
 #fp-group-dialog h2,
-#fp-device-dialog h2 { margin: 0 0 12px; font-size: 16px; }
+#fp-device-dialog h2,
+#fp-place-dialog h2 { margin: 0 0 12px; font-size: 16px; text-transform: none; }
 #fp-group-dialog footer,
-#fp-device-dialog footer { display: flex; gap: 8px; margin-top: 14px; }
+#fp-device-dialog footer,
+#fp-place-dialog footer { display: flex; gap: 8px; margin-top: 14px; }
 /* W3 visual gate finding 2: these two dialogs had no input/select styling at
    all (native white boxes on the dark panel), unlike .setting-row's own
    inputs. Same declarations, reused rather than forked. Native checkbox and
-   range chrome is left alone, matching the settings dialog's own choice. */
+   range chrome is left alone, matching the settings dialog's own choice.
+   UAT U3: #fp-place-dialog had NO rule here at all (a browser-default white
+   strip across the dark map) -- folded into the same selector list. */
 #fp-group-dialog input[type="text"],
 #fp-group-dialog input[type="number"],
 #fp-group-dialog select,
 #fp-device-dialog input[type="text"],
-#fp-device-dialog select {
+#fp-device-dialog select,
+#fp-place-dialog input[type="text"],
+#fp-place-dialog input[type="number"],
+#fp-place-dialog select {
   background: var(--panel-2); color: var(--text); border: 1px solid var(--line-strong);
   border-radius: 7px; padding: 6px 9px; font-size: 13px;
 }
-#fp-group-dialog input[type="range"] { accent-color: var(--accent); }
+#fp-group-dialog input[type="range"],
+#fp-place-dialog input[type="range"] { accent-color: var(--accent); }
 .fp-picker-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
 .fp-picker-label { flex: 0 0 108px; color: var(--muted); font-size: 13px; }
 .fp-picker-control { position: relative; display: inline-flex; }
@@ -76,6 +89,9 @@
   justify-content: center; font-size: 10px; color: var(--muted); }
 .fp-card-verdict { font-size: .75rem; padding: 2px 8px; border-radius: 9999px;
   background: var(--panel); }
+/* UAT3 N24: Edit and Delete as one flex item, so the wrap above puts them on
+   their own line together instead of splitting between them. */
+.fp-card-actions { display: flex; flex: 0 0 auto; gap: 6px; }
 .fp-empty-state { color: var(--muted); font-size: 12.5px; padding: 10px 0; }
 
 /* --- colour picker (device and group badges) ----------------------------- */
@@ -88,13 +104,35 @@
 
 /* --- icon picker (device and group badges) -------------------------------- */
 .fp-icon-grid { display: flex; flex-wrap: wrap; gap: 6px; }
-.fp-icon-swatch { width: 32px; height: 32px; display: flex; align-items: center;
-  justify-content: center; border-radius: 6px; border: 2px solid transparent;
+.fp-icon-swatch { position: relative; width: 32px; height: 32px; display: flex;
+  align-items: center; justify-content: center; border-radius: 6px; border: 2px solid transparent;
   background: var(--panel-2); color: var(--text); cursor: pointer; padding: 0; }
 .fp-icon-swatch[aria-pressed="true"] { border-color: var(--text); }
 .fp-icon-none-dot { display: block; margin: auto; width: 14px; height: 14px;
   border-radius: 50%; border: 1px solid var(--muted); }
 .fp-icon-letter-input { width: 2.5em; margin-top: 6px; }
+
+/* --- "Your icons" (uploaded custom PNGs), same grid as the Lucide swatches */
+.fp-custom-icons h4 { font-size: 12px; color: var(--muted); margin: 8px 0 4px; }
+.fp-icon-swatch img { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }
+.fp-icon-delete { position: absolute; top: -6px; right: -6px; width: 14px; height: 14px;
+  line-height: 12px; border-radius: 50%; border: none; background: var(--panel);
+  color: var(--muted); font-size: 11px; padding: 0; cursor: pointer; }
+.fp-custom-icon-upload { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+.fp-custom-icon-status { font-size: 11.5px; color: var(--muted); margin: 4px 0 0; min-height: 1em; }
+
+/* UAT2 N10: the custom-icon upload and the Apple accessory-key panel both
+   used a bare browser-default file input. Chromium (the only engine this app
+   targets: Playwright's bundled build, and Tauri's WebView) supports styling
+   the picker part of a file input as its own pseudo-element, so it can match
+   `.btn-secondary` without hiding the real input behind a fake one. */
+input[type="file"] { font-size: 12.5px; color: var(--muted); }
+input[type="file"]::file-selector-button {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 7px; padding: 5px 9px; font-size: 12.5px; font-weight: 550;
+  cursor: pointer; margin-right: 8px;
+}
+input[type="file"]::file-selector-button:hover { filter: brightness(1.1); }
 
 /* --- device rows (the Devices dialog) ------------------------------------ */
 .fp-device-badge { width: 24px; height: 24px; flex: 0 0 auto; line-height: 0; }
@@ -110,6 +148,14 @@
   position: relative; z-index: 1; text-shadow: 0 1px 2px rgba(0,0,0,.9);
   background: rgba(0,0,0,0.6); padding: 0 4px; border-radius: 6px;
 }
+/* First/last-of-track ring colour, moved out of map.js's inline style="" (CSP
+   default style-src 'self' silently drops it -- UAT U25). */
+.marker-num--first { border-color: #37c67a; }
+.marker-num--last { border-color: #ef5f5f; }
+/* Map popup rows, replacing map.js's inline opacity/size styles (same U25). */
+.fp-popup-sub { opacity: .75; }
+.fp-popup-meta { opacity: .7; }
+.fp-popup-retrieved { opacity: .6; font-size: 11px; margin-top: 5px; }
 
 /* --- timeline track heads ------------------------------------------------- */
 .track-swatch svg { width: 100%; height: 100%; display: block; }
@@ -166,11 +212,26 @@
   color: var(--muted); cursor: pointer; text-decoration: underline;
 }
 .fp-wizard-footnote { color: var(--muted); font-size: 12px; margin: 6px 0 14px; }
+/* UAT5 N49: "Add a place" sat flush on the borrowed map's top border, the
+   next element in the step's DOM order with no gap of its own. */
+.fp-setup-places-add { margin-bottom: 10px; }
 /* Groups step's inline add form (R-P2-28 point 2): the same scrollable box
    the group dialog gives its own member fieldset (#fp-group-members). */
 #fp-setup-group-members {
   max-height: 180px; overflow-y: auto; border: 1px solid var(--line);
   border-radius: 8px; padding: 6px 9px; margin: 8px 0;
+}
+/* UAT U17: the Telegram/WhatsApp channel sections append their token, phone
+   and API-key inputs as bare siblings of the Connect/Save button with no
+   spacing of their own -- inline-block boxes sat flush against each other,
+   and the browser's default ~20-character input width cut "Bot token from
+   @BotFather" down to "...@BotFath" right against the button. A wider
+   min-width leaves room to read the placeholder; the margin gives a real
+   gap before the button and, if the row wraps at a narrow width, below it. */
+[data-channel] input[type="text"],
+[data-channel] input[type="password"] {
+  min-width: 210px;
+  margin: 2px 8px 6px 0;
 }
 
 /* --- sign-in panel (first section of the settings dialog, R-P2-8) --------- */
@@ -187,7 +248,17 @@
    the body text, like .setting-group h3 but not uppercase. */
 .fp-auth-provider { font-size: 13px; font-weight: 600; margin: 14px 0 4px; }
 #fp-auth-google-card > .fp-auth-provider { margin-top: 4px; }
-#fp-auth-chrome-download { display: inline-block; margin-top: 8px; font-size: .8rem; }
+/* A sub-section inside a provider card (Apple's accessory-keys block, CF-P2-19)
+   -- distinct from .fp-auth-provider so test_each_provider_card_says_which_
+   provider_it_is's single-heading-per-card selector still resolves to one
+   element; visually smaller and muted so it doesn't compete with the card's
+   own "Apple Find My" heading above it. */
+.fp-auth-subheading { font-size: 12px; font-weight: 600; margin: 16px 0 4px; color: var(--muted); }
+/* UAT2 N1: an ID selector (specificity 1,0,0) always beat `.hidden`'s 0,1,0,
+   so JS adding "hidden" to this link never actually hid it. Scoping the rule
+   to `:not(.hidden)` keeps the same specificity relationship but on the side
+   that should win when the class is present. */
+#fp-auth-chrome-download:not(.hidden) { display: inline-block; margin-top: 8px; font-size: .8rem; }
 
 /* --- links inside dialogs, modals and cards -------------------------------- */
 /* There is no global `a` rule, so an unstyled link renders in the browser's own
@@ -205,6 +276,18 @@ dialog a:hover,
 .fp-alerts-section a:hover,
 .fp-group-card a:hover,
 #setup-view a:hover { text-decoration: underline; }
+/* UAT4 N37: the rule above also recolors Leaflet's own zoom +/- and
+   attribution links once the wizard's Places step borrows the dashboard map
+   into #setup-view (places.js's borrowMap()) -- --badge-text (a pale blue in
+   dark theme) reads as barely-there against Leaflet's own white control
+   background, where the dashboard's unscoped copy of the same map is fine.
+   These two rules restore exactly the colors leaflet.css itself sets
+   (.leaflet-bar a's `color: black`, .leaflet-control-attribution's
+   `color: #333`) at a specificity #setup-view a cannot beat, in both
+   themes -- the same "matches the dashboard" bar, since a browser's own
+   OSM copyright/zoom chrome does not change with our theme toggle. */
+#setup-view .leaflet-bar a { color: #000; }
+#setup-view .leaflet-control-attribution a { color: #333; }
 
 /* --- add-rule dialog ------------------------------------------------------ */
 /* W3 visual gate finding 1: this <dialog> had no rules at all, so it painted
@@ -216,6 +299,11 @@ dialog a:hover,
   border-radius: 12px; padding: 18px 20px; min-width: 320px; max-width: 420px;
 }
 #fp-add-rule-dialog::backdrop { background: rgba(5,8,13,.72); }
+/* UAT2 U32/N7: the dialog had no title at all before (alerts.html now gives
+   it a real <h2>, aria-labelledby-linked). Same rule the group/device/place
+   editors already carry above, including the N11 text-transform override --
+   style.css's global `h2` would otherwise uppercase "New rule"/"Edit rule". */
+#fp-add-rule-dialog h2 { margin: 0 0 12px; font-size: 16px; text-transform: none; }
 #fp-add-rule-dialog input[type="text"],
 #fp-add-rule-dialog input[type="number"],
 #fp-add-rule-dialog select {
@@ -231,6 +319,11 @@ dialog a:hover,
 @media (max-width: 599px) {
   .fp-rule-target-row { flex-direction: column; align-items: stretch; }
 }
+/* UAT2 U32/N7: the channel checkboxes were an unstyled <div> of bare
+   <label>s run together on one line. One per row, like every other
+   checkbox list in the dialog. */
+.fp-channel-picker { display: flex; flex-direction: column; gap: 6px; }
+.fp-channel-picker-option { display: flex; align-items: center; gap: 6px; font-size: 13px; }
 
 /* --- unfinished-setup banner ---------------------------------------------- */
 /* Same weight as #alert, directly under the topbar (onboarding.md § 5). */
@@ -267,6 +360,80 @@ dialog a:hover,
 #fp-deliveries-table td:nth-child(8) {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+/* UAT2 N3: these eight widths used to be inline style="width:…" on each
+   <col> (alerts.html) -- the page's CSP has no 'unsafe-inline' in style-src,
+   so the browser dropped every one of them silently and logged 8 console
+   errors, and every column fell back to its unstyled (equal) default. Same
+   percentages, targeting the <col> elements by position instead; the column
+   order stays test-pinned (see the comment above), so nth-child keeps
+   matching the same column it always did. */
+#fp-deliveries-table col:nth-child(1) { width: 15%; }
+#fp-deliveries-table col:nth-child(2) { width: 9%; }
+#fp-deliveries-table col:nth-child(3) { width: 8%; }
+#fp-deliveries-table col:nth-child(4) { width: 9%; }
+#fp-deliveries-table col:nth-child(5) { width: 9%; }
+#fp-deliveries-table col:nth-child(6) { width: 15%; }
+#fp-deliveries-table col:nth-child(7) { width: 12%; }
+#fp-deliveries-table col:nth-child(8) { width: 23%; }
+
+/* --- delivery log / rules table: narrow-container card layout (UAT2 U9,
+   UAT3 N16) -----------------------------------------------------------------
+   responsive.css's phone tier already turns these tables into one card per
+   row below a 599px VIEWPORT -- but at 1280 both render inside
+   .timeline-pane, the .layout grid's 380px side column (~348px of usable
+   width once its own padding is out), not the viewport. A table this narrow
+   still packed every fixed-width column in (8 for deliveries, 8 for rules --
+   N16: "On exit", Channels, Enabled and Edit/Delete off-screen, reachable
+   only by a sideways scroll inside the pane) because nothing was keyed off
+   the PANE's own width. A container query is the simpler fix over moving
+   either section out of the side pane: one ruleset, keyed to whichever
+   ancestor is actually narrow, covers both the phone tier and this desktop
+   pane without duplicating the layout, and covers both tables since they
+   share the same data-label convention (alerts_deliveries.js / alerts_rules.js). */
+#tab-alerts { container-type: inline-size; }
+@container (max-width: 500px) {
+  #fp-deliveries-table, #fp-deliveries-table tbody, #fp-deliveries-table tr,
+  #fp-rules-table, #fp-rules-table tbody, #fp-rules-table tr {
+    display: block; width: auto;
+  }
+  #fp-deliveries-table thead, #fp-deliveries-table colgroup,
+  #fp-rules-table thead {
+    display: none;
+  }
+  #fp-deliveries-table tr, #fp-rules-table tr {
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 0 0 8px;
+  }
+  #fp-deliveries-table td, #fp-rules-table td {
+    display: flex; gap: 10px; justify-content: space-between; align-items: baseline;
+    padding: 3px 0; border: none; width: auto;
+  }
+  #fp-deliveries-table td:nth-child(2), #fp-deliveries-table td:nth-child(3),
+  #fp-deliveries-table td:nth-child(4), #fp-deliveries-table td:nth-child(5),
+  #fp-deliveries-table td:nth-child(8) {
+    white-space: normal; overflow: visible; text-overflow: clip;
+  }
+  #fp-deliveries-table td::before, #fp-rules-table td::before {
+    content: attr(data-label); flex: 0 0 auto; color: var(--muted);
+    font-size: 11px; text-transform: uppercase; letter-spacing: .02em;
+  }
+  #fp-deliveries-table td:empty { display: none; }
+  #fp-deliveries-table details summary { cursor: pointer; color: var(--accent); }
+  /* Actions is two buttons, not a value to line up against a label -- drop
+     the label prefix and let them sit together at the row's trailing edge. */
+  #fp-rules-table td:last-child { gap: 8px; }
+  #fp-rules-table td:last-child::before { content: none; }
+  /* N39: the Enabled toggle's checkbox sits flush against justify-content:
+     space-between's trailing edge, and responsive.css gives every checkbox
+     an invisible 44px WCAG touch-target halo centered on it -- with no
+     margin here, half that halo (22px) reached past the card's own right
+     edge by a couple of px (309px of content in a 307px pane, N39), with
+     nothing visibly overflowing to explain it since the halo is a
+     transparent ::before. Shrinking the touch target isn't the fix (it
+     would drop below the 44px minimum); moving the checkbox itself 8px
+     off the edge is, and it does not touch responsive.css's touch-target
+     rule at all. */
+  #fp-rules-table td input[type="checkbox"] { margin-right: 8px; }
+}
 
 /* --- hidden rows ---------------------------------------------------------- */
 /* style.css:227 gives .setting-row `display: flex`, and an author rule beats
@@ -285,3 +452,28 @@ dialog a:hover,
 #fp-icon-sprite {
   position: absolute; width: 0; height: 0; overflow: hidden;
 }
+
+/* --- place dialog: tracker locator + address search (UAT U4) ------------- */
+#fp-place-use-tracker-btn { flex: 0 0 auto; }
+.fp-search-results {
+  list-style: none; margin: 6px 0 0; padding: 0; max-height: 160px;
+  overflow-y: auto; border: 1px solid var(--line); border-radius: 8px;
+}
+.fp-search-results li { border-bottom: 1px solid var(--line); }
+.fp-search-results li:last-child { border-bottom: none; }
+.fp-search-results button {
+  display: block; width: 100%; text-align: left; padding: 7px 9px;
+  background: none; border: 0; color: var(--text); font-size: 12.5px; cursor: pointer;
+}
+.fp-search-results button:hover { background: var(--panel-2); }
+.fp-search-empty { padding: 7px 9px; color: var(--muted); font-size: 12.5px; }
+
+/* --- places list (UAT U5, same field/button shapes as .fp-group-card) ---- */
+#fp-places-list { padding: 0 18px; margin-top: 10px; }
+.fp-place-card { display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--panel-2); margin-bottom: 6px; cursor: pointer; }
+.fp-place-card .fp-color-swatch { width: 16px; height: 16px; cursor: default; }
+.fp-place-card-meta,
+.fp-place-card-who { font-size: 12px; color: var(--muted); }
+.fp-place-card-who:empty { display: none; }

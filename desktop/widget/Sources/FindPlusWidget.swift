@@ -1,10 +1,13 @@
 // FindPlusWidget.swift
 //
 // Purpose    : @main WidgetBundle entry point for the Find+ widget extension.
-// Inputs     : None directly; StatusWidget supplies its own TimelineProvider.
-// Outputs    : Registers StatusWidget with WidgetKit.
-// Constraints: PlacesWidget is deferred to 1.1 (ruling 2026-09-19) — 1.0 ships
-//              one widget only; a stub must never ship in the gallery.
+// Inputs     : None directly; StatusWidget/PlacesWidget each supply their own
+//              TimelineProvider (both reuse FindPlusProvider — see
+//              PlacesWidget.swift).
+// Outputs    : Registers StatusWidget and PlacesWidget with WidgetKit.
+// Constraints: PlacesWidget shipped 1.1 (deferred from 1.0 by the 2026-09-19
+//              ruling, which required 1.0 ship one widget only and forbade a
+//              gallery stub — that deferral ends here).
 
 import SwiftUI
 import WidgetKit
@@ -13,6 +16,7 @@ import WidgetKit
 struct FindPlusWidgetBundle: WidgetBundle {
     var body: some Widget {
         StatusWidget()
+        PlacesWidget()
     }
 }
 

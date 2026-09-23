@@ -172,4 +172,31 @@ def _unlock(page: Page) -> None:
     page.fill("#lock-pin", PIN)
     page.click("#lock-submit")
     page.wait_for_selector("#app-shell:visible", timeout=20000)
-    page.wait_for_timeout(1500)
+    # lock.js's unlock handler kicks off its own bootDashboard() call --
+    # loadConfig, loadSettings, loadDevices, setDefaultView, loadStatus,
+    # loadDay, six sequential awaits -- independently of main()'s own chain.
+    # A flat 1500ms sleep here raced that chain under load: #tracks (and the
+    # map markers, rendered the line before it in the same synchronous
+    # continuation) could still be empty when it elapsed.
+    #
+    # Neither "#tracks > *" nor ".tl-item" is a safe marker for "boot
+    # finished": while still locked, refreshLockState() -> showLock() ->
+    # purgeRenderedData() already calls groups.js's purge() -> clearGroup()
+    # -> renderTracks(), which writes the "No devices tracked yet" empty-
+    # state placeholder into #tracks well before this helper's click
+    # (confirmed by tracing every #tracks.innerHTML write during a real
+    # run) -- so "#tracks > *" resolves instantly on the wrong content. And
+    # ".tl-item" never appears at all when the real post-unlock render lands
+    # on a day with no observations (test_unlock_restores_the_previously_
+    # selected_day locks/unlocks again on a previous day with none seeded).
+    # The one thing that reliably tells the two states apart: this suite's
+    # seed always tracks TAG-BIKE (track_all() in _SEED_SCRIPT), so a real
+    # boot can only ever show the seeded points or timeline.emptyDay's "No
+    # observations recorded for this day" -- never notices.dashboardEmpty's
+    # "No devices tracked yet", which is unreachable once loadDevices() has
+    # actually run. Waiting for that text to be gone works regardless of
+    # which day is showing.
+    page.wait_for_function(
+        "() => !document.getElementById('tracks').textContent.includes('No devices tracked yet')",
+        timeout=20000,
+    )

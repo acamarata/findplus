@@ -1,4 +1,8 @@
-"""Export formatting for CSV, JSON, GPX and KML."""
+"""Export formatting for CSV, JSON, GPX and KML.
+
+Split (E13 stage 2, size cap): label and unknown-accuracy variants moved to
+test_exports_labels.py; this file keeps the base format + dispatcher tests.
+"""
 
 from __future__ import annotations
 
@@ -187,85 +191,3 @@ def test_dispatcher_supports_every_documented_format(rows, fmt: str) -> None:
 def test_dispatcher_rejects_unknown_formats(rows) -> None:
     with pytest.raises(ValueError, match="Unsupported export format"):
         export("shapefile", rows, EASTERN)
-
-
-# ------------------------------------------------------ device labels (P2-E2)
-def test_csv_label_column_present_when_devices_have_labels(rows) -> None:
-    body = to_csv(rows, EASTERN, labels={"TAG-001": "Mom's Keys"})
-    table = list(csv.DictReader(io.StringIO(body.split("\n", 1)[1])))
-    assert table[0]["label"] == "Mom's Keys"
-
-
-def test_csv_label_column_empty_when_absent(rows) -> None:
-    body = to_csv(rows, EASTERN)
-    table = list(csv.DictReader(io.StringIO(body.split("\n", 1)[1])))
-    assert CSV_COLUMNS[CSV_COLUMNS.index("device_name") + 1] == "label"
-    assert table[0]["label"] == ""
-
-
-def test_json_label_field_is_null_when_absent(rows) -> None:
-    payload = json.loads(to_json(rows, EASTERN))
-    assert payload["observations"][0]["label"] is None
-
-
-def test_json_label_field_present(rows) -> None:
-    payload = json.loads(to_json(rows, EASTERN, labels={"TAG-001": "Mom's Keys"}))
-    assert payload["observations"][0]["label"] == "Mom's Keys"
-
-
-def test_export_forwards_labels_to_every_format(rows) -> None:
-    """`export()` is the only entry point the route and the CLI call."""
-    labels = {"TAG-001": "Mom's Keys"}
-    assert "Mom's Keys" in export("csv", rows, EASTERN, labels=labels)
-    assert "Mom's Keys" in export("json", rows, EASTERN, labels=labels)
-    for fmt in ("gpx", "kml"):
-        assert "Mom's Keys" in export(fmt, rows, EASTERN, name="Find+ history", labels=labels)
-
-
-def test_gpx_track_points_use_the_device_label(rows) -> None:
-    """R-P2-27-1: the GPX `<trkpt><name>`/`<desc>` must carry the device label."""
-    body = to_gpx(rows, EASTERN, labels={"TAG-001": "Mom's Keys"})
-    root = ElementTree.fromstring(body)
-    ns = {"g": "http://www.topografix.com/GPX/1/1"}
-    trkpts = root.findall(".//g:trkpt", ns)
-    assert trkpts, "fixture must produce at least one track point"
-    for pt in trkpts:
-        assert pt.find("g:name", ns).text == "Mom's Keys"
-        assert pt.find("g:desc", ns).text == "Mom's Keys"
-
-
-def test_gpx_track_points_fall_back_to_device_id_without_a_label(rows) -> None:
-    body = to_gpx(rows, EASTERN)
-    root = ElementTree.fromstring(body)
-    ns = {"g": "http://www.topografix.com/GPX/1/1"}
-    trkpts = root.findall(".//g:trkpt", ns)
-    assert trkpts
-    for pt in trkpts:
-        assert pt.find("g:name", ns).text == "TAG-001"
-
-
-def test_kml_placemarks_use_the_device_label(rows) -> None:
-    """R-P2-27-1: each observation Placemark's `<name>` must carry the device label."""
-    body = to_kml(rows, EASTERN, labels={"TAG-001": "Mom's Keys"})
-    root = ElementTree.fromstring(body)
-    ns = {"k": "http://www.opengis.net/kml/2.2"}
-    names = [
-        pm.find("k:name", ns).text
-        for pm in root.findall(".//k:Placemark", ns)
-        if pm.find("k:name", ns).text != "Observed path"
-    ]
-    assert names, "fixture must produce at least one observation placemark"
-    assert all(name.startswith("Mom's Keys (") for name in names)
-
-
-def test_kml_placemarks_fall_back_to_device_id_without_a_label(rows) -> None:
-    body = to_kml(rows, EASTERN)
-    root = ElementTree.fromstring(body)
-    ns = {"k": "http://www.opengis.net/kml/2.2"}
-    names = [
-        pm.find("k:name", ns).text
-        for pm in root.findall(".//k:Placemark", ns)
-        if pm.find("k:name", ns).text != "Observed path"
-    ]
-    assert names
-    assert all(name.startswith("TAG-001 (") for name in names)

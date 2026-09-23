@@ -111,6 +111,88 @@ def test_devices_default_still_lists_with_no_subcommand(selected) -> None:
     assert "TAG-001" in result.output
 
 
+# ------------------------------------------------------------- UAT4 N43
+def test_devices_rate_line_is_singular_for_one_device(selected) -> None:
+    """ "Tracking 1 of 1 device(s)." never resolved the "(s)" -- exactly one
+    tracked device out of one known device reads as singular throughout."""
+    result = CliRunner().invoke(main, ["devices", "--no-refresh"])
+    assert result.exit_code == 0, result.output
+    assert "Tracking 1 of 1 device." in result.output
+    assert "(1 device every" in result.output
+    assert "device(s)" not in result.output
+
+
+def test_devices_rate_line_is_plural_for_two_devices(tmp_db) -> None:
+    """Two tracked devices out of two known ones reads as plural throughout."""
+    with session_scope() as session:
+        upsert_device(session, "TAG-001", "Moto Tag 2", provider="test-fake")
+        upsert_device(session, "TAG-002", "Moto Tag 3", provider="test-fake")
+        track_devices(session, ["TAG-001", "TAG-002"], exclusive=True)
+
+    result = CliRunner().invoke(main, ["devices", "--no-refresh"])
+
+    assert result.exit_code == 0, result.output
+    assert "Tracking 2 of 2 devices." in result.output
+    assert "(2 devices every" in result.output
+    assert "device(s)" not in result.output
+
+
+def test_devices_rate_line_is_provider_neutral(tmp_db) -> None:
+    """GP-R5-4: the line used to say "Google requests/hour" unconditionally,
+    which was wrong once an Apple Find My device was tracked alongside (or
+    instead of) a Google one. It must name no single provider."""
+    with session_scope() as session:
+        upsert_device(session, "TAG-001", "Moto Tag 2", provider="test-fake")
+        upsert_device(session, "TAG-002", "iPhone", provider="apple-find-my")
+        track_devices(session, ["TAG-001", "TAG-002"], exclusive=True)
+
+    result = CliRunner().invoke(main, ["devices", "--no-refresh"])
+
+    assert result.exit_code == 0, result.output
+    assert "provider requests/hour" in result.output
+    assert "Google requests" not in result.output
+
+
+# ------------------------------------------------------------- UAT U24
+def test_devices_default_lists_local_without_refresh_even_when_unauthed(
+    selected, monkeypatch
+) -> None:
+    """Bare `findplus devices` must not need a signed-in account: it lists
+    what is already stored and never calls the network unless `--refresh`
+    is passed. Before the fix, `--refresh` defaulted on and this exited 1."""
+
+    def _fail(self):
+        raise AssertionError("findplus devices must not refresh by default")
+
+    monkeypatch.setattr(
+        "findplus.providers.google_findhub.client.FindHubClient.list_devices", _fail
+    )
+
+    result = CliRunner().invoke(main, ["devices"])
+
+    assert result.exit_code == 0, result.output
+    assert "TAG-001" in result.output
+
+
+def test_devices_refresh_flag_still_queries_the_provider(selected, monkeypatch) -> None:
+    calls: list[bool] = []
+    monkeypatch.setattr(
+        "findplus.providers.google_findhub.client.FindHubClient.list_devices",
+        lambda self: calls.append(True) or [],
+    )
+
+    result = CliRunner().invoke(main, ["devices", "--refresh"])
+
+    assert result.exit_code == 0, result.output
+    assert calls == [True]
+
+
+def test_devices_help_has_no_internal_group_callback_note() -> None:
+    result = CliRunner().invoke(main, ["devices", "--help"])
+    assert result.exit_code == 0, result.output
+    assert "own callback" not in result.output
+
+
 def test_devices_label_sets_all_three_fields(selected) -> None:
     result = CliRunner().invoke(
         main,
@@ -160,9 +242,38 @@ def test_devices_label_validates_before_writing_anything(selected) -> None:
         assert session.get(Device, "TAG-001").label is None
 
 
-def test_devices_icons_lists_48(selected) -> None:
+def test_devices_table_shows_the_label_column(selected) -> None:
+    """UAT N9: `findplus devices` showed the provider name only ("Moto Tag
+    2"); a renamed tracker's own label had no column to appear in at all."""
+    runner = CliRunner()
+    label_result = runner.invoke(
+        main, ["devices", "label", "TAG-001", "--label", "Sara's backpack"]
+    )
+    assert label_result.exit_code == 0, label_result.output
+
+    result = runner.invoke(main, ["devices", "--no-refresh"])
+    assert result.exit_code == 0, result.output
+    assert "LABEL" in result.output
+    assert "Sara's backpack" in result.output
+    assert "Moto Tag 2" in result.output
+
+
+def test_devices_json_carries_the_label_field(selected) -> None:
+    import json
+
+    runner = CliRunner()
+    runner.invoke(main, ["devices", "label", "TAG-001", "--label", "Sara's backpack"])
+
+    result = runner.invoke(main, ["devices", "--no-refresh", "--json"])
+    assert result.exit_code == 0, result.output
+    rows = json.loads(result.output)
+    assert rows[0]["label"] == "Sara's backpack"
+
+
+def test_devices_icons_lists_49(selected) -> None:
+    """48 badge icons plus UAT2 U26's `bell` (the phone-tier tab bar)."""
     import json
 
     result = CliRunner().invoke(main, ["devices", "icons", "--json"])
     assert result.exit_code == 0, result.output
-    assert len(json.loads(result.output)) == 48
+    assert len(json.loads(result.output)) == 49

@@ -14,24 +14,30 @@
 
 import { $, state, fmtTime, fmtDuration, todayLocal, applyTheme, showAlert, getStoredTheme } from "./state.js";
 import { api } from "./api.js";
-import { initMap } from "./map.js";
+import { initMap, setDefaultView } from "./map.js";
 import { loadDay, selectPoint, wireTimelineControls, wireHistoryControls } from "./timeline.js";
 import { loadDevices, openDevices, wireDeviceControls } from "./devices.js";
 import { wireLockControls, refreshLockState, startIdleTimer } from "./lock.js";
 import { wireSettingsControls, openSettings, loadSettings } from "./settings.js";
 import { loadCatalog, applyStaticI18n, t, plural } from "./i18n.js";
 import { initTabbar } from "./components/tabbar.js";
+import { wireTabsKeyboard } from "./components/tabs_a11y.js";
 import { openSetupRoute, closeSetupRoute, checkOnboarding } from "./setup_route.js";
 import { loadIconSprite } from "./icon_sprite.js";
 
-/** The topbar device name: the filtered tracker, or how many are tracked. */
+/** The topbar device name: the filtered tracker, or how many are tracked.
+ * U30: the title tooltip spells out what "~72/hr" counts. */
 function renderDeviceName(s) {
   const tracked = s.devices.filter((d) => d.is_tracked);
-  $("device-name").textContent = state.deviceFilter
-    ? (s.devices.find((d) => d.device_id === state.deviceFilter) || {}).name || state.deviceFilter
-    : tracked.length
-      ? plural("common.devicesTracked", tracked.length, { n: tracked.length, rate: s.requests_per_hour })
-      : t("common.noDevicesTracked");
+  const el = $("device-name");
+  el.title = "";
+  if (state.deviceFilter) {
+    el.textContent = (s.devices.find((d) => d.device_id === state.deviceFilter) || {}).name || state.deviceFilter;
+    return;
+  }
+  if (!tracked.length) { el.textContent = t("common.noDevicesTracked"); return; }
+  el.textContent = plural("common.devicesTracked", tracked.length, { n: tracked.length, rate: s.requests_per_hour });
+  el.title = t("common.devicesTrackedRateHint", { rate: s.requests_per_hour });
 }
 
 /** The service dot: colour plus a tooltip saying what the colour means. */
@@ -75,13 +81,8 @@ function renderCards(s) {
 /** The banner, in priority order: a failed poll, nothing tracked, a stopped service. */
 function renderStatusAlert(s) {
   if (s.last_poll && !["ok", "no_location"].includes(s.last_poll.status)) {
-    showAlert(
-      t("common.pollFailed", {
-        status: s.last_poll.status,
-        message: s.last_poll.error_message || t("common.unknownError"),
-      }),
-      "err"
-    );
+    const message = s.last_poll.error_message || t("common.unknownError");
+    showAlert(t("common.pollFailed", { status: s.last_poll.status, message }), "err");
   } else if (!s.tracked_count) {
     showAlert(t("common.nothingTracked"), "warn");
   } else if (!s.poller_running) {
@@ -148,7 +149,17 @@ export async function applyHashRoute({ closeOthers = true } = {}) {
   await closeSetupRoute();
   if (hash === "#settings") await openSettings();
   else if (hash === "#devices") await openDevices();
-  else if (closeOthers) closeModals();
+  // The Places widget's tap target (findplus://places -> windows::open_places
+  // -> this hash): switch to the tab the widget promises, rather than leaving
+  // the dashboard on whatever tab was last active.
+  else if (hash === "#places") switchTab("places");
+  // The wizard's Notifications step "configure later" webhook link (UAT
+  // U17): it used to point at "#settings", a dead end since webhook setup
+  // lives in the Alerts tab, not Settings.
+  else if (hash === "#alerts-webhook") {
+    switchTab("alerts");
+    $("fp-webhook-section")?.scrollIntoView({ block: "start" });
+  } else if (closeOthers) closeModals();
 }
 
 /**
@@ -159,17 +170,22 @@ export async function applyHashRoute({ closeOthers = true } = {}) {
  * keeping two copies of the toggling.
  */
 export function switchTab(tab) {
-  document.querySelectorAll(".fp-tabs .fp-tab").forEach((b) =>
-    b.classList.toggle("active", b.dataset.tab === tab));
+  document.querySelectorAll(".fp-tabs .fp-tab").forEach((b) => {
+    const active = b.dataset.tab === tab;
+    b.classList.toggle("active", active);
+    // WAI-ARIA tabs (U31): only the active tab is a Tab stop (tabs_a11y.js).
+    b.setAttribute("aria-selected", String(active));
+    b.tabIndex = active ? 0 : -1;
+  });
   document.querySelectorAll(".fp-tab-panel").forEach((p) => {
     p.hidden = p.id !== "tab-" + tab;
   });
 }
 
 function wireTabs() {
-  document.querySelectorAll(".fp-tabs .fp-tab").forEach((btn) => {
-    btn.addEventListener("click", () => switchTab(btn.dataset.tab));
-  });
+  document.querySelectorAll(".fp-tabs .fp-tab").forEach((btn) =>
+    btn.addEventListener("click", () => switchTab(btn.dataset.tab)));
+  wireTabsKeyboard(switchTab);
 }
 
 function wireControls() {
@@ -194,6 +210,10 @@ export async function bootDashboard(resume) {
   const config = await loadConfig();
   await loadSettings();
   await loadDevices();
+  // U4: fit the map to real data (tracked devices' latest fixes, else saved
+  // places, else a world view) before the day-specific fit below runs. A day
+  // with nothing in it leaves this in place instead of the old US default.
+  await setDefaultView().catch(() => {});
 
   if (resume) {
     state.deviceFilter = resume.deviceFilter;
@@ -229,7 +249,6 @@ async function main() {
   // dialog the user opens long after this settles, and a missing sprite must
   // not stop the dashboard booting.
   loadIconSprite().catch(() => {});
-
   // Paint the cached theme before anything else so there is no flash.
   applyTheme(getStoredTheme());
 
@@ -245,11 +264,17 @@ async function main() {
 
   initMap();
   wireControls();
+
+  // UAT2 N12: ask about the lock first (a public GET) so state.locked is set
+  // before Places/Groups/Alerts wire up below -- each checks it and skips its
+  // own fetch while locked, rather than firing and 401ing. init() still runs
+  // either way: it does one-time DOM/map wiring too, which refreshTabsAfterUnlock() needs already done.
+  const locked = await refreshLockState();
+  if (!locked) import("./notices.js").then((m) => m.loadNotices()).catch(() => {});
+
   // Places tab: draws saved geofence circles and injects presence chips into
-  // device rows. Dynamic import keeps places.js optional at parse time.
-  // Awaited, unlike before, because the wizard's Places step borrows this
-  // module's dialog and the map it was initialised with; the onboarding check
-  // below can redirect straight into that step.
+  // device rows. Awaited: the wizard's Places step borrows this module's
+  // dialog and map, and the onboarding check below can redirect into it.
   const deviceList = document.getElementById("device-list");
   await import("./places.js").then((m) => m.init(state.map, deviceList));
   // Groups tab: coloured member overlays and the presence panel. Wired here
@@ -257,12 +282,7 @@ async function main() {
   // the Groups tab has nothing to bind its selector or overlay layer to.
   await import("./groups.js").then((m) => m.init(state.map, deviceList));
   await import("./alerts.js").then((m) => m.init());
-
-  // Ask about the lock BEFORE requesting any location data. A locked install
-  // has a PIN, which implies a wizard that already ran, so the onboarding
-  // check below is deliberately downstream of this: it never runs while the
-  // lock screen owns the page (specs/onboarding.md § 5).
-  if (await refreshLockState()) return;
+  if (locked) return;
 
   // A never-onboarded install goes to the wizard; one that navigated
   // elsewhere gets the banner instead.

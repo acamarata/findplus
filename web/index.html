@@ -76,6 +76,14 @@
   </div>
 </header>
 
+<!-- CF-P2-E9-2: an untagged axe scan found this block's content (summary
+     cards, the status banner, the day/export filters) sitting outside any
+     landmark -- neither .cards nor .controls carries an accessible name, so
+     axe's "region" rule does not treat either <section> as a landmark on its
+     own. One named region covers all three siblings without touching the
+     .cards/.layout grid CSS, which assumes exactly its own children. -->
+<div class="status-region" role="region" aria-label="Status and filters"
+     data-i18n-attr="aria-label:common.statusRegionLabel">
 <section class="cards" id="cards">
   <div class="card"><span class="label" id="card-observed-label" data-i18n="common.cardObservedLabel">Last observed</span><strong id="card-observed">—</strong><span class="sub" id="card-observed-ago">—</span></div>
   <div class="card"><span class="label" data-i18n="common.cardFetchedLabel">Retrieved by this computer</span><strong id="card-fetched">—</strong><span class="sub" id="card-lag">—</span></div>
@@ -91,11 +99,18 @@
     <option value="" data-i18n="devices.allTracked">All tracked devices</option>
   </select>
 
-  <label for="fp-group-select" data-i18n="common.groupLabel">Group:</label>
-  <select id="fp-group-select"></select>
+  <span class="fp-control-group">
+    <label for="fp-group-select" data-i18n="common.groupLabel">Group:</label>
+    <select id="fp-group-select"></select>
+  </span>
 
-  <label for="day-picker" data-i18n="common.day">Day</label>
-  <input type="date" id="day-picker">
+  <!-- UAT2 U26: same fix as the Group control-group above -- without it,
+       "Day" could wrap onto the Group row while its own date input dropped
+       to a line by itself at phone width. -->
+  <span class="fp-control-group">
+    <label for="day-picker" data-i18n="common.day">Day</label>
+    <input type="date" id="day-picker">
+  </span>
   <button class="btn btn-tiny" id="btn-prev-day" title="Previous day" aria-label="Previous day"
           data-i18n-attr="title:common.prevDay,aria-label:common.prevDay">‹</button>
   <button class="btn btn-tiny" id="btn-today" data-i18n="common.today">Today</button>
@@ -131,13 +146,31 @@
     <button class="btn btn-secondary" id="btn-export" data-i18n="common.download">Download</button>
   </span>
 </section>
+</div><!-- /status-region -->
 
-<nav class="fp-tabs" aria-label="Sections" data-i18n-attr="aria-label:common.sectionsNavLabel">
-  <button class="fp-tab active" data-tab="dashboard" data-i18n="common.tabDashboard">Dashboard</button>
-  <button class="fp-tab" data-tab="places" data-i18n="common.tabPlaces">Places</button>
-  <button class="fp-tab" data-tab="groups" data-i18n="common.tabGroups">Groups</button>
-  <button class="fp-tab" data-tab="alerts" data-i18n="common.tabAlerts">Alerts</button>
+<!-- axe "region": a role="tablist" on the <nav> itself overrides its implicit
+     navigation-landmark role, so the tabs sat in no landmark at all. The
+     landmark now lives on the outer <nav>; role="tablist"/"tab" (U31's
+     WAI-ARIA tabs pattern, arrow-key roving tabindex in main.js's
+     wireTabs()) moves to the inner div -- `.fp-tabs` stays on that div
+     unchanged, so main.js/tabs_a11y.js's `.fp-tabs` selectors still resolve
+     the same element set. Only the active tab is a Tab stop; ArrowLeft/
+     Right/Home/End move focus between the other three. -->
+<nav aria-label="Sections" data-i18n-attr="aria-label:common.sectionsNavLabel">
+  <div class="fp-tabs" role="tablist">
+    <button class="fp-tab active" role="tab" id="fp-tab-dashboard" aria-selected="true" aria-controls="tab-dashboard" tabindex="0" data-tab="dashboard" data-i18n="common.tabDashboard">Dashboard</button>
+    <button class="fp-tab" role="tab" id="fp-tab-places" aria-selected="false" aria-controls="tab-places" tabindex="-1" data-tab="places" data-i18n="common.tabPlaces">Places</button>
+    <button class="fp-tab" role="tab" id="fp-tab-groups" aria-selected="false" aria-controls="tab-groups" tabindex="-1" data-tab="groups" data-i18n="common.tabGroups">Groups</button>
+    <button class="fp-tab" role="tab" id="fp-tab-alerts" aria-selected="false" aria-controls="tab-alerts" tabindex="-1" data-tab="alerts" data-i18n="common.tabAlerts">Alerts</button>
+  </div>
 </nav>
+
+<!-- U31: a visible, focusable link past the map so a keyboard user reaches
+     the timeline in one Tab press instead of walking every marker (map
+     markers/paths also stop being Tab stops themselves — see map.js
+     `keyboard: false`). Off-screen until focused, matching .sr-only's own
+     technique but visible on focus (components.css). -->
+<a href="#timeline-pane" class="fp-skip-map" data-i18n="common.skipMap">Skip map, go to timeline</a>
 
 <main class="layout">
   <div class="map-pane">
@@ -150,17 +183,17 @@
   <!-- tabindex: the pane scrolls its own content above 600px, and a
        scrollable region has to be reachable by keyboard (axe
        scrollable-region-focusable, WCAG 2.1.1). -->
-  <aside class="timeline-pane" tabindex="0" aria-label="Details" data-i18n-attr="aria-label:common.detailsLandmarkLabel">
-    <div class="fp-tab-panel" id="tab-dashboard">
+  <aside id="timeline-pane" class="timeline-pane" tabindex="0" aria-label="Details" data-i18n-attr="aria-label:common.detailsLandmarkLabel">
+    <div class="fp-tab-panel" id="tab-dashboard" role="tabpanel" aria-labelledby="fp-tab-dashboard">
       <!-- @partial: dashboard -->
     </div>
-    <div class="fp-tab-panel" id="tab-places" hidden>
+    <div class="fp-tab-panel" id="tab-places" role="tabpanel" aria-labelledby="fp-tab-places" hidden>
       <!-- @partial: places -->
     </div>
-    <div id="tab-groups" class="fp-tab-panel" hidden>
+    <div id="tab-groups" class="fp-tab-panel" role="tabpanel" aria-labelledby="fp-tab-groups" hidden>
       <!-- @partial: groups -->
     </div>
-    <div id="tab-alerts" class="fp-tab-panel" hidden>
+    <div id="tab-alerts" class="fp-tab-panel" role="tabpanel" aria-labelledby="fp-tab-alerts" hidden>
       <!-- @partial: alerts -->
     </div>
   </aside>
@@ -210,7 +243,9 @@
 <script src="/static/vendor/leaflet/leaflet.js"></script>
 <script type="module" src="/static/app/i18n.js"></script>
 <script type="module" src="/static/app/main.js"></script>
-<script type="module" src="/static/app/notices.js"></script>
+<!-- notices.js has no boot-time side effect of its own any more (UAT2 N12):
+     main.js dynamically imports it and calls loadNotices() once the lock
+     check confirms the app is unlocked, so it needs no tag here. -->
 <script type="module" src="/static/app/alerts.js"></script>
 <script type="module" src="/static/app/auth.js"></script>
 </body>

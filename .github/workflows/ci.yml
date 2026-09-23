@@ -62,7 +62,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install '.[dev]'
+      # apple: test_auth_accessories.py's happy-path test hits the real
+      # /api/apple/* routes (no mock); without findmy installed the daemon
+      # answers 503 and the test hangs waiting on a status update that never
+      # comes (run 35792891295).
+      - run: pip install '.[dev,apple]'
         working-directory: cli
       - run: playwright install chromium
       - run: python -m pytest cli/tests -q -m browser --ignore=cli/tests/ui/test_a11y.py
@@ -98,6 +102,11 @@ jobs:
       - run: |
           python packaging/scripts/gen-honesty-json.py
           git diff --exit-code web/locales/en.json || (echo 'web/locales/en.json honesty block is stale' && exit 1)
+      # No committed output to diff (L2-1): gen-resources.py's real result is
+      # spliced into the gitignored packaging/homebrew/findplus.rb, which
+      # needs a built sdist and PyPI. --check instead validates
+      # cli/pyproject.toml's dependency specs offline, no pip/network call.
+      - run: python packaging/scripts/gen-resources.py --check
 
   # notify.rs's own unit tests, separate from the desktop lane's clippy/build
   # signal (specs/notifications.md 5). The sidecar stub is what lets build.rs
@@ -179,7 +188,7 @@ jobs:
       - run: pip install -e '.[dev]'
         working-directory: cli
       - run: python -m pytest cli/tests -q --cov=findplus --cov-report=lcov:coverage/lcov.info --cov-report=term
-      - run: coverage report --fail-under=95 --include='*/findplus/places/geofence.py,*/findplus/groups/presence.py,*/findplus/groups/quorum.py,*/findplus/alerts/dispatch.py,*/findplus/alerts/dispatch_core.py,*/findplus/alerts/dispatch_send.py,*/findplus/alerts/channels_field.py'
+      - run: coverage report --fail-under=95 --include='*/findplus/places/geofence.py,*/findplus/groups/presence.py,*/findplus/groups/quorum.py,*/findplus/alerts/dispatch.py,*/findplus/alerts/dispatch_core.py,*/findplus/alerts/dispatch_send.py,*/findplus/alerts/channels_field.py,*/findplus/alerts/retry.py,*/findplus/alerts/retry_classify.py'
       - uses: codecov/codecov-action@v7
         with:
           files: ./coverage/lcov.info

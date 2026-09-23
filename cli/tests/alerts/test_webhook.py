@@ -18,6 +18,7 @@ from findplus.alerts.channels.webhook import build_payload, send_webhook
 
 class _RecordingHandler(BaseHTTPRequestHandler):
     response_status: int = 200
+    response_headers: ClassVar[dict] = {}
     requests_seen: ClassVar[list] = []
 
     def do_POST(self) -> None:
@@ -28,6 +29,8 @@ class _RecordingHandler(BaseHTTPRequestHandler):
         )
         self.send_response(_RecordingHandler.response_status)
         self.send_header("Content-Length", "0")
+        for name, value in _RecordingHandler.response_headers.items():
+            self.send_header(name, value)
         self.end_headers()
 
     def log_message(self, format: str, *args: object) -> None:
@@ -37,6 +40,7 @@ class _RecordingHandler(BaseHTTPRequestHandler):
 @pytest.fixture
 def loopback_server():
     _RecordingHandler.requests_seen = []
+    _RecordingHandler.response_headers = {}
     server = HTTPServer(("127.0.0.1", 0), _RecordingHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -88,6 +92,21 @@ def test_send_non_2xx(loopback_server) -> None:
         _RecordingHandler.response_status = 200
     assert result.success is False
     assert result.status_code == 503
+    assert result.retry_after_seconds is None
+
+
+def test_send_429_carries_retry_after(loopback_server) -> None:
+    url, _ = loopback_server
+    _RecordingHandler.response_status = 429
+    _RecordingHandler.response_headers = {"Retry-After": "120"}
+    try:
+        result = send_webhook(_payload(), url)
+    finally:
+        _RecordingHandler.response_status = 200
+        _RecordingHandler.response_headers = {}
+    assert result.success is False
+    assert result.status_code == 429
+    assert result.retry_after_seconds == 120
 
 
 def test_build_payload_fields() -> None:

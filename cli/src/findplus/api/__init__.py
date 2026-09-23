@@ -41,11 +41,14 @@ from . import (
     routes_devices,
     routes_groups,
     routes_history,
+    routes_icons,
     routes_lock,
     routes_places,
+    routes_places_search,
     routes_providers,
     routes_settings,
 )
+from ._app_instance import new_fastapi_app
 from ._routes_history_export import build_export_router
 from .middleware import OriginGuardMiddleware, SecurityHeadersMiddleware
 
@@ -226,9 +229,11 @@ def _register_routers(app: FastAPI, *, settings, sessions, sync_idle_timeout) ->
         )
     )
     app.include_router(routes_devices.build_router(settings=settings))
+    app.include_router(routes_icons.build_router())
     app.include_router(routes_providers.build_router())
     app.include_router(routes_auth.build_router())
     app.include_router(routes_places.build_router())
+    app.include_router(routes_places_search.build_router())
     app.include_router(routes_groups.build_router())
     app.include_router(routes_alerts_channels.build_router())
     app.include_router(routes_alerts_rules.build_router())
@@ -238,25 +243,28 @@ def _register_routers(app: FastAPI, *, settings, sessions, sync_idle_timeout) ->
     app.include_router(build_export_router())
 
 
-def create_app(sessions: SessionStore | None = None) -> FastAPI:
+def create_app(
+    sessions: SessionStore | None = None,
+    *,
+    bound_host: str | None = None,
+    bound_port: int | None = None,
+) -> FastAPI:
+    """Build the app. `bound_host`/`bound_port` are the address uvicorn will
+    actually bind to (closeout C-M1): OriginGuardMiddleware reads them off
+    `app.state` for the lifetime of this app object, never `get_settings()`
+    re-read per request, so a `findplus config set port ...` written while
+    this daemon is already running cannot move the port the guard answers
+    on out from under the bind it is actually serving. Callers that build
+    and immediately bind a real server (cmd_serve.py's `_start_uvicorn`) must
+    pass the resolved host/port here; every other caller (tests, the
+    module-level `app` below) gets `get_settings()`'s value, captured once
+    at this call, same as before CF-P2-3 introduced the per-request re-read.
+    """
     settings = get_settings()
     sessions = sessions or SessionStore()
-    app = FastAPI(
-        title="Find+",
-        version=__version__,
-        description="Local Find Hub location history. Not for emergency use.",
-        # Swagger UI and ReDoc fetch their JS/CSS from cdn.jsdelivr.net and a
-        # favicon from fastapi.tiangolo.com — invariant 9 forbids third-party
-        # scripts, and the CSP would blank the page anyway. The machine-
-        # readable schema stays: it is authed and serves no remote asset.
-        # The API reference for humans lives in .github/wiki/API-reference.md.
-        docs_url=None,
-        redoc_url=None,
-        # Schema lives under /api/ so the app lock covers it; at the FastAPI
-        # default (/openapi.json) it sat outside the gated prefix and
-        # described every route to anyone who could reach the port.
-        openapi_url="/api/openapi.json",
-    )
+    app = new_fastapi_app(__version__)
+    app.state.bound_host = bound_host or settings.host
+    app.state.bound_port = bound_port or settings.port
     # Registration order is inside-out: the LAST middleware added runs FIRST,
     # so a foreign Host is refused before the lock, the routers or /static see
     # it, and the security headers land on that refusal too.

@@ -9,10 +9,12 @@ Constraints: httpx.get is always monkeypatched; nothing touches the network.
 from __future__ import annotations
 
 import json
+import os
 
 import pytest
 from click.testing import CliRunner
 
+from findplus.cli.cmd_serve import _bind_or_exit
 from findplus.cli.cmd_service import _check_exclusive, serve
 from findplus.config import get_settings
 
@@ -101,6 +103,20 @@ def test_serve_exits_3_when_already_running(tmp_db, monkeypatch: pytest.MonkeyPa
     assert "http://127.0.0.1:8647/" in result.output
 
 
+class _FakeServer:
+    """Stands in for uvicorn.Server in test_serve_starts_and_joins_a_retention_thread:
+    `run()` blocks on `stop_server` instead of actually binding a socket."""
+
+    should_exit = False
+    install_signal_handlers = True
+
+    def __init__(self, config) -> None:
+        pass
+
+    def run(self) -> None:
+        self.stop.wait(timeout=10)
+
+
 # ------------------------------------------------------------- i: retention
 def test_serve_starts_and_joins_a_retention_thread(tmp_db, monkeypatch: pytest.MonkeyPatch) -> None:
     """The daily prune runs beside the poller and is joined on shutdown."""
@@ -118,20 +134,8 @@ def test_serve_starts_and_joins_a_retention_thread(tmp_db, monkeypatch: pytest.M
     monkeypatch.setattr(RetentionScheduler, "run_forever", _fake_run_forever)
     monkeypatch.setattr(RetentionScheduler, "stop", lambda self: released.set())
 
-    server_started = threading.Event()
     stop_server = threading.Event()
-
-    class _FakeServer:
-        should_exit = False
-        install_signal_handlers = True
-
-        def __init__(self, config) -> None:
-            pass
-
-        def run(self) -> None:
-            server_started.set()
-            stop_server.wait(timeout=10)
-
+    _FakeServer.stop = stop_server
     monkeypatch.setattr("uvicorn.Server", _FakeServer)
     monkeypatch.setattr("findplus.cli.cmd_serve._wait_for_stop", lambda ev, th: 0)
     # signal.signal only works on the main thread, and serve() runs on another
@@ -153,3 +157,46 @@ def test_serve_starts_and_joins_a_retention_thread(tmp_db, monkeypatch: pytest.M
     assert not serve_thread.is_alive(), "serve() did not return"
     assert released.is_set(), "retention.stop() was never called"
     assert not any(t.name == "retention" for t in threading.enumerate())
+
+
+# --------------------------------------------------- j: port/host resolution
+# Closeout C-M1: OriginGuardMiddleware no longer re-reads get_settings() per
+# request -- it reads app.state.bound_host/bound_port, set once by
+# create_app(bound_host=, bound_port=) at startup (_start_uvicorn). A
+# --port/--host override therefore only has to reach _bind_or_exit's return
+# value; it used to also have to land in FINDPLUS_PORT/FINDPLUS_HOST via a
+# direct (non-monkeypatch) os.environ write, which is exactly what leaked
+# FINDPLUS_PORT=8641 out of test_sigterm.py's CliRunner invocation into every
+# test that ran afterward in the same process (CF-P2-3 follow-up). These
+# cases now pin the opposite: _bind_or_exit touches neither os.environ nor
+# get_settings()'s own return value.
+def test_bind_or_exit_resolves_a_port_override_without_touching_the_environment(
+    tmp_db,
+) -> None:
+    assert "FINDPLUS_PORT" not in os.environ
+    default_port = get_settings().port
+    _bind_host, bind_port = _bind_or_exit(None, 19999)
+    assert bind_port == 19999
+    assert "FINDPLUS_PORT" not in os.environ
+    assert get_settings().port == default_port
+
+
+def test_bind_or_exit_resolves_a_host_override_without_touching_the_environment(
+    tmp_db,
+) -> None:
+    assert "FINDPLUS_HOST" not in os.environ
+    default_host = get_settings().host
+    bind_host, _bind_port = _bind_or_exit("127.0.0.1", None)
+    assert bind_host == "127.0.0.1"
+    assert "FINDPLUS_HOST" not in os.environ
+    assert get_settings().host == default_host
+
+
+def test_bind_or_exit_leaves_settings_untouched_with_no_override(tmp_db) -> None:
+    assert "FINDPLUS_PORT" not in os.environ
+    assert "FINDPLUS_HOST" not in os.environ
+    default_port = get_settings().port
+    _bind_or_exit(None, None)
+    assert "FINDPLUS_PORT" not in os.environ
+    assert "FINDPLUS_HOST" not in os.environ
+    assert get_settings().port == default_port

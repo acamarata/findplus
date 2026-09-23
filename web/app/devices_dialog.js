@@ -17,6 +17,7 @@
 
 import { api } from "./api.js";
 import { t } from "./i18n.js";
+import { displayName } from "./state.js";
 import { createIconPicker } from "./components/icon-picker.js";
 import { createColorPicker } from "./components/color-picker.js";
 
@@ -25,6 +26,8 @@ const DEFAULT_COLOR = "#4f8cf7";
 
 let dialogEl = null;
 let fields = null;
+let iconGroup = null;
+let colorGroup = null;
 let iconPicker = null;
 let colorPicker = null;
 let onSaved = null;
@@ -105,8 +108,17 @@ function buildForm(dlg, f, iconGroup, colorGroup) {
   return form;
 }
 
-/** Create the icon/colour pickers and mount them into their group elements. */
-function wirePickers(iconGroup, colorGroup) {
+/**
+ * Create the icon/colour pickers and mount them into their group elements.
+ *
+ * Idempotent, like groups_dialog.js's own `ensurePickers()`: a purge
+ * destroys both pickers (their DOM, including any "Your icons" thumbnails,
+ * must not survive a lock — PROMPT.md §2 invariant 11) but leaves the empty
+ * group elements and the rest of the dialog in place, so the next open just
+ * rebuilds the pickers into the same spot rather than the whole dialog.
+ */
+function ensurePickers() {
+  if (iconPicker) return;
   iconPicker = createIconPicker(iconGroup, {
     value: DEFAULT_ICON,
     onChange: (value) => {
@@ -139,15 +151,17 @@ function ensureDialog() {
   dlg.setAttribute("aria-labelledby", "fp-device-dialog-title");
 
   const f = buildFields();
-  const iconGroup = pickerGroup(t("devices.field.icon"));
-  const colorGroup = pickerGroup(t("devices.field.color"));
-  const form = buildForm(dlg, f, iconGroup, colorGroup);
+  const iGroup = pickerGroup(t("devices.field.icon"));
+  const cGroup = pickerGroup(t("devices.field.color"));
+  const form = buildForm(dlg, f, iGroup, cGroup);
   dlg.appendChild(form);
   document.body.appendChild(dlg);
 
   fields = f;
   dialogEl = dlg;
-  wirePickers(iconGroup, colorGroup);
+  iconGroup = iGroup;
+  colorGroup = cGroup;
+  ensurePickers();
   return dlg;
 }
 
@@ -187,9 +201,12 @@ export function initDialog(onSavedCb) {
 /** devices.js's Edit button hands the row it already holds straight here. */
 export function openEditDialog(id, device) {
   const dlg = ensureDialog();
+  ensurePickers();
   dlg.dataset.mode = "edit";
   dlg.dataset.editId = String(id);
-  fields.title.textContent = t("devices.dialog.title_edit", { name: device.name });
+  // UAT2 N11: this read the raw provider name ("EDIT CHIPOLO ONE POINT" once
+  // style.css's h2 uppercasing is also fixed) even for a labelled device.
+  fields.title.textContent = t("devices.dialog.title_edit", { name: displayName(device) });
   fields.label.value = device.label || "";
   fields.icon.value = device.icon || DEFAULT_ICON;
   fields.color.value = device.color || DEFAULT_COLOR;
@@ -204,21 +221,29 @@ export function openEditDialog(id, device) {
 /**
  * Blank the dialog, for lock.js's purgeRenderedData().
  *
- * Closing a <dialog> only stops it being displayed: the label and the device id
- * in `dataset.editId` would still be readable from DevTools behind the lock
- * screen, which is what PROMPT.md §2 invariant 11 forbids.
+ * Closing a <dialog> only stops it being displayed: the label and the device
+ * id in `dataset.editId` would still be readable from DevTools behind the
+ * lock screen, which is what PROMPT.md §2 invariant 11 forbids. The icon
+ * picker is destroyed rather than reset to its default value: its "Your
+ * icons" section (components/custom-icons.js) renders `<img>` thumbnails
+ * fetched from this installation's uploads, and `setValue()` only changes
+ * which swatch is marked pressed — it does not remove them from the DOM.
+ * `ensurePickers()` (called from the next `openEditDialog()`) rebuilds both
+ * pickers into the same, still-in-the-page group elements.
  */
 export function purgeDialog() {
   if (!dialogEl) return;
   if (dialogEl.open) dialogEl.close();
+  if (iconPicker) iconPicker.destroy();
+  if (colorPicker) colorPicker.destroy();
+  iconPicker = null;
+  colorPicker = null;
   fields.label.value = "";
   fields.icon.value = "";
   fields.color.value = "";
   fields.tracked.checked = false;
   fields.error.textContent = "";
   fields.title.textContent = "";
-  iconPicker.setValue(DEFAULT_ICON);
-  colorPicker.setValue(DEFAULT_COLOR);
   delete dialogEl.dataset.editId;
   delete dialogEl.dataset.mode;
 }

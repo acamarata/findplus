@@ -21,7 +21,7 @@ PAYLOAD = '<img src=x onerror=alert(1)><input type="checkbox" checked value="vic
 
 async def test_the_escaper_neutralises_markup(page, base_url):
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
 
     out = await page.evaluate(
         """async (payload) => {
@@ -44,7 +44,7 @@ async def test_the_escaper_neutralises_markup(page, base_url):
 async def test_a_hostile_device_name_cannot_smuggle_a_checkbox(page, base_url):
     """The concrete consequence: an injected checked input is a tracked device."""
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
 
     result = await page.evaluate(
         """async (payload) => {
@@ -76,7 +76,7 @@ async def test_a_hostile_device_name_cannot_smuggle_a_checkbox(page, base_url):
 
 async def test_a_hostile_name_cannot_break_out_of_the_timeline_block(page, base_url):
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
 
     result = await page.evaluate(
         """async (payload) => {

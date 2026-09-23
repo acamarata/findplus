@@ -29,7 +29,7 @@ itself once you install Chrome.
 What a Find Hub account gives you:
 
 > This history consists of locations reported through Google's Find Hub
-> network. Moto Tag uses nearby participating Android devices to report its
+> network. Your trackers use nearby participating Android devices to report their
 > location. Location updates can therefore be delayed, sparse, or
 > unavailable, and this application should not be treated as real-time
 > emergency or child-safety GPS tracking.
@@ -50,10 +50,15 @@ What an Apple Find My account gives you:
 > sparse or unavailable. Find+ can only query accessories whose keys you hold;
 > genuine AirTags require extracting pairing keys, which most users cannot do.
 
-Accessory keys are added from the terminal in 1.1: `findplus apple
-add-accessory` takes a key plist or a base64 private key, and `findplus apple
-list` shows what is registered. The same thing is reachable over the API at
-`POST /api/apple/accessories`. The dashboard has no upload control for it yet.
+Accessory keys (extracted pairing keys for AirTags and other Find My
+accessories) can be added from the terminal, the API, or the dashboard, and
+work without an Apple ID sign-in. In Settings, under the Apple card, give the
+accessory a name and pick its key file (a `.plist` export or a `.json` file
+holding the base64 private key), then click **Add accessory**. If that name's
+key is already registered, Find+ asks before replacing it. `findplus apple
+add-accessory` takes the same plist or base64 key from the terminal, and
+`findplus apple list` shows what is registered. The same thing is reachable
+over the API at `POST /api/apple/accessories`.
 
 ## Security
 

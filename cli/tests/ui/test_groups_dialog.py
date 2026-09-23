@@ -82,6 +82,7 @@ async def test_create_group_appears_in_list_and_selector(page, base_url):
     try:
         await _open_add_dialog(page, base_url)
         await page.fill("#fp-group-name", "Weekend Trip")
+        await page.check('#fp-group-members input[data-device-id="TAG-HOME"]')
         await _save(page)
         await page.locator(".fp-group-card", has_text="Weekend Trip").wait_for(state="visible")
         options = page.locator("#fp-group-select option", has_text="Weekend Trip")
@@ -98,6 +99,18 @@ async def test_create_group_validation_error_shows_in_dialog(page, base_url):
     error = page.locator("#fp-group-dialog-error")
     assert (await error.inner_text()).strip() == "Name is required."
     assert await page.locator("#fp-group-dialog").get_attribute("open") is not None
+
+
+async def test_create_group_with_no_members_blocks_save(page, base_url):
+    """UAT U16: a zero-member group used to save silently and then show
+    "Unknown" in the list. Save must refuse and explain why."""
+    await _open_add_dialog(page, base_url)
+    await page.fill("#fp-group-name", "No Members")
+    await _save(page)
+    error = page.locator("#fp-group-dialog-error")
+    assert (await error.inner_text()).strip() == "Select at least one member."
+    assert await page.locator("#fp-group-dialog").get_attribute("open") is not None
+    assert await page.locator(".fp-group-card", has_text="No Members").count() == 0
 
 
 async def test_edit_group_prefills_fields(page, base_url):
@@ -167,6 +180,7 @@ async def test_delete_group_confirm_cancel_keeps_group(page, base_url):
 async def test_delete_group_confirm_removes_from_list_and_selector(page, base_url):
     await _open_add_dialog(page, base_url)
     await page.fill("#fp-group-name", "Temp Group")
+    await page.check('#fp-group-members input[data-device-id="TAG-HOME"]')
     await _save(page)
     await page.locator(".fp-group-card", has_text="Temp Group").wait_for(state="visible")
 
@@ -185,13 +199,16 @@ async def test_delete_group_confirm_removes_from_list_and_selector(page, base_ur
 
 
 async def test_duplicate_name_shows_409_on_name_field(page, base_url):
-    """The server's own words, in the dialog, with the dialog still open."""
+    """N48: the catalog sentence, not the server's raw repr-quoted text
+    ("group name 'Family' already exists"), with the dialog still open."""
     await _open_add_dialog(page, base_url)
     await page.fill("#fp-group-name", "Family")
+    await page.check('#fp-group-members input[data-device-id="TAG-HOME"]')
     await _save(page)
     error = page.locator("#fp-group-dialog-error")
     await error.wait_for(state="visible")
-    assert "already exists" in await error.inner_text()
+    assert await error.inner_text() == "A group named Family already exists."
+    assert "'" not in await error.inner_text()
     assert await page.locator("#fp-group-dialog").get_attribute("open") is not None
 
 
@@ -223,6 +240,24 @@ async def test_dialog_async_guard_and_live_icon_preview(page, base_url):
     await page.fill("#fp-group-name", "Weekend Trip")
     # An SVG <text> is not an HTMLElement, so inner_text() rejects it.
     assert await page.locator("#fp-group-icon-btn svg text").text_content() == "W"
+
+
+async def test_radius_hint_sits_below_the_slider_not_beside_it(page, base_url):
+    """UAT3 N24: radiusRow() used to put label+slider+output+hint all in one
+    `.fp-dialog-field` flex row, squeezing the hint into a narrow column
+    beside the slider (6 lines). The hint now sits on its own row underneath,
+    the same shape as the quorum and stale-after hints beside it."""
+    await _open_add_dialog(page, base_url)
+
+    slider_box = await page.locator("#fp-group-radius").bounding_box()
+    hint = page.locator("#fp-group-dialog .fp-field-hint", has_text="in the same place")
+    hint_box = await hint.bounding_box()
+    assert slider_box is not None and hint_box is not None
+    assert hint_box["y"] >= slider_box["y"] + slider_box["height"] - 1, (
+        "the radius hint sits beside the slider instead of below it"
+    )
+    # Full width of the dialog's field column, not squeezed into a remainder.
+    assert hint_box["width"] >= slider_box["width"]
 
 
 async def test_dialog_closes_on_escape(page, base_url):

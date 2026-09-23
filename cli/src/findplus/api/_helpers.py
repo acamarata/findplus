@@ -27,6 +27,7 @@ from ._widget import (
     WIDGET_STALE_AFTER_MINUTES,
     _group_rows,
     _widget_devices,
+    _widget_places,
     _widget_show_map,
     _widget_state,
 )
@@ -46,6 +47,7 @@ __all__ = [
     "_serialize_latest",
     "_serialize_run",
     "_widget_devices",
+    "_widget_places",
     "_widget_show_map",
     "_widget_state",
 ]
@@ -76,7 +78,7 @@ def _device_summary(session, device, zone, now, settings) -> dict[str, Any]:
         "device_id": device.device_id,
         "name": device.name,
         "is_tracked": device.is_tracked,
-        "latest_observation": _serialize_latest(latest, zone, now),
+        "latest_observation": _serialize_latest(latest, zone, now, device.label),
         "observations_today": today,
         "observations_total": int(total or 0),
         "last_poll": _serialize_run(last_run, zone),
@@ -121,14 +123,18 @@ def _resolve_range(day, start, end, zone) -> tuple[datetime, datetime, str]:
     )
 
 
-def _serialize_latest(obs, zone, now) -> dict[str, Any] | None:
+def _serialize_latest(obs, zone, now, device_label: str | None = None) -> dict[str, Any] | None:
+    """`device_label`, when given, wins over the observation's own stored
+    name -- the "Last observed" card shows the tracker's label the same way
+    every other surface does (UAT U6), while `obs.device_name` (the raw
+    provider name at observation time) stays the honest fallback."""
     if obs is None:
         return None
     age = (now - obs.observed_at).total_seconds()
     return {
         "id": obs.id,
         "device_id": obs.device_id,
-        "device_name": obs.device_name,
+        "device_name": device_label or obs.device_name,
         "latitude": obs.latitude,
         "longitude": obs.longitude,
         "accuracy_meters": obs.accuracy_meters,

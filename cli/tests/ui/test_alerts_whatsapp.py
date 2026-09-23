@@ -198,7 +198,11 @@ async def test_rule_dialog_channel_checkboxes_present(page, base_url) -> None:
         assert await box.count() == 1, channel
         assert await box.is_visible(), channel
 
-    assert await picker.locator("input[type=checkbox][value=telegram]").is_checked()
+    # UAT2 U11: a new rule used to always start with telegram ticked,
+    # connected or not -- test_alerts_rule_channels.py now owns the real
+    # default (only actually-connected channels, resolved async after this
+    # helper's first render pass), so this test's own job stays what its
+    # name says: the three checkboxes exist and are visible.
 
 
 async def test_the_alerts_locked_sentence_sits_beside_the_channel_choice(page, base_url) -> None:
@@ -237,13 +241,26 @@ async def test_deliveries_table_renders_after_rule_fires(page, base_url) -> None
             {
                 "name": "WhatsApp delivery view rule",
                 "device_id": "TAG-HOME",
-                "channels": ["webhook"],
+                # "native" needs no configured credentials (UAT2 U11's
+                # server-side check); this test only checks the table's
+                # own headers render, not which channel the seed rule uses.
+                "channels": ["native"],
             }
         ),
         headers={"Content-Type": "application/json"},
     )
     assert created.ok, await created.text()
 
+    # UAT2 U9: #tab-alerts is a container-query context now, and the
+    # .layout grid's side pane is a fixed ~380px in the default (>=900px)
+    # desktop viewport -- always under the 500px card-layout threshold, so
+    # the table's own <thead> is display:none there regardless of viewport
+    # width. This test seeds no delivery row (its name is aspirational, not
+    # literal -- it only checks the table's scaffolding), so an empty table
+    # in card mode would have nothing to show at all. The 600-899px "tablet"
+    # tier renders the pane at full width instead, which is what this test
+    # actually wants: a real header row, visible with zero rows in it.
+    await page.set_viewport_size({"width": 700, "height": 900})
     await _open_alerts_tab(page, base_url)
     await page.wait_for_selector("#fp-deliveries-table")
     assert await page.locator("#fp-deliveries-table").is_visible()
@@ -270,5 +287,8 @@ async def test_the_rule_dialog_populates_its_selects_on_a_cold_page(page, base_u
             arg=select_id,
         )
 
+    # TAG-HOME's option text is its label ("Ali's Keys"), not the raw provider
+    # name "Home Tag" -- the U6 labels fix made displayName() (state.js) the
+    # source for every device select, including this one.
     devices = await page.locator("#fp-rule-device option").all_text_contents()
-    assert "Home Tag" in devices, devices
+    assert "Ali's Keys" in devices, devices

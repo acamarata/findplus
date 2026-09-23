@@ -9,6 +9,18 @@ Constraints: The subprocess tests use port 8640 (never 8647, the real default)
           they never skip for want of the `findplus` console script on PATH
           (blind B9 -- an editable, non-`pip install -e`d checkout used to
           skip these silently).
+          Startup readiness polls GET /api/health, not daemon.json.exists()
+          -- `_run_server` (cmd_serve.py) writes daemon.json BEFORE it starts
+          uvicorn, so the file appearing only proves the process got that
+          far, not that the server can answer a request. Shutdown gets a
+          20s budget: `_run_server`'s own finally block can legitimately take
+          up to ~10.25s (uvicorn thread join 5s + the retention worker's join
+          5s, plus the 0.25s stop_event poll interval), and a machine under
+          load stretches thread-join wall time further. A tighter external
+          timeout than the code's own worst case is a flake, not a hang
+          detector (found under a 2026-09-23 load investigation: repeated
+          full-suite failures traced to this budget mismatch, not to the
+          daemon itself -- no code change needed there).
 """
 
 from __future__ import annotations
@@ -21,11 +33,19 @@ import threading
 import time
 from pathlib import Path
 
+import httpx
 import pytest
 from click.testing import CliRunner
 
 from findplus.cli.cmd_serve import _wait_for_stop
 from findplus.cli.cmd_service import _make_signal_handler, serve
+
+#: Generous but bounded: covers slow interpreter/import startup and the
+#: daemon's own ~10.25s worst-case shutdown (see module docstring) with
+#: headroom for scheduling delays under a loaded machine, while still
+#: failing on a genuine hang instead of waiting forever.
+_READY_DEADLINE_S = 20.0
+_SHUTDOWN_TIMEOUT_S = 20.0
 
 
 # ------------------------------------------------------------------------- a
@@ -38,6 +58,25 @@ def test_make_signal_handler_sets_the_event() -> None:
 
 
 # ------------------------------------------------------------------------- b/c
+def _wait_for_health(proc: subprocess.Popen[str], url: str, deadline_s: float) -> None:
+    """Poll GET {url}/api/health until it answers 200, the process dies, or
+    `deadline_s` passes -- the real readiness signal, not a file marker."""
+    end = time.monotonic() + deadline_s
+    last_exc: Exception | None = None
+    while time.monotonic() < end:
+        if proc.poll() is not None:
+            raise AssertionError(
+                f"daemon exited during startup (rc={proc.returncode}): {proc.stderr.read()}"
+            )
+        try:
+            if httpx.get(f"{url}/api/health", timeout=1.0).status_code == 200:
+                return
+        except httpx.HTTPError as exc:  # connection refused while it binds
+            last_exc = exc
+        time.sleep(0.1)
+    raise AssertionError(f"{url}/api/health never answered within {deadline_s}s: {last_exc}")
+
+
 def _run_serve_and_signal(tmp_path: Path, sig: int) -> None:
     env = dict(
         os.environ,
@@ -63,13 +102,11 @@ def _run_serve_and_signal(tmp_path: Path, sig: int) -> None:
     )
     try:
         daemon_json = tmp_path / "daemon.json"
-        deadline = time.monotonic() + 5.0
-        while time.monotonic() < deadline and not daemon_json.exists():
-            time.sleep(0.1)
+        _wait_for_health(proc, "http://127.0.0.1:8640", _READY_DEADLINE_S)
         assert daemon_json.exists(), proc.stderr.read() if proc.poll() is not None else ""
 
         os.kill(proc.pid, sig)
-        proc.wait(timeout=5)
+        proc.wait(timeout=_SHUTDOWN_TIMEOUT_S)
         assert proc.returncode == 0
         assert not daemon_json.exists()
     finally:
@@ -134,6 +171,14 @@ def test_serve_exits_1_when_the_server_cannot_start(
             return  # uvicorn gives up on the bind and the thread ends at once
 
     monkeypatch.setattr("uvicorn.Server", _DeadServer)
+    # `--port 8641` no longer reaches os.environ (closeout C-M1 removed
+    # _bind_or_exit's FINDPLUS_PORT export), but this swaps in a private copy
+    # of os.environ for the duration of the test regardless -- belt and
+    # suspenders against any future code path along `serve`'s invoke that
+    # writes to it directly, the way _bind_or_exit itself used to (CF-P2-3
+    # follow-up: that write, uncaught here, once leaked FINDPLUS_PORT=8641
+    # into every test that ran afterward in the same process).
+    monkeypatch.setattr(os, "environ", os.environ.copy())
     result = CliRunner().invoke(serve, ["--foreground", "--no-poller", "--port", "8641"])
     assert result.exit_code == 1, result.output
     assert "may already be in use" in result.output

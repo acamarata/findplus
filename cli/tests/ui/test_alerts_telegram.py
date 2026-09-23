@@ -83,6 +83,30 @@ async def test_clear_telegram_channel_round_trips(page, base_url, configured_tel
     )
 
 
+async def test_a_bad_bot_token_shows_the_catalog_message_not_the_raw_detail(page, base_url):
+    """UAT U19: routes_alerts_channels.py's 422 detail is raw, un-localized
+    English ("bot_token must look like a BotFather token"); the dialog maps
+    it to alerts.badBotTokenError instead of echoing the server string."""
+
+    async def bad_token(route):
+        await route.fulfill(
+            status=422,
+            content_type="application/json",
+            body='{"detail":"bot_token must look like a BotFather token"}',
+        )
+
+    await open_alerts_tab(page, base_url)
+    await page.route("**/api/alerts/channels/telegram/setup*", bad_token)
+    await page.fill("#fp-tg-token", "not-a-real-token")
+    await page.click("#fp-tg-connect")
+    await page.wait_for_function(
+        "document.getElementById('fp-tg-status').textContent.includes('BotFather')"
+    )
+    status = await page.locator("#fp-tg-status").inner_text()
+    assert status == "That doesn't look like a bot token. Get one from @BotFather in Telegram."
+    assert "bot_token must look like" not in status
+
+
 async def test_clear_telegram_channel_surfaces_a_failed_delete(page, base_url, configured_telegram):
     """loop2 B3: a non-401 DELETE failure used to be silently swallowed (no
     res.ok check, no try/catch) while loadChannels() still ran unconditionally

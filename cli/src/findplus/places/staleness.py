@@ -8,8 +8,11 @@ Purpose    : One definition of the staleness cutoff the Places surface applies,
              honesty.md's presence_stale sentence forbids.
 Inputs     : An open Session; an optional threshold and clock (tests pass both).
 Outputs    : The cutoff, the per-device newest-fix map, and the test itself.
-Constraints: Pure reads. The default threshold is
-             Settings.presence_window_minutes, the same one group presence uses.
+Constraints: Pure reads. The default threshold is Settings.presence_window_minutes
+             (90) -- the one canonical default a new group's stale_after_minutes
+             and the widget's WIDGET_STALE_AFTER_MINUTES both also carry, so the
+             Places tab can no longer call a tracker "not here" while the widget
+             and Groups still call it present (UAT3 N17, R-P2-32).
 """
 
 from __future__ import annotations

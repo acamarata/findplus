@@ -75,7 +75,10 @@ def test_retention_zero_means_forever() -> None:
 # ------------------------------------------------------------- groups/alerts
 def test_group_and_presence_window_defaults() -> None:
     settings = Settings()
-    assert settings.presence_window_minutes == 60
+    # 90, not 60: the one canonical default shared with a new group's
+    # stale_after_minutes and the widget's WIDGET_STALE_AFTER_MINUTES
+    # (UAT3 N17, R-P2-32) -- they used to disagree.
+    assert settings.presence_window_minutes == 90
     assert settings.group_window_minutes == 30
     assert settings.geofence_default_accuracy_meters == 100.0
     assert settings.alerts_enabled is True

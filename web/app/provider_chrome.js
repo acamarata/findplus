@@ -89,3 +89,18 @@ function setNotice(el, pred, text) {
   el.textContent = show ? text : "";
   el.hidden = !show;
 }
+
+/**
+ * Whether the Google-provider Chrome-missing notice should show.
+ *
+ * Shared by Settings (auth.js renderGoogleCard) and the wizard's sign-in
+ * step (setup_steps/_signin_dom.js ChromeGate), which had drifted: Settings
+ * gated on `!signed_in && needs.includes("chrome")` (UAT2 N1) but the
+ * wizard's ChromeGate.missing() checked `needs` alone, so a signed-in
+ * account with a stale `needs: ["chrome"]` still saw the notice under
+ * "Signed in ✓ (switch account)" (UAT3 N20). One helper for both call sites
+ * so the two surfaces cannot drift apart again.
+ */
+export function googleChromeNoticeNeeded(provider) {
+  return !!(provider && !provider.signed_in && (provider.needs || []).includes("chrome"));
+}

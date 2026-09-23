@@ -17,10 +17,12 @@ Constraints: Only serious and critical violations fail the gate; moderate and
 
 from __future__ import annotations
 
+import json
+
 import pytest
 from axe_playwright_python.async_playwright import Axe
 
-from .conftest import set_theme
+from .conftest import SEEDED_COMPLETED_AT, set_theme
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -32,6 +34,18 @@ WIDTHS = (1280, 375)
 AXE_OPTIONS = {
     "resultTypes": ["violations"],
     "runOnly": {"type": "tag", "values": ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]},
+}
+
+#: `region` is an axe best-practice rule (cat.keyboard), not WCAG-tagged, so
+#: AXE_OPTIONS above never surfaces it even at "serious"/"critical" impact --
+#: an untagged scan is the only way it was ever found (CF-P2-E9-2, 1 moderate
+#: violation, 12 nodes: the cards/alert/filter block sat outside any
+#: landmark). Scanning for it alone, rather than dropping the WCAG runOnly
+#: filter entirely, keeps this gate from going red on unrelated
+#: best-practice rules nothing has audited yet.
+REGION_OPTIONS = {
+    "resultTypes": ["violations"],
+    "runOnly": {"type": "rule", "values": ["region"]},
 }
 
 BLOCKING = ("serious", "critical")
@@ -51,7 +65,7 @@ def _describe(violation: dict, tab: str, theme: str, width: int) -> str:
 async def test_no_serious_axe_violations(page, base_url, tab, theme, width):
     await page.set_viewport_size({"width": width, "height": 800})
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
     # The timeline pane only overflows once its rows are in, and "is this
     # scrollable region keyboard reachable" is one of the rules being scanned:
     # scanning before then made the verdict depend on load timing.
@@ -79,6 +93,22 @@ async def test_no_serious_axe_violations(page, base_url, tab, theme, width):
     assert not blocking, "\n".join(_describe(v, tab, theme, width) for v in blocking)
 
 
+@pytest.mark.parametrize("width", WIDTHS)
+async def test_no_region_violations_on_dashboard(page, base_url, width):
+    """CF-P2-E9-2: the cards/alert/filter block now sits inside a named
+    `role="region"` landmark (web/index.html's .status-region), closing the
+    violation this rule alone (not the pinned WCAG tag scan above) can see.
+    """
+    await page.set_viewport_size({"width": width, "height": 800})
+    await page.goto(base_url + "/")
+    await page.wait_for_selector("#map.leaflet-container")
+    await page.wait_for_selector("#tracks > *", state="attached")
+
+    results = await Axe().run(page, options=REGION_OPTIONS)
+    violations = results.response["violations"]
+    assert not violations, "\n".join(_describe(v, "dashboard", "n/a", width) for v in violations)
+
+
 DIALOGS = ("devices", "groups")
 
 
@@ -103,7 +133,7 @@ async def _open_dialog(page, base_url, dialog: str, width: int) -> None:
     await page.goto(base_url + "/")
     await page.wait_for_selector("svg#fp-icon-sprite symbol[id='lucide-dog']", state="attached")
     if dialog == "devices":
-        await page.wait_for_selector("#map")
+        await page.wait_for_selector("#map.leaflet-container")
         if width < 600:
             # #btn-devices lives in .topbar-actions, CSS-hidden below 600px;
             # the phone tier's own path is the "More" menu, whose relay
@@ -149,3 +179,95 @@ async def test_no_serious_axe_violations_with_dialog_open(page, base_url, dialog
 
     blocking = [v for v in violations if v.get("impact") in BLOCKING]
     assert not blocking, "\n".join(_describe(v, dialog, theme, width) for v in blocking)
+
+
+#: The two steps UAT3 N26 found placeholder-only inputs on: device label
+#: (devices) and token/phone/apikey (notifications, Telegram + WhatsApp).
+WIZARD_STEPS = {
+    "devices": ".fp-setup-device-row",
+    "notifications": "#fp-setup-wa-phone",
+}
+
+
+async def _set_completed_at(page, base_url, value):
+    return await page.request.post(
+        base_url + "/api/settings/onboarding.completed_at",
+        data=json.dumps({"value": value}),
+        headers={"Content-Type": "application/json"},
+    )
+
+
+async def _set_last_step(page, base_url, value):
+    return await page.request.post(
+        base_url + "/api/settings/onboarding.last_step",
+        data=json.dumps({"value": value}),
+        headers={"Content-Type": "application/json"},
+    )
+
+
+async def _ok(route):
+    await route.fulfill(status=200, content_type="application/json", body="{}")
+
+
+async def _stub_one_device(page):
+    """The Devices step's onEnter POSTs /api/devices/refresh before its GET,
+    which for real would query Google Find Hub -- stubbed here the same way
+    test_setup_wizard_devices.py's `_ok` + one-device GET does, so the step
+    can render `.fp-setup-device-row` without a signed-in provider."""
+
+    async def get_devices(route):
+        await route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(
+                {
+                    "devices": [
+                        {
+                            "device_id": "TAG-1",
+                            "name": "Keys",
+                            "provider": "google-find-hub",
+                            "is_tracked": False,
+                            "label": None,
+                            "icon": None,
+                            "color": None,
+                        }
+                    ]
+                }
+            ),
+        )
+
+    await page.route("**/api/devices/refresh", _ok)
+    await page.route("**/api/devices", get_devices)
+
+
+@pytest.mark.parametrize("step", sorted(WIZARD_STEPS))
+async def test_no_serious_axe_violations_in_the_wizard(page, base_url, step):
+    """UAT3 N26: the Devices and Notifications steps had placeholder-only
+    inputs with no accessible name (device label; Telegram token; WhatsApp
+    phone/API key) -- axe's `label`/`aria-input-field-name` rules catch a
+    regression here. `onboarding.last_step` lands directly on the step under
+    test, the same technique test_setup_wizard_signin.py uses, rather than
+    clicking Next through the whole wizard once per parametrize case."""
+    await page.set_viewport_size({"width": 1280, "height": 800})
+    if step == "devices":
+        await _stub_one_device(page)
+    await _set_completed_at(page, base_url, None)
+    try:
+        await _set_last_step(page, base_url, step)
+        await page.goto(base_url + "/#/setup")
+        await page.wait_for_selector(WIZARD_STEPS[step], timeout=15000)
+
+        results = await Axe().run(page, options=AXE_OPTIONS)
+        violations = results.response["violations"]
+
+        for violation in violations:
+            if violation.get("impact") not in BLOCKING:
+                print(f"axe {_describe(violation, f'wizard:{step}', 'dark', 1280)}")
+
+        blocking = [v for v in violations if v.get("impact") in BLOCKING]
+        assert not blocking, "\n".join(
+            _describe(v, f"wizard:{step}", "dark", 1280) for v in blocking
+        )
+    finally:
+        await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
+        await _set_last_step(page, base_url, None)

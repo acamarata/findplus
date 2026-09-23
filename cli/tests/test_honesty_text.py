@@ -21,7 +21,7 @@ REPO_ROOT = Path(__file__).parent.parent.parent
 EXPECTED = {
     "find_hub": (
         "This history consists of locations reported through Google's Find Hub network. "
-        "Moto Tag uses nearby participating Android devices to report its location. "
+        "Your trackers use nearby participating Android devices to report their location. "
         "Location updates can therefore be delayed, sparse, or unavailable, and this "
         "application should not be treated as real-time emergency or child-safety GPS tracking."
     ),
@@ -68,6 +68,10 @@ EXPECTED = {
         "Google Chrome was not found on this machine. Google sign-in drives Chrome directly "
         "and cannot run without it. Install it from https://www.google.com/chrome/ and try "
         "again."
+    ),
+    "address_search": (
+        "Address search sends the text you type to OpenStreetMap's Nominatim service, a "
+        "third party not affiliated with Find+, and only when you press Search."
     ),
 }
 
@@ -176,7 +180,7 @@ def test_expected_is_a_subset_of_the_notices_dict():
 # and EM_DASH_ALLOWED), so a future notice dropped from the README fails with
 # the specific key rather than a generic diff.
 README_FRAGMENTS = {
-    "find_hub": "Moto Tag uses nearby participating Android devices",
+    "find_hub": "Your trackers use nearby participating Android devices",
     "apple": "genuine AirTags require extracting pairing keys",
     "alerts_latency": "Alerts inherit the network's delay",
     "presence_stale": "stale, not at home and not left behind",
@@ -187,6 +191,7 @@ README_FRAGMENTS = {
     "native_generic": "place — anyone who can see",
     "not_affiliated": "not affiliated with Apple or Google",
     "chrome_required": "cannot run without it",
+    "address_search": "a third party not affiliated with Find+",
 }
 
 
@@ -207,3 +212,59 @@ def test_readme_contains_every_honesty_notice():
     for key, fragment in README_FRAGMENTS.items():
         assert fragment in honesty.NOTICES[key], f"{key} fragment does not match honesty.py"
         assert fragment in readme, f"README.md Honesty section is missing the {key} notice"
+
+
+#: UAT4 N28: the wizard's own welcome claim, wiki First-run.md's summary of
+#: it, and Home.md's one-paragraph pitch all said some version of "nothing
+#: leaves this machine" while Telegram, WhatsApp (via CallMeBot), webhooks,
+#: map tiles and address search all send data out. Pinning the false phrase's
+#: absence, and the corrected sentence's key facts, keeps any of the three
+#: from drifting back to the overclaim.
+_FALSE_CLAIM_FRAGMENTS = (
+    "Nothing you set up here leaves this machine",
+    "Nothing is uploaded anywhere except the location queries",
+    "everything stays on this machine",
+)
+
+#: UAT5 N46: the welcome text also listed "map tiles" among "things you turn
+#: on", but tiles always load from OpenStreetMap on every map view and there
+#: is no switch for them (unlike sign-in, address search and alert
+#: channels, which are genuinely opt-in). Pinning the false "map tiles" is
+#: a toggle claim, and the corrected always-on sentence, keeps it from
+#: drifting back.
+_MAP_TILES_TOGGLE_FRAGMENTS = ("things you turn on: signing in to Google or Apple, map tiles",)
+
+
+def test_the_wizard_welcome_text_does_not_overclaim_privacy():
+    """en.json's setup.welcome.body must name what actually stays local and
+    what does not, matching the dashboard footer's own accurate claim
+    (common.footerPrivacy) rather than promising more than Find+ delivers."""
+    import json
+
+    en_json = json.loads((REPO_ROOT / "web" / "locales" / "en.json").read_text(encoding="utf-8"))
+    body = en_json["setup"]["welcome"]["body"]
+    for false_fragment in _FALSE_CLAIM_FRAGMENTS:
+        assert false_fragment not in body, f"welcome text still overclaims: {false_fragment!r}"
+    for toggle_fragment in _MAP_TILES_TOGGLE_FRAGMENTS:
+        assert toggle_fragment not in body, (
+            f"welcome text still lists tiles as a toggle: {toggle_fragment!r}"
+        )
+    assert "stays on this machine" in body
+    assert "Google or Apple" in body
+    assert "Map tiles always load from OpenStreetMap" in body
+    assert "address search" in body
+    assert "alert channel" in body
+
+
+def test_the_wiki_privacy_claims_do_not_overclaim_either():
+    """The same false pattern (round-tripped through the wizard's own wording
+    at some point) also showed up in Home.md's pitch paragraph and
+    First-run.md's Welcome-step summary; both must name what leaves the
+    machine rather than claim nothing does."""
+    home = (REPO_ROOT / ".github" / "wiki" / "Home.md").read_text(encoding="utf-8")
+    first_run = (REPO_ROOT / ".github" / "wiki" / "First-run.md").read_text(encoding="utf-8")
+    for doc_name, text in (("Home.md", home), ("First-run.md", first_run)):
+        for false_fragment in _FALSE_CLAIM_FRAGMENTS:
+            assert false_fragment not in text, f"{doc_name} still overclaims: {false_fragment!r}"
+    assert "stays on this machine" in home
+    assert "channel you connect" in home

@@ -8,10 +8,14 @@ set -euo pipefail
 #              Notification Center gallery on an end-user machine.
 # Inputs     : $APP_PATH (default: the bundle `cargo tauri build
 #              --target aarch64-apple-darwin` emits, the same BUNDLE_DIR
-#              release-local.sh uses); APPLE_SIGNING_IDENTITY and, for
-#              notarisation, APPLE_API_KEY_P8_BASE64 + APPLE_API_KEY_ID +
-#              APPLE_API_ISSUER_ID; cli/pyproject.toml (for VERSION).
-# Outputs    : Signed, embedded Find+.app; dist/FindPlus-<ver>-aarch64.dmg.
+#              release-local.sh uses); $ARCH_SUFFIX (default: aarch64 — the
+#              dmg name token; the release.yml matrix passes x86_64 on its
+#              Intel leg, APP_PATH pointed at that leg's own
+#              target/x86_64-apple-darwin bundle); APPLE_SIGNING_IDENTITY
+#              and, for notarisation, APPLE_API_KEY_P8_BASE64 +
+#              APPLE_API_KEY_ID + APPLE_API_ISSUER_ID; cli/pyproject.toml
+#              (for VERSION).
+# Outputs    : Signed, embedded Find+.app; dist/FindPlus-<ver>-<arch>.dmg.
 # Constraints: Idempotent (safe to re-run); sign inner-to-outer, never
 #              --deep; no credentials logged.
 
@@ -33,6 +37,10 @@ fi
 
 # --- LOCATE_APP ---------------------------------------------------------------
 APP_PATH="${APP_PATH:-desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Find+.app}"
+# Which arch token the final dmg name carries. Defaults to aarch64 to match
+# the default APP_PATH above (the arm64-only local build release-local.sh
+# still runs); the release.yml matrix's Intel leg overrides both together.
+ARCH_SUFFIX="${ARCH_SUFFIX:-aarch64}"
 if [ ! -d "$APP_PATH" ]; then
   echo "FAIL: $APP_PATH not found. Run cargo tauri build first." >&2
   exit 1
@@ -140,7 +148,7 @@ fi
 VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('cli/pyproject.toml','rb'))['project']['version'])")
 # One canonical dmg name for the whole project: FindPlus-<ver>-<arch>.dmg
 # (findplus PRI § Names). No -arm64 spelling anywhere.
-DMG_NAME="FindPlus-${VERSION}-aarch64.dmg"
+DMG_NAME="FindPlus-${VERSION}-${ARCH_SUFFIX}.dmg"
 mkdir -p dist
 rm -f "dist/$DMG_NAME"
 # --icon takes the item's name as it appears in the mounted volume, which for

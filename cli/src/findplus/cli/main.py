@@ -69,6 +69,7 @@ main.add_command(cmd_diagnostics.watchdog)
 main.add_command(cmd_diagnostics.install_watchdog_cmd)
 main.add_command(cmd_diagnostics.reset_lock)
 main.add_command(cmd_diagnostics.pin_group)
+main.add_command(cmd_diagnostics.lock_group)
 main.add_command(cmd_diagnostics.theme)
 
 main.add_command(cmd_devices.devices)

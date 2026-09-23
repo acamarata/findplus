@@ -25,9 +25,45 @@ import { reload } from "./main.js";
 import { t } from "./i18n.js";
 import { loadDevices, renderDeviceModal, closeDevices, providerWording } from "./devices.js";
 
-/** Query every provider once, now, and say what came back. */
+// N50: mirrors MANUAL_POLL_COOLDOWN in cli/src/findplus/api/__init__.py. Used
+// to disable the button for a successful poll, whose response carries no
+// wait time of its own; a 429's own "Try again in {n}s" (routes_history.py)
+// wins whenever one comes back, since the server's clock is the real one.
+const POLL_COOLDOWN_MS = 60000;
+const WAIT_SECONDS = /(\d+)s/;
+
+/** Still cooling down from the last poll (this tab's own clock, a courtesy —
+ * the server enforces the real cooldown regardless). */
+let cooldownUntil = 0;
+let cooldownTimer = null;
+
+/** Disable the button for `ms`, then restore its normal label. A later call
+ * (a 429 extending an already-running cooldown) replaces the pending timer
+ * rather than stacking a second one. */
+function startCooldown(btn, ms) {
+  cooldownUntil = Date.now() + ms;
+  btn.disabled = true;
+  btn.textContent = t("common.btnPoll");
+  if (cooldownTimer) clearTimeout(cooldownTimer);
+  cooldownTimer = setTimeout(() => {
+    cooldownTimer = null;
+    cooldownUntil = 0;
+    btn.disabled = false;
+  }, ms);
+}
+
+/** Query every provider once, now, and say what came back.
+ *
+ * UAT5 N50: a second click within the server's one-per-minute limit used to
+ * reach the API and come back 429, logging a console error even though the
+ * on-screen message was already fine. The button now stays disabled for the
+ * cooldown -- the server's own remaining wait on a 429, or this tab's guess
+ * of the full window after a poll it made itself -- so a second click within
+ * that window never fires a second request.
+ */
 export async function pollNow() {
   const btn = $("btn-poll");
+  if (Date.now() < cooldownUntil) return;
   btn.disabled = true;
   btn.textContent = t("devices.pollingLabel");
   try {
@@ -46,11 +82,16 @@ export async function pollNow() {
       "warn"
     );
     await reload();
+    startCooldown(btn, POLL_COOLDOWN_MS);
   } catch (err) {
     showAlert(err.message, "err");
-  } finally {
-    btn.disabled = false;
-    btn.textContent = t("common.btnPoll");
+    if (err.status === 429) {
+      const wait = WAIT_SECONDS.exec(err.message);
+      startCooldown(btn, (wait ? Number(wait[1]) : 60) * 1000);
+    } else {
+      btn.disabled = false;
+      btn.textContent = t("common.btnPoll");
+    }
   }
 }
 

@@ -73,7 +73,7 @@ func sfSymbol(for icon: String, label: String?, name: String) -> String {
         "door-open": "door.left.hand.open", "house": "house.fill", "tent": "tent.fill",
         "map-pin": "mappin.circle.fill", "compass": "location.north.circle.fill",
         "plane": "airplane", "train-front": "train.side.front.car",
-        "bus": "bus.fill", "sailboat": "sailboat.fill",
+        "bus": "bus.fill", "sailboat": "sailboat.fill", "bell": "bell.fill",
     ]
     if icon.hasPrefix("lucide:"), let symbol = table[String(icon.dropFirst(7))] {
         return symbol

@@ -107,3 +107,24 @@ async def test_settings_native_detail_row_is_desktop_only(page, base_url):
     await page.wait_for_selector("#setting-native-detail-row:not([hidden])", timeout=15000)
     note = await page.locator("#setting-native-detail-note").inner_text()
     assert "locked screen" in note
+
+
+async def test_settings_desktop_section_is_desktop_only(page, base_url):
+    """U27: "Start Find+ at login" is a macOS launch-agent control; a plain
+    browser tab at :8647 cannot act on it, so the section stays hidden."""
+    await _open_settings(page, base_url)
+    await page.wait_for_selector("#setting-poll-interval", timeout=15000)
+    assert await page.locator("#setting-group-desktop").is_hidden()
+
+    await page.add_init_script(_NATIVE_STUB)
+    await _open_settings(page, base_url)
+    await page.wait_for_selector("#setting-group-desktop:not([hidden])", timeout=15000)
+
+
+async def test_alerts_widget_map_section_is_desktop_only(page, base_url):
+    """U27: the widget preview is a macOS-only surface (Apple Maps), so a
+    plain browser tab never sees the toggle for it."""
+    await page.goto(base_url + "/")
+    await page.click('button[data-tab="alerts"]')
+    await page.wait_for_selector("#tab-alerts:not([hidden])")
+    assert await page.locator("#fp-widget-map-section").is_hidden()

@@ -32,6 +32,8 @@ from findplus.db.models import Device, Group, LocationObservation, PollRun
 from findplus.db.session import session_scope
 from findplus.groups.repo import list_group_timeline
 from findplus.logging_setup import get_logger
+from findplus.places.geofence import PlaceSpec, classify_point
+from findplus.places.repo import list_places
 from findplus.timeline import day_bounds_utc, days_with_data, local_zone, multi_day_timeline
 
 from ._helpers import _parse_day, _serialize_latest, _serialize_run
@@ -87,6 +89,92 @@ def _named_payload(tracks, names: dict[str, str]) -> list[dict[str, Any]]:
     return payload
 
 
+def _place_specs(session) -> list[tuple[PlaceSpec, str]]:
+    """(geofence, name) pairs for every saved place, for timeline point labels."""
+    return [
+        (
+            PlaceSpec(
+                id=p.id,
+                latitude_e7=p.latitude_e7,
+                longitude_e7=p.longitude_e7,
+                radius_meters=p.radius_meters,
+                enter_confirmations=p.enter_confirmations,
+                exit_confirmations=p.exit_confirmations,
+            ),
+            p.name,
+        )
+        for p in list_places(session)
+    ]
+
+
+def _place_name_for_point(
+    point: dict[str, Any], place_specs: list[tuple[PlaceSpec, str]]
+) -> str | None:
+    """First saved place (alphabetical, from list_places) the point falls inside, or None."""
+    for spec, name in place_specs:
+        cls = classify_point(spec, point["latitude"], point["longitude"], point["accuracy_meters"])
+        if cls.side == "inside":
+            return name
+    return None
+
+
+def _annotate_place_names(
+    payload: list[dict[str, Any]], place_specs: list[tuple[PlaceSpec, str]]
+) -> None:
+    """Adds `place_name` to every point in-place (U30b).
+
+    Read-only display convenience: the geofence hysteresis state machine
+    (places/geofence.py advance()) is still the sole owner of ENTER/EXIT
+    truth. Coordinates stay on the point alongside `place_name` so a hover
+    can still show the raw fix.
+    """
+    for track in payload:
+        for point in track["points"]:
+            point["place_name"] = _place_name_for_point(point, place_specs) if place_specs else None
+
+
+def _device_timeline_payload(
+    settings,
+    device_id: str | None,
+    target,
+    zone,
+    movement_threshold_meters: float | None,
+    gap_threshold_minutes: float | None,
+) -> dict[str, Any]:
+    """Single-device (or all-device) `/timeline` payload for one local day.
+
+    Split out of `_register_timeline_route` to keep the route function
+    under the PRI function-size cap (E13 loop-1 follow-up); behavior and
+    the returned shape are unchanged.
+    """
+    movement, gap = _resolved_thresholds(settings, movement_threshold_meters, gap_threshold_minutes)
+    with session_scope() as session:
+        tracks = multi_day_timeline(
+            session,
+            [device_id] if device_id else None,
+            target,
+            tz=zone,
+            movement_threshold_meters=movement,
+            gap_threshold_minutes=gap,
+        )
+        names = {d.device_id: d.name for d in session.scalars(select(Device))}
+        place_specs = _place_specs(session)
+
+    payload = _named_payload(tracks, names)
+    _annotate_place_names(payload, place_specs)
+
+    return {
+        "day": target.isoformat(),
+        "timezone": str(zone),
+        "device_id": device_id,
+        "movement_threshold_meters": movement,
+        "gap_threshold_minutes": gap,
+        "path_disclaimer": "Observed path — actual route between detections may differ.",
+        "tracks": payload,
+        "total_observations": sum(len(t["points"]) for t in payload),
+    }
+
+
 def _register_timeline_route(router: APIRouter, *, settings) -> None:
     @router.get("/timeline")
     def timeline(
@@ -111,32 +199,9 @@ def _register_timeline_route(router: APIRouter, *, settings) -> None:
         if group_id is not None:
             return _group_timeline(group_id, target, zone)
 
-        movement, gap = _resolved_thresholds(
-            settings, movement_threshold_meters, gap_threshold_minutes
+        return _device_timeline_payload(
+            settings, device_id, target, zone, movement_threshold_meters, gap_threshold_minutes
         )
-        with session_scope() as session:
-            tracks = multi_day_timeline(
-                session,
-                [device_id] if device_id else None,
-                target,
-                tz=zone,
-                movement_threshold_meters=movement,
-                gap_threshold_minutes=gap,
-            )
-            names = {d.device_id: d.name for d in session.scalars(select(Device))}
-
-        payload = _named_payload(tracks, names)
-
-        return {
-            "day": target.isoformat(),
-            "timezone": str(zone),
-            "device_id": device_id,
-            "movement_threshold_meters": movement,
-            "gap_threshold_minutes": gap,
-            "path_disclaimer": "Observed path — actual route between detections may differ.",
-            "tracks": payload,
-            "total_observations": sum(len(t["points"]) for t in payload),
-        }
 
 
 def days(
@@ -162,7 +227,8 @@ def latest(
         obs = session.scalar(stmt.order_by(desc(LocationObservation.observed_at)).limit(1))
         if obs is None:
             raise HTTPException(status_code=404, detail="No observations recorded yet.")
-        return _serialize_latest(obs, zone, now) or {}
+        device = session.get(Device, obs.device_id)
+        return _serialize_latest(obs, zone, now, device.label if device else None) or {}
 
 
 def poll_runs(limit: int = Query(default=25, ge=1, le=200)) -> dict[str, Any]:

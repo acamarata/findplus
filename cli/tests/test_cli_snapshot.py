@@ -33,6 +33,7 @@ EXPECTED_COMMANDS = {
     "groups",
     "install-service",
     "install-watchdog",
+    "lock",
     "mcp",
     "open",
     "pin",

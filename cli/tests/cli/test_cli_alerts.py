@@ -20,7 +20,7 @@ def test_telegram_setup_rejects_a_malformed_token_before_any_request(
     tmp_db: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     setup_mock = MagicMock()
-    monkeypatch.setattr("findplus.cli.alerts.telegram_setup", setup_mock)
+    monkeypatch.setattr("findplus.cli.alerts_channels.telegram_setup", setup_mock)
     result = CliRunner().invoke(main, ["alerts", "telegram-setup", "--token", "tok"])
     assert result.exit_code != 0
     assert "BotFather" in result.output
@@ -33,13 +33,13 @@ def test_webhook_set_invalid_url(tmp_db: str) -> None:
 
 
 def test_webhook_set_https_ok(tmp_db: str, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("findplus.cli.alerts.save_channel", MagicMock())
+    monkeypatch.setattr("findplus.cli.alerts_channels.save_channel", MagicMock())
     result = CliRunner().invoke(main, ["alerts", "webhook-set", "https://example.com/hook"])
     assert result.exit_code == 0
 
 
 def test_test_channel_not_configured(tmp_db: str, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("findplus.cli.alerts.load_alerts", lambda: AlertsChannels())
+    monkeypatch.setattr("findplus.cli.alerts_channels.load_alerts", lambda: AlertsChannels())
     result = CliRunner().invoke(main, ["alerts", "test", "--channel", "telegram"])
     assert result.exit_code != 0
     assert "not configured" in result.output
@@ -80,6 +80,49 @@ def test_rules_add_and_remove(tmp_db: str) -> None:
 def test_deliveries_empty(tmp_db: str) -> None:
     result = CliRunner().invoke(main, ["alerts", "deliveries"])
     assert result.exit_code == 0
+    assert "CHANNEL" in result.output
+    assert "ERROR" in result.output
+
+
+def test_deliveries_table_shows_channel_and_error_with_aligned_columns(tmp_db: str) -> None:
+    """UAT U23: the delivery log omitted the channel and error entirely, and
+    the surrounding columns must stay separated regardless of content width."""
+    from datetime import UTC, datetime
+
+    from findplus.db.models_alerts import AlertDelivery
+    from findplus.db.session import session_scope
+    from findplus.ingest import upsert_device
+
+    runner = CliRunner()
+    with session_scope() as s:
+        upsert_device(s, "dev1", "Tag1")
+    add_result = runner.invoke(
+        main, ["alerts", "rules", "add", "r1", "--device-id", "dev1", "--channel", "telegram"]
+    )
+    rule_id = int(add_result.output.split("Created rule ", 1)[1].split(":", 1)[0])
+    with session_scope() as s:
+        s.add(
+            AlertDelivery(
+                rule_id=rule_id,
+                event_kind="device",
+                event_id=1,
+                sent_at=datetime.now(UTC),
+                status="failed",
+                error="bot_token is invalid",
+                channel="telegram",
+            )
+        )
+
+    result = runner.invoke(main, ["alerts", "deliveries"])
+
+    assert result.exit_code == 0, result.output
+    assert "telegram" in result.output
+    assert "bot_token is invalid" in result.output
+    # Adjacent columns never run together: every header has a real gap after it.
+    header_line = result.output.splitlines()[0]
+    for header in ("ID", "RULE", "CHANNEL", "KIND", "SENT_AT", "STATUS", "ATTEMPTS"):
+        idx = header_line.index(header)
+        assert header_line[idx + len(header) : idx + len(header) + 2] in ("  ", "")
 
 
 def test_alerts_help_lists_subcommands(tmp_db: str) -> None:
@@ -139,7 +182,7 @@ def test_whatsapp_set_then_clear_round_trips(tmp_db: str) -> None:
 
 
 def test_test_channel_whatsapp_not_configured(tmp_db: str, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("findplus.cli.alerts.load_alerts", lambda: AlertsChannels())
+    monkeypatch.setattr("findplus.cli.alerts_channels.load_alerts", lambda: AlertsChannels())
     result = CliRunner().invoke(main, ["alerts", "test", "--channel", "whatsapp"])
     assert result.exit_code != 0
     assert "WhatsApp not configured" in result.output
@@ -197,3 +240,50 @@ def test_rules_list_json_carries_the_channels_column(tmp_db: str) -> None:
     listed = json_mod.loads(runner.invoke(main, ["alerts", "rules", "list", "--json"]).output)
     assert listed[0]["channels"] == "whatsapp"
     assert "channel" not in listed[0]
+
+
+def _seed_place_and_labeled_device(s) -> int:
+    """A place plus a device with a label, for U23's table-resolution test."""
+    from findplus.db.models import Device
+    from findplus.ingest import upsert_device
+    from findplus.places.repo import create_place
+
+    upsert_device(s, "dev1", "Moto Tag 1")
+    s.get(Device, "dev1").label = "Sara's backpack"
+    place = create_place(
+        s,
+        name="Home",
+        latitude_e7=411000000,
+        longitude_e7=-801000000,
+        radius_meters=200,
+        enter_confirmations=1,
+        exit_confirmations=1,
+    )
+    return place.id
+
+
+def test_rules_list_resolves_place_and_device_label(tmp_db: str) -> None:
+    """UAT U23: the table printed a jammed "GROUPDEVICE" header (fixed-width
+    columns with no gap once content reached their width), a raw place id
+    ("1") instead of "Home", and a raw device id instead of the label."""
+    from findplus.db.session import session_scope
+
+    with session_scope() as s:
+        place_id = _seed_place_and_labeled_device(s)
+
+    add_args = ["alerts", "rules", "add", "r1", "--device-id", "dev1"]
+    add_args += ["--place", str(place_id), "--channel", "telegram"]
+    result = CliRunner().invoke(main, add_args)
+    assert result.exit_code == 0, result.output
+
+    list_result = CliRunner().invoke(main, ["alerts", "rules", "list"])
+    assert list_result.exit_code == 0, list_result.output
+    assert "Home" in list_result.output
+    assert "Sara's backpack" in list_result.output
+    assert "dev1" not in list_result.output
+    # Every header has a real gap before the next one, unlike the old
+    # fixed-width "GROUPDEVICE" run-together.
+    header_line = list_result.output.splitlines()[0]
+    for header in ("ID", "NAME", "PLACE", "GROUP", "DEVICE", "CHANNELS"):
+        idx = header_line.index(header)
+        assert header_line[idx + len(header) : idx + len(header) + 2] in ("  ", "")

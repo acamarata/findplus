@@ -104,6 +104,17 @@ def _bind_or_exit(host: str | None, port: int | None) -> tuple[str, int]:
     I9 is enforced by Settings.host and by `config set HOST`; --host reached
     uvicorn without passing either, so refuse here too, before daemon.json is
     written or the server is constructed.
+
+    Returns the resolved (host, port) only -- it used to also export
+    `--host`/`--port` into FINDPLUS_HOST/FINDPLUS_PORT so OriginGuardMiddleware's
+    per-request `get_settings()` call would agree with the actual bind
+    address. Closeout C-M1 removed that re-read: the guard now reads the
+    bound host/port off `app.state`, set once by `create_app(bound_host=,
+    bound_port=)` at startup (`_start_uvicorn` below), so a later
+    `findplus config set port ...` against config.env can no longer move
+    what an already-running daemon's own guard answers on -- and this
+    function has no env to leak into a shared test process any more either
+    (CF-P2-3 follow-up, test_sigterm.py).
     """
     settings = get_settings()
     bind_host = host or settings.host
@@ -151,7 +162,7 @@ def _start_uvicorn(bind_host: str, bind_port: int, settings) -> tuple[Any, threa
     from findplus.api import create_app
 
     config = uvicorn.Config(
-        create_app(),
+        create_app(bound_host=bind_host, bound_port=bind_port),
         host=bind_host,
         port=bind_port,
         log_level=settings.log_level.lower(),

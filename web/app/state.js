@@ -6,11 +6,16 @@
  *              device filter, map/marker handles, lock state, etc.) plus the
  *              small pure helpers ($ , fmt*, colorFor, showAlert, applyTheme)
  *              that have no dependency on any sibling module.
- * Constraints: No imports from sibling modules — every other module imports
- *              FROM here, never the reverse, so this stays the leaf of the
- *              dependency graph.
+ * Constraints: No imports from sibling modules except i18n.js (CF-P2-E9-1:
+ *              the fmt* helpers route their unit ladder through t()/plural()
+ *              instead of hardcoding English) — i18n.js itself has no
+ *              sibling imports beyond the bundled catalog, so this stays a
+ *              leaf every other module can safely import FROM, never the
+ *              reverse.
  */
 "use strict";
+
+import { t, plural } from "./i18n.js";
 
 /** Per-device track colours, chosen to stay distinguishable on OSM tiles. */
 export const TRACK_COLORS = [
@@ -24,6 +29,13 @@ export const state = {
   timeline: null,
   devices: [],
   deviceFilter: migrateLegacyKey("bt.deviceFilter", "findplus.deviceFilter") || "",
+  /** The dashboard's group select (#fp-group-select): a group id, or "" for
+   *  every tracked device. Set alongside groupMembers by groups.js. */
+  groupFilter: "",
+  /** Set<device_id> of the selected group's members, or null when no group
+   *  is selected. visibleTracks() below reads this to narrow the map and
+   *  timeline without a second network round trip (UAT U8). */
+  groupMembers: null,
   colors: new Map(),
   selectedId: null,
   movementOnly: false,
@@ -99,17 +111,29 @@ export function esc(value) {
 }
 
 /**
- * "5 min" / "3 h" / "2 d" — the one age ladder every surface uses.
+ * "5 min" / "94 min" / "1 h 34 min" / "3 h" / "2 d" — the one age ladder
+ * every surface uses.
  *
  * groups.js, Model.swift's formatAge and formatStaleGap all switch to days at
  * 48 h; places.js had its own switching at 24 h, so a 30-hour gap read "30 h"
- * in Groups and "1 d" in Places (E1 honesty round 3 F12).
+ * in Groups and "1 d" in Places (E1 honesty round 3 F12). Below 120 minutes
+ * this stays in minutes rather than rounding to the nearest hour: the Groups
+ * stale badge used to floor 94 minutes to "1 h" while the presence note beside
+ * it (server-formatted, always raw minutes) read "(81 min ago)" for a
+ * different member -- two ages in the same panel that looked contradictory
+ * for no reason (UAT4 N33). 120 minutes and over still switches to hours,
+ * carrying a minute remainder rather than dropping it.
  */
 export function fmtAgeMinutes(minutes) {
-  if (minutes == null || Number.isNaN(minutes)) return "unknown";
-  if (minutes < 60) return `${Math.max(0, Math.floor(minutes))} min`;
-  const hours = Math.floor(minutes / 60);
-  return hours < 48 ? `${hours} h` : `${Math.floor(hours / 24)} d`;
+  if (minutes == null || Number.isNaN(minutes)) return t("units.unknown");
+  const whole = Math.max(0, Math.floor(minutes));
+  if (whole < 120) return t("units.minutesShort", { n: whole });
+  const hours = Math.floor(whole / 60);
+  if (hours >= 48) return t("units.daysShort", { n: Math.floor(hours / 24) });
+  const remainder = whole % 60;
+  return remainder
+    ? t("units.hoursMinutesShort", { h: hours, m: remainder })
+    : t("units.hoursShort", { n: hours });
 }
 
 export function fmtTime(iso) {
@@ -125,28 +149,55 @@ export function fmtDateTime(iso) {
 }
 
 export function fmtDuration(seconds) {
-  if (seconds === null || seconds === undefined) return "—";
+  if (seconds === null || seconds === undefined) return t("common.emptyValue");
   const s = Math.max(0, Math.round(seconds));
-  if (s < 60) return `${s} sec`;
+  if (s < 60) return t("units.seconds", { n: s });
   const m = Math.round(s / 60);
-  if (m < 60) return `${m} min`;
+  if (m < 60) return t("units.minutes", { n: m });
   const h = Math.floor(m / 60);
   const rem = m % 60;
-  if (h < 24) return rem ? `${h} hr ${rem} min` : `${h} hr`;
+  if (h < 24) return rem ? t("units.hoursMinutes", { h, m: rem }) : t("units.hours", { n: h });
   const d = Math.floor(h / 24);
-  return `${d} day${d === 1 ? "" : "s"} ${h % 24} hr`;
+  return `${plural("units.days", d, { n: d })} ${t("units.hours", { n: h % 24 })}`;
 }
 
 export function fmtDistance(meters) {
   if (meters === null || meters === undefined) return null;
   const miles = meters / 1609.344;
-  if (miles < 0.1) return `${Math.round(meters)} m`;
-  return `${miles.toFixed(miles < 10 ? 2 : 1)} mi`;
+  if (miles < 0.1) return t("units.meters", { n: Math.round(meters) });
+  return t("units.miles", { n: miles.toFixed(miles < 10 ? 2 : 1) });
 }
 
 export function todayLocal() {
   const d = new Date();
   return new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
+/**
+ * The identity string every surface shows for a device: the label the user
+ * gave it, or the provider's own name, or its raw id -- never the caller's
+ * own ad-hoc fallback chain (UAT U6: Show dropdown, group members, rule
+ * forms, rules table, cards, map popups and timeline rows all read the same
+ * value). Returns null for no device at all, so a caller with its own
+ * further fallback (a track's stored `device_name`, a group member's own
+ * `name`) can still chain onto it with `displayName(device) || ...`.
+ */
+export function displayName(device) {
+  if (!device) return null;
+  return device.label || device.name || device.device_id || null;
+}
+
+/**
+ * The timeline's tracks, narrowed to the selected group's members.
+ *
+ * `/api/timeline` already returns every tracked device's track in one
+ * response, and a group's member device_ids are already loaded (GET
+ * /api/groups), so the dashboard's group select filters map.js/timeline.js
+ * client-side rather than adding a second, group-scoped fetch (UAT U8).
+ */
+export function visibleTracks(tracks) {
+  if (!state.groupMembers) return tracks;
+  return tracks.filter((track) => state.groupMembers.has(track.device_id));
 }
 
 export function colorFor(deviceId) {

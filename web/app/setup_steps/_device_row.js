@@ -4,8 +4,11 @@
  * Purpose    : The tick box, badge, name, label field and Edit button that
  *              make up a row, kept out of devices.js so that file stays the
  *              step (render/onEnter/onNext) and nothing else.
- * Inputs     : ctx (api/showAlert), one device from GET /api/devices, and the
- *              refresh callback to run after the edit dialog closes.
+ * Inputs     : ctx (api/showAlert), one device from GET /api/devices, the
+ *              refresh callback to run after the edit dialog closes, and
+ *              defaultChecked (UAT U15: devices.js's "nobody tracked yet"
+ *              flag, so a fresh account starts every row ticked instead of
+ *              every row silently unticked).
  * Outputs    : An Element; PATCH /api/devices/{id} on a debounced label edit.
  * Constraints: createElement and textContent only — a tracker's name comes
  *              from the provider account, so it is never written as markup.
@@ -28,13 +31,11 @@ export function debounce(fn, ms) {
 }
 
 function patchDevice(ctx, id, changes) {
-  return ctx
-    .api(`/api/devices/${encodeURIComponent(id)}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(changes),
-    })
-    .catch((err) => ctx.showAlert(err.message, "err"));
+  return ctx.api(`/api/devices/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(changes),
+  });
 }
 
 /**
@@ -57,33 +58,64 @@ function editButton(ctx, device, onClosed) {
   return btn;
 }
 
-function trackBox(device) {
+function trackBox(device, defaultChecked) {
   const track = document.createElement("input");
   track.type = "checkbox";
-  track.checked = !!device.is_tracked;
+  // UAT U15: a device already tracked (e.g. re-entering this step) keeps its
+  // own state; on a fresh account where nothing is tracked yet, defaultChecked
+  // (every row gets the same value: "no one is tracked yet") ticks every row
+  // instead of leaving all of them silently unticked.
+  track.checked = device.is_tracked || defaultChecked;
   track.dataset.track = "";
   track.dataset.deviceId = device.device_id;
+  track.setAttribute("aria-label", t("setup.devices.trackFor", { name: device.name || device.device_id }));
   return track;
 }
 
-function labelInput(ctx, device) {
+/** The row's own error line (N45): a failed PATCH used to go to ctx.showAlert
+ * -> #alert inside #app-shell, hidden for the whole time the wizard is open
+ * (applock.js documents the same trap). role="alert" announces this line's
+ * text the way applock's own field error is meant to read. */
+function rowError() {
+  const error = document.createElement("p");
+  error.className = "fp-dialog-error";
+  error.setAttribute("role", "alert");
+  return error;
+}
+
+function labelInput(ctx, device, error) {
   const label = document.createElement("input");
   label.type = "text";
   label.value = device.label || "";
   label.placeholder = t("setup.devices.label_placeholder");
+  // UAT3 N26: placeholder-only field. Per-row name, matching trackBox()'s
+  // own aria-label pattern just above, so each row's checkbox and label
+  // input read as two distinct controls rather than "text field" x N.
+  label.setAttribute(
+    "aria-label",
+    t("setup.devices.labelFor", { name: device.name || device.device_id })
+  );
   label.addEventListener(
     "input",
-    debounce(
-      () => patchDevice(ctx, device.device_id, { label: label.value.trim() }),
-      PATCH_DEBOUNCE_MS
-    )
+    debounce(() => {
+      patchDevice(ctx, device.device_id, { label: label.value.trim() })
+        .then(() => {
+          error.textContent = "";
+        })
+        .catch((err) => {
+          error.textContent = err.message;
+        });
+    }, PATCH_DEBOUNCE_MS)
   );
   return label;
 }
 
-export function deviceRow(ctx, device, onClosed) {
+export function deviceRow(ctx, device, onClosed, defaultChecked) {
   const row = document.createElement("div");
-  row.className = "fp-dialog-field";
+  // fp-setup-device-row: this row has five children (track, badge, name,
+  // label input, edit button), not the simple label+control pair the
+  // generic .fp-dialog-field mobile rule assumes; see responsive.css.
+  row.className = "fp-dialog-field fp-setup-device-row";
   const badge = document.createElement("span");
   badge.className = "fp-device-badge";
   badge.append(
@@ -97,12 +129,20 @@ export function deviceRow(ctx, device, onClosed) {
   );
   const name = document.createElement("span");
   name.textContent = device.name || device.device_id;
+  const error = rowError();
   row.append(
-    trackBox(device),
+    trackBox(device, defaultChecked),
     badge,
     name,
-    labelInput(ctx, device),
+    labelInput(ctx, device, error),
     editButton(ctx, device, onClosed)
   );
-  return row;
+  // N45: the error sits below the row (its own line), not inside the flex
+  // row itself -- .fp-setup-device-row wraps its five field children on
+  // their own layout rules (responsive.css); a wrapper keeps this line out
+  // of that without changing the row's child count or CSS selectors.
+  const wrap = document.createElement("div");
+  wrap.className = "fp-setup-device-row-wrap";
+  wrap.append(row, error);
+  return wrap;
 }

@@ -13,6 +13,9 @@ restores it in a `finally`, so a failing assertion cannot leak an unfinished
 install into whichever module runs next. That discipline assumes sequential
 execution within this session-scoped fixture; a parallel runner (xdist) would
 have to stop sharing the server, not rewrite this file.
+
+The Devices and Groups step tests live in test_setup_wizard_devices.py (T1,
+2026-09-22, PRI rule-7 size caps).
 """
 
 from __future__ import annotations
@@ -123,7 +126,15 @@ async def test_next_with_matching_pin_sets_it_and_advances(page, base_url):
 
 
 async def test_next_with_mismatched_pin_shows_inline_error_and_stays(page, base_url):
-    """A mismatch must veto the transition, not advance with no PIN set."""
+    """A mismatch must veto the transition, not advance with no PIN set.
+
+    UAT4 N35: the field error moved from the status line under the button
+    to #fp-setup-pin-error, right beside the New PIN field -- settings.js's
+    own #setting-new-pin-error convention. GP-R5-5: the mismatch is about
+    both fields, so #fp-setup-pin-confirm carries the same aria-invalid and
+    aria-describedby as #fp-setup-pin, the wizard's twin of settings.js's
+    #confirm-pin fix.
+    """
     calls = []
 
     async def record(route):
@@ -135,18 +146,78 @@ async def test_next_with_mismatched_pin_shows_inline_error_and_stays(page, base_
     await page.goto(base_url + "/#/setup")
     await page.wait_for_selector("#fp-setup-pin", timeout=15000)
 
+    assert (
+        await page.get_attribute("#fp-setup-pin-confirm", "aria-describedby")
+        == "fp-setup-pin-error"
+    )
+
     await page.fill("#fp-setup-pin", "1234")
     await page.fill("#fp-setup-pin-confirm", "5678")
     await page.click("#fp-wizard-next")
 
-    await page.wait_for_function(
-        "() => document.getElementById('fp-setup-pin-status').textContent.length > 0",
-        timeout=15000,
-    )
-    assert "do not match" in await page.locator("#fp-setup-pin-status").inner_text()
+    await page.wait_for_selector("#fp-setup-pin-error:not(.hidden)", timeout=15000)
+    assert "do not match" in await page.locator("#fp-setup-pin-error").inner_text()
+    invalid = await page.get_attribute("#fp-setup-pin", "aria-invalid")
+    assert invalid == "true"
+    confirm_invalid = await page.get_attribute("#fp-setup-pin-confirm", "aria-invalid")
+    assert confirm_invalid == "true"
     assert calls == []
     assert await page.locator("#fp-setup-pin").is_visible()
     assert (await _settings(page, base_url))["onboarding.last_step"] == "applock"
+
+
+async def test_next_with_too_short_pin_shows_inline_error_and_never_posts(page, base_url):
+    """UAT4 N35/N44: a matching-but-too-short PIN (e.g. "2468") used to reach
+    the server before failing, logging a 400 in the console. The 6-character
+    minimum is now checked client-side, beside the New PIN field, and Next
+    stays put with no request at all."""
+    calls = []
+
+    async def record(route):
+        calls.append(route.request.url)
+        await route.continue_()
+
+    await page.route("**/api/settings/pin", record)
+    await _set_last_step(page, base_url, "applock")
+    await page.goto(base_url + "/#/setup")
+    await page.wait_for_selector("#fp-setup-pin", timeout=15000)
+
+    await page.fill("#fp-setup-pin", "2468")
+    await page.fill("#fp-setup-pin-confirm", "2468")
+    await page.click("#fp-wizard-next")
+
+    await page.wait_for_selector("#fp-setup-pin-error:not(.hidden)", timeout=15000)
+    assert "at least 6" in await page.locator("#fp-setup-pin-error").inner_text()
+    invalid = await page.get_attribute("#fp-setup-pin", "aria-invalid")
+    assert invalid == "true"
+    assert calls == [], "a too-short PIN must never reach the server"
+    assert await page.locator("#fp-setup-pin").is_visible()
+    assert (await _settings(page, base_url))["onboarding.last_step"] == "applock"
+
+
+async def test_done_shows_the_servers_tracked_count_on_a_resumed_session(page, base_url):
+    """UAT4 N29: resuming setup straight at Done (a reload past the Devices
+    step, or a session where Devices was skipped) left ctx.state.devices
+    empty, so the summary read "0 devices tracked" over six real tracked
+    devices. done.js now asks the server directly, the same tracked_count
+    the dashboard widget reads."""
+
+    async def get_devices(route):
+        await route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps({"tracked_count": 6, "devices": []}),
+        )
+
+    await page.route("**/api/devices", get_devices)
+    await _set_last_step(page, base_url, "done")
+    await page.goto(base_url + "/#/setup")
+    await page.wait_for_function(
+        "() => document.querySelector('#setup-view h2')?.textContent === \"You're set up\"",
+        timeout=15000,
+    )
+    summary = await page.locator("#setup-view p").first.inner_text()
+    assert summary == "6 devices tracked."
 
 
 async def test_done_completes_onboarding_and_returns_to_dashboard(page, base_url):

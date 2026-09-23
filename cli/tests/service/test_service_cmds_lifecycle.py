@@ -94,6 +94,56 @@ def test_status_falls_back_to_daemon_json_for_version(
         daemon_file.unlink(missing_ok=True)
 
 
+def test_status_probes_the_daemon_json_port_not_the_default(
+    tmp_db, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """UAT5 N47: `findplus serve --port 18749` on a non-default port left
+    `status` probing settings.base_url (8647), so `running`/`lock` came back
+    False/unknown even with the right port and pid already read from
+    daemon.json. The probe URL must be built from daemon.json's own port."""
+    urls: list[str] = []
+
+    def _capture(url, *a, **k):
+        urls.append(url)
+        raise ConnectionError("refused")
+
+    monkeypatch.setattr("httpx.get", _capture)
+    from findplus.config import get_settings
+
+    daemon_file = get_settings().daemon_file
+    daemon_file.parent.mkdir(parents=True, exist_ok=True)
+    daemon_file.write_text(
+        json.dumps({"pid": 1, "port": 18749, "host": "127.0.0.1", "version": "1.0.0.dev0"})
+    )
+    try:
+        result = CliRunner().invoke(main, ["status", "--json"])
+        assert result.exit_code == 0, result.output
+        assert urls == ["http://127.0.0.1:18749/api/status"]
+    finally:
+        daemon_file.unlink(missing_ok=True)
+
+
+def test_status_probes_settings_base_url_with_no_daemon_json(
+    tmp_db, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No daemon.json (or one predating the port field) falls back to
+    settings.base_url, same as before this fix."""
+    urls: list[str] = []
+
+    def _capture(url, *a, **k):
+        urls.append(url)
+        raise ConnectionError("refused")
+
+    monkeypatch.setattr("httpx.get", _capture)
+    from findplus.config import get_settings
+
+    get_settings().daemon_file.unlink(missing_ok=True)
+
+    result = CliRunner().invoke(main, ["status", "--json"])
+    assert result.exit_code == 0, result.output
+    assert urls == [f"{get_settings().base_url}/api/status"]
+
+
 def test_status_text_has_service_and_watchdog_lines(
     tmp_db, monkeypatch: pytest.MonkeyPatch
 ) -> None:

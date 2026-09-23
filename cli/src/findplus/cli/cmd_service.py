@@ -202,6 +202,17 @@ def restart() -> None:
     click.echo("Restarted.")
 
 
+def _probe_url(sd, settings) -> str:
+    """The `/api/status` URL to probe: daemon.json's own port when the
+    service recorded one, since a daemon started with `--port` (e.g.
+    `findplus serve --port 18749`) never runs on settings.base_url's default
+    8647. Falls back to settings.base_url with no daemon.json, or with one
+    that predates the port field."""
+    if sd.port is not None:
+        return f"http://127.0.0.1:{sd.port}/api/status"
+    return f"{settings.base_url}/api/status"
+
+
 @click.command()
 @click.option("--json", "json_flag", is_flag=True, help="Print machine-readable JSON.")
 def status(json_flag: bool) -> None:
@@ -214,7 +225,7 @@ def status(json_flag: bool) -> None:
 
     op: dict = {}
     try:
-        r = httpx.get(f"{settings.base_url}/api/status", timeout=2.0)
+        r = httpx.get(_probe_url(sd, settings), timeout=2.0)
         if r.status_code == 200:
             op = r.json()
         elif r.status_code == 401:

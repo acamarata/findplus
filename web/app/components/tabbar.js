@@ -77,6 +77,42 @@ function markCurrent(tab) {
   });
 }
 
+/** The open menu's own Escape/outside-click listeners, or null while closed --
+ *  module-scoped so closeMoreMenu() can remove exactly the pair openMoreMenu()
+ *  added, however the menu ends up closing. */
+let menuKeydown = null;
+let menuOutsideClick = null;
+
+/**
+ * UAT3 N22: the menu used to stay open after Escape and after tapping
+ * outside it -- neither had a handler. Closing always drops both listeners
+ * first, so a second close (e.g. Escape after an outside click already
+ * closed it) is a harmless no-op instead of stacking duplicate handlers.
+ */
+function closeMoreMenu(btn, menu, { restoreFocus = true } = {}) {
+  menu.classList.add("hidden");
+  btn.setAttribute("aria-expanded", "false");
+  if (menuKeydown) { document.removeEventListener("keydown", menuKeydown); menuKeydown = null; }
+  if (menuOutsideClick) { document.removeEventListener("click", menuOutsideClick); menuOutsideClick = null; }
+  if (restoreFocus) btn.focus();
+}
+
+function openMoreMenu(btn, menu) {
+  menu.classList.remove("hidden");
+  btn.setAttribute("aria-expanded", "true");
+  menuKeydown = (event) => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    closeMoreMenu(btn, menu);
+  };
+  menuOutsideClick = (event) => {
+    if (menu.contains(event.target) || event.target === btn) return;
+    closeMoreMenu(btn, menu);
+  };
+  document.addEventListener("keydown", menuKeydown);
+  document.addEventListener("click", menuOutsideClick);
+}
+
 /** Each menu item clicks the topbar button it names; no handler is duplicated. */
 function wireMoreMenu() {
   const btn = document.getElementById("btn-more");
@@ -85,16 +121,23 @@ function wireMoreMenu() {
 
   menu.querySelectorAll("[data-relays-to]").forEach((item) => {
     item.addEventListener("click", () => {
-      menu.classList.add("hidden");
-      btn.setAttribute("aria-expanded", "false");
+      // A deliberate menu choice, not a dismissal -- focus follows the
+      // relayed action (e.g. the Settings dialog's own trap) rather than
+      // snapping back to the More button.
+      closeMoreMenu(btn, menu, { restoreFocus: false });
       const target = document.getElementById(item.dataset.relaysTo);
       if (target) target.click();
     });
   });
 
-  btn.addEventListener("click", () => {
-    const nowHidden = menu.classList.toggle("hidden");
-    btn.setAttribute("aria-expanded", String(!nowHidden));
+  // The outside-click listener above is attached synchronously by
+  // openMoreMenu(), so this SAME click's bubble to `document` must never
+  // reach it -- stopPropagation() keeps the click that opens the menu from
+  // being read as a click that dismisses it a moment later.
+  btn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (menu.classList.contains("hidden")) openMoreMenu(btn, menu);
+    else closeMoreMenu(btn, menu, { restoreFocus: false });
   });
   return menu;
 }
@@ -102,7 +145,9 @@ function wireMoreMenu() {
 /** Keep the bar's visibility in step with the CSS that hides `.fp-tabs`. */
 function syncVisibility(matches, menu) {
   if (tabbarEl) tabbarEl.classList.toggle("hidden", !matches);
-  if (!matches && menu) menu.classList.add("hidden");
+  if (!matches && menu && !menu.classList.contains("hidden")) {
+    closeMoreMenu(document.getElementById("btn-more"), menu, { restoreFocus: false });
+  }
 }
 
 export function initTabbar() {

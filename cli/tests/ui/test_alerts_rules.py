@@ -229,20 +229,40 @@ async def test_rule_actions_visible_within_pane_at_1280_and_375(page, base_url):
         await page.wait_for_selector('[data-fp-ready="alerts"]')
         row = page.locator("#fp-rules-tbody tr", has_text="N16 visible rule")
         await row.wait_for(state="visible")
+        await _assert_actions_and_no_overflow(page, row, width)
 
-        pane_box = await page.locator("#tab-alerts").bounding_box()
-        edit_box = await row.get_by_text("Edit", exact=True).bounding_box()
-        delete_box = await row.get_by_text("Delete", exact=True).bounding_box()
-        assert pane_box and edit_box and delete_box, f"missing box at {width}px"
 
-        assert edit_box["x"] >= pane_box["x"] - 1, f"Edit left of the pane at {width}px"
-        assert edit_box["x"] + edit_box["width"] <= pane_box["x"] + pane_box["width"] + 1, (
-            f"Edit right of the pane at {width}px"
-        )
-        assert delete_box["x"] >= pane_box["x"] - 1, f"Delete left of the pane at {width}px"
-        assert delete_box["x"] + delete_box["width"] <= pane_box["x"] + pane_box["width"] + 1, (
-            f"Delete right of the pane at {width}px"
-        )
+async def _assert_actions_and_no_overflow(page, row, width: int) -> None:
+    """N16's Edit/Delete-inside-the-pane check, plus N39's no-sideways-scroll
+    check. Split out of test_rule_actions_visible_within_pane_at_1280_and_375
+    so that test stays under the function size cap (T1, findings queue item 1)."""
+    pane_box = await page.locator("#tab-alerts").bounding_box()
+    edit_box = await row.get_by_text("Edit", exact=True).bounding_box()
+    delete_box = await row.get_by_text("Delete", exact=True).bounding_box()
+    assert pane_box and edit_box and delete_box, f"missing box at {width}px"
+
+    assert edit_box["x"] >= pane_box["x"] - 1, f"Edit left of the pane at {width}px"
+    assert edit_box["x"] + edit_box["width"] <= pane_box["x"] + pane_box["width"] + 1, (
+        f"Edit right of the pane at {width}px"
+    )
+    assert delete_box["x"] >= pane_box["x"] - 1, f"Delete left of the pane at {width}px"
+    assert delete_box["x"] + delete_box["width"] <= pane_box["x"] + pane_box["width"] + 1, (
+        f"Delete right of the pane at {width}px"
+    )
+
+    # N39: the card list itself must never be sideways-scrollable, even by
+    # the couple of px a transparent WCAG touch-target halo can add with
+    # nothing visibly overflowing to explain it (309px of content in a
+    # 307px pane at 375).
+    scroll_box = await page.evaluate(
+        "() => { const s = document.getElementById('fp-rules-table')"
+        ".closest('.fp-table-scroll');"
+        " return {scrollWidth: s.scrollWidth, clientWidth: s.clientWidth}; }"
+    )
+    assert scroll_box["scrollWidth"] <= scroll_box["clientWidth"], (
+        f"rules card list scrolls sideways at {width}px: "
+        f"{scroll_box['scrollWidth']}px in a {scroll_box['clientWidth']}px pane"
+    )
 
 
 async def test_the_enabled_toggle_disables_a_rule_without_deleting_it(page, base_url):

@@ -419,6 +419,17 @@ dialog a:hover,
      the label prefix and let them sit together at the row's trailing edge. */
   #fp-rules-table td:last-child { gap: 8px; }
   #fp-rules-table td:last-child::before { content: none; }
+  /* N39: the Enabled toggle's checkbox sits flush against justify-content:
+     space-between's trailing edge, and responsive.css gives every checkbox
+     an invisible 44px WCAG touch-target halo centered on it -- with no
+     margin here, half that halo (22px) reached past the card's own right
+     edge by a couple of px (309px of content in a 307px pane, N39), with
+     nothing visibly overflowing to explain it since the halo is a
+     transparent ::before. Shrinking the touch target isn't the fix (it
+     would drop below the 44px minimum); moving the checkbox itself 8px
+     off the edge is, and it does not touch responsive.css's touch-target
+     rule at all. */
+  #fp-rules-table td input[type="checkbox"] { margin-right: 8px; }
 }
 
 /* --- hidden rows ---------------------------------------------------------- */

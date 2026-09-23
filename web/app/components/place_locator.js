@@ -33,17 +33,26 @@ import { buildPlaceLocatorDom, searchResultRow, trackerOption } from "./place_lo
 
 /** The "use a tracker's last location" half: its own select + button. */
 function createTrackerPicker(select, useBtn, { onPick, setStatus }) {
+  // UAT2 N5: the dialog's factory ran this once at creation and the dialog's
+  // own open handler ran it again, so the two overlapping fetches each
+  // cleared-then-appended into the same <select> and every tracker listed
+  // twice. A generation token means only the call that is still current when
+  // its fetch resolves ever touches the DOM.
+  let generation = 0;
+
   /** Fetched fresh every call rather than read off `state.devices`: the
    * dialog can open before devices.js's own boot-time load has landed (a
    * fast click right after the map appears), which left this select with
    * only its placeholder option. */
   async function refreshTrackers() {
+    const mine = ++generation;
+    const resp = await api("/api/devices").catch(() => ({ devices: [] }));
+    if (mine !== generation) return;
     while (select.firstChild) select.removeChild(select.firstChild);
     const placeholder = document.createElement("option");
     placeholder.value = "";
     placeholder.textContent = t("places.field.chooseTracker");
     select.appendChild(placeholder);
-    const resp = await api("/api/devices").catch(() => ({ devices: [] }));
     resp.devices.filter((d) => d.is_tracked).forEach((d) => select.appendChild(trackerOption(d)));
   }
 
@@ -56,7 +65,11 @@ function createTrackerPicker(select, useBtn, { onPick, setStatus }) {
     try {
       const fix = await api(`/api/latest?device_id=${encodeURIComponent(select.value)}`);
       onPick({ latitude: fix.latitude, longitude: fix.longitude });
-      setStatus("");
+      // UAT2 N8: picking a tracker changed the hidden lat/lon fields with no
+      // visible feedback at all. The select's own option text is already the
+      // tracker's displayName() (place_locator_dom.js's trackerOption()).
+      const name = select.options[select.selectedIndex].textContent;
+      setStatus(t("places.field.locationSet", { name }));
     } catch (_) {
       setStatus(t("places.field.noTrackerFix"));
     }
@@ -68,6 +81,12 @@ function createTrackerPicker(select, useBtn, { onPick, setStatus }) {
 
 /** The opt-in address-search half: its own input, button and results list. */
 function createAddressSearch(searchInput, searchBtn, results, { onPick, setStatus }) {
+  // UAT2 N8: a pick used to move the hidden lat/lon fields with no visible sign.
+  function pickResult(row) {
+    onPick({ latitude: row.latitude, longitude: row.longitude });
+    setStatus(t("places.field.locationSet", { name: row.display_name }));
+  }
+
   function renderResults(rows) {
     results.textContent = "";
     if (!rows.length) {
@@ -76,7 +95,9 @@ function createAddressSearch(searchInput, searchBtn, results, { onPick, setStatu
       li.textContent = t("places.search.noResults");
       results.appendChild(li);
     } else {
-      rows.forEach((row) => results.appendChild(searchResultRow(row, onPick, results)));
+      rows.forEach((row) =>
+        results.appendChild(searchResultRow(row, () => pickResult(row), results)),
+      );
     }
     results.hidden = false;
   }

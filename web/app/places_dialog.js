@@ -11,12 +11,11 @@
  *              raw markup. `initDialog()`'s `onSaved` callback is how this
  *              module tells places.js to reload — no places.js import here.
  *
- * UAT U3/U4/U10: the dialog used to be four bare, unstyled `<label>` rows
- * and needed a map click to open at all (a dead end on keyboard). It now
- * gets the shared dialog chrome and a real colour picker, and opens
- * directly at the map's current centre (places.js hands that in), so
- * "Add place" alone is enough. `place_locator.js`'s tracker picker and
- * opt-in address search then move that starting point somewhere real.
+ * UAT U3/U4/U10: the dialog used to be four bare, unstyled `<label>` rows and
+ * needed a map click to open at all. It now gets the shared dialog chrome and
+ * opens at the map's current centre, so "Add place" alone is enough;
+ * `place_locator.js`'s tracker picker and address search move that starting
+ * point somewhere real (UAT2 N8: with visible feedback once they do).
  */
 "use strict";
 
@@ -139,10 +138,11 @@ function buildPlaceForm(f, colorGroup, locatorHost) {
   return form;
 }
 
-/** place_locator.js's onPick: move the coordinates and redraw the preview. */
+/** place_locator.js's onPick: move the map and redraw the preview (UAT2 N8). */
 function applyPickedLocation({ latitude, longitude }) {
   fields.lat.value = String(latitude);
   fields.lon.value = String(longitude);
+  map.setView([latitude, longitude], Math.max(map.getZoom(), 15));
   drawPreview({ lat: latitude, lng: longitude }, Number(fields.radius.value));
 }
 

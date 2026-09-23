@@ -212,7 +212,8 @@
       "use": "Use",
       "chooseTracker": "Choose a tracker…",
       "chooseTrackerFirst": "Choose a tracker first.",
-      "noTrackerFix": "That tracker has no location on record yet."
+      "noTrackerFix": "That tracker has no location on record yet.",
+      "locationSet": "Location set from {name}."
     },
     "search": {
       "label": "Address search",
@@ -288,6 +289,8 @@
     "badBotTokenError": "That doesn't look like a bot token. Get one from @BotFather in Telegram.",
     "colEnabled": "Enabled",
     "editRule": "Edit rule",
+    "newRule": "New rule",
+    "noConnectedChannel": "Connect at least one selected channel before saving.",
     "ruleEnabledLabel": "Enabled: {name}",
     "ruleUpdateFailed": "Could not update \"{name}\" ({status}).",
     "statuses": {
@@ -382,6 +385,7 @@
       "interval_label": "Poll every",
       "interval_unit": "minutes",
       "interval_note": "Find+ never polls faster than every 5 minutes, to avoid rate-limiting your account. Takes effect after Find+ restarts. An environment variable, if one is set, wins over this box, and the value shown then stays the one already in force.",
+      "interval_range_error": "Choose 5 to 1440 minutes.",
       "retention_label": "Keep history for",
       "retention_unit": "days (blank = forever)",
       "retention_placeholder": "forever",

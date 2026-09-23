@@ -626,6 +626,13 @@ Get Presence
 |---|---|---|---|
 | device_id | query | False | string |
 
+### GET /api/places/search
+Get Search
+
+| name | in | required | type |
+|---|---|---|---|
+| q | query | False | string |
+
 ### POST /api/places
 Post Place
 

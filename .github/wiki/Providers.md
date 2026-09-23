@@ -43,7 +43,7 @@ confidence label itself is still kept alongside the observation for anyone
 who wants it, just never converted into a number.
 
 Geofence enter/exit decisions still need *some* radius to reason about
-sparse or missing accuracy — that fallback (`geofence_default_accuracy_meters`
+sparse or missing accuracy. That fallback (`geofence_default_accuracy_meters`
 in Settings) is a documented, conservative constant used only to decide
 which side of a place boundary a fix is on. It never becomes the observation's
 stored or displayed accuracy.

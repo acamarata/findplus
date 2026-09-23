@@ -50,7 +50,7 @@ available id.
 PNG (16-512 px, roughly square, up to 64 KiB) instead of picking a Lucide
 glyph or a letter. Each upload gets an id derived from its own bytes, so
 uploading the same image twice reuses the first copy rather than storing it
-twice. An icon still assigned to a device or group cannot be deleted — remove
+twice. An icon still assigned to a device or group cannot be deleted. Remove
 it from whatever is using it first. The macOS widget cannot fetch images, so
 a custom icon shows there as a coloured letter badge instead, the same
 fallback an unmapped Lucide glyph would get.

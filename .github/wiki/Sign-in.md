@@ -53,8 +53,8 @@ What an Apple Find My account gives you:
 Accessory keys (extracted pairing keys for AirTags and other Find My
 accessories) can be added from the terminal, the API, or the dashboard, and
 work without an Apple ID sign-in. In Settings, under the Apple card, give the
-accessory a name and pick its key file — a `.plist` export or a `.json` file
-holding the base64 private key — then click **Add accessory**. If that name's
+accessory a name and pick its key file (a `.plist` export or a `.json` file
+holding the base64 private key), then click **Add accessory**. If that name's
 key is already registered, Find+ asks before replacing it. `findplus apple
 add-accessory` takes the same plist or base64 key from the terminal, and
 `findplus apple list` shows what is registered. The same thing is reachable

@@ -111,19 +111,29 @@ export function esc(value) {
 }
 
 /**
- * "5 min" / "3 h" / "2 d" — the one age ladder every surface uses.
+ * "5 min" / "94 min" / "1 h 34 min" / "3 h" / "2 d" — the one age ladder
+ * every surface uses.
  *
  * groups.js, Model.swift's formatAge and formatStaleGap all switch to days at
  * 48 h; places.js had its own switching at 24 h, so a 30-hour gap read "30 h"
- * in Groups and "1 d" in Places (E1 honesty round 3 F12).
+ * in Groups and "1 d" in Places (E1 honesty round 3 F12). Below 120 minutes
+ * this stays in minutes rather than rounding to the nearest hour: the Groups
+ * stale badge used to floor 94 minutes to "1 h" while the presence note beside
+ * it (server-formatted, always raw minutes) read "(81 min ago)" for a
+ * different member -- two ages in the same panel that looked contradictory
+ * for no reason (UAT4 N33). 120 minutes and over still switches to hours,
+ * carrying a minute remainder rather than dropping it.
  */
 export function fmtAgeMinutes(minutes) {
   if (minutes == null || Number.isNaN(minutes)) return t("units.unknown");
-  if (minutes < 60) return t("units.minutesShort", { n: Math.max(0, Math.floor(minutes)) });
-  const hours = Math.floor(minutes / 60);
-  return hours < 48
-    ? t("units.hoursShort", { n: hours })
-    : t("units.daysShort", { n: Math.floor(hours / 24) });
+  const whole = Math.max(0, Math.floor(minutes));
+  if (whole < 120) return t("units.minutesShort", { n: whole });
+  const hours = Math.floor(whole / 60);
+  if (hours >= 48) return t("units.daysShort", { n: Math.floor(hours / 24) });
+  const remainder = whole % 60;
+  return remainder
+    ? t("units.hoursMinutesShort", { h: hours, m: remainder })
+    : t("units.hoursShort", { n: hours });
 }
 
 export function fmtTime(iso) {

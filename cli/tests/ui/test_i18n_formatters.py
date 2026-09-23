@@ -44,6 +44,11 @@ async def _open_dashboard(page, base_url):
 
 
 async def test_fmt_age_minutes_matches_pre_fix_english(page, base_url):
+    """90 minutes now reads "90 min", not "1 h" -- UAT4 N33 moved the
+    minutes-to-hours switch from 60 to 120 minutes, so this one value changed
+    from the pre-fix behaviour the test name still describes for the other
+    three; the day-ladder switch at 48 h is untouched.
+    """
     await _open_dashboard(page, base_url)
     result = await page.evaluate(
         """async () => {
@@ -56,7 +61,32 @@ async def test_fmt_age_minutes_matches_pre_fix_english(page, base_url):
             ];
         }"""
     )
-    assert result == ["unknown", "5 min", "1 h", "2 d"]
+    assert result == ["unknown", "5 min", "90 min", "2 d"]
+
+
+async def test_fmt_age_minutes_stays_in_minutes_to_120_then_carries_the_remainder(page, base_url):
+    """UAT4 N33: the Groups stale badge read "no fix for 1 h" at 94 minutes
+    while the presence note beside it (server-formatted, always raw minutes)
+    read "(81 min ago)" for another member -- two ages in the same panel that
+    looked contradictory. fmtAgeMinutes() now stays in minutes to 120 (94 ->
+    "94 min", matching the note's own convention) and carries a minute
+    remainder once it does switch to hours (125 -> "2 h 5 min"), rather than
+    flooring it away (the old 90 -> "1 h" behaviour).
+    """
+    await _open_dashboard(page, base_url)
+    result = await page.evaluate(
+        """async () => {
+            const state = await import('/static/app/state.js');
+            return [
+                state.fmtAgeMinutes(94),
+                state.fmtAgeMinutes(119),
+                state.fmtAgeMinutes(120),
+                state.fmtAgeMinutes(125),
+                state.fmtAgeMinutes(300),
+            ];
+        }"""
+    )
+    assert result == ["94 min", "119 min", "2 h", "2 h 5 min", "5 h"]
 
 
 async def test_fmt_duration_matches_pre_fix_english(page, base_url):

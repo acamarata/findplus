@@ -565,6 +565,7 @@
     "unknown": "unknown",
     "minutesShort": "{n} min",
     "hoursShort": "{n} h",
+    "hoursMinutesShort": "{h} h {m} min",
     "daysShort": "{n} d",
     "seconds": "{n} sec",
     "minutes": "{n} min",

@@ -98,8 +98,12 @@ macos_step2_sign_sidecar() {
 
 macos_step3_widget() {
   echo "==> Widget build ($WIDGET_ARCH)"
+  # Build where embed-widget.sh looks for the appex, and never reuse a stale one.
+  # A project-relative path also avoids a global DerivedData on an unmounted volume.
+  rm -rf desktop/widget/build
   xcodebuild -project desktop/widget/FindPlusWidget.xcodeproj \
-    -scheme FindPlusWidgetExtension -configuration Release -arch "$WIDGET_ARCH" build
+    -scheme FindPlusWidgetExtension -configuration Release -arch "$WIDGET_ARCH" build \
+    -derivedDataPath desktop/widget/build ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO
 }
 
 macos_step4_tauri_build() {

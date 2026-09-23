@@ -150,8 +150,12 @@ export function createCustomIconsSection(host, { value, onSelect }) {
     for (const id of ids) grid.appendChild(customSwatch(id, current, select, refresh, status));
   }
 
+  // Select first, then redraw: waiting for the list's own GET before
+  // selecting left a window where Save sent the OLD icon (CI run
+  // 35909159774). refresh() draws the new swatch already pressed.
   const upload = uploadRow(status, (id) => {
-    refresh().then(() => select(id));
+    select(id);
+    refresh();
   });
   section.append(heading, grid, upload, status);
   host.appendChild(section);

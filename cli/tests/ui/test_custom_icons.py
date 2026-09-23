@@ -14,6 +14,7 @@ Constraints: `live_server` is session-scoped and shared with every other file
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import json
 import struct
@@ -74,6 +75,14 @@ async def _upload_icon(page, png_path) -> str:
         await page.set_input_files("#fp-device-dialog .fp-custom-icon-upload input", str(png_path))
     body = await (await resp_info.value).json()
     return body["id"]
+
+
+async def _wait_selected(page, icon_id: str) -> None:
+    """Wait until the dialog's hidden icon field holds `icon_id` -- what Save
+    actually sends -- rather than trusting the upload's response alone."""
+    await page.wait_for_function(
+        "(id) => document.getElementById('fp-device-icon').value === id", arg=icon_id
+    )
 
 
 async def _restore_seeded_icon(page, base_url) -> None:
@@ -146,14 +155,17 @@ async def test_lock_purges_every_custom_icon_thumbnail(page, base_url, tmp_path)
     await _open_edit_dialog(page, base_url)
     icon_id = await _upload_icon(page, png_path)
     short = icon_id.split(":", 1)[1]
-    await page.click("#fp-device-dialog button:has-text('Save')")
-    await page.wait_for_selector("#fp-device-dialog:not([open])", state="attached")
-
-    set_pin = await page.request.post(
-        base_url + "/api/settings/pin", data=json.dumps({"new_pin": PIN}), headers=JSON_HEADERS
-    )
-    assert set_pin.ok, await set_pin.text()
     try:
+        await _wait_selected(page, icon_id)
+        await page.click("#fp-device-dialog button:has-text('Save')")
+        await page.wait_for_selector("#fp-device-dialog:not([open])", state="attached")
+
+        set_pin = await page.request.post(
+            base_url + "/api/settings/pin",
+            data=json.dumps({"new_pin": PIN}),
+            headers=JSON_HEADERS,
+        )
+        assert set_pin.ok, await set_pin.text()
         # Reopen so the picker's own uploaded-thumbnail img is on screen too,
         # not just the device row's badge image.
         await _open_edit_dialog(page, base_url)
@@ -211,3 +223,40 @@ async def test_upload_rejects_a_non_png_file(page, base_url, tmp_path):
     )
     assert (await status.inner_text()).strip() != ""
     await page.click("#fp-device-dialog button:has-text('Cancel')")
+
+
+async def test_save_right_after_upload_sends_the_uploaded_icon(page, base_url, tmp_path):
+    """CI run 35909159774: the upload only selected the new icon after a
+    second GET /api/icons/custom came back, so a Save in that window PATCHed
+    the old icon. Hold that GET open and prove Save still sends the upload."""
+    png_path = tmp_path / "icon.png"
+    png_path.write_bytes(_make_png())
+    release = asyncio.Event()
+    gets = {"n": 0}
+
+    async def hold_second_list(route):
+        if route.request.method == "GET":
+            gets["n"] += 1
+            if gets["n"] >= 2:
+                await release.wait()
+        await route.continue_()
+
+    await page.route("**/api/icons/custom", hold_second_list)
+    await _open_edit_dialog(page, base_url)
+    icon_id = await _upload_icon(page, png_path)
+    try:
+        await _wait_selected(page, icon_id)
+        # The response, not just the request: the restore in `finally` must
+        # land after this PATCH, or TAG-HOME keeps the upload and the icon
+        # delete below 409s as in use, leaking both into later files.
+        async with page.expect_response(lambda r: r.request.method == "PATCH") as patch_info:
+            await page.click("#fp-device-dialog button:has-text('Save')")
+        patch = await patch_info.value
+        assert patch.ok, await patch.text()
+        assert json.loads(patch.request.post_data)["icon"] == icon_id
+    finally:
+        release.set()
+        with contextlib.suppress(Exception):
+            await _restore_seeded_icon(page, base_url)
+        with contextlib.suppress(Exception):
+            await page.request.delete(f"{base_url}/api/icons/custom/{icon_id.split(':', 1)[1]}")

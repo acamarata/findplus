@@ -13,6 +13,7 @@ import { api, postJson } from "./api.js";
 import { showLock, startIdleTimer } from "./lock.js";
 import { t } from "./i18n.js";
 import { trapFocus } from "./components/dialog-trap.js";
+import { renderPollingSection, wirePollingControls } from "./settings_polling.js";
 
 /** The focus trap for #settings-modal while it is open, or null. */
 let settingsTrap = null;
@@ -42,28 +43,6 @@ export async function loadSettings() {
   renderLockSection();
   renderPollingSection();
   return state.settings;
-}
-
-/**
- * Poll interval, history retention and the native-detail toggle.
- *
- * The toggle and its sentence only exist in the desktop app:
- * `window.__findplus_native` is set by an initialization script on the Tauri
- * window and by nothing else (R-P2-13), so a browser tab at :8647 never shows
- * a control for notifications it cannot deliver. The sentence beside it is
- * replaced with the live one from /api/config, which always beats the
- * catalog's bootstrap copy.
- */
-function renderPollingSection() {
-  $("setting-poll-interval").value = state.settings["poll.interval_minutes"];
-  $("setting-retention-days").value = state.settings["history.retention_days"] ?? "";
-  if (window.__findplus_native !== true) return;
-  $("setting-native-detail-row").hidden = false;
-  $("setting-native-detail-note").hidden = false;
-  $("setting-native-detail").checked = state.settings["alerts.native_detail"];
-  if (state.config && state.config.notices) {
-    $("setting-native-detail-note").textContent = state.config.notices.native_generic;
-  }
 }
 
 function renderLockSection() {
@@ -229,38 +208,6 @@ function wireThemeAndLockControls() {
   });
 }
 
-/** Start-at-login, poll interval, retention, and the native-detail toggle. */
-function wirePollingControls() {
-  $("setting-start-at-login").addEventListener("change", async (e) => {
-    try {
-      await postJson("/api/settings/app.start_at_login", { value: e.target.checked });
-    } catch (err) {
-      showSettingsMessage(err.message, "err");
-      e.target.checked = !e.target.checked;
-    }
-  });
-
-  $("setting-poll-interval").addEventListener("change", async (e) => {
-    try { await saveSettings({ "poll.interval_minutes": Number(e.target.value) }); }
-    catch (err) { showSettingsMessage(err.message, "err"); }
-  });
-
-  $("setting-retention-days").addEventListener("change", async (e) => {
-    try {
-      await saveSettings({
-        "history.retention_days": e.target.value === "" ? null : Number(e.target.value),
-      });
-    } catch (err) { showSettingsMessage(err.message, "err"); }
-  });
-
-  // Reverted on failure: a stale number in a box is harmless, but a tick box
-  // left in the post-click state would misstate what the server actually holds.
-  $("setting-native-detail").addEventListener("change", async (e) => {
-    try { await saveSettings({ "alerts.native_detail": e.target.checked }); }
-    catch (err) { showSettingsMessage(err.message, "err"); e.target.checked = !e.target.checked; }
-  });
-}
-
 /** The rerun-setup nav link plus PIN set/change/remove buttons. */
 function wirePinControls() {
   // Navigation only. Re-running the wizard and abandoning it leaves
@@ -279,6 +226,6 @@ function wirePinControls() {
 export function wireSettingsControls() {
   wireModalToggle();
   wireThemeAndLockControls();
-  wirePollingControls();
+  wirePollingControls(saveSettings, showSettingsMessage);
   wirePinControls();
 }

@@ -25,7 +25,7 @@ import json
 import pytest
 
 from .test_groups import _open_group
-from .test_groups_dialog import _open_add_dialog, _save, _family_id, _delete_group_named
+from .test_groups_dialog import _delete_group_named, _family_id, _open_add_dialog, _save
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 

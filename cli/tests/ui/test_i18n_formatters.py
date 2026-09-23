@@ -40,7 +40,7 @@ CATALOG = REPO_ROOT / "web" / "locales" / "en.json"
 
 async def _open_dashboard(page, base_url):
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
 
 
 async def test_fmt_age_minutes_matches_pre_fix_english(page, base_url):

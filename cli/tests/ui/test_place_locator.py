@@ -19,7 +19,7 @@ HOME_LAT, HOME_LON = 41.100000, -80.100000
 
 async def _open_add_place_dialog(page, base_url):
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
     await page.click('button[data-tab="places"]')
     await page.click("#fp-add-place-btn")
     dialog = page.locator("#fp-place-dialog")
@@ -63,7 +63,7 @@ async def test_use_tracker_location_sets_a_status_line(page, base_url):
 async def test_search_result_pick_sets_a_status_line(page, base_url):
     """N8: the same missing feedback for the address-search half."""
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
     await page.click('button[data-tab="places"]')
 
     async def handle(route):

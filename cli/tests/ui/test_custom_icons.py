@@ -53,7 +53,7 @@ def _make_png(size: int = 32) -> bytes:
 async def _open_edit_dialog(page, base_url):
     await page.goto(base_url + "/")
     await page.wait_for_selector("svg#fp-icon-sprite symbol[id='lucide-dog']", state="attached")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
     await page.click("#btn-devices")
     await page.wait_for_selector("#device-modal:not(.hidden)")
     await page.click('.device-row[data-device-id="TAG-HOME"] .fp-device-edit')

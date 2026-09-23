@@ -65,7 +65,7 @@ def _describe(violation: dict, tab: str, theme: str, width: int) -> str:
 async def test_no_serious_axe_violations(page, base_url, tab, theme, width):
     await page.set_viewport_size({"width": width, "height": 800})
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
     # The timeline pane only overflows once its rows are in, and "is this
     # scrollable region keyboard reachable" is one of the rules being scanned:
     # scanning before then made the verdict depend on load timing.
@@ -101,7 +101,7 @@ async def test_no_region_violations_on_dashboard(page, base_url, width):
     """
     await page.set_viewport_size({"width": width, "height": 800})
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
     await page.wait_for_selector("#tracks > *", state="attached")
 
     results = await Axe().run(page, options=REGION_OPTIONS)
@@ -133,7 +133,7 @@ async def _open_dialog(page, base_url, dialog: str, width: int) -> None:
     await page.goto(base_url + "/")
     await page.wait_for_selector("svg#fp-icon-sprite symbol[id='lucide-dog']", state="attached")
     if dialog == "devices":
-        await page.wait_for_selector("#map")
+        await page.wait_for_selector("#map.leaflet-container")
         if width < 600:
             # #btn-devices lives in .topbar-actions, CSS-hidden below 600px;
             # the phone tier's own path is the "More" menu, whose relay

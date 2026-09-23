@@ -26,7 +26,7 @@ async def _tabs(page):
 
 async def test_only_the_active_tab_is_a_tab_stop(page, base_url):
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
     tabs = await _tabs(page)
     assert [t["tab"] for t in tabs] == ["dashboard", "places", "groups", "alerts"]
     assert tabs[0]["selected"] == "true" and tabs[0]["tabindex"] == 0
@@ -36,7 +36,7 @@ async def test_only_the_active_tab_is_a_tab_stop(page, base_url):
 
 async def test_arrow_right_moves_focus_and_activates_the_next_tab(page, base_url):
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
     await page.focus('.fp-tabs [data-tab="dashboard"]')
     await page.keyboard.press("ArrowRight")
     await page.wait_for_selector("#tab-places:not([hidden])")
@@ -48,7 +48,7 @@ async def test_arrow_right_moves_focus_and_activates_the_next_tab(page, base_url
 
 async def test_arrow_left_wraps_to_the_last_tab(page, base_url):
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
     await page.focus('.fp-tabs [data-tab="dashboard"]')
     await page.keyboard.press("ArrowLeft")
     await page.wait_for_selector("#tab-alerts:not([hidden])")
@@ -58,7 +58,7 @@ async def test_arrow_left_wraps_to_the_last_tab(page, base_url):
 
 async def test_end_key_jumps_to_the_last_tab(page, base_url):
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
     await page.focus('.fp-tabs [data-tab="dashboard"]')
     await page.keyboard.press("End")
     focused = await page.evaluate("document.activeElement.dataset.tab")
@@ -70,7 +70,7 @@ async def test_map_markers_and_paths_are_not_tab_stops(page, base_url):
     """map.js creates every marker/polyline with `keyboard: false`; Leaflet
     then never adds a tabindex to their DOM elements."""
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
     await page.wait_for_timeout(300)  # let renderMap() finish drawing today's track, if any
 
     focusable_map_children = await page.eval_on_selector_all(

@@ -202,7 +202,7 @@ async def test_the_lock_screen_states_the_lock_is_not_encryption(page, base_url)
     from findplus import honesty
 
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
     set_resp = await page.request.post(
         base_url + "/api/settings/pin",
         data=json.dumps({"new_pin": PIN}),

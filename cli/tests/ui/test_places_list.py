@@ -19,7 +19,7 @@ HOME_LAT, HOME_LON = 41.100000, -80.100000
 
 async def _open_dashboard(page, base_url):
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
 
 
 async def test_presence_chip_appears(page, base_url):

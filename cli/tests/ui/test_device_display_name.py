@@ -17,7 +17,7 @@ LABEL = "Ali's Keys"
 
 async def _open_devices(page, base_url):
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
     await page.wait_for_selector('button[data-tab="places"]')
     await page.click("#btn-devices")
     await page.wait_for_selector("#device-modal:not(.hidden)")

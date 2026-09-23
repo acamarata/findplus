@@ -14,7 +14,7 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 async def _open_settings(page, base_url) -> None:
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
     await page.click("#btn-settings")
     # openSettings() unhides first and fills afterwards; its loadSettings()
     # resets the poll field and clears its error, so wait for the fills.

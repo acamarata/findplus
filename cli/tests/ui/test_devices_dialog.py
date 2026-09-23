@@ -29,7 +29,7 @@ async def _open_devices(page, base_url):
     await page.goto(base_url + "/")
     # main.js wires #btn-devices during an async boot. Clicking before the map
     # is up lands on a button with no listener and the dialog never opens.
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
     await page.wait_for_selector('button[data-tab="places"]')
     await page.click("#btn-devices")
     await page.wait_for_selector("#device-modal:not(.hidden)")
@@ -53,7 +53,7 @@ async def _set_label(page, base_url, label):
 
 async def _open_dashboard(page, base_url):
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
 
 
 async def test_device_row_shows_badge_and_label(page, base_url):

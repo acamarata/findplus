@@ -141,7 +141,7 @@ async def test_deliveries_table_causes_no_horizontal_scroll_at_1280(page, base_u
     """
     await page.set_viewport_size({"width": 1280, "height": 900})
     await page.goto(base_url + "/#dashboard")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
     await page.click('button[data-tab="alerts"]')
     await page.wait_for_selector("#fp-deliveries-table", state="attached", timeout=15000)
 

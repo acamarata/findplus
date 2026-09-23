@@ -19,7 +19,7 @@ async def test_places_hash_activates_the_places_tab(page, base_url):
     # the page first paints (build-notes.md's documented boot-race gotcha),
     # so this settles before asserting rather than racing it.
     await page.goto(base_url + "/#places")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
     await page.wait_for_timeout(1000)
 
     tab = page.locator('button[data-tab="places"]')
@@ -36,7 +36,7 @@ async def test_places_hash_activates_the_places_tab(page, base_url):
 async def test_places_hash_after_boot_still_switches_tabs(page, base_url):
     """A hashchange (not just the initial load) must route the same way."""
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
 
     await page.evaluate("window.location.hash = '#places'")
     await page.wait_for_function(

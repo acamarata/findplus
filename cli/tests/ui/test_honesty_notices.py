@@ -17,7 +17,7 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 async def _open_dashboard(page, base_url):
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map")
+    await page.wait_for_selector("#map.leaflet-container")
 
 
 async def test_footer_shows_the_apple_sentence_when_an_apple_tracker_is_present(page, base_url):

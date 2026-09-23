@@ -10,6 +10,7 @@ from datetime import timedelta
 import pytest
 
 from findplus import honesty
+from findplus.alerts import dispatch_core
 
 from ._helpers import NOW, _device_event, _group_event
 
@@ -46,7 +47,7 @@ def test_message_omits_the_date_for_a_same_day_observation() -> None:
     from findplus.alerts.dispatch import render_message
 
     msg = render_message(_device_event(), NOW)
-    observed_local = NOW.astimezone()
+    observed_local = NOW.astimezone(dispatch_core.local_zone())
     assert f"Observed {observed_local:%H:%M %Z} ·" in msg
     assert f"{observed_local:%Y-%m-%d}" not in msg
 
@@ -57,7 +58,7 @@ def test_message_spells_out_the_date_when_the_observation_is_not_today() -> None
 
     observed = NOW - timedelta(days=2)
     msg = render_message(_device_event(observed_at=observed, fetched_at=NOW), NOW)
-    assert f"Observed {observed.astimezone():%Y-%m-%d %H:%M %Z} ·" in msg
+    assert f"Observed {observed.astimezone(dispatch_core.local_zone()):%Y-%m-%d %H:%M %Z} ·" in msg
     assert len(msg) <= 400
 
 

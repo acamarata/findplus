@@ -209,6 +209,19 @@ def as_utc(value: datetime.datetime | str | None) -> datetime.datetime | None:
     return value if value.tzinfo else value.replace(tzinfo=datetime.UTC)
 
 
+def local_zone() -> datetime.tzinfo:
+    """The local timezone render_message() renders alert text in.
+
+    A single seam so tests can pin a zone by patching this function instead
+    of setting TZ + calling time.tzset() -- tzset() does not exist on
+    Windows, and Windows' astimezone(tz=None) reads the OS setting directly
+    rather than the TZ env var anyway (see cli/tests/conftest.py
+    `pinned_tz`). Default behaviour is identical to bare astimezone(): the
+    machine's real local zone.
+    """
+    return datetime.datetime.now().astimezone().tzinfo
+
+
 def render_message(event: DeviceEvent | GroupEvent, now: datetime.datetime) -> str:
     """One alert line-set.
 
@@ -235,10 +248,11 @@ def render_message(event: DeviceEvent | GroupEvent, now: datetime.datetime) -> s
     verb = "arrived at" if event.event_type == "ENTER" else "left"
     observed = as_utc(event.observed_at)
     ft = as_utc(getattr(event, "fetched_at", None))
-    observed_local = observed.astimezone()
-    same_day = observed_local.date() == now.astimezone().date()
+    zone = local_zone()
+    observed_local = observed.astimezone(zone)
+    same_day = observed_local.date() == now.astimezone(zone).date()
     obs = observed_local.strftime("%H:%M %Z" if same_day else "%Y-%m-%d %H:%M %Z")
-    rep = ft.astimezone().strftime("%H:%M %Z") if ft else "unknown"
+    rep = ft.astimezone(zone).strftime("%H:%M %Z") if ft else "unknown"
     lag = f"{round((ft - observed).total_seconds() / 60)} min late" if ft else "lag unknown"
     note = getattr(event, "note", "")
     msg = (

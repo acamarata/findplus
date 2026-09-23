@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import socket
-import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -177,16 +176,18 @@ def eastern() -> ZoneInfo:
 
 @pytest.fixture
 def pinned_tz(monkeypatch: pytest.MonkeyPatch):
-    """Pin the local zone render_message() reads. Setter: `pinned_tz("America/New_York")`."""
-    original = os.environ.get("TZ")
+    """Pin the local zone render_message() reads. Setter: `pinned_tz("America/New_York")`.
+
+    Patches `findplus.alerts.dispatch_core.local_zone()` directly rather than
+    setting TZ + calling time.tzset(), which does not exist on Windows and
+    would not work there anyway (E-windows-ci).
+    """
+    from findplus.alerts import dispatch_core
 
     def _set(zone: str) -> None:
-        monkeypatch.setenv("TZ", zone)
-        time.tzset()
+        monkeypatch.setattr(dispatch_core, "local_zone", lambda: ZoneInfo(zone))
 
     yield _set
-    monkeypatch.setenv("TZ", original) if original else monkeypatch.delenv("TZ", raising=False)
-    time.tzset()
 
 
 @pytest.fixture

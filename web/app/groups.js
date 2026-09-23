@@ -17,12 +17,15 @@
 "use strict";
 
 import { api } from "./api.js";
-import { state, esc, fmtAgeMinutes } from "./state.js";
+import { state } from "./state.js";
 import { t } from "./i18n.js";
 import { initDialog, purgeDialog } from "./groups_dialog.js";
 import * as groupsList from "./groups_list.js";
 import { renderMap } from "./map.js";
 import { renderTracks } from "./timeline.js";
+import {
+  drawGroupOverlays, verdictLabel, verdictTitle, ageLabel, hasEverReported, nameList,
+} from "./groups_presence_render.js";
 
 let map = null;
 let selectedGroupId = null;
@@ -30,10 +33,19 @@ let groupsById = new Map();
 let overlayLayer = null;
 let generation = 0;
 
+/** groups_dialog.js's onSaved callback: loadGroups() alone refreshes the
+ * selector and card grid, not the presence panel -- a stale-after edit left
+ * it showing the pre-edit verdict/note until reselected or reloaded (UAT4
+ * N31). Re-running selectGroup() for the still-selected id re-fetches it. */
+async function onGroupSaved() {
+  await loadGroups();
+  if (selectedGroupId) await selectGroup(selectedGroupId);
+}
+
 export function init(mapArg, _deviceListEl) {
   map = mapArg;
   overlayLayer = L.layerGroup().addTo(map);
-  initDialog(loadGroups);
+  initDialog(onGroupSaved);
   groupsList.init(document.getElementById("fp-groups-list")).catch(() => {});
   const select = document.getElementById("fp-group-select");
   if (select) {
@@ -112,97 +124,13 @@ export async function selectGroup(id) {
     return;
   }
   if (myGeneration !== generation) return; // a later selectGroup() already won
-  drawGroupOverlays(presence, group);
+  drawGroupOverlays(overlayLayer, presence, group);
   renderPresencePanel(presence);
 }
 
-export function drawGroupOverlays(presence, group) {
-  overlayLayer.clearLayers();
-  const legend = document.getElementById("fp-group-legend");
-  if (legend) while (legend.firstChild) legend.removeChild(legend.firstChild);
-  presence.members.forEach((member) => {
-    if (member.status === "stale") return;
-    if (member.latitude == null || member.longitude == null) return;
-    L.circle([member.latitude, member.longitude], {
-      radius: 80, color: group.color, fillOpacity: 0.2, weight: 1, keyboard: false,
-    }).bindTooltip(esc(member.name)).addTo(overlayLayer);
-    if (!legend) return;
-    const item = document.createElement("span");
-    item.className = "fp-legend-item";
-    const swatch = document.createElement("span");
-    swatch.className = "fp-legend-swatch";
-    swatch.style.background = group.color;
-    const label = document.createElement("span");
-    label.textContent = member.name;
-    item.append(swatch, label);
-    legend.appendChild(item);
-  });
-}
-
-/**
- * The phrase the API computed, with the old client-side rules as a fallback.
- *
- * The dashboard, the widget and the CLI each had their own mapping and printed
- * three different things for one state (E1 honesty round 3 F4), so the label is
- * served beside the verdict now. The fallback keeps an older daemon readable
- * and encodes the two rules that matter: `partial` with nobody diverged is not
- * divergence (round 2 F1), and `all_together` with a silent member is not the
- * whole group (round 3 F3).
- */
-export function verdictLabel(presence) {
-  if (presence.verdict_label) return presence.verdict_label;
-  const reporting = presence.reporting_count;
-  const considered = presence.considered_count;
-  if (presence.verdict === "all_together") {
-    return considered && reporting < considered
-      ? t("groups.verdictTogetherPartial", { reporting, considered })
-      : t("groups.verdictTogether");
-  }
-  if (presence.verdict !== "partial") return t("groups.verdictUnknown");
-  if (presence.diverged && presence.diverged.length > 0) return t("groups.verdictDiverged");
-  return reporting === 1 ? t("groups.verdictOnlyOneReporting") : t("groups.verdictPartial");
-}
-
-/** U21: a plain-word explanation for the "Diverged" badge — empty for every
- * other verdict, so callers can always set it as a `title` unconditionally. */
-export function verdictTitle(presence) {
-  const diverged = presence.verdict === "partial" && presence.diverged && presence.diverged.length > 0;
-  return diverged ? t("groups.verdictDivergedHint") : "";
-}
-
-function ageLabel(member) {
-  return fmtAgeMinutes(member ? member.age_minutes : null);
-}
-
-// Ever reported at all? (UAT3 N19: "no fix yet" vs "no fix for {age}".)
-function hasEverReported(member) { return !!member && member.age_minutes != null; }
-
-/**
- * A labelled list of member names.
- *
- * The together and diverged lists were two adjacent bare <ul>s with no
- * heading and no ::before, so nothing on screen said which was which -- only
- * the stale list described itself (honesty round 2 F11). An empty list renders
- * nothing at all rather than a heading over a void.
- */
-function nameList(id, heading, deviceIds, byId) {
-  const wrap = document.createElement("div");
-  if (!deviceIds || deviceIds.length === 0) return wrap;
-  const title = document.createElement("p");
-  title.className = "fp-list-heading";
-  title.textContent = heading;
-  wrap.appendChild(title);
-  const ul = document.createElement("ul");
-  ul.id = id;
-  deviceIds.forEach((deviceId) => {
-    const li = document.createElement("li");
-    li.textContent = (byId.get(deviceId) || {}).name || deviceId;
-    ul.appendChild(li);
-  });
-  wrap.appendChild(ul);
-  return wrap;
-}
-
+/** Playwright's test_groups.py dynamic-imports this straight off groups.js,
+ * so it stays defined here even though its helpers (verdictLabel/Title,
+ * ageLabel, hasEverReported, nameList) moved to groups_presence_render.js. */
 export function renderPresencePanel(presence) {
   const panel = document.getElementById("fp-presence-panel");
   if (!panel) return;
@@ -264,6 +192,12 @@ export function clearGroup() {
   state.groupFilter = "";
   state.groupMembers = null;
   if (state.map) { renderMap(); renderTracks(); }
+}
+
+/** True when `id` is the panel's selected group (UAT4 N31: groups_list.js's
+ * onDelete() checks this before clearing the panel). */
+export function isGroupSelected(id) {
+  return selectedGroupId != null && String(id) === String(selectedGroupId);
 }
 
 /** groups_list.js's card click uses this instead of selectGroup() directly,

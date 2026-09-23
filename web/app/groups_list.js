@@ -21,7 +21,8 @@ import { displayName } from "./state.js";
 import { t } from "./i18n.js";
 import { renderBadge } from "./components/badge.js";
 import { showAddDialog, openEditDialog } from "./groups_dialog.js";
-import { loadGroups, selectGroupById, verdictLabel, verdictTitle } from "./groups.js";
+import { loadGroups, selectGroupById, clearGroup, isGroupSelected } from "./groups.js";
+import { verdictLabel, verdictTitle } from "./groups_presence_render.js";
 
 /** Avatars shown before the grid collapses the rest into a "+N" chip. */
 const MAX_AVATARS = 6;
@@ -160,6 +161,10 @@ async function onDelete(group) {
   if (!window.confirm(t("groups.confirm.delete", { name: group.name }))) return;
   try {
     await api(`/api/groups/${group.id}`, { method: "DELETE" });
+    // UAT4 N31: deleting the group the presence panel is currently showing
+    // must clear it, not leave the deleted group's verdict/note on screen --
+    // loadGroups() below only refreshes the selector and card grid.
+    if (isGroupSelected(group.id)) clearGroup();
     // loadGroups() refreshes the selector and then calls loadCards() itself
     // (the T3 wiring), so calling both here would render the grid twice.
     await loadGroups();

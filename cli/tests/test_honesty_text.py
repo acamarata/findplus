@@ -226,6 +226,14 @@ _FALSE_CLAIM_FRAGMENTS = (
     "everything stays on this machine",
 )
 
+#: UAT5 N46: the welcome text also listed "map tiles" among "things you turn
+#: on", but tiles always load from OpenStreetMap on every map view and there
+#: is no switch for them (unlike sign-in, address search and alert
+#: channels, which are genuinely opt-in). Pinning the false "map tiles" is
+#: a toggle claim, and the corrected always-on sentence, keeps it from
+#: drifting back.
+_MAP_TILES_TOGGLE_FRAGMENTS = ("things you turn on: signing in to Google or Apple, map tiles",)
+
 
 def test_the_wizard_welcome_text_does_not_overclaim_privacy():
     """en.json's setup.welcome.body must name what actually stays local and
@@ -237,9 +245,13 @@ def test_the_wizard_welcome_text_does_not_overclaim_privacy():
     body = en_json["setup"]["welcome"]["body"]
     for false_fragment in _FALSE_CLAIM_FRAGMENTS:
         assert false_fragment not in body, f"welcome text still overclaims: {false_fragment!r}"
+    for toggle_fragment in _MAP_TILES_TOGGLE_FRAGMENTS:
+        assert toggle_fragment not in body, (
+            f"welcome text still lists tiles as a toggle: {toggle_fragment!r}"
+        )
     assert "stays on this machine" in body
     assert "Google or Apple" in body
-    assert "map tiles" in body
+    assert "Map tiles always load from OpenStreetMap" in body
     assert "address search" in body
     assert "alert channel" in body
 

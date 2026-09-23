@@ -6,10 +6,10 @@ Find+ polls your Find Hub and Find My accounts on a schedule, stores every
 distinct sighting in a local SQLite database, and serves a map, timeline,
 places, groups, and alerts through a browser dashboard, a CLI, a REST API,
 and an MCP server. Everything runs on this computer. Your location history
-stays on this machine; Find+ only sends data out for things you turn on:
-signing in to Google or Apple, map tiles, address search, and any alert
-channel you connect (Telegram, WhatsApp or a webhook). See
-[Privacy and threat model](Privacy-and-threat-model).
+stays on this machine. Map tiles always load from OpenStreetMap; anything
+else leaves only when you turn it on: signing in to Google or Apple, address
+search, and any alert channel you connect (Telegram, WhatsApp or a webhook).
+See [Privacy and threat model](Privacy-and-threat-model).
 
 ## Get started
 

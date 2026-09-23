@@ -141,7 +141,9 @@ def _delivery_to_dict(
     rule_name: str,
     rendered: dict[tuple[str, int], tuple[str | None, str | None]],
 ) -> dict[str, Any]:
-    """One delivery row. `text`/`body` are rendered on read, for native rows only.
+    """One delivery row. `text`/`body` are rendered on read, for every channel
+    (UAT4 N32 widened this from native-only -- the renderer needs only the
+    event, never the channel, and `None` means the source event was purged).
 
     `rendered` is the whole page's text/body lookup, built once by
     `batch_delivery_text_bodies` (CF-P2-16) -- never a per-row query. No join
@@ -254,14 +256,14 @@ def get_deliveries(
         else:
             stmt = stmt.order_by(AlertDelivery.sent_at.desc()).limit(limit)
         rows = s.execute(stmt).all()
-        # Every native row gets rendered, not only when the REQUEST itself
-        # filters to `?channel=native` (UAT3 N18): the dashboard's own
-        # delivery log calls this with no channel filter at all, so its own
-        # Desktop notification rows read text:null and showed the dash on
-        # every row until this matched on the ROW's channel alone. `limit`
-        # (capped at 500 above) already bounds how many keys this can ever
-        # build, native-filtered or not, so widening this costs nothing.
-        keys = [(d.event_kind, d.event_id) for d, _rule_name in rows if d.channel == "native"]
+        # Every row gets rendered, not only when the REQUEST itself filters
+        # to `?channel=native` (UAT3 N18) and not only native rows (UAT4
+        # N32): a telegram/whatsapp row's (event_kind, event_id) resolves
+        # through the exact same batched renderer a native row does, so
+        # gating on `d.channel == "native"` only hid text the server could
+        # already produce. `limit` (capped at 500 above) already bounds how
+        # many keys this can ever build, so widening this costs nothing.
+        keys = [(d.event_kind, d.event_id) for d, _rule_name in rows]
         rendered = batch_delivery_text_bodies(s, keys) if keys else {}
         return [_delivery_to_dict(d, rule_name, rendered) for d, rule_name in rows]
 

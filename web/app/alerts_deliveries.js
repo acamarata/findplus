@@ -68,22 +68,20 @@ function cell(text, label) {
 }
 
 /** Text/Body (notifications.md §2's rendered message) render for every
- *  native row now (UAT3 N18: the server used to render it only when the
+ *  channel now (UAT3 N18: the server used to render it only when the
  *  request itself was filtered to `?channel=native`, so the unfiltered
  *  delivery log the dashboard actually loads showed the dash on every row,
- *  including its own Desktop notifications). Every other channel builds its
- *  message inline when it sends (the webhook JSON payload, the Telegram/
- *  WhatsApp text) instead of storing a second copy here, so those rows say
- *  that plainly rather than showing the same dash the app uses for "we
- *  don't know" -- a purged native event (source event pruned by retention)
- *  is the one case where the dash is the honest answer, so that one keeps
- *  it. Long values collapse behind a native `<details>` once they are long
- *  enough to squeeze the 360px pane (U9); a short value renders plainly. */
-function detailsCell(text, label, channel, threshold = 30) {
-  if (!text && channel && channel !== "native") {
-    const value = t("alerts.deliveries.notNativeText", { channel: t("alerts.channels." + channel) });
-    return cell(value, label);
-  }
+ *  including its own Desktop notifications; UAT4 N32: the server then
+ *  widened rendering to every channel, not native only -- a telegram/
+ *  whatsapp/webhook row's source event resolves through the exact same
+ *  batched renderer, so there is no longer a channel-shaped reason for one
+ *  row to show real text and another to show a placeholder note). A `null`
+ *  text now means one thing for every channel: the source event was purged
+ *  by retention before this row was ever shown, so the dash the app uses
+ *  everywhere for "we don't know" is the honest answer here too. Long
+ *  values collapse behind a native `<details>` once they are long enough to
+ *  squeeze the 360px pane (U9); a short value renders plainly. */
+function detailsCell(text, label, threshold = 30) {
   const value = text || t("common.emptyValue");
   if (!text || text.length <= threshold) return cell(value, label);
   const td = document.createElement("td");
@@ -104,8 +102,8 @@ function buildDeliveryRow(delivery) {
     cell(delivery.rule_name || t("alerts.ruleFallback", { id: delivery.rule_id }), t("alerts.colRule")),
     cell(delivery.channel ? t("alerts.channels." + delivery.channel) : t("common.emptyValue"), t("alerts.colChannel")),
     cell(delivery.event_kind ? t("alerts.kinds." + delivery.event_kind) : t("common.emptyValue"), t("alerts.colKind")),
-    detailsCell(delivery.text, t("alerts.deliveries.text"), delivery.channel),
-    detailsCell(delivery.body, t("alerts.deliveries.body"), delivery.channel),
+    detailsCell(delivery.text, t("alerts.deliveries.text")),
+    detailsCell(delivery.body, t("alerts.deliveries.body")),
     cell(sentText(delivery), t("alerts.colSent")),
     cell(statusText(delivery), t("alerts.colStatus")),
     // A "skipped" row arrived with an empty Error cell and no hint why; the

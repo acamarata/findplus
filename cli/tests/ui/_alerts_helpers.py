@@ -1,17 +1,27 @@
-"""The Alerts-tab navigation helper shared by every test_alerts_*.py file
-(split from ui/conftest.py, E13 stage 2, size cap; originally split from
-test_alerts.py in loop3 L3-4).
+"""Shared helpers for the Alerts tab's test_alerts_*.py files (split from
+ui/conftest.py, E13 stage 2, size cap; originally split from test_alerts.py
+in loop3 L3-4). `_create_rule`/`_insert_delivery_rows` joined the navigation
+helper here (UAT4 N32) so test_alerts_deliveries.py and
+test_alerts_deliveries_render.py, split from it at the PRI rule-7 300-line
+cap, share one definition instead of two.
 
 Purpose    : Navigate to `/` and switch to the Alerts tab, waiting for
-             alerts.js's own init() to finish wiring handlers.
-Inputs     : `page` (Playwright Page), `base_url` (str).
-Outputs    : None -- the page is left on the Alerts tab, ready.
-Constraints: Plain async function, not a fixture -- re-exported from
-             `conftest.py` so `from .conftest import open_alerts_tab` keeps
-             working for every file that already imports it that way.
+             alerts.js's own init() to finish wiring handlers; create a rule
+             through the real API; write delivery rows straight into the
+             live sqlite file (the poller's dispatch pass is the only code
+             that writes one, and these tests are about the view).
+Inputs     : `page` (Playwright Page), `base_url` (str), `ui_db` (Path).
+Outputs    : None (navigation) / a rule id / None (delivery rows written).
+Constraints: Plain functions, not fixtures -- `open_alerts_tab` is
+             re-exported from `conftest.py` so `from .conftest import
+             open_alerts_tab` keeps working for every file that already
+             imports it that way.
 """
 
 from __future__ import annotations
+
+import json
+import sqlite3
 
 
 async def open_alerts_tab(page, base_url) -> None:
@@ -48,3 +58,27 @@ async def open_alerts_tab(page, base_url) -> None:
     await page.click('button[data-tab="alerts"]')
     await page.wait_for_selector("#fp-telegram-section")
     await page.wait_for_selector('[data-fp-ready="alerts"]')
+
+
+async def _create_rule(page, base_url: str, name: str, channels: list[str]) -> int:
+    """POST a rule through the real API (so the server owns it) and return its id."""
+    rule = await page.request.post(
+        base_url + "/api/alerts/rules",
+        data=json.dumps({"name": name, "device_id": "TAG-HOME", "channels": channels}),
+        headers={"Content-Type": "application/json"},
+    )
+    assert rule.ok, await rule.text()
+    return (await rule.json())["id"]
+
+
+def _insert_delivery_rows(ui_db, statements: list[tuple[str, tuple]]) -> None:
+    """Write delivery rows straight into the live sqlite file: the poller's
+    dispatch pass is the only code that writes one, and these tests are
+    about the view, not the dispatcher. Each entry is (sql, params)."""
+    conn = sqlite3.connect(ui_db)
+    try:
+        for sql, params in statements:
+            conn.execute(sql, params)
+        conn.commit()
+    finally:
+        conn.close()

@@ -334,7 +334,6 @@
       "kind": "Kind",
       "text": "Text",
       "body": "Body",
-      "notNativeText": "{channel} sends its own message, not logged here",
       "sent": "Sent",
       "status": "Status",
       "error": "Error"

@@ -1,44 +1,21 @@
-"""Playwright browser tests for the Alerts tab's delivery log
-(P1-E10-W7-S2-T1/T2; split from test_alerts.py, E13 loop3 L3-4).
+"""Playwright browser tests for the Alerts tab's delivery log: headers,
+channel/status rendering, the card layout and the retry ladder.
+(P1-E10-W7-S2-T1/T2; split from test_alerts.py, E13 loop3 L3-4). The text/
+body rendering tests (N18, UAT4 N32) moved to test_alerts_deliveries_render.py
+at the PRI rule-7 300-line file cap; both files share `_create_rule`/
+`_insert_delivery_rows` from `_alerts_helpers.py`.
 
 `open_alerts_tab()` is shared across every test_alerts_* file via conftest.py.
 """
 
 from __future__ import annotations
 
-import json
-
 import pytest
 
+from ._alerts_helpers import _create_rule, _insert_delivery_rows
 from .conftest import open_alerts_tab
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
-
-
-async def _create_rule(page, base_url: str, name: str, channels: list[str]) -> int:
-    """POST a rule through the real API (so the server owns it) and return its id."""
-    rule = await page.request.post(
-        base_url + "/api/alerts/rules",
-        data=json.dumps({"name": name, "device_id": "TAG-HOME", "channels": channels}),
-        headers={"Content-Type": "application/json"},
-    )
-    assert rule.ok, await rule.text()
-    return (await rule.json())["id"]
-
-
-def _insert_delivery_rows(ui_db, statements: list[tuple[str, tuple]]) -> None:
-    """Write delivery rows straight into the live sqlite file: the poller's
-    dispatch pass is the only code that writes one, and these tests are
-    about the view, not the dispatcher. Each entry is (sql, params)."""
-    import sqlite3
-
-    conn = sqlite3.connect(ui_db)
-    try:
-        for sql, params in statements:
-            conn.execute(sql, params)
-        conn.commit()
-    finally:
-        conn.close()
 
 
 async def test_delivery_log_shows_channel_and_status(page, base_url, ui_db):
@@ -81,79 +58,16 @@ async def test_delivery_log_shows_channel_and_status(page, base_url, ui_db):
     # UAT U22: channel/status render through the alerts.channels/statuses
     # catalogs, not the raw stored id ("webhook"/"failed").
     assert cells[1] == "Webhook"
-    # text/body are rendered server-side for native rows only (notifications.md
-    # §2), so a webhook row says so instead of showing the "we don't know"
-    # dash every other empty cell uses (UAT3 N18).
-    assert cells[3] == "Webhook sends its own message, not logged here"
-    assert cells[4] == "Webhook sends its own message, not logged here"
+    # UAT4 N32: text/body render for every channel now; event_id 4242 was
+    # never seeded, so the source event is purged like a native one would
+    # be, and the dash is the honest answer for any channel in that state.
+    assert cells[3] == "—"
+    assert cells[4] == "—"
     # U22: "Sent" stays empty for a failed row -- it never went out at that
     # timestamp, `sent_at` is really "first attempted at" (alerts/retry.py).
     assert cells[5] == "—"
     assert cells[6] == "Failed"
     assert cells[7] == "connection refused"
-
-
-def _insert_place_event(ui_db, home_id: int) -> int:
-    """A minimal ENTER place_event (and its required observation row) for
-    TAG-HOME at "Home", written straight into the live sqlite file -- the UI
-    seed carries no place_events at all, and this test needs one real event
-    for the server to render. Returns the new place_event id."""
-    import sqlite3
-
-    now = "2026-09-20 12:00:00"
-    conn = sqlite3.connect(ui_db)
-    try:
-        obs_id = conn.execute(
-            "INSERT INTO location_observations"
-            " (device_id, device_name, latitude_e7, longitude_e7, observed_at,"
-            "  first_fetched_at, last_fetched_at, times_returned, source, is_own_report)"
-            " VALUES ('TAG-HOME', 'Home Tag', 411000000, -801000000,"
-            "  ?, ?, ?, 1, 'crowdsourced', 0)",
-            (now, now, now),
-        ).lastrowid
-        event_id = conn.execute(
-            "INSERT INTO place_events"
-            " (place_id, device_id, event_type, observed_at, fetched_at,"
-            "  observation_id, confidence, distance_meters)"
-            " VALUES (?, 'TAG-HOME', 'ENTER', ?, ?, ?, 'high', 0.0)",
-            (home_id, now, now, obs_id),
-        ).lastrowid
-        conn.commit()
-        return event_id
-    finally:
-        conn.close()
-
-
-async def test_native_row_renders_text_with_no_channel_filter(page, base_url, ui_db):
-    """UAT3 N18: the dashboard's own delivery log calls GET /api/alerts/
-    deliveries with no `channel` filter at all -- rendering used to be gated
-    on the REQUEST's filter equalling "native", not on the ROW's own
-    channel, so this exact load (never filtered) showed the dash on every
-    row, including its own Desktop notification ones.
-    """
-    places = await (await page.request.get(base_url + "/api/places")).json()
-    home_id = next(p["id"] for p in places if p["name"] == "Home")
-    event_id = _insert_place_event(ui_db, home_id)
-
-    rule_id = await _create_rule(page, base_url, "N18 native rule", ["native"])
-    _insert_delivery_rows(
-        ui_db,
-        [
-            (
-                "INSERT INTO alert_deliveries"
-                " (rule_id, event_kind, event_id, channel, sent_at, status, error)"
-                " VALUES (?, 'device', ?, 'native', '2026-09-20 12:00:00', 'queued', NULL)",
-                (rule_id, event_id),
-            )
-        ],
-    )
-
-    await open_alerts_tab(page, base_url)
-    row = page.locator("#fp-deliveries-tbody tr", has_text="N18 native rule")
-    await row.wait_for(state="visible")
-    cells = await row.locator("td").all_text_contents()
-    assert cells[3] not in ("—", "")
-    assert "Home" in cells[3]
 
 
 async def _open_alerts_at_viewport(page, base_url: str, viewport: dict) -> None:

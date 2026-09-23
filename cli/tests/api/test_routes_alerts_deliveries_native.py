@@ -75,9 +75,22 @@ def test_a_native_row_renders_even_when_the_request_is_unfiltered(client: TestCl
     assert "Observed" in row["body"]
 
 
-def test_a_non_native_row_has_no_text_or_body(client: TestClient) -> None:
+def test_a_non_native_row_renders_text_and_body_too(client: TestClient) -> None:
+    """UAT4 N32: a telegram/whatsapp/webhook row's (event_kind, event_id) is
+    exactly as renderable as a native row's -- gating on `channel == "native"`
+    only hid text the server could already produce."""
     rule_id, event_id = _seed()
     _add_delivery(rule_id, event_id, "telegram", status="sent")
+    row = client.get("/api/alerts/deliveries").json()[0]
+    assert row["text"] == "Tag arrived at Home"
+    assert "Observed" in row["body"]
+
+
+def test_a_non_native_purged_source_event_gives_a_null_text_too(client: TestClient) -> None:
+    """The one real gap left after N32: a purged source event still renders
+    (None, None) for any channel, not just native."""
+    rule_id, _ = _seed(place_event=False)
+    _add_delivery(rule_id, 999_999, "telegram", status="sent")
     row = client.get("/api/alerts/deliveries").json()[0]
     assert row["text"] is None
     assert row["body"] is None

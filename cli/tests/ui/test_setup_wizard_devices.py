@@ -103,10 +103,12 @@ async def test_devices_step_done_count_reflects_what_was_just_tracked(page, base
         await route.fulfill(
             status=200,
             content_type="application/json",
-            body=json.dumps({
-                "tracked_count": 1 if tracked else 0,
-                "devices": [_device("TAG-1", "Keys", tracked=tracked)],
-            }),
+            body=json.dumps(
+                {
+                    "tracked_count": 1 if tracked else 0,
+                    "devices": [_device("TAG-1", "Keys", tracked=tracked)],
+                }
+            ),
         )
 
     await page.route("**/api/devices/refresh", _ok)

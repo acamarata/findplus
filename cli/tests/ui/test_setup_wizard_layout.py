@@ -140,9 +140,9 @@ async def test_wizard_map_controls_keep_leaflets_own_contrast_in_dark_theme(page
         zoom_color = await page.locator("#map .leaflet-control-zoom-in").evaluate(
             "el => getComputedStyle(el).color"
         )
-        attribution_color = await page.locator("#map .leaflet-control-attribution a").first.evaluate(
-            "el => getComputedStyle(el).color"
-        )
+        attribution_color = await page.locator(
+            "#map .leaflet-control-attribution a"
+        ).first.evaluate("el => getComputedStyle(el).color")
         assert zoom_color == "rgb(0, 0, 0)", zoom_color
         assert attribution_color == "rgb(51, 51, 51)", attribution_color
     finally:

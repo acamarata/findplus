@@ -10,7 +10,6 @@
  * Constraints: Every element is built with createElement/textContent, never
  *              raw markup. `initDialog()`'s `onSaved` callback is how this
  *              module tells places.js to reload — no places.js import here.
- *
  * UAT U3/U4/U10: the dialog used to be four bare, unstyled `<label>` rows and
  * needed a map click to open at all. It now gets the shared dialog chrome and
  * opens at the map's current centre, so "Add place" alone is enough;
@@ -259,12 +258,8 @@ async function onSave() {
     dlg.close();
     if (onSaved) await onSaved();
   } catch (err) {
-    // api() shows the lock screen for a 401; anything else (409, 422) is shown
-    // here. N48: the raw server text named the field and quoted the name in
-    // Python repr style ("place name 'Grandma' already exists") -- a catalog
-    // sentence when that is what happened, the raw message for anything else.
-    if (err.message === "Locked") return;
-    fields.error.textContent = duplicateNameMessage(err, "places.duplicateName") || err.message;
+    // api() shows the lock screen for a 401; N48 maps a duplicate-name 409 to the catalog sentence.
+    if (err.message !== "Locked") fields.error.textContent = duplicateNameMessage(err, "places.duplicateName") || err.message;
   }
 }
 

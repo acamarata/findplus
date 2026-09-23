@@ -40,6 +40,19 @@ function memberRow(device) {
   return row;
 }
 
+/** N45: a duplicate name (409) used to only log to the console -- ctx.showAlert
+ * writes into #alert inside #app-shell, hidden for the whole time the wizard
+ * is open (applock.js's own comment on the same trap). role="alert" makes
+ * this line's text change announced, the same way applock's own field error
+ * is meant to read even without an aria-live attribute of its own. */
+function groupErrorEl() {
+  const error = document.createElement("p");
+  error.className = "fp-dialog-error";
+  error.id = "fp-setup-group-error";
+  error.setAttribute("role", "alert");
+  return error;
+}
+
 function groupRow(group) {
   const row = document.createElement("div");
   row.className = "fp-dialog-field";
@@ -126,15 +139,7 @@ export default {
       });
     });
 
-    const error = document.createElement("p");
-    error.className = "fp-dialog-error";
-    error.id = "fp-setup-group-error";
-    // N45: a duplicate name (409) used to only log to the console -- ctx.showAlert
-    // writes into #alert inside #app-shell, hidden for the whole time the wizard
-    // is open (applock.js's own comment on the same trap). role="alert" makes
-    // this line's text change announced, the same way applock's own field error
-    // is meant to read even without an aria-live attribute of its own.
-    error.setAttribute("role", "alert");
+    const error = groupErrorEl();
 
     els = { list, name, members, error };
     container.append(

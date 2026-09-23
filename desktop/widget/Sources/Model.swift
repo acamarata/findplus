@@ -46,6 +46,12 @@ struct WidgetDevice: Codable {
     let group: String?
     let icon: String
     let color: String
+    /// `var`, not `let` (same reason as `WidgetResponse.places` below): the
+    /// default keeps ModelTests.swift's `device(...)` memberwise-init helper
+    /// compiling unchanged, and `init(from:)` still needs to assign it for a
+    /// real payload. A 1.0.x/1.1-pre daemon never sent this key either
+    /// (UAT2 N2/N11/N14 -- see `displayName` below).
+    var label: String? = nil
 }
 
 /// `labels.py:DEVICE_PALETTE`, in order. Only read when a 1.0.x daemon sends a
@@ -87,10 +93,20 @@ extension WidgetDevice {
         icon = try c.decodeIfPresent(String.self, forKey: .icon) ?? "letter"
         color = try c.decodeIfPresent(String.self, forKey: .color)
             ?? paletteColour(for: device_id)
+        label = try c.decodeIfPresent(String.self, forKey: .label)
     }
 
     /// Stale against the threshold the daemon served, not one chosen here.
     func isStale(after minutes: Int) -> Bool { age_minutes > minutes }
+
+    /// The label the user gave this tracker, or its raw provider name --
+    /// mirrors web/app/state.js's displayName() and labels.py's display_name()
+    /// (UAT2 N2/N11/N14: MediumView's device row and this widget's letter
+    /// badges read `name` raw even when a label was set).
+    var displayName: String {
+        let trimmed = label?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (trimmed?.isEmpty == false ? trimmed : nil) ?? name
+    }
 
     /// What to show in the place column. The API already sends `place: null`
     /// for a stale device (honesty.md `presence_stale`); this renders that as

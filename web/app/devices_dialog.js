@@ -17,6 +17,7 @@
 
 import { api } from "./api.js";
 import { t } from "./i18n.js";
+import { displayName } from "./state.js";
 import { createIconPicker } from "./components/icon-picker.js";
 import { createColorPicker } from "./components/color-picker.js";
 
@@ -203,7 +204,9 @@ export function openEditDialog(id, device) {
   ensurePickers();
   dlg.dataset.mode = "edit";
   dlg.dataset.editId = String(id);
-  fields.title.textContent = t("devices.dialog.title_edit", { name: device.name });
+  // UAT2 N11: this read the raw provider name ("EDIT CHIPOLO ONE POINT" once
+  // style.css's h2 uppercasing is also fixed) even for a labelled device.
+  fields.title.textContent = t("devices.dialog.title_edit", { name: displayName(device) });
   fields.label.value = device.label || "";
   fields.icon.value = device.icon || DEFAULT_ICON;
   fields.color.value = device.color || DEFAULT_COLOR;

@@ -129,6 +129,24 @@ final class ModelTests: XCTestCase {
         XCTAssertEqual(device(ageMinutes: 5).placeText(staleAfter: 90), "no named place")
     }
 
+    // UAT2 N2/N11: MediumView's device row and every sfSymbol() letter badge
+    // read `name` raw even when the tag had a label.
+    func testDisplayNamePrefersTheLabel() {
+        var d = device(ageMinutes: 0)
+        d.label = "Omar's backpack"
+        XCTAssertEqual(d.displayName, "Omar's backpack")
+    }
+
+    func testDisplayNameFallsBackToNameWithNoLabel() {
+        XCTAssertEqual(device(ageMinutes: 0).displayName, "Tag")
+    }
+
+    func testDisplayNameFallsBackToNameWithABlankLabel() {
+        var d = device(ageMinutes: 0)
+        d.label = "   "
+        XCTAssertEqual(d.displayName, "Tag")
+    }
+
     func testStaleAfterMinutesIsDecoded() throws {
         XCTAssertEqual(try decode(state: "ok").stale_after_minutes, 90)
     }
@@ -160,6 +178,30 @@ final class ModelTests: XCTestCase {
         let device = try JSONDecoder().decode(WidgetDevice.self, from: Data(json.utf8))
         XCTAssertEqual(device.icon, "lucide:dog")
         XCTAssertEqual(device.color, "#4f8cf7")
+    }
+
+    func testWidgetDeviceDecodesLabel() throws {
+        let json = """
+        {"device_id":"d1","name":"Pebblebee Clip","provider":"google-find-hub",
+         "last_observed_at":"2026-01-01T00:00:00Z","age_minutes":0,
+         "latitude":0,"longitude":0,"place":null,"group":null,
+         "label":"Omar's backpack"}
+        """
+        let device = try JSONDecoder().decode(WidgetDevice.self, from: Data(json.utf8))
+        XCTAssertEqual(device.label, "Omar's backpack")
+        XCTAssertEqual(device.displayName, "Omar's backpack")
+    }
+
+    /// R-P2-23: a 1.0.x/1.1-pre daemon never sent `label` at all.
+    func testWidgetDeviceDecodesWithoutLabel() throws {
+        let json = """
+        {"device_id":"d1","name":"Tag","provider":"google-find-hub",
+         "last_observed_at":"2026-01-01T00:00:00Z","age_minutes":0,
+         "latitude":0,"longitude":0,"place":null,"group":null}
+        """
+        let device = try JSONDecoder().decode(WidgetDevice.self, from: Data(json.utf8))
+        XCTAssertNil(device.label)
+        XCTAssertEqual(device.displayName, "Tag")
     }
 
     func testWidgetGroupDecodesIcon() throws {

@@ -53,7 +53,7 @@ struct PlacesSmallView: View {
                     }
                     ForEach(place.device_ids, id: \.self) { did in
                         if let device = entry.response?.device(id: did) {
-                            Image(systemName: sfSymbol(for: device.icon, label: nil, name: device.name))
+                            Image(systemName: sfSymbol(for: device.icon, label: device.label, name: device.name))
                                 .foregroundStyle(Color(hex: device.color))
                         }
                     }

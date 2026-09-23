@@ -40,7 +40,7 @@ struct SmallView: View {
                     // specific device, so the icon rides with it rather than
                     // costing a name row the frame has no space for.
                     HStack(spacing: 4) {
-                        Image(systemName: sfSymbol(for: device.icon, label: nil, name: device.name))
+                        Image(systemName: sfSymbol(for: device.icon, label: device.label, name: device.name))
                             .foregroundStyle(Color(hex: device.color))
                         Text(formatAge(minutes: device.age_minutes))
                             .font(.caption)

@@ -124,9 +124,9 @@ async def test_add_place_dialog_has_a_title_and_dialog_chrome(page, base_url):
     await page.click("#fp-add-place-btn")
     dialog = page.locator("#fp-place-dialog")
     await dialog.wait_for(state="visible")
-    # text_content(), not inner_text(): the shared `h2 { text-transform:
-    # uppercase }` rule (also applied to the group/device dialog titles)
-    # renders this visually as "ADD PLACE" -- a styling choice, not a typo.
+    # UAT2 N11: components.css now sets `text-transform: none` on the place/
+    # device/group dialog titles specifically (the page-wide `h2` rule still
+    # uppercases everything else), so this reads in normal case on screen too.
     assert await page.locator("#fp-place-dialog-title").text_content() == "Add place"
     box = await dialog.bounding_box()
     assert box is not None and box["width"] > 250, "the dialog should have a real min-width"

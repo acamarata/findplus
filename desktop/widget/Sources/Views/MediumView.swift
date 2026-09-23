@@ -74,9 +74,10 @@ struct MediumView: View {
     private func deviceRow(_ device: WidgetDevice) -> some View {
         let staleAfter = entry.staleAfterMinutes
         return HStack {
-            Image(systemName: sfSymbol(for: device.icon, label: nil, name: device.name))
+            Image(systemName: sfSymbol(for: device.icon, label: device.label, name: device.name))
                 .foregroundStyle(Color(hex: device.color))
-            Text(device.name).font(.caption)
+            // UAT2 N2/N11: this read the raw provider name even for a labelled tag.
+            Text(device.displayName).font(.caption)
             Text(device.placeText(staleAfter: staleAfter))
                 .font(.caption2)
                 .foregroundStyle(.secondary)

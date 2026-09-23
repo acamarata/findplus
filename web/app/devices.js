@@ -82,7 +82,9 @@ function nameCell(d) {
 function editButton(d) {
   const edit = el("button", "fp-device-edit btn btn-tiny", t("common.edit"));
   edit.type = "button";
-  edit.setAttribute("aria-label", t("devices.card.edit", { name: d.name }));
+  // UAT2 N11: this read "Edit Moto Tag 1" (the raw provider name) even when
+  // the tag had a label -- every other surface reads displayName() first.
+  edit.setAttribute("aria-label", t("devices.card.edit", { name: displayName(d) }));
   edit.addEventListener("click", (e) => {
     e.preventDefault();
     openEditDialog(d.device_id, d);

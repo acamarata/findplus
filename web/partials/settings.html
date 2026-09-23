@@ -18,7 +18,9 @@
          web/app/auth.js:mountAuthPanel() wires it; settings.js re-mounts it on
          every open so a sign-in finished elsewhere shows up. The Chrome
          sentence (#fp-auth-chrome-notice) is filled by notices.js from
-         /api/config, never typed here. -->
+         /api/config, never typed here; auth.js's renderGoogleCard() shows it
+         (and the download link) only while `needs` actually names "chrome"
+         and the provider is not signed in (UAT2 N1) -- it starts hidden. -->
     <section id="fp-settings-signin" class="setting-group">
       <h3 data-i18n="settings.signInHeading">Sign-in</h3>
       <div id="fp-auth-google-card">
@@ -34,7 +36,7 @@
         <p id="fp-auth-google-progress" class="modal-note hidden"></p>
         <a id="fp-auth-chrome-download" href="https://www.google.com/chrome/" target="_blank"
            rel="noopener" class="hidden" data-i18n="auth.google.downloadChrome">Download Chrome</a>
-        <p id="fp-auth-chrome-notice" class="modal-note"></p>
+        <p id="fp-auth-chrome-notice" class="modal-note hidden"></p>
       </div>
       <div id="fp-auth-apple-card">
         <h4 class="fp-auth-provider" data-i18n="auth.apple.heading">Apple Find My</h4>
@@ -90,6 +92,13 @@
         <input type="number" id="setting-poll-interval" min="5" max="1440" step="1">
         <span data-i18n="settings.polling.interval_unit">minutes</span>
       </label>
+      <!-- UAT U19: an out-of-range value used to report only in
+           #settings-message at the top of the dialog, which can be scrolled
+           out of view. settings.js's validatePollInterval() writes the
+           friendly range wording here instead, right beside the field, both
+           for a client-side rejection and for the server's own 422. -->
+      <p id="setting-poll-interval-error" class="fp-dialog-error hidden"
+         data-i18n="settings.polling.interval_range_error">Choose 5 to 1440 minutes.</p>
       <p class="modal-note" data-i18n="settings.polling.interval_note">
         Find+ never polls faster than every 5 minutes, to avoid rate-limiting your account.
         Takes effect after Find+ restarts. An environment variable, if one is set, wins over

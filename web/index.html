@@ -10,9 +10,17 @@
 <meta name="theme-color" content="#11141a">
 <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="/static/style.css">
+<!-- The tabs/groups/alerts/provider-badge rules split off style.css, which
+     reached the 300-line cap again (PRI rule 7). Same cascade position as
+     the file it split from -- nothing here overrides it. -->
+<link rel="stylesheet" href="/static/style-tabs.css">
 <!-- The dialog, picker, badge and group-card rules. Their own file because
      style.css had reached its 300-line cap with nowhere left to write. -->
 <link rel="stylesheet" href="/static/components.css">
+<!-- The settings/sign-in, add-rule dialog, table-scroll and places-list rules
+     split off components.css, which reached the 300-line cap again (PRI
+     rule 7). Same cascade position as the file it split from. -->
+<link rel="stylesheet" href="/static/components-panels.css">
 <!-- Loaded last on purpose: every rule in it overrides one above at equal
      specificity (focus ring, screen-reader helper, phone tier). -->
 <link rel="stylesheet" href="/static/responsive.css">

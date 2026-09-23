@@ -1,4 +1,5 @@
-"""The PRI rule-7 size caps (loop2 B2), applied to web/app/**/*.js.
+"""The PRI rule-7 size caps (loop2 B2), applied to web/app/**/*.js and
+web/**/*.css.
 
 Sibling of test_api_sizes.py/test_src_sizes.py: the same idea, ported to JS
 since there is no `ast` module for it. Python has no JS parser in this venv
@@ -16,6 +17,11 @@ exceeds either one (loop2 L2-13 split the last six function-cap offenders:
 icon-picker.js, devices_dialog.js, places_dialog.js, settings.js,
 _group_pickers.js, signin_apple.js). There is no per-loop allowlist: any new
 file or function that crosses a cap fails this test.
+
+The file-line cap also applies to every stylesheet under web/ (components.css
+and style.css both split a second time to stay under it, 2026-09-23), skipping
+`vendor/` the same way test_src_sizes.py skips vendored Python -- leaflet.css
+is third-party and never edited (PRI rule 8's spirit, applied to CSS).
 """
 
 from __future__ import annotations
@@ -23,7 +29,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-WEB_APP_DIR = Path(__file__).resolve().parents[2] / "web" / "app"
+WEB_DIR = Path(__file__).resolve().parents[2] / "web"
+WEB_APP_DIR = WEB_DIR / "app"
 
 FUNCTION_CAP = 50
 FILE_CAP = 300
@@ -161,3 +168,14 @@ def test_every_function_under_web_app_is_under_the_cap() -> None:
             if length > FUNCTION_CAP:
                 offenders.append(f"{rel}:{lineno} {name}() is {length} lines (cap {FUNCTION_CAP})")
     assert not offenders, "over-cap functions:\n" + "\n".join(offenders)
+
+
+def test_every_stylesheet_under_web_is_under_the_cap() -> None:
+    offenders = []
+    for path in sorted(WEB_DIR.rglob("*.css")):
+        if "vendor" in path.relative_to(WEB_DIR).parts:
+            continue
+        count = len(path.read_text(encoding="utf-8").splitlines())
+        if count > FILE_CAP:
+            offenders.append(f"{path.relative_to(WEB_DIR)} is {count} lines (cap {FILE_CAP})")
+    assert not offenders, "over-cap stylesheets:\n" + "\n".join(offenders)

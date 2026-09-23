@@ -77,21 +77,28 @@
 /* --- group cards --------------------------------------------------------- */
 #fp-add-group-btn { margin: 14px 18px 0; }
 #fp-groups-list { padding: 0 18px; margin-top: 10px; }
-/* Wrapping, not squeezing: at 375px the badge, name, six avatars and the two
-   buttons do not fit on one line, and a non-wrapping row grew the whole page
-   wider than the viewport (visual gate W2). */
-.fp-group-card { display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
-  padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px;
-  background: var(--panel-2); margin-bottom: 6px; }
+/* Three fixed rows (badge/name/avatars, verdict, Edit+Delete) rather than a
+   wrapping flex row. The verdict pill fills in after the card renders
+   (fetchVerdict), and in the 380px pane the old wrap moved the pair down a
+   row when it did, under a tap already on its way (CI run 35909159774). The
+   verdict row keeps its height while empty, so nothing below it moves. */
+.fp-group-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "icon name members" "verdict verdict verdict" "actions actions actions";
+  align-items: center; gap: 6px 10px; padding: 9px 10px; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--panel-2); margin-bottom: 6px; }
+.fp-group-card > .fp-card-icon { grid-area: icon; }
+.fp-group-card > .fp-card-name { grid-area: name; }
+.fp-group-card > .fp-card-members { grid-area: members; justify-content: flex-end; }
 .fp-card-name { font-weight: 550; flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
 .fp-card-members { display: flex; flex-wrap: wrap; gap: 4px; }
 .fp-avatar { display: inline-flex; width: 16px; height: 16px; align-items: center;
   justify-content: center; font-size: 10px; color: var(--muted); }
-.fp-card-verdict { font-size: .75rem; padding: 2px 8px; border-radius: 9999px;
+.fp-card-verdict { grid-area: verdict; justify-self: start; box-sizing: border-box;
+  min-height: 22px; font-size: .75rem; padding: 2px 8px; border-radius: 9999px;
   background: var(--panel); }
-/* UAT3 N24: Edit and Delete as one flex item, so the wrap above puts them on
-   their own line together instead of splitting between them. */
-.fp-card-actions { display: flex; flex: 0 0 auto; gap: 6px; }
+.fp-card-verdict:empty { background: transparent; }
+/* UAT3 N24: Edit and Delete as one unit on their own row, never split. */
+.fp-card-actions { grid-area: actions; justify-self: end; display: flex; gap: 6px; }
 .fp-empty-state { color: var(--muted); font-size: 12.5px; padding: 10px 0; }
 
 /* --- colour picker (device and group badges) ----------------------------- */
@@ -115,6 +122,10 @@
 /* --- "Your icons" (uploaded custom PNGs), same grid as the Lucide swatches */
 .fp-custom-icons h4 { font-size: 12px; color: var(--muted); margin: 8px 0 4px; }
 .fp-icon-swatch img { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }
+/* The select button and its delete "x" are siblings here, not nested
+   (axe `nested-interactive`, 2026-09-23) -- the wrapper positions the "x"
+   into the swatch's corner without either button containing the other. */
+.fp-icon-swatch-wrap { position: relative; display: inline-flex; }
 .fp-icon-delete { position: absolute; top: -6px; right: -6px; width: 14px; height: 14px;
   line-height: 12px; border-radius: 50%; border: none; background: var(--panel);
   color: var(--muted); font-size: 11px; padding: 0; cursor: pointer; }
@@ -234,246 +245,3 @@ input[type="file"]::file-selector-button:hover { filter: brightness(1.1); }
   margin: 2px 8px 6px 0;
 }
 
-/* --- sign-in panel (first section of the settings dialog, R-P2-8) --------- */
-/* style.css:231 styles password/date/select inside a .setting-row and nothing
-   else, so the Apple ID and 2FA code fields would render browser-default —
-   white boxes on the dark panel. Same declarations, text inputs only. */
-#fp-settings-signin .setting-row input[type="text"] {
-  background: var(--panel-2); color: var(--text); border: 1px solid var(--line-strong);
-  border-radius: 7px; padding: 6px 9px; font-size: 13px; min-width: 190px;
-}
-#fp-settings-signin .btn { margin-top: 8px; }
-/* Sub-heading per provider card, so the two "Not signed in" lines each say what
-   they are about (W3 visual gate finding 3). Sized between the section h3 and
-   the body text, like .setting-group h3 but not uppercase. */
-.fp-auth-provider { font-size: 13px; font-weight: 600; margin: 14px 0 4px; }
-#fp-auth-google-card > .fp-auth-provider { margin-top: 4px; }
-/* A sub-section inside a provider card (Apple's accessory-keys block, CF-P2-19)
-   -- distinct from .fp-auth-provider so test_each_provider_card_says_which_
-   provider_it_is's single-heading-per-card selector still resolves to one
-   element; visually smaller and muted so it doesn't compete with the card's
-   own "Apple Find My" heading above it. */
-.fp-auth-subheading { font-size: 12px; font-weight: 600; margin: 16px 0 4px; color: var(--muted); }
-/* UAT2 N1: an ID selector (specificity 1,0,0) always beat `.hidden`'s 0,1,0,
-   so JS adding "hidden" to this link never actually hid it. Scoping the rule
-   to `:not(.hidden)` keeps the same specificity relationship but on the side
-   that should win when the class is present. */
-#fp-auth-chrome-download:not(.hidden) { display: inline-block; margin-top: 8px; font-size: .8rem; }
-
-/* --- links inside dialogs, modals and cards -------------------------------- */
-/* There is no global `a` rule, so an unstyled link renders in the browser's own
-   #0000EE and axe reports a serious color-contrast failure on the dark panel
-   (W3 visual gate finding 2). --badge-text is the contrast-safe accent added
-   for exactly this (#c7ddff dark / #1e40af light, CF-P2-E4-5); --accent itself
-   measured 4.05:1 on a panel and is not safe here. */
-.modal-box a,
-dialog a,
-.fp-alerts-section a,
-.fp-group-card a,
-#setup-view a { color: var(--badge-text); text-decoration: none; }
-.modal-box a:hover,
-dialog a:hover,
-.fp-alerts-section a:hover,
-.fp-group-card a:hover,
-#setup-view a:hover { text-decoration: underline; }
-/* UAT4 N37: the rule above also recolors Leaflet's own zoom +/- and
-   attribution links once the wizard's Places step borrows the dashboard map
-   into #setup-view (places.js's borrowMap()) -- --badge-text (a pale blue in
-   dark theme) reads as barely-there against Leaflet's own white control
-   background, where the dashboard's unscoped copy of the same map is fine.
-   These two rules restore exactly the colors leaflet.css itself sets
-   (.leaflet-bar a's `color: black`, .leaflet-control-attribution's
-   `color: #333`) at a specificity #setup-view a cannot beat, in both
-   themes -- the same "matches the dashboard" bar, since a browser's own
-   OSM copyright/zoom chrome does not change with our theme toggle. */
-#setup-view .leaflet-bar a { color: #000; }
-#setup-view .leaflet-control-attribution a { color: #333; }
-
-/* --- add-rule dialog ------------------------------------------------------ */
-/* W3 visual gate finding 1: this <dialog> had no rules at all, so it painted
-   the browser default — a white box with no backdrop and native form controls,
-   in both themes. Same chrome as the group and device editors above; the
-   selector stays this id so a shared `dialog` rule can land beside it. */
-#fp-add-rule-dialog {
-  background: var(--panel); color: var(--text); border: 1px solid var(--line);
-  border-radius: 12px; padding: 18px 20px; min-width: 320px; max-width: 420px;
-}
-#fp-add-rule-dialog::backdrop { background: rgba(5,8,13,.72); }
-/* UAT2 U32/N7: the dialog had no title at all before (alerts.html now gives
-   it a real <h2>, aria-labelledby-linked). Same rule the group/device/place
-   editors already carry above, including the N11 text-transform override --
-   style.css's global `h2` would otherwise uppercase "New rule"/"Edit rule". */
-#fp-add-rule-dialog h2 { margin: 0 0 12px; font-size: 16px; text-transform: none; }
-#fp-add-rule-dialog input[type="text"],
-#fp-add-rule-dialog input[type="number"],
-#fp-add-rule-dialog select {
-  background: var(--panel-2); color: var(--text); border: 1px solid var(--line-strong);
-  border-radius: 7px; padding: 6px 9px; font-size: 13px;
-}
-#fp-add-rule-dialog footer { display: flex; gap: 8px; margin-top: 14px; }
-/* Finding 4: the target radio and the select it governs were two stacked rows
-   that did not line up. One row on a desktop width, stacked on a phone. */
-.fp-rule-target-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
-.fp-rule-target-row label { display: flex; align-items: center; gap: 6px; margin: 0; }
-.fp-rule-target-row select { flex: 1 1 auto; min-width: 0; }
-@media (max-width: 599px) {
-  .fp-rule-target-row { flex-direction: column; align-items: stretch; }
-}
-/* UAT2 U32/N7: the channel checkboxes were an unstyled <div> of bare
-   <label>s run together on one line. One per row, like every other
-   checkbox list in the dialog. */
-.fp-channel-picker { display: flex; flex-direction: column; gap: 6px; }
-.fp-channel-picker-option { display: flex; align-items: center; gap: 6px; font-size: 13px; }
-
-/* --- unfinished-setup banner ---------------------------------------------- */
-/* Same weight as #alert, directly under the topbar (onboarding.md § 5). */
-#setup-banner {
-  display: flex; align-items: center; gap: 10px;
-  margin: 0 18px 10px; padding: 8px 12px;
-  border: 1px solid var(--line); border-radius: 8px;
-  background: var(--panel); color: var(--text); font-size: 14px;
-}
-#setup-banner a { color: var(--accent); }
-
-/* --- table scroll containment (R-P2-28 point 6, F6) ------------------------ */
-/* responsive.css only turns this on below 600px; at desktop widths a wide
-   table had nothing containing it, so it bled into the PAGE's own horizontal
-   scroll instead of the pane's (visual gate W4 F6: the Status column sat past
-   the 380px pane's edge and needed a page-level scroll to reach). Unconditional
-   here; the phone tier layers its own -webkit-overflow-scrolling on top. */
-.fp-table-scroll { overflow-x: auto; }
-
-/* The delivery log's 8 columns default to their content's natural width,
-   which is what pushed Status (7th) out of the 380px side pane. Fixed layout
-   plus a pinned column split keeps Status inside the visible box without any
-   scrolling; Text/Body/Error (the free-text columns, usually an em dash or a
-   short error string) truncate with an ellipsis and keep the full value in a
-   title attribute (alerts_deliveries.js). Column order is test-pinned
-   (test_alerts_whatsapp.py::test_deliveries_table_renders_after_rule_fires),
-   so only widths change here, never the <th>/<td> sequence. Channel (2nd) and
-   Kind (3rd) get the same treatment (loop2 L2-6): "telegram"/"whatsapp" and
-   "device"/"group" both overran their 9%/8% columns into the neighbouring
-   cell's text at 1280 and 375 without it. */
-#fp-deliveries-table { table-layout: fixed; }
-#fp-deliveries-table td:nth-child(2), #fp-deliveries-table td:nth-child(3),
-#fp-deliveries-table td:nth-child(4), #fp-deliveries-table td:nth-child(5),
-#fp-deliveries-table td:nth-child(8) {
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-/* UAT2 N3: these eight widths used to be inline style="width:…" on each
-   <col> (alerts.html) -- the page's CSP has no 'unsafe-inline' in style-src,
-   so the browser dropped every one of them silently and logged 8 console
-   errors, and every column fell back to its unstyled (equal) default. Same
-   percentages, targeting the <col> elements by position instead; the column
-   order stays test-pinned (see the comment above), so nth-child keeps
-   matching the same column it always did. */
-#fp-deliveries-table col:nth-child(1) { width: 15%; }
-#fp-deliveries-table col:nth-child(2) { width: 9%; }
-#fp-deliveries-table col:nth-child(3) { width: 8%; }
-#fp-deliveries-table col:nth-child(4) { width: 9%; }
-#fp-deliveries-table col:nth-child(5) { width: 9%; }
-#fp-deliveries-table col:nth-child(6) { width: 15%; }
-#fp-deliveries-table col:nth-child(7) { width: 12%; }
-#fp-deliveries-table col:nth-child(8) { width: 23%; }
-
-/* --- delivery log / rules table: narrow-container card layout (UAT2 U9,
-   UAT3 N16) -----------------------------------------------------------------
-   responsive.css's phone tier already turns these tables into one card per
-   row below a 599px VIEWPORT -- but at 1280 both render inside
-   .timeline-pane, the .layout grid's 380px side column (~348px of usable
-   width once its own padding is out), not the viewport. A table this narrow
-   still packed every fixed-width column in (8 for deliveries, 8 for rules --
-   N16: "On exit", Channels, Enabled and Edit/Delete off-screen, reachable
-   only by a sideways scroll inside the pane) because nothing was keyed off
-   the PANE's own width. A container query is the simpler fix over moving
-   either section out of the side pane: one ruleset, keyed to whichever
-   ancestor is actually narrow, covers both the phone tier and this desktop
-   pane without duplicating the layout, and covers both tables since they
-   share the same data-label convention (alerts_deliveries.js / alerts_rules.js). */
-#tab-alerts { container-type: inline-size; }
-@container (max-width: 500px) {
-  #fp-deliveries-table, #fp-deliveries-table tbody, #fp-deliveries-table tr,
-  #fp-rules-table, #fp-rules-table tbody, #fp-rules-table tr {
-    display: block; width: auto;
-  }
-  #fp-deliveries-table thead, #fp-deliveries-table colgroup,
-  #fp-rules-table thead {
-    display: none;
-  }
-  #fp-deliveries-table tr, #fp-rules-table tr {
-    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 0 0 8px;
-  }
-  #fp-deliveries-table td, #fp-rules-table td {
-    display: flex; gap: 10px; justify-content: space-between; align-items: baseline;
-    padding: 3px 0; border: none; width: auto;
-  }
-  #fp-deliveries-table td:nth-child(2), #fp-deliveries-table td:nth-child(3),
-  #fp-deliveries-table td:nth-child(4), #fp-deliveries-table td:nth-child(5),
-  #fp-deliveries-table td:nth-child(8) {
-    white-space: normal; overflow: visible; text-overflow: clip;
-  }
-  #fp-deliveries-table td::before, #fp-rules-table td::before {
-    content: attr(data-label); flex: 0 0 auto; color: var(--muted);
-    font-size: 11px; text-transform: uppercase; letter-spacing: .02em;
-  }
-  #fp-deliveries-table td:empty { display: none; }
-  #fp-deliveries-table details summary { cursor: pointer; color: var(--accent); }
-  /* Actions is two buttons, not a value to line up against a label -- drop
-     the label prefix and let them sit together at the row's trailing edge. */
-  #fp-rules-table td:last-child { gap: 8px; }
-  #fp-rules-table td:last-child::before { content: none; }
-  /* N39: the Enabled toggle's checkbox sits flush against justify-content:
-     space-between's trailing edge, and responsive.css gives every checkbox
-     an invisible 44px WCAG touch-target halo centered on it -- with no
-     margin here, half that halo (22px) reached past the card's own right
-     edge by a couple of px (309px of content in a 307px pane, N39), with
-     nothing visibly overflowing to explain it since the halo is a
-     transparent ::before. Shrinking the touch target isn't the fix (it
-     would drop below the 44px minimum); moving the checkbox itself 8px
-     off the edge is, and it does not touch responsive.css's touch-target
-     rule at all. */
-  #fp-rules-table td input[type="checkbox"] { margin-right: 8px; }
-}
-
-/* --- hidden rows ---------------------------------------------------------- */
-/* style.css:227 gives .setting-row `display: flex`, and an author rule beats
-   the UA sheet's `[hidden] { display: none }`, so a row marked hidden in the
-   markup still painted. The native-detail row is hidden on every platform but
-   macOS, which made it visible everywhere (same shape as style.css's own
-   `.fp-tab-panel[hidden]` rule). */
-.setting-row[hidden] { display: none; }
-
-/* main.js prepends the bundled Lucide sprite as a parsed SVG-document root.
-   Adopting it into the HTML document drops its own style="display:none", so
-   the sprite became a 150px-tall layout box above the toolbar on every load
-   (found by the E12 screenshot pass). Zero size with hidden overflow takes it
-   out of layout while keeping every <use href="#lucide-..."> resolvable, which
-   a display:none root is not guaranteed to do in every engine. */
-#fp-icon-sprite {
-  position: absolute; width: 0; height: 0; overflow: hidden;
-}
-
-/* --- place dialog: tracker locator + address search (UAT U4) ------------- */
-#fp-place-use-tracker-btn { flex: 0 0 auto; }
-.fp-search-results {
-  list-style: none; margin: 6px 0 0; padding: 0; max-height: 160px;
-  overflow-y: auto; border: 1px solid var(--line); border-radius: 8px;
-}
-.fp-search-results li { border-bottom: 1px solid var(--line); }
-.fp-search-results li:last-child { border-bottom: none; }
-.fp-search-results button {
-  display: block; width: 100%; text-align: left; padding: 7px 9px;
-  background: none; border: 0; color: var(--text); font-size: 12.5px; cursor: pointer;
-}
-.fp-search-results button:hover { background: var(--panel-2); }
-.fp-search-empty { padding: 7px 9px; color: var(--muted); font-size: 12.5px; }
-
-/* --- places list (UAT U5, same field/button shapes as .fp-group-card) ---- */
-#fp-places-list { padding: 0 18px; margin-top: 10px; }
-.fp-place-card { display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
-  padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px;
-  background: var(--panel-2); margin-bottom: 6px; cursor: pointer; }
-.fp-place-card .fp-color-swatch { width: 16px; height: 16px; cursor: default; }
-.fp-place-card-meta,
-.fp-place-card-who { font-size: 12px; color: var(--muted); }
-.fp-place-card-who:empty { display: none; }

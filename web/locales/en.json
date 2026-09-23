@@ -191,6 +191,7 @@
       "label": "Custom icon",
       "upload": "Upload",
       "delete": "Delete",
+      "deleteIcon": "Delete icon {id}",
       "deleteConfirm": "Delete this icon?",
       "deleteInUse": "This icon is in use and cannot be deleted.",
       "badFile": "Choose a PNG image first.",

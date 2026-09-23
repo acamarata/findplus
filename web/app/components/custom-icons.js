@@ -44,12 +44,21 @@ async function deleteCustomIcon(id, onDeleted, status) {
   }
 }
 
-/** The small "x" overlay on a custom swatch; clicking it never selects the icon. */
-function deleteOverlay(id, onDeleted, status) {
+/**
+ * The small "x" delete button for a custom swatch.
+ *
+ * axe `nested-interactive` (2026-09-23): this used to live inside the
+ * select button itself -- a button nested in a button, which assistive
+ * tech cannot activate reliably. It is now a sibling of the select button,
+ * both held by customSwatch()'s wrapper span, positioned into the same
+ * top-right corner with `.fp-icon-swatch-wrap`/`.fp-icon-delete` in
+ * components.css instead of DOM nesting.
+ */
+function deleteButton(id, onDeleted, status) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "fp-icon-delete";
-  btn.setAttribute("aria-label", t("icons.custom.delete"));
+  btn.setAttribute("aria-label", t("icons.custom.deleteIcon", { id: iconIdShort(id) }));
   btn.textContent = "×";
   btn.addEventListener("click", (ev) => {
     ev.stopPropagation();
@@ -58,7 +67,11 @@ function deleteOverlay(id, onDeleted, status) {
   return btn;
 }
 
+/** The select button and its sibling delete button, held in one positioned
+ * wrapper span so neither is nested inside the other. */
 function customSwatch(id, current, onSelect, onDeleted, status) {
+  const wrap = document.createElement("span");
+  wrap.className = "fp-icon-swatch-wrap";
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "fp-icon-swatch";
@@ -68,9 +81,10 @@ function customSwatch(id, current, onSelect, onDeleted, status) {
   const img = document.createElement("img");
   img.src = `/api/icons/custom/${iconIdShort(id)}.png`;
   img.alt = "";
-  btn.append(img, deleteOverlay(id, onDeleted, status));
+  btn.appendChild(img);
   btn.addEventListener("click", () => onSelect(id));
-  return btn;
+  wrap.append(btn, deleteButton(id, onDeleted, status));
+  return wrap;
 }
 
 async function uploadFile(file, status, onUploaded) {
@@ -150,8 +164,12 @@ export function createCustomIconsSection(host, { value, onSelect }) {
     for (const id of ids) grid.appendChild(customSwatch(id, current, select, refresh, status));
   }
 
+  // Select first, then redraw: waiting for the list's own GET before
+  // selecting left a window where Save sent the OLD icon (CI run
+  // 35909159774). refresh() draws the new swatch already pressed.
   const upload = uploadRow(status, (id) => {
-    refresh().then(() => select(id));
+    select(id);
+    refresh();
   });
   section.append(heading, grid, upload, status);
   host.appendChild(section);

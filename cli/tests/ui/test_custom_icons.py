@@ -14,13 +14,16 @@ Constraints: `live_server` is session-scoped and shared with every other file
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import json
 import struct
 import zlib
 
 import pytest
+from axe_playwright_python.async_playwright import Axe
 
+from .test_a11y import AXE_OPTIONS, BLOCKING
 from .test_lock import PIN
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -76,6 +79,14 @@ async def _upload_icon(page, png_path) -> str:
     return body["id"]
 
 
+async def _wait_selected(page, icon_id: str) -> None:
+    """Wait until the dialog's hidden icon field holds `icon_id` -- what Save
+    actually sends -- rather than trusting the upload's response alone."""
+    await page.wait_for_function(
+        "(id) => document.getElementById('fp-device-icon').value === id", arg=icon_id
+    )
+
+
 async def _restore_seeded_icon(page, base_url) -> None:
     resp = await page.request.patch(
         f"{base_url}/api/devices/TAG-HOME",
@@ -114,11 +125,13 @@ async def test_upload_assign_render_and_purge(page, base_url, tmp_path):
         assert await image.count() == 1
 
         # Purge: unassign first (an in-use icon refuses to delete, 409), then
-        # delete it through the picker's own "x" overlay.
+        # delete it through the picker's own "x" button -- a sibling of the
+        # select button inside the wrapper span, not nested inside it
+        # (nested-interactive fix, 2026-09-23), hence the `+` combinator.
         await _restore_seeded_icon(page, base_url)
         await _open_edit_dialog(page, base_url)
         page.on("dialog", lambda d: d.accept())
-        await page.click(f'#fp-device-dialog [data-icon-id="{icon_id}"] .fp-icon-delete')
+        await page.click(f'#fp-device-dialog [data-icon-id="{icon_id}"] + .fp-icon-delete')
         await page.locator(f'#fp-device-dialog [data-icon-id="{icon_id}"]').wait_for(
             state="detached"
         )
@@ -146,14 +159,17 @@ async def test_lock_purges_every_custom_icon_thumbnail(page, base_url, tmp_path)
     await _open_edit_dialog(page, base_url)
     icon_id = await _upload_icon(page, png_path)
     short = icon_id.split(":", 1)[1]
-    await page.click("#fp-device-dialog button:has-text('Save')")
-    await page.wait_for_selector("#fp-device-dialog:not([open])", state="attached")
-
-    set_pin = await page.request.post(
-        base_url + "/api/settings/pin", data=json.dumps({"new_pin": PIN}), headers=JSON_HEADERS
-    )
-    assert set_pin.ok, await set_pin.text()
     try:
+        await _wait_selected(page, icon_id)
+        await page.click("#fp-device-dialog button:has-text('Save')")
+        await page.wait_for_selector("#fp-device-dialog:not([open])", state="attached")
+
+        set_pin = await page.request.post(
+            base_url + "/api/settings/pin",
+            data=json.dumps({"new_pin": PIN}),
+            headers=JSON_HEADERS,
+        )
+        assert set_pin.ok, await set_pin.text()
         # Reopen so the picker's own uploaded-thumbnail img is on screen too,
         # not just the device row's badge image.
         await _open_edit_dialog(page, base_url)
@@ -211,3 +227,68 @@ async def test_upload_rejects_a_non_png_file(page, base_url, tmp_path):
     )
     assert (await status.inner_text()).strip() != ""
     await page.click("#fp-device-dialog button:has-text('Cancel')")
+
+
+async def test_save_right_after_upload_sends_the_uploaded_icon(page, base_url, tmp_path):
+    """CI run 35909159774: the upload only selected the new icon after a
+    second GET /api/icons/custom came back, so a Save in that window PATCHed
+    the old icon. Hold that GET open and prove Save still sends the upload."""
+    png_path = tmp_path / "icon.png"
+    png_path.write_bytes(_make_png())
+    release = asyncio.Event()
+    gets = {"n": 0}
+
+    async def hold_second_list(route):
+        if route.request.method == "GET":
+            gets["n"] += 1
+            if gets["n"] >= 2:
+                await release.wait()
+        await route.continue_()
+
+    await page.route("**/api/icons/custom", hold_second_list)
+    await _open_edit_dialog(page, base_url)
+    icon_id = await _upload_icon(page, png_path)
+    try:
+        await _wait_selected(page, icon_id)
+        # The response, not just the request: the restore in `finally` must
+        # land after this PATCH, or TAG-HOME keeps the upload and the icon
+        # delete below 409s as in use, leaking both into later files.
+        async with page.expect_response(lambda r: r.request.method == "PATCH") as patch_info:
+            await page.click("#fp-device-dialog button:has-text('Save')")
+        patch = await patch_info.value
+        assert patch.ok, await patch.text()
+        assert json.loads(patch.request.post_data)["icon"] == icon_id
+    finally:
+        release.set()
+        with contextlib.suppress(Exception):
+            await _restore_seeded_icon(page, base_url)
+        with contextlib.suppress(Exception):
+            await page.request.delete(f"{base_url}/api/icons/custom/{icon_id.split(':', 1)[1]}")
+
+
+async def test_no_serious_axe_violations_with_a_custom_icon(page, base_url, tmp_path):
+    """A custom icon's delete "x" used to sit inside the select button itself
+    -- a serious `nested-interactive` violation axe never had a custom icon
+    on screen to catch before (custom-icons.js's swatch/delete restructure,
+    2026-09-23). Upload one, scan the picker with it visible, delete it in a
+    `finally` (test_a11y.py's dialog-scan pattern, applied here since it is
+    this file's fixture that gets a custom icon onto the page)."""
+    png_path = tmp_path / "icon.png"
+    png_path.write_bytes(_make_png())
+    await _open_edit_dialog(page, base_url)
+    icon_id = await _upload_icon(page, png_path)
+    short = icon_id.split(":", 1)[1]
+    try:
+        await _wait_selected(page, icon_id)
+        results = await Axe().run(page, options=AXE_OPTIONS)
+        violations = [v for v in results.response["violations"] if v.get("impact") in BLOCKING]
+        assert not violations, "\n".join(
+            f"{v['impact']}: {v['id']} -> "
+            + ", ".join(str(n.get("target")) for n in v.get("nodes", [])[:3])
+            for v in violations
+        )
+    finally:
+        with contextlib.suppress(Exception):
+            await _restore_seeded_icon(page, base_url)
+        with contextlib.suppress(Exception):
+            await page.request.delete(f"{base_url}/api/icons/custom/{short}")

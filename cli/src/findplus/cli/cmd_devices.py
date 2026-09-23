@@ -118,8 +118,13 @@ def _print_rate_or_hint(settings, tracked_count: int, total: int) -> None:
         # UAT4 N43: "device(s)" never resolved a real count -- proper
         # plurals for both the total and the tracked count in this line.
         click.echo(f"Tracking {tracked_count} of {total} {_plural(total, 'device')}.")
+        # GP-R5-4: this line used to say "Google requests/hour" unconditionally,
+        # which is wrong once an Apple Find My device is tracked alongside (or
+        # instead of) a Google one -- "provider" covers whichever accounts are
+        # actually configured, the same neutral wording catalog-en.js's
+        # rateTracked/trackedResult strings already use for this dialog.
         click.echo(
-            f"That is about {rate:.0f} Google requests/hour "
+            f"That is about {rate:.0f} provider requests/hour "
             f"({tracked_count} {_plural(tracked_count, 'device')} every {interval:g} min),"
             " polled sequentially."
         )

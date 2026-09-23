@@ -137,6 +137,22 @@ def test_devices_rate_line_is_plural_for_two_devices(tmp_db) -> None:
     assert "device(s)" not in result.output
 
 
+def test_devices_rate_line_is_provider_neutral(tmp_db) -> None:
+    """GP-R5-4: the line used to say "Google requests/hour" unconditionally,
+    which was wrong once an Apple Find My device was tracked alongside (or
+    instead of) a Google one. It must name no single provider."""
+    with session_scope() as session:
+        upsert_device(session, "TAG-001", "Moto Tag 2", provider="test-fake")
+        upsert_device(session, "TAG-002", "iPhone", provider="apple-find-my")
+        track_devices(session, ["TAG-001", "TAG-002"], exclusive=True)
+
+    result = CliRunner().invoke(main, ["devices", "--no-refresh"])
+
+    assert result.exit_code == 0, result.output
+    assert "provider requests/hour" in result.output
+    assert "Google requests" not in result.output
+
+
 # ------------------------------------------------------------- UAT U24
 def test_devices_default_lists_local_without_refresh_even_when_unauthed(
     selected, monkeypatch

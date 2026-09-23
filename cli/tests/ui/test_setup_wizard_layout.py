@@ -125,27 +125,30 @@ async def test_groups_step_uses_popover_pickers_not_a_bare_grid(page, base_url):
         await _set_last_step(page, base_url, None)
 
 
-async def test_deliveries_status_column_visible_at_1280_without_horizontal_scroll(page, base_url):
-    """R-P2-28 point 6 / F6: Status (7th of 8 columns) used to sit past the
-    380px side pane's edge, reachable only by scrolling the whole page.
+async def test_deliveries_table_causes_no_horizontal_scroll_at_1280(page, base_url):
+    """R-P2-28 point 6 / F6, updated for UAT2 U9: the table's own columns
+    used to sit past the 380px side pane's edge at 1280, reachable only by
+    scrolling the whole page. UAT2 found that fix (fixed pixel widths) was
+    still unreadable in that same narrow pane -- U9's real fix is the
+    `@container` card layout (components.css), which drops the header
+    row entirely rather than fitting it, so this test's own job narrows to
+    what still has to hold at 1280: no page-level horizontal scroll, and the
+    pane is in card mode (thead hidden), not the old fixed-width table.
 
-    The headers are enough to pin the layout: this suite's seed data carries
-    no alert_deliveries rows (nothing here runs the poll/evaluate loop that
-    would create one), and test_alerts_whatsapp.py's own delivery-log test
-    makes the same choice — it waits for the table, not for a row.
+    Seed data carries no alert_deliveries rows (nothing here runs the
+    poll/evaluate loop that would create one); card mode does not need a row
+    to prove itself -- the thead's display alone does.
     """
     await page.set_viewport_size({"width": 1280, "height": 900})
     await page.goto(base_url + "/#dashboard")
     await page.wait_for_selector("#map")
     await page.click('button[data-tab="alerts"]')
-    await page.wait_for_selector("#fp-deliveries-table", timeout=15000)
+    await page.wait_for_selector("#fp-deliveries-table", state="attached", timeout=15000)
 
-    status_header = page.locator("#fp-deliveries-table thead th").nth(6)
-    assert await status_header.text_content() == "Status"
-    box = await status_header.bounding_box()
-    pane = await page.locator(".timeline-pane").bounding_box()
-    assert box is not None and pane is not None
-    assert box["x"] + box["width"] <= pane["x"] + pane["width"] + 1, (box, pane)
+    thead_display = await page.locator("#fp-deliveries-table thead").evaluate(
+        "el => getComputedStyle(el).display"
+    )
+    assert thead_display == "none", "the 380px pane at 1280 should be in card mode"
 
     page_overflow = await page.evaluate(
         "() => document.documentElement.scrollWidth - document.documentElement.clientWidth"

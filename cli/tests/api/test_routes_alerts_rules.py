@@ -21,9 +21,12 @@ def client(tmp_db):
 
 
 def test_rules_crud(client: TestClient) -> None:
+    # "native" needs no configured credentials (UAT2 U11's server-side
+    # check requires at least one connected channel); this test does not
+    # care which channel, only that CRUD works.
     create = client.post(
         "/api/alerts/rules",
-        json={"name": "r1", "device_id": "dev1", "channels": ["telegram"]},
+        json={"name": "r1", "device_id": "dev1", "channels": ["native"]},
     )
     assert create.status_code == 201
     body = create.json()
@@ -58,7 +61,7 @@ def test_rules_list_shows_the_device_label_not_the_provider_name(client: TestCli
         session.commit()
     create = client.post(
         "/api/alerts/rules",
-        json={"name": "r1", "device_id": "dev1", "channels": ["telegram"]},
+        json={"name": "r1", "device_id": "dev1", "channels": ["native"]},
     )
     assert create.json()["device_name"] == "Sara's backpack"
     assert client.get("/api/alerts/rules").json()[0]["device_name"] == "Sara's backpack"
@@ -89,6 +92,15 @@ def test_deliveries_include_channel(client: TestClient) -> None:
 
     from findplus.db.models_alerts import AlertDelivery, AlertRule
 
+    # UAT2 U11: the server now requires at least one connected channel, and
+    # this test asserts the delivery row's channel is specifically
+    # "webhook", so a real (if fake) credential goes in first.
+    assert (
+        client.put(
+            "/api/alerts/channels/webhook", json={"url": "https://example.com/hook"}
+        ).status_code
+        == 200
+    )
     rule_id = client.post(
         "/api/alerts/rules",
         json={"name": "webhook rule", "device_id": "dev1", "channels": ["webhook"]},
@@ -124,7 +136,7 @@ def test_deliveries_include_retry_fields(client: TestClient) -> None:
 
     rule_id = client.post(
         "/api/alerts/rules",
-        json={"name": "retry rule", "device_id": "dev1", "channels": ["telegram"]},
+        json={"name": "retry rule", "device_id": "dev1", "channels": ["native"]},
     ).json()["id"]
     now = datetime.datetime.now(datetime.UTC)
     next_attempt = now + datetime.timedelta(minutes=1)
@@ -157,7 +169,7 @@ def test_deliveries_next_attempt_at_is_null_when_not_retrying(client: TestClient
 
     rule_id = client.post(
         "/api/alerts/rules",
-        json={"name": "sent rule", "device_id": "dev1", "channels": ["telegram"]},
+        json={"name": "sent rule", "device_id": "dev1", "channels": ["native"]},
     ).json()["id"]
 
     with session_scope() as session:
@@ -228,7 +240,7 @@ def test_put_channels_leaves_every_other_field_alone(client: TestClient) -> None
         json={
             "name": "keepme",
             "device_id": "dev1",
-            "channels": ["telegram"],
+            "channels": ["native"],
             "cooldown_minutes": 7,
             "on_exit": False,
         },
@@ -245,9 +257,9 @@ def test_put_channels_leaves_every_other_field_alone(client: TestClient) -> None
 def test_put_rejects_an_unknown_channel_without_touching_the_rule(client: TestClient) -> None:
     rule_id = client.post(
         "/api/alerts/rules",
-        json={"name": "keepme", "device_id": "dev1", "channels": ["telegram"]},
+        json={"name": "keepme", "device_id": "dev1", "channels": ["native"]},
     ).json()["id"]
     assert (
         client.put(f"/api/alerts/rules/{rule_id}", json={"channels": ["bogus"]}).status_code == 422
     )
-    assert client.get("/api/alerts/rules").json()[0]["channels"] == ["telegram"]
+    assert client.get("/api/alerts/rules").json()[0]["channels"] == ["native"]

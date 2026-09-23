@@ -94,7 +94,10 @@ async def test_alerts_tab_shows_the_served_catalog_not_the_bundled_fallback(page
             {
                 "name": "Catalog race rule",
                 "device_id": "TAG-HOME",
-                "channels": ["webhook"],
+                # "native" needs no configured credentials (UAT2 U11's
+                # server-side check); this test only cares about the
+                # catalog race, not which channel the seed rule uses.
+                "channels": ["native"],
             }
         ),
         headers={"Content-Type": "application/json"},

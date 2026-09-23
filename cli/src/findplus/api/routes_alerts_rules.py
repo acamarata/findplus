@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, select
 
 from findplus.alerts.channels_field import format_channels, parse_channels
+from findplus.alerts.store import load_alerts
 from findplus.api._delivery_render import batch_delivery_text_bodies
 from findplus.db.models import Device, Group, Place
 from findplus.db.models_alerts import AlertDelivery, AlertRule
@@ -37,6 +38,29 @@ def _validate_channels(value: list[str] | None) -> list[str] | None:
         return None
     format_channels(value)
     return value
+
+
+def _require_a_connected_channel(channels: list[str]) -> None:
+    """UAT2 U11: the dialog no longer defaults to an unconnected channel and
+    disables/unticks the rest, but nothing stops a direct API call (or a
+    dialog open before `connected` resolves) from saving a rule whose every
+    channel would only ever fail to deliver. `native` needs no credentials
+    (routes_alerts_channels.py never gates it behind `load_alerts()`), so it
+    always counts; telegram/webhook/whatsapp count only once configured.
+    """
+    ch = load_alerts()
+    configured = {"native"}
+    if ch.telegram:
+        configured.add("telegram")
+    if ch.webhook:
+        configured.add("webhook")
+    if ch.whatsapp:
+        configured.add("whatsapp")
+    if not set(channels) & configured:
+        raise HTTPException(
+            status_code=422,
+            detail="at least one selected channel must be connected before the rule can be saved",
+        )
 
 
 class RuleCreate(BaseModel):
@@ -158,6 +182,7 @@ def post_rule(body: RuleCreate) -> dict[str, Any]:
         raise HTTPException(
             status_code=422, detail="exactly one of group_id or device_id is required"
         )
+    _require_a_connected_channel(body.channels)
     with session_scope() as s:
         rule = AlertRule(
             name=body.name,
@@ -180,9 +205,12 @@ def post_rule(body: RuleCreate) -> dict[str, Any]:
 
 
 def put_rule(rule_id: int, body: RuleUpdate) -> dict[str, Any]:
+    updates = body.model_dump(exclude_unset=True)
+    if updates.get("channels") is not None:
+        _require_a_connected_channel(updates["channels"])
     with session_scope() as s:
         rule = _get_rule_or_404(s, rule_id)
-        for field, value in body.model_dump(exclude_unset=True).items():
+        for field, value in updates.items():
             if field == "channels":
                 rule.channels = format_channels(value)
                 continue

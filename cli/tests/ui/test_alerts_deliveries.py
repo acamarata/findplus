@@ -49,8 +49,13 @@ async def test_delivery_log_shows_channel_and_status(page, base_url, ui_db):
     one is the poller's dispatch pass and this test is about the view, not the
     dispatcher. The assertion is on the rendered row, not the endpoint — the
     endpoint already worked and the gap was that nothing displayed it.
+
+    The rule's own channels ("native" -- UAT2 U11's server-side check needs
+    a connected one, and native never needs credentials) are unrelated to
+    the delivery row's rendered channel: that comes from the row's own
+    `channel` column, inserted directly below.
     """
-    rule_id = await _create_rule(page, base_url, "Delivery log rule", ["webhook"])
+    rule_id = await _create_rule(page, base_url, "Delivery log rule", ["native"])
     _insert_delivery_rows(
         ui_db,
         [
@@ -105,31 +110,23 @@ async def _open_alerts_at_viewport(page, base_url: str, viewport: dict) -> None:
     await page.wait_for_selector("#fp-telegram-section")
 
 
-@pytest.mark.parametrize("viewport", [{"width": 1280, "height": 900}])
-async def test_delivery_log_channel_and_kind_text_stays_inside_its_cell(
-    page, base_url, ui_db, viewport
-):
-    """loop2 L2-6: Channel/Kind painted past their own cell into the
-    neighbouring column's text at 1280 -- components.css truncated
-    Text/Body/Error with an ellipsis but not these two.
-
-    375px dropped from this parametrize at UAT U9: the delivery log is a
-    stacked card layout below 600px now (responsive.css), which deliberately
-    stops truncating -- see test_delivery_log_is_readable_as_cards_at_375px.
-
-    `text-overflow: ellipsis` only changes what is PAINTED, not the box model:
-    a Range spanning the cell's text reports the same unclipped
-    getBoundingClientRect() whether or not the rule is applied, so comparing
-    rendered-text geometry to the cell's own box cannot tell the two states
-    apart. `scrollWidth` (the content's real extent) vs `clientWidth` (the
-    visible, fixed-by-colgroup box) is the bounding-box comparison that
-    actually distinguishes them -- content wider than its box is exactly the
-    condition `overflow: hidden` has to be present for, and "telegram" is
-    picked as the seeded channel because it is the longest of the four values
-    the column ever holds, so the overflow is real, not assumed.
+@pytest.mark.parametrize(
+    "viewport", [{"width": 1280, "height": 900}, {"width": 375, "height": 812}]
+)
+async def test_delivery_log_is_readable_as_cards(page, base_url, ui_db, viewport):
+    """UAT U9 (375px) / UAT2 U9 (1280px): the 8-column table becomes one
+    labelled card per delivery instead of ellipsis-truncated, ~44px-wide
+    cells, whenever its own container is narrow -- not only below a 600px
+    VIEWPORT (responsive.css's original phone-tier rule) but also inside the
+    ~348px-wide side pane a 1280px desktop viewport still renders it in
+    (components.css's `@container (max-width: 500px)`, UAT2). Both widths
+    share one assertion now: loop2 L2-6's old 1280px case asserted the
+    OPPOSITE (ellipsis-clipped, not cards) before the UAT2 fix -- that
+    premise no longer holds at any width this dashboard actually renders the
+    log at, so there is nothing left to clip and prove.
     """
-    rule_name = f"L2-6 rule {viewport['width']}"
-    rule_id = await _create_rule(page, base_url, rule_name, ["telegram"])
+    rule_name = f"U9 card rule {viewport['width']}"
+    rule_id = await _create_rule(page, base_url, rule_name, ["native"])
     _insert_delivery_rows(
         ui_db,
         [
@@ -146,40 +143,13 @@ async def test_delivery_log_channel_and_kind_text_stays_inside_its_cell(
     row = page.locator("#fp-deliveries-tbody tr", has_text=rule_name)
     await row.wait_for(state="visible")
 
-    for index, column in ((1, "Channel"), (2, "Kind")):
-        await _assert_cell_clips_its_overflow(page, rule_name, index, column, viewport["width"])
-
-
-async def test_delivery_log_is_readable_as_cards_at_375px(page, base_url, ui_db):
-    """UAT U9: below 600px the 8-column table becomes one labelled card per
-    delivery (responsive.css) instead of ellipsis-truncated, 7-line-wrapped
-    columns -- the opposite of L2-6's desktop assertion: nothing needs to
-    clip because nothing is squeezed into a fixed-width column any more."""
-    rule_name = "U9 card rule"
-    rule_id = await _create_rule(page, base_url, rule_name, ["telegram"])
-    _insert_delivery_rows(
-        ui_db,
-        [
-            (
-                "INSERT INTO alert_deliveries"
-                " (rule_id, event_kind, event_id, channel, sent_at, status, error)"
-                " VALUES (?, 'device', 9001, 'telegram', '2026-09-20 12:00:00', 'sent', NULL)",
-                (rule_id,),
-            )
-        ],
-    )
-
-    await _open_alerts_at_viewport(page, base_url, {"width": 375, "height": 812})
-    row = page.locator("#fp-deliveries-tbody tr", has_text=rule_name)
-    await row.wait_for(state="visible")
-
     _assert_card_layout(await _read_delivery_card_layout(page, rule_name))
 
 
 async def _read_delivery_card_layout(page, rule_name: str) -> dict:
     """Evaluate the rendered Channel cell's card-mode layout for `rule_name`'s
-    row. Split out of test_delivery_log_is_readable_as_cards_at_375px so that
-    test stays under the function size cap (T1, findings queue item 1)."""
+    row. Split out of test_delivery_log_is_readable_as_cards so that test
+    stays under the function size cap (T1, findings queue item 1)."""
     return await page.evaluate(
         """(name) => {
             const row = [...document.querySelectorAll('#fp-deliveries-tbody tr')]
@@ -217,39 +187,6 @@ def _assert_card_layout(result: dict) -> None:
     )
 
 
-async def _assert_cell_clips_its_overflow(
-    page, rule_name: str, index: int, column: str, viewport_width: int
-) -> None:
-    """`scrollWidth` (the content's real extent) vs `clientWidth` (the
-    visible, fixed-by-colgroup box) is the bounding-box comparison that
-    actually distinguishes a clipped cell from an unclipped one -- see
-    test_delivery_log_channel_and_kind_text_stays_inside_its_cell's docstring."""
-    box = await page.evaluate(
-        """({name, i}) => {
-            const row = [...document.querySelectorAll('#fp-deliveries-tbody tr')]
-                .find((r) => r.textContent.includes(name));
-            const td = row.children[i];
-            const style = getComputedStyle(td);
-            return {
-                overflow: style.overflow,
-                textOverflow: style.textOverflow,
-                whiteSpace: style.whiteSpace,
-                scrollWidth: td.scrollWidth,
-                clientWidth: td.clientWidth,
-            };
-        }""",
-        {"name": rule_name, "i": index},
-    )
-    assert box["scrollWidth"] > box["clientWidth"], (
-        f"{column} cell content ({box['scrollWidth']}px) does not exceed its box "
-        f"({box['clientWidth']}px) at {viewport_width}px -- test value too short "
-        "to prove the cap actually bites"
-    )
-    assert box["overflow"] == "hidden", f"{column}: overflow is {box['overflow']!r}, not hidden"
-    assert box["textOverflow"] == "ellipsis", f"{column}: text-overflow is {box['textOverflow']!r}"
-    assert box["whiteSpace"] == "nowrap", f"{column}: white-space is {box['whiteSpace']!r}"
-
-
 async def test_delivery_log_shows_retrying_and_failed_after_retries(page, base_url, ui_db):
     """R8: alerts_deliveries.js's statusText() renders the retry ladder state
     (retry.py MAX_ATTEMPTS=4: 1 initial send + 3 retries) -- a 'retrying' row
@@ -257,7 +194,7 @@ async def test_delivery_log_shows_retrying_and_failed_after_retries(page, base_u
     retry (attempts=4) reads differently from one that never qualified for a
     retry at all (test_delivery_log_shows_channel_and_status's attempts=1
     'failed' row, unchanged)."""
-    rule_id = await _create_rule(page, base_url, "Retry log rule", ["telegram"])
+    rule_id = await _create_rule(page, base_url, "Retry log rule", ["native"])
     _insert_delivery_rows(
         ui_db,
         [

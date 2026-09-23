@@ -65,7 +65,7 @@
 
       <section class="fp-alerts-section">
         <h3 data-i18n="alerts.rulesHeading">Rules</h3>
-        <button id="fp-add-rule-btn" type="button" data-i18n="alerts.addRule">Add rule</button>
+        <button id="fp-add-rule-btn" type="button" class="btn" data-i18n="alerts.addRule">Add rule</button>
         <!-- The rules table has 7 columns and does not fit a phone-width
              viewport; scrolling the wrapper (not the page) keeps the row
              text readable instead of squeezing it (visual gate W2 finding).
@@ -95,11 +95,17 @@
                  the 380px side pane without a horizontal scroll. Text/Body/
                  Error are the free-text columns (components.css truncates
                  them with an ellipsis); the rest wrap onto extra lines
-                 instead of forcing the table wider than its box. -->
+                 instead of forcing the table wider than its box.
+                 UAT2 N3: the widths used to be inline style="" on each <col>,
+                 which the page's CSP (no 'unsafe-inline' in style-src) drops
+                 silently -- 8 console errors and every column falling back to
+                 its unstyled default. The widths live in components.css's
+                 #fp-deliveries-table col:nth-child(N) rules now; this <col>
+                 sequence only has to keep its count and order. -->
             <colgroup>
-              <col style="width:15%"><col style="width:9%"><col style="width:8%">
-              <col style="width:9%"><col style="width:9%"><col style="width:15%">
-              <col style="width:12%"><col style="width:23%">
+              <col><col><col>
+              <col><col><col>
+              <col><col>
             </colgroup>
             <thead>
               <tr>
@@ -123,12 +129,26 @@
         <p class="fp-disclaimer" data-i18n="alerts.widgetMapDisclaimer">The map preview sends the coordinate region to Apple Maps.</p>
       </section>
 
-      <dialog id="fp-add-rule-dialog" role="dialog" aria-label="Add rule" data-i18n-attr="aria-label:alerts.addRule">
+      <!-- UAT2 U32/N7: this dialog had no title and no `.fp-dialog-field`
+           wrappers, so it painted as a bare white form at 375 with inline
+           labels -- the same chrome the place/group/device editors already
+           got (places_dialog.js's buildPlaceForm(), same title+aria-
+           labelledby pattern). aria-labelledby replaces the static
+           aria-label: alerts_rule_dialog.js's openRuleDialog() sets the
+           <h2>'s own text to "New rule"/"Edit rule", which is also now the
+           dialog's accessible name -- one string to keep in sync instead of
+           a title and a separate aria-label saying the same thing twice. -->
+      <dialog id="fp-add-rule-dialog" role="dialog" aria-labelledby="fp-add-rule-dialog-title">
         <form method="dialog" id="fp-add-rule-form">
-          <label><span data-i18n="alerts.colName">Name</span> <input type="text" id="fp-rule-name" required></label>
-          <label><span data-i18n="alerts.colPlace">Place</span>
+          <h2 id="fp-add-rule-dialog-title" data-i18n="alerts.newRule">New rule</h2>
+          <div class="fp-dialog-field">
+            <label for="fp-rule-name" data-i18n="alerts.colName">Name</label>
+            <input type="text" id="fp-rule-name" required>
+          </div>
+          <div class="fp-dialog-field">
+            <label for="fp-rule-place" data-i18n="alerts.colPlace">Place</label>
             <select id="fp-rule-place"></select>
-          </label>
+          </div>
           <!-- W3 visual gate finding 4: the radio and the select it governs
                are one row, not two misaligned ones. -->
           <div class="fp-rule-target-row">
@@ -147,7 +167,7 @@
           </div>
           <label><input type="checkbox" id="fp-rule-on-enter" checked> <span data-i18n="alerts.colOnEnter">On enter</span></label>
           <label><input type="checkbox" id="fp-rule-on-exit"> <span data-i18n="alerts.colOnExit">On exit</span></label>
-          <fieldset id="fp-rule-channels-fieldset" class="fp-channel-picker-field">
+          <fieldset id="fp-rule-channels-fieldset" class="fp-channel-picker-field fp-dialog-group">
             <legend data-i18n="alerts.rules.channels">Channels</legend>
             <div id="fp-rule-channels" class="fp-channel-picker"></div>
           </fieldset>
@@ -155,11 +175,14 @@
                never typed here. It belongs beside the channel choice: a queued
                native alert is held, not lost, while Find+ is locked. -->
           <p id="fp-alerts-locked-notice" class="fp-disclaimer"></p>
-          <label><span data-i18n="alerts.cooldownMinutes">Cooldown (minutes)</span> <input type="number" id="fp-rule-cooldown" value="30" min="0"></label>
+          <div class="fp-dialog-field">
+            <label for="fp-rule-cooldown" data-i18n="alerts.cooldownMinutes">Cooldown (minutes)</label>
+            <input type="number" id="fp-rule-cooldown" value="30" min="0">
+          </div>
           <p id="fp-rule-error" class="fp-dialog-error"></p>
           <footer>
-            <button type="button" id="fp-rule-save" data-i18n="common.save">Save</button>
-            <button type="button" id="fp-rule-cancel" data-i18n="common.cancel">Cancel</button>
+            <button type="button" id="fp-rule-save" class="btn" data-i18n="common.save">Save</button>
+            <button type="button" id="fp-rule-cancel" class="btn-secondary" data-i18n="common.cancel">Cancel</button>
           </footer>
         </form>
       </dialog>

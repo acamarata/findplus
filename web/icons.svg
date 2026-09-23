@@ -129,6 +129,8 @@
   <path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z" />
   <path d="M16 17h4" />
   <path d="M4 13h4" /></symbol>
+<symbol id="lucide-bell" data-group="things" viewBox="0 0 24 24" class="lucide lucide-bell" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.268 21a2 2 0 0 0 3.464 0" />
+  <path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" /></symbol>
 <symbol id="lucide-door-open" data-group="places" viewBox="0 0 24 24" class="lucide lucide-door-open" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4h3a2 2 0 0 1 2 2v14" />
   <path d="M2 20h3" />
   <path d="M13 20h9" />

@@ -104,8 +104,13 @@
     <select id="fp-group-select"></select>
   </span>
 
-  <label for="day-picker" data-i18n="common.day">Day</label>
-  <input type="date" id="day-picker">
+  <!-- UAT2 U26: same fix as the Group control-group above -- without it,
+       "Day" could wrap onto the Group row while its own date input dropped
+       to a line by itself at phone width. -->
+  <span class="fp-control-group">
+    <label for="day-picker" data-i18n="common.day">Day</label>
+    <input type="date" id="day-picker">
+  </span>
   <button class="btn btn-tiny" id="btn-prev-day" title="Previous day" aria-label="Previous day"
           data-i18n-attr="title:common.prevDay,aria-label:common.prevDay">‹</button>
   <button class="btn btn-tiny" id="btn-today" data-i18n="common.today">Today</button>
@@ -238,7 +243,9 @@
 <script src="/static/vendor/leaflet/leaflet.js"></script>
 <script type="module" src="/static/app/i18n.js"></script>
 <script type="module" src="/static/app/main.js"></script>
-<script type="module" src="/static/app/notices.js"></script>
+<!-- notices.js has no boot-time side effect of its own any more (UAT2 N12):
+     main.js dynamically imports it and calls loadNotices() once the lock
+     check confirms the app is unlocked, so it needs no tag here. -->
 <script type="module" src="/static/app/alerts.js"></script>
 <script type="module" src="/static/app/auth.js"></script>
 </body>

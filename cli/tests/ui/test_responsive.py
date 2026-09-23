@@ -162,3 +162,39 @@ async def test_group_label_stays_with_its_select_at_phone_width(page, base_url):
     assert abs(label_box["y"] - select_box["y"]) < 10, (
         "Group: label not on the same row as its select"
     )
+
+
+async def test_day_label_stays_with_its_date_input_at_phone_width(page, base_url):
+    """UAT2 U26 (leftover from U26's own fix): "Day" wrapped onto the Group
+    row while its own #day-picker input dropped to a line by itself, since
+    only the Group label+select were grouped as one flex item."""
+    await page.set_viewport_size({"width": PHONE_WIDTH, "height": PHONE_HEIGHT})
+    await page.goto(base_url + "/")
+    await page.wait_for_selector("#app-shell:not(.hidden)")
+
+    label_box = await page.locator('label[for="day-picker"]').bounding_box()
+    input_box = await page.locator("#day-picker").bounding_box()
+    assert label_box is not None and input_box is not None
+    assert abs(label_box["y"] - input_box["y"]) < 10, (
+        "Day label not on the same row as its date input"
+    )
+
+
+async def test_tabbar_icons_are_svg_not_emoji(page, base_url):
+    """UAT2 U26: the phone-tier tab bar used emoji glyphs, which render
+    inconsistently across platforms and fonts. Each icon is now a sprite
+    <use> reference; the visible text label (never aria-hidden) still gives
+    each button its accessible name."""
+    await page.set_viewport_size({"width": PHONE_WIDTH, "height": PHONE_HEIGHT})
+    await page.goto(base_url + "/")
+    await page.wait_for_selector("#app-shell:not(.hidden)")
+
+    buttons = page.locator(".fp-tabbar button")
+    assert await buttons.count() == 4
+    for i in range(await buttons.count()):
+        btn = buttons.nth(i)
+        assert await btn.locator("svg.fp-tabbar-icon use").count() == 1
+        text = await btn.inner_text()
+        assert text.strip(), "tab button has no visible accessible-name text"
+        for emoji in ("\U0001f3e0", "\U0001f4cd", "\U0001f465", "\U0001f514"):
+            assert emoji not in text

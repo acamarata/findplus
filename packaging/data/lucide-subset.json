@@ -37,6 +37,7 @@
   { "id": "lucide:hammer", "group": "things" },
   { "id": "lucide:briefcase", "group": "things" },
   { "id": "lucide:footprints", "group": "things" },
+  { "id": "lucide:bell", "group": "things" },
   { "id": "lucide:door-open", "group": "places" },
   { "id": "lucide:house", "group": "places" },
   { "id": "lucide:tent", "group": "places" },

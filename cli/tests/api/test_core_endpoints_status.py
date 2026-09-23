@@ -98,11 +98,12 @@ def test_error_state_types_covers_every_auth_or_decrypt_error_the_poller_stores(
     assert auth_or_decrypt <= ERROR_STATE_TYPES, sorted(auth_or_decrypt - ERROR_STATE_TYPES)
 
 
-def test_get_icons_returns_48_pinned_ids(client: TestClient) -> None:
+def test_get_icons_returns_49_pinned_ids(client: TestClient) -> None:
+    """48 badge icons plus UAT2 U26's `bell` (the phone-tier tab bar)."""
     res = client.get("/api/icons")
     assert res.status_code == 200
     rows = res.json()
-    assert len(rows) == 48
+    assert len(rows) == 49
     assert all(row["id"].startswith("lucide:") and row["group"] for row in rows)
 
 

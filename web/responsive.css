@@ -39,7 +39,10 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
    wrapped ("Group:" landed alone, the select on the next row). One flex item
    keeps the pair together at every width, the same way .export-group already
    keeps Download with its format/scope controls. */
-.fp-control-group { display: flex; align-items: center; gap: 6px; }
+.fp-control-group { display: flex; align-items: center; gap: 6px; max-width: 100%; min-width: 0; }
+/* A <select> sizes itself to its longest option, so one long group name
+   widened the page to 587px at 375. Let it shrink and cut the text instead. */
+.fp-control-group select { min-width: 0; max-width: 100%; text-overflow: ellipsis; }
 
 /* U31: off-screen like .sr-only until Tab focuses it, then a visible link
    above the map/timeline. Map markers/paths are keyboard: false (map.js), so

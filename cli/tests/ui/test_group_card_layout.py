@@ -1,7 +1,8 @@
 """Groups tab: the card's Edit/Delete pair at phone width (UAT3 N24).
 
 Purpose    : Edit and Delete stay together on one row at 375px, whatever the
-             group, and do not move once the card's presence verdict fills in.
+             group's name, and do not move once the card's presence verdict
+             fills in.
 Inputs     : live_server (conftest.py), seeded groups "Home" and "Family".
 Outputs    : none (assertions only).
 Constraints: Moved out of test_responsive.py (300-line cap). The verdict pill
@@ -9,12 +10,15 @@ Constraints: Moved out of test_responsive.py (300-line cap). The verdict pill
              so every measurement waits for that settled state and reads both
              boxes in one evaluate(): two separate bounding_box() calls
              straddled the verdict arriving on the CI runner and saw Edit on
-             one row and Delete on the next (run 35909159774).
+             one row and Delete on the next (run 35909159774). A group this
+             file creates is deleted in a `finally`, since live_server is
+             shared with every other file here.
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 
 import pytest
 
@@ -22,6 +26,8 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 PHONE_WIDTH = 375
 PHONE_HEIGHT = 812
+# 40 characters (the dialog's own maxLength) with no break opportunity.
+LONG_NAME = "W" * 40
 
 _ACTION_BOXES = """(groupId) => {
   const sel = groupId === null ? ".fp-group-card" : `.fp-group-card[data-group-id="${groupId}"]`;
@@ -61,6 +67,28 @@ async def test_group_card_edit_and_delete_stay_on_one_row(page, base_url):
     await _open_groups_at_phone_width(page, base_url)
     await page.wait_for_function(_VERDICTS_SETTLED, timeout=15000)
     _assert_pair_on_one_row(await page.evaluate(_ACTION_BOXES, None))
+
+
+async def test_group_card_long_unbreakable_name_keeps_the_pair_together(page, base_url):
+    """A 40-character name with no break opportunity wraps inside the name
+    (overflow-wrap: anywhere), never squeezing or splitting the button pair.
+    It also used to widen #fp-group-select to its longest option, and the
+    page with it, to 587px at a 375px viewport."""
+    created = await page.request.post(
+        base_url + "/api/groups",
+        data=json.dumps({"name": LONG_NAME, "member_ids": ["TAG-HOME"]}),
+        headers={"Content-Type": "application/json"},
+    )
+    assert created.ok, await created.text()
+    group_id = (await created.json())["id"]
+    try:
+        await _open_groups_at_phone_width(page, base_url)
+        await page.wait_for_function(_VERDICTS_SETTLED, timeout=15000)
+        _assert_pair_on_one_row(await page.evaluate(_ACTION_BOXES, group_id))
+        width = await page.evaluate("document.documentElement.scrollWidth")
+        assert width <= PHONE_WIDTH, f"page scrolls to {width}px"
+    finally:
+        await page.request.delete(f"{base_url}/api/groups/{group_id}")
 
 
 async def test_group_card_actions_do_not_move_when_the_verdict_arrives(page, base_url):

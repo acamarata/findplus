@@ -212,6 +212,9 @@ input[type="file"]::file-selector-button:hover { filter: brightness(1.1); }
   color: var(--muted); cursor: pointer; text-decoration: underline;
 }
 .fp-wizard-footnote { color: var(--muted); font-size: 12px; margin: 6px 0 14px; }
+/* UAT5 N49: "Add a place" sat flush on the borrowed map's top border, the
+   next element in the step's DOM order with no gap of its own. */
+.fp-setup-places-add { margin-bottom: 10px; }
 /* Groups step's inline add form (R-P2-28 point 2): the same scrollable box
    the group dialog gives its own member fieldset (#fp-group-members). */
 #fp-setup-group-members {

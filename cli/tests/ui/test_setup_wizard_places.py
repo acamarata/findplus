@@ -89,6 +89,21 @@ async def test_places_step_draws_tracked_device_markers_on_a_true_first_run(page
         await _set_last_step(page, base_url, None)
 
 
+async def test_places_step_add_button_has_a_gap_above_the_map(page, base_url):
+    """N49: "Add a place" sat flush on the borrowed map's top border --
+    fp-setup-places-add (components.css) now gives it a real gap."""
+    try:
+        await _open_step(page, base_url, "places")
+        await page.wait_for_selector("#fp-setup-map-host #map", timeout=15000)
+        add_box = await page.get_by_role("button", name="Add a place").bounding_box()
+        map_box = await page.locator("#fp-setup-map-host #map").bounding_box()
+        gap = map_box["y"] - (add_box["y"] + add_box["height"])
+        assert gap > 0, gap
+    finally:
+        await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
+        await _set_last_step(page, base_url, None)
+
+
 async def test_places_step_list_refreshes_after_adding_a_place(page, base_url):
     """UAT N6: a place added through the wizard's own dialog saved fine (it
     is the dashboard's shared places_dialog.js) but never appeared in this

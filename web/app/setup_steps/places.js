@@ -88,7 +88,9 @@ export default {
 
     const add = document.createElement("button");
     add.type = "button";
-    add.className = "btn";
+    // N49: the button sat flush on the borrowed map's top border with no
+    // gap of its own; fp-setup-places-add gives it one (components.css).
+    add.className = "btn fp-setup-places-add";
     add.textContent = t("setup.places.add");
     // U4/U10: opens the dialog at the borrowed map's own current centre,
     // same as the dashboard's "Add place" — no map click required here

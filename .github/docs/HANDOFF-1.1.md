@@ -1,16 +1,16 @@
 # Find+ P2 handoff (1.1.0)
 
-Written by the E13-T6 builder (ticket P2-E13-W6-S1-T6) on 2026-09-21 from the E13 evidence
-artefacts that actually exist in the tree at write time. `specs/release-1.1.md` §4.1 names a
-`qa-done/{gate-run-log.md,review-log.md,adversarial-log.md}` set; that directory was never
-created. E13-T1 (full gate run, loop 1), E13-T2 (loop 2, spec-vs-implementation) and E13-T3
-(adversarial cap) are still `status: pending` in their ticket YAML at write time, so the closing
-lines those files would have held (`Loops complete: 3/3. Blockers open: 0.` and `Adversarial
-pass: CLEAR`) do not exist yet either. The rows below cite the real files that do exist:
-`crunch/build-notes.md`, `e13/loop1-inputs.md`, `e13/loop2/review-B.md`, `e13/loop2-inputs.md`,
-`e13/blind-gp-adjudicated.md`, `e13/rehearsal-log-T4.md`, `e13/linux-rehearsal/REPORT.md`,
-`events/progress.jsonl` and `events/E13.jsonl`. Each row states what it actually shows,
-not what the spec assumed it would show.
+Written by the E13-T6 builder (ticket P2-E13-W6-S1-T6) on 2026-09-21, from the E13 evidence
+artefacts that existed in the tree at that time. Refreshed 2026-09-23 to cover the closeout
+round that landed on `main` after the draft release was cut (see §1a) and to correct the stale
+claim §1 used to make about reviews A/C (finding `L3R2`, `e13/loop2/review-L3.md`). Everything
+below describes the state of `main` as of this refresh, not a point-in-time snapshot.
+`specs/release-1.1.md` §4.1 names a `qa-done/{gate-run-log.md,review-log.md,adversarial-log.md}`
+set; that directory was never created. The rows below cite the real files that do exist:
+`crunch/build-notes.md`, `e13/loop1-inputs.md`, `e13/loop2/review-{A,B,C,L3}.md`,
+`e13/loop2-inputs.md`, `e13/blind-gp-adjudicated.md`, `e13/rehearsal-log-T4.md`,
+`e13/linux-rehearsal/REPORT.md`, `events/progress.jsonl` and `events/E13.jsonl`. Each row states
+what it actually shows, not what the spec assumed it would show.
 
 ## 1. Proven
 
@@ -29,37 +29,79 @@ not what the spec assumed it would show.
 | loop 2 review B (Sonnet, spec-vs-implementation) | 1 blocking and 6 major/minor findings, all fixed (commits `4ba0912`, `5e80f9f`, `e93ccff`, `dc86bf7`, `2181859`, `cb33763`) | `e13/loop2/review-B.md`, `events/E13.jsonl` (waypoint, 01:48:01Z) |
 | adversarial cap, GP lane (two passes) | 12 findings triaged: 3 accepted and fixed, 1 false positive (verified against the pinned spec, no code change), the rest routed to the wizard agent or already covered by loop 1 | `e13/blind-gp-adjudicated.md` |
 
-**Status of the three review loops (E13-T1/T2/T3) at write time**: not closed. Loop 1's two GP
-passes landed and were re-verified by T0 in a clean worktree, but the `P2-E13-W6-S1-T1` ticket
-itself is still `pending`. Loop 2's review B (Sonnet) finished and its findings are fixed; reviews
-A and C were dispatched twice on the GP and Za lanes and both attempts failed before producing a
-finding (`e13/loop2/review-A.md` and `review-C.md` are empty; `review-A.err`/`review-C.err` show
-`RESOURCE_EXHAUSTED` quota errors, and a later retry hit an unrecognised-model error for
-`glm-5.3`). See `e13/loop2-inputs.md` for the L2/L3 items still open. The adversarial cap's GP
-lane finished two passes and T0 adjudicated every finding; a third, cross-family Za lane started
-(`events/E13.jsonl`, 02:50:20Z) but no completion or `Adversarial pass:` line is recorded yet. The
-most recent push, commit `59531d3` (CI run 35555670529), was still queued at write time; the two
-pushes before it failed CI (`8b11486` on utf-8 file reads and an a11y dialog timeout, `05dd506` on
-a stale service import) and were each followed by a fix commit. Whoever runs E13-T1/T2/T3 to
-completion should re-verify every row above against `main`'s tip at that time, not assume this
-table still matches.
+**Status of the three review loops (E13-T1/T2/T3), as they closed**: loop 1's two GP passes
+landed and were re-verified by T0 in a clean worktree (commits `d2403b2`, `000bb2e`). Loop 2 ran
+all three reviews: review B (Sonnet, spec-vs-implementation) found 1 blocking and 6 major/minor
+findings, all fixed (commits `4ba0912`, `5e80f9f`, `e93ccff`, `dc86bf7`, `2181859`, `cb33763`);
+review A (blocking 0, major 3, minor 2) and review C (blocking 0, major 4, minor 2) -- both
+dispatched twice before producing output (`RESOURCE_EXHAUSTED` quota errors, then an
+unrecognised-model error for `glm-5.3`) -- eventually populated `e13/loop2/review-A.md` and
+`review-C.md`, and their findings (A1-A5, C1-C6) drove 19 of loop 2's 30 commits. Loop 3's own
+review (`e13/loop2/review-L3.md`) closed with blocking 0, major 1, minor 2, including this
+paragraph's own predecessor (`L3R2`: the doc self-contradicted about whether A/C had finished --
+fixed by this refresh). The adversarial cap's GP lane finished two passes, T0 adjudicated every
+finding (`e13/blind-gp-adjudicated.md`), and a third cross-family Za lane ran to completion.
+Ticket YAML `status:` fields for T1/T2/T3 were never flipped to `done` (an administrative gap,
+not a QA gap -- see `.claude/phases/current/p2/e13/open-ledger.md`, which re-verified every open
+item against the tree on 2026-09-22).
 
-**Addendum (loop 3, 2026-09-21)**: the sentence above about reviews A and C is stale. Both
-finished after this doc was written: `e13/loop2/review-A.md` (blocking 0, major 3, minor 2) and
-`e13/loop2/review-C.md` (blocking 0, major 4, minor 2) are populated, and their findings (A1-A5,
-C1-C6) drove 19 of loop 2's 30 commits. Loop 3's own review (`e13/loop2/review-L3.md`) closed
-with blocking 0, major 1, minor 2.
+## 1a. Closeout round (after the draft branch point, `63a8800`..`HEAD`)
+
+The draft v1.1.0 release was cut from `release/1.1.0` at `63a8800`. A further closeout round
+(UAT2 findings, `N1`-`N15`, plus a handful of `closeout C-*`/`G*` items) landed on `main`
+afterwards and is not in the cut draft. **The draft must be re-cut from current `main` before
+publishing** (see §5). Highlights, grouped by what a user would notice:
+
+- **Security**: the local API's Host/Origin guard now also checks the daemon's own bound port
+  (`a550c79`, `81592a6`, `31b628c`), closing a DNS-rebinding gap where a page naming any port
+  still passed the loopback-hostname check.
+- **Honesty**: Apple Find My fixes with no reported accuracy are stored and shown as
+  "Accuracy unknown" instead of an invented `±N m` figure; migration 0009 nulls any such figure
+  a previous version already wrote, and a follow-up (`e962bbb`) closes the same gap for
+  `place_events` accuracy copied from an invented Apple observation.
+- **Alerts**: failed Telegram/WhatsApp/webhook deliveries now retry automatically on a
+  temporary-looking failure (migration 0010, `cca2645`, `841b3ef`); alert text renders in local
+  time with its zone (`76b52a3`); the delivery log is readable at 360px and flags an unconfigured
+  channel instead of silently disabling it (`72c48e8`); the rule dialog is styled and defaults to
+  actually-connected channels instead of an always-ticked Telegram (`d29a5a6`).
+- **Places**: the tracker picker no longer lists every device twice on first open, and picking a
+  tracker or an address-search result now shows confirmation text and pans the map (`f76875e`);
+  timeline rows show the saved place name for a fix inside it, not just coordinates (`c2a65ee`,
+  UAT U30b).
+- **Labels**: device/group edit dialogs, map popups, presence text and the macOS widget read a
+  device's label before its raw provider name almost everywhere that still showed the raw name
+  (`91934cd`, `2c9be82`, `ae7c419`); `findplus alerts rules list` and `findplus devices` do the
+  same in the CLI (`c46d204`).
+- **Icons**: a custom PNG upload now starts as soon as a file is chosen, instead of a separate
+  Upload click (`0fdd0b5`); the icon subset gained a `bell` glyph (49 total) and the phone tab bar
+  uses it instead of emoji (`ce522d8`).
+- **Setup wizard / CLI**: `findplus lock reset` is a new, more discoverable name for the existing
+  PIN-recovery command, and a wrong PIN now shows the real error with a pointer to it (`46aa952`);
+  `findplus start` prompts for confirmation in an interactive terminal instead of requiring
+  `--yes` (`b03ced9`); `findplus devices` lists from the local database by default, `--refresh`
+  opts into a live query; the wizard's device-count summary, sign-in step heading, "configure
+  later" webhook link, zero-member group guard, and declined-sign-in handling were each fixed
+  against their UAT findings (`7cc1da1`, `014866d`, `21fc7b9`, `ead10c3`).
+- **Accessibility**: the dashboard tabs sit in a navigation landmark with a `tablist` role, and
+  the alerts tables carry an explicit `region` role (`bf4c8ea`, `b8a467f`).
+- **Boot**: the dashboard no longer fires authenticated fetches (and logs 401s) while locked
+  (`e444f60`); a missing `alerts_rule_channels.js` module that broke the dashboard boot on a
+  clean checkout is restored (`76327e6`).
+- Every CSP-relevant style moved out of inline attributes; a new browser test fails on any CSP
+  console error across every tab, at both widths (`d29a5a6`).
 
 ## 2. Unproven, requires owner action
 
 | Item | Why unproven | Required action |
 |---|---|---|
-| Publishing the v1.1.0 draft release | owner_only, public_identity boundary | open the draft on GitHub and click Publish |
-| Merging release/1.1.0's version-bump commit to main | stays on the branch until published, per D-P2-14 | merge after publishing |
+| Re-cutting the v1.1.0 draft release from current `main` | the existing draft was cut at `63a8800`, before the closeout round in §1a | re-run the release-cut ticket's steps (bump, tag, build, notarise, draft) against current `main` |
+| Publishing the re-cut v1.1.0 draft release | owner_only, public_identity boundary | open the draft on GitHub and click Publish |
+| Merging the version-bump commit to main | stays on its branch until published, per D-P2-14 | merge after publishing |
 | Updating the acamarata/homebrew-tap formula | owner_only | copy packaging/homebrew/findplus.rb to the tap and push |
 | PyPI upload | deferred every release per §3.5, never uploaded within a draft ticket | run twine upload after publishing |
 | Registering a real WhatsApp number with CallMeBot | each user does this for themselves | send the CallMeBot opt-in text from the user's own phone |
 | Real Google or Apple sign-in | rehearsal uses the fixture stub (T4); live sign-in needs a real account | run findplus auth from the dashboard once installed |
+| Deciding whether to re-cut a 1.0.1 | the published v1.0.0 dmg embeds `web/.claude/` (no secrets) inside the notarised app, fixed for 1.1; default is no -- 1.1 supersedes 1.0.0 | owner decides; see PHASE-REPORT.md item 5 |
 
 ## 3. Honesty text status
 
@@ -89,7 +131,7 @@ recorded rehearsal): the Welcome step shows `not_affiliated` as a footnote; the 
 
 ## 4. Known limitations
 
-- The icon picker offers a fixed set of 48 Lucide ids; there is no custom icon upload (`specs/labels-and-icons.md` § Lucide subset).
+- The icon picker's bundled set is a fixed 49 Lucide ids (`specs/labels-and-icons.md` § Lucide subset); a custom PNG upload (16-512px, up to 64 KiB) covers anything the bundled set does not, but the macOS widget cannot fetch images, so a custom icon shows there as a letter badge instead.
 - Native notifications are macOS only. On Linux and Windows the dashboard's channel picker omits the `native` option entirely, because `GET /api/version.platform` does not report `macOS`; the backend still accepts and stores a `native` channel from a synced config, it just has no poller to consume it there (`specs/notifications.md` § Linux/Windows).
 - WhatsApp alerts depend on CallMeBot, a third-party free service, staying up. CallMeBot enforces a personal-use rate limit and always answers `200` with a plain-text body, so a throttled send and a bad credential cannot be told apart from the response alone (`specs/notifications.md` § Rate limit, § Response handling).
 - Windows and Linux ship no desktop app or widget in this phase. That is a stated non-goal, not a gap (`specs/release-1.1.md` § 4.2).
@@ -97,10 +139,23 @@ recorded rehearsal): the Welcome step shows `not_affiliated` as a footnote; the 
 
 ## 5. How to continue
 
-a. Review `.claude/phases/current/p2/release/draft-release-log.md` (P2-E13-W6-S1-T7's output).
-b. Open the draft release URL and click Publish: https://github.com/acamarata/findplus/releases/tag/untagged-f85e26032810e6eed002 (draft; release/1.1.0 @ 63a8800; 5 assets, notarised arm64 dmg 51 MB)
-c. `git checkout main && git merge release/1.1.0 && git push origin main`. This merges the version bump only after publishing, per D-P2-14.
-d. Update the Homebrew tap: `cp packaging/homebrew/findplus.rb <tap-clone>/Formula/findplus.rb`, commit, push.
-e. Run the wizard for a real first run: install Find+, open it, sign in with a real account.
+a. **Re-cut the draft from current `main`**: the existing draft (release/1.1.0 @ 63a8800) predates
+   the closeout round in §1a. Re-run the release-cut ticket's steps -- version bump, tag, build,
+   sign, notarise -- against current `main`, replacing the draft's assets rather than publishing
+   the stale ones. `gh release view v1.1.0` still shows it as an unpublished draft targeting
+   `release/1.1.0`.
+b. Review `.claude/phases/current/p2/release/draft-release-log.md` (P2-E13-W6-S1-T7's output) for
+   the exact steps the original cut followed.
+c. Open the re-cut draft release on GitHub and click Publish (owner_only, public_identity boundary).
+d. `git checkout main && git merge release/1.1.0 && git push origin main`. This merges the
+   version bump only after publishing, per D-P2-14.
+e. Update the Homebrew tap: `cp packaging/homebrew/findplus.rb <tap-clone>/Formula/findplus.rb`, commit, push.
+f. Run the wizard for a real first run: install Find+, open it, sign in with a real account.
+g. Decide whether to re-cut a 1.0.1 for the `web/.claude/` packaging gap (PHASE-REPORT.md item 5;
+   default is no).
 
-Final gate counts (full suite, CI lane parity, review-loop and adversarial-cap closure): non-browser 1677 passed, browser 215 passed, slow 2 passed; ruff, node, shellcheck, gen-* drift clean; clippy 0 warnings, cargo tests green, widget 43; CI run 35562428139 green on 57c57df; three QA loops closed (A 5, B 7, C 6, L3 3 findings fixed), blind cap 2 Gemini + 1 Sonnet passes adjudicated
+Gate counts at the original draft cut (`57c57df`, before the closeout round): non-browser 1677
+passed, browser 215 passed, slow 2 passed; ruff, node, shellcheck, gen-* drift clean; clippy 0
+warnings, cargo tests green, widget 43; CI run 35562428139 green; three QA loops closed (A 5, B 7,
+C 6, L3 3 findings fixed), blind cap 2 Gemini + 1 Sonnet passes adjudicated. Whoever re-cuts the
+release should re-run the full gate against current `main`'s tip rather than trust these counts.

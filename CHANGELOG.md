@@ -58,11 +58,15 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - `findplus start` finishes a fresh sign-in in one run: it discovers devices from every provider you are signed in to, shows them, tracks them all and installs the service. Pass `--no-track-all` to discover without tracking.
 - `findplus start` exits 4 when you are not signed in yet, instead of 0, and counts an Apple sign-in as being signed in.
 - `install.sh` is shorter and points at a new Uninstall wiki page for the manual service-removal commands it prints. Without `--start` its last line now points at `findplus setup`.
+- `findplus start` asks "Install and start the service now? [Y/n]" in an interactive terminal instead of only printing "Pass --yes"; a script or pipe with no terminal still needs `--yes`.
+- `findplus devices` lists from the local database by default instead of always re-querying Find Hub, so it works without a signed-in account; `--refresh` opts back into the live query. It also gained a Label column, and `--json` carries the field.
+- `findplus alerts rules list` and `findplus devices` render their tables with the same aligned-column helper, fixing a jammed header and missing columns in the alerts table.
+- A wrong PIN on the lock screen now shows the server's real "Incorrect PIN" message with a pointer to `findplus lock reset`, instead of the generic word "Locked".
+- `findplus lock reset` is a new, easier-to-find name for the existing PIN-recovery command, alongside `findplus reset-lock` and `findplus pin reset`.
 
 ### Fixed
-- The place dialog is now styled like the device and group editors, instead of painting as an unstyled browser-default strip across the map, and "Add place" opens it directly at the map's current centre — no map click required, so it is fully keyboard-reachable.
+- The place dialog is now styled like the device and group editors, instead of painting as an unstyled browser-default strip across the map, and "Add place" opens it directly at the map's current centre -- no map click required, so it is fully keyboard-reachable.
 - The map's starting view fits your tracked devices' latest fixes, or your saved places when none has reported yet, instead of always opening on a hardcoded US-centred view regardless of where your trackers actually are.
-- The local API's Host and Origin checks now also require the daemon's own port, not just the loopback hostname, closing a DNS-rebinding gap where a page could name any port it liked and still get past the guard.
 - The bottom tab bar on a phone-width dashboard stays clickable once the page is scrolled, instead of the map's overlay layer painting over it.
 - The bundled icon sprite no longer leaves a blank band above the toolbar.
 - The test suite's warning filters name the specific warnings Find+ suppresses, instead of ignoring every deprecation warning.
@@ -104,7 +108,33 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - The setup wizard renders inside a proper card with the same field and button styling as the rest of the app, instead of raw, unstyled rows, and offers WhatsApp as an inline setup step alongside Telegram.
 - A group's CSV, JSON, GPX and KML exports now carry each member's label, falling back to its device ID when no label is set, the same as a single device's export already did.
 - Pressing Next on the setup wizard's app lock step with a PIN typed and confirmed now sets it, instead of silently discarding it; a mismatched pair shows an inline error and stays on the step instead of advancing with no lock set.
-- Apple Find My fixes carry the accuracy the source actually gives, which is none: Find+ no longer invents a metres figure from Apple's confidence label. The dashboard now shows "Accuracy unknown" for these fixes instead of a made-up `±N m` reading, and a database upgrade nulls out any invented figures a previous version already stored.
+- Apple Find My fixes carry the accuracy the source actually gives, which is none: Find+ no longer invents a metres figure from Apple's confidence label. The dashboard now shows "Accuracy unknown" for these fixes instead of a made-up `±N m` reading, and a database upgrade nulls out any invented figures a previous version already stored. A saved place's own accuracy, when copied from an invented Apple observation, is nulled by the same migration.
+- Map marker popups show the tracker's display name as the heading, instead of the time.
+- Devices, groups, the map, the timeline and the macOS widget now read a device or group's label before its raw provider name almost everywhere that still showed the raw name: the Edit button and dialog title, group presence sentences, and the widget's device rows and letter badges.
+- The place dialog's tracker picker no longer lists every device twice the first time "Add place" is opened, and picking a tracker's location or an address-search result now shows "Location set from <name>." and pans the map to it.
+- The setup wizard's device-label input no longer gets squeezed unreadable at 375px width.
+- The wizard's Places step refreshes its list and re-fits the map after a place is added, instead of showing a stale list until the wizard reopens.
+- The wizard's alerts-latency notice shows once, instead of once per channel, and the Telegram token field is wide enough to show its placeholder.
+- The dashboard tabs sit in a navigation landmark with a `tablist` role, and the alerts tab's scrollable tables carry an explicit region role, for screen readers.
+- Alert text shows a fix's time in local time with its zone, instead of a bare timestamp.
+- The place dialog's Search/Use buttons and the place card's Edit/Delete buttons use the app's own button styling instead of unstyled browser defaults.
+- Timeline rows show the saved place name for a fix inside it, instead of only its coordinates.
+- The alerts Delivery log is readable at 360px as labelled cards instead of a squeezed table; a channel with no stored credentials is flagged instead of silently disabled, so a fresh install can still create its first rule; and a rejected Telegram token's raw server detail is replaced with a plain-language message.
+- The wizard's Devices step gets a visible "Track" column header, every device defaults to ticked on a fresh account with nothing tracked yet, and pressing Next with nothing ticked asks for confirmation first instead of silently tracking nothing.
+- The wizard's sign-in step has a heading, and the Google button reflects whether you are already signed in.
+- The wizard's "configure later" webhook link opens the Alerts tab, instead of pointing at a dead Settings anchor.
+- The wizard's summary step shows how many devices were actually tracked, and both the wizard and dashboard group dialogs block saving a group with no members selected, instead of showing "Unknown" with no explanation.
+- Declining sign-in during `findplus setup` leaves onboarding open to resume later, instead of marking it complete.
+- The dashboard no longer fires authenticated API calls, and no longer logs 401 errors, while Find+ is locked.
+- The custom-icon upload starts as soon as a file is chosen, instead of requiring a separate Upload click.
+- The phone-width tab bar draws its icons from the app's own SVG sprite instead of emoji glyphs, which rendered inconsistently across platforms and fonts.
+- The poll-interval field in Settings shows a plain-language message next to the field when the value is out of range, instead of the raw config error at the top of the dialog.
+- Chrome detection matches the same install locations the underlying Google Find Hub library searches, and the missing-Chrome notice only shows when Chrome is actually needed, instead of by default.
+- The alerts rule dialog is titled and styled like the place/group/device dialogs, defaults its channel checkboxes to whichever are actually connected instead of always ticking Telegram, and refuses to save a rule with nothing connected selected.
+- Every inline style the delivery log's column widths used is in CSS now, clearing the console errors they caused under the dashboard's Content-Security-Policy.
+
+### Security
+- The local API's Host and Origin checks now also require the daemon's own bound port, not just the loopback hostname, closing a DNS-rebinding gap where a page could name any port it liked and still get past the guard. The check reads the port the daemon actually bound to, not a config value that could change while it runs.
 
 ## [1.0.0] - 2026-09-19
 

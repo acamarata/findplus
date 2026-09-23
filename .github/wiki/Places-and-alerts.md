@@ -104,6 +104,10 @@ Google Find Hub and Apple Find My report locations through nearby participating 
 tag that has not passed near a participating device will not report until it does. Find+
 sends the alert as soon as the fix arrives; the delay is in the network, not in Find+.
 
+The alert text itself (Telegram, native and the Delivery log's Text/Body columns) shows the
+observed and reported times in your machine's local time with its zone abbreviation, for
+example "14:35 EDT", not UTC.
+
 ## Webhook payload
 
 A webhook alert POSTs a JSON body with `event`, `kind`, `subject`, `place`, `observed_at`,

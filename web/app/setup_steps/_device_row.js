@@ -31,13 +31,11 @@ export function debounce(fn, ms) {
 }
 
 function patchDevice(ctx, id, changes) {
-  return ctx
-    .api(`/api/devices/${encodeURIComponent(id)}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(changes),
-    })
-    .catch((err) => ctx.showAlert(err.message, "err"));
+  return ctx.api(`/api/devices/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(changes),
+  });
 }
 
 /**
@@ -74,7 +72,18 @@ function trackBox(device, defaultChecked) {
   return track;
 }
 
-function labelInput(ctx, device) {
+/** The row's own error line (N45): a failed PATCH used to go to ctx.showAlert
+ * -> #alert inside #app-shell, hidden for the whole time the wizard is open
+ * (applock.js documents the same trap). role="alert" announces this line's
+ * text the way applock's own field error is meant to read. */
+function rowError() {
+  const error = document.createElement("p");
+  error.className = "fp-dialog-error";
+  error.setAttribute("role", "alert");
+  return error;
+}
+
+function labelInput(ctx, device, error) {
   const label = document.createElement("input");
   label.type = "text";
   label.value = device.label || "";
@@ -88,10 +97,15 @@ function labelInput(ctx, device) {
   );
   label.addEventListener(
     "input",
-    debounce(
-      () => patchDevice(ctx, device.device_id, { label: label.value.trim() }),
-      PATCH_DEBOUNCE_MS
-    )
+    debounce(() => {
+      patchDevice(ctx, device.device_id, { label: label.value.trim() })
+        .then(() => {
+          error.textContent = "";
+        })
+        .catch((err) => {
+          error.textContent = err.message;
+        });
+    }, PATCH_DEBOUNCE_MS)
   );
   return label;
 }
@@ -115,12 +129,20 @@ export function deviceRow(ctx, device, onClosed, defaultChecked) {
   );
   const name = document.createElement("span");
   name.textContent = device.name || device.device_id;
+  const error = rowError();
   row.append(
     trackBox(device, defaultChecked),
     badge,
     name,
-    labelInput(ctx, device),
+    labelInput(ctx, device, error),
     editButton(ctx, device, onClosed)
   );
-  return row;
+  // N45: the error sits below the row (its own line), not inside the flex
+  // row itself -- .fp-setup-device-row wraps its five field children on
+  // their own layout rules (responsive.css); a wrapper keeps this line out
+  // of that without changing the row's child count or CSS selectors.
+  const wrap = document.createElement("div");
+  wrap.className = "fp-setup-device-row-wrap";
+  wrap.append(row, error);
+  return wrap;
 }

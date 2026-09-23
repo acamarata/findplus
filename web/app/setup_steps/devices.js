@@ -40,6 +40,7 @@ function renderRows(ctx, devices) {
 }
 
 async function refresh(ctx) {
+  els.error.textContent = "";
   await ctx.postJson("/api/devices/refresh");
   const body = await ctx.api("/api/devices");
   ctx.state.devices = body.devices || [];
@@ -70,8 +71,19 @@ export default {
     refreshBtn.className = "btn btn-secondary";
     refreshBtn.textContent = t("setup.devices.refresh");
     refreshBtn.addEventListener("click", () => {
-      refresh(ctx).catch((err) => ctx.showAlert(err.message, "err"));
+      refresh(ctx).catch((err) => {
+        els.error.textContent = err.message;
+      });
     });
+
+    const error = document.createElement("p");
+    error.className = "fp-dialog-error";
+    error.id = "fp-setup-devices-error";
+    // N45: a failed refresh went to ctx.showAlert -> #alert inside #app-shell,
+    // hidden for the whole time the wizard is open (applock.js documents the
+    // same trap). role="alert" announces this line the way a screen reader
+    // announces applock's own field error.
+    error.setAttribute("role", "alert");
 
     const note = document.createElement("p");
     note.className = "fp-wizard-footnote";
@@ -79,8 +91,8 @@ export default {
     // here, where the user is choosing which ones to watch.
     note.textContent = (ctx.state.config && ctx.state.config.notices.presence_stale) || "";
 
-    els = { list };
-    container.append(heading, listHeader, list, refreshBtn, note);
+    els = { list, error };
+    container.append(heading, listHeader, list, refreshBtn, error, note);
   },
   async onEnter(ctx) {
     await refresh(ctx);

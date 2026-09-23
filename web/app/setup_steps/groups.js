@@ -121,12 +121,20 @@ export default {
     add.className = "btn";
     add.textContent = t("setup.groups.add");
     add.addEventListener("click", () => {
-      addGroup(ctx).catch((err) => ctx.showAlert(err.message, "err"));
+      addGroup(ctx).catch((err) => {
+        els.error.textContent = err.message;
+      });
     });
 
     const error = document.createElement("p");
     error.className = "fp-dialog-error";
     error.id = "fp-setup-group-error";
+    // N45: a duplicate name (409) used to only log to the console -- ctx.showAlert
+    // writes into #alert inside #app-shell, hidden for the whole time the wizard
+    // is open (applock.js's own comment on the same trap). role="alert" makes
+    // this line's text change announced, the same way applock's own field error
+    // is meant to read even without an aria-live attribute of its own.
+    error.setAttribute("role", "alert");
 
     els = { list, name, members, error };
     container.append(

@@ -262,3 +262,42 @@ async def test_groups_step_name_field_has_an_accessible_name(page, base_url):
 
     label = await page.get_attribute("#fp-setup-group-name", "aria-label")
     assert label == "Group name"
+
+
+async def test_groups_step_duplicate_name_shows_inline_error(page, base_url):
+    """N45: a duplicate group name's 409 went to ctx.showAlert, which writes
+    into #alert inside #app-shell -- hidden for the whole time the wizard is
+    open, so nothing appeared on screen and the name silently stayed in the
+    box. The step's own #fp-setup-group-error now carries it, announced via
+    role="alert" the same way as the members-required message above."""
+
+    async def handle_groups(route):
+        if route.request.method == "POST":
+            await route.fulfill(
+                status=409,
+                content_type="application/json",
+                body=json.dumps({"detail": "group name 'Pets' already exists"}),
+            )
+        else:
+            await route.continue_()
+
+    await page.route("**/api/devices", _serve_devices([_device("TAG-1", "Keys", tracked=True)]))
+    await page.route("**/api/groups", handle_groups)
+
+    await _set_last_step(page, base_url, "groups")
+    await page.goto(base_url + "/#/setup")
+    await page.wait_for_selector("#fp-setup-group-name", timeout=15000)
+
+    await page.fill("#fp-setup-group-name", "Pets")
+    await page.check("#fp-setup-group-members input[type='checkbox']")
+    await page.click("#fp-setup-group-add")
+
+    error = page.locator("#fp-setup-group-error")
+    await page.wait_for_function(
+        "() => document.getElementById('fp-setup-group-error')?.textContent.length > 0",
+        timeout=15000,
+    )
+    assert "already exists" in await error.inner_text()
+    assert await error.get_attribute("role") == "alert"
+    # The name box is untouched, ready for the user to try a different name.
+    assert await page.input_value("#fp-setup-group-name") == "Pets"

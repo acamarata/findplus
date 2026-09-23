@@ -21,7 +21,9 @@ import struct
 import zlib
 
 import pytest
+from axe_playwright_python.async_playwright import Axe
 
+from .test_a11y import AXE_OPTIONS, BLOCKING
 from .test_lock import PIN
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -123,11 +125,13 @@ async def test_upload_assign_render_and_purge(page, base_url, tmp_path):
         assert await image.count() == 1
 
         # Purge: unassign first (an in-use icon refuses to delete, 409), then
-        # delete it through the picker's own "x" overlay.
+        # delete it through the picker's own "x" button -- a sibling of the
+        # select button inside the wrapper span, not nested inside it
+        # (nested-interactive fix, 2026-09-23), hence the `+` combinator.
         await _restore_seeded_icon(page, base_url)
         await _open_edit_dialog(page, base_url)
         page.on("dialog", lambda d: d.accept())
-        await page.click(f'#fp-device-dialog [data-icon-id="{icon_id}"] .fp-icon-delete')
+        await page.click(f'#fp-device-dialog [data-icon-id="{icon_id}"] + .fp-icon-delete')
         await page.locator(f'#fp-device-dialog [data-icon-id="{icon_id}"]').wait_for(
             state="detached"
         )
@@ -260,3 +264,31 @@ async def test_save_right_after_upload_sends_the_uploaded_icon(page, base_url, t
             await _restore_seeded_icon(page, base_url)
         with contextlib.suppress(Exception):
             await page.request.delete(f"{base_url}/api/icons/custom/{icon_id.split(':', 1)[1]}")
+
+
+async def test_no_serious_axe_violations_with_a_custom_icon(page, base_url, tmp_path):
+    """A custom icon's delete "x" used to sit inside the select button itself
+    -- a serious `nested-interactive` violation axe never had a custom icon
+    on screen to catch before (custom-icons.js's swatch/delete restructure,
+    2026-09-23). Upload one, scan the picker with it visible, delete it in a
+    `finally` (test_a11y.py's dialog-scan pattern, applied here since it is
+    this file's fixture that gets a custom icon onto the page)."""
+    png_path = tmp_path / "icon.png"
+    png_path.write_bytes(_make_png())
+    await _open_edit_dialog(page, base_url)
+    icon_id = await _upload_icon(page, png_path)
+    short = icon_id.split(":", 1)[1]
+    try:
+        await _wait_selected(page, icon_id)
+        results = await Axe().run(page, options=AXE_OPTIONS)
+        violations = [v for v in results.response["violations"] if v.get("impact") in BLOCKING]
+        assert not violations, "\n".join(
+            f"{v['impact']}: {v['id']} -> "
+            + ", ".join(str(n.get("target")) for n in v.get("nodes", [])[:3])
+            for v in violations
+        )
+    finally:
+        with contextlib.suppress(Exception):
+            await _restore_seeded_icon(page, base_url)
+        with contextlib.suppress(Exception):
+            await page.request.delete(f"{base_url}/api/icons/custom/{short}")

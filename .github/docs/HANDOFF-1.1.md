@@ -47,10 +47,17 @@ item against the tree on 2026-09-22).
 
 ## 1a. Closeout round (after the draft branch point, `63a8800`..`HEAD`)
 
-The draft v1.1.0 release was cut from `release/1.1.0` at `63a8800`. A further closeout round
-(UAT2 findings, `N1`-`N15`, plus a handful of `closeout C-*`/`G*` items) landed on `main`
-afterwards and is not in the cut draft. **The draft must be re-cut from current `main` before
-publishing** (see §5). Highlights, grouped by what a user would notice:
+The draft v1.1.0 release was cut from `release/1.1.0` at `63a8800`. Four more UAT walks (UAT2
+through UAT5), two GP reviews of the fixes each round produced, a Linux clean-install check, two
+Windows CI failures, and three release-script bugs found while building the draft dmg all landed
+on `main` afterwards and are not in the cut draft. **The draft must be re-cut from current `main`
+before publishing** (see §5). Round-by-round counts: `.claude/phases/current/p2/PHASE-REPORT.md`
+§Closeout rounds. Nothing below is published; the dmg on the existing draft still predates all of
+it.
+
+**Re-cut draft: <pending>**
+
+Highlights, grouped by what a user would notice:
 
 - **Security**: the local API's Host/Origin guard now also checks the daemon's own bound port
   (`a550c79`, `81592a6`, `31b628c`), closing a DNS-rebinding gap where a page naming any port
@@ -89,6 +96,36 @@ publishing** (see §5). Highlights, grouped by what a user would notice:
   clean checkout is restored (`76327e6`).
 - Every CSP-relevant style moved out of inline attributes; a new browser test fails on any CSP
   console error across every tab, at both widths (`d29a5a6`).
+- **UAT3-UAT5 (three more walks, 37 findings, all fixed)**: the alerts rules table becomes a
+  card list instead of overflowing its pane (`96c9383`); Places, Groups and the widget now agree
+  on one staleness window (`a9cbda5`, `2c9be82`); the Delivery log renders text and body for every
+  channel, not just desktop notifications (`a9cbda5`, `d99965b`); the Chrome-not-found notice only
+  shows when you're actually signed out (`2330fac`); the More menu closes on Escape or an outside
+  tap (`6d317ea`); alert tables print local time and yes/no instead of raw UTC/`True` (`2330fac`);
+  the wizard's welcome step states plainly what leaves the machine and stops calling map tiles a
+  thing you turn on (`7a83aef`, `5e8fa0b`); `findplus status` probes the daemon's own bound port
+  instead of the default (`5cb3203`); the More menu's Lock item is hidden with no PIN set
+  (`30c6fd7`); duplicate place/group names get a plain-language error instead of a raw 409
+  (`5cd6c83`); Poll Now disables itself for its cooldown instead of racing a 429 (`4b5782b`); the
+  wizard's Groups/Devices steps show their own errors instead of a hidden banner (`0ec1fbc`); the
+  wizard's Add place button gets breathing room above the map (`ebcebd5`); Settings' confirm-PIN
+  error is linked for screen readers (`3d57ea0`); `alerts deliveries` gained `--json` and channel
+  names read "Desktop notification"/"WhatsApp" instead of raw ids (`101548e`).
+- **Linux and Windows**: a clean-install check on Linux found `findplus stop` claiming "Stopped."
+  with no service installed, and `install.sh`'s Python-floor error naming neither the version it
+  found nor a fix, both corrected (`b37e97a`, `LINUX-1`). Windows CI turned up two real bugs, not
+  test-only gaps: `time.tzset()` doesn't exist on Windows, so alert-message tests errored on every
+  run until local time was read through a seam tests can pin directly (`fc8563c`); and Chrome
+  detection had no win32 branch at all, so the Settings sign-in card would always say Chrome was
+  missing on a real Windows install (`fc8563c`, `WINCI-1`/`WINCI-2`).
+- **Release script**: three bugs found building the draft dmg, not by a review round. The
+  `externalBin` sidecar launcher shipped unsigned, which the outer app-sign step rejected
+  (`6089eae`); the root-level dmg + sha256 `release-local.sh` writes were left untracked and dirty
+  after a real build (`2598326`); and the widget step built into the global DerivedData instead of
+  `desktop/widget/build`, the path `embed-widget.sh` actually reads, so a stale appex could ship
+  (`5414d1a`).
+- **Gate hardening**: the local gate script now treats an all-skipped browser or a11y lane (every
+  test skipped, nothing passed) as a Chromium-missing failure instead of reporting a false green.
 
 ## 2. Unproven, requires owner action
 
@@ -144,6 +181,8 @@ a. **Re-cut the draft from current `main`**: the existing draft (release/1.1.0 @
    sign, notarise -- against current `main`, replacing the draft's assets rather than publishing
    the stale ones. `gh release view v1.1.0` still shows it as an unpublished draft targeting
    `release/1.1.0`.
+
+   **Re-cut draft: <pending>**
 b. Review `.claude/phases/current/p2/release/draft-release-log.md` (P2-E13-W6-S1-T7's output) for
    the exact steps the original cut followed.
 c. Open the re-cut draft release on GitHub and click Publish (owner_only, public_identity boundary).

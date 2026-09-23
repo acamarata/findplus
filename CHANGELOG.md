@@ -7,6 +7,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- `alerts deliveries --json` prints the delivery log as JSON, matching `alerts rules list --json`.
 - The place dialog can now fill its coordinates two ways instead of only a map click: "Use a tracker's last location" picks any tracked device's most recent fix, and an opt-in address search (type an address, press Search) queries OpenStreetMap's Nominatim through the daemon, never the browser, only when you press the button.
 - The Places tab's side panel lists every saved place, with its color, radius and who is currently inside it, plus Edit, Delete and click-to-centre on each row.
 - Devices and groups can now use a custom uploaded PNG as their badge icon, alongside the bundled Lucide glyphs and letter badges. Upload one from the icon picker's "Your icons" section; an icon still in use cannot be deleted. The macOS widget cannot fetch images, so a custom icon shows there as a letter badge instead.
@@ -49,6 +50,9 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - Group cards on the Groups tab, each with the group badge, its member avatars, its live presence verdict, and edit and delete buttons.
 
 ### Changed
+- `findplus devices`' request-rate hint names "requests" generically instead of always saying "Google requests/hour", so it reads right for an Apple-only setup.
+- Alert rule cards and `alerts rules list` show channel names like "Desktop notification" and "WhatsApp" instead of raw ids such as `native`/`whatsapp`.
+- CLI and dialog device counts use the right singular or plural ("1 device tracked" vs "6 devices tracked") instead of always "device(s)".
 - CI runs the accessibility scan, the icon and catalog drift check, and the Rust notification tests as three lanes of their own, so each failure names itself.
 - README and wiki screenshots are regenerated at 1280x800, with a matching phone-width set at 375x812.
 - The Chrome-not-found message is one sentence now shared by the terminal, the API and `/api/config`, instead of two wordings that could drift apart.
@@ -132,6 +136,30 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - Chrome detection matches the same install locations the underlying Google Find Hub library searches, and the missing-Chrome notice only shows when Chrome is actually needed, instead of by default.
 - The alerts rule dialog is titled and styled like the place/group/device dialogs, defaults its channel checkboxes to whichever are actually connected instead of always ticking Telegram, and refuses to save a rule with nothing connected selected.
 - Every inline style the delivery log's column widths used is in CSS now, clearing the console errors they caused under the dashboard's Content-Security-Policy.
+
+- Alerts rules render as stacked cards inside the narrow side pane, with Edit and Delete inside it, instead of a table too wide for the pane to show.
+- Places, Groups and the macOS widget now agree on one staleness window, instead of Places and the widget using a 90-minute cutoff while a group's own cutoff disagreed with no explanation.
+- The Delivery log shows the sent text and body for every channel, not only desktop notifications; a WhatsApp row no longer claims its message "is not logged" when it is.
+- A stale group member's note counts minutes up to two hours, instead of rounding "94 minutes" straight to "1 h".
+- The Chrome-not-found notice on the sign-in step and in Settings shows only when you are actually signed out and Chrome is missing, instead of also showing while you are signed in.
+- Settings shows a Switch account button once you are signed in to a provider.
+- The More menu closes on Escape or a tap outside it, and returns focus to the More button.
+- The More menu's Lock item is hidden until a PIN is actually set, instead of opening a lock screen that any PIN dismisses.
+- The group dialog's cluster-radius hint sits on its own line under the slider instead of squeezed beside it, and a group card's Edit and Delete buttons share one row instead of wrapping.
+- The Groups tab's presence panel refreshes after you save or delete the selected group, instead of showing the old verdict until you reselect it.
+- `alerts deliveries` and `alerts rules list` print local time and a plain yes/no, instead of raw UTC timestamps and Python's True/False.
+- The wizard's token, phone, API key and device-label fields carry accessible names for screen readers, and the phone field shows an example number.
+- The wizard's welcome step says plainly what leaves the machine (sign-in, alert channels you connect, map tiles, and opt-in address search) instead of a blanket claim that nothing does except Google or Apple sign-in, and no longer lists map tiles among the things you turn on, since they always load.
+- The first-run wizard's map shows your tracked devices' latest fixes before the dashboard has ever booted, instead of only place circles with no trackers on it; its zoom and attribution controls are readable in dark mode.
+- The wizard's Groups step name field has a visible label, and its app-lock step shows a PIN error next to the field instead of a plain-grey line below the whole form.
+- The wizard's Done step shows the real tracked-device count after a reload resumes it partway through, instead of "0 devices tracked".
+- The wizard's Groups and Devices steps show their own errors inline instead of writing them to a hidden banner, so a duplicate group name or a failed device save is no longer silent.
+- Saving a place or group whose name is already in use shows a plain sentence instead of the raw server error.
+- Poll Now disables itself for the remaining cooldown instead of letting a second click fail with a console error.
+- The wizard's Places step gives its Add place button room above the map instead of sitting flush against it.
+- `findplus status` checks the daemon's own bound port, instead of the default, so it reports correctly when the daemon runs on a custom port.
+- Settings' confirm-PIN field is linked to its mismatch error for screen readers, and a new PIN attempt clears the old top-of-dialog message instead of leaving it next to the new field error.
+- The phone-width topbar's More label sits centred in its button, instead of pinned to the top.
 
 ### Security
 - The local API's Host and Origin checks now also require the daemon's own bound port, not just the loopback hostname, closing a DNS-rebinding gap where a page could name any port it liked and still get past the guard. The check reads the port the daemon actually bound to, not a config value that could change while it runs.

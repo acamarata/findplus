@@ -71,7 +71,10 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
   font-size: 11px; cursor: pointer;
 }
 .fp-tabbar button[aria-current="page"] { color: var(--text); }
-.fp-tabbar .fp-tabbar-icon { font-size: 18px; line-height: 1; }
+/* UAT2 U26: was font-size for the retired emoji glyphs; the sprite's <use>
+   inherits the button's own `color` via `stroke="currentColor"` (the same
+   mechanism badge.js's Lucide glyphs use), so no colour rule is needed here. */
+.fp-tabbar .fp-tabbar-icon { width: 20px; height: 20px; }
 
 /* --- topbar overflow menu (phone tier) ----------------------------------- */
 #btn-more { display: none; }
@@ -176,44 +179,30 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
     align-items: center !important;
     flex-wrap: wrap;
   }
+  /* UAT N13: components.css's `.fp-dialog-field input[type="text"] { flex: 1;
+     min-width: 0; }` let the label input shrink to fit whatever was left on
+     the checkbox/badge/name line instead of wrapping -- "Your name for this
+     tracker" read as "Your na" at 375px. A real flex-basis and min-width
+     means it no longer fits that leftover space, so it (and the Edit button
+     after it) wrap to their own line with room to read the placeholder. */
+  .fp-setup-device-row input[type="text"] {
+    flex: 1 1 160px;
+    min-width: 160px;
+  }
 
   /* The rules table (8 columns) is wider than a phone viewport; scroll the
      wrapper instead of the whole page so the rest of the tab stays put
      (visual gate W2 finding). */
   .fp-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
-  /* UAT U9: the delivery log's 8 fixed-width columns (components.css)
-     squeezed into a 360px pane read as "w...", "gr...", 7-line cells --
-     unreadable, not just tight. Below 600px it becomes one card per
-     delivery: each td's own data-label (alerts_deliveries.js's cell())
-     stands in for the now-hidden header, and content wraps instead of the
-     ellipsis truncation the desktop table still uses (components.css). */
-  #fp-deliveries-table, #fp-deliveries-table tbody, #fp-deliveries-table tr {
-    display: block; width: auto;
-  }
-  #fp-deliveries-table thead, #fp-deliveries-table colgroup { display: none; }
-  #fp-deliveries-table tr {
-    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 0 0 8px;
-  }
-  #fp-deliveries-table td {
-    display: flex; gap: 10px; justify-content: space-between; align-items: baseline;
-    padding: 3px 0; border: none; width: auto;
-  }
-  /* Matches components.css's own nth-child list + specificity (id, pseudo-
-     class, type) so this, loaded after it, actually wins the cascade: the
-     desktop ellipsis/nowrap truncation is exactly what made these columns
-     unreadable at 360px in the first place. */
-  #fp-deliveries-table td:nth-child(2), #fp-deliveries-table td:nth-child(3),
-  #fp-deliveries-table td:nth-child(4), #fp-deliveries-table td:nth-child(5),
-  #fp-deliveries-table td:nth-child(8) {
-    white-space: normal; overflow: visible; text-overflow: clip;
-  }
-  #fp-deliveries-table td::before {
-    content: attr(data-label); flex: 0 0 auto; color: var(--muted);
-    font-size: 11px; text-transform: uppercase; letter-spacing: .02em;
-  }
-  #fp-deliveries-table td:empty { display: none; }
-  #fp-deliveries-table details summary { cursor: pointer; color: var(--accent); }
+  /* UAT U9/UAT2 U9: the delivery log's card layout (one card per delivery,
+     each td's data-label standing in for the hidden header) used to live
+     only here, gated on the VIEWPORT. It is a `@container (max-width: 500px)`
+     rule in components.css now, scoped to #tab-alerts's own rendered width --
+     that covers this phone tier (the pane is always well under 500px below
+     600px viewport) AND the narrow ~380px desktop side pane the viewport-only
+     version never reached (UAT2 found the 1280 case still an 8-column table
+     squeezed into ~348px). Nothing left to duplicate here. */
 
   /* Grouped so "Download" always wraps together with the format/scope
      controls instead of landing alone on its own row (visual gate W2

@@ -188,6 +188,30 @@ async def test_devices_step_checkbox_stays_inline_with_name_at_375(page, base_ur
         await _set_last_step(page, base_url, None)
 
 
+async def test_devices_step_label_input_is_not_squeezed_at_375(page, base_url) -> None:
+    """UAT N13: `.fp-dialog-field input[type="text"] { flex: 1; min-width: 0; }`
+    let the label input shrink to fit whatever was left on the row instead of
+    wrapping onto its own line -- "Your name for this tracker" read as
+    "Your na" at 375px. It now carries its own flex-basis/min-width, so it
+    wraps instead of shrinking, with room to read most of the placeholder."""
+    await page.route("**/api/devices/refresh", _ok)
+    await page.route(
+        "**/api/devices", _serve_devices([_device("TAG-1", "Chipolo ONE Point", tracked=False)])
+    )
+    await page.set_viewport_size({"width": 375, "height": 800})
+    try:
+        await _set_last_step(page, base_url, "devices")
+        await page.goto(base_url + "/#/setup")
+        await page.wait_for_selector("#fp-setup-devices-list input[data-track]", timeout=15000)
+
+        label = page.locator("#fp-setup-devices-list input[type='text']")
+        box = await label.bounding_box()
+        assert box["width"] >= 130, box
+    finally:
+        await page.set_viewport_size({"width": 1280, "height": 900})
+        await _set_last_step(page, base_url, None)
+
+
 async def test_groups_step_add_with_no_members_blocks_save(page, base_url):
     """UAT U16: the wizard's own Add (separate code path from the dashboard's
     group dialog) used to create a zero-member group silently."""

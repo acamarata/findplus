@@ -84,7 +84,7 @@
     "skipMap": "Skip map, go to timeline"
   },
   "field": {
-    "customColor": "Custom color",
+    "customColor": "Custom colour",
     "telegramToken": "Telegram bot token"
   },
   "devices": {
@@ -122,10 +122,10 @@
     "field": {
       "label": "Label",
       "icon": "Icon",
-      "color": "Color",
+      "color": "Colour",
       "tracked": "Tracked",
       "letter": "Badge letter",
-      "customColor": "Custom color"
+      "customColor": "Custom colour"
     },
     "dialog": {
       "title_edit": "Edit {name}"
@@ -146,7 +146,6 @@
     "verdictPartial": "Partial",
     "listAway": "Away from the others",
     "staleBadge": "{name} — no fix for {age}",
-    "staleBadgeNoFix": "{name} — no fix yet",
     "dialog": {
       "title_add": "Add group",
       "title_edit": "Edit group"
@@ -154,7 +153,7 @@
     "field": {
       "name": "Name",
       "icon": "Icon",
-      "color": "Color",
+      "color": "Colour",
       "quorum": "Alert when",
       "quorum_any": "Any member arrives",
       "quorum_majority": "Most members arrive",
@@ -209,7 +208,7 @@
       "title_edit": "Edit {name}"
     },
     "field": {
-      "customColor": "Custom color",
+      "customColor": "Custom colour",
       "useTrackerLocation": "Use a tracker's last location",
       "use": "Use",
       "chooseTracker": "Choose a tracker…",
@@ -334,7 +333,6 @@
       "kind": "Kind",
       "text": "Text",
       "body": "Body",
-      "notNativeText": "{channel} sends its own message, not logged here",
       "sent": "Sent",
       "status": "Status",
       "error": "Error"
@@ -491,7 +489,6 @@
     "signInGoogle": "Sign in with Google",
     "google": {
       "signin": "Sign in with Google",
-      "switchAccount": "Switch account",
       "launching": "Starting Chrome…",
       "waiting": "Sign in inside the Chrome window that just opened.",
       "capturing": "Finishing up…",

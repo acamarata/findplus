@@ -249,7 +249,6 @@ async function main() {
   // dialog the user opens long after this settles, and a missing sprite must
   // not stop the dashboard booting.
   loadIconSprite().catch(() => {});
-
   // Paint the cached theme before anything else so there is no flash.
   applyTheme(getStoredTheme());
 
@@ -265,11 +264,17 @@ async function main() {
 
   initMap();
   wireControls();
+
+  // UAT2 N12: ask about the lock first (a public GET) so state.locked is set
+  // before Places/Groups/Alerts wire up below -- each checks it and skips its
+  // own fetch while locked, rather than firing and 401ing. init() still runs
+  // either way: it does one-time DOM/map wiring too, which refreshTabsAfterUnlock() needs already done.
+  const locked = await refreshLockState();
+  if (!locked) import("./notices.js").then((m) => m.loadNotices()).catch(() => {});
+
   // Places tab: draws saved geofence circles and injects presence chips into
-  // device rows. Dynamic import keeps places.js optional at parse time.
-  // Awaited, unlike before, because the wizard's Places step borrows this
-  // module's dialog and the map it was initialised with; the onboarding check
-  // below can redirect straight into that step.
+  // device rows. Awaited: the wizard's Places step borrows this module's
+  // dialog and map, and the onboarding check below can redirect into it.
   const deviceList = document.getElementById("device-list");
   await import("./places.js").then((m) => m.init(state.map, deviceList));
   // Groups tab: coloured member overlays and the presence panel. Wired here
@@ -277,12 +282,7 @@ async function main() {
   // the Groups tab has nothing to bind its selector or overlay layer to.
   await import("./groups.js").then((m) => m.init(state.map, deviceList));
   await import("./alerts.js").then((m) => m.init());
-
-  // Ask about the lock BEFORE requesting any location data. A locked install
-  // has a PIN, which implies a wizard that already ran, so the onboarding
-  // check below is deliberately downstream of this: it never runs while the
-  // lock screen owns the page (specs/onboarding.md § 5).
-  if (await refreshLockState()) return;
+  if (locked) return;
 
   // A never-onboarded install goes to the wizard; one that navigated
   // elsewhere gets the banner instead.

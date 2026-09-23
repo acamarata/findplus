@@ -22,7 +22,7 @@
 "use strict";
 
 import { api } from "./api.js";
-import { showAlert, fmtAgeMinutes } from "./state.js";
+import { state, showAlert, fmtAgeMinutes } from "./state.js";
 import { t } from "./i18n.js";
 import { initDialog, openEditDialog, purgeDialog, showAddDialog } from "./places_dialog.js";
 import * as placesList from "./places_list.js";
@@ -43,7 +43,11 @@ export function init(mapArg, _deviceListEl) {
   // native <button> (already a Tab stop, already fires on Enter/Space) is
   // now the whole affordance.
   if (addBtn) addBtn.addEventListener("click", () => showAddDialog(map.getCenter()));
-  refreshAll();
+  // UAT2 N12: main.js awaits refreshLockState() before calling init(), so
+  // state.locked is already known here -- skip the fetch rather than fire it
+  // and swallow a 401. lock.js's refreshTabsAfterUnlock() calls refreshAll()
+  // again once unlocked.
+  if (!state.locked) refreshAll();
 }
 
 export async function refreshAll() {

@@ -34,9 +34,6 @@ export function init(mapArg, _deviceListEl) {
   map = mapArg;
   overlayLayer = L.layerGroup().addTo(map);
   initDialog(loadGroups);
-  // Same locked-boot swallow as loadGroups() below: init() renders the cards,
-  // which 401s while the lock screen is up, and an uncaught rejection there is
-  // a page error (cli/tests/test_ui_browser.py asserts there are none).
   groupsList.init(document.getElementById("fp-groups-list")).catch(() => {});
   const select = document.getElementById("fp-group-select");
   if (select) {
@@ -45,10 +42,11 @@ export function init(mapArg, _deviceListEl) {
       else clearGroup();
     });
   }
-  // Swallow a locked-boot 401 here (matches places.js:refreshAll) — the
-  // lock screen already owns showing that state; a later loadGroups()/
-  // refreshPresence() call after unlock repopulates the selector.
-  loadGroups().catch(() => {});
+  // UAT2 N12: main.js awaits refreshLockState() before calling init(), so
+  // state.locked is already known here -- skip the fetch rather than fire it
+  // and swallow a 401. lock.js's refreshTabsAfterUnlock() calls
+  // refreshPresence() again once unlocked, which repopulates the selector.
+  if (!state.locked) loadGroups().catch(() => {});
 }
 
 export async function loadGroups() {

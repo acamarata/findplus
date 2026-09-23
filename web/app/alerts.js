@@ -16,7 +16,7 @@
  *              build-notes.md § E10-S2); GET returns `{"widget.show_map": bool}`.
  */
 "use strict";
-import { $ } from "./state.js";
+import { $, state } from "./state.js";
 import { t } from "./i18n.js";
 import { api } from "./api.js";
 import {
@@ -44,7 +44,11 @@ export function init() {
   // serialize an extra network round trip into main.js's boot chain, which
   // already awaits this init() call.
   showTelegramTokenPlaceholder();
-  refreshAll();
+  // UAT2 N12: main.js awaits refreshLockState() before calling init(), so
+  // state.locked is already known here -- skip the fetch rather than fire it
+  // and swallow a 401. lock.js's refreshTabsAfterUnlock() calls refreshAll()
+  // again once unlocked.
+  if (!state.locked) refreshAll();
 }
 export async function refreshAll() {
   // A 401 here already showed the lock screen; loadWidgetToggle() runs either way.

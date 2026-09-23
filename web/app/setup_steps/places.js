@@ -14,12 +14,19 @@
  *              along inside `.map-pane` (it is a sibling of `#map`, not a
  *              child); it is hidden for the duration, since a first-run,
  *              near-empty map has no observed path for the sentence to
- *              describe (visual gate W4 F3).
+ *              describe (visual gate W4 F3). UAT N6: the dialog's own
+ *              onSaved callback (wired by the dashboard's places.js) reloads
+ *              the DASHBOARD's list, which is hidden behind the wizard -- this
+ *              step reloads its own list off the dialog's "close" event
+ *              instead, the same pattern _device_row.js's Edit button uses.
+ *              The map opens fitted to the tracked devices (or saved places)
+ *              via map.js's own setDefaultView(), instead of world zoom.
  */
 "use strict";
 
 import { t } from "../i18n.js";
 import { showAddDialog } from "../places_dialog.js";
+import { setDefaultView } from "../map.js";
 
 /** Where `.map-pane` came from, so onLeave can put it back exactly there. */
 let borrowed = null;
@@ -61,6 +68,13 @@ function placeRow(place) {
   return row;
 }
 
+/** Re-fetch and repaint the step's own list (onEnter, and after Add saves). */
+async function reloadList(ctx) {
+  const places = await ctx.api("/api/places");
+  els.list.textContent = "";
+  places.forEach((place) => els.list.append(placeRow(place)));
+}
+
 export default {
   id: "places",
   canSkip: true,
@@ -78,8 +92,16 @@ export default {
     add.textContent = t("setup.places.add");
     // U4/U10: opens the dialog at the borrowed map's own current centre,
     // same as the dashboard's "Add place" — no map click required here
-    // either.
-    add.addEventListener("click", () => showAddDialog(ctx.state.map.getCenter()));
+    // either. N6: the dialog's own onSaved callback reloads the dashboard's
+    // (hidden) list, not this one, so reload off the dialog's own close —
+    // fired on Save and on Cancel alike, matching _device_row.js's edit flow.
+    add.addEventListener("click", () => {
+      showAddDialog(ctx.state.map.getCenter());
+      const dlg = document.getElementById("fp-place-dialog");
+      if (dlg) {
+        dlg.addEventListener("close", () => reloadList(ctx).catch(() => {}), { once: true });
+      }
+    });
 
     const mapHost = document.createElement("div");
     mapHost.id = "fp-setup-map-host";
@@ -90,9 +112,11 @@ export default {
     if (ctx.state.map) ctx.state.map.invalidateSize();
   },
   async onEnter(ctx) {
-    const places = await ctx.api("/api/places");
-    els.list.textContent = "";
-    places.forEach((place) => els.list.append(placeRow(place)));
+    await reloadList(ctx);
+    // N6: a fresh borrowed map defaulted to world zoom with no tracker
+    // markers to give it a reason to zoom in. Fit it the same way the
+    // dashboard does: tracked devices' latest fixes, else saved places.
+    await setDefaultView().catch(() => {});
   },
   onLeave(ctx) {
     returnMap(ctx);

@@ -209,7 +209,7 @@ def devices(
 @click.option("--icon", "icon_value", default=None, help="lucide:<name>, letter:<X>, letter, none.")
 @click.option("--color", "color_value", default=None, help="Lowercase #rrggbb.")
 def label_device_cmd(device_id, label_value, icon_value, color_value):
-    """Set a device's label, icon and/or colour."""
+    """Set a device's label, icon and/or color."""
     if label_value is None and icon_value is None and color_value is None:
         click.echo("Error: give at least one of --label, --icon, --color", err=True)
         sys.exit(2)

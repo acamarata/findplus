@@ -209,7 +209,7 @@ def _step_devices(yes: bool) -> None:
             else:
                 click.echo("Nothing selected; tracking nothing for now.")
 
-    click.echo("Set labels, icons and colours later from the dashboard.")
+    click.echo("Set labels, icons and colors later from the dashboard.")
 
 
 def _step_groups(yes: bool) -> None:

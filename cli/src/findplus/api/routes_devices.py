@@ -198,7 +198,7 @@ def choose_default(device_id: str | None = Body(default=None, embed=True)) -> di
 
 
 def patch_device(device_id: str, body: DevicePatch) -> dict[str, Any]:
-    """Edit one device's label, icon, colour or tracked flag.
+    """Edit one device's label, icon, color or tracked flag.
 
     `label` is read through `model_fields_set` because clearing a label is
     `{"label": ""}`, which validates to `None` and must be written; an

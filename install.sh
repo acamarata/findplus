@@ -36,7 +36,8 @@ find_python() {
     echo "find+: $novenv has no venv module (Debian ships it apart): sudo apt install $pkg" >&2
     exit 1
   fi
-  echo "find+: Python 3.12-3.14 with the venv module required" >&2
+  found=$(python3 -c 'import sys;print("%d.%d" % sys.version_info[:2])' 2>/dev/null || echo none)
+  echo "find+: Python 3.12-3.14 with venv required (python3 here: $found); get one via your package manager, python.org or 'uv python install 3.12', then rerun" >&2
   exit 1
 }
 

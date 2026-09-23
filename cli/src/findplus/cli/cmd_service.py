@@ -181,6 +181,12 @@ def stop() -> None:
     _prep()
     from findplus import service
 
+    # A clean-machine check found "Stopped." printed with no service ever
+    # installed: say what actually happened instead.
+    if not service.is_installed():
+        click.echo("Find+ is not installed as a background service, so nothing was stopped.")
+        click.echo("A daemon started with `findplus serve` stops with Ctrl+C.")
+        return
     service.stop()
     click.echo("Stopped. The unit files are kept and the service returns at the next login.")
     click.echo("Run `findplus uninstall --yes` to remove the unit files and daemon.json.")

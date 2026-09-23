@@ -21,12 +21,26 @@ from tests.service._helpers import patch_manager as _patch_manager
 # ------------------------------------------------------------------------ stop
 def test_stop_calls_facade_and_explains_next_steps(tmp_db, monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[bool] = []
+    monkeypatch.setattr("findplus.service.is_installed", lambda *a, **k: True)
     monkeypatch.setattr("findplus.service.stop", lambda *a, **k: calls.append(True))
     result = CliRunner().invoke(main, ["stop"])
     assert result.exit_code == 0, result.output
     assert calls == [True]
     assert "uninstall --yes" in result.output
     assert "next login" in result.output
+
+
+def test_stop_without_a_service_says_nothing_was_stopped(
+    tmp_db, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[bool] = []
+    monkeypatch.setattr("findplus.service.is_installed", lambda *a, **k: False)
+    monkeypatch.setattr("findplus.service.stop", lambda *a, **k: calls.append(True))
+    result = CliRunner().invoke(main, ["stop"])
+    assert result.exit_code == 0, result.output
+    assert calls == []
+    assert "nothing was stopped" in result.output
+    assert "Stopped." not in result.output
 
 
 # --------------------------------------------------------------------- restart

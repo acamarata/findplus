@@ -84,7 +84,8 @@
     "skipMap": "Skip map, go to timeline"
   },
   "field": {
-    "customColor": "Custom colour"
+    "customColor": "Custom color",
+    "telegramToken": "Telegram bot token"
   },
   "devices": {
     "title": "Your devices",
@@ -121,10 +122,10 @@
     "field": {
       "label": "Label",
       "icon": "Icon",
-      "color": "Colour",
+      "color": "Color",
       "tracked": "Tracked",
       "letter": "Badge letter",
-      "customColor": "Custom colour"
+      "customColor": "Custom color"
     },
     "dialog": {
       "title_edit": "Edit {name}"
@@ -145,6 +146,7 @@
     "verdictPartial": "Partial",
     "listAway": "Away from the others",
     "staleBadge": "{name} — no fix for {age}",
+    "staleBadgeNoFix": "{name} — no fix yet",
     "dialog": {
       "title_add": "Add group",
       "title_edit": "Edit group"
@@ -152,7 +154,7 @@
     "field": {
       "name": "Name",
       "icon": "Icon",
-      "color": "Colour",
+      "color": "Color",
       "quorum": "Alert when",
       "quorum_any": "Any member arrives",
       "quorum_majority": "Most members arrive",
@@ -207,7 +209,7 @@
       "title_edit": "Edit {name}"
     },
     "field": {
-      "customColor": "Custom colour",
+      "customColor": "Custom color",
       "useTrackerLocation": "Use a tracker's last location",
       "use": "Use",
       "chooseTracker": "Choose a tracker…",
@@ -308,7 +310,7 @@
     "whatsapp": {
       "heading": "WhatsApp",
       "phone": "Phone",
-      "phonePlaceholder": "+E164",
+      "phonePlaceholder": "+1 555 555 0123",
       "apikey": "API key",
       "save": "Save",
       "test": "Send test",
@@ -332,6 +334,7 @@
       "kind": "Kind",
       "text": "Text",
       "body": "Body",
+      "notNativeText": "{channel} sends its own message, not logged here",
       "sent": "Sent",
       "status": "Status",
       "error": "Error"
@@ -438,6 +441,7 @@
       "edit": "Edit",
       "track": "Track",
       "trackFor": "Track {name}",
+      "labelFor": "Label for {name}",
       "confirm_none_tracked": "Track nothing? Find+ will not poll any tracker until you come back and tick one (or run findplus devices --track-all later)."
     },
     "groups": {
@@ -487,6 +491,7 @@
     "signInGoogle": "Sign in with Google",
     "google": {
       "signin": "Sign in with Google",
+      "switchAccount": "Switch account",
       "launching": "Starting Chrome…",
       "waiting": "Sign in inside the Chrome window that just opened.",
       "capturing": "Finishing up…",

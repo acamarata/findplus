@@ -44,6 +44,10 @@ export function telegramControls(section, value, ctx) {
   token.type = "password";
   token.id = "fp-setup-tg-token";
   token.placeholder = t("setup.notifications.token_placeholder");
+  // UAT3 N26: placeholder-only fields have no accessible name once a value
+  // is typed (the placeholder disappears). A short, distinct label beats
+  // repeating the long instructional placeholder text as the aria-label.
+  token.setAttribute("aria-label", t("field.telegramToken"));
 
   const status = document.createElement("p");
   status.className = "modal-note";

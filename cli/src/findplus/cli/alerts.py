@@ -25,7 +25,7 @@ from findplus.db.models_alerts import AlertDelivery, AlertRule
 from findplus.db.session import session_scope
 
 from . import alerts_channels
-from ._fmt import _render_table
+from ._fmt import _local_short_time, _render_table, _yes_no
 
 #: A table row's error stays skimmable; the full text is still in the API
 #: and the dashboard's delivery log (UAT U23 asked for the column, not for
@@ -122,7 +122,7 @@ def rules_list(as_json: bool) -> None:
             device_name or "",
             r.channels,
             r.cooldown_minutes,
-            r.enabled,
+            _yes_no(r.enabled),
         )
         for r, place_name, group_name, device_name in rows
     ]
@@ -224,7 +224,6 @@ def deliveries_cmd(limit: int) -> None:
     aligns = "<<<<<<>><"
     table_rows = []
     for d, rule_name in rows:
-        next_attempt = d.next_attempt_at.isoformat() if d.next_attempt_at else ""
         error = d.error or ""
         if len(error) > _ERROR_CELL_MAX:
             error = error[: _ERROR_CELL_MAX - 1] + "…"
@@ -234,10 +233,10 @@ def deliveries_cmd(limit: int) -> None:
                 rule_name,
                 d.channel,
                 d.event_kind or "",
-                d.sent_at.isoformat(),
+                _local_short_time(d.sent_at),
                 d.status or "",
                 d.attempts,
-                next_attempt,
+                _local_short_time(d.next_attempt_at),
                 error,
             )
         )

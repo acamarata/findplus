@@ -127,3 +127,74 @@ async def test_a_409_rejoins_the_running_sign_in(page, base_url):
     finally:
         await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
         await _set_last_step(page, base_url, None)
+
+
+def _status_body(*, signed_in: bool, needs: list[str]) -> dict:
+    return {
+        "providers": [
+            {
+                "id": "google-find-hub",
+                "signed_in": signed_in,
+                "account": "someone@example.com" if signed_in else None,
+                "needs": needs,
+            }
+        ]
+    }
+
+
+async def test_signed_in_hides_the_chrome_notice_even_with_a_stale_needs_chrome(
+    page, base_url
+) -> None:
+    """UAT3 N20: the wizard's ChromeGate checked `needs` alone, so a
+    signed-in account with a stale `needs: ["chrome"]` still showed "Google
+    Chrome was not found..." under "Signed in ✓ (switch account)". It now
+    shares provider_chrome.js's googleChromeNoticeNeeded() with Settings'
+    own gate (auth.js renderGoogleCard, UAT2 N1), which already gated on
+    `!signed_in`."""
+
+    async def status(route):
+        await route.fulfill(json=_status_body(signed_in=True, needs=["chrome"]))
+
+    await _set_completed_at(page, base_url, None)
+    try:
+        await _set_last_step(page, base_url, "signin")
+        await page.route("**/api/auth/status", status)
+        await page.goto(base_url + "/#/setup")
+        await page.wait_for_function(
+            "() => document.getElementById('fp-setup-signin-status')"
+            ".textContent.includes('Signed in as')",
+            timeout=15000,
+        )
+
+        assert await page.locator("#fp-setup-chrome-notice").is_hidden()
+        button = page.get_by_role("button", name="Signed in ✓ (switch account)")
+        assert await button.is_enabled()
+    finally:
+        await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
+        await _set_last_step(page, base_url, None)
+
+
+async def test_signed_out_and_chrome_missing_shows_the_notice(page, base_url) -> None:
+    """The one state where the notice must actually appear, same gate as
+    Settings' own chrome-missing case (test_auth_chrome_notice.py)."""
+
+    async def status(route):
+        await route.fulfill(json=_status_body(signed_in=False, needs=["chrome"]))
+
+    await _set_completed_at(page, base_url, None)
+    try:
+        await _set_last_step(page, base_url, "signin")
+        await page.route("**/api/auth/status", status)
+        await page.goto(base_url + "/#/setup")
+        await page.wait_for_function(
+            "() => document.getElementById('fp-setup-signin-status')"
+            ".textContent.includes('Not signed in')",
+            timeout=15000,
+        )
+
+        assert await page.locator("#fp-setup-chrome-notice").is_visible()
+        button = page.get_by_role("button", name="Sign in with Google")
+        assert not await button.is_enabled()
+    finally:
+        await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
+        await _set_last_step(page, base_url, None)

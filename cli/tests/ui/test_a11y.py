@@ -17,10 +17,12 @@ Constraints: Only serious and critical violations fail the gate; moderate and
 
 from __future__ import annotations
 
+import json
+
 import pytest
 from axe_playwright_python.async_playwright import Axe
 
-from .conftest import set_theme
+from .conftest import SEEDED_COMPLETED_AT, set_theme
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -177,3 +179,58 @@ async def test_no_serious_axe_violations_with_dialog_open(page, base_url, dialog
 
     blocking = [v for v in violations if v.get("impact") in BLOCKING]
     assert not blocking, "\n".join(_describe(v, dialog, theme, width) for v in blocking)
+
+
+#: The two steps UAT3 N26 found placeholder-only inputs on: device label
+#: (devices) and token/phone/apikey (notifications, Telegram + WhatsApp).
+WIZARD_STEPS = {
+    "devices": ".fp-setup-device-row",
+    "notifications": "#fp-setup-wa-phone",
+}
+
+
+async def _set_completed_at(page, base_url, value):
+    return await page.request.post(
+        base_url + "/api/settings/onboarding.completed_at",
+        data=json.dumps({"value": value}),
+        headers={"Content-Type": "application/json"},
+    )
+
+
+async def _set_last_step(page, base_url, value):
+    return await page.request.post(
+        base_url + "/api/settings/onboarding.last_step",
+        data=json.dumps({"value": value}),
+        headers={"Content-Type": "application/json"},
+    )
+
+
+@pytest.mark.parametrize("step", sorted(WIZARD_STEPS))
+async def test_no_serious_axe_violations_in_the_wizard(page, base_url, step):
+    """UAT3 N26: the Devices and Notifications steps had placeholder-only
+    inputs with no accessible name (device label; Telegram token; WhatsApp
+    phone/API key) -- axe's `label`/`aria-input-field-name` rules catch a
+    regression here. `onboarding.last_step` lands directly on the step under
+    test, the same technique test_setup_wizard_signin.py uses, rather than
+    clicking Next through the whole wizard once per parametrize case."""
+    await page.set_viewport_size({"width": 1280, "height": 800})
+    await _set_completed_at(page, base_url, None)
+    try:
+        await _set_last_step(page, base_url, step)
+        await page.goto(base_url + "/#/setup")
+        await page.wait_for_selector(WIZARD_STEPS[step], timeout=15000)
+
+        results = await Axe().run(page, options=AXE_OPTIONS)
+        violations = results.response["violations"]
+
+        for violation in violations:
+            if violation.get("impact") not in BLOCKING:
+                print(f"axe {_describe(violation, f'wizard:{step}', 'dark', 1280)}")
+
+        blocking = [v for v in violations if v.get("impact") in BLOCKING]
+        assert not blocking, "\n".join(
+            _describe(v, f"wizard:{step}", "dark", 1280) for v in blocking
+        )
+    finally:
+        await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
+        await _set_last_step(page, base_url, None)

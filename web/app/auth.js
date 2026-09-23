@@ -25,6 +25,7 @@ import { $, showAlert } from "./state.js";
 import { api, postJson } from "./api.js";
 import { t, loadCatalog } from "./i18n.js";
 import { mountAccessoriesPanel, purgeAccessories } from "./auth_accessories.js";
+import { googleChromeNoticeNeeded } from "./provider_chrome.js";
 
 const GOOGLE_PROVIDER = "google-find-hub";
 const APPLE_PROVIDER = "apple-find-my";
@@ -66,8 +67,8 @@ export function renderGoogleCard(p) {
   $("fp-auth-google-status").textContent = p.signed_in
     ? t("auth.status.signed_in", { account: p.account })
     : t("auth.status.not_signed_in");
-  $("fp-auth-google-signin").disabled = p.signed_in;
-  const chromeMissing = !p.signed_in && (p.needs || []).includes("chrome");
+  Object.assign($("fp-auth-google-signin"), { disabled: false, textContent: p.signed_in ? t("auth.google.switchAccount") : t("auth.google.signin") });
+  const chromeMissing = googleChromeNoticeNeeded(p);
   $("fp-auth-chrome-notice").classList.toggle("hidden", !chromeMissing);
   $("fp-auth-chrome-download").classList.toggle("hidden", !chromeMissing);
 }

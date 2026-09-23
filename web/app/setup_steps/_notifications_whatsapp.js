@@ -98,7 +98,13 @@ export function whatsappControls(section, value, ctx) {
   phone.type = "text";
   phone.id = "fp-setup-wa-phone";
   phone.placeholder = t("alerts.whatsapp.phonePlaceholder");
+  // UAT3 N26: placeholder-only field, no accessible name once typed into.
+  // Same wording the Settings tab's own <label> shows for this field
+  // (web/partials/alerts.html), so a screen reader and a sighted Settings
+  // user hear/read the same thing.
+  phone.setAttribute("aria-label", t("alerts.whatsapp.phone"));
   const apikey = buildApikeyInput(configured);
+  apikey.setAttribute("aria-label", t("alerts.whatsapp.apikey"));
 
   const status = document.createElement("p");
   status.className = "modal-note";
@@ -120,5 +126,13 @@ export function whatsappControls(section, value, ctx) {
   test.textContent = t("alerts.whatsapp.test");
   wireTest(test, status, ctx);
 
-  section.append(phone, apikey, save, test, status);
+  // UAT3 N26: Save and Send test sat flush against each other with no gap.
+  // Reuses the same .fp-alerts-actions (gap: 8px) the Settings tab's own
+  // WhatsApp actions row already uses (web/partials/alerts.html), rather
+  // than a second gap rule for the same pair of buttons.
+  const actions = document.createElement("div");
+  actions.className = "fp-alerts-actions";
+  actions.append(save, test);
+
+  section.append(phone, apikey, actions, status);
 }

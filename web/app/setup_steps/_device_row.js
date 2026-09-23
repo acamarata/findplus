@@ -79,6 +79,13 @@ function labelInput(ctx, device) {
   label.type = "text";
   label.value = device.label || "";
   label.placeholder = t("setup.devices.label_placeholder");
+  // UAT3 N26: placeholder-only field. Per-row name, matching trackBox()'s
+  // own aria-label pattern just above, so each row's checkbox and label
+  // input read as two distinct controls rather than "text field" x N.
+  label.setAttribute(
+    "aria-label",
+    t("setup.devices.labelFor", { name: device.name || device.device_id })
+  );
   label.addEventListener(
     "input",
     debounce(

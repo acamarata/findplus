@@ -111,3 +111,27 @@ def _print_nothing_tracked_hint() -> None:
     click.echo("Nothing is being tracked yet. Choose what to poll:")
     click.echo("  findplus devices --track-all")
     click.echo("  findplus devices --track <ID> --track <ID>")
+
+
+def _local_short_time(value) -> str:
+    """A UTC timestamp as a short local-time string for table output.
+
+    `alerts deliveries` and `alerts rules list` used to print raw UTC ISO
+    strings straight from the ORM (UAT3 N25) -- this renders them the way a
+    person reads them. Shares `dispatch_core.local_zone()`, the same seam
+    `render_message()` reads and `cli/tests/conftest.py`'s `pinned_tz`
+    fixture pins, so a test can pin the zone the same way alert-message
+    tests do, without a second TZ mechanism. `--json` output is untouched by
+    this -- it stays raw UTC ISO so a script never has to guess which zone
+    it parsed.
+    """
+    if value is None:
+        return ""
+    from findplus.alerts.dispatch_core import as_utc, local_zone
+
+    return as_utc(value).astimezone(local_zone()).strftime("%Y-%m-%d %H:%M %Z")
+
+
+def _yes_no(value: bool) -> str:
+    """Plain yes/no instead of Python's True/False for table output (UAT3 N25)."""
+    return "yes" if value else "no"

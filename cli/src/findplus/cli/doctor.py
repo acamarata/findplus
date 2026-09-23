@@ -131,11 +131,35 @@ def check_port(state_dir: Path, port: int) -> DoctorCheck:
 
 
 def check_chrome() -> DoctorCheck:
-    candidates = [
+    """Whether the Google sign-in flow will find a Chrome to launch.
+
+    UAT2 N1: a machine with Chrome installed still read "not found" because
+    this only checked `google-chrome`/`google-chrome-stable` on PATH plus the
+    system `/Applications` bundle -- missing a user-level macOS install, any
+    Linux Chromium binary, and the extra paths the vendored sign-in flow
+    itself falls back to. The candidate list now mirrors
+    `cli/vendor/GoogleFindMyTools/chrome_driver.py:find_chrome()`'s search
+    (PRI rule 8: that file is never edited, so the check is kept in step with
+    it here instead), so "found" here means the vendored flow will find it too.
+    """
+    candidates: list[str | None] = [
         shutil.which("google-chrome"),
         shutil.which("google-chrome-stable"),
-        "/Applications/Google Chrome.app" if sys.platform == "darwin" else None,
+        shutil.which("chromium"),
+        shutil.which("chromium-browser"),
     ]
+    if sys.platform == "darwin":
+        candidates += [
+            "/Applications/Google Chrome.app",
+            str(Path.home() / "Applications" / "Google Chrome.app"),
+        ]
+    else:
+        candidates += [
+            "/usr/bin/google-chrome",
+            "/usr/local/bin/google-chrome",
+            "/opt/google/chrome/chrome",
+            "/snap/bin/chromium",
+        ]
     passed = any(c and Path(c).exists() for c in candidates)
     return DoctorCheck("chrome", "Google Chrome", passed, "found" if passed else "not found")
 

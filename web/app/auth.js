@@ -61,12 +61,15 @@ export async function loadAuthStatus() {
   if (apple) renderAppleCard(apple);
 }
 
-/** Google card: who is signed in, and whether the button is still offered. */
+/** Google card, plus the Chrome-missing notice/link (UAT2 N1: gated on `needs`, never while signed in). */
 export function renderGoogleCard(p) {
   $("fp-auth-google-status").textContent = p.signed_in
     ? t("auth.status.signed_in", { account: p.account })
     : t("auth.status.not_signed_in");
   $("fp-auth-google-signin").disabled = p.signed_in;
+  const chromeMissing = !p.signed_in && (p.needs || []).includes("chrome");
+  $("fp-auth-chrome-notice").classList.toggle("hidden", !chromeMissing);
+  $("fp-auth-chrome-download").classList.toggle("hidden", !chromeMissing);
 }
 
 /** Apple card: same status line, plus the credentials form when signed out. */

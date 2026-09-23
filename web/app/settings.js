@@ -154,6 +154,12 @@ export function closeSettings() {
 async function setPin() {
   const pin = $("new-pin").value.trim();
   const confirm = $("confirm-pin").value.trim();
+  // UAT4 N40: a prior "PIN removed"/"PIN set" confirmation stayed at the top
+  // of the dialog while this new attempt's own rejection rendered beside the
+  // field, so the screen carried two contradictory messages at once. Any new
+  // attempt clears it, same as showNewPinError(null) below clears the
+  // field-level one.
+  showSettingsMessage(null);
   showNewPinError(null); // clear a stale rejection before revalidating
   if (pin !== confirm) { showNewPinError(t("settings.pinsDoNotMatch")); return; }
   try {
@@ -174,6 +180,7 @@ async function setPin() {
 async function changePin() {
   const current = $("current-pin").value.trim();
   const next = $("change-pin").value.trim();
+  showSettingsMessage(null); // UAT4 N40: clear a stale message before this attempt
   if (!next) { showSettingsMessage(t("settings.enterNewPin"), "warn"); return; }
   try {
     await postJson("/api/settings/pin", { new_pin: next, current_pin: current });
@@ -188,6 +195,7 @@ async function changePin() {
 /** Remove the PIN, which disables the lock entirely. Confirmed twice. */
 async function removePin() {
   const current = $("current-pin").value.trim();
+  showSettingsMessage(null); // UAT4 N40: clear a stale message before this attempt
   if (!current) { showSettingsMessage(t("settings.enterCurrentPin"), "warn"); return; }
   if (!window.confirm(t("settings.confirmRemovePin"))) return;
   try {

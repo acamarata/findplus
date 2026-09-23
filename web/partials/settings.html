@@ -89,7 +89,8 @@
       <h3 data-i18n="settings.polling.title">Polling and retention</h3>
       <label class="setting-row">
         <span data-i18n="settings.polling.interval_label">Poll every</span>
-        <input type="number" id="setting-poll-interval" min="5" max="1440" step="1">
+        <input type="number" id="setting-poll-interval" min="5" max="1440" step="1"
+               aria-describedby="setting-poll-interval-error">
         <span data-i18n="settings.polling.interval_unit">minutes</span>
       </label>
       <!-- UAT U19: an out-of-range value used to report only in
@@ -148,7 +149,7 @@
         <label class="setting-row">
           <span data-i18n="settings.newPin">New PIN</span>
           <input type="password" id="new-pin" inputmode="numeric" autocomplete="new-password"
-                 placeholder="at least 6 characters"
+                 placeholder="at least 6 characters" aria-describedby="setting-new-pin-error"
                  data-i18n-attr="placeholder:settings.newPinPlaceholder">
         </label>
         <!-- UAT3 N21: a mismatch or the server's 6-character-minimum 422 used to

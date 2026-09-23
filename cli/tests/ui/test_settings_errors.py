@@ -7,9 +7,13 @@ dialog, and the poll interval has its own field-level line (UAT2 U19).
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
+
+PIN = "864213"
 
 
 async def _open_settings(page, base_url) -> None:
@@ -101,3 +105,77 @@ async def test_reopening_settings_clears_the_previous_message(page, base_url):
     assert await page.locator("#settings-message").inner_text() == ""
     error = page.locator("#setting-poll-interval-error")
     assert "hidden" in (await error.get_attribute("class") or "")
+
+
+async def test_new_pin_and_poll_interval_are_described_by_their_error_line(page, base_url):
+    """UAT4 N40: neither field error was tied to its input with
+    aria-describedby, so a screen reader on the New PIN or poll interval
+    field never heard the rejection rendered right beside it."""
+    await _open_settings(page, base_url)
+    assert await page.get_attribute("#new-pin", "aria-describedby") == "setting-new-pin-error"
+    assert (
+        await page.get_attribute("#setting-poll-interval", "aria-describedby")
+        == "setting-poll-interval-error"
+    )
+
+
+async def _remove_configured_pin_via_ui(page, base_url) -> None:
+    """Settings is open, a PIN is configured: remove it through the same
+    Remove PIN button/confirm() a user would use, not the raw API."""
+    await _open_settings(page, base_url)
+    await page.wait_for_selector("#lock-is-set:not(.hidden)")
+    await page.fill("#current-pin", PIN)
+
+    def accept(dialog):
+        return dialog.accept()
+
+    page.on("dialog", accept)
+    try:
+        await page.click("#btn-remove-pin")
+        await page.wait_for_selector("#lock-not-set:not(.hidden)")
+    finally:
+        page.remove_listener("dialog", accept)
+
+
+async def _clear_pin_if_configured(page, base_url) -> None:
+    """Best-effort cleanup: leave the shared server PIN-free for whatever
+    test runs next, whether or not a PIN ended up set here."""
+    resp = await page.request.get(base_url + "/api/settings")
+    if (await resp.json()).get("pin_configured"):
+        await page.request.delete(
+            base_url + "/api/settings/pin",
+            data=json.dumps({"current_pin": PIN}),
+            headers={"Content-Type": "application/json"},
+        )
+
+
+async def test_removing_pin_then_a_bad_new_pin_clears_the_top_message(page, base_url):
+    """UAT4 N40: "PIN removed. The app no longer locks." stayed at the top of
+    the dialog while a too-short PIN typed right afterward showed its own
+    rejection beside the New PIN field -- two contradictory messages on
+    screen at once. removePin() and setPin() both clear #settings-message
+    before doing anything else now, so a fresh attempt never inherits the
+    previous one's confirmation.
+    """
+    set_resp = await page.request.post(
+        base_url + "/api/settings/pin",
+        data=json.dumps({"new_pin": PIN}),
+        headers={"Content-Type": "application/json"},
+    )
+    assert set_resp.ok, await set_resp.text()
+    try:
+        await _remove_configured_pin_via_ui(page, base_url)
+        message = await page.locator("#settings-message").inner_text()
+        assert "PIN removed" in message
+
+        await page.fill("#new-pin", "123")
+        await page.fill("#confirm-pin", "123")
+        await page.click("#btn-set-pin")
+        await page.wait_for_selector("#setting-new-pin-error:not(.hidden)")
+
+        assert await page.locator("#settings-message").inner_text() == "", (
+            "the stale 'PIN removed' confirmation stayed at the top of the dialog"
+        )
+        assert (await page.locator("#setting-new-pin-error").inner_text()).strip()
+    finally:
+        await _clear_pin_if_configured(page, base_url)

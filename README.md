@@ -83,12 +83,16 @@ findplus start --yes
 
 - Location history with a map and chronological timeline.
 - Places and geofence alerts, with configurable enter/exit confirmations.
+- Address search when adding a place, via OpenStreetMap's Nominatim geocoder --
+  opt-in, only when you type an address and press Search.
 - Groups and quorum-based presence (together, partial, unknown).
-- Telegram and webhook alert channels.
+- Telegram, WhatsApp (via CallMeBot), webhook, and native macOS notification
+  alert channels, with automatic delivery retry.
 - MCP server exposing devices, places, groups and history as LLM tools.
-- macOS menu-bar app (Tauri) with a WidgetKit widget.
-- Device and group labels with a 48-icon picker or a coloured letter badge, and 12 accent colours.
-- WhatsApp alerts via CallMeBot, alongside Telegram, webhook, and native macOS notifications.
+- macOS menu-bar app (Tauri) with a WidgetKit status widget and a places widget.
+- Device and group labels with a 49-icon picker, your own uploaded custom
+  icons, or a coloured letter badge, and 12 accent colours.
+- Apple Find My accessory key upload from the dashboard, the CLI, or the API.
 - In-dashboard sign-in for Google Find Hub and Apple Find My, no terminal required.
 - Guided first-run setup wizard covering sign-in, devices, groups, places, notifications and app lock.
 - Configurable poll interval (5-1440 minutes) and history retention.

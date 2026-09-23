@@ -25,7 +25,7 @@ have set. Clear the field to go back to the provider's own name.
 
 | Form | What it shows |
 |---|---|
-| `lucide:<name>` | One of the 48 bundled Lucide glyphs. |
+| `lucide:<name>` | One of the 49 bundled Lucide glyphs. |
 | `letter:<A-Z0-9>` | A badge character you pin once, which never changes. |
 | `letter` | A badge character computed live from the current label or name. |
 | `none` | A plain coloured dot with no glyph. |
@@ -36,12 +36,12 @@ character of the name in force right now, so renaming a device moves its badge
 letter with it. `letter:X` is the opposite, and stays on X whatever the device
 is called.
 
-The 48 glyphs come from Lucide 0.462.0 and are bundled with Find+, so the
+The 49 glyphs come from Lucide 0.462.0 and are bundled with Find+, so the
 dashboard never fetches an icon from anywhere. The picker groups them as
-people (9), pets (8), things (21) and places (10). `footprints` sits in the
+people (9), pets (8), things (22) and places (10). `footprints` sits in the
 things group, where it is the picker's only footwear-adjacent glyph.
 
-Forty-eight glyphs will not cover every label anyone writes, and that is fine:
+Forty-nine glyphs will not cover every label anyone writes, and that is fine:
 the coloured letter badge covers any label with no matching glyph, so the
 picker never has a dead end. Run `findplus devices icons` to print every
 available id.

@@ -117,9 +117,12 @@ function numberedIcon(point, index, total, device) {
 }
 
 function popupHtml(point, deviceName) {
+  // UAT2 N14: the tracker's name is the heading, not a subtitle under the
+  // time -- a popup with several tracks open at once otherwise reads as a
+  // bare timestamp with no way to tell whose fix it is.
   const rows = [
-    `<b>${fmtTime(point.observed_at_local)}</b>`,
-    `<div class="fp-popup-sub">${esc(deviceName)}</div>`,
+    `<b>${esc(deviceName)}</b>`,
+    `<div class="fp-popup-sub">${fmtTime(point.observed_at_local)}</div>`,
     `<div>${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}</div>`,
   ];
   if (point.accuracy_meters != null) {

@@ -90,7 +90,15 @@ async function uploadFile(file, status, onUploaded) {
   }
 }
 
-/** The file input + "Upload" button row, wired to POST /api/icons/custom. */
+/**
+ * The file input row, wired to POST /api/icons/custom.
+ *
+ * UAT2 N10: a separate unstyled "Upload" button used to sit beside a raw
+ * file input -- two steps for one action. Choosing a file now starts the
+ * upload itself (there is nothing else to fill in first, unlike the Apple
+ * accessory panel's name+file pair), and components.css styles the input's
+ * own picker button (`::file-selector-button`) like `.btn-secondary`.
+ */
 function uploadRow(status, onUploaded) {
   const row = document.createElement("div");
   row.className = "fp-custom-icon-upload";
@@ -98,17 +106,13 @@ function uploadRow(status, onUploaded) {
   input.type = "file";
   input.accept = "image/png";
   input.setAttribute("aria-label", t("icons.custom.upload"));
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "btn-secondary";
-  btn.textContent = t("icons.custom.upload");
-  btn.addEventListener("click", () => {
+  input.addEventListener("change", () => {
     uploadFile(input.files[0], status, (id) => {
       input.value = "";
       onUploaded(id);
     });
   });
-  row.append(input, btn);
+  row.append(input);
   return row;
 }
 

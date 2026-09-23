@@ -62,12 +62,16 @@ async def _open_edit_dialog(page, base_url):
 
 
 async def _upload_icon(page, png_path) -> str:
-    """Set the file input, click Upload, and return the new "custom:<id>"."""
-    await page.set_input_files("#fp-device-dialog .fp-custom-icon-upload input", str(png_path))
+    """Set the file input and return the new "custom:<id>".
+
+    N10 (UAT2): choosing a file now starts the upload itself (no separate
+    "Upload" click) -- set_input_files() fires the same native `change`
+    event a real file picker would.
+    """
     async with page.expect_response(
         lambda r: r.url.endswith("/api/icons/custom") and r.request.method == "POST"
     ) as resp_info:
-        await page.click("#fp-device-dialog .fp-custom-icon-upload button")
+        await page.set_input_files("#fp-device-dialog .fp-custom-icon-upload input", str(png_path))
     body = await (await resp_info.value).json()
     return body["id"]
 
@@ -197,12 +201,11 @@ async def test_upload_rejects_a_non_png_file(page, base_url, tmp_path):
     bad_path.write_bytes(b"<svg xmlns='http://www.w3.org/2000/svg'></svg>")
 
     await _open_edit_dialog(page, base_url)
-    await page.set_input_files("#fp-device-dialog .fp-custom-icon-upload input", str(bad_path))
     status = page.locator("#fp-device-dialog .fp-custom-icon-status")
     async with page.expect_response(
         lambda r: r.url.endswith("/api/icons/custom") and r.request.method == "POST"
     ):
-        await page.click("#fp-device-dialog .fp-custom-icon-upload button")
+        await page.set_input_files("#fp-device-dialog .fp-custom-icon-upload input", str(bad_path))
     await page.wait_for_function(
         "el => el.textContent.trim() !== ''", arg=await status.element_handle()
     )

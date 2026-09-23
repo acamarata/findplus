@@ -36,6 +36,7 @@ def _devices_as_json(session, rows) -> str:
             {
                 "device_id": d.device_id,
                 "name": d.name,
+                "label": d.label,
                 "provider": d.provider,
                 "is_tracked": d.is_tracked,
                 "observation_count": int(count or 0),

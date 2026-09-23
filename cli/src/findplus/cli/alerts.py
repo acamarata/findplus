@@ -17,8 +17,10 @@ import sys
 from datetime import UTC, datetime
 
 import click
+from sqlalchemy import func, select
 
 from findplus.alerts.channels_field import format_channels
+from findplus.db.models import Device, Group, Place
 from findplus.db.models_alerts import AlertDelivery, AlertRule
 from findplus.db.session import session_scope
 
@@ -41,8 +43,11 @@ _RULE_KEYS = (
     "id",
     "name",
     "place_id",
+    "place_name",
     "group_id",
+    "group_name",
     "device_id",
+    "device_name",
     "on_enter",
     "on_exit",
     "channels",
@@ -52,22 +57,24 @@ _RULE_KEYS = (
 )
 
 
-def _rule_row(r: AlertRule) -> tuple:
-    return (
-        r.id,
-        r.name,
-        r.place_id,
-        r.group_id,
-        r.device_id,
-        r.on_enter,
-        r.on_exit,
-        # The stored comma string, shown as-is: re-parsing it to a list only to
-        # re-join it for display would buy nothing.
-        r.channels,
-        r.cooldown_minutes,
-        r.enabled,
-        r.also_notify_members,
+def _list_rules(s) -> list[tuple]:
+    """Every rule, joined to the place/group/device it targets.
+
+    Same query api/routes_alerts_rules.py's `_list_rules` runs: a raw
+    `place_id`/`device_id` in the table read as a floating number nobody
+    could place, and `device_id` alone hid a renamed tracker's label behind
+    its provider id (UAT U23). `func.coalesce(Device.label, Device.name)`
+    matches the rule form's own Device select (UAT U6) -- label first,
+    provider name only when unset.
+    """
+    stmt = (
+        select(AlertRule, Place.name, Group.name, func.coalesce(Device.label, Device.name))
+        .outerjoin(Place, Place.id == AlertRule.place_id)
+        .outerjoin(Group, Group.id == AlertRule.group_id)
+        .outerjoin(Device, Device.device_id == AlertRule.device_id)
+        .order_by(AlertRule.id)
     )
+    return list(s.execute(stmt).all())
 
 
 @rules_cmd.command("list")
@@ -75,19 +82,51 @@ def _rule_row(r: AlertRule) -> tuple:
 def rules_list(as_json: bool) -> None:
     """List every alert rule."""
     with session_scope() as s:
-        rows = s.query(AlertRule).order_by(AlertRule.id).all()
-        records = [_rule_row(r) for r in rows]
+        rows = _list_rules(s)
     if as_json:
-        click.echo(json.dumps([dict(zip(_RULE_KEYS, r, strict=True)) for r in records], indent=2))
+        records = [
+            dict(
+                zip(
+                    _RULE_KEYS,
+                    (
+                        r.id,
+                        r.name,
+                        r.place_id,
+                        place_name,
+                        r.group_id,
+                        group_name,
+                        r.device_id,
+                        device_name,
+                        r.on_enter,
+                        r.on_exit,
+                        r.channels,
+                        r.cooldown_minutes,
+                        r.enabled,
+                        r.also_notify_members,
+                    ),
+                    strict=True,
+                )
+            )
+            for r, place_name, group_name, device_name in rows
+        ]
+        click.echo(json.dumps(records, indent=2))
         return
-    click.echo(
-        f"{'ID':<5}{'NAME':<16}{'PLACE':>7}{'GROUP':>7}{'DEVICE':<10}{'CHANNEL':<10}{'ENABLED':>8}"
-    )
-    for i, name, place_id, group_id, device_id, *_rest, channels, _cd, enabled, _n in records:
-        click.echo(
-            f"{i:<5}{name:<16}{place_id or '':>7}{group_id or '':>7}"
-            f"{device_id or '':<10}{channels:<10}{enabled!s:>8}"
+    headers = ("ID", "NAME", "PLACE", "GROUP", "DEVICE", "CHANNELS", "COOLDOWN", "ENABLED")
+    aligns = "<<<<<<>>"
+    table_rows = [
+        (
+            r.id,
+            r.name,
+            place_name or "",
+            group_name or "",
+            device_name or "",
+            r.channels,
+            r.cooldown_minutes,
+            r.enabled,
         )
+        for r, place_name, group_name, device_name in rows
+    ]
+    _render_table(headers, aligns, table_rows)
 
 
 @rules_cmd.command("add")

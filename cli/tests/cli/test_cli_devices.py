@@ -200,9 +200,38 @@ def test_devices_label_validates_before_writing_anything(selected) -> None:
         assert session.get(Device, "TAG-001").label is None
 
 
-def test_devices_icons_lists_48(selected) -> None:
+def test_devices_table_shows_the_label_column(selected) -> None:
+    """UAT N9: `findplus devices` showed the provider name only ("Moto Tag
+    2"); a renamed tracker's own label had no column to appear in at all."""
+    runner = CliRunner()
+    label_result = runner.invoke(
+        main, ["devices", "label", "TAG-001", "--label", "Sara's backpack"]
+    )
+    assert label_result.exit_code == 0, label_result.output
+
+    result = runner.invoke(main, ["devices", "--no-refresh"])
+    assert result.exit_code == 0, result.output
+    assert "LABEL" in result.output
+    assert "Sara's backpack" in result.output
+    assert "Moto Tag 2" in result.output
+
+
+def test_devices_json_carries_the_label_field(selected) -> None:
+    import json
+
+    runner = CliRunner()
+    runner.invoke(main, ["devices", "label", "TAG-001", "--label", "Sara's backpack"])
+
+    result = runner.invoke(main, ["devices", "--no-refresh", "--json"])
+    assert result.exit_code == 0, result.output
+    rows = json.loads(result.output)
+    assert rows[0]["label"] == "Sara's backpack"
+
+
+def test_devices_icons_lists_49(selected) -> None:
+    """48 badge icons plus UAT2 U26's `bell` (the phone-tier tab bar)."""
     import json
 
     result = CliRunner().invoke(main, ["devices", "icons", "--json"])
     assert result.exit_code == 0, result.output
-    assert len(json.loads(result.output)) == 48
+    assert len(json.loads(result.output)) == 49

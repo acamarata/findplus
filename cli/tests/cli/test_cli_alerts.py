@@ -240,3 +240,50 @@ def test_rules_list_json_carries_the_channels_column(tmp_db: str) -> None:
     listed = json_mod.loads(runner.invoke(main, ["alerts", "rules", "list", "--json"]).output)
     assert listed[0]["channels"] == "whatsapp"
     assert "channel" not in listed[0]
+
+
+def _seed_place_and_labeled_device(s) -> int:
+    """A place plus a device with a label, for U23's table-resolution test."""
+    from findplus.db.models import Device
+    from findplus.ingest import upsert_device
+    from findplus.places.repo import create_place
+
+    upsert_device(s, "dev1", "Moto Tag 1")
+    s.get(Device, "dev1").label = "Sara's backpack"
+    place = create_place(
+        s,
+        name="Home",
+        latitude_e7=411000000,
+        longitude_e7=-801000000,
+        radius_meters=200,
+        enter_confirmations=1,
+        exit_confirmations=1,
+    )
+    return place.id
+
+
+def test_rules_list_resolves_place_and_device_label(tmp_db: str) -> None:
+    """UAT U23: the table printed a jammed "GROUPDEVICE" header (fixed-width
+    columns with no gap once content reached their width), a raw place id
+    ("1") instead of "Home", and a raw device id instead of the label."""
+    from findplus.db.session import session_scope
+
+    with session_scope() as s:
+        place_id = _seed_place_and_labeled_device(s)
+
+    add_args = ["alerts", "rules", "add", "r1", "--device-id", "dev1"]
+    add_args += ["--place", str(place_id), "--channel", "telegram"]
+    result = CliRunner().invoke(main, add_args)
+    assert result.exit_code == 0, result.output
+
+    list_result = CliRunner().invoke(main, ["alerts", "rules", "list"])
+    assert list_result.exit_code == 0, list_result.output
+    assert "Home" in list_result.output
+    assert "Sara's backpack" in list_result.output
+    assert "dev1" not in list_result.output
+    # Every header has a real gap before the next one, unlike the old
+    # fixed-width "GROUPDEVICE" run-together.
+    header_line = list_result.output.splitlines()[0]
+    for header in ("ID", "NAME", "PLACE", "GROUP", "DEVICE", "CHANNELS"):
+        idx = header_line.index(header)
+        assert header_line[idx + len(header) : idx + len(header) + 2] in ("  ", "")

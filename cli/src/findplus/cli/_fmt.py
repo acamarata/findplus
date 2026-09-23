@@ -73,10 +73,14 @@ def _print_device_table(session) -> None:
     rows = list(session.scalars(sa_select(Device).order_by(Device.name)))
     counts = observation_counts(session, [d.device_id for d in rows])
     click.echo("")
-    click.secho(f"{'':4} {'NAME':<30} {'OBS':>7}  DEVICE ID", bold=True)
+    # LABEL alongside the provider NAME (UAT N9): the dashboard and `alerts
+    # rules list` (U23) both show the user's own label first, and the table
+    # had no column for it at all.
+    click.secho(f"{'':4} {'NAME':<30} {'LABEL':<20} {'OBS':>7}  DEVICE ID", bold=True)
     for d in rows:
         mark = click.style(" [x]", fg="green") if d.is_tracked else " [ ]"
-        click.echo(f"{mark} {d.name:<30} {counts.get(d.device_id, 0):>7}  {d.device_id}")
+        obs = counts.get(d.device_id, 0)
+        click.echo(f"{mark} {d.name:<30} {d.label or '':<20} {obs:>7}  {d.device_id}")
     click.echo("")
 
 

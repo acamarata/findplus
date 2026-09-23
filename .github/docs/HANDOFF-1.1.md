@@ -50,12 +50,16 @@ item against the tree on 2026-09-22).
 The draft v1.1.0 release was cut from `release/1.1.0` at `63a8800`. Four more UAT walks (UAT2
 through UAT5), two GP reviews of the fixes each round produced, a Linux clean-install check, two
 Windows CI failures, and three release-script bugs found while building the draft dmg all landed
-on `main` afterwards and are not in the cut draft. **The draft must be re-cut from current `main`
-before publishing** (see §5). Round-by-round counts: `.claude/phases/current/p2/PHASE-REPORT.md`
-§Closeout rounds. Nothing below is published; the dmg on the existing draft still predates all of
-it.
+on `main` afterwards. Round-by-round counts: `.claude/phases/current/p2/PHASE-REPORT.md`
+§Closeout rounds. Nothing below is published.
 
-**Re-cut draft: <pending>**
+**Re-cut draft (2026-09-23):** main `44d6ba0` was merged into `release/1.1.0` as `fcb1f4a` (the
+branch differs from main only by the version bump), gated 20/20, built, signed and notarised, and
+its five assets replaced on the existing draft. The branch was pushed to origin as a fast-forward, so
+the draft now targets `fcb1f4a`. The dmg is `FindPlus-1.1.0-aarch64.dmg`, 48,198,926 bytes, sha256
+`7bcd18e511cc93446318b84567d8c9d1bd3717863ada1bf8594f7ac87dcb7510`. Notarised (app submission
+`3c5298e9-24f3-4e1a-8a03-a6c7497c93a8`, dmg `a6595d3b-4cce-46b5-9f5c-be4b99d0b855`, both Accepted
+and stapled). Every step and each asset's hash: `.claude/phases/current/p2/release/recut-release-log.md`.
 
 Highlights, grouped by what a user would notice:
 
@@ -131,7 +135,7 @@ Highlights, grouped by what a user would notice:
 
 | Item | Why unproven | Required action |
 |---|---|---|
-| Re-cutting the v1.1.0 draft release from current `main` | the existing draft was cut at `63a8800`, before the closeout round in §1a | re-run the release-cut ticket's steps (bump, tag, build, notarise, draft) against current `main` |
+| Intel dmg for v1.1.0 | the draft carries only the Apple Silicon dmg; this Mac cannot build x86_64 natively | build it with the release workflow's macos-15-intel leg or a Rosetta shell, or drop the Intel line from the changelog |
 | Publishing the re-cut v1.1.0 draft release | owner_only, public_identity boundary | open the draft on GitHub and click Publish |
 | Merging the version-bump commit to main | stays on its branch until published, per D-P2-14 | merge after publishing |
 | Updating the acamarata/homebrew-tap formula | owner_only | copy packaging/homebrew/findplus.rb to the tap and push |
@@ -176,16 +180,16 @@ recorded rehearsal): the Welcome step shows `not_affiliated` as a footnote; the 
 
 ## 5. How to continue
 
-a. **Re-cut the draft from current `main`**: the existing draft (release/1.1.0 @ 63a8800) predates
-   the closeout round in §1a. Re-run the release-cut ticket's steps -- version bump, tag, build,
-   sign, notarise -- against current `main`, replacing the draft's assets rather than publishing
-   the stale ones. `gh release view v1.1.0` still shows it as an unpublished draft targeting
-   `release/1.1.0`.
-
-   **Re-cut draft: <pending>**
-b. Review `.claude/phases/current/p2/release/draft-release-log.md` (P2-E13-W6-S1-T7's output) for
-   the exact steps the original cut followed.
+a. The draft is re-cut (§1a): it targets `release/1.1.0` at `fcb1f4a` and carries assets built from
+   that commit. No tag exists yet.
+b. Review `.claude/phases/current/p2/release/recut-release-log.md` for the exact steps and hashes
+   (the original cut's log is `draft-release-log.md`).
 c. Open the re-cut draft release on GitHub and click Publish (owner_only, public_identity boundary).
+   Publishing creates the `v1.1.0` tag, and the tag starts `release.yml`: `publish-pypi` tries a
+   PyPI upload through the `pypi` environment (add a required reviewer there first if PyPI stays
+   deferred), `update-tap` opens a tap PR once the release is live, and `build-dmg` builds both
+   dmgs unsigned (the repo has no Apple secrets) but attaches nothing, since `github-release`
+   skips an already-published release. The Intel dmg therefore has to be built and attached by hand.
 d. `git checkout main && git merge release/1.1.0 && git push origin main`. This merges the
    version bump only after publishing, per D-P2-14.
 e. Update the Homebrew tap: `cp packaging/homebrew/findplus.rb <tap-clone>/Formula/findplus.rb`, commit, push.
@@ -198,3 +202,8 @@ passed, browser 215 passed, slow 2 passed; ruff, node, shellcheck, gen-* drift c
 warnings, cargo tests green, widget 43; CI run 35562428139 green; three QA loops closed (A 5, B 7,
 C 6, L3 3 findings fixed), blind cap 2 Gemini + 1 Sonnet passes adjudicated. Whoever re-cuts the
 release should re-run the full gate against current `main`'s tip rather than trust these counts.
+
+Gate counts at the re-cut (`fcb1f4a`, and the same at main `44d6ba0`): non-browser 1950 passed in
+local time and in UTC, browser 301, a11y 28, slow 2; ruff, node, shellcheck, prose, gen-* drift
+clean; clippy 0 warnings, cargo 77 passed, widget build and tests green. CI run 35918974997 green
+on every job at `44d6ba0`.

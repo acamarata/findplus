@@ -46,6 +46,23 @@ def test_validate_label_rejects_over_forty_characters() -> None:
         labels.validate_label("x" * 41)
 
 
+@pytest.mark.parametrize(
+    ("label", "name", "device_id", "expected"),
+    [
+        ("Omar's backpack", "Pebblebee Clip", "dev1", "Omar's backpack"),
+        (None, "Pebblebee Clip", "dev1", "Pebblebee Clip"),
+        ("  ", "Pebblebee Clip", "dev1", "Pebblebee Clip"),
+        (None, None, "dev1", "dev1"),
+        (None, "", None, None),
+    ],
+)
+def test_display_name_falls_back_label_then_name_then_id(
+    label: str | None, name: str | None, device_id: str | None, expected: str | None
+) -> None:
+    """The server-side twin of web/app/state.js's displayName() (UAT2 N2/N4/N11/N14)."""
+    assert labels.display_name(label, name, device_id) == expected
+
+
 @pytest.mark.parametrize("icon", ["lucide:dog", "lucide:door-open", "letter:A", "letter", "none"])
 def test_validate_icon_accepts_every_form(icon: str) -> None:
     assert labels.validate_icon(icon) == icon
@@ -92,11 +109,12 @@ def test_resolve_icon_letter(icon: str, label: str | None, name: str, expected: 
     assert labels.resolve_icon_letter(icon, label, name) == expected
 
 
-def test_lucide_subset_has_forty_eight_unique_ids() -> None:
+def test_lucide_subset_has_forty_nine_unique_ids() -> None:
+    """48 badge icons plus UAT2 U26's `bell` (the phone-tier tab bar)."""
     rows = labels.lucide_subset()
-    assert len(rows) == 48
+    assert len(rows) == 49
     ids = [row["id"] for row in rows]
-    assert len(set(ids)) == 48
+    assert len(set(ids)) == 49
     assert all(row["id"].startswith("lucide:") for row in rows)
     assert {row["group"] for row in rows} == {"people", "pets", "things", "places"}
 

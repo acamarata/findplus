@@ -48,22 +48,23 @@ WIDGET_STALE_AFTER_MINUTES = 90
 #: cycles before `consecutive_failures >= 3` finally fired. Both vocabularies
 #: are accepted so the spec's words keep working if the poller ever adopts them.
 ERROR_STATE_TYPES = frozenset(
-    {
-        "auth",
-        "decrypt",
-        "AuthRequiredError",
-        "DecryptionError",
-        "unauthenticated",
-    }
+    {"auth", "decrypt", "AuthRequiredError", "DecryptionError", "unauthenticated"}
 )
 
 
-def _place_by_device(session) -> dict[str, str]:
-    """Lowest-`place_id` 'inside' place name per device; `{}` before places exist."""
+def _place_by_device(
+    session, now: datetime, stale_after_minutes: int = WIDGET_STALE_AFTER_MINUTES
+) -> dict[str, str]:
+    """Lowest-`place_id` 'inside' place name per device; `{}` before places exist.
+
+    Must use the SAME cutoff `_widget_places` uses (UAT2 N4): with no
+    threshold this fell back to `presence_window_minutes` (60) while
+    `places[]` used `WIDGET_STALE_AFTER_MINUTES` (90, D18).
+    """
     from findplus.places.repo import current_presence
 
     try:
-        rows = current_presence(session)
+        rows = current_presence(session, stale_after_minutes=stale_after_minutes, now=now)
     except OperationalError:
         return {}
     inside = sorted((r for r in rows if r["state"] == "inside"), key=lambda r: r["place_id"])
@@ -251,7 +252,7 @@ def _widget_devices(
     not at a place, so its last known place must never be handed to a caller
     as if the tag were still there.
     """
-    places = _place_by_device(session)
+    places = _place_by_device(session, now, stale_after_minutes)
     device_groups = _group_by_device(session)
     out: list[dict[str, Any]] = []
     for device in get_tracked_devices(session):

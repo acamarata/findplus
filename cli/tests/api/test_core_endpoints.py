@@ -57,7 +57,7 @@ def test_widget_hides_the_place_of_a_stale_device(session, monkeypatch) -> None:
     observed = datetime(2026, 9, 18, 12, 0, tzinfo=UTC)
     ingest_observations(session, [make_observation(observed_at=observed)])
     track_all(session)
-    monkeypatch.setattr(_widget, "_place_by_device", lambda s: {"TAG-001": "Home"})
+    monkeypatch.setattr(_widget, "_place_by_device", lambda s, now, mins: {"TAG-001": "Home"})
 
     fresh = _widget._widget_devices(session, observed + timedelta(minutes=90), 90)
     assert fresh[0]["age_minutes"] == 90
@@ -68,6 +68,66 @@ def test_widget_hides_the_place_of_a_stale_device(session, monkeypatch) -> None:
     assert stale[0]["place"] is None
     # Everything else still reports honestly: the tag is known, just not placed.
     assert stale[0]["device_id"] == "TAG-001"
+
+
+def _home_with_tag_001_inside(session, at):
+    """A "Home" place with TAG-001 already marked `inside` it, since `at`."""
+    from findplus.db.models import Place, PlaceState
+
+    place = Place(
+        name="Home",
+        latitude_e7=411234560,
+        longitude_e7=-801234560,
+        radius_meters=100,
+        color="#2f80ed",
+        enter_confirmations=1,
+        exit_confirmations=2,
+        created_at=at,
+        updated_at=at,
+    )
+    session.add(place)
+    session.flush()
+    session.add(
+        PlaceState(
+            place_id=place.id,
+            device_id="TAG-001",
+            state="inside",
+            since_observed_at=at,
+            streak=1,
+            streak_side="inside",
+            last_observation_id=None,
+            updated_at=at,
+        )
+    )
+    session.flush()
+
+
+def test_widget_device_row_and_places_array_agree_on_a_75_minute_fix(session) -> None:
+    """UAT2 N4: one staleness cutoff everywhere, not two.
+
+    `_place_by_device` used to call `current_presence()` with no threshold,
+    which fell back to `Settings.presence_window_minutes` (60) while the
+    places array used the widget's own `WIDGET_STALE_AFTER_MINUTES` (90,
+    D18). A 75-minute-old fix is stale at 60 but fresh at 90, so a device row
+    read `place: null` while the very same payload's `places` array still
+    counted that device as inside -- and a full group's place badge with it.
+    """
+    from findplus.api._widget import WIDGET_STALE_AFTER_MINUTES, _place_by_device, _widget_places
+    from findplus.ingest import ingest_observations
+    from findplus.state import track_all
+    from tests.conftest import make_observation
+
+    now = datetime(2026, 9, 18, 14, 0, tzinfo=UTC)
+    observed = now - timedelta(minutes=75)
+    ingest_observations(session, [make_observation(observed_at=observed)])
+    track_all(session)
+    _home_with_tag_001_inside(session, observed)
+
+    device_places = _place_by_device(session, now, WIDGET_STALE_AFTER_MINUTES)
+    place_rows = _widget_places(session, now, WIDGET_STALE_AFTER_MINUTES)
+
+    assert device_places.get("TAG-001") == "Home"
+    assert place_rows[0]["device_ids"] == ["TAG-001"]
 
 
 def _widget_group(session, *, name: str):
@@ -108,6 +168,21 @@ def _widget_member(session, group, device_id: str, *, minutes_ago: float | None)
             )
         )
     session.flush()
+
+
+def test_widget_group_note_uses_label_over_raw_provider_name(session) -> None:
+    """UAT2 N2 end-to-end: `/api/widget`'s group rows read the same
+    label-first note groups/repo.py now builds, not a raw provider name."""
+    from findplus.api._widget import _group_rows
+    from findplus.db.models import Device
+
+    group = _widget_group(session, name="family")
+    _widget_member(session, group, "dev1", minutes_ago=2)
+    session.get(Device, "dev1").label = "Omar's backpack"
+    session.flush()
+
+    rows = _group_rows(session)
+    assert rows[0]["note"] == "Only Omar's backpack is reporting (2 min ago)."
 
 
 def test_widget_group_verdict_all_together(session) -> None:

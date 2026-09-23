@@ -121,6 +121,23 @@ def validate_color(color: str) -> str:
     return color
 
 
+def display_name(label: str | None, name: str | None, device_id: str | None = None) -> str | None:
+    """The identity string every surface shows for a device: the label the
+    user gave it, or the provider's own name, or its raw id -- the server-side
+    twin of web/app/state.js's displayName() (UAT2 N2/N4/N11/N14). Group
+    presence notes, the widget payload and device-facing dialog titles all
+    called this a different way before this landed, so a renamed tag read as
+    its raw provider name everywhere except the dashboard's own device list.
+    """
+    trimmed_label = (label or "").strip()
+    if trimmed_label:
+        return trimmed_label
+    trimmed_name = (name or "").strip()
+    if trimmed_name:
+        return trimmed_name
+    return device_id or None
+
+
 def resolve_icon_letter(icon: str, label: str | None, name: str) -> str | None:
     """The character a badge shows, or `None` for `lucide:*`, `none` and no text.
 

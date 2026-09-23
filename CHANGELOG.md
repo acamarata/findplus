@@ -8,7 +8,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ### Added
 - The place dialog can now fill its coordinates two ways instead of only a map click: "Use a tracker's last location" picks any tracked device's most recent fix, and an opt-in address search (type an address, press Search) queries OpenStreetMap's Nominatim through the daemon, never the browser, only when you press the button.
-- The Places tab's side panel lists every saved place, with its colour, radius and who is currently inside it, plus Edit, Delete and click-to-centre on each row.
+- The Places tab's side panel lists every saved place, with its color, radius and who is currently inside it, plus Edit, Delete and click-to-centre on each row.
 - Devices and groups can now use a custom uploaded PNG as their badge icon, alongside the bundled Lucide glyphs and letter badges. Upload one from the icon picker's "Your icons" section; an icon still in use cannot be deleted. The macOS widget cannot fetch images, so a custom icon shows there as a letter badge instead.
 - A second macOS widget, "Find+ Places": who is at each saved place right now, with a device or group badge per occupant and the last time it changed. Tapping it opens the dashboard's Places tab.
 - A failed Telegram, WhatsApp or webhook alert now retries automatically when the failure looks temporary (a timeout, a "too many requests" response, or a server error): up to three more tries, one minute, five minutes, then thirty minutes after the first failure. A rejected request, a bad credential or an unconfigured channel is not retried. The delivery log shows a retry in progress and how many tries a delivery has used.
@@ -32,20 +32,20 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - The Alerts tab has a Delivery log showing each alert's rule, channel, kind, message text and body, time, status and error.
 - An Uninstall page in the wiki with the manual service-removal commands for macOS, Linux and Windows.
 - A bundled Lucide icon sprite (48 icons, ISC licensed) the dashboard loads once at startup.
-- An icon picker for device and group badges: the 48 bundled icons grouped by kind, a letter of your choice, or a plain coloured dot.
-- A colour picker for device and group badges: the 12 palette colours, or any colour you pick.
-- One badge renderer behind the map markers, the timeline track heads and the group legend, so a device's icon and colour look the same everywhere.
+- An icon picker for device and group badges: the 48 bundled icons grouped by kind, a letter of your choice, or a plain colored dot.
+- A color picker for device and group badges: the 12 palette colors, or any color you pick.
+- One badge renderer behind the map markers, the timeline track heads and the group legend, so a device's icon and color look the same everywhere.
 - An i18n scaffold for the dashboard: `web/app/i18n.js` and the English catalog at `web/locales/en.json`, whose honesty sentences are generated from the same source the API serves. Every string the dashboard shows now comes from that catalog, so a second language can replace one file.
 - A phone-width layout: under 600px the dashboard gets a bottom tab bar, the toolbar collapses behind a More button, dialogs open full screen, and every button and tick box is at least 44px to tap.
-- WCAG 2.1 AA groundwork: page landmarks, a label on every form control, a visible focus ring, a focus trap and Escape-to-close on the Devices and Settings dialogs, an announced alert banner, and colour changes where text or a control border fell short of the contrast minimum.
+- WCAG 2.1 AA groundwork: page landmarks, a label on every form control, a visible focus ring, a focus trap and Escape-to-close on the Devices and Settings dialogs, an announced alert banner, and color changes where text or a control border fell short of the contrast minimum.
 - An accessibility scan in the browser test suite: axe-core over every tab, in both themes, at desktop and phone width.
 - An alert rule can now pick any combination of Telegram, webhook, WhatsApp and Mac notifications, through a checkbox set in the rule form and a repeatable `--channel` option on `findplus alerts rules add`. Mac notifications only appear as a choice on macOS.
 - Native macOS notifications for alerts. The daemon queues them and the menu bar app shows them, so an alert arrives even with no dashboard window open. While Find+ is locked, or unless you turn notification details on, the banner says only "Find+ alert", because a notification preview can appear on a locked screen.
 - WhatsApp alerts, relayed through CallMeBot. The setup text says plainly that your alert text passes through a third party before it reaches WhatsApp. Set it up in the Alerts tab, which carries that text and the CallMeBot contact details, or from the terminal with `findplus alerts whatsapp set`/`clear`; the routes behind it are `PUT`/`DELETE /api/alerts/channels/whatsapp`. The phone number is shown masked and the API key is never returned.
 - Alert rules can target more than one channel at once. Each channel gets its own delivery row and its own cooldown, so a notification on one never suppresses another.
-- Device and group labels, icons and colours: `PATCH /api/devices/{id}`, `GET /api/icons`, `findplus devices label`/`findplus devices icons`, exports and the macOS widget all carry the new fields. A label is local only and survives every provider name refresh.
-- Edit a device's label, icon and colour from the dashboard: every row in the Devices dialog has an Edit button, and the choice shows up on the device list, on every map marker, on the timeline track heads and in the macOS widget.
-- A group create and edit dialog on the Groups tab: name, icon, colour, quorum, cluster radius, stale-after minutes and which tracked devices belong to the group.
+- Device and group labels, icons and colors: `PATCH /api/devices/{id}`, `GET /api/icons`, `findplus devices label`/`findplus devices icons`, exports and the macOS widget all carry the new fields. A label is local only and survives every provider name refresh.
+- Edit a device's label, icon and color from the dashboard: every row in the Devices dialog has an Edit button, and the choice shows up on the device list, on every map marker, on the timeline track heads and in the macOS widget.
+- A group create and edit dialog on the Groups tab: name, icon, color, quorum, cluster radius, stale-after minutes and which tracked devices belong to the group.
 - Group cards on the Groups tab, each with the group badge, its member avatars, its live presence verdict, and edit and delete buttons.
 
 ### Changed

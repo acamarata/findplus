@@ -91,7 +91,7 @@ findplus start --yes
 - MCP server exposing devices, places, groups and history as LLM tools.
 - macOS menu-bar app (Tauri) with a WidgetKit status widget and a places widget.
 - Device and group labels with a 49-icon picker, your own uploaded custom
-  icons, or a coloured letter badge, and 12 accent colours.
+  icons, or a colored letter badge, and 12 accent colors.
 - Apple Find My accessory key upload from the dashboard, the CLI, or the API.
 - In-dashboard sign-in for Google Find Hub and Apple Find My, no terminal required.
 - Guided first-run setup wizard covering sign-in, devices, groups, places, notifications and app lock.

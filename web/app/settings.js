@@ -63,13 +63,18 @@ function renderLockSection() {
 /** The New PIN field's own error line (UAT3 N21, matching settings_polling.js's
  * showPollIntervalError): a mismatch or the server's 6-character minimum
  * render here, beside the field, rather than in #settings-message at the top
- * of the dialog. `message` null/empty clears it. */
+ * of the dialog. `message` null/empty clears it.
+ *
+ * GP-R5-5: a mismatch is about both fields, not just New PIN -- #confirm-pin
+ * now carries the same aria-invalid state (and the same aria-describedby in
+ * settings.html) so a screen reader on either field hears the rejection. */
 function showNewPinError(message) {
   const el = $("setting-new-pin-error");
   if (!el) return;
   el.textContent = message || "";
   el.classList.toggle("hidden", !message);
   $("new-pin").setAttribute("aria-invalid", String(!!message));
+  $("confirm-pin").setAttribute("aria-invalid", String(!!message));
 }
 
 export async function saveSettings(patch) {

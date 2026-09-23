@@ -67,11 +67,16 @@ function pinInput(id) {
 
 /** The New PIN field's own error line, matching settings.js's
  * showNewPinError/#setting-new-pin-error (UAT4 N35). `message` null/empty
- * clears it. */
+ * clears it.
+ *
+ * GP-R5-5: a mismatch is about both fields, not just New PIN -- #fp-setup-pin
+ * and #fp-setup-pin-confirm both carry aria-invalid, the same twin fix as
+ * settings.js's showNewPinError(). */
 function setFieldError(message) {
   els.fieldError.textContent = message || "";
   els.fieldError.classList.toggle("hidden", !message);
   els.pin.setAttribute("aria-invalid", String(!!message));
+  els.confirm.setAttribute("aria-invalid", String(!!message));
 }
 
 /**
@@ -142,6 +147,9 @@ export default {
     const pin = pinInput("fp-setup-pin");
     const confirm = pinInput("fp-setup-pin-confirm");
     pin.setAttribute("aria-describedby", "fp-setup-pin-error");
+    // GP-R5-5: the mismatch error is about both fields (settings.js's
+    // #confirm-pin twin fix), so Confirm PIN needs the same describedby.
+    confirm.setAttribute("aria-describedby", "fp-setup-pin-error");
 
     // UAT4 N35: mismatch/too-short/server errors render here, right after
     // the New PIN field -- settings.js's #setting-new-pin-error convention,

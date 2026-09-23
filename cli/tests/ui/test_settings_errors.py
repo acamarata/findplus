@@ -48,7 +48,8 @@ async def test_poll_interval_error_renders_inside_the_dialog(page, base_url):
 async def test_pin_mismatch_renders_beside_the_field(page, base_url):
     """UAT3 N21 (re-walk): the mismatch line moved beside New PIN, the same
     field-level convention as the poll interval, instead of #settings-message
-    at the top of the dialog."""
+    at the top of the dialog. GP-R5-5: the mismatch is about both fields, so
+    #confirm-pin carries the same aria-invalid as #new-pin."""
     await _open_settings(page, base_url)
     await page.fill("#new-pin", "aaaaaa")
     await page.fill("#confirm-pin", "bbbbbb")
@@ -59,6 +60,8 @@ async def test_pin_mismatch_renders_beside_the_field(page, base_url):
     assert "do not match" in field_error
     invalid = await page.get_attribute("#new-pin", "aria-invalid")
     assert invalid == "true"
+    confirm_invalid = await page.get_attribute("#confirm-pin", "aria-invalid")
+    assert confirm_invalid == "true"
 
     message = await page.locator("#settings-message").inner_text()
     assert "do not match" not in message, "the error was ALSO echoed to #settings-message"
@@ -110,9 +113,12 @@ async def test_reopening_settings_clears_the_previous_message(page, base_url):
 async def test_new_pin_and_poll_interval_are_described_by_their_error_line(page, base_url):
     """UAT4 N40: neither field error was tied to its input with
     aria-describedby, so a screen reader on the New PIN or poll interval
-    field never heard the rejection rendered right beside it."""
+    field never heard the rejection rendered right beside it. GP-R5-5:
+    #confirm-pin has the same gap (a mismatch is rendered in the same
+    #setting-new-pin-error line) -- it needs the same attribute."""
     await _open_settings(page, base_url)
     assert await page.get_attribute("#new-pin", "aria-describedby") == "setting-new-pin-error"
+    assert await page.get_attribute("#confirm-pin", "aria-describedby") == "setting-new-pin-error"
     assert (
         await page.get_attribute("#setting-poll-interval", "aria-describedby")
         == "setting-poll-interval-error"

@@ -130,7 +130,10 @@ async def test_next_with_mismatched_pin_shows_inline_error_and_stays(page, base_
 
     UAT4 N35: the field error moved from the status line under the button
     to #fp-setup-pin-error, right beside the New PIN field -- settings.js's
-    own #setting-new-pin-error convention.
+    own #setting-new-pin-error convention. GP-R5-5: the mismatch is about
+    both fields, so #fp-setup-pin-confirm carries the same aria-invalid and
+    aria-describedby as #fp-setup-pin, the wizard's twin of settings.js's
+    #confirm-pin fix.
     """
     calls = []
 
@@ -143,6 +146,11 @@ async def test_next_with_mismatched_pin_shows_inline_error_and_stays(page, base_
     await page.goto(base_url + "/#/setup")
     await page.wait_for_selector("#fp-setup-pin", timeout=15000)
 
+    assert (
+        await page.get_attribute("#fp-setup-pin-confirm", "aria-describedby")
+        == "fp-setup-pin-error"
+    )
+
     await page.fill("#fp-setup-pin", "1234")
     await page.fill("#fp-setup-pin-confirm", "5678")
     await page.click("#fp-wizard-next")
@@ -151,6 +159,8 @@ async def test_next_with_mismatched_pin_shows_inline_error_and_stays(page, base_
     assert "do not match" in await page.locator("#fp-setup-pin-error").inner_text()
     invalid = await page.get_attribute("#fp-setup-pin", "aria-invalid")
     assert invalid == "true"
+    confirm_invalid = await page.get_attribute("#fp-setup-pin-confirm", "aria-invalid")
+    assert confirm_invalid == "true"
     assert calls == []
     assert await page.locator("#fp-setup-pin").is_visible()
     assert (await _settings(page, base_url))["onboarding.last_step"] == "applock"

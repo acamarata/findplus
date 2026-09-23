@@ -21,9 +21,12 @@
 #fp-group-dialog::backdrop,
 #fp-device-dialog::backdrop,
 #fp-place-dialog::backdrop { background: rgba(5,8,13,.72); }
+/* UAT2 N11: style.css's global `h2` rule uppercases every h2 including this
+   one, so the device dialog's title read "EDIT CHIPOLO ONE POINT". Dialog
+   titles carry a device's own label/name and read as a name, not a label. */
 #fp-group-dialog h2,
 #fp-device-dialog h2,
-#fp-place-dialog h2 { margin: 0 0 12px; font-size: 16px; }
+#fp-place-dialog h2 { margin: 0 0 12px; font-size: 16px; text-transform: none; }
 #fp-group-dialog footer,
 #fp-device-dialog footer,
 #fp-place-dialog footer { display: flex; gap: 8px; margin-top: 14px; }
@@ -115,6 +118,19 @@
 .fp-custom-icon-upload { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
 .fp-custom-icon-status { font-size: 11.5px; color: var(--muted); margin: 4px 0 0; min-height: 1em; }
 
+/* UAT2 N10: the custom-icon upload and the Apple accessory-key panel both
+   used a bare browser-default file input. Chromium (the only engine this app
+   targets: Playwright's bundled build, and Tauri's WebView) supports styling
+   the picker part of a file input as its own pseudo-element, so it can match
+   `.btn-secondary` without hiding the real input behind a fake one. */
+input[type="file"] { font-size: 12.5px; color: var(--muted); }
+input[type="file"]::file-selector-button {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 7px; padding: 5px 9px; font-size: 12.5px; font-weight: 550;
+  cursor: pointer; margin-right: 8px;
+}
+input[type="file"]::file-selector-button:hover { filter: brightness(1.1); }
+
 /* --- device rows (the Devices dialog) ------------------------------------ */
 .fp-device-badge { width: 24px; height: 24px; flex: 0 0 auto; line-height: 0; }
 .fp-device-badge svg { width: 100%; height: 100%; }
@@ -199,6 +215,18 @@
   max-height: 180px; overflow-y: auto; border: 1px solid var(--line);
   border-radius: 8px; padding: 6px 9px; margin: 8px 0;
 }
+/* UAT U17: the Telegram/WhatsApp channel sections append their token, phone
+   and API-key inputs as bare siblings of the Connect/Save button with no
+   spacing of their own -- inline-block boxes sat flush against each other,
+   and the browser's default ~20-character input width cut "Bot token from
+   @BotFather" down to "...@BotFath" right against the button. A wider
+   min-width leaves room to read the placeholder; the margin gives a real
+   gap before the button and, if the row wraps at a narrow width, below it. */
+[data-channel] input[type="text"],
+[data-channel] input[type="password"] {
+  min-width: 210px;
+  margin: 2px 8px 6px 0;
+}
 
 /* --- sign-in panel (first section of the settings dialog, R-P2-8) --------- */
 /* style.css:231 styles password/date/select inside a .setting-row and nothing
@@ -220,7 +248,11 @@
    element; visually smaller and muted so it doesn't compete with the card's
    own "Apple Find My" heading above it. */
 .fp-auth-subheading { font-size: 12px; font-weight: 600; margin: 16px 0 4px; color: var(--muted); }
-#fp-auth-chrome-download { display: inline-block; margin-top: 8px; font-size: .8rem; }
+/* UAT2 N1: an ID selector (specificity 1,0,0) always beat `.hidden`'s 0,1,0,
+   so JS adding "hidden" to this link never actually hid it. Scoping the rule
+   to `:not(.hidden)` keeps the same specificity relationship but on the side
+   that should win when the class is present. */
+#fp-auth-chrome-download:not(.hidden) { display: inline-block; margin-top: 8px; font-size: .8rem; }
 
 /* --- links inside dialogs, modals and cards -------------------------------- */
 /* There is no global `a` rule, so an unstyled link renders in the browser's own
@@ -249,6 +281,11 @@ dialog a:hover,
   border-radius: 12px; padding: 18px 20px; min-width: 320px; max-width: 420px;
 }
 #fp-add-rule-dialog::backdrop { background: rgba(5,8,13,.72); }
+/* UAT2 U32/N7: the dialog had no title at all before (alerts.html now gives
+   it a real <h2>, aria-labelledby-linked). Same rule the group/device/place
+   editors already carry above, including the N11 text-transform override --
+   style.css's global `h2` would otherwise uppercase "New rule"/"Edit rule". */
+#fp-add-rule-dialog h2 { margin: 0 0 12px; font-size: 16px; text-transform: none; }
 #fp-add-rule-dialog input[type="text"],
 #fp-add-rule-dialog input[type="number"],
 #fp-add-rule-dialog select {
@@ -264,6 +301,11 @@ dialog a:hover,
 @media (max-width: 599px) {
   .fp-rule-target-row { flex-direction: column; align-items: stretch; }
 }
+/* UAT2 U32/N7: the channel checkboxes were an unstyled <div> of bare
+   <label>s run together on one line. One per row, like every other
+   checkbox list in the dialog. */
+.fp-channel-picker { display: flex; flex-direction: column; gap: 6px; }
+.fp-channel-picker-option { display: flex; align-items: center; gap: 6px; font-size: 13px; }
 
 /* --- unfinished-setup banner ---------------------------------------------- */
 /* Same weight as #alert, directly under the topbar (onboarding.md § 5). */
@@ -299,6 +341,57 @@ dialog a:hover,
 #fp-deliveries-table td:nth-child(4), #fp-deliveries-table td:nth-child(5),
 #fp-deliveries-table td:nth-child(8) {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* UAT2 N3: these eight widths used to be inline style="width:…" on each
+   <col> (alerts.html) -- the page's CSP has no 'unsafe-inline' in style-src,
+   so the browser dropped every one of them silently and logged 8 console
+   errors, and every column fell back to its unstyled (equal) default. Same
+   percentages, targeting the <col> elements by position instead; the column
+   order stays test-pinned (see the comment above), so nth-child keeps
+   matching the same column it always did. */
+#fp-deliveries-table col:nth-child(1) { width: 15%; }
+#fp-deliveries-table col:nth-child(2) { width: 9%; }
+#fp-deliveries-table col:nth-child(3) { width: 8%; }
+#fp-deliveries-table col:nth-child(4) { width: 9%; }
+#fp-deliveries-table col:nth-child(5) { width: 9%; }
+#fp-deliveries-table col:nth-child(6) { width: 15%; }
+#fp-deliveries-table col:nth-child(7) { width: 12%; }
+#fp-deliveries-table col:nth-child(8) { width: 23%; }
+
+/* --- delivery log: narrow-container card layout (UAT2 U9) -----------------
+   responsive.css's phone tier already turns this table into one card per
+   delivery below a 599px VIEWPORT -- but at 1280 the log renders inside
+   .timeline-pane, the .layout grid's 380px side column (~348px of usable
+   width once its own padding is out), not the viewport. A table this narrow
+   still packed all 8 fixed-width columns in ("W...", 5-line cells) because
+   nothing was keyed off the PANE's own width. A container query is the
+   simpler fix over moving the whole section out of the side pane: one
+   ruleset, keyed to whichever ancestor is actually narrow, covers both the
+   phone tier and this desktop pane without duplicating the layout. */
+#tab-alerts { container-type: inline-size; }
+@container (max-width: 500px) {
+  #fp-deliveries-table, #fp-deliveries-table tbody, #fp-deliveries-table tr {
+    display: block; width: auto;
+  }
+  #fp-deliveries-table thead, #fp-deliveries-table colgroup { display: none; }
+  #fp-deliveries-table tr {
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 0 0 8px;
+  }
+  #fp-deliveries-table td {
+    display: flex; gap: 10px; justify-content: space-between; align-items: baseline;
+    padding: 3px 0; border: none; width: auto;
+  }
+  #fp-deliveries-table td:nth-child(2), #fp-deliveries-table td:nth-child(3),
+  #fp-deliveries-table td:nth-child(4), #fp-deliveries-table td:nth-child(5),
+  #fp-deliveries-table td:nth-child(8) {
+    white-space: normal; overflow: visible; text-overflow: clip;
+  }
+  #fp-deliveries-table td::before {
+    content: attr(data-label); flex: 0 0 auto; color: var(--muted);
+    font-size: 11px; text-transform: uppercase; letter-spacing: .02em;
+  }
+  #fp-deliveries-table td:empty { display: none; }
+  #fp-deliveries-table details summary { cursor: pointer; color: var(--accent); }
 }
 
 /* --- hidden rows ---------------------------------------------------------- */

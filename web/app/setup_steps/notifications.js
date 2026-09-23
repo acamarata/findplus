@@ -23,10 +23,16 @@ import { t } from "../i18n.js";
 import { telegramControls } from "./_notifications_telegram.js";
 import { whatsappControls } from "./_notifications_whatsapp.js";
 
-/** Channel id -> the /api/config.notices ids that must be shown with it. */
+/**
+ * Channel id -> the /api/config.notices ids shown WITH that channel's own
+ * controls. `alerts_latency` applies to telegram and webhook alike (both are
+ * network-delivered), so it is rendered once above the channel sections
+ * instead of once per channel (UAT U17: the wizard repeated the identical
+ * sentence under Telegram and again under Webhook).
+ */
 const CHANNEL_NOTICE_KEYS = {
-  telegram: ["alerts_latency"],
-  webhook: ["alerts_latency"],
+  telegram: [],
+  webhook: [],
   // whatsapp_setup (the CallMeBot connect steps) joins whatsapp_relay (the
   // third-party-relay disclosure) above the fields, matching the settings
   // card's own #fp-wa-relay-notice + #fp-wa-instructions pair (T0 addendum
@@ -34,6 +40,9 @@ const CHANNEL_NOTICE_KEYS = {
   whatsapp: ["whatsapp_relay", "whatsapp_setup"],
   native: ["native_generic", "alerts_locked"],
 };
+
+//: Channels that share the one `alerts_latency` sentence (network delivery).
+const LATENCY_CHANNELS = ["telegram", "webhook"];
 
 /** The live step's container, captured on render. */
 let host = null;
@@ -118,7 +127,12 @@ export default {
   },
   async onEnter(ctx) {
     const channels = await ctx.api("/api/alerts/channels");
-    for (const key of channelKeys(channels)) {
+    const keys = channelKeys(channels);
+    const notices = (ctx.state.config && ctx.state.config.notices) || {};
+    if (keys.some((key) => LATENCY_CHANNELS.includes(key))) {
+      host.append(footnote(notices.alerts_latency));
+    }
+    for (const key of keys) {
       const noticeKeys = CHANNEL_NOTICE_KEYS[key];
       if (!noticeKeys) continue;
       if (key === "native" && window.__findplus_native !== true) continue;

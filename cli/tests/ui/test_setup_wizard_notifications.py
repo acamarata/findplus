@@ -9,7 +9,7 @@ import json
 
 import pytest
 
-from findplus.honesty import CHROME_REQUIRED, WHATSAPP_RELAY, WHATSAPP_SETUP
+from findplus.honesty import ALERTS_LATENCY, CHROME_REQUIRED, WHATSAPP_RELAY, WHATSAPP_SETUP
 
 from .conftest import SEEDED_COMPLETED_AT
 
@@ -241,6 +241,38 @@ async def test_signin_step_clears_status_line_on_chrome_missing_400(page, base_u
         await page.wait_for_selector("#fp-setup-chrome-notice:not([hidden])", timeout=15000)
         status = await page.locator("#fp-setup-signin-status").inner_text()
         assert status == "", f"status line still reads {status!r} beside the Chrome-missing notice"
+    finally:
+        await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
+        await _set_last_step(page, base_url, None)
+
+
+async def test_notifications_step_latency_honesty_shown_once(page, base_url):
+    """UAT U17: alerts_latency appeared once under Telegram and again,
+    verbatim, under Webhook -- a copy-paste-looking duplicate. It describes
+    both (network-delivered) channels alike, so it now renders once, above
+    them, instead of once per channel."""
+    try:
+        await _open_step(page, base_url, "notifications")
+        await page.wait_for_selector("[data-channel='telegram']", timeout=15000)
+        step_text = await page.locator("#setup-view .fp-wizard-step").inner_text()
+        assert step_text.count(ALERTS_LATENCY) == 1, step_text
+    finally:
+        await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
+        await _set_last_step(page, base_url, None)
+
+
+async def test_notifications_step_token_field_is_not_squeezed_against_connect(page, base_url):
+    """UAT U17: the token input's browser-default ~20-character width cut
+    "Bot token from @BotFather" down to "...@BotFath" flush against Connect."""
+    try:
+        await _open_step(page, base_url, "notifications")
+        token = page.locator("#fp-setup-tg-token")
+        connect = page.locator("[data-channel='telegram'] button")
+        await token.wait_for(state="visible", timeout=15000)
+        token_box = await token.bounding_box()
+        connect_box = await connect.bounding_box()
+        assert token_box["width"] >= 190, token_box
+        assert connect_box["x"] - (token_box["x"] + token_box["width"]) >= 4
     finally:
         await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
         await _set_last_step(page, base_url, None)

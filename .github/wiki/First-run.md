@@ -11,8 +11,8 @@ redirects to `#/setup`.
 |---|---|---|
 | 1 | Welcome | What Find+ is, and that everything stays on this machine. |
 | 2 | Sign in | Google Find Hub or Apple Find My, or both. See [Sign in](Sign-in). |
-| 3 | Devices | Pick which trackers to poll, and give them labels, icons and colours. |
-| 4 | Groups | Put devices in a group, with an icon and a colour. |
+| 3 | Devices | Pick which trackers to poll, and give them labels, icons and colors. |
+| 4 | Groups | Put devices in a group, with an icon and a color. |
 | 5 | Places | Drop saved places on the map with the crosshair tool. |
 | 6 | Notifications | Connect Telegram, a webhook, WhatsApp, or Mac notifications. |
 | 7 | App lock | Set a PIN, if you want one. |
@@ -45,8 +45,8 @@ findplus setup
 
 It asks about sign-in, device tracking, one group, Telegram and the app lock,
 in that order. Places are always left to the dashboard, because there is no
-terminal map. Labels, icons and colours are left to the dashboard too, because
-there is no colour picker in a terminal.
+terminal map. Labels, icons and colors are left to the dashboard too, because
+there is no color picker in a terminal.
 
 ```bash
 findplus setup --yes

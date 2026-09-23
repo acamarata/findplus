@@ -192,7 +192,7 @@ async def test_color_picker_renders_twelve_swatches_and_emits(page, base_url) ->
     assert await page.locator("#picker-host .fp-color-swatch").count() == 12
     assert await page.locator("#picker-host input[type='color']").count() == 1
     custom = page.locator("#picker-host .fp-color-custom")
-    assert await custom.get_attribute("aria-label") == "Custom colour"
+    assert await custom.get_attribute("aria-label") == "Custom color"
     await page.locator("#picker-host .fp-color-swatch").nth(2).click()
     emitted = await page.evaluate("window.__lastValue")
     assert emitted == third

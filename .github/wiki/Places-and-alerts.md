@@ -7,7 +7,7 @@ monitors whether each tracked tag is inside or outside each place by applying th
 engine to incoming location fixes. Confirmations are required before emitting an enter or
 exit event, which reduces false alerts from location jitter.
 
-The Places tab's side panel lists every saved place -- its colour, its radius, and which
+The Places tab's side panel lists every saved place -- its color, its radius, and which
 tracked devices are inside it right now -- with Edit and Delete on each row and a click
 anywhere else on the row to centre the map on that place.
 

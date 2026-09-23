@@ -80,7 +80,7 @@ the same daemon the CLI installs; the app never runs a second copy.
 - [ ] Locked state shows lock glyph and 'Locked', no device data
 - [ ] Poll Now intent triggers a poll (check daemon log)
 - [ ] Open Find+ intent opens the dashboard
-- [ ] Dark mode: all text and dots adapt, no hardcoded light colours
+- [ ] Dark mode: all text and dots adapt, no hardcoded light colors
 
 ## Places widget manual checklist
 
@@ -91,7 +91,7 @@ the same daemon the CLI installs; the app never runs a second copy.
 - [ ] A fully-present group shows its own badge, not one badge per member
 - [ ] Locked state shows lock glyph and 'Locked', no place data
 - [ ] Tapping the widget opens the dashboard on the Places tab
-- [ ] Dark mode: all text and badges adapt, no hardcoded light colours
+- [ ] Dark mode: all text and badges adapt, no hardcoded light colors
 
 ---
 [[Home]]

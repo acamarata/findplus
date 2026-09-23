@@ -348,7 +348,7 @@ Persist whether the widget renders a map snapshot.
 Devices
 
 ### PATCH /api/devices/{device_id}
-Edit one device's label, icon, colour or tracked flag.
+Edit one device's label, icon, color or tracked flag.
 
 | name | in | required | type |
 |---|---|---|---|

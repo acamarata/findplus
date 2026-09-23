@@ -209,7 +209,7 @@ List the available Lucide icon ids.
 | --json |  | Output JSON. |
 
 ## findplus devices label
-Set a device's label, icon and/or colour.
+Set a device's label, icon and/or color.
 
 **Usage:** `findplus devices label [OPTIONS]`
 

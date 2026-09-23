@@ -83,6 +83,34 @@ async def test_each_provider_card_says_which_provider_it_is(page, base_url) -> N
     assert await apple.inner_text() == catalog["apple"]["heading"]
 
 
+async def test_signed_in_google_card_offers_switch_account(page, base_url) -> None:
+    """UAT3 N23: a signed-in account used to leave a dimmed "Sign in with
+    Google" button -- a real action with nothing to do. The button now stays
+    enabled and relabels to "Switch account", matching the wizard's own
+    sign-in step (setup_steps/signin.js)."""
+    await _open_settings(page, base_url)
+    catalog = (await _catalog(page, base_url))["auth"]["google"]
+
+    await page.evaluate(
+        """async () => {
+            const auth = await import('/static/app/auth.js');
+            auth.renderGoogleCard({signed_in: true, account: 'a@example.com', needs: []});
+        }"""
+    )
+    button = page.locator("#fp-auth-google-signin")
+    assert await button.inner_text() == catalog["switchAccount"]
+    assert await button.is_disabled() is False
+
+    await page.evaluate(
+        """async () => {
+            const auth = await import('/static/app/auth.js');
+            auth.renderGoogleCard({signed_in: false, account: null, needs: []});
+        }"""
+    )
+    assert await button.inner_text() == catalog["signin"]
+    assert await button.is_disabled() is False
+
+
 async def test_apple_2fa_field_hidden_by_default(page, base_url) -> None:
     await _open_settings(page, base_url)
     assert "hidden" in (await page.locator("#fp-auth-apple-2fa").get_attribute("class"))

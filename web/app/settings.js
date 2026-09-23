@@ -82,6 +82,10 @@ export async function saveSettings(patch) {
  * second /api/config fetch) rather than assumed already loaded.
  */
 export async function openSettings() {
+  // data-loaded marks the end of the fills below, so anything that edits a
+  // field (a test, a script) can wait for it: loadSettings() re-renders the
+  // poll interval and clears its field error when it lands.
+  delete $("settings-modal").dataset.loaded;
   $("settings-modal").classList.remove("hidden");
   settingsTrap = trapFocus($("settings-modal"), closeSettings);
   showSettingsMessage(null); // never a stale message from the previous open
@@ -119,6 +123,8 @@ export async function openSettings() {
     await auth.mountAuthPanel($("fp-settings-signin"));
   } catch (e) {
     showSettingsMessage(e.message, "err");
+  } finally {
+    $("settings-modal").dataset.loaded = "true";
   }
 }
 

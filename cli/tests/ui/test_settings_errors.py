@@ -1,8 +1,8 @@
 """Playwright browser tests for Settings dialog error/confirmation messages
 (UAT U19): a validation error used to render in the page banner (#alert),
 which sits behind the modal backdrop and is never seen while the dialog is
-open. settings.js's showSettingsMessage() now writes into #settings-message,
-inside the dialog itself.
+open. showSettingsMessage() now writes into #settings-message inside the
+dialog, and the poll interval has its own field-level line (UAT2 U19).
 """
 
 from __future__ import annotations
@@ -16,28 +16,29 @@ async def _open_settings(page, base_url) -> None:
     await page.goto(base_url + "/")
     await page.wait_for_selector("#map")
     await page.click("#btn-settings")
-    await page.wait_for_selector("#settings-modal:not(.hidden)")
+    # openSettings() unhides first and fills afterwards; its loadSettings()
+    # resets the poll field and clears its error, so wait for the fills.
+    await page.wait_for_selector("#settings-modal[data-loaded='true']")
 
 
 async def test_poll_interval_error_renders_inside_the_dialog(page, base_url):
-    """config_keys.py rejects anything outside 5-1440 minutes with a plain
-    ValueError string; the UAT report quoted this exact message showing in
-    the page banner, unreadable behind the modal."""
+    """UAT U19 (re-walk): an out-of-range poll interval gets a friendly line
+    right beside the field, never config_keys.py's raw validator text in
+    #settings-message and never the page banner behind the modal."""
     await _open_settings(page, base_url)
     await page.fill("#setting-poll-interval", "2")
     await page.dispatch_event("#setting-poll-interval", "change")
 
-    await page.wait_for_function(
-        "document.getElementById('settings-message').textContent.length > 0"
-    )
-    message = await page.locator("#settings-message").inner_text()
-    assert "between 5 and 1440" in message
+    await page.wait_for_selector("#setting-poll-interval-error:not(.hidden)")
+    field_error = await page.locator("#setting-poll-interval-error").inner_text()
+    assert "5 to 1440" in field_error
+    invalid = await page.get_attribute("#setting-poll-interval", "aria-invalid")
+    assert invalid == "true"
 
-    # The page banner behind the modal (#alert) may legitimately show its own
-    # unrelated status text (e.g. "nothing tracked"); the defect U19 reports
-    # is THIS message landing there instead of in the dialog.
+    message = await page.locator("#settings-message").inner_text()
+    assert "between 5 and 1440" not in message, "raw validator text leaked into the dialog"
     alert_text = await page.locator("#alert").inner_text()
-    assert "between 5 and 1440" not in alert_text, "the error was ALSO echoed to the page banner"
+    assert "5 and 1440" not in alert_text, "the error was ALSO echoed to the page banner"
 
 
 async def test_pin_mismatch_renders_inside_the_dialog(page, base_url):
@@ -59,9 +60,7 @@ async def test_reopening_settings_clears_the_previous_message(page, base_url):
     await _open_settings(page, base_url)
     await page.fill("#setting-poll-interval", "2")
     await page.dispatch_event("#setting-poll-interval", "change")
-    await page.wait_for_function(
-        "document.getElementById('settings-message').textContent.length > 0"
-    )
+    await page.wait_for_selector("#setting-poll-interval-error:not(.hidden)")
 
     await page.click("#btn-close-settings")
     # Not wait_for_selector("#settings-modal.hidden", the default "visible"
@@ -71,5 +70,7 @@ async def test_reopening_settings_clears_the_previous_message(page, base_url):
         "document.getElementById('settings-modal').classList.contains('hidden')"
     )
     await page.click("#btn-settings")
-    await page.wait_for_selector("#settings-modal:not(.hidden)")
+    await page.wait_for_selector("#settings-modal[data-loaded='true']")
     assert await page.locator("#settings-message").inner_text() == ""
+    error = page.locator("#setting-poll-interval-error")
+    assert "hidden" in (await error.get_attribute("class") or "")

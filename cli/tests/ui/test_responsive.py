@@ -255,3 +255,37 @@ async def test_tabbar_icons_are_svg_not_emoji(page, base_url):
         assert text.strip(), "tab button has no visible accessible-name text"
         for emoji in ("\U0001f3e0", "\U0001f4cd", "\U0001f465", "\U0001f514"):
             assert emoji not in text
+
+
+async def test_more_button_label_is_vertically_centered(page, base_url):
+    """UAT4 N42: the forced 44px touch-target height (responsive.css) left
+    "More"'s single-line label pinned to the top of the button, with the
+    extra height as dead space below it, instead of centred in the middle of
+    the tall box."""
+    await page.set_viewport_size({"width": PHONE_WIDTH, "height": PHONE_HEIGHT})
+    await page.goto(base_url + "/")
+    await page.wait_for_selector("#btn-more", state="visible")
+
+    boxes = await page.evaluate(
+        """() => {
+            const btn = document.getElementById('btn-more');
+            const btnRect = btn.getBoundingClientRect();
+            const textNode = [...btn.childNodes].find(
+                (n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim()
+            );
+            const range = document.createRange();
+            range.selectNodeContents(textNode);
+            const textRect = range.getBoundingClientRect();
+            return {
+                btnTop: btnRect.top, btnHeight: btnRect.height,
+                textTop: textRect.top, textHeight: textRect.height,
+            };
+        }"""
+    )
+    btn_center = boxes["btnTop"] + boxes["btnHeight"] / 2
+    text_center = boxes["textTop"] + boxes["textHeight"] / 2
+    assert abs(btn_center - text_center) <= 3, (
+        f"'More' label not vertically centred: button center {btn_center}, "
+        f"label center {text_center}"
+    )
+    assert boxes["btnHeight"] >= 44, "the 44px touch target itself must not shrink"

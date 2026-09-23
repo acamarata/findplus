@@ -15,7 +15,7 @@ Reuse: session pattern matches findplus.places.repo.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -142,9 +142,7 @@ def set_members(session: Session, group_id: int, member_ids: list[str]) -> Group
     return group
 
 
-def _member_inputs(session: Session, group: Group, window_minutes: int) -> list[MemberInput]:
-    lookback = max(window_minutes, group.stale_after_minutes)
-    cutoff = datetime.now(UTC) - timedelta(minutes=lookback)
+def _member_inputs(session: Session, group: Group) -> list[MemberInput]:
     members: list[MemberInput] = []
     for device_id, name, label in session.execute(
         select(Device.device_id, Device.name, Device.label)
@@ -153,12 +151,13 @@ def _member_inputs(session: Session, group: Group, window_minutes: int) -> list[
     ).all():
         # Label-first, like every other surface (UAT2 N2).
         name = display_name(label, name, device_id)
+        # No `observed_at >= cutoff` filter (UAT3 N19): a stale member's last
+        # fix is exactly what the UI needs for "no fix for N min", and the old
+        # lookback window dropped that row, so member_status() saw last_fix=
+        # None instead. The (device_id, observed_at) index keeps this cheap.
         obs = session.scalars(
             select(LocationObservation)
-            .where(
-                LocationObservation.device_id == device_id,
-                LocationObservation.observed_at >= cutoff,
-            )
+            .where(LocationObservation.device_id == device_id)
             .order_by(LocationObservation.observed_at.desc())
             .limit(2)
         ).all()
@@ -206,7 +205,7 @@ def build_presence(
     and CLI both need one, so member_status() recomputes it from the same
     inputs rather than duplicating it inside the engine.
     """
-    members = _member_inputs(session, group, window_minutes)
+    members = _member_inputs(session, group)
     now = datetime.now(UTC)
     statuses = [
         member_status(m, now, group.stale_after_minutes, movement_threshold_meters, window_minutes)

@@ -45,9 +45,16 @@ function appendLucideGlyph(svg, icon, size) {
   use.setAttribute("y", String(size / 4));
   use.setAttribute("width", String(size / 2));
   use.setAttribute("height", String(size / 2));
-  // Lucide strokes with currentColor; setting it on this instance turns the
-  // glyph white without touching the shared <symbol>.
-  use.style.setProperty("color", "#fff");
+  // Lucide strokes with currentColor; the SVG `color` presentation attribute
+  // sets that CSS property per-instance without touching the shared
+  // <symbol>. This used to go through use.style.setProperty(), which reads
+  // back fine from script but gets serialised into a literal style="" by
+  // .outerHTML below (this glyph's only caller, map.js's numberedIcon(),
+  // feeds that string straight into L.divIcon({ html })) -- CSP's
+  // `style-src 'self'` (no unsafe-inline) silently drops that attribute on
+  // every marker render (UAT3 N3). A presentation attribute is not the
+  // style attribute, so it is unaffected by style-src.
+  use.setAttribute("color", "#fff");
   svg.appendChild(use);
 }
 

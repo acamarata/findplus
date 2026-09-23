@@ -254,12 +254,14 @@ def get_deliveries(
         else:
             stmt = stmt.order_by(AlertDelivery.sent_at.desc()).limit(limit)
         rows = s.execute(stmt).all()
-        render_native = channel == "native"
-        keys = [
-            (d.event_kind, d.event_id)
-            for d, _rule_name in rows
-            if render_native and d.channel == "native"
-        ]
+        # Every native row gets rendered, not only when the REQUEST itself
+        # filters to `?channel=native` (UAT3 N18): the dashboard's own
+        # delivery log calls this with no channel filter at all, so its own
+        # Desktop notification rows read text:null and showed the dash on
+        # every row until this matched on the ROW's channel alone. `limit`
+        # (capped at 500 above) already bounds how many keys this can ever
+        # build, native-filtered or not, so widening this costs nothing.
+        keys = [(d.event_kind, d.event_id) for d, _rule_name in rows if d.channel == "native"]
         rendered = batch_delivery_text_bodies(s, keys) if keys else {}
         return [_delivery_to_dict(d, rule_name, rendered) for d, rule_name in rows]
 

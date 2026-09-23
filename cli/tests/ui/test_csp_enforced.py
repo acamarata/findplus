@@ -78,6 +78,12 @@ async def test_every_tab_loads_with_zero_csp_console_errors(csp_page, base_url) 
 
     await csp_page.goto(base_url + "/")
     await csp_page.wait_for_selector('button[data-tab="dashboard"]', state="attached")
+    # The dashboard's initial map render happens on this same page load, before
+    # the tab loop below ever clicks "dashboard" again -- wait for at least one
+    # numbered marker so the assertions after the loop aren't racing an empty
+    # map (UAT3 N3: the seed's TAG-HOME device carries a lucide icon, so its
+    # marker is the one that used to trip the CSP violation on every render).
+    await csp_page.wait_for_selector(".marker-num-glyph", state="attached")
 
     for tab in _TABS:
         await csp_page.click(f'button[data-tab="{tab}"]')
@@ -91,5 +97,13 @@ async def test_every_tab_loads_with_zero_csp_console_errors(csp_page, base_url) 
         # deliveries/rules tables, the places/groups lists) a moment to
         # finish painting before moving to the next tab.
         await csp_page.wait_for_timeout(300)
+
+    # UAT3 N3: a badge.js regression that only shows up once a marker with a
+    # lucide icon actually renders (a plain-letter or empty badge never calls
+    # the code path that broke). Assert markers were on the page at all, so a
+    # future seed change that drops the last lucide-icon device can't make
+    # this test pass for the wrong reason (zero markers, zero violations).
+    glyph_count = len(await csp_page.query_selector_all(".marker-num-glyph svg use"))
+    assert glyph_count > 0, "expected at least one lucide-icon marker to render on the map"
 
     assert violations == [], "CSP violations:\n" + "\n".join(violations)

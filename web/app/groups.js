@@ -174,6 +174,9 @@ function ageLabel(member) {
   return fmtAgeMinutes(member ? member.age_minutes : null);
 }
 
+// Ever reported at all? (UAT3 N19: "no fix yet" vs "no fix for {age}".)
+function hasEverReported(member) { return !!member && member.age_minutes != null; }
+
 /**
  * A labelled list of member names.
  *
@@ -240,7 +243,7 @@ export function renderPresencePanel(presence) {
     const badge = document.createElement("span");
     badge.className = "fp-stale-badge";
     const name = (member && member.name) || key;
-    badge.textContent = t("groups.staleBadge", { name, age: ageLabel(member) });
+    badge.textContent = hasEverReported(member) ? t("groups.staleBadge", { name, age: ageLabel(member) }) : t("groups.staleBadgeNoFix", { name });
     li.appendChild(badge);
     staleList.appendChild(li);
   });

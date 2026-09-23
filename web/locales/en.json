@@ -146,6 +146,7 @@
     "verdictPartial": "Partial",
     "listAway": "Away from the others",
     "staleBadge": "{name} — no fix for {age}",
+    "staleBadgeNoFix": "{name} — no fix yet",
     "dialog": {
       "title_add": "Add group",
       "title_edit": "Edit group"
@@ -333,6 +334,7 @@
       "kind": "Kind",
       "text": "Text",
       "body": "Body",
+      "notNativeText": "{channel} sends its own message, not logged here",
       "sent": "Sent",
       "status": "Status",
       "error": "Error"

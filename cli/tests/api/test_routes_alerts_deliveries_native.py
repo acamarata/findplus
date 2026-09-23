@@ -62,6 +62,19 @@ def test_a_native_row_uses_the_device_label_when_set(client: TestClient) -> None
     assert row["text"] == "Biscuit (dog) arrived at Home"
 
 
+def test_a_native_row_renders_even_when_the_request_is_unfiltered(client: TestClient) -> None:
+    """UAT3 N18: the dashboard's delivery log calls GET /api/alerts/deliveries
+    with no `channel` filter at all -- rendering used to be gated on the
+    REQUEST'S filter equalling "native", not on the row's own channel, so
+    every row (including native ones) came back text:null unless the caller
+    filtered to exactly `?channel=native`."""
+    rule_id, event_id = _seed()
+    _add_delivery(rule_id, event_id, "native")
+    row = client.get("/api/alerts/deliveries").json()[0]
+    assert row["text"] == "Tag arrived at Home"
+    assert "Observed" in row["body"]
+
+
 def test_a_non_native_row_has_no_text_or_body(client: TestClient) -> None:
     rule_id, event_id = _seed()
     _add_delivery(rule_id, event_id, "telegram", status="sent")

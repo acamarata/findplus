@@ -82,14 +82,78 @@ async def test_delivery_log_shows_channel_and_status(page, base_url, ui_db):
     # catalogs, not the raw stored id ("webhook"/"failed").
     assert cells[1] == "Webhook"
     # text/body are rendered server-side for native rows only (notifications.md
-    # §2), so a webhook row shows the empty-value placeholder in both.
-    assert cells[3] == "—"
-    assert cells[4] == "—"
+    # §2), so a webhook row says so instead of showing the "we don't know"
+    # dash every other empty cell uses (UAT3 N18).
+    assert cells[3] == "Webhook sends its own message, not logged here"
+    assert cells[4] == "Webhook sends its own message, not logged here"
     # U22: "Sent" stays empty for a failed row -- it never went out at that
     # timestamp, `sent_at` is really "first attempted at" (alerts/retry.py).
     assert cells[5] == "—"
     assert cells[6] == "Failed"
     assert cells[7] == "connection refused"
+
+
+def _insert_place_event(ui_db, home_id: int) -> int:
+    """A minimal ENTER place_event (and its required observation row) for
+    TAG-HOME at "Home", written straight into the live sqlite file -- the UI
+    seed carries no place_events at all, and this test needs one real event
+    for the server to render. Returns the new place_event id."""
+    import sqlite3
+
+    now = "2026-09-20 12:00:00"
+    conn = sqlite3.connect(ui_db)
+    try:
+        obs_id = conn.execute(
+            "INSERT INTO location_observations"
+            " (device_id, device_name, latitude_e7, longitude_e7, observed_at,"
+            "  first_fetched_at, last_fetched_at, times_returned, source, is_own_report)"
+            " VALUES ('TAG-HOME', 'Home Tag', 411000000, -801000000,"
+            "  ?, ?, ?, 1, 'crowdsourced', 0)",
+            (now, now, now),
+        ).lastrowid
+        event_id = conn.execute(
+            "INSERT INTO place_events"
+            " (place_id, device_id, event_type, observed_at, fetched_at,"
+            "  observation_id, confidence, distance_meters)"
+            " VALUES (?, 'TAG-HOME', 'ENTER', ?, ?, ?, 'high', 0.0)",
+            (home_id, now, now, obs_id),
+        ).lastrowid
+        conn.commit()
+        return event_id
+    finally:
+        conn.close()
+
+
+async def test_native_row_renders_text_with_no_channel_filter(page, base_url, ui_db):
+    """UAT3 N18: the dashboard's own delivery log calls GET /api/alerts/
+    deliveries with no `channel` filter at all -- rendering used to be gated
+    on the REQUEST's filter equalling "native", not on the ROW's own
+    channel, so this exact load (never filtered) showed the dash on every
+    row, including its own Desktop notification ones.
+    """
+    places = await (await page.request.get(base_url + "/api/places")).json()
+    home_id = next(p["id"] for p in places if p["name"] == "Home")
+    event_id = _insert_place_event(ui_db, home_id)
+
+    rule_id = await _create_rule(page, base_url, "N18 native rule", ["native"])
+    _insert_delivery_rows(
+        ui_db,
+        [
+            (
+                "INSERT INTO alert_deliveries"
+                " (rule_id, event_kind, event_id, channel, sent_at, status, error)"
+                " VALUES (?, 'device', ?, 'native', '2026-09-20 12:00:00', 'queued', NULL)",
+                (rule_id, event_id),
+            )
+        ],
+    )
+
+    await open_alerts_tab(page, base_url)
+    row = page.locator("#fp-deliveries-tbody tr", has_text="N18 native rule")
+    await row.wait_for(state="visible")
+    cells = await row.locator("td").all_text_contents()
+    assert cells[3] not in ("—", "")
+    assert "Home" in cells[3]
 
 
 async def _open_alerts_at_viewport(page, base_url: str, viewport: dict) -> None:

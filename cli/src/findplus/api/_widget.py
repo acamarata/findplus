@@ -31,9 +31,9 @@ from ._time import _iso_z
 #: the same one the dashboard and CLI would show right now.
 WIDGET_GROUP_WINDOW_MINUTES = 60
 
-#: Widget staleness threshold in minutes (D18, the same number groups default to).
-#: Served as `stale_after_minutes` on GET /api/widget so the Swift views read one
-#: agreed figure instead of hardcoding a second, looser one of their own.
+#: Widget staleness threshold (D18; also Settings.presence_window_minutes's
+#: default since N17/R-P2-32, kept literal here, bound at import). Served as
+#: `stale_after_minutes` on GET /api/widget so the Swift views read one figure.
 WIDGET_STALE_AFTER_MINUTES = 90
 
 #: `PollRun.error_type` values that put the widget straight into `error`,

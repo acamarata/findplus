@@ -74,9 +74,14 @@ class Settings(BaseSettings):
 
     # --- Groups / presence ---------------------------------------------------
     presence_window_minutes: int = Field(
-        default=60,
+        default=90,
         description="How far back a member's last fix can be and still count as "
-        "reporting for group presence and staleness checks.",
+        "reporting for group presence and staleness checks. The one canonical "
+        "default for the Places tab, a new group's stale_after_minutes and the "
+        "widget's WIDGET_STALE_AFTER_MINUTES (api/_widget.py) -- they used to "
+        "disagree (60 here vs. 90 there), which read as three different "
+        "opinions about whether the same tracker was still nearby (UAT3 N17, "
+        "R-P2-32: one staleness rule across Places, Groups and the widget).",
     )
     group_window_minutes: int = Field(
         default=30,

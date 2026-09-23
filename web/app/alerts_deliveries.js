@@ -67,11 +67,23 @@ function cell(text, label) {
   return td;
 }
 
-/** Text/Body (notifications.md §2's rendered message, native rows only --
- *  every other channel sends the em dash placeholder) collapse behind a
- *  native `<details>` once they are long enough to squeeze the 360px pane
- *  (U9); a short value (almost always the placeholder) renders plainly. */
-function detailsCell(text, label, threshold = 30) {
+/** Text/Body (notifications.md §2's rendered message) render for every
+ *  native row now (UAT3 N18: the server used to render it only when the
+ *  request itself was filtered to `?channel=native`, so the unfiltered
+ *  delivery log the dashboard actually loads showed the dash on every row,
+ *  including its own Desktop notifications). Every other channel builds its
+ *  message inline when it sends (the webhook JSON payload, the Telegram/
+ *  WhatsApp text) instead of storing a second copy here, so those rows say
+ *  that plainly rather than showing the same dash the app uses for "we
+ *  don't know" -- a purged native event (source event pruned by retention)
+ *  is the one case where the dash is the honest answer, so that one keeps
+ *  it. Long values collapse behind a native `<details>` once they are long
+ *  enough to squeeze the 360px pane (U9); a short value renders plainly. */
+function detailsCell(text, label, channel, threshold = 30) {
+  if (!text && channel && channel !== "native") {
+    const value = t("alerts.deliveries.notNativeText", { channel: t("alerts.channels." + channel) });
+    return cell(value, label);
+  }
   const value = text || t("common.emptyValue");
   if (!text || text.length <= threshold) return cell(value, label);
   const td = document.createElement("td");
@@ -92,8 +104,8 @@ function buildDeliveryRow(delivery) {
     cell(delivery.rule_name || t("alerts.ruleFallback", { id: delivery.rule_id }), t("alerts.colRule")),
     cell(delivery.channel ? t("alerts.channels." + delivery.channel) : t("common.emptyValue"), t("alerts.colChannel")),
     cell(delivery.event_kind ? t("alerts.kinds." + delivery.event_kind) : t("common.emptyValue"), t("alerts.colKind")),
-    detailsCell(delivery.text, t("alerts.deliveries.text")),
-    detailsCell(delivery.body, t("alerts.deliveries.body")),
+    detailsCell(delivery.text, t("alerts.deliveries.text"), delivery.channel),
+    detailsCell(delivery.body, t("alerts.deliveries.body"), delivery.channel),
     cell(sentText(delivery), t("alerts.colSent")),
     cell(statusText(delivery), t("alerts.colStatus")),
     // A "skipped" row arrived with an empty Error cell and no hint why; the

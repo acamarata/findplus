@@ -89,6 +89,11 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
    content), the same issue #btn-more had below. flex + align-items: center
    fixes it while text-align: left keeps the menu's left-aligned layout. */
 #fp-more-menu button { min-height: 44px; text-align: left; display: flex; align-items: center; }
+/* N30: `#fp-more-menu button`'s own `display: flex` above beats `.hidden`'s
+   `display: none` at equal specificity, so a relayed item (e.g. Lock with no
+   PIN set) kept painting after tabbar.js added the class. Re-state it here,
+   same shape as style.css's `.modal.hidden` fix. */
+#fp-more-menu button.hidden { display: none; }
 
 /* --- phone tier (<600px) -------------------------------------------------
    The desktop grid above 900px is untouched. Below 600px the top nav is

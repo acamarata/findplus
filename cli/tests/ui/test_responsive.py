@@ -180,6 +180,63 @@ async def test_day_label_stays_with_its_date_input_at_phone_width(page, base_url
     )
 
 
+async def test_more_menu_closes_on_escape_and_returns_focus(page, base_url):
+    """UAT3 N22: the More menu stayed open after Escape, with no handler for
+    the key at all. Closing now also hands focus back to #btn-more, the
+    element that opened it."""
+    await page.set_viewport_size({"width": PHONE_WIDTH, "height": PHONE_HEIGHT})
+    await page.goto(base_url + "/")
+    await page.wait_for_selector("#app-shell:not(.hidden)")
+
+    await page.click("#btn-more")
+    await page.wait_for_selector("#fp-more-menu:not(.hidden)")
+    await page.keyboard.press("Escape")
+    # Not wait_for_selector("#fp-more-menu.hidden", the default "visible"
+    # state): a hidden menu is never visible by definition, so that would
+    # never resolve (same reasoning as test_settings_errors.py's _open_settings).
+    await page.wait_for_function(
+        "document.getElementById('fp-more-menu').classList.contains('hidden')"
+    )
+    assert await page.get_attribute("#btn-more", "aria-expanded") == "false"
+    focused = await page.evaluate("document.activeElement.id")
+    assert focused == "btn-more"
+
+
+async def test_more_menu_closes_on_outside_click_and_returns_focus(page, base_url):
+    """UAT3 N22: a tap outside the open menu used to do nothing."""
+    await page.set_viewport_size({"width": PHONE_WIDTH, "height": PHONE_HEIGHT})
+    await page.goto(base_url + "/")
+    await page.wait_for_selector("#app-shell:not(.hidden)")
+
+    await page.click("#btn-more")
+    await page.wait_for_selector("#fp-more-menu:not(.hidden)")
+    await page.mouse.click(10, 10)  # outside the menu and the More button
+    await page.wait_for_function(
+        "document.getElementById('fp-more-menu').classList.contains('hidden')"
+    )
+    assert await page.get_attribute("#btn-more", "aria-expanded") == "false"
+    focused = await page.evaluate("document.activeElement.id")
+    assert focused == "btn-more"
+
+
+async def test_group_card_edit_and_delete_stay_on_one_row(page, base_url):
+    """UAT3 N24: Edit and Delete were separate flex-wrap items on the group
+    card, so a narrow card could wrap between them -- Edit alone on one line,
+    Delete pushed to the next. Wrapping them as one `.fp-card-actions` unit
+    keeps the pair together, on one row, at phone width."""
+    await page.set_viewport_size({"width": PHONE_WIDTH, "height": PHONE_HEIGHT})
+    await page.goto(base_url + "/")
+    await page.wait_for_selector("#app-shell:not(.hidden)")
+    await _open_tab(page, "groups")
+    await page.wait_for_selector(".fp-group-card", state="visible")
+
+    card = page.locator(".fp-group-card").first
+    edit_box = await card.locator(".fp-card-edit").bounding_box()
+    delete_box = await card.locator(".fp-card-delete").bounding_box()
+    assert edit_box is not None and delete_box is not None
+    assert abs(edit_box["y"] - delete_box["y"]) < 2, "Edit and Delete are on different rows"
+
+
 async def test_tabbar_icons_are_svg_not_emoji(page, base_url):
     """UAT2 U26: the phone-tier tab bar used emoji glyphs, which render
     inconsistently across platforms and fonts. Each icon is now a sprite

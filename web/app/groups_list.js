@@ -115,15 +115,24 @@ function renderCard(group, devicesById) {
   icon.appendChild(
     renderBadge({ icon: group.icon, color: group.color, label: null, name: group.name, size: 24 }),
   );
+  // UAT3 N24: Edit and Delete were two separate flex-wrap items, so a narrow
+  // card could wrap between them (Edit alone on one line, Delete on the
+  // next) instead of together. One wrapper makes them a single item: they
+  // wrap as a pair or not at all, like the dashboard's .export-group (U26).
+  const actions = document.createElement("div");
+  actions.className = "fp-card-actions";
+  actions.append(
+    cardButton("fp-card-edit btn-tiny btn-secondary", t("common.edit"), t("groups.card.edit", { name: group.name }),
+      () => openEditDialog(group.id, group)),
+    cardButton("fp-card-delete btn-tiny btn-secondary", t("common.delete"), t("groups.card.delete", { name: group.name }),
+      () => onDelete(group)),
+  );
   card.append(
     icon,
     span("fp-card-name", group.name),
     memberAvatars(group, devicesById),
     span("fp-card-verdict"),
-    cardButton("fp-card-edit btn-tiny btn-secondary", t("common.edit"), t("groups.card.edit", { name: group.name }),
-      () => openEditDialog(group.id, group)),
-    cardButton("fp-card-delete btn-tiny btn-secondary", t("common.delete"), t("groups.card.delete", { name: group.name }),
-      () => onDelete(group)),
+    actions,
   );
   card.addEventListener("click", (event) => onCardClick(event, group));
   return card;

@@ -79,6 +79,12 @@ export function quorumRow() {
   return { select, n, wrap };
 }
 
+// UAT3 N24: the slider row itself was given the `.fp-dialog-field` class,
+// which puts every child (label, slider, output AND the hint) in one flex
+// row -- the hint had nowhere to go but a narrow column squeezed beside the
+// slider. quorumRow()/staleRow() below get this right: `.fp-dialog-field`
+// wraps only the label+control pair, and the hint is a sibling underneath
+// it, full width. Same shape here.
 export function radiusRow() {
   const input = field("range", {
     id: "fp-group-radius", min: "25", max: "2000", step: "25", value: DEFAULT_RADIUS,
@@ -89,9 +95,11 @@ export function radiusRow() {
   const label = document.createElement("label");
   label.htmlFor = input.id;
   label.textContent = t("groups.field.radius");
+  const row = document.createElement("div");
+  row.className = "fp-dialog-field";
+  row.append(label, input, out);
   const wrap = document.createElement("div");
-  wrap.className = "fp-dialog-field";
-  wrap.append(label, input, out, fieldHint(t("groups.field.radius_hint")));
+  wrap.append(row, fieldHint(t("groups.field.radius_hint")));
   return { input, out, wrap };
 }
 

@@ -97,7 +97,20 @@ function closeMoreMenu(btn, menu, { restoreFocus = true } = {}) {
   if (restoreFocus) btn.focus();
 }
 
+/** UAT4 N30: the desktop topbar hides #btn-lock with no PIN configured
+ * (lock.js's refreshLockState), but the relayed menu item had no matching
+ * condition -- a tap opened a lock screen any PIN dismissed. Mirroring each
+ * relay target's own hidden state, instead of re-deriving the condition that
+ * set it, keeps this item in step with whichever module last toggled it. */
+function syncMenuItemVisibility(menu) {
+  menu.querySelectorAll("[data-relays-to]").forEach((item) => {
+    const target = document.getElementById(item.dataset.relaysTo);
+    item.classList.toggle("hidden", !!target && target.classList.contains("hidden"));
+  });
+}
+
 function openMoreMenu(btn, menu) {
+  syncMenuItemVisibility(menu);
   menu.classList.remove("hidden");
   btn.setAttribute("aria-expanded", "true");
   menuKeydown = (event) => {

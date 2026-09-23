@@ -376,6 +376,7 @@
     "noticesHeading": "Notices",
     "about": "findplus {version} · schema {schema} · timezone {timezone} · polling every {interval} min",
     "pinsDoNotMatch": "The two PINs do not match.",
+    "pinTooShort": "PIN must be at least 6 characters.",
     "pinSet": "PIN set. The app will lock when idle and whenever the service restarts.",
     "enterNewPin": "Enter the new PIN.",
     "pinChanged": "PIN changed. All existing sessions were signed out.",
@@ -415,7 +416,7 @@
     },
     "welcome": {
       "title": "Welcome",
-      "body": "Find+ tracks your Google Find Hub and Apple Find My devices, entirely on this computer. Nothing you set up here leaves this machine except the direct connections to Google or Apple you set up directly."
+      "body": "Find+ tracks your Google Find Hub and Apple Find My devices. Your location history stays on this machine. Find+ only sends data out for things you turn on: signing in to Google or Apple, map tiles, address search, and any alert channel you connect (Telegram, WhatsApp or a webhook)."
     },
     "signin": {
       "title": "Sign in",

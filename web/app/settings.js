@@ -15,6 +15,10 @@ import { t } from "./i18n.js";
 import { trapFocus } from "./components/dialog-trap.js";
 import { renderPollingSection, wirePollingControls } from "./settings_polling.js";
 
+/** security.py's MIN_PIN_LENGTH — kept in sync by hand, same discipline
+ * honesty.py's sentences already require (specs/honesty.md). UAT4 N44. */
+const MIN_PIN_LENGTH = 6;
+
 /** The focus trap for #settings-modal while it is open, or null. */
 let settingsTrap = null;
 
@@ -162,6 +166,10 @@ async function setPin() {
   showSettingsMessage(null);
   showNewPinError(null); // clear a stale rejection before revalidating
   if (pin !== confirm) { showNewPinError(t("settings.pinsDoNotMatch")); return; }
+  // UAT4 N44: the 6-character minimum (security.py's hash_pin()) used to
+  // reach the server before failing, logging a 400. Checking it here first
+  // is a courtesy that saves the round trip; the server still enforces it.
+  if (pin.length < MIN_PIN_LENGTH) { showNewPinError(t("settings.pinTooShort")); return; }
   try {
     await postJson("/api/settings/pin", { new_pin: pin });
     $("new-pin").value = $("confirm-pin").value = "";

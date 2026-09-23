@@ -273,6 +273,18 @@ dialog a:hover,
 .fp-alerts-section a:hover,
 .fp-group-card a:hover,
 #setup-view a:hover { text-decoration: underline; }
+/* UAT4 N37: the rule above also recolors Leaflet's own zoom +/- and
+   attribution links once the wizard's Places step borrows the dashboard map
+   into #setup-view (places.js's borrowMap()) -- --badge-text (a pale blue in
+   dark theme) reads as barely-there against Leaflet's own white control
+   background, where the dashboard's unscoped copy of the same map is fine.
+   These two rules restore exactly the colors leaflet.css itself sets
+   (.leaflet-bar a's `color: black`, .leaflet-control-attribution's
+   `color: #333`) at a specificity #setup-view a cannot beat, in both
+   themes -- the same "matches the dashboard" bar, since a browser's own
+   OSM copyright/zoom chrome does not change with our theme toggle. */
+#setup-view .leaflet-bar a { color: #000; }
+#setup-view .leaflet-control-attribution a { color: #333; }
 
 /* --- add-rule dialog ------------------------------------------------------ */
 /* W3 visual gate finding 1: this <dialog> had no rules at all, so it painted

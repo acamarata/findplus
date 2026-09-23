@@ -96,10 +96,17 @@ async def test_devices_step_done_count_reflects_what_was_just_tracked(page, base
         devices_gets += 1
         # Untracked on the Devices step's own onEnter refresh(); tracked once
         # onNext's POST /api/devices/track has "landed" and re-fetches.
+        # UAT4 N29: done.js now reads tracked_count off this same response
+        # (the real server always includes it, routes_devices.py), so the
+        # mock must too.
+        tracked = devices_gets > 1
         await route.fulfill(
             status=200,
             content_type="application/json",
-            body=json.dumps({"devices": [_device("TAG-1", "Keys", tracked=devices_gets > 1)]}),
+            body=json.dumps({
+                "tracked_count": 1 if tracked else 0,
+                "devices": [_device("TAG-1", "Keys", tracked=tracked)],
+            }),
         )
 
     await page.route("**/api/devices/refresh", _ok)
@@ -240,3 +247,16 @@ async def test_groups_step_add_with_no_members_blocks_save(page, base_url):
     )
     assert "Select at least one member." in await page.locator("#fp-setup-group-error").inner_text()
     assert calls == []
+
+
+async def test_groups_step_name_field_has_an_accessible_name(page, base_url):
+    """UAT4 N34: the group name field had only a placeholder, which a screen
+    reader stops announcing once something is typed into it."""
+    await page.route("**/api/devices", _serve_devices([_device("TAG-1", "Keys", tracked=True)]))
+
+    await _set_last_step(page, base_url, "groups")
+    await page.goto(base_url + "/#/setup")
+    await page.wait_for_selector("#fp-setup-group-name", timeout=15000)
+
+    label = await page.get_attribute("#fp-setup-group-name", "aria-label")
+    assert label == "Group name"

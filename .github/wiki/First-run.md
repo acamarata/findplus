@@ -9,7 +9,7 @@ redirects to `#/setup`.
 
 | # | Step | What it does |
 |---|---|---|
-| 1 | Welcome | What Find+ is, and that everything stays on this machine. |
+| 1 | Welcome | What Find+ is, and what stays local versus what it sends out. |
 | 2 | Sign in | Google Find Hub or Apple Find My, or both. See [Sign in](Sign-in). |
 | 3 | Devices | Pick which trackers to poll, and give them labels, icons and colors. |
 | 4 | Groups | Put devices in a group, with an icon and a color. |

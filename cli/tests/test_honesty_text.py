@@ -212,3 +212,47 @@ def test_readme_contains_every_honesty_notice():
     for key, fragment in README_FRAGMENTS.items():
         assert fragment in honesty.NOTICES[key], f"{key} fragment does not match honesty.py"
         assert fragment in readme, f"README.md Honesty section is missing the {key} notice"
+
+
+#: UAT4 N28: the wizard's own welcome claim, wiki First-run.md's summary of
+#: it, and Home.md's one-paragraph pitch all said some version of "nothing
+#: leaves this machine" while Telegram, WhatsApp (via CallMeBot), webhooks,
+#: map tiles and address search all send data out. Pinning the false phrase's
+#: absence, and the corrected sentence's key facts, keeps any of the three
+#: from drifting back to the overclaim.
+_FALSE_CLAIM_FRAGMENTS = (
+    "Nothing you set up here leaves this machine",
+    "Nothing is uploaded anywhere except the location queries",
+    "everything stays on this machine",
+)
+
+
+def test_the_wizard_welcome_text_does_not_overclaim_privacy():
+    """en.json's setup.welcome.body must name what actually stays local and
+    what does not, matching the dashboard footer's own accurate claim
+    (common.footerPrivacy) rather than promising more than Find+ delivers."""
+    import json
+
+    en_json = json.loads((REPO_ROOT / "web" / "locales" / "en.json").read_text(encoding="utf-8"))
+    body = en_json["setup"]["welcome"]["body"]
+    for false_fragment in _FALSE_CLAIM_FRAGMENTS:
+        assert false_fragment not in body, f"welcome text still overclaims: {false_fragment!r}"
+    assert "stays on this machine" in body
+    assert "Google or Apple" in body
+    assert "map tiles" in body
+    assert "address search" in body
+    assert "alert channel" in body
+
+
+def test_the_wiki_privacy_claims_do_not_overclaim_either():
+    """The same false pattern (round-tripped through the wizard's own wording
+    at some point) also showed up in Home.md's pitch paragraph and
+    First-run.md's Welcome-step summary; both must name what leaves the
+    machine rather than claim nothing does."""
+    home = (REPO_ROOT / ".github" / "wiki" / "Home.md").read_text(encoding="utf-8")
+    first_run = (REPO_ROOT / ".github" / "wiki" / "First-run.md").read_text(encoding="utf-8")
+    for doc_name, text in (("Home.md", home), ("First-run.md", first_run)):
+        for false_fragment in _FALSE_CLAIM_FRAGMENTS:
+            assert false_fragment not in text, f"{doc_name} still overclaims: {false_fragment!r}"
+    assert "stays on this machine" in home
+    assert "channel you connect" in home

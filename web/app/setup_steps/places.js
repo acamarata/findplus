@@ -26,7 +26,7 @@
 
 import { t } from "../i18n.js";
 import { showAddDialog } from "../places_dialog.js";
-import { setDefaultView } from "../map.js";
+import { setDefaultView, renderTrackedDeviceMarkers } from "../map.js";
 
 /** Where `.map-pane` came from, so onLeave can put it back exactly there. */
 let borrowed = null;
@@ -117,6 +117,9 @@ export default {
     // markers to give it a reason to zoom in. Fit it the same way the
     // dashboard does: tracked devices' latest fixes, else saved places.
     await setDefaultView().catch(() => {});
+    // N36: a true first run has no timeline yet to draw tracker markers
+    // from, so give it its own -- a no-op once the dashboard has booted.
+    await renderTrackedDeviceMarkers().catch(() => {});
   },
   onLeave(ctx) {
     returnMap(ctx);

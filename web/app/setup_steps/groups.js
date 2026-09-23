@@ -102,6 +102,11 @@ export default {
     name.type = "text";
     name.id = "fp-setup-group-name";
     name.placeholder = t("setup.groups.name_placeholder");
+    // UAT4 N34: the placeholder was the field's only name, and a placeholder
+    // disappears once something is typed -- an aria-label keeps a screen
+    // reader's announcement even then (_notifications_telegram.js's own
+    // aria-label pattern, N26).
+    name.setAttribute("aria-label", t("setup.groups.name_placeholder"));
 
     // Built after `name` exists: the icon preview reads it live for the
     // bare-"letter" fallback initial.

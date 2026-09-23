@@ -67,6 +67,28 @@ async def test_places_step_opens_the_map_fitted_to_tracked_devices(page, base_ur
         await _set_last_step(page, base_url, None)
 
 
+async def test_places_step_draws_tracked_device_markers_on_a_true_first_run(page, base_url):
+    """UAT4 N36: a true first run never calls bootDashboard() (main.js
+    redirects to the wizard before that runs), so state.timeline stays null
+    and the borrowed map used to show only the seeded place circles, with no
+    way to see where the trackers actually are to draw a geofence around
+    them. map.js's renderTrackedDeviceMarkers() draws one marker per tracked
+    device's latest fix whenever there is no timeline loaded yet -- the seed
+    (TAG-HOME, TAG-AWAY) gives two."""
+    try:
+        await _open_step(page, base_url, "places")
+        await page.wait_for_selector("#fp-setup-map-host #map", timeout=15000)
+        await page.wait_for_function(
+            "() => document.querySelectorAll('#map .leaflet-marker-icon').length > 0",
+            timeout=15000,
+        )
+        marker_count = await page.locator("#map .leaflet-marker-icon").count()
+        assert marker_count == 2
+    finally:
+        await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
+        await _set_last_step(page, base_url, None)
+
+
 async def test_places_step_list_refreshes_after_adding_a_place(page, base_url):
     """UAT N6: a place added through the wizard's own dialog saved fine (it
     is the dashboard's shared places_dialog.js) but never appeared in this

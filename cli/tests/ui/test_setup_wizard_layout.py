@@ -125,6 +125,31 @@ async def test_groups_step_uses_popover_pickers_not_a_bare_grid(page, base_url):
         await _set_last_step(page, base_url, None)
 
 
+async def test_wizard_map_controls_keep_leaflets_own_contrast_in_dark_theme(page, base_url):
+    """UAT4 N37: #setup-view a (components.css) recolors every link inside
+    the wizard card, including Leaflet's own zoom +/- and OSM attribution
+    links once the Places step borrows the dashboard map into #setup-view --
+    --badge-text is a pale blue in dark theme, unreadable against Leaflet's
+    white control background. Pins the two override rules restoring exactly
+    what leaflet.css itself sets."""
+    try:
+        await _open_step(page, base_url, "places")
+        await set_theme(page, "dark")
+        await page.wait_for_selector("#map .leaflet-control-zoom-in", timeout=15000)
+
+        zoom_color = await page.locator("#map .leaflet-control-zoom-in").evaluate(
+            "el => getComputedStyle(el).color"
+        )
+        attribution_color = await page.locator("#map .leaflet-control-attribution a").first.evaluate(
+            "el => getComputedStyle(el).color"
+        )
+        assert zoom_color == "rgb(0, 0, 0)", zoom_color
+        assert attribution_color == "rgb(51, 51, 51)", attribution_color
+    finally:
+        await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
+        await _set_last_step(page, base_url, None)
+
+
 async def test_deliveries_table_causes_no_horizontal_scroll_at_1280(page, base_url):
     """R-P2-28 point 6 / F6, updated for UAT2 U9: the table's own columns
     used to sit past the 380px side pane's edge at 1280, reachable only by

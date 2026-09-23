@@ -61,10 +61,12 @@ export async function setDefaultView() {
   state.map.setView(WORLD_VIEW_CENTER, WORLD_VIEW_ZOOM);
 }
 
-/** One [lat, lon] per tracked device that has ever reported, skipping any
- * that have not (a 404 from /api/latest) rather than failing the whole
- * default-view computation over one silent tracker. */
-async function _trackedDeviceFixes() {
+/** Each tracked device paired with its latest fix, skipping any that have
+ * none yet (a 404 from /api/latest) rather than failing over one silent
+ * tracker. The one fetch both setDefaultView() and
+ * renderTrackedDeviceMarkers() build on, so a first-run wizard borrowing this
+ * map never issues it twice. */
+async function _trackedDeviceLatest() {
   const devicesResp = await api("/api/devices").catch(() => null);
   const tracked = devicesResp ? devicesResp.devices.filter((d) => d.is_tracked) : [];
   const fixes = await Promise.all(
@@ -72,7 +74,41 @@ async function _trackedDeviceFixes() {
       api(`/api/latest?device_id=${encodeURIComponent(d.device_id)}`).catch(() => null),
     ),
   );
-  return fixes.filter(Boolean).map((f) => [f.latitude, f.longitude]);
+  return tracked.map((device, i) => ({ device, fix: fixes[i] })).filter((entry) => entry.fix);
+}
+
+/** One [lat, lon] per tracked device that has ever reported. */
+async function _trackedDeviceFixes() {
+  return (await _trackedDeviceLatest()).map(({ fix }) => [fix.latitude, fix.longitude]);
+}
+
+/**
+ * True-first-run fallback for the wizard's Places step (UAT4 N36): draw one
+ * marker per tracked device's latest fix, with no track line and no numbered
+ * sequence, since there is no timeline loaded yet to draw one from -- a never-
+ * booted dashboard never populates state.timeline, so the borrowed map used
+ * to show only the place circles places.js (the tab module) draws on its own
+ * layer. A no-op once the dashboard HAS booted (state.timeline set):
+ * renderMap() already drew the real tracks by then, on the wizard's re-run
+ * path, and this must never overwrite them.
+ */
+export async function renderTrackedDeviceMarkers() {
+  if (!state.map || state.timeline) return;
+  state.layer.clearLayers();
+  const entries = await _trackedDeviceLatest();
+  entries.forEach(({ device, fix }) => {
+    const shown = displayName(device) || device.name;
+    const icon = L.divIcon({
+      className: "",
+      html:
+        `<div class="marker-num"><span class="marker-num-glyph">${
+          renderBadge({ icon: device.icon, color: device.color, label: device.label, name: device.name, size: 26 }).outerHTML
+        }</span></div>`,
+      iconSize: [26, 26],
+      iconAnchor: [13, 13],
+    });
+    L.marker([fix.latitude, fix.longitude], { icon, title: shown, keyboard: false }).addTo(state.layer);
+  });
 }
 
 /**

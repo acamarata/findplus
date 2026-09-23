@@ -179,3 +179,26 @@ async def test_removing_pin_then_a_bad_new_pin_clears_the_top_message(page, base
         assert (await page.locator("#setting-new-pin-error").inner_text()).strip()
     finally:
         await _clear_pin_if_configured(page, base_url)
+
+
+async def test_short_pin_never_reaches_the_server(page, base_url):
+    """UAT4 N44: a too-short PIN used to reach the server before failing,
+    logging a 400 in the console -- test_short_pin_error_renders_beside_the_field
+    (above) still exercises that server round trip's visible result, but the
+    6-character minimum is now checked client-side first, so the request is
+    never sent at all."""
+    calls = []
+
+    async def record(route):
+        calls.append(route.request.url)
+        await route.continue_()
+
+    await page.route("**/api/settings/pin", record)
+    await _open_settings(page, base_url)
+    await page.fill("#new-pin", "2468")
+    await page.fill("#confirm-pin", "2468")
+    await page.click("#btn-set-pin")
+
+    await page.wait_for_selector("#setting-new-pin-error:not(.hidden)")
+    assert "at least 6" in await page.locator("#setting-new-pin-error").inner_text()
+    assert calls == [], "a too-short PIN must never reach the server"

@@ -26,7 +26,21 @@ def _key_b64() -> str:
 
 
 async def _open_settings(page, base_url) -> None:
+    """Go to the dashboard and open Settings.
+
+    main() wires #btn-settings (wireControls() -> wireSettingsControls())
+    synchronously, right after initMap() stamps Leaflet's "leaflet-container"
+    class onto #map -- no `await` between the two. A click straight after
+    page.goto() can land before that wiring exists: page.goto() only waits
+    for the 'load' event, not for main()'s own async boot chain, so the
+    click is silently a no-op and #fp-auth-accessory-add (inside the still-
+    closed Settings dialog) never becomes visible (full-lane timeout,
+    2026-09-23 bisection -- same class of race _alerts_helpers.open_alerts_tab
+    closes for its own tab-switch click). Waiting for #map.leaflet-container
+    first proves wireControls() already ran.
+    """
     await page.goto(base_url + "/#dashboard")
+    await page.wait_for_selector("#map.leaflet-container", state="attached")
     await page.click("#btn-settings")
     await page.wait_for_selector("#fp-auth-accessory-add")
 

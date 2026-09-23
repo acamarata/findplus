@@ -30,8 +30,21 @@ async def open_alerts_tab(page, base_url) -> None:
     test_alerts_telegram.py and test_alerts_webhook.py, all through this one
     helper). alerts.js sets data-fp-ready once its init() -- wiring included
     -- has fully run; waiting for it here closes the gap for every caller.
+
+    The tab-switch click itself has the same class of race, one step earlier:
+    main() calls initTabbar() (wires every button[data-tab] click) and only
+    then, synchronously, initMap() -- which makes Leaflet stamp "leaflet-
+    container" onto #map -- before it goes on to wire anything else. A click
+    on the tab button that lands before initTabbar() has run is silently a
+    no-op: the page stays on whichever tab was already active, alerts.js's
+    init() still runs (nothing gates it on the tab), so data-fp-ready gets
+    set regardless, and #fp-telegram-section sits there ready but hidden --
+    the exact shape of the full-lane timeout this helper hit under load
+    (2026-09-23 bisection). Waiting for #map.leaflet-container first proves
+    initTabbar() already ran, since it is the previous synchronous line.
     """
     await page.goto(base_url + "/")
+    await page.wait_for_selector("#map.leaflet-container", state="attached")
     await page.click('button[data-tab="alerts"]')
     await page.wait_for_selector("#fp-telegram-section")
     await page.wait_for_selector('[data-fp-ready="alerts"]')

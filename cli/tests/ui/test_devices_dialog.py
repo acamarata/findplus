@@ -83,7 +83,18 @@ async def test_edit_label_saves_and_updates_row(page, base_url):
         # A closed <dialog> is display:none, so the default "visible" wait never
         # resolves; "attached" is the state that means "in the DOM, closed".
         await page.wait_for_selector("#fp-device-dialog:not([open])", state="attached")
-        name = page.locator('.device-row[data-device-id="TAG-HOME"] .d-name')
+        # onSave() (devices_dialog.js) closes the dialog as soon as the PATCH
+        # resolves, then awaits its onSaved callback (loadDevices +
+        # renderDeviceModal) -- so the row above can still read the OLD label
+        # for a moment after the dialog is gone. A locator that already
+        # matched the row before the save (by device id) proves nothing about
+        # its text; has_text re-queries on every retry, the same pattern
+        # test_edit_label_updates_the_dashboard_without_a_reload below uses,
+        # so this actually waits for the re-render instead of racing it
+        # (full-lane order-dependent failure, 2026-09-23 bisection).
+        name = page.locator(
+            '.device-row[data-device-id="TAG-HOME"] .d-name', has_text="Renamed Keys"
+        )
         await name.wait_for(state="visible")
         assert "Renamed Keys" in await name.inner_text()
     finally:

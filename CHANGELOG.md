@@ -6,6 +6,8 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-09-25
+
 ### Fixed
 - The macOS app no longer quits a few seconds after launch once setup is finished. 1.1.0 closed its splash window, had no other window open, and exited, so the menu bar icon disappeared while the background daemon kept running. Closing the dashboard window no longer quits the app either; use Quit in the menu bar menu.
 - The Homebrew formula names its Python resources the way `brew audit` expects, and the release workflow hashes the source package attached to the release rather than a fresh CI build.

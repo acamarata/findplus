@@ -206,7 +206,7 @@ export async function bootDashboard(resume) {
   // must not out-run THIS call (alerts.js's data-fp-ready convention).
   delete $("app-shell").dataset.fpReady;
   const config = await loadConfig();
-  await loadSettings();
+  await loadSettings({ renderDialog: false });
   await loadDevices();
   // U4: fit the map to real data (tracked devices' latest fixes, else saved
   // places, else a world view) before the day-specific fit below runs. A day

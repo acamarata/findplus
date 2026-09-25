@@ -38,14 +38,25 @@ function showSettingsMessage(message, kind) {
   if (message) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
-export async function loadSettings() {
+/**
+ * Fetch /api/settings, apply the theme and lock button, and (by default)
+ * re-render the Settings dialog's lock and polling sections.
+ *
+ * bootDashboard() passes renderDialog: false. Its load can land after the
+ * user has already opened Settings and typed, and re-rendering then wiped
+ * a live field error (the poll interval's aria-invalid flipped back to
+ * false). openSettings() renders both sections itself on every open.
+ */
+export async function loadSettings({ renderDialog = true } = {}) {
   state.settings = await api("/api/settings");
   state.idleMinutes = state.settings.idle_minutes;
   applyTheme(state.settings.theme);
   $("setting-theme").value = state.settings.theme;
   $("btn-lock").classList.toggle("hidden", !state.settings.lock_active);
-  renderLockSection();
-  renderPollingSection();
+  if (renderDialog) {
+    renderLockSection();
+    renderPollingSection();
+  }
   return state.settings;
 }
 

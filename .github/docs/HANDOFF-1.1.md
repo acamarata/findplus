@@ -17,7 +17,13 @@ what it actually shows, not what the spec assumed it would show.
 - v1.1.0 published 2026-09-25 13:14Z (tag at fcb1f4a). v1.1.1 published 15:32Z (tag at 6f0589e),
   Latest: fixes the menu-bar app quitting a few seconds after launch once setup was finished
   (Tauri's last-window exit was never prevented), and a Settings startup race.
-- Homebrew tap formula is at 1.1.1 (acamarata/homebrew-tap#2). No PyPI, no Intel dmg, by decision.
+- v1.1.2 published 22:05Z (tag at cd9b065), Latest: Google sign-in works from the app (frozen
+  daemon lacked multiprocessing.freeze_support and the vendored code's dependencies, and the first
+  sign-in aborted on an empty token file), Apple Find My talks to the real findmy 0.10 API and is
+  bundled with libunicorn, the Apple password is no longer stored, Telegram alerts take several
+  targets, and `findplus selfcheck` guards the packaged daemon.
+- Homebrew tap formula is at 1.1.2 (acamarata/homebrew-tap#3). No PyPI, no Intel dmg, by decision.
+  The Homebrew install has no Apple support (the apple extra needs libunicorn); the app has it.
 - Release log for 1.1.1: `.claude/phases/current/p2/release/release-1.1.1-log.md`.
 
 ## 1. Proven

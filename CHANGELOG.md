@@ -6,6 +6,20 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-09-25
+
+### Fixed
+- Google sign-in now opens Chrome from the macOS app. In 1.1.1 the app's bundled daemon crashed as it started the Chrome helper, so clicking the button did nothing visible.
+- The first Google sign-in on a new install no longer aborts before Chrome opens. Find+ created its private token file empty, and the sign-in code could not read an empty file. An empty file left by that bug is repaired.
+- Apple Find My sign-in, two-factor codes and location polling now use the findmy library's real 0.10 interface. Earlier builds called functions that library does not have, so Apple sign-in could not complete, and the macOS app did not include the library at all.
+- Find+ no longer stores your Apple ID password. The saved Apple session keeps only Apple's tokens, and when they expire Find+ asks you to sign in again.
+- Accessory keys exported from Find My as pairing plists load correctly, and keys of the wrong length are refused at upload instead of never decrypting.
+
+### Added
+- Telegram alerts go to one or more targets, separated by commas: your own user ID, a group or supergroup ID, or an @username (up to 10). Each target is delivered and retried on its own, so one failing target never blocks or repeats the others, and the delivery log and Send test show the result per target.
+- "Find chat IDs" lists the chats your bot has seen (after you message it, or add it to a group and post there), so you can add a target without looking up IDs by hand.
+- `findplus selfcheck` confirms an install can start the Google sign-in helper and has its Google and Apple libraries.
+
 ### Changed
 - The setup wizard's sign-in step and Settings > Sign-in now share one set of provider cards, with buttons that say what they do: "Connect Google Find Hub" and "Connect Apple Find My". Each card shows what is happening (opening Chrome, waiting for you in the Chrome window, saving the session, checking a code) and, when a sign-in cannot start or does not finish, the reason in plain words with a Try again button. A click that used to do nothing visible now always says something.
 - An install without the Apple extra shows how to add it instead of an Apple ID form that could only fail.

@@ -7,7 +7,7 @@ set -euo pipefail
 YES="${FINDPLUS_YES:-0}"
 UNINSTALL=0
 STARTNOW=0
-VERSION_PIN="${FINDPLUS_VERSION:-1.1.1}"
+VERSION_PIN="${FINDPLUS_VERSION:-1.1.2}"
 
 parse_args() {
   while [ $# -gt 0 ]; do

@@ -34,7 +34,7 @@ const MAX_MISSES = 3;
  * without 200 real network round trips (page.clock can fast-forward the
  * clock, but not the real fetches a mocked route still has to answer) sets
  * window.__FP_TEST_POLL_MS__ / __FP_TEST_POLL_CAP__ with page.add_init_script
- * before the poll starts — the same override-a-window-flag pattern
+ * before the poll starts, the same override-a-window-flag pattern
  * window.__findplus_native uses. Unset in production, so behaviour there is
  * exactly POLL_MS/POLL_CAP.
  */

@@ -45,6 +45,24 @@ async def test_poll_interval_error_renders_inside_the_dialog(page, base_url):
     assert "5 and 1440" not in alert_text, "the error was ALSO echoed to the page banner"
 
 
+async def test_a_late_dashboard_boot_keeps_the_poll_interval_error(page, base_url):
+    """d120166 regression: bootDashboard()'s loadSettings() landing after
+    the user opened Settings and typed re-rendered the polling section,
+    which reset the field and hid its error (1 in 5 runs under load). Run
+    the boot again with the error on screen -- the same call lock.js's
+    unlock makes -- instead of racing the first one, so this is deterministic."""
+    await _open_settings(page, base_url)
+    await page.fill("#setting-poll-interval", "2")
+    await page.dispatch_event("#setting-poll-interval", "change")
+    await page.wait_for_selector("#setting-poll-interval-error:not(.hidden)")
+
+    await page.evaluate("import('/static/app/main.js').then((m) => m.bootDashboard(null))")
+
+    assert await page.is_visible("#setting-poll-interval-error")
+    assert await page.get_attribute("#setting-poll-interval", "aria-invalid") == "true"
+    assert await page.input_value("#setting-poll-interval") == "2"
+
+
 async def test_pin_mismatch_renders_beside_the_field(page, base_url):
     """UAT3 N21 (re-walk): the mismatch line moved beside New PIN, the same
     field-level convention as the poll interval, instead of #settings-message

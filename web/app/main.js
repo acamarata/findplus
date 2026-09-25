@@ -128,14 +128,11 @@ export function closeModals() {
 /**
  * `#settings` and `#devices` deep-link straight to a dialog.
  *
- * `closeOthers` is false on the boot call. bootDashboard() awaits loadStatus()
- * and loadDay() first, both network round trips, while the toolbar is already
- * live — so a user (or a test) who clicked Devices during boot had the dialog
- * opened and then closed again by this function, leaving the rows rendered but
- * invisible with nothing on screen to explain it. That is CI-2, CI run
- * 35530635344: "62 x locator resolved to hidden". At boot there is nothing to
- * close anyway; the markup starts hidden. Closing belongs to a real hashchange
- * away from a dialog.
+ * `closeOthers` is false on the boot call: bootDashboard() awaits loadStatus()
+ * and loadDay() first while the toolbar stays live, so a user (or test) who
+ * clicked Devices during boot had it closed right back by this function (CI-2,
+ * run 35530635344: "62 x locator resolved to hidden"). Closing belongs to a
+ * real hashchange away from a dialog, not to boot.
  */
 export async function applyHashRoute({ closeOthers = true } = {}) {
   if (state.locked) return;
@@ -200,13 +197,14 @@ function wireControls() {
 /**
  * Load everything the dashboard needs and start its timers.
  *
- * Called both on a normal (unlocked) start AND after an unlock. Starting locked
- * used to skip this entirely, which left `state.config` null (breaking the
- * Settings dialog), the Find Hub notice blank, and the auto-refresh timer never
- * created for the rest of the session.
+ * Runs on a normal start AND after unlock -- starting locked used to skip
+ * this, leaving `state.config` null and the auto-refresh timer never created.
  */
 export async function bootDashboard(resume) {
   state.dashboardBooted = true;
+  // Cleared here, set at the end: runs again on unlock, and a stale "ready"
+  // must not out-run THIS call (alerts.js's data-fp-ready convention).
+  delete $("app-shell").dataset.fpReady;
   const config = await loadConfig();
   await loadSettings({ renderDialog: false });
   await loadDevices();
@@ -242,12 +240,15 @@ export async function bootDashboard(resume) {
       if (state.day === todayLocal()) await loadDay(state.day);
     } catch (_) { /* a lock mid-refresh is handled by api() */ }
   }, seconds * 1000);
+
+  // lock.js's unlock flow fires this unawaited, so a click elsewhere can land
+  // before the alert banner or map fit above render. Ready-when-done signal.
+  $("app-shell").dataset.fpReady = "dashboard";
 }
 
 async function main() {
-  // Fire-and-forget: every consumer (icon picker, badge renderer) runs from a
-  // dialog the user opens long after this settles, and a missing sprite must
-  // not stop the dashboard booting.
+  // Fire-and-forget: every consumer runs from a dialog opened long after this
+  // settles, and a missing sprite must not stop the dashboard booting.
   loadIconSprite().catch(() => {});
   // Paint the cached theme before anything else so there is no flash.
   applyTheme(getStoredTheme());
@@ -258,8 +259,7 @@ async function main() {
   // walk covers the whole UI and nothing added later needs a second hook.
   await loadCatalog();
   applyStaticI18n();
-  // Needs the catalog (its labels) and the static markup (#btn-more), so it
-  // runs after applyStaticI18n() and before the rest of the boot sequence.
+  // Needs the catalog labels and static markup, so it runs after applyStaticI18n().
   initTabbar();
 
   initMap();

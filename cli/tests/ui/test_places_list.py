@@ -22,6 +22,30 @@ async def _open_dashboard(page, base_url):
     await page.wait_for_selector("#map.leaflet-container")
 
 
+async def _wait_for_map_settled(page):
+    """bootDashboard()'s own fitBounds calls (setDefaultView(), then
+    renderMap() after loadDay()) run an animated Leaflet zoom transition.
+    _stop() does not cancel that transition's completion timeout, so a
+    setView() made while `_animatingZoom` is still true is silently
+    overwritten later when that timeout fires and resets the view straight
+    back to boot's own target -- CI run 36140185227's real cause: the map
+    "barely moved" (1e-6 degrees) because both our forced setView and the
+    row click's setView landed mid-transition and were reverted. Poll from
+    the Python side (not page.wait_for_function -- its tighter poll loop
+    resolves right at the flip and still raced the same revert) until the
+    flag is down.
+    """
+    for _ in range(40):
+        animating = await page.evaluate(
+            "async () => { const { state } = await import('/static/app/state.js'); "
+            "return !!(state.map && state.map._animatingZoom); }"
+        )
+        if not animating:
+            return
+        await page.wait_for_timeout(50)
+    raise AssertionError("map never stopped animating")
+
+
 async def test_presence_chip_appears(page, base_url):
     await _open_dashboard(page, base_url)
     await page.click("#btn-devices")
@@ -84,11 +108,21 @@ async def test_places_list_centre_click_pans_the_map(page, base_url):
     await page.click('button[data-tab="places"]')
     row = page.locator("#fp-places-list [data-place-id]", has_text="Home")
     await row.wait_for(state="visible")
+    # bootDashboard() fits the map to the seeded data on its own (setDefaultView(),
+    # then renderMap()'s own fitBounds() after loadDay()) -- both run async and are
+    # not awaited by anything the places list depends on, so the row above can be
+    # visible and clickable well before that chain lands. data-fp-ready waits for
+    # the chain itself; _wait_for_map_settled() waits for its animation too (see
+    # its docstring -- CI run 36140185227's real cause).
+    await page.wait_for_selector("#app-shell[data-fp-ready='dashboard']")
+    await _wait_for_map_settled(page)
     before = await page.evaluate(
         "async () => { const { state } = await import('/static/app/state.js'); "
-        "state.map.setView([0, 0], 2); return state.map.getCenter(); }"
+        "state.map.setView([0, 0], 2, { animate: false }); return state.map.getCenter(); }"
     )
     await row.click(position={"x": 5, "y": 5})  # the swatch corner, never a button
+    # centerOnPlace() (places.js) animates too; read the center only once it lands.
+    await _wait_for_map_settled(page)
     after = await page.evaluate(
         "async () => { const { state } = await import('/static/app/state.js'); "
         "return state.map.getCenter(); }"

@@ -11,6 +11,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 ### Fixed
 - The macOS app no longer quits a few seconds after launch once setup is finished. 1.1.0 closed its splash window, had no other window open, and exited, so the menu bar icon disappeared while the background daemon kept running. Closing the dashboard window no longer quits the app either; use Quit in the menu bar menu.
 - The Homebrew formula names its Python resources the way `brew audit` expects, and the release workflow hashes the source package attached to the release rather than a fresh CI build.
+- Startup no longer wipes an error shown in an open Settings dialog (the poll interval's field error could flip back to hidden if you opened Settings while the dashboard was still loading).
 
 ### Changed
 - Install instructions no longer mention `pipx install findplus`: Find+ is not on PyPI. Install from the release wheel, Homebrew or the curl installer.

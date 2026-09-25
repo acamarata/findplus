@@ -266,11 +266,14 @@ jobs:
             echo "::notice::$GITHUB_REF_NAME is still a draft; skipping the tap PR."
             echo "Publish the release and re-run this job to open it."
           fi
+      # Hash the sdist users will actually download: the one attached to the
+      # release. When the release was cut locally first, github-release skips
+      # and keeps those assets, so this run's own python-dist build is a
+      # different tarball and its sha256 would break `brew install` (v1.1.0).
       - if: steps.release.outputs.draft != 'true'
-        uses: actions/download-artifact@v8
-        with:
-          name: python-dist
-          path: dist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release download "$GITHUB_REF_NAME" --pattern 'findplus-*.tar.gz' --dir dist
       - if: steps.release.outputs.draft != 'true'
         run: bash packaging/scripts/gen-formula.sh dist/findplus-*.tar.gz
       - if: steps.release.outputs.draft != 'true'

@@ -70,6 +70,19 @@ def test_the_tap_pr_is_gated_on_a_published_release() -> None:
     assert len(gated) >= 4, "every step that writes or pushes the formula must be gated"
 
 
+def test_the_tap_formula_hashes_the_released_sdist() -> None:
+    """v1.1.0: the release was cut locally, github-release kept its assets, and
+    the tap job hashed this run's own python-dist build instead, a different
+    tarball whose sha256 would have broken every `brew install`."""
+    yaml = pytest.importorskip("yaml")
+    steps = yaml.safe_load(RELEASE.read_text(encoding="utf-8"))["jobs"]["update-tap"]["steps"]
+    runs = [str(s.get("run", "")) for s in steps]
+    assert any("gh release download" in r and "tar.gz" in r for r in runs)
+    assert not any(s.get("with", {}).get("name") == "python-dist" for s in steps), (
+        "the tap must hash the sdist attached to the release, not a fresh CI build"
+    )
+
+
 def test_no_script_writes_key_material_to_a_fixed_path() -> None:
     """E1 confirmation pass F1: the signing key must not outlive its use.
 

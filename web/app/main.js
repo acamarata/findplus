@@ -208,7 +208,7 @@ function wireControls() {
 export async function bootDashboard(resume) {
   state.dashboardBooted = true;
   const config = await loadConfig();
-  await loadSettings();
+  await loadSettings({ renderDialog: false });
   await loadDevices();
   // U4: fit the map to real data (tracked devices' latest fixes, else saved
   // places, else a world view) before the day-specific fit below runs. A day

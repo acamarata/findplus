@@ -216,8 +216,11 @@ def stanza(name: str, version: str) -> str | None:
         print(f"gen-resources: no sdist on PyPI for {name} {version}", file=sys.stderr)
         return None
     chosen = files[0]
+    # Homebrew's audit wants the PEP 503 normalised name (pydantic_core ->
+    # pydantic-core), which is also what `brew update-python-resources` writes.
+    resource_name = re.sub(r"[-_.]+", "-", data["info"]["name"]).lower()
     return (
-        f'  resource "{data["info"]["name"]}" do\n'
+        f'  resource "{resource_name}" do\n'
         f'    url "{chosen["url"]}"\n'
         f'    sha256 "{chosen["digests"]["sha256"]}"\n'
         f"  end\n"

@@ -146,3 +146,38 @@ def test_check_accepts_a_documented_multi_specifier_bound(tmp_path, monkeypatch)
     _no_network(monkeypatch, module)
     monkeypatch.setattr(module, "PYPROJECT", _write_pyproject(tmp_path, ["mcp>=2.2,<3"]))
     assert module.check() == 0
+
+
+def test_stanza_uses_the_normalised_pypi_name(monkeypatch) -> None:
+    """Homebrew's audit rejects `resource "pydantic_core"`: PyPI registers the
+    underscore spelling, but brew wants the PEP 503 name `pydantic-core`."""
+    import io
+    import json
+
+    module = _load()
+    payload = {
+        "info": {"name": "Pydantic_Core"},
+        "urls": [
+            {
+                "packagetype": "sdist",
+                "url": "https://files.example/pydantic_core-2.0.tar.gz",
+                "digests": {"sha256": "ab" * 32},
+            }
+        ],
+    }
+
+    class _Response(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(
+        module.urllib.request,
+        "urlopen",
+        lambda *a, **k: _Response(json.dumps(payload).encode()),
+    )
+    block = module.stanza("pydantic_core", "2.0")
+    assert block is not None
+    assert block.startswith('  resource "pydantic-core" do\n')

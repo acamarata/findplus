@@ -235,12 +235,12 @@ def test_the_token_store_is_created_private(
 
 
 def test_set_and_harden_precreates_the_store() -> None:
-    """The shipped hook must touch the file before delegating upstream.
+    """The shipped hook must create the store before delegating upstream.
 
-    Asserted on the source because the hook only exists once the vendored
-    GoogleFindMyTools is importable, which it is not in this suite.
+    Behaviour of _ensure_secrets_file itself (valid JSON, 0600, repair of an
+    empty file) lives in providers/test_google_secrets_store.py.
     """
     from findplus.providers.google_findhub import bootstrap
 
     hook = Path(bootstrap.__file__).read_text(encoding="utf-8").split("def _set_and_harden")[1]
-    assert hook.index("touch(mode=0o600") < hook.index("_original_set(")
+    assert hook.index("_ensure_secrets_file(") < hook.index("_original_set(")

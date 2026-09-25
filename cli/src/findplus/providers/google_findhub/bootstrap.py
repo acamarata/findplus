@@ -28,6 +28,27 @@ _lock = threading.Lock()
 _ready = False
 
 
+def _ensure_secrets_file(path: Path) -> None:
+    """Make `path` exist as a 0600 file holding at least a valid JSON object.
+
+    Upstream token_cache json.load()s the file whenever it exists. The old
+    hardening pre-created it EMPTY (touch), so the very first token write of a
+    first-ever Google sign-in raised "Could not read secrets file. Aborting."
+    and Chrome never opened (v1.1.1). An empty file left behind by that bug is
+    repaired the same way. O_EXCL keeps the 0600 create race-free.
+    """
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    try:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        if path.stat().st_size == 0:
+            path.write_text("{}", encoding="utf-8")
+    else:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write("{}")
+    os.chmod(path, 0o600)
+
+
 def ensure_gfmt_importable() -> Path:
     """Make GFMT importable and point its secret store at our state dir. Idempotent."""
     global _ready
@@ -47,9 +68,10 @@ def ensure_gfmt_importable() -> Path:
 
         token_cache._get_secrets_file = _our_secrets_file
 
-        # Harden permissions on an existing store; new ones are created below.
+        # Harden an existing store (0600, and repair a zero-byte file that
+        # v1.1.1's empty pre-create left behind); new ones are created below.
         if secrets_path.exists():
-            os.chmod(secrets_path, 0o600)
+            _ensure_secrets_file(secrets_path)
 
         _original_set = token_cache.set_cached_value
 
@@ -58,8 +80,7 @@ def ensure_gfmt_importable() -> Path:
             # a window in which the tokens sat on disk at the process umask,
             # which on a shared machine is long enough to copy them.
             with contextlib.suppress(OSError):
-                secrets_path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-                secrets_path.touch(mode=0o600, exist_ok=True)
+                _ensure_secrets_file(secrets_path)
             _original_set(name, value)
             with contextlib.suppress(OSError):
                 os.chmod(secrets_path, 0o600)

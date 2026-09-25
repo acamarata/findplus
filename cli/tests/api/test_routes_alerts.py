@@ -38,7 +38,7 @@ def test_get_channels_masked(client: TestClient) -> None:
         AlertsChannels(
             telegram=TelegramCreds(
                 bot_token="1234567890:ABCxyzabcxyz1234",
-                chat_id="1",
+                chat_ids=("1",),
                 chat_title="t",
                 bot_username="b",
                 captured_at="now",
@@ -55,7 +55,7 @@ def test_get_channels_masked(client: TestClient) -> None:
 
 def test_put_telegram_invalid_token(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "findplus.api.routes_alerts_channels._get_me",
+        "findplus.api.routes_alerts_telegram._get_me",
         MagicMock(side_effect=ValueError("telegram: invalid token (401)")),
     )
     res = client.put("/api/alerts/channels/telegram", json={"bot_token": TOKEN})
@@ -64,7 +64,7 @@ def test_put_telegram_invalid_token(client: TestClient, monkeypatch: pytest.Monk
 
 def test_setup_timeout(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "findplus.api.routes_alerts_channels.telegram_setup",
+        "findplus.api.routes_alerts_telegram.telegram_setup",
         MagicMock(side_effect=TimeoutError("no message received within 1 s")),
     )
     res = client.post("/api/alerts/channels/telegram/setup?wait=1", json={"bot_token": TOKEN})
@@ -73,7 +73,7 @@ def test_setup_timeout(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> N
 
 def test_setup_webhook_conflict(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "findplus.api.routes_alerts_channels.telegram_setup",
+        "findplus.api.routes_alerts_telegram.telegram_setup",
         MagicMock(side_effect=RuntimeError("telegram: webhook conflict (409)")),
     )
     res = client.post("/api/alerts/channels/telegram/setup?wait=1", json={"bot_token": TOKEN})
@@ -97,7 +97,11 @@ def test_delete_telegram(client: TestClient) -> None:
     save_alerts(
         AlertsChannels(
             telegram=TelegramCreds(
-                bot_token="tok", chat_id="1", chat_title="t", bot_username="b", captured_at="now"
+                bot_token="tok",
+                chat_ids=("1",),
+                chat_title="t",
+                bot_username="b",
+                captured_at="now",
             )
         )
     )
@@ -115,11 +119,15 @@ def test_test_endpoint_sends(client: TestClient) -> None:
     save_alerts(
         AlertsChannels(
             telegram=TelegramCreds(
-                bot_token="tok", chat_id="1", chat_title="t", bot_username="b", captured_at="now"
+                bot_token="tok",
+                chat_ids=("1",),
+                chat_title="t",
+                bot_username="b",
+                captured_at="now",
             )
         )
     )
-    with patch("findplus.api.routes_alerts_channels.send") as send_mock:
+    with patch("findplus.api.routes_alerts_telegram.send") as send_mock:
         send_mock.return_value = MagicMock(success=True, error=None)
         res = client.post("/api/alerts/test", json={"channel": "telegram"})
     assert res.status_code == 200
@@ -130,12 +138,16 @@ def test_test_endpoint_reports_failure_instead_of_500(client: TestClient) -> Non
     save_alerts(
         AlertsChannels(
             telegram=TelegramCreds(
-                bot_token="tok", chat_id="1", chat_title="t", bot_username="b", captured_at="now"
+                bot_token="tok",
+                chat_ids=("1",),
+                chat_title="t",
+                bot_username="b",
+                captured_at="now",
             )
         )
     )
     with patch(
-        "findplus.api.routes_alerts_channels.send",
+        "findplus.api.routes_alerts_telegram.send",
         side_effect=ValueError("telegram: invalid token (401)"),
     ):
         res = client.post("/api/alerts/test", json={"channel": "telegram"})

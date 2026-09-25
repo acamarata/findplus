@@ -990,6 +990,9 @@ Delete Rule
 ### GET /api/alerts/channels
 Get Channels
 
+### GET /api/alerts/channels/telegram/updates
+"Find chat IDs": distinct chats seen in the saved bot's pending updates.
+
 ### GET /api/alerts/deliveries
 The delivery log, and the queue the desktop native poller drains.
 
@@ -1158,6 +1161,17 @@ Put Telegram
       "type": "string",
       "title": "Bot Token"
     },
+    "targets": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Targets"
+    },
     "chat_id": {
       "anyOf": [
         {
@@ -1175,6 +1189,26 @@ Put Telegram
     "bot_token"
   ],
   "title": "TelegramPutBody"
+}
+```
+
+### PUT /api/alerts/channels/telegram/targets
+Edit the target list alone, no bot-token round trip.
+
+**Request body:**
+```json
+{
+  "properties": {
+    "targets": {
+      "type": "string",
+      "title": "Targets"
+    }
+  },
+  "type": "object",
+  "required": [
+    "targets"
+  ],
+  "title": "TelegramTargetsBody"
 }
 ```
 

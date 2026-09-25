@@ -1,4 +1,8 @@
-"""alerts/channels/telegram.py: send() and telegram_setup(), fully mocked HTTP."""
+"""alerts/channels/telegram.py: send() and telegram_setup(), fully mocked HTTP.
+
+list_chats() (the "Find chat IDs" helper) has its own file,
+test_telegram_list_chats.py -- split at the PRI rule-7 300-line cap.
+"""
 
 from __future__ import annotations
 
@@ -10,23 +14,7 @@ import pytest
 
 from findplus.alerts.channels.telegram import DeliveryResult, send, telegram_setup
 
-#: Shaped like a real BotFather token (digits, colon, 35-char secret) so it
-#: passes store.is_valid_bot_token -- every test below that exercises the
-#: real send()/_get_me()/telegram_setup() must use a token this shape now
-#: that both functions reject a malformed one before making any request.
-TOKEN = "9876543210:ABCdefGHIjklMNOpqrSTUvwxyz012345678"
-
-
-def _response(
-    status_code: int, json_body: dict | None = None, text: str = "", headers: dict | None = None
-) -> MagicMock:
-    resp = MagicMock()
-    resp.status_code = status_code
-    resp.text = text
-    resp.json.return_value = json_body or {}
-    resp.raise_for_status = MagicMock()
-    resp.headers = headers or {}
-    return resp
+from ._telegram_helpers import TOKEN, _response
 
 
 def test_send_happy_path() -> None:

@@ -43,6 +43,7 @@ EXPECTED_COMMANDS = {
     "prune",
     "reset-lock",
     "restart",
+    "selfcheck",
     "serve",
     "setup",
     "start",

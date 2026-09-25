@@ -64,7 +64,12 @@ class AlertDelivery(Base):
             name="ck_alert_deliveries_status",
         ),
         UniqueConstraint(
-            "rule_id", "event_kind", "event_id", "channel", name="uq_alert_deliveries_dedup"
+            "rule_id",
+            "event_kind",
+            "event_id",
+            "channel",
+            "target",
+            name="uq_alert_deliveries_dedup",
         ),
     )
 
@@ -82,6 +87,11 @@ class AlertDelivery(Base):
     #: One row per channel per event now that a rule can target several, so the
     #: channel has to travel on the delivery, not just on the rule.
     channel: Mapped[str] = mapped_column(String(16), nullable=False)
+    #: Which target within the channel, for a channel with several (Telegram:
+    #: one row per chat id/username). `''`, never NULL, for every channel with
+    #: no per-target concept -- migration 0011 explains why NULL would defeat
+    #: uq_alert_deliveries_dedup for those.
+    target: Mapped[str] = mapped_column(String(64), nullable=False, default="")
     #: Stamped by POST /api/alerts/deliveries/{id}/ack when the desktop app has
     #: actually shown a queued native notification.
     delivered_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)

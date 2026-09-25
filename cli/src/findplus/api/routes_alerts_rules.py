@@ -158,6 +158,7 @@ def _delivery_to_dict(
         # A stored column since migration 0008: one delivery row per channel per
         # event, so the rule no longer owns it alone.
         "channel": d.channel,
+        "target": d.target,  # '' unless the channel is per-target (telegram) -- migration 0011
         "event_kind": d.event_kind,
         "event_id": d.event_id,
         "sent_at": d.sent_at.isoformat(),

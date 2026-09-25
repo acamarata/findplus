@@ -23,10 +23,24 @@ from findplus.config import get_settings
 @dataclasses.dataclass(frozen=True)
 class TelegramCreds:
     bot_token: str
-    chat_id: str
+    #: One or more targets: a numeric user/group/supergroup id, or an
+    #: '@username'. A tuple, not a list, so the frozen dataclass stays
+    #: hashable/immutable like its sibling fields (alerts/targets.py owns
+    #: parsing and validation). Old alerts.json files on disk hold a single
+    #: `"chat_id": "..."` string instead -- load_alerts() below converts that
+    #: to a one-item tuple on read, so an upgraded install keeps sending to
+    #: the same chat without the user doing anything.
+    chat_ids: tuple[str, ...]
     chat_title: str
     bot_username: str
     captured_at: str
+
+    @property
+    def chat_id(self) -> str:
+        """The first target, for the handful of call sites that only ever
+        send to one place (CLI --channel test, the delivery-log fallback).
+        """
+        return self.chat_ids[0] if self.chat_ids else ""
 
 
 #: BotFather's own shape: a numeric bot id, a colon, then a 30+ char secret
@@ -82,6 +96,26 @@ def _alerts_path() -> pathlib.Path:
     return get_settings().alerts_file
 
 
+def _telegram_creds_from_dict(tg: dict) -> TelegramCreds:
+    """Build TelegramCreds from a stored dict, either shape.
+
+    Pre-1.1 files hold a single `"chat_id": "..."` string; 1.1+ files hold
+    `"chat_ids": [...]`. Reading the old shape and turning it into a
+    one-item tuple is the whole of the backward-compat contract here -- an
+    upgraded install keeps sending to the same chat with no migration step
+    and no data loss (an empty/missing value on either key becomes `()`,
+    never a crash on a hand-edited file).
+    """
+    tg = dict(tg)
+    if "chat_ids" in tg:
+        chat_ids = tg.pop("chat_ids")
+    else:
+        single = tg.pop("chat_id", "")
+        chat_ids = [single] if single else []
+    tg.pop("chat_id", None)  # a dict carrying both keys keeps chat_ids only
+    return TelegramCreds(chat_ids=tuple(chat_ids), **tg)
+
+
 def load_alerts() -> AlertsChannels:
     """Read alerts.json. Missing or corrupted file returns an empty AlertsChannels."""
     path = _alerts_path()
@@ -94,7 +128,7 @@ def load_alerts() -> AlertsChannels:
         wh = ch.get("webhook")
         wa = ch.get("whatsapp")
         return AlertsChannels(
-            telegram=TelegramCreds(**tg) if tg else None,
+            telegram=_telegram_creds_from_dict(tg) if tg else None,
             webhook=WebhookCreds(**wh) if wh else None,
             whatsapp=WhatsappCreds(**wa) if wa else None,
         )

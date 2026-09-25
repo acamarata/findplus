@@ -80,8 +80,8 @@ async def test_native_row_renders_text_with_no_channel_filter(page, base_url, ui
     row = page.locator("#fp-deliveries-tbody tr", has_text="N18 native rule")
     await row.wait_for(state="visible")
     cells = await row.locator("td").all_text_contents()
-    assert cells[3] not in ("—", "")
-    assert "Home" in cells[3]
+    assert cells[4] not in ("—", "")
+    assert "Home" in cells[4]
 
 
 async def test_non_native_row_renders_real_text_not_a_placeholder_note(page, base_url, ui_db):
@@ -114,6 +114,6 @@ async def test_non_native_row_renders_real_text_not_a_placeholder_note(page, bas
     await row.wait_for(state="visible")
     cells = await row.locator("td").all_text_contents()
     assert cells[1] == "WhatsApp"
-    assert "Home" in cells[3]
-    assert "sends its own message" not in cells[3]
+    assert "Home" in cells[4]
     assert "sends its own message" not in cells[4]
+    assert "sends its own message" not in cells[5]

@@ -11,6 +11,7 @@ Constraints: register() attaches every command onto the caller's `alerts_cmd`
 
 from __future__ import annotations
 
+import dataclasses
 from datetime import UTC, datetime
 
 import click
@@ -27,11 +28,13 @@ from findplus.alerts.store import (
     mask_phone,
     save_channel,
 )
+from findplus.alerts.targets import parse_targets
 
 
 def register(alerts_cmd: click.Group) -> None:
     """Attach every channel-setup command onto the given `alerts` group."""
     alerts_cmd.add_command(telegram_setup_cmd)
+    alerts_cmd.add_command(telegram_targets_cmd)
     alerts_cmd.add_command(telegram_clear)
     alerts_cmd.add_command(webhook_set_cmd)
     alerts_cmd.add_command(webhook_clear_cmd)
@@ -69,6 +72,27 @@ def telegram_clear(yes: bool) -> None:
         raise click.ClickException("Pass --yes to confirm clearing Telegram configuration")
     save_channel(telegram=None)
     click.echo("Telegram channel cleared.")
+
+
+@click.command("telegram-targets")
+@click.argument("targets")
+def telegram_targets_cmd(targets: str) -> None:
+    """Replace the Telegram target list: chat ids or @usernames, comma separated.
+
+    TARGETS accepts your own numeric user id, a group/supergroup id (negative,
+    e.g. -1001234567890), an @username, or several of any of those separated
+    by commas. Telegram must already be connected (`telegram-setup`) -- this
+    only edits which chats an already-connected bot notifies.
+    """
+    existing = load_alerts()
+    if not existing.telegram:
+        raise click.ClickException("Telegram not configured -- run telegram-setup first")
+    try:
+        chat_ids = tuple(parse_targets(targets))
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+    save_channel(telegram=dataclasses.replace(existing.telegram, chat_ids=chat_ids))
+    click.echo(f"Telegram targets set: {', '.join(chat_ids)}")
 
 
 @click.command("webhook-set")
@@ -118,15 +142,38 @@ def whatsapp_clear_cmd(yes: bool) -> None:
     click.echo("WhatsApp cleared.")
 
 
+def _test_telegram(ch) -> None:
+    """Send to every configured target; one failing target never stops the
+    rest, and each target's own outcome is printed (owner ask: per-target
+    reporting for "send test", same as the dashboard's POST /api/alerts/test).
+    """
+    any_failed = False
+    for target in ch.telegram.chat_ids:
+        try:
+            result = send("Find+ test alert", ch.telegram.bot_token, target)
+        except (ValueError, RuntimeError) as exc:
+            click.echo(f"{target}: failed ({exc})")
+            any_failed = True
+            continue
+        if result.success:
+            click.echo(f"{target}: sent")
+        else:
+            click.echo(f"{target}: failed ({result.error})")
+            any_failed = True
+    if any_failed:
+        raise click.ClickException("one or more Telegram targets failed, see above")
+
+
 @click.command("test")
 @click.option("--channel", type=click.Choice(["telegram", "webhook", "whatsapp"]), required=True)
 def test_cmd(channel: str) -> None:
     """Send a test alert through the given channel."""
     ch = load_alerts()
     if channel == "telegram":
-        if not ch.telegram:
+        if not ch.telegram or not ch.telegram.chat_ids:
             raise click.ClickException("Telegram not configured")
-        result = send("Find+ test alert", ch.telegram.bot_token, ch.telegram.chat_id)
+        _test_telegram(ch)
+        return
     elif channel == "webhook":
         if not ch.webhook:
             raise click.ClickException("Webhook not configured")

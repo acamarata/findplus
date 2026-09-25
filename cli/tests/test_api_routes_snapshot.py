@@ -75,7 +75,9 @@ def _app_routes(app):
 def test_route_count():
     app = create_app()
     routes = _app_routes(app)
-    assert len(routes) == 78
+    # +2 for /channels/telegram/targets (PUT) and /channels/telegram/updates
+    # (GET, the "Find chat IDs" helper) -- multi-target Telegram support.
+    assert len(routes) == 80
 
 
 #: T1 (2026-09-22, PRI rule-7 50-line function cap): pulled out of
@@ -135,6 +137,8 @@ _EXPECTED_PATHS = {
     "/api/groups/events",
     "/api/alerts/channels",
     "/api/alerts/channels/telegram",
+    "/api/alerts/channels/telegram/targets",
+    "/api/alerts/channels/telegram/updates",
     "/api/alerts/channels/telegram/setup",
     "/api/alerts/channels/webhook",
     "/api/alerts/channels/whatsapp",

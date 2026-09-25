@@ -2,6 +2,12 @@
 import { $ } from "./state.js";
 import { t } from "./i18n.js";
 import { api } from "./api.js";
+import {
+  formatTelegramTestResults,
+  purgeTelegramTargets,
+  renderTelegramTargets,
+  wireTelegramTargetsControls,
+} from "./alerts_telegram_targets.js";
 
 /** Blanks a masked credential field the first time it is focused for editing. */
 function clearMaskedToken(el) {
@@ -44,6 +50,7 @@ function renderTelegramSection(telegram) {
     telegram.chat_title &&
       t("alerts.connectedAsWithBot", { chat: telegram.chat_title, bot: telegram.bot_username || "" }),
   );
+  renderTelegramTargets(telegram);
   $("fp-tg-status").textContent = "";
 }
 /**
@@ -184,8 +191,9 @@ async function sendTelegramTest() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ channel: "telegram" }),
     });
-    statusEl.textContent =
-      result.status === "sent"
+    statusEl.textContent = result.results
+      ? formatTelegramTestResults(result.results)
+      : result.status === "sent"
         ? t("alerts.testSent")
         : t("alerts.testFailed", { error: result.error || t("common.unknownError") });
   } catch (err) {
@@ -243,6 +251,7 @@ export function wireChannelControls() {
   $("fp-tg-connect").addEventListener("click", startTelegramSetup);
   $("fp-tg-test").addEventListener("click", sendTelegramTest);
   $("fp-tg-clear").addEventListener("click", clearTelegramChannel);
+  wireTelegramTargetsControls();
   $("fp-webhook-save").addEventListener("click", saveWebhook);
   $("fp-webhook-remove").addEventListener("click", removeWebhook);
 }
@@ -263,6 +272,7 @@ export function purgeChannels() {
   renderWhatsappSection({ configured: false });
   $("fp-tg-status").textContent = "";
   $("fp-wa-status").textContent = "";
+  purgeTelegramTargets();
   const secret = $("fp-webhook-secret");
   if (secret) secret.value = "";
 }

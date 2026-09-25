@@ -14,6 +14,19 @@
           <button class="btn btn-secondary" id="fp-tg-clear" type="button" data-i18n="common.clear">Clear</button>
         </div>
         <p id="fp-tg-status"></p>
+        <label class="setting-row">
+          <span data-i18n="alerts.telegramTargets">Targets</span>
+          <input type="text" id="fp-tg-targets" placeholder="Chat ID or @username"
+                 data-i18n-attr="placeholder:alerts.telegramTargetsPlaceholder">
+        </label>
+        <p class="fp-tab-hint" data-i18n="alerts.telegramTargetsHelp">Chat IDs or @usernames, comma separated: your own user ID, a group (a negative number), or several people.</p>
+        <div class="fp-alerts-actions">
+          <button class="btn btn-secondary" id="fp-tg-save-targets" type="button" data-i18n="alerts.saveTargets">Save targets</button>
+          <button class="btn btn-secondary" id="fp-tg-find-chats" type="button" data-i18n="alerts.findChatIds">Find chat IDs</button>
+        </div>
+        <p id="fp-tg-targets-status"></p>
+        <ul id="fp-tg-chats-list" class="hidden" aria-label="Chats found for this bot"
+            data-i18n-attr="aria-label:alerts.foundChatsLabel"></ul>
       </section>
 
       <section id="fp-webhook-section" class="fp-alerts-section">
@@ -105,11 +118,11 @@
             <colgroup>
               <col><col><col>
               <col><col><col>
-              <col><col>
+              <col><col><col>
             </colgroup>
             <thead>
               <tr>
-                <th data-i18n="alerts.colRule">Rule</th><th data-i18n="alerts.colChannel">Channel</th><th data-i18n="alerts.colKind">Kind</th>
+                <th data-i18n="alerts.colRule">Rule</th><th data-i18n="alerts.colChannel">Channel</th><th data-i18n="alerts.colDeliveryTarget">Target</th><th data-i18n="alerts.colKind">Kind</th>
                 <th data-i18n="alerts.deliveries.text">Text</th><th data-i18n="alerts.deliveries.body">Body</th>
                 <th data-i18n="alerts.colSent">Sent</th><th data-i18n="alerts.colStatus">Status</th><th data-i18n="alerts.colError">Error</th>
               </tr>

@@ -65,6 +65,11 @@ Connect a Telegram bot: verify the token, then wait for the user to message it.
 | --token, -t |  | Bot token (prompted if omitted). |
 | --wait | 120 | Seconds to wait for a message. |
 
+## findplus alerts telegram-targets
+Replace the Telegram target list: chat ids or @usernames, comma separated.
+
+**Usage:** `findplus alerts telegram-targets [OPTIONS]`
+
 ## findplus alerts test
 Send a test alert through the given channel.
 
@@ -479,6 +484,15 @@ Forgot your PIN? Remove the app lock from this machine.
 Restart the background service.
 
 **Usage:** `findplus restart [OPTIONS]`
+
+## findplus selfcheck
+Check that this install can start sign-in helpers and has Apple support.
+
+**Usage:** `findplus selfcheck [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --no-apple |  | Skip the Apple Find My library check. |
 
 ## findplus serve
 Start the local API/UI and (unless disabled) the polling service.

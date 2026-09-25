@@ -200,7 +200,11 @@ def _handle_update(u: dict, token: str, username: str) -> dict | None:
     chat = msg["chat"]
     creds = TelegramCreds(
         bot_token=token,
-        chat_id=str(chat["id"]),
+        # This connect flow always establishes exactly one target -- adding
+        # more is the "Find chat IDs" helper (list_chats() below) or typing
+        # them straight into the targets field, both of which PUT the whole
+        # list at once rather than accumulating one message at a time here.
+        chat_ids=(str(chat["id"]),),
         chat_title=chat.get("title") or chat.get("username") or "private",
         bot_username=username,
         captured_at=datetime.datetime.now(datetime.UTC).isoformat(),
@@ -213,3 +217,45 @@ def _handle_update(u: dict, token: str, username: str) -> dict | None:
         "chat_type": chat["type"],
         "bot_username": username,
     }
+
+
+def list_chats(token: str, timeout: float = 10.0) -> list[dict]:
+    """Distinct chats seen in this bot's pending updates: the "Find chat IDs"
+    helper (`GET /api/alerts/channels/telegram/updates`).
+
+    Never passes `offset`, so this never advances Telegram's own cursor --
+    safe to call as many times as the user clicks the button without
+    consuming updates telegram_setup()'s own long-poll might still be
+    waiting on, and without needing the user to message the bot again for a
+    second call. `timeout=0` asks Telegram to answer immediately with
+    whatever is already pending rather than long-polling (this is a button
+    click, not telegram_setup()'s wait-for-a-message flow).
+
+    Returns [] when nothing is pending yet -- the caller turns that into a
+    "message the bot first" instruction rather than a bare empty list.
+    """
+    if not is_valid_bot_token(token):
+        raise ValueError("telegram: malformed bot token")
+    with httpx.Client(timeout=timeout) as client:
+        r = client.get(f"{TELEGRAM_BASE}{token}/getUpdates", params={"timeout": 0})
+    if r.status_code == 401:
+        raise ValueError("telegram: invalid token (401)")
+    if r.status_code == 409:
+        raise RuntimeError(
+            "telegram: a webhook is set on this bot; remove it in BotFather or use a different bot"
+        )
+    _raise_for_status(r, "getUpdates")
+    seen: dict[str, dict] = {}
+    for u in r.json().get("result", []):
+        msg = u.get("message") or u.get("channel_post") or u.get("my_chat_member")
+        if not msg:
+            continue
+        chat = msg["chat"]
+        chat_id = str(chat["id"])
+        seen[chat_id] = {
+            "id": chat_id,
+            "type": chat["type"],
+            "title": chat.get("title") or chat.get("username") or chat.get("first_name") or "",
+            "username": chat.get("username"),
+        }
+    return list(seen.values())

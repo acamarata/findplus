@@ -101,6 +101,10 @@ function buildDeliveryRow(delivery) {
   tr.append(
     cell(delivery.rule_name || t("alerts.ruleFallback", { id: delivery.rule_id }), t("alerts.colRule")),
     cell(delivery.channel ? t("alerts.channels." + delivery.channel) : t("common.emptyValue"), t("alerts.colChannel")),
+    // '' for every channel with no per-target concept; a telegram row's own
+    // target (chat id/username) otherwise -- the per-target outcome the
+    // owner asked "send test" and the delivery log both surface.
+    cell(delivery.target || t("common.emptyValue"), t("alerts.colDeliveryTarget")),
     cell(delivery.event_kind ? t("alerts.kinds." + delivery.event_kind) : t("common.emptyValue"), t("alerts.colKind")),
     detailsCell(delivery.text, t("alerts.deliveries.text")),
     detailsCell(delivery.body, t("alerts.deliveries.body")),

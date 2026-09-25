@@ -268,7 +268,10 @@ async def test_notifications_step_token_field_is_not_squeezed_against_connect(pa
     try:
         await _open_step(page, base_url, "notifications")
         token = page.locator("#fp-setup-tg-token")
-        connect = page.locator("[data-channel='telegram'] button")
+        # A specific id, not "[data-channel='telegram'] button": the Targets
+        # field's own Save/Find-chat-IDs buttons (multi-target Telegram
+        # support) made that selector match more than one button.
+        connect = page.locator("#fp-setup-tg-connect")
         await token.wait_for(state="visible", timeout=15000)
         token_box = await token.bounding_box()
         connect_box = await connect.bounding_box()

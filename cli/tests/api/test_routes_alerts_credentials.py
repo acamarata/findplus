@@ -34,7 +34,7 @@ def test_put_telegram_malformed_token_is_422_before_any_get_me_call(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     get_me_mock = MagicMock()
-    monkeypatch.setattr("findplus.api.routes_alerts_channels._get_me", get_me_mock)
+    monkeypatch.setattr("findplus.api.routes_alerts_telegram._get_me", get_me_mock)
     res = client.put("/api/alerts/channels/telegram", json={"bot_token": "bad"})
     assert res.status_code == 422
     get_me_mock.assert_not_called()
@@ -44,7 +44,7 @@ def test_setup_malformed_token_is_422_before_any_telegram_setup_call(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     setup_mock = MagicMock()
-    monkeypatch.setattr("findplus.api.routes_alerts_channels.telegram_setup", setup_mock)
+    monkeypatch.setattr("findplus.api.routes_alerts_telegram.telegram_setup", setup_mock)
     res = client.post("/api/alerts/channels/telegram/setup?wait=1", json={"bot_token": "tok"})
     assert res.status_code == 422
     setup_mock.assert_not_called()

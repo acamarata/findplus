@@ -16,7 +16,11 @@ anywhere else on the row to centre the map on that place.
 An alert rule ties a place, a device or group, and one or more notification channels
 (Telegram, webhook, WhatsApp, or Mac notifications). A rule may target more than one channel
 at once: the rule form uses checkboxes, not a single dropdown, and each ticked channel is
-delivered and cooled down on its own. When a qualifying enter or exit event is confirmed,
+delivered and cooled down on its own. Telegram itself can notify more than one chat: the
+Telegram card's Targets field takes a comma-separated list of chat ids or @usernames, so one
+rule can message a group, a specific person, or several people at once (up to 10 targets).
+Each target is delivered and retried on its own, so one person's blocked bot or a bad id
+never holds up the rest. When a qualifying enter or exit event is confirmed,
 Find+ sends a notification. A
 cooldown period (default 30 minutes) prevents repeated alerts for the same tag at the same
 place. Delivery is best-effort: a failed send is recorded in the alert log, and a failed or
@@ -68,6 +72,7 @@ The Alerts tab lists what Find+ actually sent, most recent first:
 |---|---|
 | Rule | The rule that matched, by name. |
 | Channel | `telegram`, `webhook`, `whatsapp` or `native`, from the rule. A rule with several channels gets one row per channel. |
+| Target | Which chat this row went to, for Telegram (a rule with several targets gets one row per target). Blank for every other channel. |
 | Kind | `device` for a single tracker, `group` for a quorum crossing. |
 | Text | The notification's first line, rendered fresh on every read. Mac notifications only; every other channel shows a dash. |
 | Body | The place and the observed/lag line beneath it. Mac notifications only. |
@@ -124,9 +129,38 @@ when a webhook secret is configured.
    prompts to get a bot token.
 2. Open the dashboard's Alerts tab, paste the token into **Bot token**, and click **Connect**.
 3. Send any message to your new bot within 120 seconds. The dashboard waits for it and
-   confirms the chat once it arrives.
+   confirms the chat once it arrives -- this sets one target automatically.
 4. Click **Send test** to confirm delivery. The bot token is never shown again in full: the
    field only ever displays its last four characters.
+
+### Notifying more than one chat
+
+The Telegram card has its own **Targets** field, separate from the bot token: a
+comma-separated list of chat ids or @usernames -- your own user id, a group, or several
+people at once. Find+ accepts up to 10 targets per rule.
+
+- A numeric id, like `123456789` for a person or `-1001234567890` for a group or
+  supergroup (the id is negative once Telegram promotes a group to a supergroup).
+- An `@username`, for a public chat or a person who has set one.
+
+To find a chat's id without knowing it by hand:
+
+1. Message the bot directly, or add it to a group and send any message there. The bot
+   must be a member of a group before it can post there, and it must have received at
+   least one message first -- Telegram has no way to post into a chat it has never heard
+   from.
+2. Click **Find chat IDs**. Find+ asks the Bot API for the bot's own recent updates (never
+   the token itself) and lists every chat it has seen, with its name and type.
+3. Click **Add** next to a chat to append its id to the Targets field, then **Save
+   targets**.
+
+You can also type ids or usernames into the Targets field directly and click **Save
+targets**, with no need to message the bot at all if you already know them. **Send test**
+sends to every target and reports each one's own result, so a typo in one id never hides
+whether the rest went through.
+
+Targets set before this release keep working unchanged: a single stored chat id is read the
+same way a comma list is, with no action needed.
 
 The token lives in `~/.findplus/alerts.json` (mode `0600`), never in the database or logs.
 

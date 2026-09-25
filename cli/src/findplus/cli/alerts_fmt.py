@@ -44,6 +44,9 @@ _DELIVERY_KEYS = (
     "rule_id",
     "rule_name",
     "channel",
+    #: '' for every channel with no per-target concept; a telegram row's own
+    #: target (chat id/username) otherwise -- migration 0011.
+    "target",
     "event_kind",
     "event_id",
     "sent_at",
@@ -113,6 +116,7 @@ def _delivery_records(rows: list[tuple]) -> list[dict]:
                     d.rule_id,
                     rule_name,
                     d.channel,
+                    d.target,
                     d.event_kind,
                     d.event_id,
                     d.sent_at.isoformat(),
@@ -140,6 +144,7 @@ def _delivery_table_rows(rows: list[tuple], error_max: int) -> list[tuple]:
                 d.id,
                 rule_name,
                 d.channel,
+                d.target or "",
                 d.event_kind or "",
                 _local_short_time(d.sent_at),
                 d.status or "",

@@ -30,8 +30,8 @@ from findplus.alerts.dispatch_core import (
     render_message,
     suppressed_by_group,
 )
+from findplus.alerts.dispatch_events import load_pending_events
 from findplus.alerts.dispatch_send import _status_for
-from findplus.groups.quorum import group_event_note, stale_note_for_count
 
 __all__ = [
     "Delivery",
@@ -46,91 +46,6 @@ __all__ = [
     "render_message",
     "suppressed_by_group",
 ]
-
-#: COALESCE(d.label, d.name): an alert names the tracker by its label (UAT U7).
-_DEVICE_EVENTS_SQL = """SELECT pe.id, pe.place_id, p.name AS place_name, pe.device_id,
-       COALESCE(d.label, d.name) AS device_name, pe.event_type, pe.observed_at, pe.fetched_at,
-       pe.confidence
-FROM place_events pe JOIN places p ON p.id = pe.place_id
-JOIN devices d ON d.device_id = pe.device_id
-WHERE pe.notified_at IS NULL ORDER BY pe.observed_at ASC"""
-
-_GROUP_EVENTS_SQL = """SELECT gpe.id, gpe.group_id, g.name AS group_name, gpe.place_id,
-       p.name AS place_name, gpe.event_type, gpe.observed_at, gpe.confidence,
-       gpe.members_crossed, gpe.members_considered, gpe.members_stale
-FROM group_place_events gpe JOIN groups g ON g.id = gpe.group_id
-JOIN places p ON p.id = gpe.place_id
-WHERE gpe.notified_at IS NULL ORDER BY gpe.observed_at ASC"""
-
-
-def load_pending_events(session) -> list[DeviceEvent | GroupEvent]:
-    """Un-notified place_events/group_place_events rows, converted to dataclasses.
-
-    notified_at IS NULL is the hand-off from the ingest-time geofence and
-    group-quorum hooks. A GroupEvent's `note` is rebuilt from the stored counts
-    (group_place_events has no note column) so the alert states how many tags
-    actually crossed and how many were silent.
-    """
-    return [*_load_device_events(session), *_load_group_events(session)]
-
-
-def _load_device_events(session) -> list[DeviceEvent]:
-    from sqlalchemy import text
-
-    events: list[DeviceEvent] = []
-    for row in session.execute(text(_DEVICE_EVENTS_SQL)).all():
-        group_ids = [
-            r[0]
-            for r in session.execute(
-                text("SELECT group_id FROM device_group WHERE device_id = :device_id"),
-                {"device_id": row.device_id},
-            ).all()
-        ]
-        events.append(
-            DeviceEvent(
-                place_event_id=row.id,
-                place_id=row.place_id,
-                place_name=row.place_name,
-                device_id=row.device_id,
-                device_name=row.device_name,
-                event_type=row.event_type,
-                observed_at=as_utc(row.observed_at),
-                fetched_at=as_utc(row.fetched_at),
-                confidence=row.confidence,
-                group_ids=group_ids,
-            )
-        )
-    return events
-
-
-def _load_group_events(session) -> list[GroupEvent]:
-    from sqlalchemy import text
-
-    events: list[GroupEvent] = []
-    for row in session.execute(text(_GROUP_EVENTS_SQL)).all():
-        events.append(
-            GroupEvent(
-                group_place_event_id=row.id,
-                group_id=row.group_id,
-                group_name=row.group_name,
-                place_id=row.place_id,
-                place_name=row.place_name,
-                event_type=row.event_type,
-                observed_at=as_utc(row.observed_at),
-                confidence=row.confidence,
-                note=group_event_note(
-                    crossed=row.members_crossed,
-                    considered=row.members_considered,
-                    event_type=row.event_type,
-                    place=row.place_name,
-                    stale_note=stale_note_for_count(row.members_stale),
-                ),
-                members_crossed=row.members_crossed,
-                members_considered=row.members_considered,
-                members_stale=row.members_stale,
-            )
-        )
-    return events
 
 
 def _load_rules(session) -> list[Rule]:
@@ -190,37 +105,51 @@ def _load_recent_deliveries(session, now: datetime.datetime) -> list[Delivery]:
     ]
 
 
-def _already_delivered(session, rule_id: int, kind: str, eid: int, channel: str) -> bool:
+def _already_delivered(
+    session, rule_id: int, kind: str, eid: int, channel: str, target: str
+) -> bool:
     from findplus.db.models_alerts import AlertDelivery as AlertDeliveryORM
 
-    filters = {"rule_id": rule_id, "event_kind": kind, "event_id": eid, "channel": channel}
+    filters = {
+        "rule_id": rule_id,
+        "event_kind": kind,
+        "event_id": eid,
+        "channel": channel,
+        "target": target,
+    }
     return session.query(AlertDeliveryORM).filter_by(**filters).first() is not None
 
 
-def _resolve_status(channel: str, rule: Rule, event, kind: str, channels_cfg, now):
+def _channel_targets(channel: str, channels_cfg) -> list[str]:
+    """Every target a channel fans this event out to.
+
+    Telegram is the only multi-target channel today: one delivery row (and
+    one retry ladder) per configured chat id/username. Every other channel,
+    including an unconfigured or misconfigured telegram (channels_cfg.
+    telegram is None, or configured with no targets at all -- store.py never
+    persists an empty chat_ids tuple in practice, but a hand-edited alerts.
+    json could), gets a single `""` target so _deliver_one runs exactly once
+    and dispatch_send._send()'s existing "channel not configured" -> skipped
+    path is unchanged.
+    """
+    if channel == "telegram" and channels_cfg.telegram and channels_cfg.telegram.chat_ids:
+        return list(channels_cfg.telegram.chat_ids)
+    return [""]
+
+
+def _resolve_status(channel: str, rule: Rule, event, kind: str, channels_cfg, now, target: str):
     # "native" has no send and no DeliveryResult, never a retry candidate.
     if channel == "native":
         return "queued", None, None, None
-    return _status_for(channel, rule, event, kind, channels_cfg, now)
+    return _status_for(channel, rule, event, kind, channels_cfg, now, target)
 
 
-def _deliver_one(
-    session, rule: Rule, channel: str, event, channels_cfg, now: datetime.datetime
-) -> Delivery | None:
-    """Send one (rule, channel, event) triple and record it. None if already delivered."""
+def _insert_delivery_row(
+    session, rule, kind, eid, channel, target, now, status, err, attempts, next_attempt_at
+):
+    """The one AlertDeliveryORM insert _deliver_one makes, split out to keep
+    _deliver_one itself under the 50-line cap (PRI rule 7)."""
     from findplus.db.models_alerts import AlertDelivery as AlertDeliveryORM
-
-    kind = "device" if isinstance(event, DeviceEvent) else "group"
-    eid = event.place_event_id if isinstance(event, DeviceEvent) else event.group_place_event_id
-    if _already_delivered(session, rule.id, kind, eid, channel):
-        return None
-
-    status, err, status_code, retry_after = _resolve_status(
-        channel, rule, event, kind, channels_cfg, now
-    )
-    status, attempts, next_attempt_at = classify_new_delivery(
-        status, err, status_code, retry_after, now
-    )
 
     session.add(
         AlertDeliveryORM(
@@ -228,12 +157,41 @@ def _deliver_one(
             event_kind=kind,
             event_id=eid,
             channel=channel,
+            target=target,
             sent_at=now,
             status=status,
             error=err,
             attempts=attempts,
             next_attempt_at=next_attempt_at,
         )
+    )
+
+
+def _deliver_one(
+    session,
+    rule: Rule,
+    channel: str,
+    event,
+    channels_cfg,
+    now: datetime.datetime,
+    target: str = "",
+) -> Delivery | None:
+    """Send one (rule, channel, target, event) tuple and record it. None if
+    already delivered. A failure on one target never touches another --
+    each target is its own row, its own retry ladder (alerts/retry.py)."""
+    kind = "device" if isinstance(event, DeviceEvent) else "group"
+    eid = event.place_event_id if isinstance(event, DeviceEvent) else event.group_place_event_id
+    if _already_delivered(session, rule.id, kind, eid, channel, target):
+        return None
+
+    status, err, status_code, retry_after = _resolve_status(
+        channel, rule, event, kind, channels_cfg, now, target
+    )
+    status, attempts, next_attempt_at = classify_new_delivery(
+        status, err, status_code, retry_after, now
+    )
+    _insert_delivery_row(
+        session, rule, kind, eid, channel, target, now, status, err, attempts, next_attempt_at
     )
     try:
         session.commit()
@@ -293,8 +251,15 @@ def process(events: list, session, settings, now: datetime.datetime | None = Non
             for channel in rule.channels:
                 if in_cooldown(rule, channel, event, deliveries, now):
                     continue
-                delivered = _deliver_one(session, rule, channel, event, channels_cfg, now)
-                if delivered is not None:
-                    deliveries.append(delivered)
+                # Cooldown stays per (rule, channel, place) -- not per target --
+                # same as before multi-target telegram existed: it answers "did
+                # this rule already notify over this channel recently", not
+                # "did this exact person already hear about it".
+                for target in _channel_targets(channel, channels_cfg):
+                    delivered = _deliver_one(
+                        session, rule, channel, event, channels_cfg, now, target
+                    )
+                    if delivered is not None:
+                        deliveries.append(delivered)
 
     _mark_notified(session, events, now)

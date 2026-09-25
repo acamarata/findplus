@@ -84,38 +84,41 @@ dialog a:hover,
    here; the phone tier layers its own -webkit-overflow-scrolling on top. */
 .fp-table-scroll { overflow-x: auto; }
 
-/* The delivery log's 8 columns default to their content's natural width,
-   which is what pushed Status (7th) out of the 380px side pane. Fixed layout
-   plus a pinned column split keeps Status inside the visible box without any
-   scrolling; Text/Body/Error (the free-text columns, usually an em dash or a
-   short error string) truncate with an ellipsis and keep the full value in a
-   title attribute (alerts_deliveries.js). Column order is test-pinned
+/* The delivery log's 9 columns (Target added for multi-target Telegram
+   support) default to their content's natural width, which is what pushed
+   Status out of the 380px side pane. Fixed layout plus a pinned column split
+   keeps Status inside the visible box without any scrolling; Text/Body/Error
+   (the free-text columns, usually an em dash or a short error string)
+   truncate with an ellipsis and keep the full value in a title attribute
+   (alerts_deliveries.js). Column order is test-pinned
    (test_alerts_whatsapp.py::test_deliveries_table_renders_after_rule_fires),
-   so only widths change here, never the <th>/<td> sequence. Channel (2nd) and
-   Kind (3rd) get the same treatment (loop2 L2-6): "telegram"/"whatsapp" and
-   "device"/"group" both overran their 9%/8% columns into the neighbouring
-   cell's text at 1280 and 375 without it. */
+   so only widths change here, never the <th>/<td> sequence. Channel (2nd),
+   Target (3rd, new) and Kind (4th) get the same treatment (loop2 L2-6):
+   "telegram"/"whatsapp" and "device"/"group" both overran their narrow
+   columns into the neighbouring cell's text at 1280 and 375 without it. */
 #fp-deliveries-table { table-layout: fixed; }
 #fp-deliveries-table td:nth-child(2), #fp-deliveries-table td:nth-child(3),
 #fp-deliveries-table td:nth-child(4), #fp-deliveries-table td:nth-child(5),
-#fp-deliveries-table td:nth-child(8) {
+#fp-deliveries-table td:nth-child(6), #fp-deliveries-table td:nth-child(9) {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-/* UAT2 N3: these eight widths used to be inline style="width:…" on each
-   <col> (alerts.html) -- the page's CSP has no 'unsafe-inline' in style-src,
-   so the browser dropped every one of them silently and logged 8 console
-   errors, and every column fell back to its unstyled (equal) default. Same
-   percentages, targeting the <col> elements by position instead; the column
-   order stays test-pinned (see the comment above), so nth-child keeps
-   matching the same column it always did. */
-#fp-deliveries-table col:nth-child(1) { width: 15%; }
-#fp-deliveries-table col:nth-child(2) { width: 9%; }
-#fp-deliveries-table col:nth-child(3) { width: 8%; }
-#fp-deliveries-table col:nth-child(4) { width: 9%; }
-#fp-deliveries-table col:nth-child(5) { width: 9%; }
-#fp-deliveries-table col:nth-child(6) { width: 15%; }
-#fp-deliveries-table col:nth-child(7) { width: 12%; }
-#fp-deliveries-table col:nth-child(8) { width: 23%; }
+/* UAT2 N3: these widths used to be inline style="width:…" on each <col>
+   (alerts.html) -- the page's CSP has no 'unsafe-inline' in style-src, so
+   the browser dropped every one of them silently and logged console errors,
+   and every column fell back to its unstyled (equal) default. Same
+   percentages (renumbered for the new Target column, still summing to
+   100%), targeting the <col> elements by position instead; the column order
+   stays test-pinned (see the comment above), so nth-child keeps matching
+   the same column it always did. */
+#fp-deliveries-table col:nth-child(1) { width: 14%; }
+#fp-deliveries-table col:nth-child(2) { width: 8%; }
+#fp-deliveries-table col:nth-child(3) { width: 9%; }
+#fp-deliveries-table col:nth-child(4) { width: 7%; }
+#fp-deliveries-table col:nth-child(5) { width: 8%; }
+#fp-deliveries-table col:nth-child(6) { width: 8%; }
+#fp-deliveries-table col:nth-child(7) { width: 13%; }
+#fp-deliveries-table col:nth-child(8) { width: 11%; }
+#fp-deliveries-table col:nth-child(9) { width: 22%; }
 
 /* --- delivery log / rules table: narrow-container card layout (UAT2 U9,
    UAT3 N16) -----------------------------------------------------------------
@@ -150,7 +153,7 @@ dialog a:hover,
   }
   #fp-deliveries-table td:nth-child(2), #fp-deliveries-table td:nth-child(3),
   #fp-deliveries-table td:nth-child(4), #fp-deliveries-table td:nth-child(5),
-  #fp-deliveries-table td:nth-child(8) {
+  #fp-deliveries-table td:nth-child(6), #fp-deliveries-table td:nth-child(9) {
     white-space: normal; overflow: visible; text-overflow: clip;
   }
   #fp-deliveries-table td::before, #fp-rules-table td::before {

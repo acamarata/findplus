@@ -28,7 +28,7 @@ SECOND_PASS_AFTER = timedelta(minutes=5)
 
 def _all_channels_configured():
     return types.SimpleNamespace(
-        telegram=types.SimpleNamespace(bot_token="t", chat_id="1"),
+        telegram=types.SimpleNamespace(bot_token="t", chat_ids=("1",)),
         webhook=None,
         whatsapp=types.SimpleNamespace(phone="+34123123123", apikey="k"),
     )

@@ -266,7 +266,9 @@ async def test_deliveries_table_renders_after_rule_fires(page, base_url) -> None
     assert await page.locator("#fp-deliveries-table").is_visible()
 
     headers = await page.locator("#fp-deliveries-table thead th").all_text_contents()
-    assert headers[3:5] == ["Text", "Body"]
+    # Target (multi-target Telegram support) inserted after Channel shifted
+    # Text/Body from [3:5] to [4:6]; still the same two adjacent columns.
+    assert headers[4:6] == ["Text", "Body"]
 
 
 async def test_the_rule_dialog_populates_its_selects_on_a_cold_page(page, base_url) -> None:

@@ -111,10 +111,14 @@ def test_downgrade_maps_retrying_to_failed_and_drops_columns(tmp_path: Path) -> 
     assert version == "0010"
 
 
-def test_full_head_upgrade_reaches_0010(tmp_path: Path) -> None:
+def test_full_head_upgrade_reaches_at_least_0010(tmp_path: Path) -> None:
+    """ "head" moves as later migrations land (0011 added the delivery
+    `target` column) -- this only proves 0010 is still on the path to head,
+    not that it IS head. test_migration_0011.py pins the current head."""
     cfg, db_path = _cfg(tmp_path)
     command.upgrade(cfg, "head")
     engine = _engine(db_path)
     with engine.begin() as conn:
         version = conn.execute(sa.text("SELECT version_num FROM alembic_version")).scalar_one()
-    assert version == "0010"
+    assert version != "0009"
+    assert {"attempts", "next_attempt_at"} <= _columns(db_path, "alert_deliveries")

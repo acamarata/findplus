@@ -214,7 +214,7 @@ def _retry_one(session, row, channels_cfg, now: datetime.datetime) -> None:
     # sends the exact text the first attempt would have. `now` below (the
     # real current time) is still used for the retry ladder's own math.
     status, err, status_code, retry_after = _status_for(
-        row.channel, rule, event, row.event_kind, channels_cfg, row.sent_at
+        row.channel, rule, event, row.event_kind, channels_cfg, row.sent_at, row.target
     )
     row.attempts += 1
     if status == "sent":

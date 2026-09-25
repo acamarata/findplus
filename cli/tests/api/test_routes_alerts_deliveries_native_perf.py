@@ -48,6 +48,7 @@ _GROUP_BODY = (
 _BASE_ROW = {
     "rule_name": "native rule",
     "channel": "native",
+    "target": "",
     "sent_at": "2026-09-20T12:00:00+00:00",
     "delivered_at": None,
     "status": "queued",

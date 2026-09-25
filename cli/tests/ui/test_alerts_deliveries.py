@@ -17,20 +17,18 @@ from .conftest import open_alerts_tab
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
+#: Target (multi-target Telegram support) inserted after Channel.
+_EXPECTED_HEADERS = ["Rule", "Channel", "Target", "Kind", "Text", "Body", "Sent", "Status", "Error"]
+
 
 async def test_delivery_log_shows_channel_and_status(page, base_url, ui_db):
     """CF-14: alert_deliveries rows existed since 1.0 but no UI ever read them.
 
-    The rule is created through the API so the server owns it; the delivery row is
-    written straight into the live SQLite file, because the only code that writes
-    one is the poller's dispatch pass and this test is about the view, not the
-    dispatcher. The assertion is on the rendered row, not the endpoint — the
-    endpoint already worked and the gap was that nothing displayed it.
-
-    The rule's own channels ("native" -- UAT2 U11's server-side check needs
-    a connected one, and native never needs credentials) are unrelated to
-    the delivery row's rendered channel: that comes from the row's own
-    `channel` column, inserted directly below.
+    The delivery row is written straight into the live SQLite file (the only
+    code that normally writes one is the poller's dispatch pass, and this
+    test is about the view). The rule's own channel ("native", UAT2 U11's
+    server-side check needs a connected one) is unrelated to the row's own
+    rendered `channel` column, set directly below.
     """
     rule_id = await _create_rule(page, base_url, "Delivery log rule", ["native"])
     _insert_delivery_rows(
@@ -49,7 +47,7 @@ async def test_delivery_log_shows_channel_and_status(page, base_url, ui_db):
     await open_alerts_tab(page, base_url)
     await page.wait_for_selector("#fp-deliveries-table")
     headers = await page.locator("#fp-deliveries-table thead th").all_text_contents()
-    assert headers == ["Rule", "Channel", "Kind", "Text", "Body", "Sent", "Status", "Error"]
+    assert headers == _EXPECTED_HEADERS
 
     row = page.locator("#fp-deliveries-tbody tr", has_text="Delivery log rule")
     await row.wait_for(state="visible")
@@ -58,16 +56,20 @@ async def test_delivery_log_shows_channel_and_status(page, base_url, ui_db):
     # UAT U22: channel/status render through the alerts.channels/statuses
     # catalogs, not the raw stored id ("webhook"/"failed").
     assert cells[1] == "Webhook"
+    # Webhook has no per-target concept (migration 0011): target stays ''
+    # on the row, rendered as the same dash every other "we don't know" cell
+    # uses.
+    assert cells[2] == "—"
     # UAT4 N32: text/body render for every channel now; event_id 4242 was
     # never seeded, so the source event is purged like a native one would
     # be, and the dash is the honest answer for any channel in that state.
-    assert cells[3] == "—"
     assert cells[4] == "—"
+    assert cells[5] == "—"
     # U22: "Sent" stays empty for a failed row -- it never went out at that
     # timestamp, `sent_at` is really "first attempted at" (alerts/retry.py).
-    assert cells[5] == "—"
-    assert cells[6] == "Failed"
-    assert cells[7] == "connection refused"
+    assert cells[6] == "—"
+    assert cells[7] == "Failed"
+    assert cells[8] == "connection refused"
 
 
 async def _open_alerts_at_viewport(page, base_url: str, viewport: dict) -> None:
@@ -204,7 +206,7 @@ async def test_delivery_log_shows_retrying_and_failed_after_retries(page, base_u
     statuses = []
     for i in range(await rows.count()):
         cells = await rows.nth(i).locator("td").all_text_contents()
-        statuses.append(cells[6])  # Status column (index per the header row above)
+        statuses.append(cells[7])  # Status column (index per the header row above)
 
     retrying_status = next((s for s in statuses if s.startswith("Retrying")), None)
     assert retrying_status is not None, f"no 'Retrying' status among {statuses}"

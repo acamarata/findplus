@@ -126,7 +126,7 @@ def test_group_event_reaches_dispatch_in_the_same_poll(tmp_db, monkeypatch):
     with session_scope() as s:
         _seed_group_alert_scenario(s, now)
 
-    creds = TelegramCreds("123:abc", "42", "Family", "findplus_bot", now.isoformat())
+    creds = TelegramCreds("123:abc", ("42",), "Family", "findplus_bot", now.isoformat())
     with (
         patch(
             "findplus.alerts.store.load_alerts",

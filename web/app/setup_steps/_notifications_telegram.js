@@ -3,10 +3,16 @@
  *
  * Purpose    : Take a bot token and wait for the user to message the bot, the
  *              same `POST /api/alerts/channels/telegram/setup?wait=` long poll
- *              the Alerts tab uses (specs/onboarding.md § 4 row 6).
+ *              the Alerts tab uses (specs/onboarding.md § 4 row 6). Also
+ *              offers the manual targets field + "Find chat IDs" helper (the
+ *              owner's ask: notify a group, a person, or several people,
+ *              comma-delimited) so a wizard user who already knows their
+ *              chat id never has to message the bot at all.
  * Inputs     : ctx (for api()), the channel section element, and the channel's
  *              own state from GET /api/alerts/channels.
- * Outputs    : the button, token field and status line, appended to the section.
+ * Outputs    : the button, token field and status line, appended to the section;
+ *              PUT /api/alerts/channels/telegram/targets and
+ *              GET /api/alerts/channels/telegram/updates.
  * Constraints: Its own file because the Alerts tab's copy of this flow reads
  *              elements that live inside #app-shell, which is hidden while the
  *              wizard is open, so it cannot be called from here. The route,
@@ -22,6 +28,117 @@ import { t } from "../i18n.js";
 
 /** Seconds the server holds the request open, matching alerts.js. */
 const WAIT_SECONDS = 120;
+
+function addTargetToField(field, chatId) {
+  const existing = field.value
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+  if (!existing.includes(chatId)) existing.push(chatId);
+  field.value = existing.join(", ");
+}
+
+function renderChatsList(list, statusEl, targetsField, chats) {
+  while (list.firstChild) list.removeChild(list.firstChild);
+  if (!chats.length) {
+    list.classList.add("hidden");
+    statusEl.textContent = t("alerts.noUpdatesYet");
+    return;
+  }
+  statusEl.textContent = "";
+  for (const chat of chats) {
+    const li = document.createElement("li");
+    const label = document.createElement("span");
+    label.textContent = `${chat.title || chat.username || chat.id} (${chat.type}) — ${chat.id}`;
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "btn btn-secondary";
+    addBtn.textContent = t("alerts.addTarget");
+    addBtn.addEventListener("click", () => addTargetToField(targetsField, chat.id));
+    li.append(label, addBtn);
+    list.appendChild(li);
+  }
+  list.classList.remove("hidden");
+}
+
+function buildSaveTargetsButton(targets, targetsStatus, ctx) {
+  const saveBtn = document.createElement("button");
+  saveBtn.type = "button";
+  saveBtn.id = "fp-setup-tg-save-targets";
+  saveBtn.className = "btn btn-secondary";
+  saveBtn.textContent = t("alerts.saveTargets");
+  saveBtn.addEventListener("click", async () => {
+    const raw = targets.value.trim();
+    if (!raw) {
+      targetsStatus.textContent = t("alerts.enterTargets");
+      return;
+    }
+    try {
+      await ctx.api("/api/alerts/channels/telegram/targets", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targets: raw }),
+      });
+      targetsStatus.textContent = t("alerts.targetsSaved");
+    } catch (err) {
+      targetsStatus.textContent = err.message;
+    }
+  });
+  return saveBtn;
+}
+
+function buildFindChatsButton(targets, targetsStatus, chatsList, ctx) {
+  const findBtn = document.createElement("button");
+  findBtn.type = "button";
+  findBtn.id = "fp-setup-tg-find-chats";
+  findBtn.className = "btn btn-secondary";
+  findBtn.textContent = t("alerts.findChatIds");
+  findBtn.addEventListener("click", async () => {
+    targetsStatus.textContent = t("alerts.findingChats");
+    try {
+      const body = await ctx.api("/api/alerts/channels/telegram/updates");
+      renderChatsList(chatsList, targetsStatus, targets, body.chats || []);
+    } catch (err) {
+      targetsStatus.textContent = err.message;
+    }
+  });
+  return findBtn;
+}
+
+/** The manual targets field, Save/Find-chat-IDs buttons and the found-chats
+ * list -- split out of telegramControls() to keep that function under the
+ * 50-line cap (PRI rule 7); the two buttons' own wiring is split again into
+ * buildSaveTargetsButton()/buildFindChatsButton() for the same reason. */
+function targetsControls(value, ctx) {
+  const frag = document.createDocumentFragment();
+  const targets = document.createElement("input");
+  targets.type = "text";
+  targets.id = "fp-setup-tg-targets";
+  targets.placeholder = t("alerts.telegramTargetsPlaceholder");
+  targets.setAttribute("aria-label", t("alerts.telegramTargets"));
+  if (value && value.configured) targets.value = value.targets || "";
+
+  const help = document.createElement("p");
+  help.className = "modal-note";
+  help.textContent = t("alerts.telegramTargetsHelp");
+
+  const targetsStatus = document.createElement("p");
+  targetsStatus.id = "fp-setup-tg-targets-status";
+  targetsStatus.className = "modal-note";
+
+  const chatsList = document.createElement("ul");
+  chatsList.id = "fp-setup-tg-chats-list";
+  chatsList.className = "hidden";
+
+  const actions = document.createElement("div");
+  actions.className = "fp-alerts-actions";
+  actions.append(
+    buildSaveTargetsButton(targets, targetsStatus, ctx),
+    buildFindChatsButton(targets, targetsStatus, chatsList, ctx),
+  );
+  frag.append(targets, help, actions, targetsStatus, chatsList);
+  return frag;
+}
 
 /** Where the token comes from, and how Find+ finds the chat id — same content
  * `findplus alerts telegram-setup` prints, never invented copy. */
@@ -55,6 +172,7 @@ export function telegramControls(section, value, ctx) {
 
   const connect = document.createElement("button");
   connect.type = "button";
+  connect.id = "fp-setup-tg-connect";
   connect.className = "btn";
   connect.textContent = t("setup.notifications.connect");
   connect.addEventListener("click", async () => {
@@ -84,4 +202,5 @@ export function telegramControls(section, value, ctx) {
   });
 
   section.append(token, connect, status);
+  section.append(targetsControls(value, ctx));
 }

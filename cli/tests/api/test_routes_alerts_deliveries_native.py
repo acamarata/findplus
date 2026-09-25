@@ -114,6 +114,7 @@ def test_no_join_field_leaks_into_the_response(client: TestClient) -> None:
         "rule_id",
         "rule_name",
         "channel",
+        "target",
         "event_kind",
         "event_id",
         "sent_at",

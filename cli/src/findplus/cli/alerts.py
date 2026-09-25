@@ -164,6 +164,7 @@ def deliveries_cmd(limit: int, as_json: bool) -> None:
         "ID",
         "RULE",
         "CHANNEL",
+        "TARGET",
         "KIND",
         "SENT_AT",
         "STATUS",
@@ -171,4 +172,4 @@ def deliveries_cmd(limit: int, as_json: bool) -> None:
         "NEXT_ATTEMPT",
         "ERROR",
     )
-    _render_table(headers, "<<<<<<>><", _delivery_table_rows(rows, _ERROR_CELL_MAX))
+    _render_table(headers, "<<<<<<<>><", _delivery_table_rows(rows, _ERROR_CELL_MAX))

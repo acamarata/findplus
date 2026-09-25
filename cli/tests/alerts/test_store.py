@@ -32,7 +32,7 @@ def _isolated_alerts_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Pa
 @pytest.mark.posix_only
 def test_save_creates_file_0600(_isolated_alerts_file: Path) -> None:
     creds = TelegramCreds(
-        bot_token="123", chat_id="1", chat_title="t", bot_username="b", captured_at="now"
+        bot_token="123", chat_ids=("1",), chat_title="t", bot_username="b", captured_at="now"
     )
     save_alerts(AlertsChannels(telegram=creds))
     assert _isolated_alerts_file.stat().st_mode & 0o777 == 0o600
@@ -40,7 +40,7 @@ def test_save_creates_file_0600(_isolated_alerts_file: Path) -> None:
 
 def test_load_roundtrip(_isolated_alerts_file: Path) -> None:
     creds = TelegramCreds(
-        bot_token="123", chat_id="1", chat_title="t", bot_username="b", captured_at="now"
+        bot_token="123", chat_ids=("1",), chat_title="t", bot_username="b", captured_at="now"
     )
     save_alerts(AlertsChannels(telegram=creds))
     loaded = load_alerts()
@@ -92,6 +92,66 @@ def test_is_valid_apikey_accepts_alphanumeric_and_rejects_near_misses() -> None:
     assert not is_valid_apikey("")
     assert not is_valid_apikey("has a space")
     assert not is_valid_apikey("apikey=1234")  # a stray query fragment, not a key
+
+
+def test_load_legacy_single_chat_id_string(_isolated_alerts_file: Path) -> None:
+    """Backward compat: an alerts.json written by a pre-1.1 Find+ holds a
+    single `"chat_id": "..."` string, not `"chat_ids"`. Reading it must keep
+    sending to the same chat with no user action -- store.py's
+    _telegram_creds_from_dict is the one place that does this conversion."""
+    _isolated_alerts_file.parent.mkdir(parents=True, exist_ok=True)
+    _isolated_alerts_file.write_text(
+        '{"channels": {"telegram": {"bot_token": "123", "chat_id": "555", '
+        '"chat_title": "t", "bot_username": "b", "captured_at": "now"}}}'
+    )
+    loaded = load_alerts()
+    assert loaded.telegram.chat_ids == ("555",)
+    assert loaded.telegram.chat_id == "555"
+
+
+def test_load_new_chat_ids_list(_isolated_alerts_file: Path) -> None:
+    _isolated_alerts_file.parent.mkdir(parents=True, exist_ok=True)
+    _isolated_alerts_file.write_text(
+        '{"channels": {"telegram": {"bot_token": "123", "chat_ids": ["1", "2"], '
+        '"chat_title": "t", "bot_username": "b", "captured_at": "now"}}}'
+    )
+    loaded = load_alerts()
+    assert loaded.telegram.chat_ids == ("1", "2")
+
+
+def test_load_legacy_empty_chat_id_becomes_empty_tuple(_isolated_alerts_file: Path) -> None:
+    _isolated_alerts_file.parent.mkdir(parents=True, exist_ok=True)
+    _isolated_alerts_file.write_text(
+        '{"channels": {"telegram": {"bot_token": "123", "chat_id": "", '
+        '"chat_title": "t", "bot_username": "b", "captured_at": "now"}}}'
+    )
+    loaded = load_alerts()
+    assert loaded.telegram.chat_ids == ()
+    assert loaded.telegram.chat_id == ""
+
+
+def test_save_then_load_multi_target_round_trip(_isolated_alerts_file: Path) -> None:
+    creds = TelegramCreds(
+        bot_token="123",
+        chat_ids=("111", "-1009876543210", "@person"),
+        chat_title="t",
+        bot_username="b",
+        captured_at="now",
+    )
+    save_alerts(AlertsChannels(telegram=creds))
+    loaded = load_alerts()
+    assert loaded.telegram == creds
+    assert loaded.telegram.chat_ids == ("111", "-1009876543210", "@person")
+
+
+def test_saved_file_writes_chat_ids_not_the_legacy_key(_isolated_alerts_file: Path) -> None:
+    creds = TelegramCreds(
+        bot_token="123", chat_ids=("1",), chat_title="t", bot_username="b", captured_at="now"
+    )
+    save_alerts(AlertsChannels(telegram=creds))
+    raw = _isolated_alerts_file.read_text()
+    assert '"chat_ids"' in raw
+    assert '"chat_id"' not in raw
 
 
 def test_redaction_telegram_token() -> None:

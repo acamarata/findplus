@@ -18,7 +18,11 @@ PIN = "864213"
 
 async def _open_settings(page, base_url) -> None:
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map.leaflet-container")
+    # Not just #map.leaflet-container: the toolbar is live well before
+    # bootDashboard() issues its own loadSettings(), and that call landing
+    # after a field edit below reset the poll field and cleared its error
+    # (timed out once under load). data-fp-ready is set once boot is done.
+    await page.wait_for_selector("#app-shell[data-fp-ready='dashboard']")
     await page.click("#btn-settings")
     # openSettings() unhides first and fills afterwards; its loadSettings()
     # resets the poll field and clears its error, so wait for the fills.

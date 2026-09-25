@@ -252,12 +252,25 @@ async def test_rerun_setup_from_settings_does_not_reset_completion(page, base_ur
     stamp = "2026-05-05T05:05:05Z"
     await _set_completed_at(page, base_url, stamp)
     await page.goto(base_url + "/", wait_until="networkidle")
-    await page.wait_for_selector("#btn-settings", timeout=15000)
-    # The dialog is wired asynchronously during boot; a click that lands before
-    # wireSettingsControls() runs hits a button with no handler.
-    await page.wait_for_timeout(1000)
+    # main() calls initTabbar()/wireSettingsControls() synchronously right
+    # after initMap() stamps "leaflet-container" onto #map (same boot chain
+    # _alerts_helpers.open_alerts_tab and test_auth_accessories._open_settings
+    # wait on): a click that lands before that has run hits a button with no
+    # handler yet. A fixed wait_for_timeout(1000) stood in for this before;
+    # under CPU load the real wiring can still be unfinished after 1s, which
+    # is one way this test flaked.
+    await page.wait_for_selector("#map.leaflet-container", state="attached")
     await page.click("#btn-settings")
-    await page.wait_for_selector("#btn-rerun-setup", timeout=15000)
+    # openSettings() unhides #settings-modal (and #btn-rerun-setup, static
+    # markup inside it) before awaiting loadSettings()/health/mountAuthPanel;
+    # mountAuthPanel fills #fp-settings-signin, which sits above
+    # #btn-rerun-setup in settings.html, so those awaits can still be
+    # shifting the button's position after it is merely visible. data-loaded
+    # is set in openSettings()'s finally once every fill (including that
+    # panel) has landed -- test_settings_errors.py already waits on it for
+    # the same reason. Waiting for it here before the click, instead of just
+    # for the button to appear, closes the same race under load.
+    await page.wait_for_selector("#settings-modal[data-loaded='true']", timeout=15000)
     await page.click("#btn-rerun-setup")
 
     await page.wait_for_function("() => window.location.hash === '#/setup'", timeout=15000)

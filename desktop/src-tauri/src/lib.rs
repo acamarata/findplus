@@ -27,12 +27,20 @@ pub fn run() {
         })
         .build(tauri::generate_context!())
         .expect("error building Find+")
-        .run(|app_handle, event| {
-            if let tauri::RunEvent::Opened { urls, .. } = event {
+        .run(|app_handle, event| match event {
+            tauri::RunEvent::Opened { urls, .. } => {
                 for url in urls {
                     urlscheme::handle(app_handle, url.as_str());
                 }
             }
+            // A menu-bar app must outlive its windows. Without this, closing
+            // the splash with setup already finished (or closing the
+            // dashboard) left no window, Tauri quit with code 0 and the tray
+            // icon vanished while the sidecar kept running (v1.1.0). `code`
+            // is None only for that implicit last-window exit; the tray's
+            // Quit path exits the process itself.
+            tauri::RunEvent::ExitRequested { code: None, api, .. } => api.prevent_exit(),
+            _ => {}
         });
 }
 

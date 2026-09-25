@@ -149,3 +149,41 @@ def test_valid_plist_still_registers(tmp_path) -> None:
     plist_path.write_bytes(plistlib.dumps({"Private Key": base64.b64encode(KEY_28).decode()}))
     record = add_accessory("Tag", settings, plist_path=plist_path)
     assert record["kind"] == "plist"
+
+
+def test_a_32_byte_key_is_rejected(tmp_path) -> None:
+    """Find My keys are P-224: a 32-byte key used to register and never decrypt."""
+    settings = _settings(tmp_path)
+    with pytest.raises(ValueError, match="unexpected key length 32"):
+        add_accessory("Tag", settings, private_key_b64=base64.b64encode(b"\x01" * 32).decode())
+
+
+def test_a_findmy_pairing_plist_registers_rolling_keys(tmp_path) -> None:
+    """The FindMy app's decrypted pairing record, parsed by FindMy.py itself."""
+    findmy = pytest.importorskip("findmy")
+    import datetime
+
+    from tests.providers._fake_findmy import findmy_plist_bytes
+
+    settings = _settings(tmp_path)
+    plist_path = tmp_path / "airtag.plist"
+    plist_path.write_bytes(findmy_plist_bytes(datetime.datetime(2026, 9, 1, 12, 0)))
+    record = add_accessory("AirTag", settings, plist_path=plist_path)
+
+    assert record["kind"] == "plist"
+    accessory = findmy.FindMyAccessory.from_json(record["payload"])
+    assert accessory.master_key == bytes(range(1, 29))
+    assert accessory.model == "AirTag1,1"
+    assert record["device_id"].startswith("apple:")
+    assert list_accessories(settings)[0]["payload"] == record["payload"]
+
+
+def test_an_incomplete_findmy_plist_is_a_bad_upload(tmp_path) -> None:
+    pytest.importorskip("findmy")
+    import plistlib
+
+    settings = _settings(tmp_path)
+    plist_path = tmp_path / "partial.plist"
+    plist_path.write_bytes(plistlib.dumps({"privateKey": {"key": {"data": b"\x01" * 28}}}))
+    with pytest.raises(ValueError, match="pairing plist is incomplete"):
+        add_accessory("Tag", settings, plist_path=plist_path)

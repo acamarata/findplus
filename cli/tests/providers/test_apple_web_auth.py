@@ -1,9 +1,10 @@
 """The non-interactive Apple sign-in job runner: 2FA, refusals, and the password.
 
-FakeAccount/FakeMethod mirror test_apple_auth.py's shapes (redefined locally,
-per that file's own convention) so nothing here imports findmy or opens a
-socket. `make_account` is monkeypatched on web_auth itself, the name the module
-actually calls.
+FakeAccount is tests/providers/_fake_findmy.py's FakeAppleAccount: a real
+findmy.AsyncAppleAccount subclass with only Apple's servers replaced, so the
+job runner is driven through the installed library's own LoginState machine
+and 2FA method objects. Nothing opens a socket. `make_account` is monkeypatched
+on web_auth itself, the name the module actually calls.
 """
 
 from __future__ import annotations
@@ -12,47 +13,14 @@ import time
 
 import pytest
 
+pytest.importorskip("findmy")
+
 from findplus.config import get_settings
 from findplus.providers.apple_findmy import web_auth
+from tests.providers._fake_findmy import GOOD_CODE, SMS_NUMBER
+from tests.providers._fake_findmy import FakeAppleAccount as FakeAccount
 
 PASSWORD = "hunter2-not-in-any-job-dict"
-
-
-class FakeMethod:
-    def __init__(self, accepts: str | None = "123456") -> None:
-        self.accepts = accepts
-        self.requests = 0
-        self.submitted: list[str] = []
-
-    def request(self) -> None:
-        self.requests += 1
-
-    def submit(self, code: str) -> None:
-        self.submitted.append(code)
-        if self.accepts is not None and code != self.accepts:
-            raise ValueError("bad verification code")
-
-
-class FakeAccount:
-    def __init__(self, requires_2fa_val: bool = False, method: FakeMethod | None = None) -> None:
-        self.requires_2fa_val = requires_2fa_val
-        self.method = method or FakeMethod()
-        self.logged_in_as: tuple[str, str] | None = None
-        self.login_error: Exception | None = None
-
-    def login(self, apple_id: str, password: str) -> None:
-        if self.login_error is not None:
-            raise self.login_error
-        self.logged_in_as = (apple_id, password)
-
-    def requires_2fa(self) -> bool:
-        return self.requires_2fa_val
-
-    def get_2fa_methods(self) -> list:
-        return [self.method]
-
-    def to_json(self) -> dict:
-        return {"token": "fake"}
 
 
 @pytest.fixture(autouse=True)
@@ -93,10 +61,11 @@ def test_a_2fa_sign_in_reaches_needs_2fa_then_done(tmp_path, monkeypatch) -> Non
     account = FakeAccount(requires_2fa_val=True)
     job_id, settings = _start(tmp_path, monkeypatch, account)
 
-    assert _settle(job_id)["state"] == "needs_2fa"
-    assert account.method.requests == 1
+    progress = _settle(job_id)
+    assert progress == {"state": "needs_2fa", "message": web_auth.MSG_NEEDS_2FA}
+    assert account.requests == ["trusted_device"]
 
-    assert web_auth.submit_apple_code(job_id, "123456", settings) == "a@b.com"
+    assert web_auth.submit_apple_code(job_id, GOOD_CODE, settings) == "a@b.com"
     assert web_auth.get_apple_auth_progress(job_id) == {
         "state": "done",
         "message": "Authenticated as a@b.com.",
@@ -144,7 +113,7 @@ def test_a_post_accept_disk_error_is_not_an_invalid_code(tmp_path, monkeypatch) 
     # Must raise the underlying error (e.g. OSError) or let a 500 happen,
     # NOT InvalidAppleCodeError which makes the UI blame the user's typing.
     with pytest.raises(OSError, match="read-only"):
-        web_auth.submit_apple_code(job_id, "123456", settings)
+        web_auth.submit_apple_code(job_id, GOOD_CODE, settings)
 
 
 def test_an_unknown_job_id_is_its_own_error(tmp_path) -> None:
@@ -207,3 +176,47 @@ def test_an_abandoned_2fa_prompt_does_not_block_apple_signin_forever(monkeypatch
     monkeypatch.setattr(web_auth.time, "monotonic", lambda: 100.0 + web_auth._STALLED_SECONDS + 1)
     assert web_auth.get_apple_auth_progress("abandoned") is None
     assert web_auth._jobs == {}
+
+
+def test_an_sms_only_account_names_the_text_message(tmp_path, monkeypatch) -> None:
+    account = FakeAccount(requires_2fa_val=True)
+    account.trusted_device = False
+    job_id, settings = _start(tmp_path, monkeypatch, account)
+
+    progress = _settle(job_id)
+    assert progress["message"] == web_auth.MSG_NEEDS_SMS.format(number=SMS_NUMBER)
+    assert account.requests == ["sms:7"]
+    assert web_auth.submit_apple_code(job_id, GOOD_CODE, settings) == "a@b.com"
+
+
+def test_done_saves_a_signed_in_session_and_releases_the_account(tmp_path, monkeypatch) -> None:
+    """With the real save_account: LOGGED_IN on disk, no password, no live account kept."""
+    from findplus.providers.apple_findmy import auth
+
+    account = FakeAccount(requires_2fa_val=True)
+    settings = get_settings(state_dir=tmp_path)
+    monkeypatch.setattr(web_auth, "make_account", lambda s: account)
+    job_id = web_auth.start_apple_auth(settings, "a@b.com", PASSWORD)
+    _settle(job_id)
+    web_auth.submit_apple_code(job_id, GOOD_CODE, settings)
+
+    saved = auth.read_saved_state(settings)
+    assert auth.is_signed_in(saved)
+    assert saved["account"]["password"] is None
+    assert PASSWORD not in (tmp_path / "apple-account.json").read_text(encoding="utf-8")
+    assert web_auth._jobs[job_id]["session"] is None
+    assert web_auth._jobs[job_id]["method"] is None
+
+
+def test_an_anisette_failure_fails_the_job_with_an_honest_message(tmp_path, monkeypatch) -> None:
+    class NoAnisette(FakeAccount):
+        async def get_anisette_headers(self, with_client_info=False, serial="0"):
+            raise OSError("network unreachable")
+
+    account = NoAnisette()
+    job_id, _ = _start(tmp_path, monkeypatch, account)
+    progress = _settle(job_id)
+    assert progress["state"] == "failed"
+    assert "Local anisette could not start" in progress["message"]
+    assert "network unreachable" in progress["message"]
+    assert account.logged_in_as is None

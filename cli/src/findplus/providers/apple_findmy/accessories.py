@@ -1,5 +1,7 @@
 # Purpose: register, list and remove Apple Find My accessories (locally held keys).
-# Inputs: a plist export or a base64 private key; findplus.config.Settings.
+# Inputs: a Find My pairing plist (rolling keys, parsed by FindMy.py's
+#         FindMyAccessory.from_plist), a flat plist holding one private key, or a
+#         base64 private key; findplus.config.Settings.
 # Outputs: JSON records under ~/.findplus/apple/<device_id>.json (0600, dir 0700).
 # Constraints: filesystem-only, no DB access; never logs plist bytes, key bytes
 #              or payload; on-disk filenames sanitize ':' to '_' (Windows/NTFS
@@ -13,9 +15,10 @@ import hashlib
 import json
 import pathlib
 
-#: P-224 / P-256 / P-384 / P-521 raw scalar sizes in bytes (ceil(bits/8)). Any
-#: other length is rejected immediately.
-VALID_KEY_LENGTHS = {28, 32, 48, 66}
+#: Find My keys are P-224 scalars (findmy.KeyPair derives SECP224R1), so 28
+#: bytes is the only size that can ever decrypt a report. Other lengths used to
+#: register and then fail silently at every poll; they are rejected up front.
+VALID_KEY_LENGTHS = {28}
 
 
 def _accessories_dir(settings) -> pathlib.Path:
@@ -32,7 +35,7 @@ def _derive_device_id(key_bytes: bytes) -> str:
     return "apple:" + hashlib.sha256(key_bytes).hexdigest()[:24]
 
 
-def _parse_plist(path: pathlib.Path) -> tuple[str, bytes]:
+def _parse_plist(path: pathlib.Path) -> tuple[str | dict, bytes]:
     import plistlib
     import xml.parsers.expat
 
@@ -48,10 +51,15 @@ def _parse_plist(path: pathlib.Path) -> tuple[str, bytes]:
     # AttributeError (CR-C-m2) instead of the same "bad upload" ValueError.
     if not isinstance(data, dict):
         raise ValueError("plist must be a dictionary, not a list or scalar")
+    if isinstance(data.get("privateKey"), dict):
+        return _parse_findmy_plist(data)
     raw = data.get("Private Key") or data.get("privateKey")
     if not raw:
         raise ValueError("plist missing 'Private Key' or 'privateKey' field")
-    key_bytes = raw if isinstance(raw, bytes) else base64.b64decode(raw)
+    try:
+        key_bytes = raw if isinstance(raw, bytes) else base64.b64decode(raw)
+    except Exception as exc:
+        raise ValueError("plist key is neither raw bytes nor base64") from exc
     # The JSON/private_key_b64 branch below has always enforced this; the
     # plist branch skipped it, so a 3-byte "Private Key" plist registered
     # (CR-C-m3).
@@ -62,6 +70,22 @@ def _parse_plist(path: pathlib.Path) -> tuple[str, bytes]:
         )
     payload = base64.b64encode(key_bytes).decode()
     return payload, key_bytes
+
+
+def _parse_findmy_plist(data: dict) -> tuple[dict, bytes]:
+    """A decrypted Find My pairing record (privateKey, sharedSecret, pairingDate...).
+
+    Parsed by FindMy.py itself, so Find+ stores exactly the mapping
+    FindMyAccessory.from_json() reads back. The device id hashes the master key.
+    """
+    import findmy
+
+    try:
+        accessory = findmy.FindMyAccessory.from_plist(data)
+    except Exception as exc:
+        detail = f"{type(exc).__name__} {exc}"
+        raise ValueError(f"Find My pairing plist is incomplete: {detail}") from exc
+    return dict(accessory.to_json()), accessory.master_key
 
 
 def add_accessory(
@@ -114,6 +138,15 @@ def add_accessory(
     path.chmod(0o600)
     path.write_text(json.dumps(record, indent=2), encoding="utf-8")
     return record
+
+
+def update_accessory_payload(record: dict, payload: dict, settings) -> None:
+    """Rewrite one record's payload in place (a rolling-key alignment update)."""
+    path = _accessories_dir(settings) / f"{record['device_id'].replace(':', '_')}.json"
+    if not path.exists():
+        return
+    path.chmod(0o600)
+    path.write_text(json.dumps({**record, "payload": payload}, indent=2), encoding="utf-8")
 
 
 def list_accessories(settings) -> list[dict]:

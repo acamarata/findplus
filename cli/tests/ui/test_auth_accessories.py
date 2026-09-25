@@ -22,7 +22,7 @@ URL_PATTERN = "**/api/apple/accessories"
 
 
 def _key_b64() -> str:
-    return base64.b64encode(b"k" * 32).decode()
+    return base64.b64encode(b"k" * 28).decode()
 
 
 async def _open_settings(page, base_url) -> None:

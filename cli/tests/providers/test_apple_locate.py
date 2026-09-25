@@ -1,104 +1,106 @@
-"""AppleFindMyProvider.locate(): field mapping, confidence, and error boundaries.
+"""AppleFindMyProvider.locate(): real report decryption, field mapping, and errors.
 
-Never imports findmy directly; every findmy-shaped object is a local fake.
-restore_account/list_accessories/_load_accessory_obj are monkeypatched at
-their source modules because locate() imports them at call time.
+The account is FakeAppleAccount (a real findmy.AsyncAppleAccount with only
+fetch_raw_reports answered in memory), restored through the library's own
+from_json. Reports are genuinely encrypted to the accessory's key, so the
+library's fetch_location -> key generation -> decrypt path runs for real.
+No socket is opened.
 """
 
 from __future__ import annotations
 
-import collections
+import base64
 import datetime
 
 import pytest
 
-from findplus.providers import apple_findmy as apple_findmy_pkg
-from findplus.providers.apple_findmy import accessories as accessories_mod
-from findplus.providers.apple_findmy import auth as auth_mod
-from findplus.providers.apple_findmy import provider as provider_mod
-from findplus.providers.apple_findmy.exceptions import AppleAuthRequiredError
-from findplus.providers.apple_findmy.provider import AppleFindMyProvider
+findmy = pytest.importorskip("findmy")
 
-UTC = datetime.UTC
-
-FakeReport = collections.namedtuple(
-    "FakeReport", ["latitude", "longitude", "timestamp", "confidence", "altitude", "status"]
+from findplus.config import get_settings  # noqa: E402
+from findplus.providers.apple_findmy import accessories as accessories_mod  # noqa: E402
+from findplus.providers.apple_findmy import auth as auth_mod  # noqa: E402
+from findplus.providers.apple_findmy.exceptions import AppleAuthRequiredError  # noqa: E402
+from findplus.providers.apple_findmy.provider import AppleFindMyProvider  # noqa: E402
+from findplus.providers.apple_findmy.session import AppleSession  # noqa: E402
+from tests.providers._fake_findmy import (  # noqa: E402
+    FakeAppleAccount,
+    encrypted_report,
+    findmy_plist_bytes,
 )
 
-_ACCESSORY = {"device_id": "apple:abc", "name": "Wallet Tag", "kind": "private_key"}
+UTC = datetime.UTC
+KEY = findmy.KeyPair(bytes(range(1, 29)))
 
 
-class FakeAccount:
-    def __init__(self, reports) -> None:
-        self._reports = reports
+@pytest.fixture
+def signed_in(tmp_path, monkeypatch):
+    """A saved LOGGED_IN session; restore_account yields a FakeAppleAccount from it."""
+    monkeypatch.setenv("FINDPLUS_STATE_DIR", str(tmp_path))
+    settings = get_settings(state_dir=tmp_path)
+    account = FakeAppleAccount()
+    with AppleSession(account) as session:
+        session.run(account.login("a@b.com", "pw"))
+    auth_mod.save_account(account, settings)
+    holder: dict = {}
 
-    def fetch_last_reports(self, acc_obj):
-        return self._reports
+    def restore(s):
+        holder["account"] = FakeAppleAccount.from_json(auth_mod.read_saved_state(s))
+        holder["account"].reports = holder.get("reports", [])
+        holder["account"].fetch_error = holder.get("fetch_error")
+        return holder["account"]
+
+    monkeypatch.setattr(auth_mod, "restore_account", restore)
+    monkeypatch.setattr(AppleFindMyProvider, "is_available", lambda self: (True, ""))
+    return settings, holder
 
 
-def _patch_common(monkeypatch, reports, *, accessory=None):
-    # The real is_available() checks whether `findmy` is actually importable,
-    # which it is not in this dev venv; every locate() test needs the
-    # available branch, so this is patched at its source module too (locate()
-    # re-imports `is_available` fresh from this module on every call).
-    monkeypatch.setattr(apple_findmy_pkg, "is_available", lambda: (True, ""))
-    monkeypatch.setattr(auth_mod, "restore_account", lambda settings: FakeAccount(reports))
-    monkeypatch.setattr(
-        accessories_mod, "list_accessories", lambda settings: [accessory or _ACCESSORY]
+def _add_key(settings) -> str:
+    record = accessories_mod.add_accessory(
+        "Wallet Tag", settings, private_key_b64=base64.b64encode(KEY.private_key_bytes).decode()
     )
-    monkeypatch.setattr(provider_mod, "_load_accessory_obj", lambda record: object())
+    return record["device_id"]
 
 
-def test_locate_maps_fields(monkeypatch) -> None:
-    reports = [
-        FakeReport(
-            37.3318,
-            -122.0312,
-            datetime.datetime(2026, 9, 1, 10, 0, tzinfo=UTC),
-            "good",
-            25.0,
-            "located",
-        ),
-        FakeReport(
-            37.3320,
-            -122.0310,
-            datetime.datetime(2026, 9, 1, 11, 0, tzinfo=UTC),
-            "good",
-            25.0,
-            "located",
-        ),
+def test_static_key_report_is_decrypted_and_mapped(signed_in) -> None:
+    settings, holder = signed_in
+    when = datetime.datetime.now(UTC).replace(microsecond=0) - datetime.timedelta(hours=1)
+    holder["reports"] = [
+        encrypted_report(KEY, 37.3318, -122.0312, when - datetime.timedelta(hours=1)),
+        encrypted_report(KEY, 37.3320, -122.0310, when, confidence=3, accuracy=42, status=5),
     ]
-    _patch_common(monkeypatch, reports)
-    provider = AppleFindMyProvider()
-    results = provider.locate("apple:abc", "Wallet Tag")
-    assert len(results) == 2
-    assert results[0].source == "apple-find-my"
-    assert results[0].device_name == "Wallet Tag"
-    assert results[0].accuracy_meters is None
-    assert results[0].observed_at.tzinfo is not None
-    assert results[0].metadata["confidence"] == "good"
+    device_id = _add_key(settings)
+
+    [obs] = AppleFindMyProvider().locate(device_id, "Wallet Tag")
+    assert (obs.latitude_e7, obs.longitude_e7) == (373320000, -1220310000)
+    assert obs.observed_at == when
+    assert obs.observed_at.tzinfo == UTC
+    assert obs.source == obs.provider == "apple-find-my"
+    assert obs.accuracy_meters is None  # migration 0009: never an invented metre figure
+    assert obs.altitude_meters is None
+    assert obs.metadata == {"confidence": 3, "status": 5, "horizontal_accuracy": 42}
 
 
-def test_confidence_mapping(monkeypatch) -> None:
-    reports = [
-        FakeReport(1.0, 1.0, datetime.datetime(2026, 9, 1, 10, 0, tzinfo=UTC), c, None, "located")
-        for c in ("excellent", "good", "medium", "poor")
-    ]
-    _patch_common(monkeypatch, reports)
-    provider = AppleFindMyProvider()
-    results = provider.locate("apple:abc", "Wallet Tag")
-    assert len(results) == 4
-    for r in results:
-        assert r.accuracy_meters is None
-        assert r.metadata["confidence"] in ("excellent", "good", "medium", "poor")
+def test_rolling_key_accessory_from_a_pairing_plist(signed_in, tmp_path) -> None:
+    """A real Find My pairing plist: FindMyAccessory keys roll, the report still decrypts."""
+    settings, holder = signed_in
+    now = datetime.datetime.now(UTC).replace(microsecond=0)
+    plist = tmp_path / "tag.plist"
+    plist.write_bytes(findmy_plist_bytes(now - datetime.timedelta(days=1)))
+    record = accessories_mod.add_accessory("AirTag", settings, plist_path=plist)
+    accessory = findmy.FindMyAccessory.from_json(record["payload"])
+    current = accessory.keys_at(accessory.get_max_index(now))
+    primary = next(k for k in current if k.key_type == findmy.KeyPairType.PRIMARY)
+    holder["reports"] = [encrypted_report(primary, 51.5, -0.12, now)]
+
+    [obs] = AppleFindMyProvider().locate(record["device_id"], "AirTag")
+    assert (obs.latitude_e7, obs.longitude_e7) == (515000000, -1200000)
+    saved = accessories_mod.list_accessories(settings)[0]["payload"]
+    assert saved["alignment_date"] is not None
 
 
-def test_naive_timestamp_gets_utc(monkeypatch) -> None:
-    reports = [FakeReport(1.0, 1.0, datetime.datetime(2026, 9, 1, 10, 0), "good", None, "located")]
-    _patch_common(monkeypatch, reports)
-    provider = AppleFindMyProvider()
-    results = provider.locate("apple:abc", "Wallet Tag")
-    assert results[0].observed_at.tzinfo == UTC
+def test_no_report_means_no_observation(signed_in) -> None:
+    settings, _holder = signed_in
+    assert AppleFindMyProvider().locate(_add_key(settings), "Wallet Tag") == []
 
 
 def test_unavailable_returns_empty(monkeypatch) -> None:
@@ -107,25 +109,37 @@ def test_unavailable_returns_empty(monkeypatch) -> None:
     assert provider.locate("apple:abc", "Wallet Tag") == []
 
 
-def test_unauthenticated_propagates(monkeypatch) -> None:
-    def _raise(settings):
-        raise AppleAuthRequiredError("expired")
+def test_missing_session_propagates(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("FINDPLUS_STATE_DIR", str(tmp_path))
+    monkeypatch.setattr(AppleFindMyProvider, "is_available", lambda self: (True, ""))
+    with pytest.raises(AppleAuthRequiredError, match="findplus auth"):
+        AppleFindMyProvider().locate("apple:abc", "Wallet Tag")
 
-    monkeypatch.setattr(apple_findmy_pkg, "is_available", lambda: (True, ""))
-    monkeypatch.setattr(auth_mod, "restore_account", _raise)
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        findmy.UnauthorizedError("Not authorized to fetch reports."),
+        ValueError("No username or password specified"),
+    ],
+)
+def test_an_expired_token_asks_for_sign_in(signed_in, error) -> None:
+    """No password is saved, so a token FindMy.py cannot refresh means signing in again."""
+    settings, holder = signed_in
+    holder["fetch_error"] = error
+    with pytest.raises(AppleAuthRequiredError, match="Apple session expired"):
+        AppleFindMyProvider().locate(_add_key(settings), "Wallet Tag")
+
+
+def test_corrupt_accessory_skipped(signed_in) -> None:
+    settings, _holder = signed_in
+    device_id = _add_key(settings)
+    path = settings.state_dir / "apple" / f"{device_id.replace(':', '_')}.json"
+    path.write_text(path.read_text().replace('"payload": "', '"payload": "!!'), encoding="utf-8")
+    assert AppleFindMyProvider().locate(device_id, "Wallet Tag") == []
+
+
+def test_is_authenticated_and_describe_auth(signed_in) -> None:
     provider = AppleFindMyProvider()
-    with pytest.raises(AppleAuthRequiredError):
-        provider.locate("apple:abc", "Wallet Tag")
-
-
-def test_corrupt_accessory_skipped(monkeypatch) -> None:
-    monkeypatch.setattr(apple_findmy_pkg, "is_available", lambda: (True, ""))
-    monkeypatch.setattr(auth_mod, "restore_account", lambda settings: FakeAccount([]))
-    monkeypatch.setattr(accessories_mod, "list_accessories", lambda settings: [_ACCESSORY])
-
-    def _raise(record):
-        raise ValueError("bad record")
-
-    monkeypatch.setattr(provider_mod, "_load_accessory_obj", _raise)
-    provider = AppleFindMyProvider()
-    assert provider.locate("apple:abc", "Wallet Tag") == []
+    assert provider.is_authenticated() is True
+    assert provider.describe_auth() == {"provider": "apple-find-my", "account": "a@b.com"}

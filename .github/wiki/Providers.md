@@ -19,12 +19,23 @@ locations, and polls on your configured interval.
 
 ## Apple Find My
 
-Optional extra: `pip install 'findplus[apple]'`. Uses the `findmy` library.
-Register an accessory with `findplus apple add-accessory`, supplying either
-a pairing `.plist` export or a raw private key. Genuine Apple AirTags
-require extracting their pairing keys from an Apple device that has already
-paired with them; most users cannot do this, so Apple support in practice
-covers accessories you control the key material for.
+Optional extra: `pip install 'findplus[apple]'`. Uses the `findmy` library
+(FindMy.py 0.10). Register an accessory with `findplus apple add-accessory`,
+supplying one of:
+
+- the decrypted pairing record the Find My app keeps for an accessory (a
+  plist with `privateKey`, `sharedSecret` and `pairingDate`). FindMy.py parses
+  it and Find+ follows the accessory's rolling keys;
+- a flat plist with a `Private Key` field, or a raw base64 private key, for a
+  tag that broadcasts one fixed key. Find My keys are P-224, so the key must
+  be 28 bytes; any other length is refused when you add it.
+
+Genuine Apple AirTags require extracting their pairing keys from an Apple
+device that has already paired with them; most users cannot do this, so Apple
+support in practice covers accessories you control the key material for.
+Locating any accessory also needs an Apple ID sign-in (see
+[Sign in](Sign-in)): Apple only answers location queries from a signed-in
+account.
 
 Apple Find My locations come from nearby Apple devices and can be delayed,
 sparse or unavailable. Find+ can only query accessories whose keys you
@@ -33,14 +44,17 @@ cannot do.
 
 ### Accuracy values
 
-Apple reports a confidence label (excellent, good, medium or poor) rather
-than a radius in metres, and Apple publishes no metre equivalent for that
-label. Find+ does not invent one: an Apple observation's accuracy is always
-stored as unknown (`null`), never a guessed figure. The dashboard shows
-"Accuracy unknown" for these fixes instead of the `±N m` reading Google
-observations carry, and exports leave the accuracy column empty. The
-confidence label itself is still kept alongside the observation for anyone
-who wants it, just never converted into a number.
+Each Apple report carries a confidence value (1 to 3) and a one-byte
+horizontal accuracy field whose unit neither Apple nor FindMy.py documents.
+Neither is a radius Find+ can stand behind, so Find+ does not invent one: an
+Apple observation's accuracy is always stored as unknown (`null`), never a
+guessed figure. The dashboard shows "Accuracy unknown" for these fixes instead
+of the `±N m` reading Google observations carry, and exports leave the
+accuracy column empty. Both raw values are kept in the observation's metadata
+for anyone who wants them, just never converted into a number.
+
+Each poll asks Apple for the newest report from the last seven days. No
+report in that window means no new observation; Find+ never fills the gap.
 
 Geofence enter/exit decisions still need *some* radius to reason about
 sparse or missing accuracy. That fallback (`geofence_default_accuracy_meters`

@@ -21,8 +21,8 @@ URL = "/api/apple/accessories"
 
 
 def _key_b64(filler: bytes = b"x") -> str:
-    """32 raw bytes: a P-256 scalar length accessories.py accepts."""
-    return base64.b64encode(filler * 32).decode()
+    """28 raw bytes: a P-224 scalar, the only key size Find My uses."""
+    return base64.b64encode(filler * 28).decode()
 
 
 def _leftovers() -> list:

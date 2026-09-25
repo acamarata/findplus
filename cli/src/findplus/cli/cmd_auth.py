@@ -151,9 +151,11 @@ def _auth_apple(settings) -> None:
     )
     click.echo("What gets stored, and where:")
     click.echo(f"  {settings.state_dir / 'apple-account.json'}  (mode 0600)")
-    click.echo("  It contains an opaque, signed-in session token. Your Apple")
-    click.echo("  PASSWORD is never seen, stored, or transmitted by this app beyond")
-    click.echo("  the login call itself.\n")
+    click.echo("  It contains the signed-in session tokens and your Apple ID. Your")
+    click.echo("  Apple PASSWORD is sent to Apple for this sign-in only and is never")
+    click.echo("  written to disk, so an expired session means signing in again.")
+    click.echo("  Unless APPLE_ANISETTE_URL is set, the first sign-in downloads")
+    click.echo("  anisette helper libraries (a few MB) from anisette.dl.mikealmel.ooo.\n")
 
     try:
         sign_in_interactive(settings)

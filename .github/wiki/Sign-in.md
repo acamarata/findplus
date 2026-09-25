@@ -49,18 +49,49 @@ What a Find Hub account gives you:
 ## Apple
 
 The Apple card takes your Apple ID and password; click **Connect Apple Find
-My**. If Apple wants a second factor, the form is replaced by a code field and
-Apple shows the code on one of your Apple devices. Enter it and click **Verify
-code**. A wrong code is named as such and the code field stays; **Try again**
-starts over with a fresh form.
+My**. If Apple wants a second factor, the form is replaced by a code field.
+Apple shows the code on one of your trusted Apple devices, or, when the account
+has no trusted device, texts it to your phone and the card says so. Enter it
+and click **Verify code**. A wrong code is named as such and the code field
+stays; **Try again** starts over with a fresh form. `findplus auth --provider
+apple-find-my` lists every method Apple offers and lets you pick one.
 
 A pip install without the Apple extra cannot sign in to Apple at all. The card
 then says so and names the fix, `pip install 'findplus[apple]'`, instead of
 showing a form that could only fail.
 
-Your Apple password is held only for the duration of that one sign-in call. It
-is never written to disk, never logged, and never sent back to the browser. The
-password and code fields are cleared the moment the request leaves.
+Your Apple password is held in memory only until the sign-in finishes: until
+Apple accepts the code, when it asks for one, because the library signs in
+again with it after the code. An abandoned sign-in is dropped after 10
+minutes. The password is never written to disk, never logged, and never sent
+back to the browser. The password and code fields are cleared the moment the
+request leaves.
+
+`~/.findplus/apple-account.json` (mode 0600) holds your Apple ID and the
+session tokens Apple issued. Because the password is not saved, Find+ cannot
+quietly sign in again when Apple expires those tokens. Polls of your Apple
+accessories then report that sign-in is needed, and you sign in again the same
+way.
+
+### Anisette
+
+Apple expects every sign-in and location query to carry "anisette" headers,
+the device identity a real Mac or iPhone sends. By default Find+ produces them
+locally with FindMy.py's built-in engine. It needs no setup, but on the first
+sign-in it downloads helper libraries (a few MB) from
+`anisette.dl.mikealmel.ooo`, a server run by the author of the `anisette`
+library, not by Apple or by Find+. It caches them in
+`~/.findplus/anisette-libs.bin` and then registers a virtual device with
+Apple. If that download or registration fails, the card says so before your
+password is sent anywhere.
+
+To use an anisette server you run yourself instead:
+
+```bash
+findplus config set APPLE_ANISETTE_URL http://127.0.0.1:6969
+```
+
+The choice is saved with the session, so change it before you sign in.
 
 What an Apple Find My account gives you:
 
@@ -69,10 +100,13 @@ What an Apple Find My account gives you:
 > genuine AirTags require extracting pairing keys, which most users cannot do.
 
 Accessory keys (extracted pairing keys for AirTags and other Find My
-accessories) can be added from the terminal, the API, or the dashboard, and
-work without an Apple ID sign-in. In Settings, under the Apple card, give the
-accessory a name and pick its key file (a `.plist` export or a `.json` file
-holding the base64 private key), then click **Add accessory**. If that name's
+accessories) can be added from the terminal, the API, or the dashboard before
+or after you sign in, but Find+ can only locate them once an Apple ID is
+signed in. In Settings, under the Apple card, give the accessory a name and
+pick its key file (a decrypted Find My pairing `.plist`, a plist holding one
+private key, or a `.json` file holding the base64 private key), then click
+**Add accessory**. The accepted formats are listed under
+[Providers](Providers). If that name's
 key is already registered, Find+ asks before replacing it. `findplus apple
 add-accessory` takes the same plist or base64 key from the terminal, and
 `findplus apple list` shows what is registered. The same thing is reachable

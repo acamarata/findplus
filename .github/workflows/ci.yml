@@ -38,7 +38,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install '.[dev]'
+      # apple: the findmy contract tests (tests/providers/test_apple_findmy_contract.py)
+      # and every Apple behaviour test run against the installed library and
+      # skip without it, so this lane installs the extra they pin.
+      - run: pip install '.[dev,apple]'
         working-directory: cli
         continue-on-error: ${{ matrix.experimental == true }}
       - run: python -m pytest cli/tests -q -m "not browser and not slow"

@@ -1,20 +1,23 @@
 """Apple Find My sign-in as a background job, for the dashboard rather than a TTY.
 
-Purpose    : the same three findmy.py calls `auth.py:sign_in_interactive()`
-             makes (`login`, `requires_2fa`, a 2FA method), driven by two HTTP
-             requests instead of `click.prompt`, which blocks on real stdin and
-             cannot run in a thread spawned from a request.
+Purpose    : the same findmy calls `auth.py:sign_in_interactive()` makes
+             (`login`, `get_2fa_methods`, a method's `request`/`submit`),
+             driven by two HTTP requests instead of `click.prompt`, which
+             blocks on real stdin and cannot run in a thread spawned from a
+             request.
 Inputs     : a `Settings`, an Apple ID and password, then a 2FA code.
 Outputs    : `start_apple_auth()` -> job id; `submit_apple_code()` -> the Apple
              ID; `get_apple_auth_progress()` -> `{"state", "message"}` or None.
              States: signing_in -> needs_2fa -> done, or failed.
 Constraints: `make_account()`/`save_account()` are reused from auth.py
-             unmodified — only the prompting is not. The password is a local of
+             unmodified; only the prompting is not. The password is a local of
              the thread that calls `login()` and is never written to the job
              dict, a log line or a response body (specs/auth-ui.md §3, §8).
-             Structurally parallel to google_findhub/browser.py (lock, `_jobs`,
-             sweep, `_set_progress`) but shares no code with it: no Chrome, no
-             selenium, a different state machine.
+             FindMy.py keeps it inside the live account object until the 2FA
+             code is accepted (it re-authenticates with it), so the job's
+             AppleSession is closed and dropped on every terminal state and on
+             sweep. Structurally parallel to google_findhub/browser.py but
+             shares no code with it.
 """
 
 from __future__ import annotations
@@ -25,6 +28,7 @@ import uuid
 from typing import Any
 
 from findplus.providers.apple_findmy.auth import make_account, save_account
+from findplus.providers.apple_findmy.session import AppleSession, prepare_anisette
 
 __all__ = [
     "AppleAuthAlreadyRunningError",
@@ -37,6 +41,7 @@ __all__ = [
 
 MSG_SIGNING_IN = "Signing in..."
 MSG_NEEDS_2FA = "Enter the code from your trusted device."
+MSG_NEEDS_SMS = "Enter the code Apple sent by text message to {number}."
 
 _JOB_TTL_SECONDS = 600
 
@@ -87,11 +92,22 @@ def _sweep_expired_jobs() -> None:
             if now - finished > _JOB_TTL_SECONDS:
                 del _jobs[job_id]
         elif now - job.get("last_progress_monotonic", now) > _STALLED_SECONDS:
-            del _jobs[job_id]
+            _close_quietly(_jobs.pop(job_id).get("session"))
+
+
+def _close_quietly(session: AppleSession | None) -> None:
+    """Close a job's account session; a failure here is never the user's problem."""
+    if session is not None:
+        session.close()
 
 
 def _set_progress(job_id: str, state: str, message: str) -> None:
-    """Record a state transition. Silently ignores an already-swept job."""
+    """Record a state transition. Silently ignores an already-swept job.
+
+    A terminal state releases the live account (and the password FindMy.py
+    keeps inside it) at once rather than when the job is swept.
+    """
+    session = None
     with _lock:
         job = _jobs.get(job_id)
         if job is None:
@@ -101,6 +117,8 @@ def _set_progress(job_id: str, state: str, message: str) -> None:
         job["last_progress_monotonic"] = time.monotonic()
         if state in _TERMINAL:
             job["finished_monotonic"] = time.monotonic()
+            session, job["session"], job["method"] = job.get("session"), None, None
+    _close_quietly(session)
 
 
 def start_apple_auth(settings: Any, apple_id: str, password: str) -> str:
@@ -123,7 +141,7 @@ def start_apple_auth(settings: Any, apple_id: str, password: str) -> str:
             # the thread below for the length of one login() call.
             "apple_id": apple_id,
             "method": None,
-            "account": None,
+            "session": None,
             "finished_monotonic": None,
             "last_progress_monotonic": time.monotonic(),
         }
@@ -134,37 +152,62 @@ def start_apple_auth(settings: Any, apple_id: str, password: str) -> str:
     return job_id
 
 
+def _pick_method(methods: list) -> Any:
+    """The trusted device when Apple offers one (the CLI's default), else SMS."""
+    for method in methods:
+        if getattr(method, "phone_number", None) is None:
+            return method
+    return methods[0]
+
+
+def _needs_2fa_message(method: Any) -> str:
+    number = getattr(method, "phone_number", None)
+    return MSG_NEEDS_SMS.format(number=number) if number else MSG_NEEDS_2FA
+
+
 def _run_apple_auth(job_id: str, settings: Any, apple_id: str, password: str) -> None:
-    """Thread body: log in, ask for a 2FA method if Apple wants one, record it."""
+    """Thread body: log in, ask for a 2FA code if Apple wants one, record it."""
+    import findmy
+
+    session = None
     try:
-        account = make_account(settings)
-        account.login(apple_id, password)
-        if account.requires_2fa():
-            # methods[0] is the trusted device, the same default the CLI's
-            # choice "1" picks. The user still reads the code off that device,
-            # so auto-selecting simplifies the UI without weakening anything.
-            method = account.get_2fa_methods()[0]
-            method.request()
+        session = AppleSession(make_account(settings))
+        prepare_anisette(session, settings)
+        state = session.run(session.account.login(apple_id, password))
+        if state == findmy.LoginState.REQUIRE_2FA:
+            methods = list(session.run(session.account.get_2fa_methods()))
+            if not methods:
+                raise RuntimeError("Apple asked for a second factor but offered no usable method.")
+            method = _pick_method(methods)
+            session.run(method.request())
             with _lock:
                 job = _jobs.get(job_id)
                 if job is not None:
-                    job["method"] = method
-                    job["account"] = account
-            _set_progress(job_id, "needs_2fa", MSG_NEEDS_2FA)
+                    job["method"], job["session"] = method, session
+            if job is None:  # swept while Apple was answering: nobody will submit
+                _close_quietly(session)
+                return
+            _set_progress(job_id, "needs_2fa", _needs_2fa_message(method))
             return
-        save_account(account, settings)
+        if state != findmy.LoginState.LOGGED_IN:
+            raise RuntimeError(f"Apple sign-in did not finish (state {state}).")
+        save_account(session.account, settings)
     except Exception as exc:
-        _set_progress(job_id, "failed", str(exc)[:200])
+        _close_quietly(session)
+        _set_progress(job_id, "failed", str(exc)[:300])
     else:
+        _close_quietly(session)
         _set_progress(job_id, "done", f"Authenticated as {apple_id}.")
 
 
 def submit_apple_code(job_id: str, code: str, settings: Any) -> str:
-    """Finish a needs_2fa job with the code from the trusted device.
+    """Finish a needs_2fa job with the code from the trusted device or SMS.
 
     A refused code leaves the job at `needs_2fa` so the dashboard can re-prompt
     without starting the whole sign-in again.
     """
+    import findmy
+
     with _lock:
         _sweep_expired_jobs()
         job = _jobs.get(job_id)
@@ -179,16 +222,20 @@ def submit_apple_code(job_id: str, code: str, settings: Any) -> str:
             job["message"] = "Too many invalid code attempts. Please sign in again."
             job["last_progress_monotonic"] = time.monotonic()
             job["finished_monotonic"] = time.monotonic()
+            _close_quietly(job.get("session"))
+            job["session"], job["method"] = None, None
             raise InvalidAppleCodeError("Too many invalid code attempts")
 
-        method, account, apple_id = job["method"], job["account"], job["apple_id"]
+        method, session, apple_id = job["method"], job["session"], job["apple_id"]
 
     try:
-        method.submit(code)
+        state = session.run(method.submit(code))
     except Exception as exc:
         raise InvalidAppleCodeError(str(exc)) from exc
+    if state != findmy.LoginState.LOGGED_IN:
+        raise InvalidAppleCodeError(f"Apple did not accept the code (state {state}).")
 
-    save_account(account, settings)
+    save_account(session.account, settings)
 
     _set_progress(job_id, "done", f"Authenticated as {apple_id}.")
     return apple_id
@@ -197,7 +244,7 @@ def submit_apple_code(job_id: str, code: str, settings: Any) -> str:
 def get_apple_auth_progress(job_id: str) -> dict[str, Any] | None:
     """`{"state", "message"}`, or None for an unknown or expired job id.
 
-    Deliberately narrow: the job dict also holds a live findmy account and 2FA
+    Deliberately narrow: the job dict also holds a live AppleSession and 2FA
     method object, neither of which belongs in a response body.
     """
     with _lock:

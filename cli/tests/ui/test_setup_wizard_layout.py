@@ -50,7 +50,7 @@ async def _open_step(page, base_url, step):
     await page.wait_for_selector("#setup-view .fp-wizard-step", timeout=15000)
 
 
-@pytest.mark.parametrize("step", ["welcome", "groups", "notifications", "applock"])
+@pytest.mark.parametrize("step", ["welcome", "signin", "groups", "notifications", "applock"])
 async def test_wizard_card_is_bounded_and_centred_at_1280(page, base_url, step):
     """R-P2-28 point 1: max-width 720px, centred, not edge-to-edge."""
     await page.set_viewport_size({"width": 1280, "height": 900})
@@ -72,7 +72,7 @@ async def test_wizard_card_is_bounded_and_centred_at_1280(page, base_url, step):
         await _set_last_step(page, base_url, None)
 
 
-@pytest.mark.parametrize("step", ["welcome", "groups", "notifications", "applock"])
+@pytest.mark.parametrize("step", ["welcome", "signin", "groups", "notifications", "applock"])
 async def test_wizard_has_no_horizontal_overflow_at_375(page, base_url, step):
     """R-P2-28 point 1: full-width with 16px gutters below 600px, never wider
     than the viewport (F1/F2 both only reproduced with real content on screen,
@@ -181,8 +181,8 @@ async def test_deliveries_table_causes_no_horizontal_scroll_at_1280(page, base_u
     assert page_overflow <= 1, page_overflow
 
 
-#: The four steps R-P2-28 changed the layout/markup of.
-WIZARD_AXE_STEPS = ("welcome", "groups", "notifications", "applock")
+#: The four steps R-P2-28 changed the layout/markup of, plus E14's sign-in cards.
+WIZARD_AXE_STEPS = ("welcome", "signin", "groups", "notifications", "applock")
 
 
 @pytest.mark.parametrize("theme", ("dark", "light"))

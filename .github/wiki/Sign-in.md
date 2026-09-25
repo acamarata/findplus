@@ -6,10 +6,22 @@ terminal. All three write the same credentials to `~/.findplus/`.
 
 ## Google
 
-Open **Settings**. Sign-in is the first section of the dialog. Click **Sign in
-with Google** and Find+ opens Chrome on Google's own sign-in page. The card
-reports each stage as it runs: starting Chrome, waiting for you inside the
-Chrome window, finishing up, then the account it captured.
+Open **Settings**. Sign-in is the first section of the dialog, and the setup
+wizard shows the same two cards. Click **Connect Google Find Hub** and Find+
+opens Chrome on Google's own sign-in page. You type your password there, not
+into Find+. The card reports each stage as it runs: opening Chrome, waiting for
+you to finish in the Chrome window, saving the session, then the account it
+captured.
+
+If the sign-in cannot start or does not finish, the card says why in plain
+words and offers **Try again**. That covers an error from the Find+ service, a
+service Find+ cannot reach, a sign-in that expired or ran past 5 minutes, and a
+failure Chrome reported.
+
+The buttons are Find+'s own, not Google's or Apple's sign-in buttons. Find+
+does not use either company's sign-in service: it drives a Chrome sign-in for
+Find Hub and an Apple ID sign-in for Find My, and it is not affiliated with
+either company.
 
 Chrome runs in a profile directory of its own, `~/.findplus/chrome-profile`.
 That directory holds the cookies and history of this sign-in only. Your personal
@@ -23,8 +35,8 @@ If Chrome is not installed, the button is disabled and the card says:
 > directly and cannot run without it. Install it from
 > https://www.google.com/chrome/ and try again.
 
-The check re-runs on every poll of the sign-in job, so the message clears by
-itself once you install Chrome.
+A **Download Google Chrome** link sits under it. Once Chrome is installed,
+click **Check again**.
 
 What a Find Hub account gives you:
 
@@ -36,9 +48,15 @@ What a Find Hub account gives you:
 
 ## Apple
 
-The Apple card takes your Apple ID and password. If Apple wants a second
-factor, the form is replaced by a code field and Apple sends the code to a
-trusted device. Enter it and the sign-in completes.
+The Apple card takes your Apple ID and password; click **Connect Apple Find
+My**. If Apple wants a second factor, the form is replaced by a code field and
+Apple shows the code on one of your Apple devices. Enter it and click **Verify
+code**. A wrong code is named as such and the code field stays; **Try again**
+starts over with a fresh form.
+
+A pip install without the Apple extra cannot sign in to Apple at all. The card
+then says so and names the fix, `pip install 'findplus[apple]'`, instead of
+showing a form that could only fail.
 
 Your Apple password is held only for the duration of that one sign-in call. It
 is never written to disk, never logged, and never sent back to the browser. The

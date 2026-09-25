@@ -38,7 +38,7 @@ async def _welcome(page: Page) -> None:
 
 async def _signin(page: Page) -> None:
     wizard = page.locator("#setup-view")
-    await wizard.get_by_role("button", name="Sign in with Google").click()
+    await wizard.get_by_role("button", name="Connect Google Find Hub").click()
     await page.locator("#fp-setup-signin-status", has_text="test@example.invalid").wait_for(
         timeout=15000
     )

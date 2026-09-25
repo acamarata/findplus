@@ -424,20 +424,10 @@
       "body": "Find+ tracks your Google Find Hub and Apple Find My devices. Your location history stays on this machine. Map tiles always load from OpenStreetMap. Anything else leaves only when you turn it on: signing in to Google or Apple, address search, and any alert channel you connect (Telegram, WhatsApp or a webhook)."
     },
     "signin": {
-      "title": "Sign in",
-      "google": "Sign in with Google",
-      "google_signed_in": "Signed in ✓ (switch account)",
-      "apple": "Sign in with Apple",
-      "apple_id": "Apple ID",
-      "password": "Password",
-      "code": "Verification code",
-      "submit": "Continue",
+      "title": "Connect your trackers",
+      "lead": "Connect at least one account so Find+ can read where your trackers are. You can skip this and connect later from Settings.",
       "not_signed_in": "Not signed in yet.",
-      "signed_in_as": "Signed in as {accounts}.",
-      "starting": "Starting Chrome...",
-      "waiting": "Waiting for Google sign-in…",
-      "finishing": "Finishing up...",
-      "timed_out": "No sign-in was completed within 5 minutes. Try again."
+      "signed_in_as": "Signed in as {accounts}."
     },
     "devices": {
       "title": "Devices",
@@ -494,25 +484,7 @@
     }
   },
   "auth": {
-    "signInGoogle": "Sign in with Google",
-    "google": {
-      "signin": "Sign in with Google",
-      "switchAccount": "Switch account",
-      "launching": "Starting Chrome…",
-      "waiting": "Sign in inside the Chrome window that just opened.",
-      "capturing": "Finishing up…",
-      "chrome_missing": "Google Chrome was not found on this machine. Google sign-in drives Chrome directly and cannot run without it. Install it from https://www.google.com/chrome/ and try again.",
-      "downloadChrome": "Download Google Chrome",
-      "heading": "Google Find Hub"
-    },
     "apple": {
-      "signin": "Sign in with Apple",
-      "appleid": "Apple ID",
-      "password": "Password",
-      "code": "Code",
-      "codeSubmit": "Submit",
-      "needs_2fa": "Enter the code sent to your trusted device.",
-      "heading": "Apple Find My",
       "accessories": {
         "heading": "Accessory keys",
         "name": "Accessory name",
@@ -523,10 +495,49 @@
         "badJson": "That file has no readable private key.",
         "confirmReplace": "\"{name}\" is already registered. Replace the stored key?"
       }
+    }
+  },
+  "signin": {
+    "account": {
+      "signedIn": "Signed in as {account}",
+      "signedOut": "Not signed in"
     },
-    "status": {
-      "signed_in": "Signed in as {account}",
-      "not_signed_in": "Not signed in"
+    "retry": "Try again",
+    "google": {
+      "heading": "Google Find Hub",
+      "how": "Opens Google Chrome so you can sign in on Google's own page. You type your password there, not into Find+.",
+      "connect": "Connect Google Find Hub",
+      "switch": "Switch Google account",
+      "starting": "Opening Chrome…",
+      "waiting": "Finish signing in in the Chrome window that opened. This page updates by itself.",
+      "capturing": "Signed in. Saving your session…",
+      "downloadChrome": "Download Google Chrome",
+      "checkAgain": "Check again"
+    },
+    "apple": {
+      "heading": "Apple Find My",
+      "how": "Uses your Apple ID and password, then a verification code from one of your Apple devices.",
+      "appleId": "Apple ID",
+      "password": "Password",
+      "connect": "Connect Apple Find My",
+      "switch": "Use a different Apple ID",
+      "signingIn": "Signing in to Apple…",
+      "codePrompt": "Enter the verification code shown on your Apple device.",
+      "code": "Verification code",
+      "verify": "Verify code",
+      "checking": "Checking the code…",
+      "missingFields": "Enter your Apple ID and password first.",
+      "missingCode": "Enter the code from your Apple device first.",
+      "unavailable": "Apple Find My support is not installed in this copy of Find+. Install the Apple extra with pip install 'findplus[apple]', then restart Find+."
+    },
+    "error": {
+      "title": "Sign-in did not finish",
+      "startFailed": "Find+ could not start the sign-in: {message}",
+      "unreachable": "Find+ could not reach its background service. Check that Find+ is running, then try again.",
+      "expired": "This sign-in expired before it finished. Start it again.",
+      "timeout": "No sign-in was completed within 5 minutes.",
+      "badCode": "That code was not accepted. Check it and verify again, or start over for a new code.",
+      "unknown": "The sign-in stopped without saying why."
     }
   },
   "notices": {

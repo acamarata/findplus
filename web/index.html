@@ -21,6 +21,9 @@
      split off components.css, which reached the 300-line cap again (PRI
      rule 7). Same cascade position as the file it split from. -->
 <link rel="stylesheet" href="/static/components-panels.css">
+<!-- The setup wizard and the shared sign-in cards (wizard step 2 and
+     Settings > Sign-in). Before responsive.css so the phone tier still wins. -->
+<link rel="stylesheet" href="/static/setup.css">
 <!-- Loaded last on purpose: every rule in it overrides one above at equal
      specificity (focus ring, screen-reader helper, phone tier). -->
 <link rel="stylesheet" href="/static/responsive.css">

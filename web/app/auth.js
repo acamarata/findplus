@@ -1,256 +1,62 @@
 /*
- * Sign-in panel: Google Find Hub and Apple Find My.
+ * Settings > Sign-in: Google Find Hub and Apple Find My.
  *
  * Purpose    : Sign in to either provider from the dashboard instead of only
  *              from `findplus auth` in a terminal (D-P2-6). The panel is the
- *              first section of the Settings dialog (ruling R-P2-8), markup in
- *              web/partials/settings.html.
- * Inputs     : GET /api/auth/status, POST /api/auth/google/start,
- *              GET /api/auth/google/progress, POST /api/auth/apple/start,
- *              POST /api/auth/apple/code. Accessory-key registration
- *              (POST /api/apple/accessories) is auth_accessories.js, mounted
- *              and purged from here (CF-P2-19).
- * Outputs    : The two provider cards inside #fp-settings-signin.
- * Constraints: textContent only, never raw markup — a status line comes from
- *              the API and can never run as script. The Apple password and the
- *              2FA code are cleared from their inputs the moment the request is
- *              sent, success or failure, matching settings.js's PIN fields.
- *              Every visible string goes through t(); the Chrome honesty
- *              sentence is injected by notices.js from /api/config, never typed
- *              here (PROMPT.md §2 invariant 4).
+ *              first section of the Settings dialog (ruling R-P2-8); its cards
+ *              are the shared sign-in component (signin/panel.js), the same
+ *              one the setup wizard's sign-in step mounts.
+ * Inputs     : GET /api/auth/status and the sign-in job routes, all through
+ *              signin/*. Accessory-key registration (POST
+ *              /api/apple/accessories) is auth_accessories.js; its static
+ *              block in web/partials/settings.html is moved into the Apple
+ *              card here and hidden with it when the Apple extra is missing.
+ * Outputs    : The two provider cards inside #fp-auth-cards.
+ * Constraints: Every visible string goes through t(); the Chrome honesty
+ *              sentence comes from /api/config, never typed here (PROMPT.md
+ *              §2 invariant 4). Settings already has a Notices section, so the
+ *              per-provider honesty sentences are not repeated in the cards.
  */
 "use strict";
 
-import { $, showAlert } from "./state.js";
+import { $, state } from "./state.js";
 import { api, postJson } from "./api.js";
-import { t, loadCatalog } from "./i18n.js";
+import { loadCatalog } from "./i18n.js";
 import { mountAccessoriesPanel, purgeAccessories } from "./auth_accessories.js";
-import { googleChromeNoticeNeeded } from "./provider_chrome.js";
+import { mountSignInPanel } from "./signin/panel.js";
 
-const GOOGLE_PROVIDER = "google-find-hub";
-const APPLE_PROVIDER = "apple-find-my";
-/** The same 2 s cadence main.js:153 already uses for the map refresh. */
-const POLL_INTERVAL_MS = 2000;
-/** States in which a second "Sign in with Google" click would 409. */
-const BUSY_STATES = ["launching", "waiting_for_user", "capturing"];
+/** The mounted panel, built once; a reopen only re-reads the status. */
+let panel = null;
 
-/** Set once mountAuthPanel() has wired the buttons, so a reopen only reloads. */
-let mounted = false;
-/** The Apple job awaiting its 2FA code, or null. */
-let appleJobId = null;
-/**
- * Bumped by purge() so a GET /api/auth/status or google/progress poll that
- * was already in flight when the lock fired is a no-op once it lands
- * (matching groups.js's selectGroup()/purge() pattern). Without this, a
- * request started while unlocked could resolve after purgeRenderedData()
- * cleared the panel and refill "Signed in as ..." behind the lock screen
- * (R-P2-8; CI 35557336869 caught it as order-flakiness in
- * test_the_lock_purge_empties_the_sign_in_panel).
- */
-let generation = 0;
+/** The live panel, for tests that drive a state directly. */
+export function signInPanel() {
+  return panel;
+}
 
 /** Both provider cards, from one GET /api/auth/status. */
 export async function loadAuthStatus() {
-  const myGeneration = generation;
-  const { providers } = await api("/api/auth/status");
-  if (myGeneration !== generation) return; // purge() ran while this was in flight
-  const google = providers.find((p) => p.id === GOOGLE_PROVIDER);
-  const apple = providers.find((p) => p.id === APPLE_PROVIDER);
-  // A provider the daemon does not offer (the Apple extra is not installed)
-  // has no card to fill; rendering `undefined` would throw past init().
-  if (google) renderGoogleCard(google);
-  if (apple) renderAppleCard(apple);
-}
-
-/** Google card, plus the Chrome-missing notice/link (UAT2 N1: gated on `needs`, never while signed in). */
-export function renderGoogleCard(p) {
-  $("fp-auth-google-status").textContent = p.signed_in
-    ? t("auth.status.signed_in", { account: p.account })
-    : t("auth.status.not_signed_in");
-  Object.assign($("fp-auth-google-signin"), { disabled: false, textContent: p.signed_in ? t("auth.google.switchAccount") : t("auth.google.signin") });
-  const chromeMissing = googleChromeNoticeNeeded(p);
-  $("fp-auth-chrome-notice").classList.toggle("hidden", !chromeMissing);
-  $("fp-auth-chrome-download").classList.toggle("hidden", !chromeMissing);
-}
-
-/** Apple card: same status line, plus the credentials form when signed out. */
-export function renderAppleCard(p) {
-  $("fp-auth-apple-status").textContent = p.signed_in
-    ? t("auth.status.signed_in", { account: p.account })
-    : t("auth.status.not_signed_in");
-  $("fp-auth-apple-form").classList.toggle("hidden", !!p.signed_in);
+  if (panel) await panel.refresh();
 }
 
 /**
- * The one place the Chrome download link is revealed.
- *
- * Called from renderGoogleProgress() and from startGoogleSignIn()'s 400
- * branch, so the link is never left permanently on screen for someone who
- * does have Chrome.
- */
-function showChromeMissing(message) {
-  const progress = $("fp-auth-google-progress");
-  progress.textContent = message;
-  progress.classList.remove("hidden");
-  $("fp-auth-chrome-download").classList.remove("hidden");
-  $("fp-auth-google-signin").disabled = true;
-}
-
-/** The catalog line for a job state, or "" for a state with nothing to say. */
-function googleProgressText(progress) {
-  switch (progress.state) {
-    case "launching":
-      return t("auth.google.launching");
-    case "waiting_for_user":
-      return t("auth.google.waiting");
-    case "capturing":
-      return t("auth.google.capturing");
-    case "failed":
-      return progress.message;
-    default:
-      return "";
-  }
-}
-
-/** One poll's `{state, message, chrome_found}` rendered onto the Google card. */
-export function renderGoogleProgress(progress) {
-  if (!progress.chrome_found) {
-    showChromeMissing(t("auth.google.chrome_missing"));
-    return;
-  }
-  $("fp-auth-chrome-download").classList.add("hidden");
-  const el = $("fp-auth-google-progress");
-  const text = googleProgressText(progress);
-  el.textContent = text;
-  el.classList.toggle("hidden", !text);
-  $("fp-auth-google-signin").disabled = BUSY_STATES.includes(progress.state);
-}
-
-/**
- * Start the Chrome flow, then poll it.
- *
- * A 400 for a missing Chrome never starts a poll: api() throws the route's
- * `detail`, which is byte-identical to the `auth.google.chrome_missing`
- * catalog value (both are honesty.CHROME_REQUIRED, ruling R-P2-6).
- */
-async function startGoogleSignIn() {
-  const button = $("fp-auth-google-signin");
-  // Disabled on the click, not on the first poll two seconds later: a second
-  // click inside that window started a second job and answered it with a 409.
-  // renderGoogleProgress re-enables it as soon as the job settles.
-  button.disabled = true;
-  try {
-    const { job_id } = await api("/api/auth/google/start", { method: "POST" });
-    pollGoogleProgress(job_id);
-  } catch (err) {
-    if (err.status === 409 && err.body && err.body.job_id) {
-      pollGoogleProgress(err.body.job_id);
-    } else if (err.message === t("auth.google.chrome_missing")) {
-      showChromeMissing(err.message);
-    } else if (err.message !== "Locked") {
-      button.disabled = false;
-      showAlert(err.message, "err");
-    }
-  }
-}
-
-/**
- * Poll one Google job until it settles, then refresh the cards.
- *
- * A stacked second poll cannot happen: a running job 409s
- * startGoogleSignIn(), which surfaces through showAlert rather than starting
- * another interval. The generation snapshot self-clears the interval as soon
- * as purge() bumps it, so a lock mid-poll stops both the next tick and an
- * already-in-flight progress fetch from rendering (R-P2-8: polling resumes
- * only after unlock, when mountAuthPanel/loadAuthStatus run again).
- */
-export function pollGoogleProgress(jobId) {
-  const myGeneration = generation;
-  const timer = setInterval(async () => {
-    if (myGeneration !== generation) {
-      clearInterval(timer);
-      return;
-    }
-    try {
-      const progress = await api("/api/auth/google/progress?job_id=" + jobId);
-      if (myGeneration !== generation) {
-        clearInterval(timer);
-        return;
-      }
-      renderGoogleProgress(progress);
-      if (["done", "failed"].includes(progress.state)) {
-        clearInterval(timer);
-        await loadAuthStatus();
-      }
-    } catch (_) {
-      // A transient failure is a skipped tick, not a dead poll; a job that
-      // really is gone answers 404 forever and the user can start again.
-    }
-  }, POLL_INTERVAL_MS);
-}
-
-/** Show or hide the 2FA code row. */
-export function showApple2fa(show) {
-  $("fp-auth-apple-2fa").classList.toggle("hidden", !show);
-}
-
-/** Apple ID + password -> a job awaiting the code from the trusted device. */
-async function submitAppleSignIn() {
-  const apple_id = $("fp-auth-apple-id").value.trim();
-  const password = $("fp-auth-apple-password").value;
-  try {
-    const { job_id } = await api("/api/auth/apple/start", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ apple_id, password }),
-    });
-    appleJobId = job_id;
-    showApple2fa(true);
-  } catch (err) {
-    if (err.status === 409 && err.body && err.body.job_id) {
-      appleJobId = err.body.job_id;
-      showApple2fa(true);
-    } else if (err.message !== "Locked") {
-      showAlert(err.message, "err");
-    }
-  } finally {
-    // The password leaves the DOM whatever happened, the same way
-    // settings.js never leaves a PIN sitting in its field.
-    $("fp-auth-apple-password").value = "";
-  }
-}
-
-/** The 2FA code; on success the cards reload and the code row hides again. */
-async function submitAppleCode() {
-  try {
-    await postJson("/api/auth/apple/code", {
-      job_id: appleJobId,
-      code: $("fp-auth-apple-code").value,
-    });
-    showApple2fa(false);
-    await loadAuthStatus();
-  } catch (err) {
-    if (err.message !== "Locked") showAlert(err.message, "err");
-  } finally {
-    $("fp-auth-apple-code").value = "";
-  }
-}
-
-/**
- * Wire the panel and read the current status (ruling R-P2-8).
+ * Build the panel once and read the current status (ruling R-P2-8).
  *
  * `root` is #fp-settings-signin. settings.js calls this again every time the
- * dialog opens; the listeners are wired once and only the status is re-read,
- * so a sign-in completed in another tab shows up on the next open.
+ * dialog opens; only the status is re-read, so a sign-in finished in the
+ * wizard or another tab shows up on the next open.
  */
 export function mountAuthPanel(root, { refresh = true } = {}) {
   if (!root) return;
-  if (!mounted) {
-    $("fp-auth-google-signin").addEventListener("click", startGoogleSignIn);
-    $("fp-auth-apple-signin").addEventListener("click", submitAppleSignIn);
-    $("fp-auth-apple-code-submit").addEventListener("click", submitAppleCode);
+  if (!panel) {
+    panel = mountSignInPanel($("fp-auth-cards") || root, {
+      prefix: "fp-auth",
+      level: 4,
+      api,
+      postJson,
+      notices: () => state.config && state.config.notices,
+      appleExtra: $("fp-auth-apple-accessories"),
+    });
     mountAccessoriesPanel();
-    mounted = true;
   }
   // Locked or unreachable: the lock screen is already up and there is nothing
   // to render, exactly as alerts.js treats its own first load.
@@ -260,37 +66,22 @@ export function mountAuthPanel(root, { refresh = true } = {}) {
 /**
  * lock.js purgeRenderedData() hook: no account survives the lock screen.
  *
- * The Settings dialog keeps its content when it closes, so "Signed in as
- * alice@icloud.com", a typed Apple ID and an unsent password were all still
- * readable behind the lock screen — the same hole alerts.js closes for the
- * rule name and the webhook secret (PROMPT.md §2: purge destroys, never hides).
- * Bumping `generation` first discards any in-flight loadAuthStatus() or
- * pollGoogleProgress() response that would otherwise land after this purge
- * and repopulate what it just cleared (R-P2-8, same pattern as groups.js).
+ * The Settings dialog keeps its content when it closes, so "Signed in as ...",
+ * a typed Apple ID and an unsent password would all still be readable behind
+ * the lock screen (PROMPT.md §2: purge destroys, never hides). panel.purge()
+ * also drops any status or progress response still in flight.
  */
 export function purge() {
-  generation++;
-  for (const id of ["fp-auth-google-status", "fp-auth-apple-status", "fp-auth-google-progress"]) {
-    const el = $(id);
-    if (el) el.textContent = "";
-  }
-  for (const id of ["fp-auth-apple-id", "fp-auth-apple-password", "fp-auth-apple-code"]) {
-    const el = $(id);
-    if (el) el.value = "";
-  }
-  appleJobId = null;
-  showApple2fa(false);
+  if (panel) panel.purge();
   purgeAccessories();
 }
 
 /**
- * Wire the panel at page load, without reading status.
+ * Build the panel at page load, without reading status.
  *
  * The panel lives inside a closed dialog, so a GET /api/auth/status here buys
- * nothing and costs a request on the boot path, where it competes with the
- * device and day loads the dashboard is actually waiting for. settings.js
- * asks for the status when the dialog opens, which is the first moment anyone
- * can see it.
+ * nothing and costs a request on the boot path. settings.js asks for the
+ * status when the dialog opens, the first moment anyone can see it.
  */
 export async function init() {
   await loadCatalog();

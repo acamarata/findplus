@@ -22,8 +22,12 @@ Constraints: No wait_for_function/page.evaluate here (both need
 
 from __future__ import annotations
 
+import json
+
 import pytest
 import pytest_asyncio
+
+from .conftest import SEEDED_COMPLETED_AT
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -64,8 +68,9 @@ async def csp_page(browser_session):
     await ctx.close()
 
 
-async def test_every_tab_loads_with_zero_csp_console_errors(csp_page, base_url) -> None:
-    violations = []
+def _watch_csp_console(page) -> list[str]:
+    """Collect every CSP console error on `page` except the known vendor one."""
+    violations: list[str] = []
 
     def on_console(msg):
         if msg.type != "error" or _CSP_VIOLATION_MARKER not in msg.text:
@@ -74,7 +79,12 @@ async def test_every_tab_loads_with_zero_csp_console_errors(csp_page, base_url) 
             return
         violations.append(msg.text)
 
-    csp_page.on("console", on_console)
+    page.on("console", on_console)
+    return violations
+
+
+async def test_every_tab_loads_with_zero_csp_console_errors(csp_page, base_url) -> None:
+    violations = _watch_csp_console(csp_page)
 
     await csp_page.goto(base_url + "/")
     await csp_page.wait_for_selector('button[data-tab="dashboard"]', state="attached")
@@ -105,5 +115,39 @@ async def test_every_tab_loads_with_zero_csp_console_errors(csp_page, base_url) 
     # this test pass for the wrong reason (zero markers, zero violations).
     glyph_count = len(await csp_page.query_selector_all(".marker-num-glyph svg use"))
     assert glyph_count > 0, "expected at least one lucide-icon marker to render on the map"
+
+    assert violations == [], "CSP violations:\n" + "\n".join(violations)
+
+
+async def _post_setting(page, base_url, key, value) -> None:
+    await page.request.post(
+        f"{base_url}/api/settings/{key}",
+        data=json.dumps({"value": value}),
+        headers={"Content-Type": "application/json"},
+    )
+
+
+async def test_the_sign_in_cards_load_with_zero_csp_console_errors(csp_page, base_url) -> None:
+    """E14: the shared sign-in cards (wizard step 2 and Settings > Sign-in)
+    build their icons, spinner and state boxes in JS. None of it may set an
+    inline style, which the enforced policy would drop and log here."""
+    violations = _watch_csp_console(csp_page)
+
+    await _post_setting(csp_page, base_url, "onboarding.completed_at", None)
+    await _post_setting(csp_page, base_url, "onboarding.last_step", "signin")
+    try:
+        await csp_page.goto(base_url + "/#/setup")
+        await csp_page.wait_for_selector("#fp-setup-google-card", state="attached")
+        await csp_page.wait_for_selector("#fp-setup-google-status:not(:empty)", state="attached")
+        await csp_page.wait_for_timeout(300)
+    finally:
+        await _post_setting(csp_page, base_url, "onboarding.completed_at", SEEDED_COMPLETED_AT)
+        await _post_setting(csp_page, base_url, "onboarding.last_step", None)
+
+    await csp_page.goto(base_url + "/#dashboard")
+    await csp_page.click("#btn-settings")
+    await csp_page.wait_for_selector("#fp-auth-google-card", state="visible")
+    await csp_page.wait_for_selector("#fp-auth-google-status:not(:empty)", state="attached")
+    await csp_page.wait_for_timeout(300)
 
     assert violations == [], "CSP violations:\n" + "\n".join(violations)

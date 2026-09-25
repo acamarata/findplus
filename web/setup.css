@@ -1,0 +1,208 @@
+/*
+ * Find+ setup wizard chrome and the shared sign-in cards.
+ *
+ * Purpose    : One stylesheet for the onboarding wizard (components/wizard.js
+ *              and setup_steps/*) and for the sign-in cards both the wizard
+ *              and Settings > Sign-in mount (web/app/signin/*). Split out of
+ *              components.css and components-panels.css, both near the PRI
+ *              rule-7 300-line cap (E14 UI polish).
+ * Constraints: Loaded after components-panels.css and before responsive.css,
+ *              so the phone tier's touch-target and focus rules still win at
+ *              equal specificity. Colours only through the theme tokens in
+ *              style.css, so dark and light both follow one attribute flip.
+ *              Nothing here is ever set inline (CSP style-src 'self').
+ */
+
+/* --- wizard card and layout ---------------------------------------------- */
+/* #setup-view IS the card: Wizard.buildChrome() appends the skip link, the
+   progress row, the step and the footer straight into it (R-P2-28 point 1).
+   A grid puts progress and "Skip setup" on one header row; everything else
+   spans the full width. */
+#setup-view {
+  box-sizing: border-box;
+  width: min(760px, calc(100% - 32px));
+  margin: 40px auto;
+  padding: 24px 32px 22px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .18);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 16px;
+  align-items: center;
+}
+#setup-view > * { grid-column: 1 / -1; min-width: 0; }
+#setup-view [hidden] { display: none !important; }
+
+/* Progress: "2 of 8" and one segment per step, filled up to the current one. */
+#setup-view > .fp-wizard-progress {
+  grid-column: 1; grid-row: 1;
+  display: flex; align-items: center; gap: 4px; padding: 0;
+}
+.fp-wizard-progress-text {
+  color: var(--muted); font-size: 12px; font-weight: 600;
+  font-variant-numeric: tabular-nums; margin-right: 10px; white-space: nowrap;
+}
+.fp-wizard-dot {
+  flex: 1 1 0; max-width: 40px; height: 4px; border-radius: 2px; background: var(--line);
+}
+.fp-wizard-dot.filled { background: var(--accent); }
+
+/* "Skip setup": a quiet text button, never competing with Next. */
+#setup-view > .fp-wizard-skip { grid-column: 2; grid-row: 1; justify-self: end; }
+.fp-wizard-skip {
+  background: none; border: 0; padding: 4px 2px; font-size: 13px;
+  color: var(--muted); cursor: pointer; text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.fp-wizard-skip:hover { color: var(--text); }
+
+/* --- step content --------------------------------------------------------- */
+/* The global h2 is a small uppercase section label; a wizard step's title is
+   the page heading, so it gets real size and the body text colour. */
+#setup-view .fp-wizard-step > h2 {
+  font-size: 22px; line-height: 1.25; font-weight: 650; letter-spacing: -.01em;
+  text-transform: none; color: var(--text); margin: 22px 0 10px;
+}
+.fp-wizard-step > p { margin: 0 0 12px; max-width: 64ch; }
+.fp-wizard-lead { color: var(--muted); }
+.fp-wizard-summary { font-size: 13px; font-weight: 600; }
+.fp-wizard-footnote { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 10px 0 14px; }
+.fp-wizard-step .fp-signin-card .fp-wizard-footnote {
+  margin: auto 0 0; padding-top: 10px; border-top: 1px solid var(--line);
+}
+
+/* Fields and controls to match the dialogs: a wizard step is not inside a
+   <dialog>, so none of components.css's dialog-scoped input rules reach it. */
+#setup-view input[type="text"],
+#setup-view input[type="password"],
+#setup-view input[type="number"],
+#setup-view select {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line-strong);
+  border-radius: 8px; padding: 7px 10px; font-size: 14px;
+}
+#setup-view .fp-wizard-step > .btn,
+#setup-view .fp-wizard-step > .btn-secondary { margin: 4px 0 8px; }
+
+#fp-setup-group-name { width: min(320px, 100%); }
+/* UAT5 N49: "Add a place" sat flush on the borrowed map's top border. */
+.fp-setup-places-add { margin-bottom: 10px; }
+/* Groups step's inline add form (R-P2-28 point 2): the same scrollable box
+   the group dialog gives its own member fieldset (#fp-group-members). */
+#fp-setup-group-members {
+  max-height: 180px; overflow-y: auto; border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 9px; margin: 8px 0;
+}
+
+/* --- footer: Back on the left, Skip and Next on the right ---------------- */
+.fp-wizard-footer {
+  display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+  margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line);
+}
+#fp-wizard-back { margin-right: auto; }
+.fp-wizard-footer .btn,
+.fp-wizard-footer .btn-secondary { min-height: 38px; padding: 8px 18px; font-size: 14px; }
+.fp-wizard-footer #fp-wizard-skip {
+  background: transparent; border-color: transparent; color: var(--muted);
+}
+.fp-wizard-footer #fp-wizard-skip:hover { background: var(--panel-2); color: var(--text); }
+#fp-wizard-next { min-width: 96px; }
+
+/* --- sign-in cards (wizard step 2 and Settings > Sign-in) ----------------- */
+.fp-signin-cards {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 14px; margin: 14px 0 4px;
+}
+#fp-auth-cards .fp-signin-cards { grid-template-columns: minmax(0, 1fr); margin-top: 8px; }
+.fp-signin-card {
+  display: flex; flex-direction: column; gap: 12px; min-width: 0;
+  padding: 16px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px;
+}
+.fp-signin-card [hidden] { display: none !important; }
+.fp-signin-card[data-state="failed"] { border-color: var(--err); }
+.fp-signin-card p { margin: 0; }
+
+.fp-signin-head { display: flex; align-items: center; gap: 12px; }
+.fp-signin-icon {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; border-radius: 10px;
+  background: rgba(79, 140, 247, .18); color: var(--badge-text);
+}
+.fp-signin-icon-svg { width: 20px; height: 20px; }
+.fp-signin-titles { min-width: 0; }
+.fp-signin-card .fp-auth-provider {
+  font-size: 15px; font-weight: 650; line-height: 1.3; margin: 0;
+  color: var(--text); text-transform: none; letter-spacing: 0;
+}
+.fp-signin-account { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.fp-signin-card[data-state="signed-in"] .fp-signin-account { color: var(--ok); font-weight: 600; }
+.fp-signin-how { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+.fp-signin-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.fp-signin-btn { min-height: 38px; padding: 8px 16px; font-size: 14px; }
+/* Signed in: switching accounts is the secondary action, not the main one. */
+.fp-signin-card[data-state="signed-in"] .fp-signin-btn {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+}
+.fp-signin-form { display: flex; flex-direction: column; gap: 10px; }
+.fp-signin-field { display: flex; flex-direction: column; gap: 4px; }
+.fp-signin-label { font-size: 12px; font-weight: 600; color: var(--muted); }
+.fp-signin-field input {
+  width: 100%; min-width: 0; box-sizing: border-box;
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line-strong);
+  border-radius: 8px; padding: 8px 10px; font-size: 14px;
+}
+
+/* In progress: a spinner and the line saying what is happening now. */
+.fp-signin-progress {
+  display: flex; align-items: flex-start; gap: 10px; font-size: 13px; line-height: 1.45;
+  padding: 10px 12px; border-radius: 8px; background: rgba(79, 140, 247, .12);
+}
+.fp-signin-spinner {
+  flex: none; width: 14px; height: 14px; margin-top: 2px; border-radius: 50%;
+  border: 2px solid var(--line-strong); border-top-color: var(--accent);
+  animation: fp-signin-spin .8s linear infinite;
+}
+@keyframes fp-signin-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .fp-signin-spinner { animation: none; } }
+
+/* Failed: what went wrong, in words, and a way to try again. */
+.fp-signin-error {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  padding: 10px 12px; border-radius: 8px; font-size: 13px;
+  background: rgba(239, 95, 95, .10); border: 1px solid rgba(239, 95, 95, .45);
+}
+.fp-signin-error-title { font-weight: 650; }
+.fp-signin-error-detail { overflow-wrap: anywhere; }
+.fp-signin-error .fp-signin-retry { margin-top: 4px; }
+
+/* Blocked: Chrome missing, or the Apple extra not installed. */
+.fp-signin-chrome { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.fp-signin-note {
+  flex-basis: 100%; font-size: 13px; line-height: 1.5; padding: 9px 12px;
+  border-left: 3px solid var(--warn); border-radius: 4px; background: rgba(231, 181, 63, .10);
+}
+.fp-signin-link { font-size: 13px; }
+
+/* Settings only: accessory keys ride inside the Apple card. */
+#fp-auth-apple-accessories { border-top: 1px solid var(--line); padding-top: 4px; }
+.fp-auth-subheading { font-size: 12px; font-weight: 600; margin: 8px 0 4px; color: var(--muted); }
+#fp-auth-apple-accessories .setting-row input[type="text"] {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line-strong);
+  border-radius: 7px; padding: 6px 9px; font-size: 13px; min-width: 190px;
+}
+#fp-auth-apple-accessories .btn { margin-top: 8px; }
+
+/* --- phone width --------------------------------------------------------- */
+@media (max-width: 599px) {
+  #setup-view { margin: 16px auto; padding: 18px 16px 16px; border-radius: 12px; }
+  #setup-view .fp-wizard-step > h2 { font-size: 20px; margin-top: 16px; }
+  .fp-signin-card { padding: 14px; }
+  .fp-signin-actions .fp-signin-btn { flex: 1 1 100%; }
+  .fp-wizard-footer { gap: 8px; }
+  /* Devices step: name and Edit share the top line, the label input takes the
+     full second line, instead of each wrapping wherever it happens to fall. */
+  #setup-view .fp-setup-device-row > span:nth-child(3) { flex: 1 1 auto; }
+  #setup-view .fp-setup-device-row input[type="text"] { order: 5; flex: 1 1 100%; min-width: 0; }
+}

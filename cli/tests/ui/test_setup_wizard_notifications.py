@@ -190,7 +190,7 @@ async def test_signin_step_shows_chrome_notice_before_any_click(page, base_url):
         await _open_step(page, base_url, "signin")
         await page.wait_for_selector("#fp-setup-chrome-notice:not([hidden])", timeout=15000)
         assert await page.locator("#fp-setup-chrome-notice").inner_text() == CHROME_REQUIRED
-        assert await page.get_by_role("button", name="Sign in with Google").is_disabled()
+        assert await page.get_by_role("button", name="Connect Google Find Hub").is_disabled()
     finally:
         await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
         await _set_last_step(page, base_url, None)
@@ -212,7 +212,7 @@ async def test_signin_step_maps_a_400_to_the_honesty_sentence_not_raw_text(page,
     try:
         await _open_step(page, base_url, "signin")
         await page.route("**/api/auth/google/start", start_route)
-        await page.get_by_role("button", name="Sign in with Google").click()
+        await page.get_by_role("button", name="Connect Google Find Hub").click()
         await page.wait_for_selector("#fp-setup-chrome-notice:not([hidden])", timeout=15000)
         notice = await page.locator("#fp-setup-chrome-notice").inner_text()
         assert notice == CHROME_REQUIRED
@@ -237,10 +237,11 @@ async def test_signin_step_clears_status_line_on_chrome_missing_400(page, base_u
     try:
         await _open_step(page, base_url, "signin")
         await page.route("**/api/auth/google/start", start_route)
-        await page.get_by_role("button", name="Sign in with Google").click()
+        await page.get_by_role("button", name="Connect Google Find Hub").click()
         await page.wait_for_selector("#fp-setup-chrome-notice:not([hidden])", timeout=15000)
-        status = await page.locator("#fp-setup-signin-status").inner_text()
-        assert status == "", f"status line still reads {status!r} beside the Chrome-missing notice"
+        # The in-progress line (E14: one per card) is gone, not left reading
+        # "Opening Chrome..." beside a notice that says Chrome is missing.
+        assert await page.locator("#fp-setup-google-progress").is_hidden()
     finally:
         await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
         await _set_last_step(page, base_url, None)

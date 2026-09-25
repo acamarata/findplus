@@ -186,6 +186,8 @@ async def test_no_serious_axe_violations_with_dialog_open(page, base_url, dialog
 WIZARD_STEPS = {
     "devices": ".fp-setup-device-row",
     "notifications": "#fp-setup-wa-phone",
+    # E14: the shared sign-in cards (icons, forms, live regions).
+    "signin": "#fp-setup-google-signin",
 }
 
 

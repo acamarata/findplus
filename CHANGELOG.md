@@ -6,6 +6,11 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- The setup wizard's sign-in step and Settings > Sign-in now share one set of provider cards, with buttons that say what they do: "Connect Google Find Hub" and "Connect Apple Find My". Each card shows what is happening (opening Chrome, waiting for you in the Chrome window, saving the session, checking a code) and, when a sign-in cannot start or does not finish, the reason in plain words with a Try again button. A click that used to do nothing visible now always says something.
+- An install without the Apple extra shows how to add it instead of an Apple ID form that could only fail.
+- The setup wizard has a clearer step header and progress bar, larger step titles, and Back, Skip and Next laid out as secondary, quiet and primary actions, in both themes and at phone width.
+
 ## [1.1.1] - 2026-09-25
 
 ### Fixed

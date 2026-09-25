@@ -44,7 +44,8 @@ async def test_step_has_a_heading_and_google_button_reflects_signed_in_state(
 ) -> None:
     """UAT U33: step 2 had no heading at all, and the Google button still
     offered a fresh sign-in after the status line above it already said
-    "Signed in as...". The button's own label now carries that state too."""
+    "Signed in as...". The button's own label now carries that state too
+    ("Switch Google account" since the E14 shared sign-in cards)."""
 
     async def status_signed_in(route):
         await route.fulfill(
@@ -73,13 +74,15 @@ async def test_step_has_a_heading_and_google_button_reflects_signed_in_state(
 
         # text_content(), not inner_text(): h2 is styled text-transform:
         # uppercase, which inner_text() would reflect as "SIGN IN".
-        assert (await page.locator("#setup-view h2").first.text_content()) == "Sign in"
+        assert (await page.locator("#setup-view h2").first.text_content()) == (
+            "Connect your trackers"
+        )
         await page.wait_for_function(
             "() => document.getElementById('fp-setup-signin-status')"
             ".textContent.includes('Signed in as')",
             timeout=15000,
         )
-        button = page.get_by_role("button", name="Signed in ✓ (switch account)")
+        button = page.get_by_role("button", name="Switch Google account")
         await button.wait_for(state="visible")
         assert await button.is_enabled()
     finally:
@@ -115,10 +118,10 @@ async def test_a_409_rejoins_the_running_sign_in(page, base_url):
         await page.goto(base_url + "/#/setup")
         await page.wait_for_selector("#fp-setup-signin-status", timeout=15000)
 
-        await page.get_by_role("button", name="Sign in with Google").click()
+        await page.get_by_role("button", name="Connect Google Find Hub").click()
         await page.wait_for_function(
-            "() => document.getElementById('fp-setup-signin-status')"
-            ".textContent.includes('Waiting')",
+            "() => document.getElementById('fp-setup-google-progress')"
+            ".textContent.includes('Finish signing in')",
             timeout=15000,
         )
 
@@ -147,7 +150,7 @@ async def test_signed_in_hides_the_chrome_notice_even_with_a_stale_needs_chrome(
 ) -> None:
     """UAT3 N20: the wizard's ChromeGate checked `needs` alone, so a
     signed-in account with a stale `needs: ["chrome"]` still showed "Google
-    Chrome was not found..." under "Signed in ✓ (switch account)". It now
+    Chrome was not found..." under the switch-account button. It now
     shares provider_chrome.js's googleChromeNoticeNeeded() with Settings'
     own gate (auth.js renderGoogleCard, UAT2 N1), which already gated on
     `!signed_in`."""
@@ -173,7 +176,7 @@ async def test_signed_in_hides_the_chrome_notice_even_with_a_stale_needs_chrome(
         )
 
         assert await page.locator("#fp-setup-chrome-notice").is_hidden()
-        button = page.get_by_role("button", name="Signed in ✓ (switch account)")
+        button = page.get_by_role("button", name="Switch Google account")
         assert await button.is_enabled()
     finally:
         await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
@@ -200,7 +203,7 @@ async def test_signed_out_and_chrome_missing_shows_the_notice(page, base_url) ->
         )
 
         assert await page.locator("#fp-setup-chrome-notice").is_visible()
-        button = page.get_by_role("button", name="Sign in with Google")
+        button = page.get_by_role("button", name="Connect Google Find Hub")
         assert not await button.is_enabled()
     finally:
         await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)

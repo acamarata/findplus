@@ -16,7 +16,29 @@
  */
 "use strict";
 
-export async function loadIconSprite() {
+/** The one load in flight or done, so a second caller never adds a second sprite. */
+let loading = null;
+
+/**
+ * Load the sprite once per document.
+ *
+ * Two callers now: main.js at dashboard boot, and the sign-in cards
+ * (signin/cards.js), which a first-run setup wizard renders before the
+ * dashboard has ever booted. A second copy would duplicate every symbol id.
+ * A failed load is forgotten so a later caller can try again.
+ */
+export function loadIconSprite() {
+  if (!loading) {
+    loading = fetchSprite().catch((err) => {
+      loading = null;
+      throw err;
+    });
+  }
+  return loading;
+}
+
+async function fetchSprite() {
+  if (document.getElementById("lucide-user")) return;
   const res = await fetch("/static/icons.svg");
   if (!res.ok) return;
   const text = await res.text();

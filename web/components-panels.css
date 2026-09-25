@@ -1,28 +1,5 @@
-/* --- sign-in panel (first section of the settings dialog, R-P2-8) --------- */
-/* style.css:231 styles password/date/select inside a .setting-row and nothing
-   else, so the Apple ID and 2FA code fields would render browser-default —
-   white boxes on the dark panel. Same declarations, text inputs only. */
-#fp-settings-signin .setting-row input[type="text"] {
-  background: var(--panel-2); color: var(--text); border: 1px solid var(--line-strong);
-  border-radius: 7px; padding: 6px 9px; font-size: 13px; min-width: 190px;
-}
-#fp-settings-signin .btn { margin-top: 8px; }
-/* Sub-heading per provider card, so the two "Not signed in" lines each say what
-   they are about (W3 visual gate finding 3). Sized between the section h3 and
-   the body text, like .setting-group h3 but not uppercase. */
-.fp-auth-provider { font-size: 13px; font-weight: 600; margin: 14px 0 4px; }
-#fp-auth-google-card > .fp-auth-provider { margin-top: 4px; }
-/* A sub-section inside a provider card (Apple's accessory-keys block, CF-P2-19)
-   -- distinct from .fp-auth-provider so test_each_provider_card_says_which_
-   provider_it_is's single-heading-per-card selector still resolves to one
-   element; visually smaller and muted so it doesn't compete with the card's
-   own "Apple Find My" heading above it. */
-.fp-auth-subheading { font-size: 12px; font-weight: 600; margin: 16px 0 4px; color: var(--muted); }
-/* UAT2 N1: an ID selector (specificity 1,0,0) always beat `.hidden`'s 0,1,0,
-   so JS adding "hidden" to this link never actually hid it. Scoping the rule
-   to `:not(.hidden)` keeps the same specificity relationship but on the side
-   that should win when the class is present. */
-#fp-auth-chrome-download:not(.hidden) { display: inline-block; margin-top: 8px; font-size: .8rem; }
+/* The sign-in panel's rules moved to setup.css with the shared sign-in cards
+   (web/app/signin/*, E14 UI polish). */
 
 /* --- links inside dialogs, modals and cards -------------------------------- */
 /* There is no global `a` rule, so an unstyled link renders in the browser's own

@@ -2,10 +2,10 @@
 
 143fb48/43dca29 fixed Settings > Sign-in always showing "Google Chrome was
 not found" with a download link, even when signed in and Chrome installed.
-auth.js's renderGoogleCard() now shows #fp-auth-chrome-notice and
-#fp-auth-chrome-download only when GET /api/auth/status's `needs` names
-"chrome" AND the account is not signed in; both start hidden in the markup
-(43dca29). These tests stub that endpoint with page.route (the same
+The shared Google flow (web/app/signin/google_flow.js, E14) shows
+#fp-auth-chrome-notice and #fp-auth-chrome-download only when GET
+/api/auth/status's `needs` names "chrome" AND the account is not signed in;
+both are built hidden. These tests stub that endpoint with page.route (the same
 technique test_auth_panel.py's
 test_in_flight_status_response_does_not_repopulate_after_purge uses) so the
 three gating states are deterministic, independent of whether the machine
@@ -69,22 +69,18 @@ async def test_chrome_found_not_signed_in_hides_notice_and_link(page, base_url) 
     body = _auth_status_body(signed_in=False, needs=[])
     await _open_settings_with_status(page, base_url, body)
 
-    notice_class = await page.locator("#fp-auth-chrome-notice").get_attribute("class")
-    link_class = await page.locator("#fp-auth-chrome-download").get_attribute("class")
-    assert "hidden" in notice_class
-    assert "hidden" in link_class
+    assert await page.locator("#fp-auth-chrome-notice").is_hidden()
+    assert await page.locator("#fp-auth-chrome-download").is_hidden()
 
 
 async def test_signed_in_hides_notice_even_if_chrome_detection_fails(page, base_url) -> None:
-    """Signed in with a stale/incorrect `needs: ["chrome"]`: renderGoogleCard
+    """Signed in with a stale/incorrect `needs: ["chrome"]`: the flow
     gates on `!signed_in`, so an already-signed-in account never sees it."""
     body = _auth_status_body(signed_in=True, needs=["chrome"], account="someone@example.com")
     await _open_settings_with_status(page, base_url, body)
 
-    notice_class = await page.locator("#fp-auth-chrome-notice").get_attribute("class")
-    link_class = await page.locator("#fp-auth-chrome-download").get_attribute("class")
-    assert "hidden" in notice_class
-    assert "hidden" in link_class
+    assert await page.locator("#fp-auth-chrome-notice").is_hidden()
+    assert await page.locator("#fp-auth-chrome-download").is_hidden()
 
 
 async def test_chrome_missing_and_signed_out_shows_notice_and_link(page, base_url) -> None:
@@ -92,7 +88,6 @@ async def test_chrome_missing_and_signed_out_shows_notice_and_link(page, base_ur
     body = _auth_status_body(signed_in=False, needs=["chrome"])
     await _open_settings_with_status(page, base_url, body)
 
-    notice_class = await page.locator("#fp-auth-chrome-notice").get_attribute("class")
-    link_class = await page.locator("#fp-auth-chrome-download").get_attribute("class")
-    assert "hidden" not in notice_class
-    assert "hidden" not in link_class
+    assert await page.locator("#fp-auth-chrome-notice").is_visible()
+    assert await page.locator("#fp-auth-chrome-download").is_visible()
+    assert await page.locator("#fp-auth-google-signin").is_disabled()

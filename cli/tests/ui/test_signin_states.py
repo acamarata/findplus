@@ -153,14 +153,23 @@ async def test_losing_the_daemon_mid_job_is_shown(page, base_url):
 
 
 async def test_a_job_that_never_ends_times_out_on_the_client(page, base_url):
-    """The client cap (job_poller.js POLL_CAP) ends a poll the daemon never settles."""
+    """The client cap (job_poller.js POLL_CAP) ends a poll the daemon never
+    settles. page.clock can fast-forward virtual time, but each poll still
+    goes out as a real fetch that a mocked route has to answer for real, so
+    fast-forwarding through the full 200-poll/2s cadence meant 202 real
+    round trips -- fast on a quiet machine, but slow enough under CI load to
+    blow past wait_text's 15 s budget before the last one lands. job_poller.js
+    now reads its cadence and cap from window.__FP_TEST_POLL_MS__/
+    __FP_TEST_POLL_CAP__ when set, so this drives the same tick-past-the-cap
+    code path with 3 real (near-instant) polls instead of 202."""
     try:
-        await page.clock.install()
+        await page.add_init_script(
+            "window.__FP_TEST_POLL_MS__ = 20; window.__FP_TEST_POLL_CAP__ = 3;"
+        )
         await open_wizard_signin(page, base_url)
         catalog = await _catalog(page, base_url)
         await _start_job(page, {"state": "waiting_for_user", "message": ""})
         await page.get_by_role("button", name=CONNECT).click()
-        await page.clock.run_for(2000 * 202)
         await wait_text(page, ERROR, catalog["error"]["timeout"])
     finally:
         await restore_onboarding(page, base_url)

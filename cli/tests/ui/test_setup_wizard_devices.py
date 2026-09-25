@@ -128,10 +128,12 @@ async def test_devices_step_done_count_reflects_what_was_just_tracked(page, base
         await page.wait_for_selector("#fp-wizard-skip:not([hidden])", timeout=15000)
         await page.click("#fp-wizard-skip")
 
-    await page.wait_for_function(
-        "() => document.querySelector('#setup-view h2')?.textContent === \"You're set up\"",
-        timeout=15000,
-    )
+    # done.js paints the heading synchronously but fills the count paragraph
+    # after its own GET /api/devices settles (wizard.js fires onEnter without
+    # awaiting it). Reading the paragraph as soon as the heading appears is a
+    # race the fetch can lose under load; data-ready="true" is done.js's own
+    # signal that the fetch has landed and the text is final.
+    await page.wait_for_selector("#setup-view p[data-ready='true']", timeout=15000)
     summary = await page.locator("#setup-view p").first.inner_text()
     assert summary == "1 device tracked."
 

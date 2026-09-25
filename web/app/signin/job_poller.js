@@ -29,6 +29,22 @@ export const POLL_CAP = 200;
 /** A single dropped request is noise; three in a row means the daemon is gone. */
 const MAX_MISSES = 3;
 
+/**
+ * Real timing, read once per start(). A UI test that wants to reach POLL_CAP
+ * without 200 real network round trips (page.clock can fast-forward the
+ * clock, but not the real fetches a mocked route still has to answer) sets
+ * window.__FP_TEST_POLL_MS__ / __FP_TEST_POLL_CAP__ with page.add_init_script
+ * before the poll starts — the same override-a-window-flag pattern
+ * window.__findplus_native uses. Unset in production, so behaviour there is
+ * exactly POLL_MS/POLL_CAP.
+ */
+function pollMs() {
+  return window.__FP_TEST_POLL_MS__ || POLL_MS;
+}
+function pollCap() {
+  return window.__FP_TEST_POLL_CAP__ || POLL_CAP;
+}
+
 /** A thrown api() error in words a person can act on. */
 export function describeError(err) {
   if (!err || err.status === undefined) return t("signin.error.unreachable");
@@ -56,6 +72,7 @@ export class JobPoller {
     this.stop();
     const mine = this.generation;
     const url = `${path}?job_id=${encodeURIComponent(jobId)}`;
+    const cap = pollCap();
     let ticks = 0;
     let misses = 0;
     const fail = (message) => {
@@ -63,7 +80,7 @@ export class JobPoller {
       onError(message);
     };
     this.timer = setInterval(async () => {
-      if (++ticks > POLL_CAP) return fail(t("signin.error.timeout"));
+      if (++ticks > cap) return fail(t("signin.error.timeout"));
       try {
         const progress = await this.api(url);
         if (mine !== this.generation) return;
@@ -75,6 +92,6 @@ export class JobPoller {
         if (err.status === 404) return fail(t("signin.error.expired"));
         if (++misses >= MAX_MISSES) fail(describeError(err));
       }
-    }, POLL_MS);
+    }, pollMs());
   }
 }

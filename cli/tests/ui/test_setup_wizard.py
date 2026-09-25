@@ -212,10 +212,11 @@ async def test_done_shows_the_servers_tracked_count_on_a_resumed_session(page, b
     await page.route("**/api/devices", get_devices)
     await _set_last_step(page, base_url, "done")
     await page.goto(base_url + "/#/setup")
-    await page.wait_for_function(
-        "() => document.querySelector('#setup-view h2')?.textContent === \"You're set up\"",
-        timeout=15000,
-    )
+    # done.js paints the heading synchronously but fills the count paragraph
+    # after its own GET /api/devices settles (wizard.js fires onEnter without
+    # awaiting it). data-ready="true" is done.js's own signal that the fetch
+    # has landed, so the read below cannot race it.
+    await page.wait_for_selector("#setup-view p[data-ready='true']", timeout=15000)
     summary = await page.locator("#setup-view p").first.inner_text()
     assert summary == "6 devices tracked."
 

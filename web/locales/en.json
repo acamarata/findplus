@@ -530,18 +530,18 @@
     },
     "apple": {
       "heading": "Apple Find My",
-      "how": "Uses your Apple ID and password, then a verification code from one of your Apple devices.",
+      "how": "Uses your Apple ID and password, then a verification code sent to one of your Apple devices or by text message.",
       "appleId": "Apple ID",
       "password": "Password",
       "connect": "Connect Apple Find My",
       "switch": "Use a different Apple ID",
       "signingIn": "Signing in to Apple…",
-      "codePrompt": "Enter the verification code shown on your Apple device.",
+      "codePrompt": "Enter the verification code Apple sent to your device or phone.",
       "code": "Verification code",
       "verify": "Verify code",
       "checking": "Checking the code…",
       "missingFields": "Enter your Apple ID and password first.",
-      "missingCode": "Enter the code from your Apple device first.",
+      "missingCode": "Enter the verification code first.",
       "unavailable": "Apple Find My support is not installed in this copy of Find+. Install the Apple extra with pip install 'findplus[apple]', then restart Find+."
     },
     "error": {

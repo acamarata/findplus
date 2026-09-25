@@ -12,6 +12,14 @@ set; that directory was never created. The rows below cite the real files that d
 `e13/linux-rehearsal/REPORT.md`, `events/progress.jsonl` and `events/E13.jsonl`. Each row states
 what it actually shows, not what the spec assumed it would show.
 
+## 0. Status (2026-09-25)
+
+- v1.1.0 published 2026-09-25 13:14Z (tag at fcb1f4a). v1.1.1 published 15:32Z (tag at 6f0589e),
+  Latest: fixes the menu-bar app quitting a few seconds after launch once setup was finished
+  (Tauri's last-window exit was never prevented), and a Settings startup race.
+- Homebrew tap formula is at 1.1.1 (acamarata/homebrew-tap#2). No PyPI, no Intel dmg, by decision.
+- Release log for 1.1.1: `.claude/phases/current/p2/release/release-1.1.1-log.md`.
+
 ## 1. Proven
 
 | Command | What it proves | Evidence source |
@@ -135,11 +143,11 @@ Highlights, grouped by what a user would notice:
 
 | Item | Why unproven | Required action |
 |---|---|---|
-| Intel dmg for v1.1.0 | the draft carries only the Apple Silicon dmg; this Mac cannot build x86_64 natively | build it with the release workflow's macos-15-intel leg or a Rosetta shell, or drop the Intel line from the changelog |
-| Publishing the re-cut v1.1.0 draft release | owner_only, public_identity boundary | open the draft on GitHub and click Publish |
-| Merging the version-bump commit to main | stays on its branch until published, per D-P2-14 | merge after publishing |
-| Updating the acamarata/homebrew-tap formula | owner_only | copy packaging/homebrew/findplus.rb to the tap and push |
-| PyPI upload | deferred every release per §3.5, never uploaded within a draft ticket | run twine upload after publishing |
+| Intel dmg | decided 2026-09-25: not shipped. The app is Apple Silicon only; README and Install wiki send Intel Macs to Homebrew or the curl installer | none |
+| Publishing v1.1.0 | done 2026-09-25 (tag v1.1.0 at fcb1f4a) | none |
+| Merging the version bump to main | done: 95529fe (1.1.0), 4ecd3dc (1.1.1) | none |
+| Updating the acamarata/homebrew-tap formula | done by hand: tap PRs #1 (1.1.0) and #2 (1.1.1) merged. The release workflow's update-tap job needs a TAP_PUSH_TOKEN secret to do it automatically | optional: add TAP_PUSH_TOKEN |
+| PyPI upload | decided 2026-09-25: Find+ is not published to PyPI. publish-pypi runs only when the PUBLISH_PYPI repo variable is true | none |
 | Registering a real WhatsApp number with CallMeBot | each user does this for themselves | send the CallMeBot opt-in text from the user's own phone |
 | Real Google or Apple sign-in | rehearsal uses the fixture stub (T4); live sign-in needs a real account | run findplus auth from the dashboard once installed |
 | Deciding whether to re-cut a 1.0.1 | the published v1.0.0 dmg embeds `web/.claude/` (no secrets) inside the notarised app, fixed for 1.1; default is no -- 1.1 supersedes 1.0.0 | owner decides; see PHASE-REPORT.md item 5 |
@@ -180,22 +188,14 @@ recorded rehearsal): the Welcome step shows `not_affiliated` as a footnote; the 
 
 ## 5. How to continue
 
-a. The draft is re-cut (§1a): it targets `release/1.1.0` at `fcb1f4a` and carries assets built from
-   that commit. No tag exists yet.
-b. Review `.claude/phases/current/p2/release/recut-release-log.md` for the exact steps and hashes
-   (the original cut's log is `draft-release-log.md`).
-c. Open the re-cut draft release on GitHub and click Publish (owner_only, public_identity boundary).
-   Publishing creates the `v1.1.0` tag, and the tag starts `release.yml`: `publish-pypi` tries a
-   PyPI upload through the `pypi` environment (add a required reviewer there first if PyPI stays
-   deferred), `update-tap` opens a tap PR once the release is live, and `build-dmg` builds both
-   dmgs unsigned (the repo has no Apple secrets) but attaches nothing, since `github-release`
-   skips an already-published release. The Intel dmg therefore has to be built and attached by hand.
-d. `git checkout main && git merge release/1.1.0 && git push origin main`. This merges the
-   version bump only after publishing, per D-P2-14.
-e. Update the Homebrew tap: `cp packaging/homebrew/findplus.rb <tap-clone>/Formula/findplus.rb`, commit, push.
-f. Run the wizard for a real first run: install Find+, open it, sign in with a real account.
+Steps a-e (re-cut, publish, merge the bump, Homebrew tap) are done for 1.1.0 and 1.1.1; see §0.
+
+f. Run the wizard for a real first run on the owner's Mac: 1.1.1 is installed there with a fresh
+   `~/.findplus` (the old one held only test fixtures and is kept at
+   `~/.findplus-test-fixtures-backup-20260925-111750`). Sign in with a real account.
 g. Decide whether to re-cut a 1.0.1 for the `web/.claude/` packaging gap (PHASE-REPORT.md item 5;
-   default is no).
+   default is no, 1.1.x supersedes 1.0.0).
+h. Optional: add a TAP_PUSH_TOKEN secret so future tags open the tap PR by themselves.
 
 Gate counts at the original draft cut (`57c57df`, before the closeout round): non-browser 1677
 passed, browser 215 passed, slow 2 passed; ruff, node, shellcheck, gen-* drift clean; clippy 0

@@ -45,11 +45,14 @@ brew install acamarata/tap/findplus
 
 ## macOS app (dmg)
 
-Download `FindPlus-<version>-aarch64.dmg` (Apple Silicon) or
-`FindPlus-<version>-x86_64.dmg` (Intel) from the
+Download `FindPlus-<version>-aarch64.dmg` from the
 [Releases](https://github.com/acamarata/findplus/releases) page. Open the
 dmg and drag Find+ to Applications. The app bundles the daemon, so no
 separate CLI install is required.
+
+The app is built for Apple Silicon only. On an Intel Mac, install with
+Homebrew or the curl installer above and open the dashboard in your browser
+at http://127.0.0.1:8647.
 
 ## Post-install
 

@@ -88,7 +88,7 @@ jobs:
           # share one cache key (same OS, same Cargo.lock) and clobber each
           # other's target/ output between runs.
           key: ${{ matrix.arch }}
-      - run: pip install '.[dev,bundle]'
+      - run: pip install '.[dev,bundle,apple]'
         working-directory: cli
       - run: pyinstaller ${{ matrix.spec }} --noconfirm
       - name: Sign sidecar

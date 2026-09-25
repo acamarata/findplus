@@ -35,9 +35,15 @@ ROOT = Path(SPECPATH).resolve().parents[1]  # noqa: F821
 import sys
 
 sys.path.insert(0, SPECPATH)  # noqa: F821
-from spec_datas import daemon_datas  # noqa: E402
+from spec_datas import (  # noqa: E402
+    apple_extra,
+    daemon_datas,
+    vendor_hiddenimports,
+    vendor_metadata,
+)
 
-datas = daemon_datas(ROOT)
+apple_hidden, apple_datas = apple_extra()
+datas = daemon_datas(ROOT) + apple_datas + vendor_metadata()
 
 hiddenimports = [
     "uvicorn.logging",
@@ -54,7 +60,7 @@ hiddenimports = [
     "undetected_chromedriver",
     "selenium",
     "pkg_resources.extern",
-] + collect_submodules("findplus")
+] + collect_submodules("findplus") + apple_hidden + vendor_hiddenimports()
 
 excludes = ["tests", "playwright", "frida", "tkinter"]
 

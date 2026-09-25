@@ -33,6 +33,7 @@ from . import (
 from .alerts import alerts_cmd
 from .cmd_mcp import mcp
 from .cmd_poll import poll_now
+from .cmd_selfcheck import selfcheck
 from .cmd_version import version_cmd
 from .doctor import doctor_cmd
 from .groups import groups_cmd
@@ -89,6 +90,7 @@ main.add_command(places_cmd)
 main.add_command(groups_cmd)
 main.add_command(alerts_cmd)
 main.add_command(version_cmd)
+main.add_command(selfcheck)
 main.add_command(mcp)
 main.add_command(widget)
 

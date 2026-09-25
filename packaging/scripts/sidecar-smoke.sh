@@ -55,6 +55,15 @@ fi
 
 "$BINARY" db upgrade
 
+# v1.1.1 shipped a daemon whose Google sign-in helper crashed (no
+# multiprocessing.freeze_support) and which lacked the Apple Find My library.
+# selfcheck starts a real spawn child and imports findmy inside the bundle.
+"$BINARY" selfcheck
+if curl -sf http://127.0.0.1:18647/api/auth/status | grep -q apple_extra; then
+  echo "FAIL: the bundled daemon reports needs apple_extra" >&2
+  exit 1
+fi
+
 # doctor is advisory here: in a throwaway HOME it correctly reports "not
 # authenticated", "service not installed" and exits non-zero. The smoke test
 # only needs it to RUN inside the frozen bundle, so the exit code is ignored.

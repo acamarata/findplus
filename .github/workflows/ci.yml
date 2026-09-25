@@ -141,7 +141,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install '.[dev,bundle]'
+      - run: pip install '.[dev,bundle,apple]'
         working-directory: cli
       - run: pyinstaller packaging/pyinstaller/findplus-daemon.spec --noconfirm
       - run: dist/findplus-daemon/findplus-daemon --version

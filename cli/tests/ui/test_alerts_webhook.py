@@ -10,6 +10,7 @@ import json
 
 import pytest
 
+from ._alerts_helpers import capture_alerts_network_and_console
 from .conftest import open_alerts_tab
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -35,43 +36,6 @@ async def test_remove_webhook_round_trips(page, base_url):
             return body.webhook.configured === false;
         }"""
     )
-
-
-def _capture_alerts_network_and_console(page) -> tuple[list[str], list[str]]:
-    """Wire console + request/response/requestfailed listeners for every
-    /api/alerts* call, for test_webhook_save's CI-failure evidence trail.
-
-    request + requestfailed, not just response: a fetch() that never reaches
-    the server (aborted, network error, CSP block) fires "requestfailed"
-    instead of "response" and would otherwise vanish from this evidence
-    entirely.
-    """
-    console_events: list[str] = []
-    network_events: list[str] = []
-    page.on("console", lambda msg: console_events.append(f"{msg.type}: {msg.text}"))
-    page.on(
-        "request",
-        lambda r: (
-            network_events.append(f"-> {r.method} {r.url}") if "/api/alerts" in r.url else None
-        ),
-    )
-    page.on(
-        "response",
-        lambda r: (
-            network_events.append(f"<- {r.status} {r.request.method} {r.url}")
-            if "/api/alerts" in r.url
-            else None
-        ),
-    )
-    page.on(
-        "requestfailed",
-        lambda r: (
-            network_events.append(f"FAILED {r.method} {r.url} ({r.failure})")
-            if "/api/alerts" in r.url
-            else None
-        ),
-    )
-    return console_events, network_events
 
 
 async def test_webhook_save(page, base_url):
@@ -100,7 +64,7 @@ async def test_webhook_save(page, base_url):
     data-fp-ready="alerts" marker alerts.js sets at the end of refreshAll(),
     closing the gap for this test and every other caller.
     """
-    console_events, network_events = _capture_alerts_network_and_console(page)
+    console_events, network_events = capture_alerts_network_and_console(page)
 
     await open_alerts_tab(page, base_url)
     await page.fill("#fp-webhook-url", "http://localhost:9999/hook-abcd1234")

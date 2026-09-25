@@ -82,3 +82,44 @@ def _insert_delivery_rows(ui_db, statements: list[tuple[str, tuple]]) -> None:
         conn.commit()
     finally:
         conn.close()
+
+
+def capture_alerts_network_and_console(page) -> tuple[list[str], list[str]]:
+    """Wire console + request/response/requestfailed listeners for every
+    /api/alerts* call, so a later timeout or assertion can carry the real
+    request/response sequence instead of a bare failure (test_webhook_save's
+    evidence trail, moved here from test_alerts_webhook.py so
+    test_alerts_rule_edit.py's edit-rule test can reuse it too -- CI
+    36194968013 -- instead of a second copy).
+
+    request + requestfailed, not just response: a fetch() that never reaches
+    the server (aborted, network error, CSP block) fires "requestfailed"
+    instead of "response" and would otherwise vanish from this evidence
+    entirely.
+    """
+    console_events: list[str] = []
+    network_events: list[str] = []
+    page.on("console", lambda msg: console_events.append(f"{msg.type}: {msg.text}"))
+    page.on(
+        "request",
+        lambda r: (
+            network_events.append(f"-> {r.method} {r.url}") if "/api/alerts" in r.url else None
+        ),
+    )
+    page.on(
+        "response",
+        lambda r: (
+            network_events.append(f"<- {r.status} {r.request.method} {r.url}")
+            if "/api/alerts" in r.url
+            else None
+        ),
+    )
+    page.on(
+        "requestfailed",
+        lambda r: (
+            network_events.append(f"FAILED {r.method} {r.url} ({r.failure})")
+            if "/api/alerts" in r.url
+            else None
+        ),
+    )
+    return console_events, network_events

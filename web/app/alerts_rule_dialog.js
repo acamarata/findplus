@@ -81,6 +81,22 @@ export function updateRuleTargetVisibility() {
 /** null for "Add rule"; the rule row being edited otherwise (UAT U13). */
 let editingRuleId = null;
 
+/** Gates Save on the dialog's async load landing (CI 36194968013,
+ *  FLAKE-EDITRULE): the first channel-picker render below is keyed off
+ *  BASE_CHANNELS (no "native"), so editing a native-only rule leaves no
+ *  "native" checkbox in the DOM until the Promise.all in openRuleDialog()
+ *  resolves. Save clicked in that window read the picker as empty, PUT an
+ *  empty channels list, and the server's 422 left the dialog open on an
+ *  error the test never looked at -- not test flakiness, a real race a
+ *  fast human could hit too. `ready` false disables Save and clears the
+ *  marker before the dialog opens; true re-enables it once the picker's
+ *  final render has landed. */
+function setDialogReady(dlg, ready) {
+  $("fp-rule-save").disabled = !ready;
+  if (ready) dlg.dataset.fpReady = "true";
+  else delete dlg.dataset.fpReady;
+}
+
 /** The `connected` Set the dialog's last open resolved (or null, "unknown"
  *  -- the channels fetch failed). saveRule()'s own U11 guard reads this;
  *  it is not local to openRuleDialog() because saveRule() runs later, off
@@ -143,7 +159,9 @@ export async function openRuleDialog(rule = null) {
     selected: initialChannels, available: BASE_CHANNELS, labels: channelLabels(null),
   });
 
-  $("fp-add-rule-dialog").showModal();
+  const dlg = $("fp-add-rule-dialog");
+  setDialogReady(dlg, false);
+  dlg.showModal();
 
   // In parallel, not in series: the channel list is usually already resolved,
   // and it must never add a round-trip to the time the dialog takes to open.
@@ -167,6 +185,7 @@ export async function openRuleDialog(rule = null) {
     labels: channelLabels(connected),
     connected,
   });
+  setDialogReady(dlg, true);
 }
 export const openAddRuleDialog = () => openRuleDialog(null);
 /** "" -> null, so an unchosen select is not silently id 0. */

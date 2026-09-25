@@ -3,8 +3,9 @@ tab-level chrome (P1-E10-W7-S2-T1/T2; split from test_alerts.py, E13 loop3
 L3-4 -- 425 lines split by channel/surface: telegram/webhook/deliveries moved
 to their own files, this one keeps rules plus the tab-visible and latency
 tests that are not channel-specific). The add-rule dialog's own channel-
-picker behaviour (U11/U12) moved again, to test_alerts_rule_channels.py,
-at the PRI rule-7 300-line file cap (UAT2 loop).
+picker behaviour (U11/U12) moved again, to test_alerts_rule_channels.py, and
+the Edit flow (UAT U13) to test_alerts_rule_edit.py, both at the PRI rule-7
+300-line file cap (UAT2 loop; CI 36194968013 respectively).
 
 Seed data (cli/tests/ui/conftest.py): device "TAG-HOME" ("Home Tag"), place
 "Home", group "Family" -- reused here for the add-rule dialog instead of
@@ -163,40 +164,6 @@ async def test_the_cooldown_default_matches_the_api(page, base_url):
         }"""
     )
     assert value == "30"
-
-
-async def test_edit_rule_prefills_and_updates_the_row(page, base_url):
-    """UAT U13: Edit opens the same dialog pre-filled and PUTs, never re-POSTs
-    a duplicate row; the target radios are locked since the API cannot
-    retarget a rule (routes_alerts_rules.py's RuleUpdate)."""
-    create_resp = await page.request.post(
-        base_url + "/api/alerts/rules",
-        data=json.dumps(
-            # "native" needs no configured credentials (UAT2 U11's
-            # server-side check); this test only checks Edit prefills/PUTs.
-            {"name": "U13 edit rule", "device_id": "TAG-HOME", "channels": ["native"]}
-        ),
-        headers={"Content-Type": "application/json"},
-    )
-    assert create_resp.ok, await create_resp.text()
-    rule_id = (await create_resp.json())["id"]
-
-    await open_alerts_tab(page, base_url)
-    row = page.locator("#fp-rules-tbody tr", has_text="U13 edit rule")
-    await row.wait_for(state="visible")
-    await row.get_by_text("Edit", exact=True).click()
-    await page.wait_for_selector("#fp-add-rule-dialog[open]")
-    assert await page.input_value("#fp-rule-name") == "U13 edit rule"
-    assert await page.is_disabled("#fp-rule-target-device") is True
-
-    await page.fill("#fp-rule-name", "U13 edit rule (renamed)")
-    await page.click("#fp-rule-save")
-    await page.wait_for_function("() => !document.getElementById('fp-add-rule-dialog').open")
-
-    rules = await (await page.request.get(base_url + "/api/alerts/rules")).json()
-    matching = [r for r in rules if r["id"] == rule_id]
-    assert len(matching) == 1, "editing must PUT the existing row, never create a second one"
-    assert matching[0]["name"] == "U13 edit rule (renamed)"
 
 
 async def test_rule_actions_visible_within_pane_at_1280_and_375(page, base_url):

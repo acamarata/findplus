@@ -135,3 +135,10 @@ def test_one_supported_python_window() -> None:
     assert "(3, 12) <= sys.version_info < (3, 15)" in install
     assert "Python 3.12, 3.13 or 3.14" in readme
     assert "Python 3.12 or newer" not in readme
+
+
+def test_pypi_publishing_is_off_unless_opted_in() -> None:
+    """Owner decision 2026-09-25: no PyPI. The job is skipped, not left to fail."""
+    yaml = pytest.importorskip("yaml")
+    job = yaml.safe_load(RELEASE.read_text(encoding="utf-8"))["jobs"]["publish-pypi"]
+    assert job.get("if") == "vars.PUBLISH_PYPI == 'true'"

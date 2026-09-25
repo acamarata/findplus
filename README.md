@@ -50,10 +50,17 @@ A fresh install ends by asking you to sign in, which is the expected finish, not
 an error. See the [Install](https://github.com/acamarata/findplus/wiki/Install)
 wiki page for a pinned-version URL.
 
-**pipx:**
+**Homebrew (macOS):**
 
 ```bash
-pipx install findplus
+brew install acamarata/tap/findplus
+```
+
+**pipx:** Find+ is not on PyPI, so install the wheel attached to the release
+(swap in the newest version from [Releases](https://github.com/acamarata/findplus/releases)):
+
+```bash
+pipx install https://github.com/acamarata/findplus/releases/download/v1.1.0/findplus-1.1.0-py3-none-any.whl
 ```
 
 Requires Python 3.12, 3.13 or 3.14.

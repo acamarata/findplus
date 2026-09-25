@@ -25,11 +25,15 @@ broken by an OS upgrade or a removed Python, re-running rebuilds it.
 
 ## pipx
 
+Find+ is not published to PyPI. Install the wheel attached to the release
+instead, swapping in the newest version from the
+[Releases](https://github.com/acamarata/findplus/releases) page:
+
 ```bash
-pipx install findplus
+pipx install https://github.com/acamarata/findplus/releases/download/v1.1.0/findplus-1.1.0-py3-none-any.whl
 ```
 
-Or `pip install findplus` into an existing virtualenv.
+`pip install` with the same URL works inside an existing virtualenv.
 
 ## Homebrew (macOS)
 
@@ -37,7 +41,7 @@ Or `pip install findplus` into an existing virtualenv.
 brew install acamarata/tap/findplus
 ```
 
-Available after the 1.0 release via `brew install acamarata/tap/findplus`.
+`brew upgrade findplus` picks up each new release once the tap formula is updated.
 
 ## macOS app (dmg)
 

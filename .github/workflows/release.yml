@@ -22,6 +22,10 @@ jobs:
 
   publish-pypi:
     needs: build-python
+    # Owner decision 2026-09-25: Find+ is not published to PyPI (install.sh and
+    # Homebrew install from the GitHub release). No trusted publisher exists, so
+    # this job only failed. Set the repo variable PUBLISH_PYPI=true to turn it on.
+    if: vars.PUBLISH_PYPI == 'true'
     runs-on: ubuntu-latest
     environment: pypi
     permissions:

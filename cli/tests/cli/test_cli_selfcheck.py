@@ -19,7 +19,7 @@ def test_a_spawned_child_starts_and_reports_back() -> None:
 
 def test_selfcheck_passes_and_names_both_checks(monkeypatch) -> None:
     monkeypatch.setattr(cmd_selfcheck, "spawn_works", lambda: True)
-    monkeypatch.setattr(cmd_selfcheck.importlib.util, "find_spec", lambda name: object())
+    monkeypatch.setattr(cmd_selfcheck, "apple_import_error", lambda: None)
     result = CliRunner().invoke(main, ["selfcheck"])
     assert result.exit_code == 0, result.output
     assert "PASS  helper process (Google sign-in)" in result.output
@@ -28,10 +28,13 @@ def test_selfcheck_passes_and_names_both_checks(monkeypatch) -> None:
 
 def test_a_missing_apple_library_fails_unless_skipped(monkeypatch) -> None:
     monkeypatch.setattr(cmd_selfcheck, "spawn_works", lambda: True)
-    monkeypatch.setattr(cmd_selfcheck.importlib.util, "find_spec", lambda name: None)
+    monkeypatch.setattr(
+        cmd_selfcheck, "apple_import_error", lambda: "ModuleNotFoundError: No module named 'srp'"
+    )
     failed = CliRunner().invoke(main, ["selfcheck"])
     assert failed.exit_code == 1
     assert "FAIL  Apple Find My library" in failed.output
+    assert "No module named 'srp'" in failed.output
     skipped = CliRunner().invoke(main, ["selfcheck", "--no-apple"])
     assert skipped.exit_code == 0, skipped.output
 

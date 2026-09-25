@@ -78,6 +78,19 @@ def vendor_import_failures() -> list[str]:
     return failures
 
 
+def apple_import_error() -> str | None:
+    """None when findmy really imports, else the error.
+
+    find_spec() alone passed in the v1.1.2 candidate build while `import
+    findmy` failed inside the bundle, so the dmg still reported apple_extra.
+    """
+    try:
+        importlib.import_module("findmy")
+    except Exception as exc:  # report the real reason, whatever it is
+        return f"{type(exc).__name__}: {exc}"
+    return None
+
+
 @click.command()
 @click.option("--no-apple", is_flag=True, help="Skip the Apple Find My library check.")
 def selfcheck(no_apple: bool) -> None:
@@ -87,11 +100,12 @@ def selfcheck(no_apple: bool) -> None:
         ("helper process (Google sign-in)", spawn_works()),
         ("Google Find Hub modules", not failures),
     ]
+    apple_error = None if no_apple else apple_import_error()
     if not no_apple:
-        results.append(("Apple Find My library", importlib.util.find_spec("findmy") is not None))
+        results.append(("Apple Find My library", apple_error is None))
     for label, ok in results:
         click.echo(f"{'PASS' if ok else 'FAIL'}  {label}")
-    for line in failures:
+    for line in failures + ([f"findmy: {apple_error}"] if apple_error else []):
         click.echo(f"      {line}")
     if not all(ok for _, ok in results):
         raise SystemExit(1)

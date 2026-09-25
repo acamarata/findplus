@@ -54,29 +54,51 @@ def daemon_datas(root):
     ]
 
 
-def apple_extra():
-    """findmy's submodules and data files, so the dmg can sign in to Apple.
+#: findmy's own dependency tree. anisette (local Apple anisette data) loads the
+#: Unicorn CPU emulator's native library, so code, dylibs and dist-info all have
+#: to ship. `fs` is a declared anisette dependency that nothing imports (anisette
+#: has its own _fs module); collecting it needs pkg_resources, which current
+#: setuptools no longer ships, so it is left out on purpose.
+APPLE_PACKAGES = ("findmy", "anisette", "elftools", "srp", "unicorn", "bleak")
+APPLE_DISTS = ("findmy", "anisette", "pyelftools", "srp", "unicorn", "bleak", "certifi")
 
-    Find+ imports findmy lazily (importlib), so Analysis() never traced it and
-    the v1.1.1 dmg shipped without it: the app reported needs=["apple_extra"]
-    and Apple sign-in could not work at all. A release built without the extra
-    installed now fails here instead of shipping an Apple-less app;
-    FINDPLUS_ALLOW_NO_APPLE=1 opts out for a deliberate CLI-only build.
+
+def apple_extra():
+    """findmy and its dependency tree, so the dmg can sign in to Apple.
+
+    Returns (hiddenimports, datas, binaries). Find+ imports findmy lazily
+    (importlib), so Analysis() never traced it and the v1.1.1 dmg shipped
+    without it (needs=["apple_extra"]). The first 1.1.2 candidate bundled
+    findmy but not libunicorn, and `import findmy` failed inside the app with
+    "Failed to load the Unicorn dynamic library". A release built without the
+    extra installed now fails here; FINDPLUS_ALLOW_NO_APPLE=1 opts out for a
+    deliberate CLI-only build.
     """
     import importlib.util
     import os
 
-    from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+    from PyInstaller.utils.hooks import (
+        collect_data_files,
+        collect_dynamic_libs,
+        collect_submodules,
+        copy_metadata,
+    )
 
     if importlib.util.find_spec("findmy") is None:
         if os.environ.get("FINDPLUS_ALLOW_NO_APPLE") == "1":
-            return [], []
+            return [], [], []
         raise SystemExit(
             "findmy is not installed in the build environment: install the "
             "`apple` extra (pip install './cli[bundle,apple]') or set "
             "FINDPLUS_ALLOW_NO_APPLE=1 for a build without Apple Find My."
         )
-    return collect_submodules("findmy"), collect_data_files("findmy")
+    present = [pkg for pkg in APPLE_PACKAGES if importlib.util.find_spec(pkg) is not None]
+    hidden = [name for pkg in present for name in collect_submodules(pkg)]
+    # Static archives (unicorn ships a 24 MB libunicorn.a) are link-time only.
+    datas = [d for pkg in present for d in collect_data_files(pkg) if not d[0].endswith(".a")]
+    datas += [m for dist in APPLE_DISTS for m in copy_metadata(dist)]
+    binaries = collect_dynamic_libs("unicorn")
+    return hidden, datas, binaries
 
 
 #: Third-party packages the vendored GoogleFindMyTools imports. The vendor tree

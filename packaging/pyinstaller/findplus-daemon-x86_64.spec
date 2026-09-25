@@ -42,7 +42,7 @@ from spec_datas import (  # noqa: E402
     vendor_metadata,
 )
 
-apple_hidden, apple_datas = apple_extra()
+apple_hidden, apple_datas, apple_binaries = apple_extra()
 datas = daemon_datas(ROOT) + apple_datas + vendor_metadata()
 
 hiddenimports = [
@@ -59,7 +59,6 @@ hiddenimports = [
     "gpsoauth",
     "undetected_chromedriver",
     "selenium",
-    "pkg_resources.extern",
 ] + collect_submodules("findplus") + apple_hidden + vendor_hiddenimports()
 
 excludes = ["tests", "playwright", "frida", "tkinter"]
@@ -67,7 +66,7 @@ excludes = ["tests", "playwright", "frida", "tkinter"]
 a = Analysis(
     [str(ROOT / "packaging/pyinstaller/entry.py")],
     pathex=[str(ROOT / "cli/src")],
-    binaries=[],
+    binaries=apple_binaries,
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],

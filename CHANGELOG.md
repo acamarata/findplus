@@ -6,6 +6,8 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-09-21
+
 ### Added
 - `alerts deliveries --json` prints the delivery log as JSON, matching `alerts rules list --json`.
 - The place dialog can now fill its coordinates two ways instead of only a map click: "Use a tracker's last location" picks any tracked device's most recent fix, and an opt-in address search (type an address, press Search) queries OpenStreetMap's Nominatim through the daemon, never the browser, only when you press the button.

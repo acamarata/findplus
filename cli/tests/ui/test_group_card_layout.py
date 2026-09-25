@@ -103,6 +103,17 @@ async def test_group_card_actions_do_not_move_when_the_verdict_arrives(page, bas
 
     await page.route("**/api/groups/*/presence*", hold_presence)
     await _open_groups_at_phone_width(page, base_url)
+    # bootDashboard() (main.js) runs once for the whole app, not per tab: its
+    # own status alert ("service not running" -- every test here runs with
+    # --no-poller) and honesty footer notices land async and are not awaited
+    # by anything the Groups tab depends on, so the card above can already be
+    # visible while that chain is still in flight. Landing between "before"
+    # and "after" inserts a banner above the list and shifts the whole card by
+    # its height -- not a verdict-row regression at all (CI run 36140185227:
+    # Edit's y moved by exactly the alert's own height, card-internal offset
+    # unchanged). Wait for the same data-fp-ready marker test_places_list.py
+    # uses so this measures only the verdict's own effect on the layout.
+    await page.wait_for_selector("#app-shell[data-fp-ready='dashboard']")
     before = await page.evaluate(_ACTION_BOXES, None)
     release.set()
     await page.wait_for_function(_VERDICTS_SETTLED, timeout=15000)

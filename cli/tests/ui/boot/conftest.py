@@ -41,6 +41,8 @@ import pytest
 pytest.importorskip("playwright", reason="playwright is not installed")
 from playwright.sync_api import Browser, Page, sync_playwright
 
+from .._offline_tiles import stub_osm_tiles
+
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 PIN = "864213"
 
@@ -161,6 +163,7 @@ with session_scope() as session:
 @pytest.fixture
 def page(browser: Browser, server: str) -> Iterator[Page]:
     context = browser.new_context(viewport={"width": 1280, "height": 900}, bypass_csp=True)
+    stub_osm_tiles(context)  # PRI rule 3: networkidle below no longer waits on OSM
     p = context.new_page()
     p.goto(server, wait_until="networkidle")
     p.wait_for_timeout(600)

@@ -37,6 +37,7 @@ import pytest_asyncio
 from playwright.async_api import async_playwright
 
 from ._alerts_helpers import open_alerts_tab as open_alerts_tab
+from ._offline_tiles import stub_osm_tiles
 from ._seed_script import SEED_SCRIPT as _SEED_SCRIPT
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -214,6 +215,7 @@ async def page(browser_session):
     # evaluates string predicates (wait_for_function) via eval in the page.
     # The header itself is still asserted by the security tests.
     ctx = await browser.new_context(bypass_csp=True)
+    await stub_osm_tiles(ctx)  # PRI rule 3: no real tile fetches
     pg = await ctx.new_page()
     yield pg
     await ctx.close()

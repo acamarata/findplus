@@ -27,6 +27,7 @@ import json
 import pytest
 import pytest_asyncio
 
+from ._offline_tiles import stub_osm_tiles
 from .conftest import SEEDED_COMPLETED_AT
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -63,6 +64,7 @@ async def csp_page(browser_session):
     # No bypass_csp: this is the one context in the suite that sees the
     # dashboard exactly as a real browser would.
     ctx = await browser.new_context()
+    await stub_osm_tiles(ctx)  # PRI rule 3: no real tile fetches
     pg = await ctx.new_page()
     yield pg
     await ctx.close()

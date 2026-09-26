@@ -199,6 +199,13 @@
       "deleteInUse": "This icon is in use and cannot be deleted.",
       "badFile": "Choose a PNG image first.",
       "uploadFailed": "Could not upload icon: {message}"
+    },
+    "category": {
+      "people": "People",
+      "pets": "Pets",
+      "things": "Things",
+      "places": "Places",
+      "other": "Other"
     }
   },
   "places": {
@@ -224,7 +231,30 @@
       "chooseTracker": "Choose a tracker…",
       "chooseTrackerFirst": "Choose a tracker first.",
       "noTrackerFix": "That tracker has no location on record yet.",
-      "locationSet": "Location set from {name}."
+      "locationSet": "Location set from {name}.",
+      "pickOnMap": "Pick on map",
+      "map": "the map"
+    },
+    "mapPick": {
+      "instructions": "Click or tap the map to move the pin, or use the arrow keys.",
+      "setLocation": "Set location",
+      "markerLabel": "Place location. Drag it, or use arrow keys, then press Enter."
+    },
+    "error": {
+      "nameLength": "Name must be 1-64 characters.",
+      "radiusRange": "Radius must be between 20 and 5000 meters.",
+      "locationInvalid": "That location is not valid. Try picking it on the map again.",
+      "enterRange": "Enter confirmations must be between 1 and 5.",
+      "exitRange": "Exit confirmations must be between 1 and 5."
+    },
+    "events": {
+      "heading": "Recent arrivals and departures",
+      "empty": "No arrivals or departures yet.",
+      "showMore": "Show more",
+      "entered": "entered",
+      "left": "left",
+      "deviceLine": "{device} {verb} {place}",
+      "groupLine": "{group}: {note}"
     },
     "search": {
       "label": "Address search",
@@ -404,7 +434,7 @@
     "clearAll": "Clear ALL history",
     "aboutHeading": "About",
     "noticesHeading": "Notices",
-    "about": "findplus {version} · schema {schema} · timezone {timezone} · polling every {interval} min",
+    "about": "Find+ {version} · schema {schema} · timezone {timezone} · polling every {interval} min",
     "pinsDoNotMatch": "The two PINs do not match.",
     "pinTooShort": "PIN must be at least 6 characters.",
     "pinSet": "PIN set. The app will lock when idle and whenever the service restarts.",
@@ -421,7 +451,8 @@
       "interval_note": "Find+ never polls faster than every 5 minutes, to avoid rate-limiting your account. Takes effect after Find+ restarts. An environment variable, if one is set, wins over this box, and the value shown then stays the one already in force.",
       "interval_range_error": "Choose 5 to 1440 minutes.",
       "retention_label": "Keep history for",
-      "retention_unit": "days (blank = forever)",
+      "retention_unit": "days",
+      "retention_hint": "blank = forever",
       "retention_placeholder": "forever",
       "retention_note": "Older observations, place visits and group events are deleted automatically once a day. Leave blank to keep everything."
     },
@@ -662,7 +693,7 @@
     "presenceStale": "A tag with no recent fix is stale, not at home and not left behind. Find+ reports it as unknown.",
     "lockNotEncryption": "The app lock stops casual browsing. It does not encrypt the database; anyone with access to this user account or the disk can read it. Use FileVault.",
     "whatsappRelay": "WhatsApp alerts are relayed through CallMeBot, a third-party free service. Your alert text transits CallMeBot's servers before reaching WhatsApp. Delivery is best-effort with no guarantee. Find+ is not affiliated with WhatsApp, Meta or CallMeBot.",
-    "whatsappSetup": "To connect WhatsApp: add +34 623 91 22 04 to your phone's contacts, then send it the message \"I allow callmebot to send me messages\" from your own WhatsApp. CallMeBot replies with an API key within about two minutes — paste it below.",
+    "whatsappSetup": "To connect WhatsApp: add +34 623 91 22 04 to your phone's contacts, then send it the message \"I allow callmebot to send me messages\" from your own WhatsApp. CallMeBot replies with an API key within about two minutes. Paste it below.",
     "alertsLocked": "Notifications are held while Find+ is locked. Unlock to see what you missed.",
     "nativeGeneric": "By default, macOS notifications show a generic \"Find+ alert\" instead of who or where, because notification banners can appear on a locked screen. Turn on notification details in Settings to show the person and place — anyone who can see the screen then sees the same thing.",
     "notAffiliated": "Find+ is not affiliated with Apple or Google. Find Hub and Find My are their trademarks.",

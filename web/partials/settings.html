@@ -50,11 +50,19 @@
 
     <section class="setting-group">
       <h3 data-i18n="settings.polling.title">Polling and retention</h3>
-      <label class="setting-row">
+      <!-- UAT6 N29: the label, input and unit used to be three siblings in a
+           space-between row, so the unit ("minutes") landed at the far right
+           edge instead of beside its input. .setting-row-value (settings.css)
+           groups the input and its unit into one flex item, and
+           .setting-row-aligned gives the label a fixed column so this row's
+           input and the retention row's input start at the same x. -->
+      <label class="setting-row setting-row-aligned">
         <span data-i18n="settings.polling.interval_label">Poll every</span>
-        <input type="number" id="setting-poll-interval" min="5" max="1440" step="1"
-               aria-describedby="setting-poll-interval-error">
-        <span data-i18n="settings.polling.interval_unit">minutes</span>
+        <span class="setting-row-value">
+          <input type="number" id="setting-poll-interval" min="5" max="1440" step="1"
+                 aria-describedby="setting-poll-interval-error">
+          <span data-i18n="settings.polling.interval_unit">minutes</span>
+        </span>
       </label>
       <!-- UAT U19: an out-of-range value used to report only in
            #settings-message at the top of the dialog, which can be scrolled
@@ -68,12 +76,19 @@
         Takes effect after Find+ restarts. An environment variable, if one is set, wins over
         this box, and the value shown then stays the one already in force.
       </p>
-      <label class="setting-row">
+      <label class="setting-row setting-row-aligned">
         <span data-i18n="settings.polling.retention_label">Keep history for</span>
-        <input type="number" id="setting-retention-days" min="7" placeholder="forever"
-               data-i18n-attr="placeholder:settings.polling.retention_placeholder">
-        <span data-i18n="settings.polling.retention_unit">days (blank = forever)</span>
+        <span class="setting-row-value">
+          <input type="number" id="setting-retention-days" min="7" placeholder="forever"
+                 data-i18n-attr="placeholder:settings.polling.retention_placeholder">
+          <span data-i18n="settings.polling.retention_unit">days</span>
+        </span>
       </label>
+      <!-- UAT6 N29: "blank = forever" used to be squeezed into the unit text
+           next to the field ("days (blank = forever)"); it now reads as its
+           own short hint under the field, same convention as a field's
+           modal-note. -->
+      <p class="setting-row-hint" data-i18n="settings.polling.retention_hint">blank = forever</p>
       <p class="modal-note" data-i18n="settings.polling.retention_note">
         Older observations, place visits and group events are deleted automatically once a day.
         Leave blank to keep everything.

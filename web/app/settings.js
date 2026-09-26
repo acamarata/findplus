@@ -62,11 +62,23 @@ export async function loadSettings({ renderDialog = true } = {}) {
 
 function renderLockSection() {
   const configured = state.settings && state.settings.pin_configured;
+  // UAT6 N29: Set PIN/Remove PIN hide the section their own button lives in
+  // (#lock-not-set or #lock-is-set); the browser then drops focus to <body>,
+  // outside dialog-trap.js's keydown listener, so Escape stopped closing
+  // Settings too. Note who was focused BEFORE the toggle below, to check.
+  const activeBefore = document.activeElement;
   $("lock-not-set").classList.toggle("hidden", !!configured);
   $("lock-is-set").classList.toggle("hidden", !configured);
   if (configured) {
     $("setting-lock-enabled").checked = state.settings.lock_enabled;
     $("setting-idle").value = String(state.settings.idle_minutes);
+  }
+  // `offsetParent === null` is true exactly when the toggle above just hid
+  // the control that held focus (e.g. #btn-set-pin, now inside a `.hidden`
+  // #lock-not-set). Move focus into whichever section is visible now.
+  if (activeBefore && activeBefore.offsetParent === null) {
+    const target = configured ? $("setting-lock-enabled") : $("btn-set-pin");
+    if (target) target.focus();
   }
   showNewPinError(null); // never a stale rejection from a previous open
 }

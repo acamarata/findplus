@@ -1,0 +1,67 @@
+/*
+ * Settings dialog: unit-beside-input grouping and label alignment.
+ *
+ * Purpose    : UAT6-N29. style.css's `.setting-row` is `justify-content:
+ *              space-between`, which is right for a two-item row (label,
+ *              control) but scatters a THREE-item row (label, input, unit)
+ *              across the full width -- the unit landed at the row's right
+ *              edge instead of beside its input. Kept in its own file
+ *              (not style.css or components-panels.css) so neither hits the
+ *              300-line cap for a change scoped to one dialog.
+ * Inputs     : `.setting-row-aligned` rows in partials/settings.html (poll
+ *              interval, retention days) whose value is wrapped in a
+ *              `.setting-row-value` span, plus `.setting-row-hint`.
+ * Outputs    : The input and its unit sit together; both rows' inputs start
+ *              at the same x (one fixed-width label column).
+ * Constraints: Loaded before responsive.css (index.html), same as setup.css,
+ *              so the <600px column layout below still wins there. The
+ *              phone-tier query here only undoes the desktop-only fixed
+ *              label width -- it does not touch responsive.css's own rules.
+ */
+
+.setting-row-aligned {
+  justify-content: flex-start;
+}
+
+/* The label is always this row's first child (a <span> before the value
+ * group); no extra class needed to select it. */
+.setting-row-aligned > span:first-child {
+  flex: 0 0 150px;
+}
+
+.setting-row-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.setting-row-value input {
+  min-width: 0;
+}
+
+/* Same tone and indent as .modal-note, but sits directly under its field
+ * rather than after the longer explanatory note (settings.js keeps the two
+ * separate: this is the short "blank = forever" hint, not the paragraph
+ * about what retention actually deletes). */
+.setting-row-hint {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0 0 8px;
+}
+
+@media (max-width: 599px) {
+  /* responsive.css already stacks a `.setting-row:has(input...)` into a
+   * column; undo only the desktop fixed-width label column above so it
+   * does not force a 150px-tall label box once the row's main axis is
+   * vertical instead of horizontal. */
+  .setting-row-aligned > span:first-child {
+    flex: initial;
+  }
+  /* responsive.css's `.setting-row input[type=number] { width: 100% }`
+   * would otherwise compete with the unit span for the same row width,
+   * now that both share `.setting-row-value` as one flex item. */
+  .setting-row-value input[type=number] {
+    flex: 1 1 auto;
+    width: auto;
+  }
+}

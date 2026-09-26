@@ -21,9 +21,17 @@
      split off components.css, which reached the 300-line cap again (PRI
      rule 7). Same cascade position as the file it split from. -->
 <link rel="stylesheet" href="/static/components-panels.css">
+<!-- Settings dialog only (UAT6 N29): a unit-beside-its-input group and a
+     fixed label column, kept out of components-panels.css to avoid pushing
+     it past the 300-line cap. Before responsive.css so the phone tier wins. -->
+<link rel="stylesheet" href="/static/settings.css">
 <!-- The setup wizard and the shared sign-in cards (wizard step 2 and
      Settings > Sign-in). Before responsive.css so the phone tier still wins. -->
 <link rel="stylesheet" href="/static/setup.css">
+<!-- Places tab additions (pick-on-map, avatar/icon-picker polish, the
+     arrivals/departures panel): components.css and components-panels.css
+     belong to other in-flight fixes this round, so this stays its own file. -->
+<link rel="stylesheet" href="/static/places-events.css">
 <!-- Loaded last on purpose: every rule in it overrides one above at equal
      specificity (focus ring, screen-reader helper, phone tier). -->
 <link rel="stylesheet" href="/static/responsive.css">

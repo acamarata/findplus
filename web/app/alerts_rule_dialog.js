@@ -40,10 +40,16 @@ export function updateRuleTargetVisibility() {
   const isDevice = $("fp-rule-target-device").checked;
   // Editing locks both target radios (RuleUpdate cannot retarget a rule, see
   // seedRuleFields() below) -- the select showing the existing target needs
-  // no "choose one" validation of its own then, only the hidden/visible split.
+  // no "choose one" validation of its own then, only the enabled/disabled split.
   const editing = $("fp-rule-target-device").disabled;
-  $("fp-rule-device").classList.toggle("hidden", !isDevice);
-  $("fp-rule-group").classList.toggle("hidden", isDevice);
+  // UAT7 N13 (UAT6 N25 residue): both selects stay rendered at all times now
+  // -- `hidden` used to collapse the unpicked one's box entirely, so the
+  // Group row showed only a bare radio+label until chosen, then grew a
+  // dropdown into existence the instant it was. Toggling `disabled` instead
+  // keeps both boxes laid out from the first paint; a disabled select still
+  // reads as "there is a control here" rather than looking unfinished.
+  $("fp-rule-device").disabled = !isDevice;
+  $("fp-rule-group").disabled = isDevice;
   $("fp-rule-device").required = !editing && isDevice;
   $("fp-rule-group").required = !editing && !isDevice;
 }

@@ -19,6 +19,8 @@ import asyncio
 
 import pytest
 
+from findplus import honesty
+
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 # E11's first-run check redirects a hash-less "/" to #/setup and hides
@@ -140,12 +142,16 @@ async def test_google_progress_states_render(page, base_url) -> None:
         ("capturing", "capturing"),
     ):
         await _render_google_progress(page, {"state": state, "message": "", "chrome_found": True})
-        assert await page.locator("#fp-auth-google-progress").inner_text() == google[key]
+        # Scoped to the message span: the row also holds a Cancel button (N23).
+        text = page.locator("#fp-auth-google-progress .fp-signin-progress-text")
+        assert await text.inner_text() == google[key]
+
+
+#: UAT6 N23: drops "Install it from <url>" -- the Download Chrome link beside it is that action.
+_CHROME_NOTICE_TEXT = honesty.CHROME_REQUIRED.split(" Install it from")[0]
 
 
 async def test_google_chrome_missing_disables_button(page, base_url) -> None:
-    from findplus import honesty
-
     await _open_settings_settled(page, base_url)
     await _render_google_progress(page, {"state": "failed", "message": "x", "chrome_found": False})
 
@@ -153,7 +159,7 @@ async def test_google_chrome_missing_disables_button(page, base_url) -> None:
     assert await page.locator("#fp-auth-google-progress").is_hidden()
     notice = page.locator("#fp-auth-chrome-notice")
     assert await notice.is_visible()
-    assert await notice.inner_text() == honesty.CHROME_REQUIRED
+    assert await notice.inner_text() == _CHROME_NOTICE_TEXT
     download = page.locator("#fp-auth-chrome-download")
     assert await download.is_visible()
     assert await download.get_attribute("href") == "https://www.google.com/chrome/"
@@ -161,13 +167,11 @@ async def test_google_chrome_missing_disables_button(page, base_url) -> None:
 
 async def test_the_chrome_honesty_sentence_comes_from_the_server(page, base_url) -> None:
     """Never typed into the markup: notices.js fills it from /api/config."""
-    from findplus import honesty
-
     await _open_settings(page, base_url)
     await page.wait_for_function(
         "() => document.getElementById('fp-auth-chrome-notice').textContent.length > 0"
     )
-    assert await page.locator("#fp-auth-chrome-notice").inner_text() == honesty.CHROME_REQUIRED
+    assert await page.locator("#fp-auth-chrome-notice").inner_text() == _CHROME_NOTICE_TEXT
 
 
 async def test_apple_2fa_field_shown_when_the_server_asks_for_a_code(page, base_url) -> None:

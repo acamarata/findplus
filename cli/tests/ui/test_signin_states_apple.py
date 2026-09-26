@@ -53,15 +53,27 @@ async def _to_code_step(page) -> None:
     await page.locator("#fp-setup-apple-2fa").wait_for(state="visible", timeout=15000)
 
 
-async def test_missing_fields_are_named_before_any_request(page, base_url):
+async def test_missing_fields_are_named_inline_without_failing_the_card(page, base_url):
+    """UAT6 N22: an empty Apple ID or password used to raise the full failed
+    state (a red card border, "Sign-in did not finish", Try again). It is now
+    a plain field error, and the card never leaves `data-state="idle"`."""
     calls: list[str] = []
     try:
         await open_wizard_signin(page, base_url)
         catalog = await _catalog(page, base_url)
         await page.route("**/api/auth/apple/start", reply({"job_id": "x"}, 202, calls))
         await page.get_by_role("button", name=CONNECT).click()
-        await wait_text(page, ERROR, catalog["apple"]["missingFields"])
+        await wait_text(page, "#fp-setup-apple-id-error", catalog["apple"]["missingAppleId"])
+        await wait_text(page, "#fp-setup-apple-password-error", catalog["apple"]["missingPassword"])
         assert calls == []
+        assert await page.locator(ERROR).is_hidden()
+        assert await page.locator("#fp-setup-apple-card").get_attribute("data-state") != "failed"
+
+        # Filling one field and retrying clears both -- retyping, not a
+        # second click, is what should make a stale error go away.
+        await page.fill("#fp-setup-apple-id", "a@example.com")
+        assert await page.locator("#fp-setup-apple-id-error").is_hidden()
+        assert await page.locator("#fp-setup-apple-password-error").is_hidden()
     finally:
         await restore_onboarding(page, base_url)
 

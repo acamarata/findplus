@@ -175,6 +175,12 @@ async def test_a_job_that_never_ends_times_out_on_the_client(page, base_url):
         await restore_onboarding(page, base_url)
 
 
+#: UAT6 N23: the notice drops honesty.CHROME_REQUIRED's own "Install it from
+#: <url> and try again" clause -- the Download Chrome link right beside it is
+#: that action, so the raw URL is not shown as plain text too.
+_CHROME_NOTICE_TEXT = honesty.CHROME_REQUIRED.split(" Install it from")[0]
+
+
 async def test_chrome_going_missing_mid_job_shows_the_notice(page, base_url):
     try:
         await open_wizard_signin(page, base_url)
@@ -184,7 +190,8 @@ async def test_chrome_going_missing_mid_job_shows_the_notice(page, base_url):
             reply({"state": "failed", "message": "x", "chrome_found": False}),
         )
         await page.get_by_role("button", name=CONNECT).click()
-        await wait_text(page, "#fp-setup-chrome-notice", honesty.CHROME_REQUIRED)
+        await wait_text(page, "#fp-setup-chrome-notice", _CHROME_NOTICE_TEXT)
+        assert "https://" not in await page.locator("#fp-setup-chrome-notice").inner_text()
         assert await page.locator("#fp-setup-chrome-download").is_visible()
         assert await page.get_by_role("button", name=CONNECT).is_disabled()
     finally:

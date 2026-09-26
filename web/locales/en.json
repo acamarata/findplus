@@ -315,6 +315,16 @@
     "noConnectedChannel": "Connect at least one selected channel before saving.",
     "ruleEnabledLabel": "Enabled: {name}",
     "ruleUpdateFailed": "Could not update \"{name}\" ({status}).",
+    "chooseDevice": "Choose a device…",
+    "chooseGroup": "Choose a group…",
+    "selectAtLeastOneEvent": "Choose On enter, On exit, or both.",
+    "selectAtLeastOneChannel": "Select at least one channel.",
+    "invalidWebhookUrl": "Enter a valid http(s) webhook URL.",
+    "webhookMaskedUrl": "That's the saved URL's masked placeholder, not a new one. Enter the real URL, or leave it blank to keep the current one.",
+    "connectBotFirst": "Connect a bot first.",
+    "currentTargetsLabel": "Current targets",
+    "removeTargetLabel": "Remove {target}",
+    "retryingStatusNoTime": "Retrying (attempt {attempt} of {max})",
     "statuses": {
       "sent": "Sent",
       "failed": "Failed",
@@ -335,7 +345,11 @@
       "save": "Save",
       "test": "Send test",
       "clear": "Clear",
-      "connected": "Connected: {phone}"
+      "connected": "Connected: {phone}",
+      "enterPhone": "Enter a phone number first.",
+      "enterApikey": "Enter an API key first.",
+      "invalidPhone": "Enter the number in international format, e.g. +34123123123.",
+      "invalidApikey": "The API key must be letters and numbers only, at least 4 characters."
     },
     "rules": {
       "channels": "Channels",
@@ -349,7 +363,11 @@
     },
     "deliveries": {
       "text": "Text",
-      "body": "Body"
+      "body": "Body",
+      "errorNetwork": "Couldn't reach {channel} (network).",
+      "errorTimeout": "{channel} didn't respond in time.",
+      "errorAuth": "{channel} rejected the credentials.",
+      "errorGeneric": "Couldn't deliver to {channel}."
     }
   },
   "settings": {
@@ -424,7 +442,10 @@
       "summary": {
         "one": "1 device tracked.",
         "other": "{n} devices tracked."
-      }
+      },
+      "incomplete_title": "Nothing connected yet",
+      "incomplete_summary": "You haven't signed in or tracked anything yet. Connect an account to start seeing locations.",
+      "go_to_signin": "Go to Sign-in"
     },
     "welcome": {
       "title": "Welcome",
@@ -445,12 +466,16 @@
       "track": "Track",
       "trackFor": "Track {name}",
       "labelFor": "Label for {name}",
-      "confirm_none_tracked": "Track nothing? Find+ will not poll any tracker until you come back and tick one (or run findplus devices --track-all later)."
+      "confirm_none_tracked": "Track nothing? Find+ will not poll any tracker until you come back and tick one.",
+      "refresh_no_provider": "No provider is signed in yet. Go back to Sign-in to connect one, then refresh.",
+      "load_failed": "Could not load your devices right now. Try again."
     },
     "groups": {
       "title": "Groups (optional)",
+      "lead": "Combine devices into a group to see them together on the map and set alerts for the whole group.",
       "name_placeholder": "Group name",
-      "add": "Add"
+      "add": "Add",
+      "no_devices": "No tracked devices to add yet. Go back to Devices to track one first."
     },
     "places": {
       "title": "Places (optional)",
@@ -473,7 +498,9 @@
       "connected": "Connected to {chat}.",
       "already_connected": "Telegram is already connected.",
       "telegram_help_token": "Create a bot with @BotFather on Telegram and paste its token here.",
-      "telegram_help_chat": "Then send your new bot any message and press Connect. Find+ reads the chat id from that message."
+      "telegram_help_chat": "Then send your new bot any message and press Connect. Find+ reads the chat id from that message.",
+      "telegram_connect_first": "Connect the bot above first.",
+      "finish_and_open_alerts": "Finish setup and open Alerts"
     },
     "applock": {
       "title": "App lock (optional)",
@@ -509,6 +536,8 @@
       "signedOut": "Not signed in"
     },
     "retry": "Try again",
+    "cancel": "Cancel",
+    "disconnect": "Disconnect",
     "google": {
       "heading": "Google Find Hub",
       "how": "Opens Google Chrome so you can sign in on Google's own page. You type your password there, not into Find+.",
@@ -518,7 +547,8 @@
       "waiting": "Finish signing in in the Chrome window that opened. This page updates by itself.",
       "capturing": "Signed in. Saving your session…",
       "downloadChrome": "Download Google Chrome",
-      "checkAgain": "Check again"
+      "checkAgain": "Check again",
+      "disconnectConfirm": "Disconnect Google Find Hub? Tracked devices and their history stay. Sign in again any time to see new locations."
     },
     "apple": {
       "heading": "Apple Find My",
@@ -533,8 +563,11 @@
       "verify": "Verify code",
       "checking": "Checking the code…",
       "missingFields": "Enter your Apple ID and password first.",
+      "missingAppleId": "Enter your Apple ID.",
+      "missingPassword": "Enter your password.",
       "missingCode": "Enter the verification code first.",
-      "unavailable": "Apple Find My support is not installed in this copy of Find+. Install the Apple extra with pip install 'findplus[apple]', then restart Find+."
+      "unavailable": "Apple Find My support is not installed in this copy of Find+. Install the Apple extra with pip install 'findplus[apple]', then restart Find+.",
+      "disconnectConfirm": "Disconnect Apple Find My? Tracked devices and their history stay. Sign in again any time to see new locations."
     },
     "error": {
       "title": "Sign-in did not finish",

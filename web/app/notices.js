@@ -1,8 +1,12 @@
 /*
  * Honesty notices: injects /api/config.notices sentences across the
  * dashboard -- the Settings dialog's Notices section plus the Alerts tab's
- * WhatsApp card, the add-rule dialog's channel notice, and the sign-in
- * panel's Chrome notice.
+ * WhatsApp card and the add-rule dialog's channel notice. The sign-in
+ * panel's own Chrome notice is NOT here (UAT6 N23): google_flow.js already
+ * re-reads notices.chrome_required from the same /api/config on every
+ * status refresh, trimmed for display there; a second untrimmed write here,
+ * racing whichever ran last, put the same "Install it from <url>" text back
+ * on screen beside the Download Chrome link that already is that action.
  *
  * Purpose    : PROMPT.md §2 invariant 4 — honesty text must be rendered
  *              verbatim, sourced from one place (honesty.py via /api/config).
@@ -43,9 +47,6 @@ export async function loadNotices() {
     // Beside the add-rule dialog's channel checkboxes: what a native alert
     // does while the app is locked.
     "fp-alerts-locked-notice": n.alerts_locked,
-    // The sign-in panel's Google card. Same server-sourced mechanism as every
-    // other honesty sentence: honesty.CHROME_REQUIRED via /api/config.
-    "fp-auth-chrome-notice": n.chrome_required,
     // The sign-in panel's Apple accessory-keys control (CF-P2-19): the same
     // honesty.APPLE sentence the Notices section already shows at
     // fp-notice-apple, repeated here because it explains accessory keys

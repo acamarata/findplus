@@ -42,19 +42,37 @@ async def test_alerts_latency_disclaimer_present(page, base_url):
 
 
 async def test_add_rule_creates_row(page, base_url):
-    await open_alerts_tab(page, base_url)
-    await page.click("#fp-add-rule-btn")
-    await page.wait_for_selector("#fp-add-rule-dialog[open]")
-    await page.fill("#fp-rule-name", "Home arrival test")
-    await page.select_option("#fp-rule-place", label="Home")
-    # TAG-HOME carries label "Ali's Keys" (cli/tests/ui/_seed_script.py); the
-    # Device select shows the label, not the raw provider name (UAT U6).
-    await page.select_option("#fp-rule-device", label="Ali's Keys")
-    await page.check("#fp-rule-on-enter")
-    await page.click("#fp-rule-save")
-    await page.wait_for_function("() => !document.getElementById('fp-add-rule-dialog').open")
-    row = page.locator("#fp-rules-tbody tr", has_text="Home arrival test")
-    await row.wait_for(state="visible")
+    # UAT6 N05 fixed "native" defaulting to available (and ticked) in a plain
+    # browser tab off nothing but a macOS platform sniff -- it is now gated on
+    # window.__findplus_native, which a Playwright tab never sets. Connecting
+    # webhook here keeps this test's own Save independent of the channel this
+    # session's other tests happen to have left connected.
+    put_resp = await page.request.put(
+        base_url + "/api/alerts/channels/webhook",
+        data='{"url": "https://example.com/hook"}',
+        headers={"Content-Type": "application/json"},
+    )
+    assert put_resp.ok, await put_resp.text()
+    try:
+        await open_alerts_tab(page, base_url)
+        await page.click("#fp-add-rule-btn")
+        await page.wait_for_selector("#fp-add-rule-dialog[open]")
+        await page.wait_for_function(
+            "document.querySelector("
+            "'#fp-rule-channels input[data-channel=webhook]')?.checked === true"
+        )
+        await page.fill("#fp-rule-name", "Home arrival test")
+        await page.select_option("#fp-rule-place", label="Home")
+        # TAG-HOME carries label "Ali's Keys" (cli/tests/ui/_seed_script.py); the
+        # Device select shows the label, not the raw provider name (UAT U6).
+        await page.select_option("#fp-rule-device", label="Ali's Keys")
+        await page.check("#fp-rule-on-enter")
+        await page.click("#fp-rule-save")
+        await page.wait_for_function("() => !document.getElementById('fp-add-rule-dialog').open")
+        row = page.locator("#fp-rules-tbody tr", has_text="Home arrival test")
+        await row.wait_for(state="visible")
+    finally:
+        await page.request.delete(base_url + "/api/alerts/channels/webhook")
 
 
 async def test_delete_rule_removes_row(page, base_url):

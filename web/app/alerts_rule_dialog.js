@@ -19,63 +19,28 @@
  *              functions -- this module has no top-level side effects.
  */
 "use strict";
-import { $, state, displayName } from "./state.js";
+import { $ } from "./state.js";
 import { api } from "./api.js";
 import { t } from "./i18n.js";
 import { renderChannelPicker, readChannelPicker } from "./components/channel-picker.js";
 import { BASE_CHANNELS, availableChannels, connectedChannels, channelLabels } from "./alerts_rule_channels.js";
+import { fillLoading, fillOptions, populateRuleSelects } from "./alerts_rule_selects.js";
 
-export function fillOptions(select, items, mapFn) {
-  while (select.firstChild) select.removeChild(select.firstChild);
-  items.forEach((item) => {
-    const [value, label] = mapFn(item);
-    const opt = document.createElement("option");
-    opt.value = value;
-    opt.textContent = label;
-    select.appendChild(opt);
-  });
-}
-/** One disabled placeholder, so an unfilled select never looks like "none exist". */
-function fillLoading(select) {
-  fillOptions(select, [null], () => ["", t("common.loading")]);
-}
+// Re-exported: alerts_rules.js's own `export { fillOptions, ... } from
+// "./alerts_rule_dialog.js"` re-export list (its rows use it too) stays
+// correct without knowing fillOptions now lives in alerts_rule_selects.js.
+export { fillOptions };
 
-/**
- * `state.devices`, loading it first when the boot has not filled it yet.
- *
- * The dialog used to read the module cache with nothing awaiting it, so
- * opening Add rule before the boot's device load landed produced an empty
- * device select and a rule that could not name a tracker (CF-P2-18). This is
- * the same `loadDevices()` the boot calls, imported dynamically to keep
- * devices.js off alerts.js's own import graph — never a second fetch path.
- */
-async function ensureDevices() {
-  if (state.devices && state.devices.length) return state.devices;
-  try {
-    const devices = await import("./devices.js");
-    await devices.loadDevices();
-  } catch (_) { /* locked or unreachable; an empty select is the honest result */ }
-  return state.devices || [];
-}
-
-async function populateRuleSelects() {
-  const [places, devices] = await Promise.all([
-    api("/api/places").catch(() => []),
-    ensureDevices(),
-  ]);
-  fillOptions($("fp-rule-place"), places, (p) => [String(p.id), p.name]);
-  // UAT U6: the rule form's own Device select shows the label too.
-  fillOptions($("fp-rule-device"), devices, (d) => [d.device_id, displayName(d)]);
-  let groups = [];
-  try {
-    groups = await api("/api/groups");
-  } catch (_) { /* unreachable too; an empty group select is harmless */ }
-  fillOptions($("fp-rule-group"), groups, (g) => [String(g.id), g.name]);
-}
 export function updateRuleTargetVisibility() {
   const isDevice = $("fp-rule-target-device").checked;
+  // Editing locks both target radios (RuleUpdate cannot retarget a rule, see
+  // seedRuleFields() below) -- the select showing the existing target needs
+  // no "choose one" validation of its own then, only the hidden/visible split.
+  const editing = $("fp-rule-target-device").disabled;
   $("fp-rule-device").classList.toggle("hidden", !isDevice);
   $("fp-rule-group").classList.toggle("hidden", isDevice);
+  $("fp-rule-device").required = !editing && isDevice;
+  $("fp-rule-group").required = !editing && !isDevice;
 }
 
 /** null for "Add rule"; the rule row being edited otherwise (UAT U13). */
@@ -131,6 +96,30 @@ function seedRuleFields(rule) {
 }
 
 /**
+ * UAT6 N05 gated "native" behind window.__findplus_native (a plain browser
+ * tab never sets it) so a new rule can no longer offer/preselect a channel
+ * it cannot use -- but a rule saved with "native" from inside the app must
+ * still be editable (renamed, retimed) from a plain browser tab too, so its
+ * own already-saved channel is never silently stranded off the picker.
+ * Split out of openRuleDialog() to keep that function under the PRI rule-7
+ * 50-line cap.
+ */
+function availableIncludingRulesOwnChannels(rule, rawAvailable) {
+  return rule && rule.channels.includes("native") && !rawAvailable.includes("native")
+    ? [...rawAvailable, "native"]
+    : rawAvailable;
+}
+
+/** The three selects' own values once `rule`'s data has landed -- pulled out
+ *  of openRuleDialog() for the same 50-line-cap reason as the function above. */
+function applyRuleTargetValues(rule) {
+  if (!rule) return;
+  $("fp-rule-place").value = rule.place_id != null ? String(rule.place_id) : "";
+  $("fp-rule-device").value = rule.device_id || "";
+  $("fp-rule-group").value = rule.group_id != null ? String(rule.group_id) : "";
+}
+
+/**
  * Open the add/edit-rule dialog, always reset to `rule`'s values (or blank
  * defaults for a new rule) -- never to whatever the dialog last held, so a
  * second "Add rule" can never inherit an earlier rule's ticks (UAT U12).
@@ -165,14 +154,11 @@ export async function openRuleDialog(rule = null) {
 
   // In parallel, not in series: the channel list is usually already resolved,
   // and it must never add a round-trip to the time the dialog takes to open.
-  const [, available, connected] = await Promise.all([
+  const [, rawAvailable, connected] = await Promise.all([
     populateRuleSelects(), availableChannels(), connectedChannels(),
   ]);
-  if (rule) {
-    $("fp-rule-place").value = rule.place_id != null ? String(rule.place_id) : "";
-    $("fp-rule-device").value = rule.device_id || "";
-    $("fp-rule-group").value = rule.group_id != null ? String(rule.group_id) : "";
-  }
+  const available = availableIncludingRulesOwnChannels(rule, rawAvailable);
+  applyRuleTargetValues(rule);
   lastConnectedChannels = connected;
   // defaultSelectedChannels()/`initialChannels`, never readChannelPicker()
   // off the current DOM (UAT U12): a fresh open always retraces `rule`/the
@@ -216,9 +202,44 @@ function buildRulePayload(channels) {
   return body;
 }
 
+/**
+ * Everything that has to be true before saveRule() is worth a round trip.
+ *
+ * UAT6 N05: Save with nothing filled in used to create a live rule with an
+ * empty name, targeting whichever device sorted first (the untracked
+ * AirTag), on enter/exit both unset in spirit (on_enter defaults true so
+ * that particular field was never the visible symptom, but a rule with
+ * neither event ticked is just as dead), and channels the browser happened
+ * to preselect. name/target reuse the browser's own required-field message
+ * (reportValidity()); events/channels have no single native control to hang
+ * a message on, so they get an inline sentence in the dialog's existing
+ * error slot instead. Returns false and leaves the dialog open on any
+ * failure -- saveRule() aborts there rather than reaching the server.
+ */
+function ruleFormIsValid() {
+  const errorEl = $("fp-rule-error");
+  errorEl.textContent = "";
+  if (!$("fp-rule-name").reportValidity()) return false;
+  // required is false on both selects while editing (updateRuleTargetVisibility()
+  // above), so this is a no-op then -- RuleUpdate cannot retarget a rule anyway.
+  const isDevice = $("fp-rule-target-device").checked;
+  const targetEl = isDevice ? $("fp-rule-device") : $("fp-rule-group");
+  if (!targetEl.reportValidity()) return false;
+  if (!$("fp-rule-on-enter").checked && !$("fp-rule-on-exit").checked) {
+    errorEl.textContent = t("alerts.selectAtLeastOneEvent");
+    return false;
+  }
+  return true;
+}
+
 export async function saveRule() {
   const dlg = $("fp-add-rule-dialog");
+  if (!ruleFormIsValid()) return;
   const channels = readChannelPicker($("fp-rule-channels"));
+  if (channels.length === 0) {
+    $("fp-rule-error").textContent = t("alerts.selectAtLeastOneChannel");
+    return;
+  }
   // UAT2 U11: the picker still lets an unconnected channel be ticked (a
   // fresh install with nothing connected yet must be able to create its
   // first rule), so a selection that is entirely unconnected channels can

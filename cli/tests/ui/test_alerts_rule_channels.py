@@ -134,3 +134,45 @@ async def test_add_rule_dialog_defaults_to_only_connected_channels(page, base_ur
         assert "webhook" not in checked, f"webhook is disconnected: {checked}"
     finally:
         await page.request.delete(base_url + "/api/alerts/channels/whatsapp")
+
+
+async def _connected_webhook(page, base_url):
+    """webhook connected, PUT then open the alerts tab -- _open_fresh_add_rule_
+    dialog() below waits for webhook to render ticked, so every caller needs
+    at least one connected channel regardless of what it is actually testing."""
+    put_resp = await page.request.put(
+        base_url + "/api/alerts/channels/webhook",
+        data='{"url": "https://example.com/hook"}',
+        headers={"Content-Type": "application/json"},
+    )
+    assert put_resp.ok, await put_resp.text()
+    await open_alerts_tab(page, base_url)
+
+
+async def test_native_channel_is_never_offered_in_a_plain_browser(page, base_url):
+    """UAT6 N05: "Desktop notification" used to be offered (and, since native
+    needs no credentials, pre-ticked) off nothing but a macOS platform sniff
+    -- true on any Mac, including this very Playwright tab. It is gated on
+    window.__findplus_native now (set only by the Tauri window), which a
+    plain browser tab never sets."""
+    try:
+        await _connected_webhook(page, base_url)
+        await _open_fresh_add_rule_dialog(page)
+        count = await page.locator("#fp-rule-channels input[data-channel=native]").count()
+        assert count == 0, "native offered in a plain browser tab"
+    finally:
+        await page.request.delete(base_url + "/api/alerts/channels/webhook")
+
+
+async def test_native_channel_is_offered_inside_the_native_app(page, base_url):
+    """The other half of the same gate: window.__findplus_native set (as the
+    Tauri shell's own init script does) must still offer it."""
+    try:
+        await page.add_init_script("window.__findplus_native = true;")
+        await _connected_webhook(page, base_url)
+        await _open_fresh_add_rule_dialog(page)
+        native = page.locator("#fp-rule-channels input[data-channel=native]")
+        assert await native.count() == 1
+        assert await native.is_checked() is True, "native has no credentials, always defaults on"
+    finally:
+        await page.request.delete(base_url + "/api/alerts/channels/webhook")

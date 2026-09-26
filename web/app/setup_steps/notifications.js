@@ -13,9 +13,16 @@
  *              window.__findplus_native is true (R-P2-13) and its button is
  *              the sole trigger of the OS permission prompt (R-P2-9). WhatsApp
  *              gets the same inline phone/API-key/Save/Test controls Telegram
- *              does (R-P2-28 point 3); only Webhook still falls to the
- *              "configure later" link, which now carries the app's link
- *              styling instead of the browser default (F5).
+ *              does (R-P2-28 point 3).
+ *              UAT6-N33: Webhook's "configure later" text used to be an <a
+ *              href="#alerts-webhook">, which changed the hash without
+ *              stamping onboarding.completed_at -- following it left the
+ *              wizard mid-setup, and the next load greeted the user with the
+ *              "Setup isn't finished" banner over a webhook they had, in
+ *              fact, just gone to set up. It is now a button that finishes
+ *              setup (ctx.completeSetup(), wizard.js) and only then jumps to
+ *              the Alerts tab's webhook section, so the two can never
+ *              disagree again.
  */
 "use strict";
 
@@ -73,14 +80,34 @@ function nativeControls(section) {
   section.append(enable, status);
 }
 
-function laterLink(section) {
-  const link = document.createElement("a");
-  // UAT U17: webhook setup lives in the Alerts tab, not Settings -- "#settings"
-  // was a dead end. main.js's applyHashRoute() switches to the Alerts tab and
-  // scrolls #fp-webhook-section into view for this hash.
-  link.href = "#alerts-webhook";
-  link.textContent = t("setup.notifications.configure_later");
-  section.append(link);
+/**
+ * UAT6-N33: a plain link here could leave the wizard mid-setup (see the file
+ * docstring). The button finishes setup first, THEN moves the hash -- so a
+ * click either fully commits (setup done, Alerts open) or, on a failure that
+ * ctx.completeSetup() rejects with, changes nothing yet: the wizard's own
+ * error region (wizard.js) reports it and the button re-enables to retry.
+ */
+function laterLink(section, ctx) {
+  const note = document.createElement("p");
+  note.textContent = t("setup.notifications.configure_later");
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "btn btn-secondary";
+  btn.textContent = t("setup.notifications.finish_and_open_alerts");
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    try {
+      await ctx.completeSetup();
+      // main.js's applyHashRoute() switches to the Alerts tab and scrolls
+      // #fp-webhook-section into view for this hash (UAT U17).
+      window.location.hash = "#alerts-webhook";
+    } catch (err) {
+      btn.disabled = false;
+      ctx.reportError(err.message);
+    }
+  });
+  section.append(note, btn);
 }
 
 export function renderChannelSection(key, value, noticeKeys, ctx) {
@@ -97,7 +124,7 @@ export function renderChannelSection(key, value, noticeKeys, ctx) {
   if (key === "native") nativeControls(section);
   else if (key === "telegram") telegramControls(section, value, ctx);
   else if (key === "whatsapp") whatsappControls(section, value, ctx);
-  else laterLink(section);
+  else laterLink(section, ctx);
   return section;
 }
 

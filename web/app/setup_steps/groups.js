@@ -13,11 +13,22 @@
  *              own member list draws with, instead of `.setting-row` (F1:
  *              that row is `justify-content: space-between` with nothing
  *              between a checkbox at the left edge and a name at the right).
+ *              UAT6-N18: the step opened with no lead sentence, the name
+ *              field had only a placeholder (gone the moment something is
+ *              typed), Add with an empty name did nothing anyone could see,
+ *              an account with no tracked device yet drew an empty bordered
+ *              strip, and the untracked AirTag from the Devices step was
+ *              still offered as a member. `labeled()` (groups_dialog_fields.js,
+ *              already used by the group dialog's own Name field) gives this
+ *              one a real `<label>` instead of forking a second copy of that
+ *              wrapper; the aria-label stays too so nothing already reading
+ *              it as "Group name" changes.
  */
 "use strict";
 
 import { t } from "../i18n.js";
 import { renderBadge } from "../components/badge.js";
+import { labeled } from "../groups_dialog_fields.js";
 import { createGroupPickers, DEFAULT_ICON } from "./_group_pickers.js";
 
 /** The live step's elements and picker handle, replaced on every render. */
@@ -67,7 +78,12 @@ function groupRow(group) {
 
 async function addGroup(ctx) {
   const name = els.name.value.trim();
-  if (!name) return;
+  // UAT6-N18: an empty name used to just return here, with nothing on screen
+  // to say Add had even been pressed.
+  if (!name) {
+    els.error.textContent = t("groups.error.name_required");
+    return;
+  }
   const memberIds = [...els.members.querySelectorAll("input:checked")].map(
     (box) => box.dataset.deviceId
   );
@@ -87,6 +103,44 @@ async function addGroup(ctx) {
   await refresh(ctx);
 }
 
+/** UAT6-N18: an untracked device (the Devices step's own AirTag example)
+ * cannot report a location for a group to use, so it is never a sensible
+ * member -- offering it invites a group that can never show more than
+ * "Unknown" for that slot. */
+function renderMembers(members, devices) {
+  members.textContent = "";
+  const tracked = devices.filter((d) => d.is_tracked);
+  members.classList.toggle("fp-setup-group-members-empty", tracked.length === 0);
+  if (!tracked.length) {
+    const empty = document.createElement("p");
+    empty.className = "fp-tab-hint";
+    empty.textContent = t("setup.groups.no_devices");
+    members.append(empty);
+    return;
+  }
+  tracked.forEach((device) => members.append(memberRow(device)));
+}
+
+/** The name input plus its visible label -- split out of render() to keep
+ * that function under the 50-line cap (PRI rule 7). Returns the bare input
+ * (for `els.name` and the icon preview's live read) and the labelled wrapper
+ * to mount instead of it. */
+function buildNameField() {
+  const name = document.createElement("input");
+  name.type = "text";
+  name.id = "fp-setup-group-name";
+  name.placeholder = t("setup.groups.name_placeholder");
+  // UAT4 N34: the placeholder was the field's only name, and a placeholder
+  // disappears once something is typed -- an aria-label keeps a screen
+  // reader's announcement even then (_notifications_telegram.js's own
+  // aria-label pattern, N26).
+  name.setAttribute("aria-label", t("setup.groups.name_placeholder"));
+  // UAT6-N18: aria-label alone reads fine to a screen reader but LOOKS like
+  // an unlabelled field to a sighted user -- the same `labeled()` wrapper
+  // the group dialog's own Name field uses.
+  return { name, nameField: labeled(t("groups.field.name"), name, name.id) };
+}
+
 async function refresh(ctx) {
   const groups = await ctx.api("/api/groups");
   els.list.textContent = "";
@@ -96,8 +150,7 @@ async function refresh(ctx) {
   // fetch the list rather than offering a member picker with nothing in it.
   let devices = ctx.state.devices || [];
   if (!devices.length) devices = (await ctx.api("/api/devices")).devices || [];
-  els.members.textContent = "";
-  devices.forEach((device) => els.members.append(memberRow(device)));
+  renderMembers(els.members, devices);
 }
 
 export default {
@@ -108,18 +161,16 @@ export default {
     const heading = document.createElement("h2");
     heading.textContent = t("setup.groups.title");
 
+    // UAT6-N18: the step opened straight into a bare list and a form with no
+    // word about what a group is for.
+    const lead = document.createElement("p");
+    lead.className = "fp-wizard-lead";
+    lead.textContent = t("setup.groups.lead");
+
     const list = document.createElement("div");
     list.id = "fp-setup-groups-list";
 
-    const name = document.createElement("input");
-    name.type = "text";
-    name.id = "fp-setup-group-name";
-    name.placeholder = t("setup.groups.name_placeholder");
-    // UAT4 N34: the placeholder was the field's only name, and a placeholder
-    // disappears once something is typed -- an aria-label keeps a screen
-    // reader's announcement even then (_notifications_telegram.js's own
-    // aria-label pattern, N26).
-    name.setAttribute("aria-label", t("setup.groups.name_placeholder"));
+    const { name, nameField } = buildNameField();
 
     // Built after `name` exists: the icon preview reads it live for the
     // bare-"letter" fallback initial.
@@ -142,8 +193,10 @@ export default {
     const error = groupErrorEl();
 
     els = { list, name, members, error };
+    // nameField already carries `name` (labeled() moved it into its own
+    // wrapper) -- appending `name` again here would rip it back out.
     container.append(
-      heading, list, name, pickers.iconWrap, pickers.colorWrap, members, error, add
+      heading, lead, list, nameField, pickers.iconWrap, pickers.colorWrap, members, error, add
     );
     container.addEventListener("click", (e) => pickers.closeIfOutside(e.target));
   },

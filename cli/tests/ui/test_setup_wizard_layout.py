@@ -205,3 +205,31 @@ async def test_no_serious_axe_violations_on_touched_wizard_steps(page, base_url,
     finally:
         await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
         await _set_last_step(page, base_url, None)
+
+
+async def _patch_theme(page, base_url, theme):
+    return await page.request.patch(
+        base_url + "/api/settings",
+        data=json.dumps({"theme": theme}),
+        headers={"Content-Type": "application/json"},
+    )
+
+
+async def test_wizard_applies_the_servers_theme_on_entry(page, base_url):
+    """UAT6-N20: the wizard only ever read localStorage's own theme, so a
+    light choice set from the CLI (or another browser) still opened the
+    wizard in dark. setup_route.js now applies GET /api/settings's theme
+    first, the same field settings.js itself reads (state.settings.theme)."""
+    # localStorage needs a same-origin document loaded first; about:blank
+    # (the page's state before any navigation) refuses to read it at all.
+    await page.goto(base_url)
+    await page.evaluate("() => localStorage.setItem('findplus.theme', 'dark')")
+    assert (await _patch_theme(page, base_url, "light")).ok
+    try:
+        await _open_step(page, base_url, "welcome")
+        theme = await page.evaluate("() => document.documentElement.dataset.theme")
+        assert theme == "light", theme
+    finally:
+        await _patch_theme(page, base_url, "dark")
+        await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
+        await _set_last_step(page, base_url, None)

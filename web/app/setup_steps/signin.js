@@ -14,6 +14,13 @@
  *              (PROMPT.md §2 invariant 4). Leaving the step stops both polls;
  *              a sign-in already running in Chrome still finishes server-side
  *              and shows up in Settings.
+ *              UAT6-N23: "Not signed in yet." here repeated every card's own
+ *              "Not signed in" line right below it (signin/cards.js) -- one
+ *              summary line above the grid, then the same fact restated on
+ *              every card, is not a summary. The line now only says anything
+ *              once there is something new to add ("Signed in as ..."); with
+ *              nobody signed in it stays blank and the cards speak for
+ *              themselves.
  */
 "use strict";
 
@@ -24,12 +31,13 @@ import { mountSignInPanel } from "../signin/panel.js";
 let panel = null;
 let summary = null;
 
-/** "Signed in as a@x, b@y." or "Not signed in yet." above the cards. */
+/** "Signed in as a@x, b@y." once at least one provider is; blank otherwise
+ * (UAT6-N23: each card already says "Not signed in" on its own). */
 function renderSummary(providers) {
   const signedIn = providers.filter((p) => p.signed_in);
   summary.textContent = signedIn.length
     ? t("setup.signin.signed_in_as", { accounts: signedIn.map((p) => p.account || p.id).join(", ") })
-    : t("setup.signin.not_signed_in");
+    : "";
 }
 
 export default {

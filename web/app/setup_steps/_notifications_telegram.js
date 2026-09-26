@@ -21,6 +21,15 @@
  *              mirror `findplus alerts telegram-setup`'s own instructions
  *              (cli/alerts.py): where the token comes from, and how Find+
  *              finds the chat id.
+ *              UAT6-N15: the targets field, Save and Find chat IDs were all
+ *              live before a bot was even connected, and a click just
+ *              answered "Telegram not configured" -- plain grey text
+ *              indistinguishable from an ordinary status line. Every targets
+ *              control now starts disabled until `value.configured`, enable()
+ *              flips them the moment Connect succeeds (no re-render needed),
+ *              and setNote() gives an actual error its own look (role="alert",
+ *              the same `.fp-dialog-error` class the rest of the wizard uses)
+ *              instead of the neutral `.modal-note` every message shared.
  */
 "use strict";
 
@@ -28,6 +37,16 @@ import { t } from "../i18n.js";
 
 /** Seconds the server holds the request open, matching alerts.js. */
 const WAIT_SECONDS = 120;
+
+/** UAT6-N15: one look for an info/success line, another for an error, on the
+ * same element -- role="alert" only when it actually is one, so a screen
+ * reader does not announce "Targets saved." as urgently as a failure. */
+function setNote(el, text, kind = "info") {
+  el.textContent = text || "";
+  el.className = kind === "error" ? "fp-dialog-error" : "modal-note";
+  if (kind === "error") el.setAttribute("role", "alert");
+  else el.removeAttribute("role");
+}
 
 function addTargetToField(field, chatId) {
   const existing = field.value
@@ -42,10 +61,10 @@ function renderChatsList(list, statusEl, targetsField, chats) {
   while (list.firstChild) list.removeChild(list.firstChild);
   if (!chats.length) {
     list.classList.add("hidden");
-    statusEl.textContent = t("alerts.noUpdatesYet");
+    setNote(statusEl, t("alerts.noUpdatesYet"));
     return;
   }
-  statusEl.textContent = "";
+  setNote(statusEl, "");
   for (const chat of chats) {
     const li = document.createElement("li");
     const label = document.createElement("span");
@@ -70,7 +89,7 @@ function buildSaveTargetsButton(targets, targetsStatus, ctx) {
   saveBtn.addEventListener("click", async () => {
     const raw = targets.value.trim();
     if (!raw) {
-      targetsStatus.textContent = t("alerts.enterTargets");
+      setNote(targetsStatus, t("alerts.enterTargets"), "error");
       return;
     }
     try {
@@ -79,9 +98,9 @@ function buildSaveTargetsButton(targets, targetsStatus, ctx) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ targets: raw }),
       });
-      targetsStatus.textContent = t("alerts.targetsSaved");
+      setNote(targetsStatus, t("alerts.targetsSaved"));
     } catch (err) {
-      targetsStatus.textContent = err.message;
+      setNote(targetsStatus, err.message, "error");
     }
   });
   return saveBtn;
@@ -94,12 +113,12 @@ function buildFindChatsButton(targets, targetsStatus, chatsList, ctx) {
   findBtn.className = "btn btn-secondary";
   findBtn.textContent = t("alerts.findChatIds");
   findBtn.addEventListener("click", async () => {
-    targetsStatus.textContent = t("alerts.findingChats");
+    setNote(targetsStatus, t("alerts.findingChats"));
     try {
       const body = await ctx.api("/api/alerts/channels/telegram/updates");
       renderChatsList(chatsList, targetsStatus, targets, body.chats || []);
     } catch (err) {
-      targetsStatus.textContent = err.message;
+      setNote(targetsStatus, err.message, "error");
     }
   });
   return findBtn;
@@ -108,19 +127,25 @@ function buildFindChatsButton(targets, targetsStatus, chatsList, ctx) {
 /** The manual targets field, Save/Find-chat-IDs buttons and the found-chats
  * list -- split out of telegramControls() to keep that function under the
  * 50-line cap (PRI rule 7); the two buttons' own wiring is split again into
- * buildSaveTargetsButton()/buildFindChatsButton() for the same reason. */
+ * buildSaveTargetsButton()/buildFindChatsButton() for the same reason.
+ * Returns `{ frag, enable() }`: UAT6-N15 needs to flip every control on the
+ * instant a bot connects, without re-rendering the section from scratch. */
 function targetsControls(value, ctx) {
+  const connected = Boolean(value && value.configured);
   const frag = document.createDocumentFragment();
   const targets = document.createElement("input");
   targets.type = "text";
   targets.id = "fp-setup-tg-targets";
   targets.placeholder = t("alerts.telegramTargetsPlaceholder");
   targets.setAttribute("aria-label", t("alerts.telegramTargets"));
-  if (value && value.configured) targets.value = value.targets || "";
+  targets.disabled = !connected;
+  if (connected) targets.value = value.targets || "";
 
   const help = document.createElement("p");
   help.className = "modal-note";
-  help.textContent = t("alerts.telegramTargetsHelp");
+  help.textContent = connected
+    ? t("alerts.telegramTargetsHelp")
+    : t("setup.notifications.telegram_connect_first");
 
   const targetsStatus = document.createElement("p");
   targetsStatus.id = "fp-setup-tg-targets-status";
@@ -130,14 +155,23 @@ function targetsControls(value, ctx) {
   chatsList.id = "fp-setup-tg-chats-list";
   chatsList.className = "hidden";
 
+  const saveBtn = buildSaveTargetsButton(targets, targetsStatus, ctx);
+  const findBtn = buildFindChatsButton(targets, targetsStatus, chatsList, ctx);
+  saveBtn.disabled = !connected;
+  findBtn.disabled = !connected;
+
   const actions = document.createElement("div");
   actions.className = "fp-alerts-actions";
-  actions.append(
-    buildSaveTargetsButton(targets, targetsStatus, ctx),
-    buildFindChatsButton(targets, targetsStatus, chatsList, ctx),
-  );
+  actions.append(saveBtn, findBtn);
   frag.append(targets, help, actions, targetsStatus, chatsList);
-  return frag;
+
+  function enable() {
+    targets.disabled = false;
+    saveBtn.disabled = false;
+    findBtn.disabled = false;
+    help.textContent = t("alerts.telegramTargetsHelp");
+  }
+  return { frag, enable };
 }
 
 /** Where the token comes from, and how Find+ finds the chat id — same content
@@ -154,9 +188,23 @@ function helpLines() {
   return frag;
 }
 
-export function telegramControls(section, value, ctx) {
-  section.append(helpLines());
+/** The actual long-poll POST, split out of the Connect handler below so that
+ * one reads as status/enable() bookkeeping, not the network call itself.
+ * Through ctx.api(), not a raw fetch: a lock that lands mid-poll answers 401,
+ * and only api() turns that into the lock screen rather than the words "401
+ * Unauthorized" in a status line (CR-C-E11 F5). */
+function connectRequest(ctx, token) {
+  return ctx.api(`/api/alerts/channels/telegram/setup?wait=${WAIT_SECONDS}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ bot_token: token.value.trim() }),
+    signal: AbortSignal.timeout((WAIT_SECONDS + 5) * 1000),
+  });
+}
 
+/** The token field, Connect button and its status line -- split out of
+ * telegramControls() to keep that function under the 50-line cap. */
+function buildConnectRow(section, value, ctx, targetsHandle) {
   const token = document.createElement("input");
   token.type = "password";
   token.id = "fp-setup-tg-token";
@@ -177,30 +225,30 @@ export function telegramControls(section, value, ctx) {
   connect.textContent = t("setup.notifications.connect");
   connect.addEventListener("click", async () => {
     if (!token.value.trim()) {
-      status.textContent = t("setup.notifications.enter_token");
+      setNote(status, t("setup.notifications.enter_token"), "error");
       return;
     }
-    status.textContent = t("setup.notifications.waiting");
+    setNote(status, t("setup.notifications.waiting"));
     try {
-      // Through api(), not a raw fetch: a lock that lands mid-poll answers 401,
-      // and only api() turns that into the lock screen rather than the words
-      // "401 Unauthorized" in a status line (CR-C-E11 F5).
-      const body = await ctx.api(`/api/alerts/channels/telegram/setup?wait=${WAIT_SECONDS}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bot_token: token.value.trim() }),
-        signal: AbortSignal.timeout((WAIT_SECONDS + 5) * 1000),
-      });
-      status.textContent = t("setup.notifications.connected", { chat: body.chat_title });
+      const result = await connectRequest(ctx, token);
+      setNote(status, t("setup.notifications.connected", { chat: result.chat_title }));
+      // UAT6-N15: a bot connected THIS session must free the targets
+      // controls immediately, not only after the next full render.
+      targetsHandle.enable();
     } catch (err) {
-      status.textContent = err.message;
+      setNote(status, err.message, "error");
     } finally {
       // In a finally: an abort or a rejected token must not leave the secret
       // sitting in the field for the rest of the session.
       token.value = "";
     }
   });
-
   section.append(token, connect, status);
-  section.append(targetsControls(value, ctx));
+}
+
+export function telegramControls(section, value, ctx) {
+  section.append(helpLines());
+  const targetsHandle = targetsControls(value, ctx);
+  buildConnectRow(section, value, ctx, targetsHandle);
+  section.append(targetsHandle.frag);
 }

@@ -10,10 +10,19 @@
  *              Nothing in this file stamps completed_at: entering and leaving
  *              the route must never look like finishing setup
  *              (specs/onboarding.md § 5).
+ *              UAT6 N20: entering the wizard only ever applied the
+ *              browser's own localStorage theme; a light choice set from the
+ *              CLI, or from a browser on another machine, still opened the
+ *              wizard in dark. The settings fetch this route already makes
+ *              is the same shape settings.js reads `theme` off of, so the
+ *              fix is one line here, applied before mountSetup() paints
+ *              anything. (state.js's own default when nothing is stored yet
+ *              is a separate fix, out of this file's package -- see
+ *              getStoredTheme() there.)
  */
 "use strict";
 
-import { $, state } from "./state.js";
+import { $, state, applyTheme } from "./state.js";
 import { api } from "./api.js";
 import { t } from "./i18n.js";
 
@@ -38,6 +47,7 @@ export async function openSetupRoute() {
   }
   const { mountSetup } = await import("./setup.js");
   const settings = await api("/api/settings");
+  if (settings.theme) applyTheme(settings.theme);
   await mountSetup(resumePoint(settings));
 }
 

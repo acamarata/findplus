@@ -10,6 +10,18 @@
  * Constraints: Skip is a true no-op. It must never POST an empty track list,
  *              which would silently untrack whatever a previous run set up —
  *              only onNext writes.
+ *              UAT6-N03 (BLOCKING, data loss): a failed `POST
+ *              /api/devices/refresh` used to throw before the `GET
+ *              /api/devices` that follows it ever ran, so a provider hiccup
+ *              (or "Run setup again" with nothing signed in) rendered an
+ *              empty list over real, already-tracked devices. Next then read
+ *              zero ticked boxes, asked "Track nothing?", and OK posted
+ *              `device_ids: []` -- untracking everything. refresh() now
+ *              always runs the GET regardless of whether the POST succeeded,
+ *              and onNext refuses to touch tracking at all when the list
+ *              itself never loaded (`listFailed`), rather than falling
+ *              through to the "nothing ticked" confirm meant for a user who
+ *              deliberately unticked every row of a list that DID load.
  */
 "use strict";
 
@@ -18,6 +30,9 @@ import { deviceRow } from "./_device_row.js";
 
 /** The live step's elements, replaced on every render. */
 let els = null;
+/** True when the last GET /api/devices itself failed: onNext must then be a
+ * true no-op, the same guarantee Skip already gives (UAT6-N03). */
+let listFailed = false;
 
 function renderRows(ctx, devices) {
   els.list.textContent = "";
@@ -39,12 +54,60 @@ function renderRows(ctx, devices) {
   );
 }
 
+/** UAT6-N07: the server's 409 for "no provider signed in" reads "Run
+ * `findplus auth` first" -- a terminal command as the primary instruction.
+ * Every other refresh failure (network blip, every provider unreachable) is
+ * already a plain sentence from routes_devices.py, safe to show as-is. */
+function refreshErrorText(err) {
+  return err.status === 409 ? t("setup.devices.refresh_no_provider") : err.message;
+}
+
+/**
+ * UAT6-N03: the Refresh button IS the visible "Retry" the finding asks for
+ * -- it runs the exact same refresh() a failure needs retried, so a second
+ * dedicated button beside the error line would just be a second way to do
+ * the same thing. Split out of render() to keep that function under the
+ * 50-line cap (PRI rule 7).
+ */
+function buildRefreshButton(ctx) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "btn btn-secondary";
+  btn.textContent = t("setup.devices.refresh");
+  btn.addEventListener("click", () => {
+    refresh(ctx).catch((err) => {
+      els.error.textContent = refreshErrorText(err);
+    });
+  });
+  return btn;
+}
+
+/**
+ * Refresh from providers, then always read the known device list back.
+ *
+ * The two requests are independent on purpose (UAT6-N03): a refresh failure
+ * must never hide devices Find+ already knows about, and a list-load failure
+ * must never be read as "nothing to track" by onNext.
+ */
 async function refresh(ctx) {
   els.error.textContent = "";
-  await ctx.postJson("/api/devices/refresh");
-  const body = await ctx.api("/api/devices");
-  ctx.state.devices = body.devices || [];
-  renderRows(ctx, ctx.state.devices);
+  let refreshError = null;
+  try {
+    await ctx.postJson("/api/devices/refresh");
+  } catch (err) {
+    refreshError = err;
+  }
+  try {
+    const body = await ctx.api("/api/devices");
+    ctx.state.devices = body.devices || [];
+    listFailed = false;
+    renderRows(ctx, ctx.state.devices);
+    if (refreshError) els.error.textContent = refreshErrorText(refreshError);
+  } catch (err) {
+    listFailed = true;
+    els.list.textContent = "";
+    els.error.textContent = t("setup.devices.load_failed");
+  }
 }
 
 export default {
@@ -52,6 +115,7 @@ export default {
   canSkip: true,
   render(container, ctx) {
     container.textContent = "";
+    listFailed = false;
     const heading = document.createElement("h2");
     heading.textContent = t("setup.devices.title");
 
@@ -66,16 +130,6 @@ export default {
     const list = document.createElement("div");
     list.id = "fp-setup-devices-list";
 
-    const refreshBtn = document.createElement("button");
-    refreshBtn.type = "button";
-    refreshBtn.className = "btn btn-secondary";
-    refreshBtn.textContent = t("setup.devices.refresh");
-    refreshBtn.addEventListener("click", () => {
-      refresh(ctx).catch((err) => {
-        els.error.textContent = err.message;
-      });
-    });
-
     const error = document.createElement("p");
     error.className = "fp-dialog-error";
     error.id = "fp-setup-devices-error";
@@ -84,6 +138,9 @@ export default {
     // same trap). role="alert" announces this line the way a screen reader
     // announces applock's own field error.
     error.setAttribute("role", "alert");
+    // Placed right after the error line (not before, as it used to sit) so a
+    // failure's retry sits next to the words explaining why one is needed.
+    const refreshBtn = buildRefreshButton(ctx);
 
     const note = document.createElement("p");
     note.className = "fp-wizard-footnote";
@@ -92,12 +149,15 @@ export default {
     note.textContent = (ctx.state.config && ctx.state.config.notices.presence_stale) || "";
 
     els = { list, error };
-    container.append(heading, listHeader, list, refreshBtn, error, note);
+    container.append(heading, listHeader, list, error, refreshBtn, note);
   },
   async onEnter(ctx) {
     await refresh(ctx);
   },
   async onNext(ctx) {
+    // UAT6-N03: the list never loaded -- there is nothing honest to post.
+    // Behave like Skip: leave whatever tracking already existed alone.
+    if (listFailed) return true;
     const ids = [...els.list.querySelectorAll("[data-track]")]
       .filter((el) => el.checked)
       .map((el) => el.dataset.deviceId);

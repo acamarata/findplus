@@ -34,6 +34,17 @@
 }
 #setup-view > * { grid-column: 1 / -1; min-width: 0; }
 #setup-view [hidden] { display: none !important; }
+/* UAT6 N01: #setup-view's own `display: grid` above is a plain id selector,
+   which beats the UA `[hidden] { display: none }` rule on source order alone
+   once specificity ties; `#setup-view [hidden]` (a space, descendant
+   combinator) only ever matched something INSIDE the card, never the card
+   itself. index.html renders `<main id="setup-view" hidden>` before the
+   wizard ever mounts, and setup.js's closeSetup() sets the same attribute
+   back on teardown -- both left a hollow 48px grid box sitting above the
+   topbar on every load of a finished install. The extra `[hidden]` on this
+   selector raises its own specificity past the bare id above, so this wins
+   regardless of source order. */
+#setup-view[hidden] { display: none; }
 
 /* Progress: "2 of 8" and one segment per step, filled up to the current one. */
 #setup-view > .fp-wizard-progress {
@@ -67,7 +78,11 @@
 }
 .fp-wizard-step > p { margin: 0 0 12px; max-width: 64ch; }
 .fp-wizard-lead { color: var(--muted); }
-.fp-wizard-summary { font-size: 13px; font-weight: 600; }
+/* UAT6-N23: signin.js leaves this blank once nobody is signed in (each card
+   already says "Not signed in" on its own) -- min-height keeps the line's
+   own box from collapsing to zero when it has no text, which several other
+   tests use as their "the sign-in step has rendered" readiness signal. */
+.fp-wizard-summary { font-size: 13px; font-weight: 600; min-height: 1.3em; }
 .fp-wizard-footnote { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 10px 0 14px; }
 .fp-wizard-step .fp-signin-card .fp-wizard-footnote {
   margin: auto 0 0; padding-top: 10px; border-top: 1px solid var(--line);
@@ -94,6 +109,11 @@
   max-height: 180px; overflow-y: auto; border: 1px solid var(--line);
   border-radius: 8px; padding: 6px 9px; margin: 8px 0;
 }
+/* UAT6 N18: with no tracked device to offer as a member yet, the box drew as
+   an empty bordered strip with nothing inside it -- groups.js toggles this
+   class on when it renders the "No tracked devices yet" hint instead of any
+   member rows. */
+#fp-setup-group-members.fp-setup-group-members-empty { border: none; padding: 0; }
 
 /* --- footer: Back on the left, Skip and Next on the right ---------------- */
 .fp-wizard-footer {
@@ -113,6 +133,11 @@
 .fp-signin-cards {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
   gap: 14px; margin: 14px 0 4px;
+  /* UAT6 N23: the default grid stretch matched every card in a row to the
+     tallest one, leaving ~200px of dead space in the shorter Google card
+     when Apple's card grew (verification code, accessory keys). Each card
+     now sizes to its own content. */
+  align-items: start;
 }
 #fp-auth-cards .fp-signin-cards { grid-template-columns: minmax(0, 1fr); margin-top: 8px; }
 .fp-signin-card {
@@ -205,4 +230,12 @@
      full second line, instead of each wrapping wherever it happens to fall. */
   #setup-view .fp-setup-device-row > span:nth-child(3) { flex: 1 1 auto; }
   #setup-view .fp-setup-device-row input[type="text"] { order: 5; flex: 1 1 100%; min-width: 0; }
+  /* UAT6 N34: the Notifications step's channel sections (Telegram, WhatsApp)
+     never set a width on their text/password inputs, so the browser's
+     intrinsic ~20-character box clipped placeholders like "Chat ID,
+     @username, or several separated by commas" down to "...or sever".
+     Scoped to `section` so it never touches the group-name field above or
+     the device rows' own rule just above this one. */
+  #setup-view section input[type="text"],
+  #setup-view section input[type="password"] { width: 100%; }
 }

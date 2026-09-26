@@ -1,10 +1,13 @@
-"""Browser tests for the wizard's Devices and Groups steps.
+"""Browser tests for the wizard's Devices step.
 
 Split out of test_setup_wizard.py (T1, 2026-09-22, PRI rule-7 size caps):
 that file stayed over both the 300-line file cap and the 50-line function
 cap once UAT U2/U15/U16 landed their own devices/groups-step coverage.
 Everything else (Welcome/Sign-in/App-lock/Done/reload/rerun/banner) stays
-in test_setup_wizard.py.
+in test_setup_wizard.py. The Groups step's own tests moved on to
+test_setup_wizard_groups.py (2026-09-26, same cap, once UAT6-N18 landed);
+a failed-refresh regression moved to test_setup_wizard_devices_refresh.py
+the same day.
 
 `live_server` is session-scoped and shared across this whole `ui/` tree
 (see test_setup_wizard.py's own docstring), so every test here uses the same
@@ -217,46 +220,3 @@ async def test_devices_step_label_input_is_not_squeezed_at_375(page, base_url) -
     finally:
         await page.set_viewport_size({"width": 1280, "height": 900})
         await _set_last_step(page, base_url, None)
-
-
-async def test_groups_step_add_with_no_members_blocks_save(page, base_url):
-    """UAT U16: the wizard's own Add (separate code path from the dashboard's
-    group dialog) used to create a zero-member group silently."""
-    calls: list[str] = []
-
-    async def handle_groups(route):
-        if route.request.method == "POST":
-            calls.append(route.request.url)
-            await route.fulfill(status=201, content_type="application/json", body="{}")
-        else:
-            await route.continue_()
-
-    await page.route("**/api/devices", _serve_devices([_device("TAG-1", "Keys", tracked=True)]))
-    await page.route("**/api/groups", handle_groups)
-
-    await _set_last_step(page, base_url, "groups")
-    await page.goto(base_url + "/#/setup")
-    await page.wait_for_selector("#fp-setup-group-name", timeout=15000)
-
-    await page.fill("#fp-setup-group-name", "No Members")
-    await page.click("#fp-setup-group-add")
-
-    await page.wait_for_function(
-        "() => document.getElementById('fp-setup-group-error')?.textContent.length > 0",
-        timeout=15000,
-    )
-    assert "Select at least one member." in await page.locator("#fp-setup-group-error").inner_text()
-    assert calls == []
-
-
-async def test_groups_step_name_field_has_an_accessible_name(page, base_url):
-    """UAT4 N34: the group name field had only a placeholder, which a screen
-    reader stops announcing once something is typed into it."""
-    await page.route("**/api/devices", _serve_devices([_device("TAG-1", "Keys", tracked=True)]))
-
-    await _set_last_step(page, base_url, "groups")
-    await page.goto(base_url + "/#/setup")
-    await page.wait_for_selector("#fp-setup-group-name", timeout=15000)
-
-    label = await page.get_attribute("#fp-setup-group-name", "aria-label")
-    assert label == "Group name"

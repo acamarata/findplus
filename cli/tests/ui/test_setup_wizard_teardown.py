@@ -46,6 +46,23 @@ async def _open_wizard_at(page, base_url, step):
     await page.wait_for_selector("#setup-view .fp-wizard-step", timeout=15000)
 
 
+async def test_setup_view_collapses_to_zero_height_when_hidden(page, base_url):
+    """UAT6 N01: `#setup-view { display: grid }` is a plain id selector, which
+    beat the UA `[hidden] { display: none }` rule on specificity alone;
+    `#setup-view [hidden]` (a descendant combinator) only ever matched
+    something INSIDE the card, never the hidden attribute on the card itself.
+    A finished install showed an empty ~48px card above the topbar on every
+    load. This walks a normal boot (the seeded install has already completed
+    setup) and asserts the card takes up no space at all.
+    """
+    await page.goto(base_url + "/")
+    await page.wait_for_selector("#app-shell:not(.hidden)", timeout=15000)
+    display = await page.locator("#setup-view").evaluate("(el) => getComputedStyle(el).display")
+    assert display == "none", display
+    box = await page.locator("#setup-view").bounding_box()
+    assert box is None, box
+
+
 async def test_the_lock_purge_destroys_the_wizard(page, base_url):
     """#setup-view is a SIBLING of #app-shell, so hiding the shell never hid it.
 

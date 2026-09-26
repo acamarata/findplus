@@ -1,6 +1,7 @@
-"""Browser tests for the wizard's Notifications, Places and Sign-in steps
-(R-P2-28 points 3 and 5, plus the T0 sign-in addenda). Split from
-test_setup_wizard_layout.py (E13 stage 2, size cap).
+"""Browser tests for the wizard's Notifications and Places steps
+(R-P2-28 points 3 and 5). Split from test_setup_wizard_layout.py (E13 stage 2,
+size cap). The sign-in step's Chrome-missing notice tests moved on to
+test_setup_wizard_signin_chrome.py (2026-09-26, same cap).
 """
 
 from __future__ import annotations
@@ -9,7 +10,7 @@ import json
 
 import pytest
 
-from findplus.honesty import ALERTS_LATENCY, CHROME_REQUIRED, WHATSAPP_RELAY, WHATSAPP_SETUP
+from findplus.honesty import ALERTS_LATENCY, WHATSAPP_RELAY, WHATSAPP_SETUP
 
 from .conftest import SEEDED_COMPLETED_AT
 
@@ -99,24 +100,24 @@ async def test_notifications_step_whatsapp_save_and_test(page, base_url):
         await page.wait_for_timeout(200)
         assert tested["body"] == {"channel": "whatsapp"}
 
-        # Webhook still only offers the "configure later" link, styled with
-        # the app's link token rather than the browser default blue (F5).
-        link = page.locator("[data-channel='webhook'] a")
-        color = await link.evaluate("(el) => getComputedStyle(el).color")
-        assert color not in ("rgb(0, 0, 238)", ""), color
+        # UAT6-N33: Webhook now offers a button, not a link (a plain sentence
+        # explains why: following the old link left the wizard unfinished).
+        assert await page.locator("[data-channel='webhook'] a").count() == 0
+        button = page.get_by_role("button", name="Finish setup and open Alerts")
+        assert await button.count() == 1
     finally:
         await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
         await _set_last_step(page, base_url, None)
 
 
-async def test_webhook_configure_later_opens_alerts_tab_webhook_section(page, base_url):
-    """UAT U17: the link used to point at "#settings", a dead end -- webhook
-    setup lives in the Alerts tab, not Settings."""
+async def test_webhook_configure_later_finishes_setup_and_opens_alerts_tab(page, base_url):
+    """UAT6-N33: the old link left the wizard "unfinished" (no completed_at
+    stamp), so the next load showed the resume banner over a webhook the user
+    had just gone to set up. The button finishes setup, then opens Alerts."""
     try:
         await _open_step(page, base_url, "notifications")
-        link = page.locator("[data-channel='webhook'] a")
-        assert await link.get_attribute("href") == "#alerts-webhook"
-        await link.click()
+        button = page.get_by_role("button", name="Finish setup and open Alerts")
+        await button.click()
 
         await page.wait_for_function(
             "() => document.getElementById('setup-view').hidden === true", timeout=15000
@@ -131,6 +132,9 @@ async def test_webhook_configure_later_opens_alerts_tab_webhook_section(page, ba
             "(el) => el.getBoundingClientRect().top"
         )
         assert -1 <= top <= 50, top
+
+        settings = await (await page.request.get(base_url + "/api/settings")).json()
+        assert settings["onboarding.completed_at"] is not None
     finally:
         await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
         await _set_last_step(page, base_url, None)
@@ -157,91 +161,6 @@ async def test_places_step_restores_the_disclaimer_on_leaving(page, base_url):
             "() => document.getElementById('setup-view').hidden === true", timeout=15000
         )
         assert await page.locator("#path-disclaimer").is_visible()
-    finally:
-        await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
-        await _set_last_step(page, base_url, None)
-
-
-async def test_signin_step_shows_chrome_notice_before_any_click(page, base_url):
-    """T0 addendum B5: GET /api/auth/status's `needs: ["chrome"]` (already
-    computed by providers/auth_status.py) is read on entry, not only after a
-    failed click, and the Google button is disabled while it applies."""
-
-    async def status_route(route):
-        await route.fulfill(
-            status=200,
-            content_type="application/json",
-            body=json.dumps(
-                {
-                    "providers": [
-                        {
-                            "id": "google-find-hub",
-                            "signed_in": False,
-                            "account": None,
-                            "needs": ["chrome"],
-                        }
-                    ]
-                }
-            ),
-        )
-
-    try:
-        await page.route("**/api/auth/status", status_route)
-        await _open_step(page, base_url, "signin")
-        await page.wait_for_selector("#fp-setup-chrome-notice:not([hidden])", timeout=15000)
-        assert await page.locator("#fp-setup-chrome-notice").inner_text() == CHROME_REQUIRED
-        assert await page.get_by_role("button", name="Connect Google Find Hub").is_disabled()
-    finally:
-        await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
-        await _set_last_step(page, base_url, None)
-
-
-async def test_signin_step_maps_a_400_to_the_honesty_sentence_not_raw_text(page, base_url):
-    """T0 addendum B5: the route's only 400 is ChromeNotFoundError, but this
-    never trusts the thrown message's text — it renders the live notice."""
-
-    async def start_route(route):
-        # Deliberately NOT honesty.CHROME_REQUIRED's text, to prove the UI
-        # does not just echo whatever the 400 body happens to say.
-        await route.fulfill(
-            status=400,
-            content_type="application/json",
-            body=json.dumps({"detail": "ChromeNotFoundError: no chrome binary on PATH"}),
-        )
-
-    try:
-        await _open_step(page, base_url, "signin")
-        await page.route("**/api/auth/google/start", start_route)
-        await page.get_by_role("button", name="Connect Google Find Hub").click()
-        await page.wait_for_selector("#fp-setup-chrome-notice:not([hidden])", timeout=15000)
-        notice = await page.locator("#fp-setup-chrome-notice").inner_text()
-        assert notice == CHROME_REQUIRED
-        assert "ChromeNotFoundError" not in notice
-    finally:
-        await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
-        await _set_last_step(page, base_url, None)
-
-
-async def test_signin_step_clears_status_line_on_chrome_missing_400(page, base_url):
-    """loop2 B1: the status line must not keep reading "Starting Chrome..."
-    once the Chrome-missing notice is showing -- that pairs a "please wait"
-    message with a "this cannot proceed" one, a contradictory UI state."""
-
-    async def start_route(route):
-        await route.fulfill(
-            status=400,
-            content_type="application/json",
-            body=json.dumps({"detail": "ChromeNotFoundError: no chrome binary on PATH"}),
-        )
-
-    try:
-        await _open_step(page, base_url, "signin")
-        await page.route("**/api/auth/google/start", start_route)
-        await page.get_by_role("button", name="Connect Google Find Hub").click()
-        await page.wait_for_selector("#fp-setup-chrome-notice:not([hidden])", timeout=15000)
-        # The in-progress line (E14: one per card) is gone, not left reading
-        # "Opening Chrome..." beside a notice that says Chrome is missing.
-        assert await page.locator("#fp-setup-google-progress").is_hidden()
     finally:
         await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
         await _set_last_step(page, base_url, None)

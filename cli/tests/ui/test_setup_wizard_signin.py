@@ -132,7 +132,19 @@ async def test_a_409_rejoins_the_running_sign_in(page, base_url):
         await _set_last_step(page, base_url, None)
 
 
-def _status_body(*, signed_in: bool, needs: list[str]) -> dict:
+def _status_body(
+    *, signed_in: bool, needs: list[str], apple_needs: list[str] | None = None
+) -> dict:
+    """The Google row plus a normal, available Apple row.
+
+    Every existing caller only asserts on Google's own card, but omitting
+    Apple entirely made apple_flow.js read it as `provider === undefined` ->
+    unavailable (apple_flow.js: `!provider || needs.includes("apple_extra")`),
+    which hid its form. That collapsed the Apple card to a short "not
+    installed" notice instead of its real Apple ID/password fields --
+    invisible to those callers, but it silently broke the one test below that
+    actually measures the Apple card's height.
+    """
     return {
         "providers": [
             {
@@ -140,7 +152,13 @@ def _status_body(*, signed_in: bool, needs: list[str]) -> dict:
                 "signed_in": signed_in,
                 "account": "someone@example.com" if signed_in else None,
                 "needs": needs,
-            }
+            },
+            {
+                "id": "apple-find-my",
+                "signed_in": False,
+                "account": None,
+                "needs": apple_needs or [],
+            },
         ]
     }
 
@@ -185,7 +203,12 @@ async def test_signed_in_hides_the_chrome_notice_even_with_a_stale_needs_chrome(
 
 async def test_signed_out_and_chrome_missing_shows_the_notice(page, base_url) -> None:
     """The one state where the notice must actually appear, same gate as
-    Settings' own chrome-missing case (test_auth_chrome_notice.py)."""
+    Settings' own chrome-missing case (test_auth_chrome_notice.py).
+
+    UAT6-N23: the summary line above the cards used to also read "Not signed
+    in yet." here -- a second copy of what the Google card itself already
+    says right below it. It now stays blank in this state.
+    """
 
     async def status(route):
         await route.fulfill(json=_status_body(signed_in=False, needs=["chrome"]))
@@ -196,15 +219,47 @@ async def test_signed_out_and_chrome_missing_shows_the_notice(page, base_url) ->
         await page.route("**/api/auth/status", status)
         await page.goto(base_url + "/#/setup")
         await page.wait_for_selector("#fp-setup-signin-status", timeout=15000)
-        await page.wait_for_function(
-            "() => document.getElementById('fp-setup-signin-status')"
-            ".textContent.includes('Not signed in')",
-            timeout=15000,
-        )
+        await page.wait_for_selector("#fp-setup-chrome-notice:not([hidden])", timeout=15000)
 
+        assert (await page.locator("#fp-setup-signin-status").inner_text()).strip() == ""
         assert await page.locator("#fp-setup-chrome-notice").is_visible()
         button = page.get_by_role("button", name="Connect Google Find Hub")
         assert not await button.is_enabled()
     finally:
+        await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
+        await _set_last_step(page, base_url, None)
+
+
+async def test_signin_step_cards_are_not_stretched_to_equal_height(page, base_url) -> None:
+    """UAT6-N23: the default grid stretch matched the shorter Google card to
+    whatever height the Apple card grew to (verification code, accessory
+    keys), leaving a bare gap under the Google card's own content.
+    `align-items: start` (setup.css) lets each card keep its own height."""
+
+    async def status(route):
+        await route.fulfill(json=_status_body(signed_in=False, needs=[]))
+
+    await _set_completed_at(page, base_url, None)
+    try:
+        await _set_last_step(page, base_url, "signin")
+        await page.set_viewport_size({"width": 1280, "height": 900})
+        await page.route("**/api/auth/status", status)
+        await page.goto(base_url + "/#/setup")
+        await page.wait_for_selector("#setup-view .fp-signin-card", timeout=15000)
+
+        # Scoped to the wizard: Settings > Sign-in mounts its own two cards
+        # into the (hidden) settings modal at boot too (auth.js's module-load
+        # init()), and both share the `.fp-signin-card` class.
+        cards = page.locator("#setup-view .fp-signin-card")
+        assert await cards.count() == 2
+        google_box = await cards.nth(0).bounding_box()
+        apple_box = await cards.nth(1).bounding_box()
+        # The two cards' own content naturally differs in height (Apple's
+        # form fields vs Google's single button); which one ends up taller
+        # is not the point here -- forcing them to the SAME height (the old
+        # grid stretch) is the regression this pins.
+        assert abs(google_box["height"] - apple_box["height"]) > 20, (google_box, apple_box)
+    finally:
+        await page.set_viewport_size({"width": 1280, "height": 900})
         await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
         await _set_last_step(page, base_url, None)

@@ -3,9 +3,10 @@
 Purpose    : HTTP over the job runners in providers/google_findhub/browser.py
              (and, from P2-E6-W3-S1-T3, providers/apple_findmy/web_auth.py)
              plus the provider-status aggregate, so signing in never needs a
-             terminal (specs/auth-ui.md §3, D-P2-6).
-Inputs     : JSON request bodies; a `job_id` query parameter.
-Outputs    : 200/202 on success; 400/403/404/409/422 typed errors.
+             terminal (specs/auth-ui.md §3, D-P2-6). Also DELETE
+             /auth/{provider} (S11/WP8): sign out via providers/signout.py.
+Inputs     : JSON request bodies; a `job_id` query parameter; `provider`.
+Outputs    : 200/202/204 on success; 400/403/404/409/422 typed errors.
 Constraints: Only HTTP mapping lives here — no Chrome, no findmy, no state.
              None of these paths join `_PUBLIC`, so the app lock gates them all
              (401 while locked, decided before any handler body runs). The
@@ -19,19 +20,13 @@ Constraints: Only HTTP mapping lives here — no Chrome, no findmy, no state.
 
 from __future__ import annotations
 
-import uuid
-from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from findplus.api._bounded_upload import (
-    read_bounded_form,
-    read_bounded_json,
-    reject_oversized_content_length,
-)
+from findplus.api._routes_auth_accessories import read_accessory_body
 from findplus.config import get_settings
 from findplus.providers.apple_findmy.accessories import add_accessory
 from findplus.providers.apple_findmy.web_auth import (
@@ -44,11 +39,14 @@ from findplus.providers.apple_findmy.web_auth import (
 )
 from findplus.providers.auth_status import build_auth_status
 from findplus.providers.google_findhub.browser import (
+    MSG_CANCELLED,
     ChromeNotFoundError,
     GoogleAuthAlreadyRunningError,
+    cancel_google_auth,
     get_google_auth_progress,
     start_google_auth,
 )
+from findplus.providers.signout import UnknownProviderError, sign_out
 
 
 class AppleStartBody(BaseModel):
@@ -59,6 +57,10 @@ class AppleStartBody(BaseModel):
 class AppleCodeBody(BaseModel):
     job_id: str
     code: str
+
+
+class GoogleCancelBody(BaseModel):
+    job_id: str
 
 
 def _require_origin_signal(request: Request) -> None:
@@ -78,87 +80,6 @@ def _require_job_id(job_id: str | None) -> str:
     if job_id is None:
         raise HTTPException(status_code=422, detail="job_id is required")
     return job_id
-
-
-#: A plist export of a tag's key is a few hundred bytes. 64 KiB is generous and
-#: still bounds what an oversized body can cost before anything is parsed.
-_MAX_PLIST_BYTES = 64 * 1024
-
-#: Multipart framing (boundary markers, the two part headers, the 'name'
-#: field) adds a small, bounded amount on top of the plist bytes themselves.
-_MULTIPART_OVERHEAD_BYTES = 4 * 1024
-
-
-def _parse_allow_overwrite(raw: object) -> bool:
-    """The JSON bool, or the multipart form's string ("true"/"false").
-
-    Anything else (missing, "false", a stray non-bool) keeps the strict
-    web default: no overwrite unless the caller says so (CF-P2-19).
-    """
-    if isinstance(raw, bool):
-        return raw
-    return isinstance(raw, str) and raw.strip().lower() == "true"
-
-
-async def _read_multipart_accessory_body(
-    request: Request, settings
-) -> tuple[str, Path | None, str | None, bool]:
-    """The multipart/form-data half of _read_accessory_body, split out to
-    keep both branches under the per-function line cap."""
-    form = await read_bounded_form(request, _MAX_PLIST_BYTES + _MULTIPART_OVERHEAD_BYTES)
-    raw_name = form.get("name")
-    upload = form.get("plist")
-    if not isinstance(raw_name, str) or upload is None or isinstance(upload, str):
-        raise HTTPException(
-            status_code=422, detail="multipart body requires 'name' and a 'plist' file"
-        )
-    if upload.size is not None and upload.size > _MAX_PLIST_BYTES:
-        raise HTTPException(status_code=413, detail="plist too large")
-
-    plist_bytes = await upload.read(_MAX_PLIST_BYTES + 1)
-    # Checked on the bytes already read, before any write.
-    if len(plist_bytes) > _MAX_PLIST_BYTES:
-        raise HTTPException(status_code=413, detail="plist too large")
-    plist_path = settings.state_dir / f".accessory-upload-{uuid.uuid4().hex}.plist"
-    # 0600 BEFORE the key material is written, the same order save_account()
-    # and add_accessory() use. state_dir is 0700, but a private key must not
-    # rest in a default-mode file even for the length of one request.
-    plist_path.touch(mode=0o600, exist_ok=False)
-    plist_path.chmod(0o600)
-    plist_path.write_bytes(plist_bytes)
-    return raw_name, plist_path, None, _parse_allow_overwrite(form.get("allow_overwrite"))
-
-
-async def _read_accessory_body(
-    request: Request, settings
-) -> tuple[str, Path | None, str | None, bool]:
-    """(name, plist_path, private_key_b64, allow_overwrite) from whichever body shape arrived.
-
-    FastAPI parses one body as form data or JSON, so Content-Type picks the
-    branch. `allow_overwrite` defaults to False in both; the dashboard's
-    "Replace existing" confirm is the only caller sending true (CF-P2-19).
-    Both share the same size cap (CR-C-m4): the JSON branch used to buffer
-    an unbounded body before its 422.
-    """
-    reject_oversized_content_length(request, _MAX_PLIST_BYTES + _MULTIPART_OVERHEAD_BYTES)
-    if request.headers.get("content-type", "").startswith("multipart/form-data"):
-        return await _read_multipart_accessory_body(request, settings)
-
-    try:
-        payload = await read_bounded_json(request, _MAX_PLIST_BYTES + _MULTIPART_OVERHEAD_BYTES)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        # An unparseable body is a client error, not a 500. Starlette raises
-        # json.JSONDecodeError here, which no handler above would have caught.
-        raise HTTPException(status_code=422, detail="body must be JSON or multipart") from exc
-    if not isinstance(payload, dict):
-        raise HTTPException(status_code=422, detail="JSON body must be an object")
-    name = payload.get("name")
-    if not isinstance(name, str):
-        raise HTTPException(status_code=422, detail="'name' is required")
-    overwrite = _parse_allow_overwrite(payload.get("allow_overwrite"))
-    return name, None, payload.get("private_key_b64"), overwrite
 
 
 def _require_apple_provider() -> None:
@@ -202,6 +123,26 @@ def google_progress(job_id: str | None = Query(default=None)) -> dict[str, Any]:
     # Recomputed every call, never cached, so a "Chrome required" banner in
     # the dashboard clears itself the moment the user installs Chrome.
     return {**progress, "chrome_found": check_chrome().passed}
+
+
+def google_cancel(body: GoogleCancelBody, request: Request) -> dict[str, Any]:
+    """UAT6 N23: Cancel while waiting on Chrome. Same Origin guard as start."""
+    _require_origin_signal(request)
+    if not cancel_google_auth(body.job_id):
+        raise HTTPException(status_code=404, detail="unknown or already-finished job_id")
+    return {"state": "failed", "message": MSG_CANCELLED}
+
+
+def auth_sign_out(provider: str, request: Request) -> Response:
+    """S11/WP8: disconnect a provider. Same Origin guard as the sign-in
+    starts. 204 whether or not a credential existed (a "Disconnect" firing
+    twice is not an error); an unknown provider id is: 404."""
+    _require_origin_signal(request)
+    try:
+        sign_out(provider, get_settings())
+    except UnknownProviderError as exc:
+        raise HTTPException(status_code=404, detail=f"unknown provider: {provider}") from exc
+    return Response(status_code=204)
 
 
 def apple_start(body: AppleStartBody, request: Request) -> dict[str, Any]:
@@ -256,7 +197,7 @@ async def apple_accessories(request: Request) -> dict[str, Any]:
     # state dir; an HTTP request has not, and _accessories_dir() does not
     # create parents. 0700 for the same reason ensure_dirs() does it.
     settings.ensure_dirs()
-    name, plist_path, private_key_b64, allow_overwrite = await _read_accessory_body(
+    name, plist_path, private_key_b64, allow_overwrite = await read_accessory_body(
         request, settings
     )
     try:
@@ -289,8 +230,12 @@ def build_router() -> APIRouter:
     router.add_api_route("/auth/status", auth_status, methods=["GET"])
     router.add_api_route("/auth/google/start", google_start, methods=["POST"], status_code=202)
     router.add_api_route("/auth/google/progress", google_progress, methods=["GET"])
+    router.add_api_route("/auth/google/cancel", google_cancel, methods=["POST"])
     router.add_api_route("/auth/apple/start", apple_start, methods=["POST"], status_code=202)
     router.add_api_route("/auth/apple/code", apple_code, methods=["POST"])
     router.add_api_route("/auth/apple/progress", apple_progress, methods=["GET"])
     router.add_api_route("/apple/accessories", apple_accessories, methods=["POST"], status_code=201)
+    # Last: a one-segment catch-all, so every literal /auth/... route above
+    # is checked first (Starlette matches in registration order).
+    router.add_api_route("/auth/{provider}", auth_sign_out, methods=["DELETE"], status_code=204)
     return router

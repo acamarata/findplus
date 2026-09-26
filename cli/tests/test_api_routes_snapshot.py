@@ -77,7 +77,8 @@ def test_route_count():
     routes = _app_routes(app)
     # +2 for /channels/telegram/targets (PUT) and /channels/telegram/updates
     # (GET, the "Find chat IDs" helper) -- multi-target Telegram support.
-    assert len(routes) == 80
+    # +2 for S11/WP8: POST /auth/google/cancel and DELETE /auth/{provider}.
+    assert len(routes) == 82
 
 
 #: T1 (2026-09-22, PRI rule-7 50-line function cap): pulled out of

@@ -98,6 +98,28 @@ def test_google_progress_known_job_id_returns_chrome_found_key(
     assert isinstance(body["chrome_found"], bool)
 
 
+# --------------------------------------------------------- google/cancel (N23)
+def test_google_cancel_returns_the_cancelled_state(auth_client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(routes_auth, "cancel_google_auth", lambda job_id: job_id == GOOGLE_JOB)
+
+    res = auth_client.post(
+        "/api/auth/google/cancel", json={"job_id": GOOGLE_JOB}, headers=SAME_ORIGIN_HEADERS
+    )
+
+    assert res.status_code == 200
+    assert res.json() == {"state": "failed", "message": routes_auth.MSG_CANCELLED}
+
+
+def test_google_cancel_unknown_job_is_404(auth_client: TestClient, monkeypatch) -> None:
+    monkeypatch.setattr(routes_auth, "cancel_google_auth", lambda job_id: False)
+
+    res = auth_client.post(
+        "/api/auth/google/cancel", json={"job_id": "nope"}, headers=SAME_ORIGIN_HEADERS
+    )
+
+    assert res.status_code == 404
+
+
 # -------------------------------------------------------------------- apple
 def test_apple_start_needs_2fa_then_code_reaches_done(
     auth_client: TestClient,

@@ -5,7 +5,9 @@ Purpose    : Run the vendored GoogleFindMyTools Chrome sign-in from a background
              (api/routes_auth.py) polls, so the browser flow needs no terminal.
 Inputs     : a `Settings` (for `chrome_profile_dir`), and a job id minted here.
 Outputs    : `start_google_auth()` -> job id; `get_google_auth_progress()` ->
-             `{"state", "message"}` or None for an unknown/expired job.
+             `{"state", "message"}` or None for an unknown/expired job;
+             `cancel_google_auth()` -> bool, True when a live job was stopped
+             (UAT6 N23: Cancel while waiting on Chrome).
 Constraints: `cli/vendor/GoogleFindMyTools/` is never edited (PRI hard rule 8).
              Two vendor attributes are rebound at runtime instead, the same
              surgical pattern `google_findhub/bootstrap.py` uses on
@@ -30,6 +32,7 @@ Constraints: `cli/vendor/GoogleFindMyTools/` is never edited (PRI hard rule 8).
 
 from __future__ import annotations
 
+import contextlib
 import os
 import threading
 import time
@@ -41,9 +44,11 @@ from findplus.honesty import CHROME_REQUIRED as MSG_CHROME_MISSING
 from .bootstrap import ensure_gfmt_importable
 
 __all__ = [
+    "MSG_CANCELLED",
     "MSG_CHROME_MISSING",
     "ChromeNotFoundError",
     "GoogleAuthAlreadyRunningError",
+    "cancel_google_auth",
     "get_google_auth_progress",
     "start_google_auth",
 ]
@@ -54,6 +59,9 @@ MSG_CAPTURING = "Finishing up..."
 #: `Auth/auth_flow.py:30` caps the cookie wait at 300 s. Say what that means in
 #: minutes rather than surfacing a selenium traceback.
 MSG_TIMEOUT = "No sign-in was completed within 5 minutes. Try again."
+#: UAT6 N23: there was no way to back out of "waiting on Chrome" short of
+#: closing the window and leaving the job to time out 5 minutes later.
+MSG_CANCELLED = "Sign-in cancelled."
 
 #: How long a finished job stays readable before a lazy sweep drops it. A
 #: background timer would be a second thread to own for no gain.
@@ -135,10 +143,13 @@ def _sweep_expired_jobs() -> None:
 
 
 def _set_progress(job_id: str, state: str, message: str) -> None:
-    """Record a state transition. Silently ignores an already-swept job."""
+    """Record a state transition. Ignores an already-swept or cancelled job:
+    `cancel_google_auth()` sets its own terminal state under the same lock,
+    and the background thread's own outcome (racing `driver.quit()`) must
+    never overwrite it."""
     with _lock:
         job = _jobs.get(job_id)
-        if job is None:
+        if job is None or job.get("cancelled"):
             return
         job["state"] = state
         job["message"] = message
@@ -170,6 +181,13 @@ def _patch_vendor_chrome(settings: Any, job_id: str) -> None:
             version_main=None,
             user_data_dir=str(profile),
         )
+        # Recorded so cancel_google_auth() can quit() it from another thread
+        # -- the vendor's cookie wait otherwise blocks until the user
+        # finishes or the 300 s cap fires. A job already swept is skipped.
+        with _lock:
+            job = _jobs.get(job_id)
+            if job is not None:
+                job["driver"] = driver
         _set_progress(job_id, "waiting_for_user", MSG_WAITING)
         return _CookieWatchProxy(driver, job_id)
 
@@ -228,6 +246,8 @@ def start_google_auth(settings: Any) -> str:
             "message": MSG_LAUNCHING,
             "finished_monotonic": None,
             "last_progress_monotonic": time.monotonic(),
+            "cancelled": False,
+            "driver": None,
         }
         _active_job_id = job_id
 
@@ -243,3 +263,36 @@ def get_google_auth_progress(job_id: str) -> dict[str, Any] | None:
         if job is None:
             return None
         return {"state": job["state"], "message": job["message"]}
+
+
+def cancel_google_auth(job_id: str) -> bool:
+    """Best-effort cancel of a running job (UAT6 N23: Cancel while waiting on
+    Chrome). Quits the Chrome driver when one is open, unblocking the
+    vendor's 300 s cookie wait immediately. Marks the job cancelled BEFORE
+    quitting, so whatever that provokes in `_run_google_auth` is discarded by
+    `_set_progress`'s guard rather than overwriting "Sign-in cancelled."
+    Returns False for a job that never existed or already ended -- nothing to
+    cancel, not an error (Cancel then Retry in quick succession is fine)."""
+    global _active_job_id
+    with _lock:
+        _sweep_expired_jobs()
+        job = _jobs.get(job_id)
+        if job is None or job["state"] in _TERMINAL:
+            return False
+        job["cancelled"] = True
+        driver = job.get("driver")
+
+    if driver is not None:
+        with contextlib.suppress(Exception):  # best-effort: the window may already be gone
+            driver.quit()
+
+    with _lock:
+        job = _jobs.get(job_id)
+        if job is not None:
+            job["state"] = "failed"
+            job["message"] = MSG_CANCELLED
+            job["finished_monotonic"] = time.monotonic()
+            job["last_progress_monotonic"] = time.monotonic()
+        if _active_job_id == job_id:
+            _active_job_id = None
+    return True

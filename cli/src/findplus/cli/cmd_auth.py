@@ -1,16 +1,22 @@
 """`findplus auth`: provider sign-in (Google via Chrome, Apple interactively).
 
-Purpose    : The sign-in command and its two provider branches.
-Inputs     : `--provider google-find-hub|apple-find-my`, plus `--status` and
-             `--json` for a read-only report (specs/cli-reference.md § auth).
+Purpose    : The sign-in command and its two provider branches, plus
+             `--sign-out` (S11/WP8, gap-audit-2026-09-26): removing a stored
+             credential without a terminal round trip through the file
+             system directly.
+Inputs     : `--provider google-find-hub|apple-find-my`, plus `--status`,
+             `--json` and `--sign-out` (specs/cli-reference.md § auth).
 Outputs    : Credentials written by the provider itself (secrets.json /
              apple-account.json, both 0600); console guidance only here.
+             `--sign-out` removes that same file via providers/signout.py,
+             the module `DELETE /api/auth/{provider}` also calls.
 Constraints: Split out of cmd_service.py, which was over the 300-line/file hard
              rule once the Apple branch landed. `cmd_service.auth` re-exports
              this command, so main.py and every existing patch target are
              unchanged. Honesty rule (PRI hard rule 4): the Google preamble is
              shown only for the Google provider, and neither branch overstates
-             what is stored.
+             what is stored. `--sign-out` never touches tracked devices,
+             history, places, groups or alert rules -- only the credential.
 """
 
 from __future__ import annotations
@@ -72,10 +78,32 @@ def _google_preamble(settings) -> None:
     click.echo("  Your Google PASSWORD is never seen, stored, or transmitted by this app.\n")
 
 
+def _sign_out(provider: str, settings) -> None:
+    """`--sign-out`: remove one provider's saved credential and say so.
+
+    Never touches tracked devices or history (PRI hard rule, PROMPT.md
+    invariant 12) -- only the credential file providers/signout.py names.
+    """
+    from findplus.providers.signout import sign_out
+
+    removed = sign_out(provider, settings)
+    if removed:
+        click.secho(f"Signed out of {provider}.", fg="green")
+    else:
+        click.echo(f"{provider} was not signed in.")
+    click.echo("Tracked devices and their history are unaffected.")
+
+
 @click.command()
 @click.option("--status", "show_status", is_flag=True, help="Print sign-in status and exit.")
 @click.option(
     "--json", "as_json", is_flag=True, help="With --status, print JSON instead of a table."
+)
+@click.option(
+    "--sign-out",
+    "sign_out_flag",
+    is_flag=True,
+    help="Remove this provider's saved sign-in credential and exit.",
 )
 @click.option(
     "--provider",
@@ -83,7 +111,7 @@ def _google_preamble(settings) -> None:
     default="google-find-hub",
     help="Provider to authenticate: google-find-hub or apple-find-my",
 )
-def auth(provider: str, show_status: bool, as_json: bool) -> None:
+def auth(provider: str, show_status: bool, as_json: bool, sign_out_flag: bool) -> None:
     """Sign in to a provider (Google via Chrome, or Apple interactively)."""
     # _prep() first: build_auth_status() reads settings and the secrets store,
     # so the status path needs the same environment the sign-in path does.
@@ -93,6 +121,10 @@ def auth(provider: str, show_status: bool, as_json: bool) -> None:
         return
 
     settings = get_settings()
+
+    if sign_out_flag:
+        _sign_out(provider, settings)
+        return
 
     if provider == "apple-find-my":
         _auth_apple(settings)

@@ -54,3 +54,35 @@ def test_auth_reaches_the_confirm_prompt_when_chrome_is_present(
 
     assert "Open Chrome and sign in now?" in result.output
     assert "Google Chrome was not found" not in result.output
+
+
+# ----------------------------------------------------------- auth: sign-out
+def test_sign_out_removes_the_google_secrets_file(tmp_db) -> None:
+    from findplus.config import get_settings
+
+    settings = get_settings()
+    settings.ensure_dirs()
+    settings.secrets_file.write_text("{}")
+
+    result = CliRunner().invoke(main, ["auth", "--sign-out", "--provider", "google-find-hub"])
+
+    assert result.exit_code == 0, result.output
+    assert "Signed out of google-find-hub." in result.output
+    assert "Tracked devices and their history are unaffected." in result.output
+    assert not settings.secrets_file.exists()
+
+
+def test_sign_out_when_not_signed_in_says_so_and_still_exits_zero(tmp_db) -> None:
+    result = CliRunner().invoke(main, ["auth", "--sign-out", "--provider", "apple-find-my"])
+
+    assert result.exit_code == 0, result.output
+    assert "apple-find-my was not signed in." in result.output
+
+
+def test_sign_out_never_opens_chrome_or_prompts(tmp_db, _no_browser: list[str]) -> None:
+    """--sign-out is a plain file removal: no Chrome precheck, no confirm."""
+    result = CliRunner().invoke(main, ["auth", "--sign-out"])
+
+    assert result.exit_code == 0, result.output
+    assert "Open Chrome and sign in now?" not in result.output
+    assert _no_browser == []

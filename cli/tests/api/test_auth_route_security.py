@@ -57,6 +57,22 @@ def test_missing_origin_and_sec_fetch_site_is_403_on_the_three_mutating_auth_rou
     assert res.json() == {"detail": "missing Origin/Sec-Fetch-Site"}
 
 
+@pytest.mark.parametrize(
+    "method,path",
+    [("post", "/api/auth/google/cancel"), ("delete", "/api/auth/google-find-hub")],
+)
+def test_missing_origin_and_sec_fetch_site_is_403_on_cancel_and_sign_out(
+    auth_client: TestClient, method: str, path: str
+) -> None:
+    """S11/WP8: cancel and sign-out get the same `_require_origin_signal`
+    guard as the three sign-in starters, checked before either handler looks
+    at its body (job_id) or its path param (provider)."""
+    call = getattr(auth_client, method)
+    res = call(path, json={"job_id": "x"}) if method == "post" else call(path)
+    assert res.status_code == 403
+    assert res.json() == {"detail": "missing Origin/Sec-Fetch-Site"}
+
+
 def test_a_foreign_origin_cannot_start_a_google_signin(
     auth_client: TestClient, fake_google
 ) -> None:
@@ -100,20 +116,26 @@ def _auth_routes() -> list[tuple[str, str]]:
 _E6_ROUTES = _auth_routes()
 
 
-def test_the_dynamic_sweep_sees_all_seven_new_routes() -> None:
-    assert len(_E6_ROUTES) == 7, _E6_ROUTES
+def test_the_dynamic_sweep_sees_all_nine_routes() -> None:
+    """7 from E6, plus S11/WP8's `POST /auth/google/cancel` and
+    `DELETE /auth/{provider}` (sign-out)."""
+    assert len(_E6_ROUTES) == 9, _E6_ROUTES
 
 
 @pytest.mark.parametrize("method,path", _E6_ROUTES)
 def test_every_e6_route_401s_while_locked(locked_client, method: str, path: str) -> None:
     """SessionAuthMiddleware runs before any handler body, so the lock wins over
-    `_require_origin_signal` — sent WITH the headers, this is still a 401."""
+    `_require_origin_signal` — sent WITH the headers, this is still a 401.
+
+    `.request()`, not `getattr(client, method.lower())`: httpx's per-verb
+    shortcuts (`.get()`, `.delete()`, ...) do not all accept `json=`, but the
+    generic call does for every method alike.
+    """
     concrete = re.sub(r"\{[^}]+\}", "0", path)
-    call = getattr(locked_client, method.lower())
     kwargs = {"headers": SAME_ORIGIN_HEADERS}
     if method != "GET":
         kwargs["json"] = {}
-    res = call(concrete, **kwargs)
+    res = locked_client.request(method, concrete, **kwargs)
     assert res.status_code == 401, f"{method} {path} -> {res.status_code}"
     assert res.json() == {"detail": "Locked. Enter your PIN to continue.", "locked": True}
 

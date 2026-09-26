@@ -46,15 +46,17 @@ def _mutating_routes() -> list[tuple[str, str]]:
 
 _ROUTES = _mutating_routes()
 
-#: The three sign-in starters `_require_origin_signal` (routes_auth.py) gates
-#: on top of OriginGuardMiddleware: they 403 a headerless request on purpose,
-#: unlike every other mutating route. Already pinned by
-#: test_auth_route_security.py's own parametrised case; excluded from the
-#: headerless-must-pass assertion here so this sweep does not re-litigate it.
+#: The routes `_require_origin_signal` (routes_auth.py) gates on top of
+#: OriginGuardMiddleware: the three sign-in starters, plus S11/WP8's cancel
+#: and sign-out. All five 403 a headerless request on purpose, unlike every
+#: other mutating route. Already pinned by test_auth_route_security.py's own
+#: parametrised cases; excluded here so this sweep does not re-litigate it.
 _REQUIRES_OWN_SIGNAL = {
     ("POST", "/api/auth/google/start"),
     ("POST", "/api/auth/apple/start"),
     ("POST", "/api/auth/apple/code"),
+    ("POST", "/api/auth/google/cancel"),
+    ("DELETE", "/api/auth/{provider}"),
 }
 _HEADERLESS_ROUTES = [r for r in _ROUTES if r not in _REQUIRES_OWN_SIGNAL]
 

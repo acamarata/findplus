@@ -17,14 +17,15 @@ Versioning: [Semantic Versioning](https://semver.org/).
   same option: `findplus auth --sign-out --provider google` (or `apple`).
 - A Cancel button appears while Google sign-in is waiting on Chrome, so you can back out of a
   stuck sign-in instead of force-quitting the app.
-- The place dialog's "Pick on map" now shows the real coordinates as you drag the pin and adds
-  a draggable handle on the radius circle itself, so you can resize a geofence without typing
-  a number.
+- Pick on map: set a place by clicking the map instead of typing coordinates. Drag the pin or
+  nudge it with the arrow keys, resize the geofence with a handle on its circle or the radius
+  box, and the dialog shows the coordinates you picked before you save.
 - A "Recent arrivals and departures" panel on the Places tab lists each device's or group's
   last few entries and exits.
-- A Telegram target chip now shows the person's or chat's actual name once it resolves, typing
-  an @username looks it up and turns it into a chat id automatically, and "Find chat IDs" marks
-  a chat you have already added instead of offering to add it again.
+- Telegram targets show as chips with the chat's or person's name. Typing an @username looks it
+  up and saves it as a chat ID. A person has to send your bot any message first, because
+  Telegram does not let bots message people who have not; Find+ tells you when that is the
+  problem. "Find chat IDs" marks chats you have already added.
 - `findplus alerts rules edit` brings the CLI in line with the dashboard: change a rule's name,
   place, on-enter/on-exit, channels, cooldown or enabled state without deleting and recreating
   it.
@@ -41,6 +42,12 @@ Versioning: [Semantic Versioning](https://semver.org/).
   consistent style pass across Settings, sign-in and Alerts: a title now reads as the actual
   question instead of repeating the button below it, and a disabled control now looks and acts
   disabled instead of only failing once clicked.
+- Every sign-in card area now says Find+ is not affiliated with Google or Apple.
+- A new install with no account connected shows one clear "Connect an account" action, the
+  status dot turns amber when polls fail instead of staying green, and poll problems read as
+  plain sentences with a button that fixes them instead of raw error codes.
+- The dashboard, dialogs and setup wizard fit a phone screen without sideways scrolling, text
+  fields are styled in dark mode, and the Settings units sit next to their fields.
 - Delivery-log errors, chat labels and timestamps read in plain, consistent language instead of
   raw server text or mismatched time formats.
 

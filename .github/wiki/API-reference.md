@@ -1113,6 +1113,20 @@ Post Rule
       "type": "boolean",
       "title": "Also Notify Members",
       "default": false
+    },
+    "telegram_targets": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Telegram Targets"
     }
   },
   "type": "object",
@@ -1220,7 +1234,14 @@ Put Webhook
 {
   "properties": {
     "url": {
-      "type": "string",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
       "title": "Url"
     },
     "secret": {
@@ -1236,9 +1257,6 @@ Put Webhook
     }
   },
   "type": "object",
-  "required": [
-    "url"
-  ],
   "title": "WebhookPutBody"
 }
 ```
@@ -1371,6 +1389,20 @@ Put Rule
         }
       ],
       "title": "Also Notify Members"
+    },
+    "telegram_targets": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Telegram Targets"
     }
   },
   "type": "object",
@@ -1383,6 +1415,13 @@ Put Rule
 List Providers
 
 ## auth
+### DELETE /api/auth/{provider}
+S11/WP8: disconnect a provider. Same Origin guard as the sign-in
+
+| name | in | required | type |
+|---|---|---|---|
+| provider | path | True | string |
+
 ### GET /api/auth/apple/progress
 Apple Progress
 
@@ -1450,6 +1489,26 @@ Apple Start
     "password"
   ],
   "title": "AppleStartBody"
+}
+```
+
+### POST /api/auth/google/cancel
+UAT6 N23: Cancel while waiting on Chrome. Same Origin guard as start.
+
+**Request body:**
+```json
+{
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "title": "Job Id"
+    }
+  },
+  "type": "object",
+  "required": [
+    "job_id"
+  ],
+  "title": "GoogleCancelBody"
 }
 ```
 

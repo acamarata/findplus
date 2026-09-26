@@ -176,7 +176,7 @@ see if sign-in cannot find Chrome, not a general statement.
 > By default, macOS notifications show a generic "Find+ alert" instead
 > of who or where, because notification banners can appear on a locked
 > screen. Turn on notification details in Settings to show the person
-> and place — anyone who can see the screen then sees the same thing.
+> and place. Anyone who can see the screen then sees the same thing.
 >
 > Find+ is not affiliated with Apple or Google. Find Hub and Find My are
 > their trademarks.

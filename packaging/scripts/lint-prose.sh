@@ -9,12 +9,12 @@
 # Outputs    : "lint-prose: <file> OK" per clean file; exit 1 on any hit.
 # Constraints: pure grep, no external dependencies. The honesty check is a
 #              distinctive-substring match, not a byte-for-byte diff, so it
-#              tolerates markdown line-wrapping. EM_DASH_ALLOWED is the one
-#              exception to the em-dash ban: two honesty.py sentences are
-#              pinned WITH an em dash, so a page quoting either of them
-#              verbatim would otherwise be unlintable. The fragments below
-#              carry enough context that only a verbatim quote matches, which
-#              means the quoted line must keep those words together.
+#              tolerates markdown line-wrapping. EM_DASH_ALLOWED is an escape
+#              hatch for a honesty.py sentence pinned WITH an em dash, so a
+#              page quoting it verbatim would otherwise be unlintable. It is
+#              empty today (every honesty.py sentence is em-dash-free); add a
+#              fragment here only if a future sentence needs one, after
+#              adding that sentence to honesty.py first.
 set -euo pipefail
 
 FILES=("$@")
@@ -27,12 +27,10 @@ HONESTY_SUBSTRINGS=(
   "The app lock stops casual browsing"
   "not affiliated with Apple or Google"
 )
-# Verbatim fragments of honesty.NOTICES entries that are pinned with an em dash
-# (native_generic). Never widen this list to silence a new em dash: add the
-# sentence to honesty.py first, then its fragment here.
-EM_DASH_ALLOWED=(
-  "place — anyone who can see"
-)
+# Verbatim fragments of honesty.NOTICES entries that are pinned with an em
+# dash. Never widen this list to silence a new em dash: add the sentence to
+# honesty.py first, then its fragment here.
+EM_DASH_ALLOWED=()
 FOUND=0
 
 for f in "${FILES[@]}"; do
@@ -42,11 +40,13 @@ for f in "${FILES[@]}"; do
     FILE_BAD=1
   fi
   DASH_HITS="$(grep -n $'\xe2\x80\x94' "$f" || true)"
-  for allowed in "${EM_DASH_ALLOWED[@]}"; do
-    if [ -n "$DASH_HITS" ]; then
-      DASH_HITS="$(printf '%s\n' "$DASH_HITS" | grep -vF -- "$allowed" || true)"
-    fi
-  done
+  if [ "${#EM_DASH_ALLOWED[@]}" -gt 0 ]; then
+    for allowed in "${EM_DASH_ALLOWED[@]}"; do
+      if [ -n "$DASH_HITS" ]; then
+        DASH_HITS="$(printf '%s\n' "$DASH_HITS" | grep -vF -- "$allowed" || true)"
+      fi
+    done
+  fi
   if [ -n "$DASH_HITS" ]; then
     printf '%s\n' "$DASH_HITS"
     echo "lint-prose: $f FAIL (em-dash)"

@@ -58,7 +58,7 @@ EXPECTED = {
     "native_generic": (
         'By default, macOS notifications show a generic "Find+ alert" instead of who or '
         "where, because notification banners can appear on a locked screen. Turn on "
-        "notification details in Settings to show the person and place — anyone who can see "
+        "notification details in Settings to show the person and place. Anyone who can see "
         "the screen then sees the same thing."
     ),
     "not_affiliated": (
@@ -188,7 +188,7 @@ README_FRAGMENTS = {
     "whatsapp_relay": "relayed through CallMeBot, a third-party free",
     "whatsapp_setup": "two minutes. Paste it below",
     "alerts_locked": "Notifications are held while Find+ is locked",
-    "native_generic": "place — anyone who can see",
+    "native_generic": "Anyone who can see the screen then sees",
     "not_affiliated": "not affiliated with Apple or Google",
     "chrome_required": "cannot run without it",
     "address_search": "a third party not affiliated with Find+",

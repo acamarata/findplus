@@ -45,7 +45,7 @@ serves the same sentence at `GET /api/config` under `notices.native_generic`:
 
 > By default, macOS notifications show a generic "Find+ alert" instead of who or
 > where, because notification banners can appear on a locked screen. Turn on
-> notification details in Settings to show the person and place — anyone who can see
+> notification details in Settings to show the person and place. Anyone who can see
 > the screen then sees the same thing.
 
 While Find+ itself is locked the generic wording is used whatever this is set

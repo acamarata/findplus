@@ -43,8 +43,16 @@ export function init(container) {
   noticeEl = document.getElementById("fp-places-events-notice");
   if (moreBtn) moreBtn.addEventListener("click", onShowMore);
 
-  loadNotice();
-  refresh();
+  // UAT2 N12's pattern (places.js/groups.js/alerts.js's own init()): a locked
+  // cold boot must not fire an authenticated fetch at all, not merely catch
+  // its 401 -- the browser logs "Failed to load resource: 401" to the
+  // console regardless of what the JS does with the response. places.js's
+  // refreshAll() (run from lock.js's refreshTabsAfterUnlock()) reaches
+  // refresh() again once unlocked, with no reload needed.
+  if (!state.locked) {
+    loadNotice();
+    refresh();
+  }
 
   if (pollTimer) clearInterval(pollTimer);
   pollTimer = setInterval(() => {

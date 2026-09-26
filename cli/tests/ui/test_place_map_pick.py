@@ -14,11 +14,23 @@ from __future__ import annotations
 
 import pytest
 
+from .test_places_list import _wait_for_map_settled
+
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
 async def _open_add_dialog(page, base_url):
     await page.goto(base_url + "/")
+    # showAddDialog() reads map.getCenter() at click time, but bootDashboard()'s
+    # setDefaultView() fit (real device fixes -> saved places -> world view)
+    # runs asynchronously behind several awaits main.js's boot chain does after
+    # #fp-add-place-btn is already wired and clickable -- a click landing in
+    # that window opened the dialog (and any "Pick on map" started from it) at
+    # map.js's WORLD_VIEW_CENTER [20, 0] default instead of the real location
+    # (CI run 36258885493). test_places_list.py hit the same boot-vs-click race
+    # (CI run 36140185227) and fixed it with these same two waits.
+    await page.wait_for_selector("#app-shell[data-fp-ready='dashboard']")
+    await _wait_for_map_settled(page)
     await page.click('button[data-tab="places"]')
     await page.click("#fp-add-place-btn")
     dialog = page.locator("#fp-place-dialog")

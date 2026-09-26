@@ -178,6 +178,38 @@ async def set_theme(page, theme: str) -> None:
     await page.evaluate("(t) => { document.documentElement.dataset.theme = t; }", theme)
 
 
+async def assert_dialog_has_real_chrome(page, dialog_id: str) -> None:
+    """Assert `#dialog_id`'s border-radius/background come from CSS, in both
+    themes -- not by assuming one of them.
+
+    5241821 made the default theme follow the OS ("system") instead of always
+    dark, so a fresh install now renders light -- and light theme's own
+    `--panel` token IS `#ffffff` (web/style.css), the exact value a dialog
+    with NO styling at all (the original W3/U3 bug) also paints. Pinning both
+    themes with set_theme() (the mechanism applyTheme() uses) proves the
+    colour is CSS-driven either way, rather than weakening the check to allow
+    white unconditionally.
+    """
+    dialog = page.locator(f"#{dialog_id}")
+
+    async def styles():
+        return await dialog.evaluate(
+            "(el) => { const s = getComputedStyle(el);"
+            " return { radius: s.borderRadius, bg: s.backgroundColor }; }"
+        )
+
+    await set_theme(page, "dark")
+    dark = await styles()
+    assert dark["radius"] not in ("0px", ""), "no border-radius at all"
+    assert dark["bg"] not in ("rgba(0, 0, 0, 0)", "", "rgb(255, 255, 255)"), (
+        "painted as the browser default white box"
+    )
+    await set_theme(page, "light")
+    light = await styles()
+    assert light["radius"] not in ("0px", ""), "no border-radius at all"
+    assert light["bg"] not in ("rgba(0, 0, 0, 0)", ""), "painted with no background at all"
+
+
 @pytest.fixture
 def reset_alert_and_observation_state(ui_db: Path) -> None:
     """Delete accumulated alert_rules/alert_deliveries/location_observations

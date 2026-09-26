@@ -15,6 +15,8 @@ import pytest
 
 from findplus.honesty import ALERTS_LOCKED, WHATSAPP_RELAY, WHATSAPP_SETUP
 
+from .conftest import assert_dialog_has_real_chrome
+
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 # E11's first-run check redirects a hash-less "/" to #/setup and hides
@@ -213,12 +215,9 @@ async def test_the_alerts_locked_sentence_sits_beside_the_channel_choice(page, b
 
 
 async def test_the_add_rule_dialog_is_not_browser_default_chrome(page, base_url) -> None:
-    """W3 visual gate finding 1: an unstyled <dialog> paints a white box."""
+    """W3 finding 1: an unstyled <dialog> paints a white box (both themes)."""
     await _open_add_rule_dialog(page, base_url)
-    background = await page.evaluate(
-        """() => getComputedStyle(document.getElementById('fp-add-rule-dialog')).backgroundColor"""
-    )
-    assert background not in ("rgb(255, 255, 255)", "rgba(0, 0, 0, 0)"), background
+    await assert_dialog_has_real_chrome(page, "fp-add-rule-dialog")
 
 
 async def test_the_target_radio_and_its_select_share_a_row(page, base_url) -> None:

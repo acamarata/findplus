@@ -14,6 +14,8 @@ import json
 
 import pytest
 
+from .conftest import assert_dialog_has_real_chrome
+
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 HOME_LAT, HOME_LON = 41.100000, -80.100000
@@ -118,7 +120,12 @@ async def test_add_place_is_reachable_by_keyboard(page, base_url):
 
 
 async def test_add_place_dialog_has_a_title_and_dialog_chrome(page, base_url):
-    """U3: the dialog used to paint as an unstyled browser-default strip."""
+    """U3: the dialog used to paint as an unstyled browser-default strip.
+
+    5241821 made the default theme follow the OS ("system"), so a fresh
+    install now renders light -- assert_dialog_has_real_chrome() (conftest.py)
+    checks both themes rather than assuming dark.
+    """
     await _open_dashboard(page, base_url)
     await page.click('button[data-tab="places"]')
     await page.click("#fp-add-place-btn")
@@ -130,16 +137,7 @@ async def test_add_place_dialog_has_a_title_and_dialog_chrome(page, base_url):
     assert await page.locator("#fp-place-dialog-title").text_content() == "Add place"
     box = await dialog.bounding_box()
     assert box is not None and box["width"] > 250, "the dialog should have a real min-width"
-    styles = await dialog.evaluate(
-        """(el) => {
-            const s = getComputedStyle(el);
-            return { radius: s.borderRadius, bg: s.backgroundColor };
-        }"""
-    )
-    assert styles["radius"] not in ("0px", ""), "U3: no border-radius at all"
-    assert styles["bg"] not in ("rgba(0, 0, 0, 0)", "", "rgb(255, 255, 255)"), (
-        "U3: the dialog painted as the browser default white box"
-    )
+    await assert_dialog_has_real_chrome(page, "fp-place-dialog")
 
 
 async def test_add_place_saves(page, base_url):

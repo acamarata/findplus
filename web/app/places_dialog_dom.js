@@ -68,15 +68,23 @@ function buildPlaceFields() {
     id: "fp-place-radius", min: "50", max: "5000", step: "10", value: "200",
   });
   const color = field("hidden", { id: "fp-place-color" });
-  const enter = field("number", { id: "fp-place-enter", min: "1", max: "5", value: "2" });
+  // UAT7 N01: the initial attribute value, before fillDialog() (places_dialog.js)
+  // overwrites it per place -- kept at D17's own default (1) so nothing ever
+  // paints "2" first, even for the instant before JS runs.
+  const enter = field("number", { id: "fp-place-enter", min: "1", max: "5", value: "1" });
   const exit = field("number", { id: "fp-place-exit", min: "1", max: "5", value: "2" });
-  const radiusOut = document.createElement("output");
-  radiusOut.htmlFor = radius.id;
-  radiusOut.textContent = radius.value;
+  // UAT7-N12: a slider alone gave no precise readout and no way to type an
+  // exact metre value -- a number box kept in sync with the slider both ways
+  // (places_dialog.js) covers both. It shares the row's one visible <label>
+  // (radiusRow, below), so it needs its own accessible name.
+  const radiusNumber = field("number", {
+    id: "fp-place-radius-number", min: "50", max: "5000", step: "10", value: radius.value,
+  });
+  radiusNumber.setAttribute("aria-label", t("places.radiusLabel"));
   const error = document.createElement("p");
   error.className = "fp-dialog-error";
   error.id = "fp-place-dialog-error";
-  return { title, name, lat, lon, radius, color, enter, exit, radiusOut, error };
+  return { title, name, lat, lon, radius, color, enter, exit, radiusNumber, error };
 }
 
 function radiusRow(f) {
@@ -85,7 +93,7 @@ function radiusRow(f) {
   label.textContent = t("places.radiusLabel");
   const wrap = document.createElement("div");
   wrap.className = "fp-dialog-field";
-  wrap.append(label, f.radius, f.radiusOut);
+  wrap.append(label, f.radius, f.radiusNumber);
   return wrap;
 }
 

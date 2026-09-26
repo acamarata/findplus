@@ -11,11 +11,12 @@
  *              dialog or its fields itself.
  * Inputs     : The shared Leaflet `map`, an optional starting point/radius/
  *              colour, and onConfirm/onCancel callbacks.
- * Outputs    : onConfirm({ latitude, longitude }) once, or onCancel() once --
- *              never both, and never more than once. Returns { abort() } so
- *              a caller that must tear this down without treating it as a
- *              user cancel (places_dialog.js's purgeDialog() on lock) can do
- *              that without re-showing anything.
+ * Outputs    : onConfirm({ latitude, longitude, radiusMeters }) once, or
+ *              onCancel() once -- never both, and never more than once.
+ *              Returns { abort() } so a caller that must tear this down
+ *              without treating it as a user cancel (places_dialog.js's
+ *              purgeDialog() on lock) can do that without re-showing
+ *              anything.
  * Constraints: Every element is built with createElement/setAttribute, never
  *              raw markup. Keyboard: the marker is the one focusable element
  *              pick mode adds and is focused as soon as it starts, so arrow
@@ -27,9 +28,72 @@
 import { t } from "../i18n.js";
 
 const NUDGE_DEGREES = 0.0002; // ~22 m of latitude -- the radius slider handles precision after.
+const EARTH_RADIUS_M = 6378137;
+const RADIUS_HANDLE_BEARING = 90; // due east of the centre
+const MIN_RADIUS_M = 50;
+const MAX_RADIUS_M = 5000;
+
+/** Great-circle destination point `meters` from `latlng` along `bearingDeg`
+ * (0 = north, 90 = east). Used to keep the radius handle sitting exactly on
+ * the circle's own edge -- after the centre moves, and again once a drag
+ * ends -- rather than wherever the pointer happened to let go (UAT7-N12). */
+function destinationPoint(latlng, meters, bearingDeg) {
+  const bearing = (bearingDeg * Math.PI) / 180;
+  const lat1 = (latlng.lat * Math.PI) / 180;
+  const lng1 = (latlng.lng * Math.PI) / 180;
+  const angDist = meters / EARTH_RADIUS_M;
+  const lat2 = Math.asin(
+    Math.sin(lat1) * Math.cos(angDist) + Math.cos(lat1) * Math.sin(angDist) * Math.cos(bearing),
+  );
+  const lng2 =
+    lng1 +
+    Math.atan2(
+      Math.sin(bearing) * Math.sin(angDist) * Math.cos(lat1),
+      Math.cos(angDist) - Math.sin(lat1) * Math.sin(lat2),
+    );
+  return L.latLng((lat2 * 180) / Math.PI, (lng2 * 180) / Math.PI);
+}
+
+/** The draggable grip on the circle's edge (UAT7-N12): dragging it resizes
+ * `circle` live, clamped to the same 50-5000 m range the dialog's own slider
+ * enforces. `getCenter` is a thunk (not a point) so the handle always resizes
+ * around wherever the marker currently is, even if it moved after this was
+ * built. `recenter()` is `startMapPick`'s own `moveTo` keeping the handle on
+ * the edge when the marker itself is dragged or nudged. */
+function createRadiusHandle(map, circle, getCenter, initialRadius) {
+  let radius = initialRadius;
+  const icon = L.divIcon({ className: "fp-map-pick-radius-handle", iconSize: [14, 14] });
+  const handle = L.marker(destinationPoint(getCenter(), radius, RADIUS_HANDLE_BEARING), {
+    draggable: true,
+    keyboard: false,
+    icon,
+  }).addTo(map);
+
+  handle.on("drag", () => {
+    const measured = map.distance(getCenter(), handle.getLatLng());
+    radius = Math.min(MAX_RADIUS_M, Math.max(MIN_RADIUS_M, Math.round(measured)));
+    circle.setRadius(radius);
+  });
+  // Snaps back onto the circle's own edge: a drag past the clamp, or one that
+  // did not end exactly due east, would otherwise leave the handle floating
+  // off the circle it is supposed to resize.
+  handle.on("dragend", () => handle.setLatLng(destinationPoint(getCenter(), radius, RADIUS_HANDLE_BEARING)));
+
+  return {
+    recenter: () => handle.setLatLng(destinationPoint(getCenter(), radius, RADIUS_HANDLE_BEARING)),
+    remove: () => map.removeLayer(handle),
+    getRadius: () => radius,
+  };
+}
 
 function buildControl({ onConfirm, onCancel }) {
-  const control = L.control({ position: "bottomleft" });
+  // UAT7-N03: at 1280x800 the map runs to ~870px and bottomleft put the
+  // control below the fold, so only the first instructions line was ever on
+  // screen -- a mouse user had to scroll to find "Set location"/"Cancel" at
+  // all. topright is Leaflet's own free corner (zoom stays topleft, layers
+  // would be topright too but this app has none), so it never overlaps
+  // another control and always sits inside the visible map area.
+  const control = L.control({ position: "topright" });
   control.onAdd = () => {
     const container = L.DomUtil.create("div", "leaflet-control fp-map-pick-control");
     // Without these, a click or a scroll on the control reaches the map
@@ -100,6 +164,16 @@ function wireMovement(map, marker, moveTo) {
   return onMapClick;
 }
 
+/** Focuses the marker's element and wires the keyboard bar to it, if Leaflet
+ * has rendered one yet -- split out of `startMapPick` to keep it under the
+ * PRI 50-line/function cap. */
+function focusWithKeyboard(marker, { onNudge, onConfirm, onCancel }) {
+  const markerEl = marker.getElement();
+  if (!markerEl) return;
+  wireKeyboard(markerEl, { onNudge, onConfirm, onCancel });
+  markerEl.focus();
+}
+
 /**
  * Start crosshair mode on `map`. The caller must already have closed
  * whatever dialog was covering it -- see places_dialog.js's beginMapPick().
@@ -108,11 +182,17 @@ export function startMapPick(map, { latlng, radiusMeters, color, onConfirm, onCa
   let current = latlng ? L.latLng(latlng) : map.getCenter();
   const marker = L.marker(current, { draggable: true, keyboard: false }).addTo(map);
   const circle = L.circle(current, { radius: radiusMeters, color, keyboard: false }).addTo(map);
+  // UAT7-N12: the circle itself can now be resized on the map, not only from
+  // the dialog's slider (which is not even on screen while pick mode has it
+  // closed) -- getCenter reads `current` live so the handle keeps tracking
+  // the marker if it moves after this is built.
+  const radiusHandle = createRadiusHandle(map, circle, () => current, radiusMeters);
 
   function moveTo(next) {
     current = L.latLng(next);
     marker.setLatLng(current);
     circle.setLatLng(current);
+    radiusHandle.recenter();
   }
   const onMapClick = wireMovement(map, marker, moveTo);
 
@@ -123,11 +203,12 @@ export function startMapPick(map, { latlng, radiusMeters, color, onConfirm, onCa
     map.off("click", onMapClick);
     map.removeLayer(marker);
     map.removeLayer(circle);
+    radiusHandle.remove();
     control.remove();
   }
 
   function confirm() {
-    const picked = { latitude: current.lat, longitude: current.lng };
+    const picked = { latitude: current.lat, longitude: current.lng, radiusMeters: radiusHandle.getRadius() };
     abort();
     onConfirm(picked);
   }
@@ -139,15 +220,11 @@ export function startMapPick(map, { latlng, radiusMeters, color, onConfirm, onCa
   const control = buildControl({ onConfirm: confirm, onCancel: cancel });
   control.addTo(map);
 
-  const markerEl = marker.getElement();
-  if (markerEl) {
-    wireKeyboard(markerEl, {
-      onNudge: ([dLat, dLng]) => moveTo({ lat: current.lat + dLat, lng: current.lng + dLng }),
-      onConfirm: confirm,
-      onCancel: cancel,
-    });
-    markerEl.focus();
-  }
+  focusWithKeyboard(marker, {
+    onNudge: ([dLat, dLng]) => moveTo({ lat: current.lat + dLat, lng: current.lng + dLng }),
+    onConfirm: confirm,
+    onCancel: cancel,
+  });
 
   return { abort };
 }

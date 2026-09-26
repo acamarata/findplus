@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from findplus.db.models import Device, DeviceGroup, Place, PlaceEvent, PlaceState
@@ -201,7 +201,16 @@ def list_place_events(
     limit: int = 200,
 ) -> list[PlaceEvent]:
     stmt = (
-        select(PlaceEvent, Place.name.label("place_name"), Device.name.label("device_name"))
+        # UAT7-N02: the panel must show what the rest of the app calls this
+        # device -- the label the owner gave it, else the provider's own name
+        # (routes_alerts_rules.py's rules table uses the same coalesce; there
+        # is no ORM-relationship path from PlaceEvent to Device to reuse
+        # findplus.labels.display_name() directly on a query column).
+        select(
+            PlaceEvent,
+            Place.name.label("place_name"),
+            func.coalesce(Device.label, Device.name).label("device_name"),
+        )
         .join(Place, PlaceEvent.place_id == Place.id)
         .join(Device, PlaceEvent.device_id == Device.device_id)
     )

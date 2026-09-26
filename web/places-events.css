@@ -40,6 +40,26 @@
   outline-offset: 2px;
 }
 
+/* --- N12: on-map radius resize handle -- a small round grip on the circle's
+   east edge, dragged to change the radius while a pick is in progress. */
+.fp-map-pick-radius-handle {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 2px solid var(--accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  cursor: ew-resize;
+}
+
+/* --- N12: the radius number box beside the slider -- components.css's own
+   `.fp-dialog-field input[type="number"] { flex: 1 }` would otherwise stretch
+   it to fill the row; this narrows just this one field to a metre-sized box. */
+#fp-place-radius-number {
+  flex: 0 0 72px;
+  min-width: 0;
+}
+
 /* --- N26: a permanent place-name label on every geofence circle ---------- */
 .fp-place-tooltip {
   background: var(--panel);

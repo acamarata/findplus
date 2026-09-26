@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from findplus.db.models import PlaceEvent, PlaceState
+from findplus.db.models import Device, PlaceEvent, PlaceState
 from findplus.groups.repo import create_group
 from findplus.places.repo import create_place, current_presence, list_place_events, list_places
 
@@ -52,6 +52,56 @@ def test_list_place_events_filter(session):
     rows = list_place_events(session, place_id=p1.id)
     assert len(rows) == 1
     assert rows[0]._place_name == "P1"
+
+
+def test_list_place_events_uses_device_label_over_name(session):
+    """UAT7-N02: the arrivals/departures panel showed the provider's own name
+    ("Home Tag") instead of the label the owner gave the device ("Ali's
+    Keys") -- the same label/name coalesce routes_alerts_rules.py's rules
+    table already applies (findplus.labels.display_name's own precedence).
+    """
+    session.get(Device, "dev1").label = "Ali's Keys"
+    place = create_place(session, name="Home", latitude_e7=0, longitude_e7=0, radius_meters=100)
+    session.add(
+        PlaceEvent(
+            place_id=place.id,
+            device_id="dev1",
+            event_type="ENTER",
+            observed_at=datetime.now(UTC),
+            fetched_at=datetime.now(UTC),
+            observation_id=_make_observation(session),
+            confidence="high",
+            distance_meters=1.0,
+        )
+    )
+    session.flush()
+
+    rows = list_place_events(session, place_id=place.id)
+
+    assert rows[0]._device_name == "Ali's Keys"
+
+
+def test_list_place_events_falls_back_to_device_name_with_no_label(session):
+    """The control: an unlabelled device still shows its provider name, same
+    as before this fix -- the coalesce must never blank out a real name."""
+    place = create_place(session, name="Home", latitude_e7=0, longitude_e7=0, radius_meters=100)
+    session.add(
+        PlaceEvent(
+            place_id=place.id,
+            device_id="dev1",
+            event_type="ENTER",
+            observed_at=datetime.now(UTC),
+            fetched_at=datetime.now(UTC),
+            observation_id=_make_observation(session),
+            confidence="high",
+            distance_meters=1.0,
+        )
+    )
+    session.flush()
+
+    rows = list_place_events(session, place_id=place.id)
+
+    assert rows[0]._device_name == "Tag1"
 
 
 def test_list_place_events_group_filter_resolves_members(session):

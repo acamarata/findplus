@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -89,6 +89,68 @@ def test_delete_not_found(client: TestClient) -> None:
 
 def test_events_empty(client: TestClient) -> None:
     assert client.get("/api/places/events").json() == []
+
+
+def _record_enter_event(session, place_id: int, when: datetime) -> None:
+    """Ingests one dev1 observation and logs the ENTER PlaceEvent it causes --
+    shared setup for the label-vs-provider-name events regression test below
+    (split out to keep that test under the 50-line/function cap)."""
+    from sqlalchemy import select
+
+    from findplus.db.models import LocationObservation, PlaceEvent
+    from findplus.ingest import ingest_observations
+    from findplus.providers.google_findhub.types import RawObservation
+
+    ingest_observations(
+        session,
+        [
+            RawObservation(
+                device_id="dev1",
+                device_name="Home Tag",
+                latitude_e7=411000000,
+                longitude_e7=-806400000,
+                observed_at=when,
+                accuracy_meters=15.0,
+                source="crowdsourced",
+                is_own_report=False,
+            )
+        ],
+        fetched_at=when,
+    )
+    obs_id = session.execute(
+        select(LocationObservation.id).where(LocationObservation.device_id == "dev1")
+    ).scalar_one()
+    session.add(
+        PlaceEvent(
+            place_id=place_id,
+            device_id="dev1",
+            event_type="ENTER",
+            observed_at=when,
+            fetched_at=when,
+            observation_id=obs_id,
+            confidence="high",
+            distance_meters=1.0,
+        )
+    )
+
+
+def test_events_device_name_is_the_label_not_the_provider_name(client: TestClient) -> None:
+    """UAT7-N02: GET /api/places/events used to carry the provider's own
+    device name ("Home Tag") straight through, so the dashboard's arrivals
+    panel showed that instead of the label the owner set ("Ali's Keys")."""
+    from findplus.db.models import Device
+    from findplus.places.repo import create_place
+
+    now = datetime.now(UTC)
+    with session_scope() as session:
+        session.get(Device, "dev1").label = "Ali's Keys"
+        place = create_place(
+            session, name="Home", latitude_e7=411000000, longitude_e7=-806400000, radius_meters=100
+        )
+        _record_enter_event(session, place.id, now)
+
+    rows = client.get("/api/places/events").json()
+    assert rows[0]["device_name"] == "Ali's Keys"
 
 
 def test_presence_empty(client: TestClient) -> None:

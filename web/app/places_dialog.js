@@ -35,6 +35,12 @@ import { buildDialog } from "./places_dialog_dom.js";
 const PLACE_PALETTE = ["#3b82f6", "#e7663f", "#37c67a", "#c77ae6", "#e7b53f", "#3fc9d6", "#e64f7a", "#8fb43f"];
 const DEFAULT_RADIUS = "200";
 const PREVIEW_COLOR = "#94a3b8";
+// UAT7 N01: the one place a new place's confirmation defaults are written,
+// so the dialog can never drift from create_place's own defaults again
+// (D17: enter=1, exit=2; PROMPT.md D17, places/repo.py create_place()).
+// cli/tests/ui/test_place_map_pick.py pins these against the backend.
+const DEFAULT_ENTER_CONFIRMATIONS = "1";
+const DEFAULT_EXIT_CONFIRMATIONS = "2";
 
 let map = null;
 let onSaved = null;
@@ -71,19 +77,38 @@ function ensureDialog() {
     customLabel: t("places.field.customColor"),
   });
 
+  // UAT7-N12: the slider and the number box stay in sync both ways. Setting
+  // a range input's `.value` clamps it to its own min/max for free, so the
+  // slider is always valid; the number box is only clamped back on `change`
+  // (blur/Enter) so a value mid-typed (e.g. "5" on the way to "500") is not
+  // fought keystroke by keystroke.
   f.radius.addEventListener("input", () => {
-    f.radiusOut.textContent = f.radius.value;
+    f.radiusNumber.value = f.radius.value;
     updatePreviewCircle();
+  });
+  f.radiusNumber.addEventListener("input", () => {
+    f.radius.value = f.radiusNumber.value;
+    updatePreviewCircle();
+  });
+  f.radiusNumber.addEventListener("change", () => {
+    f.radiusNumber.value = f.radius.value;
   });
   dlg.addEventListener("close", removePreviewCircle);
 
   return dlg;
 }
 
-/** place_locator.js's onPick: move the map and redraw the preview (UAT2 N8). */
-function applyPickedLocation({ latitude, longitude }) {
+/** place_locator.js's onPick: move the map and redraw the preview (UAT2 N8).
+ * `radiusMeters`, only ever set by a map pick's own resize handle (UAT7-N12),
+ * updates both radius inputs before the preview is drawn so it reflects the
+ * radius actually picked rather than whatever the dialog had before. */
+function applyPickedLocation({ latitude, longitude, radiusMeters }) {
   fields.lat.value = String(latitude);
   fields.lon.value = String(longitude);
+  if (radiusMeters) {
+    fields.radius.value = String(radiusMeters);
+    fields.radiusNumber.value = fields.radius.value;
+  }
   map.setView([latitude, longitude], Math.max(map.getZoom(), 15));
   drawPreview({ lat: latitude, lng: longitude }, Number(fields.radius.value));
 }
@@ -101,6 +126,11 @@ function beginMapPick() {
   const hasPoint = fields.lat.value !== "" && fields.lon.value !== "";
   const initial = hasPoint ? { lat: Number(fields.lat.value), lng: Number(fields.lon.value) } : null;
   dlg.close();
+  // UAT7-N03: on a short viewport the map itself can start below the fold
+  // (e.g. scrolled down to reach "Add place"); bring it fully into view now
+  // that the dialog's backdrop is gone, so the topright pick control never
+  // needs a scroll to find.
+  map.getContainer().scrollIntoView({ block: "nearest" });
   activePick = startMapPick(map, {
     latlng: initial,
     radiusMeters: Number(fields.radius.value),
@@ -108,7 +138,15 @@ function beginMapPick() {
     onConfirm: (picked) => {
       activePick = null;
       applyPickedLocation(picked);
-      locator.showStatus(t("places.field.locationSet", { name: t("places.field.map") }));
+      // UAT7-N12: "Location set from the map." hid a wrong pick until the
+      // place was already saved -- the actual coordinates, to 4 decimal
+      // places (~11 m), make a bad pick visible immediately.
+      locator.showStatus(
+        t("places.field.locationSetAt", {
+          lat: picked.latitude.toFixed(4),
+          lon: picked.longitude.toFixed(4),
+        }),
+      );
       dlg.showModal();
     },
     onCancel: () => {
@@ -150,12 +188,12 @@ function fillDialog(mode, id, place, latlng, existingCount) {
   fields.lon.value = String(latlng.lng);
   const radius = place ? place.radius_meters : Number(DEFAULT_RADIUS);
   fields.radius.value = String(radius);
-  fields.radiusOut.textContent = String(radius);
+  fields.radiusNumber.value = String(radius);
   const color = place ? place.color : PLACE_PALETTE[(existingCount || 0) % PLACE_PALETTE.length];
   fields.color.value = color;
   colorPicker.setValue(color);
-  fields.enter.value = String(place ? place.enter_confirmations : 2);
-  fields.exit.value = String(place ? place.exit_confirmations : 2);
+  fields.enter.value = place ? String(place.enter_confirmations) : DEFAULT_ENTER_CONFIRMATIONS;
+  fields.exit.value = place ? String(place.exit_confirmations) : DEFAULT_EXIT_CONFIRMATIONS;
   fields.error.textContent = "";
   locator.refreshTrackers();
   locator.reset();
@@ -232,10 +270,10 @@ function clearDialogFields() {
   fields.lat.value = "";
   fields.lon.value = "";
   fields.radius.value = DEFAULT_RADIUS;
-  fields.radiusOut.textContent = DEFAULT_RADIUS;
+  fields.radiusNumber.value = DEFAULT_RADIUS;
   fields.color.value = PLACE_PALETTE[0];
-  fields.enter.value = "2";
-  fields.exit.value = "2";
+  fields.enter.value = DEFAULT_ENTER_CONFIRMATIONS;
+  fields.exit.value = DEFAULT_EXIT_CONFIRMATIONS;
   fields.error.textContent = "";
   if (colorPicker) colorPicker.setValue(PLACE_PALETTE[0]);
   if (locator) locator.reset();

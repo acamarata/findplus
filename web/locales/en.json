@@ -145,13 +145,14 @@
     }
   },
   "groups": {
-    "tabHint": "Once you have a group, use the selector above the map to pick it.",
+    "tabHint": "Pick a group in the selector above the map to see it.",
     "allDevices": "All devices",
     "verdictTogether": "Together",
     "verdictTogetherPartial": "Together ({reporting} of {considered} reporting)",
     "verdictUnknown": "Unknown",
     "verdictDiverged": "Diverged",
     "verdictDivergedHint": "Diverged: at least one member is not near the rest of the group.",
+    "verdictPartialHint": "Partial: some members have no recent fix.",
     "verdictOnlyOneReporting": "Only 1 reporting",
     "verdictPartial": "Partial",
     "listAway": "Away from the others",
@@ -235,6 +236,7 @@
       "chooseTrackerFirst": "Choose a tracker first.",
       "noTrackerFix": "That tracker has no location on record yet.",
       "locationSet": "Location set from {name}.",
+      "locationSetAt": "Location: {lat}, {lon} (from the map).",
       "pickOnMap": "Pick on map",
       "map": "the map"
     },
@@ -324,15 +326,18 @@
     "saveTargets": "Save targets",
     "enterTargets": "Enter at least one target first.",
     "targetsSaved": "Targets saved.",
+    "addChats": "Add chats",
     "findChatIds": "Find chat IDs",
     "findingChats": "Looking for chats this bot has seen…",
     "noUpdatesYet": "No messages seen yet. Message the bot, or add it to a group and send a message there, then try again.",
     "addTarget": "Add",
+    "chatAlreadyAdded": "Added",
     "foundChatsLabel": "Chats found for this bot",
     "testTargetSent": "{target}: sent",
     "testTargetFailed": "{target}: failed ({error})",
     "webhookCurrent": "Current: {url}",
     "webhookSecretSet": " (secret set)",
+    "webhookSaved": "Saved.",
     "confirmDeleteRule": "Delete rule \"{name}\"?",
     "deleteRuleFailed": "Could not delete \"{name}\" ({status}).",
     "groupFallback": "group {id}",
@@ -340,7 +345,7 @@
     "skippedNoReason": "suppressed, no reason recorded",
     "retryingStatus": "Retrying (attempt {attempt} of {max}, next at {time})",
     "failedAfterRetries": "Failed after {max} attempts",
-    "channelNotConnected": "{channel} (not connected)",
+    "channelNotConnected": "{channel} (not connected, connect it above)",
     "badBotTokenError": "That doesn't look like a bot token. Get one from @BotFather in Telegram.",
     "colEnabled": "Enabled",
     "editRule": "Edit rule",
@@ -357,6 +362,13 @@
     "connectBotFirst": "Connect a bot first.",
     "currentTargetsLabel": "Current targets",
     "removeTargetLabel": "Remove {target}",
+    "confirmRemoveTarget": "Remove {label}?",
+    "confirmRemoveTargetUsedByRules": {
+      "one": "{label} is used by 1 alert rule. Removing it drops that chat from the rule; a rule left with no chats stops sending to Telegram.",
+      "other": "{label} is used by {count} alert rules. Removing it drops that chat from each one; a rule left with no chats stops sending to Telegram."
+    },
+    "confirmRemoveWebhook": "Remove the webhook?",
+    "confirmRemoveWebhookBody": "Find+ stops posting alerts to this URL.",
     "retryingStatusNoTime": "Retrying (attempt {attempt} of {max})",
     "telegramTargetsFieldLabel": "Telegram chats",
     "allChats": "All chats",
@@ -407,7 +419,9 @@
       "errorNetwork": "Couldn't reach {channel} (network).",
       "errorTimeout": "{channel} didn't respond in time.",
       "errorAuth": "{channel} rejected the credentials.",
-      "errorGeneric": "Couldn't deliver to {channel}."
+      "errorNotConnected": "{channel} isn't connected.",
+      "errorGeneric": "Couldn't deliver to {channel}.",
+      "skippedReason": "Skipped: {reason}"
     }
   },
   "settings": {
@@ -462,13 +476,12 @@
       "interval_range_error": "Choose 5 to 1440 minutes.",
       "retention_label": "Keep history for",
       "retention_unit": "days",
-      "retention_hint": "blank = forever",
-      "retention_placeholder": "forever",
+      "retention_placeholder": "keep all",
       "retention_note": "Older observations, place visits and group events are deleted automatically once a day. Leave blank to keep everything."
     },
     "native_detail": {
       "label": "Show who and where in notifications",
-      "note": "By default, macOS notifications show a generic \"Find+ alert\" instead of who or where, because notification banners can appear on a locked screen. Turn on notification details in Settings to show the person and place — anyone who can see the screen then sees the same thing."
+      "note": "By default, macOS notifications show a generic \"Find+ alert\" instead of who or where, because notification banners can appear on a locked screen. Turn on notification details in Settings to show the person and place. Anyone who can see the screen then sees them too."
     }
   },
   "setup": {
@@ -541,6 +554,7 @@
       "telegram_help_token": "Create a bot with @BotFather on Telegram and paste its token here.",
       "telegram_help_chat": "Then send your new bot any message and press Connect. Find+ reads the chat id from that message.",
       "telegram_connect_first": "Connect the bot above first.",
+      "telegram_targets_placeholder": "Chat IDs or @usernames",
       "finish_and_open_alerts": "Finish setup and open Alerts"
     },
     "applock": {
@@ -638,7 +652,7 @@
     "bannerUnavailable": "Find+ could not use {provider} on the last poll. Check its sign-in, or wait for the next poll.",
     "bannerTimeout": "{provider} took too long to answer the last poll. Find+ tries again on the next one.",
     "bannerFailed": "The last poll did not finish. Find+ tries again on the next one.",
-    "bannerNoAccount": "No account is connected yet. Connect Google Find Hub or Apple Find My to see your trackers.",
+    "bannerNoAccount": "No account is connected yet.",
     "bannerNothingTracked": "No trackers are being followed yet. Choose the ones Find+ should poll.",
     "bannerServiceStale": "No poll has run for a while, so the polling service may be stopped.",
     "serviceStaleHint": "Advanced: if this keeps showing, run findplus start in Terminal.",

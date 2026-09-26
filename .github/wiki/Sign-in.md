@@ -38,7 +38,7 @@ If Chrome is not installed, the button is disabled and the card says:
 > Google Chrome was not found on this machine. Google sign-in drives Chrome
 > directly and cannot run without it.
 
-A **Download Google Chrome** link sits right under it — the notice does not
+A **Download Google Chrome** link sits right under it. The notice does not
 also print the raw URL, so there is one way to get Chrome, not two. Once
 Chrome is installed, click **Check again**.
 

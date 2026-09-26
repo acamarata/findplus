@@ -47,14 +47,16 @@ def test_sign_out_apple_removes_apple_account_json_only(auth_client: TestClient)
     accessory_path = accessory_dir / "apple_deadbeef.json"
     accessory_path.write_text("{}")
     accessory_path.chmod(0o600)
+    mode_before = stat.S_IMODE(accessory_path.stat().st_mode)
 
     res = auth_client.delete("/api/auth/apple-find-my", headers=SAME_ORIGIN_HEADERS)
 
     assert res.status_code == 204
     assert not account_path.exists()
     assert accessory_path.exists()
-    # Untouched, not just present: still exactly the mode it was written with.
-    assert stat.S_IMODE(accessory_path.stat().st_mode) == 0o600
+    # Untouched, not just present: still exactly the mode it had before
+    # (compared, not pinned to 0o600, since Windows reports 0o666).
+    assert stat.S_IMODE(accessory_path.stat().st_mode) == mode_before
 
 
 def test_sign_out_when_already_signed_out_is_still_204(auth_client: TestClient) -> None:

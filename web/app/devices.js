@@ -171,7 +171,14 @@ export function updateModalRate() {
 }
 
 export async function loadDevices() {
+  // A lock (state.lockGeneration bump, lock.js's showLock()) that fires while
+  // this fetch is in flight must stop the render below: bootDashboard()'s own
+  // check runs only after this whole call returns, which is too late to keep
+  // a device name that was already written into #device-filter (CI run
+  // 36262926438's mechanism, applied here).
+  const gen = state.lockGeneration;
   const body = await api("/api/devices");
+  if (state.lockGeneration !== gen) return body;
   state.devices = body.devices;
   state.devices.forEach((d) => colorFor(d.device_id));
   renderDeviceFilter();

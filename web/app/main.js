@@ -120,23 +120,53 @@ function wireControls() {
 }
 
 /**
+ * (Re)arm the local-status auto-refresh timer. Split out of bootDashboard()
+ * to keep it under the 50-line function cap (PRI rule 7).
+ *
+ * Polls the LOCAL API only. Google is queried server-side on its own
+ * interval. Guarded so repeated lock/unlock cycles cannot stack duplicate
+ * timers.
+ */
+function armRefreshTimer(seconds) {
+  if (state.refreshTimer) clearInterval(state.refreshTimer);
+  state.refreshTimer = setInterval(async () => {
+    if (state.locked) return;  // never poll the API from behind the lock screen
+    try {
+      await loadStatus();
+      if (state.day === todayLocal()) await loadDay(state.day);
+    } catch (_) { /* a lock mid-refresh is handled by api() */ }
+  }, seconds * 1000);
+}
+
+/**
  * Load everything the dashboard needs and start its timers.
  *
  * Runs on a normal start AND after unlock -- starting locked used to skip
  * this, leaving `state.config` null and the auto-refresh timer never created.
  */
 export async function bootDashboard(resume) {
+  // A lock (state.js's lockGeneration, bumped by lock.js's showLock()) that
+  // fires mid-boot must stop this call from writing any more DOM or state:
+  // `state.locked` alone is not enough, since a fast re-unlock flips it back
+  // to false while THIS call is still paused on an earlier await, and it
+  // would otherwise resume as if nothing happened (CI run 36262926438).
+  const gen = state.lockGeneration;
+  const stale = () => state.lockGeneration !== gen;
   state.dashboardBooted = true;
   // Cleared here, set at the end: runs again on unlock, and a stale "ready"
   // must not out-run THIS call (alerts.js's data-fp-ready convention).
   delete $("app-shell").dataset.fpReady;
   const config = await loadConfig();
+  if (stale()) return;
   await loadSettings({ renderDialog: false });
+  if (stale()) return;
   await loadDevices();
+  if (stale()) return;
   // U4: fit the map to real data (tracked devices' latest fixes, else saved
   // places, else a world view) before the day-specific fit below runs. A day
   // with nothing in it leaves this in place instead of the old US default.
   await setDefaultView().catch(() => {});
+  if (stale()) return;
 
   if (resume) {
     state.deviceFilter = resume.deviceFilter;
@@ -146,25 +176,18 @@ export async function bootDashboard(resume) {
   }
 
   await loadStatus();
+  if (stale()) return;
   await loadDay((resume && resume.day) || todayLocal());
+  if (stale()) return;
 
   if (resume && resume.selectedId) selectPoint(resume.selectedId, true);
   if (resume) window.scrollTo(0, resume.scrollY);
 
   startIdleTimer();
   await applyHashRoute({ closeOthers: false });
+  if (stale()) return;
 
-  // Polls the LOCAL API only. Google is queried server-side on its own interval.
-  // Guarded so repeated lock/unlock cycles cannot stack duplicate timers.
-  if (state.refreshTimer) clearInterval(state.refreshTimer);
-  const seconds = Math.max(30, config.ui_refresh_seconds || 45);
-  state.refreshTimer = setInterval(async () => {
-    if (state.locked) return;  // never poll the API from behind the lock screen
-    try {
-      await loadStatus();
-      if (state.day === todayLocal()) await loadDay(state.day);
-    } catch (_) { /* a lock mid-refresh is handled by api() */ }
-  }, seconds * 1000);
+  armRefreshTimer(Math.max(30, config.ui_refresh_seconds || 45));
 
   // lock.js's unlock flow fires this unawaited, so a click elsewhere can land
   // before the alert banner or map fit above render. Ready-when-done signal.

@@ -38,6 +38,10 @@ export async function showLock() {
     };
   }
   state.locked = true;
+  // Bumped synchronously, before any await below: bootDashboard() (and any
+  // other async renderer holding an earlier generation) checks this after
+  // its own next await and bails rather than rendering behind this lock.
+  state.lockGeneration++;
   stopIdleTimer();
   closeModals();
   await purgeRenderedData();
@@ -154,6 +158,7 @@ async function purgeTabModules() {
 /** Hide the lock screen and restore the exact view the user was on. */
 export async function hideLockAndRestore() {
   state.locked = false;
+  const gen = state.lockGeneration;
   $("lock-screen").classList.add("hidden");
   $("app-shell").classList.remove("hidden");
 
@@ -163,6 +168,11 @@ export async function hideLockAndRestore() {
   // Full boot, not a partial refresh: after an unlock the session may never
   // have loaded config/settings at all.
   await bootDashboard(resume);
+  // A lock (bumping lockGeneration) fired while bootDashboard() was still in
+  // flight: bootDashboard() already bailed out of rendering, and refreshing
+  // the tabs now would only repeat the same mistake behind the lock screen
+  // that is showing again by this point.
+  if (state.lockGeneration !== gen) return;
   await refreshTabsAfterUnlock();
 }
 

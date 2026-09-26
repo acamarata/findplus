@@ -172,12 +172,12 @@ function highlightSelection() {
 }
 
 export async function loadDay(day) {
-  state.day = day;
-  $("day-picker").value = day;
+  const lockGenAtFetch = state.lockGeneration; state.day = day; $("day-picker").value = day;
   const params = new URLSearchParams({ day });
   if (state.deviceFilter) params.set("device_id", state.deviceFilter);
   try {
     state.timeline = await api(`/api/timeline?${params}`);
+    if (state.lockGeneration !== lockGenAtFetch) return; // locked mid-fetch: never render it
     state.selectedId = null;
     if (state.timeline.path_disclaimer) {
       $("path-disclaimer").textContent = state.timeline.path_disclaimer;

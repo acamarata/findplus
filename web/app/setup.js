@@ -56,7 +56,12 @@ export function closeSetup() {
   active = null;
   view.textContent = "";
   view.hidden = true;
-  document.getElementById("app-shell").classList.remove("hidden");
+  // Never reveal the dashboard while locked. This runs unconditionally on
+  // every lock (lock.js's purgeRenderedData() -> purge() below), and an
+  // async boot or route handler that resolves after a lock fired must not
+  // undo showLock()'s hide through this call either (PROMPT.md §2 invariant
+  // 11 -- a lock purges rendered data and stays purged, not revealed again).
+  if (!state.locked) document.getElementById("app-shell").classList.remove("hidden");
 }
 
 /** What lock.js calls: the wizard's share of the post-lock purge. */

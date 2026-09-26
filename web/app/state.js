@@ -45,6 +45,14 @@ export const state = {
   refreshTimer: null,
   settings: null,
   locked: false,
+  /**
+   * Bumped every time a lock begins (showLock() in lock.js). An async
+   * renderer that spans an await (bootDashboard and friends) captures this
+   * at the start and bails, without writing DOM or state, once it no longer
+   * matches -- a lock (or a lock-then-unlock) happened while it was in
+   * flight, and its result is stale (PROMPT.md §2 invariant 11).
+   */
+  lockGeneration: 0,
   idleTimer: null,
   idleMinutes: 0,
   /** View to restore verbatim after an unlock. */

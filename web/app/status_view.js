@@ -150,9 +150,13 @@ async function renderStatusAlert(s) {
 }
 
 export async function loadStatus() {
+  // A lock (state.lockGeneration bump) mid-fetch must cancel the render
+  // below, same guard as timeline.js's loadDay() (PROMPT.md §2 invariant 11).
+  const gen = state.lockGeneration;
   try {
     const query = state.deviceFilter ? `?device_id=${encodeURIComponent(state.deviceFilter)}` : "";
     const s = await api(`/api/status${query}`);
+    if (state.lockGeneration !== gen) return;
     renderDeviceName(s);
     renderPollerDot(s);
     renderCards(s);

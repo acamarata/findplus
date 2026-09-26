@@ -123,13 +123,10 @@ export async function refresh() {
   const devicesById = new Map(devicesResp.devices.map((d) => [d.device_id, d]));
   const presenceByPlace = groupPresenceByPlace(presence);
   clearList();
-  if (places.length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "fp-empty-state";
-    empty.textContent = t("places.list.empty");
-    listEl.appendChild(empty);
-    return;
-  }
+  // U14: places.html's own .fp-tab-hint ("Use Add place to create a
+  // geofence") sits right above #fp-places-list and already is the empty
+  // state's one message; a second paragraph here duplicated it.
+  if (places.length === 0) return;
   places.forEach((place) => listEl.appendChild(renderCard(place, presenceByPlace, devicesById)));
 }
 

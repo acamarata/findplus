@@ -86,21 +86,16 @@ export async function loadGroups() {
 }
 
 /**
- * Show the tab hint only while there are no groups.
+ * Show the "use the selector" hint only once there is a group to select.
  *
- * The hint points at the selector above the map, which is useless with nothing
- * to select; groups_list.js renders its own empty-state paragraph inside
- * #fp-groups-list at the same moment, so the two are never both on screen. The
- * selector is scoped to #tab-groups because the Places tab has a .fp-tab-hint
- * of its own.
+ * With zero groups the selector has nothing in it, so the hint would be
+ * useless there; groups_list.js's own "groups.empty" paragraph (inside
+ * #fp-groups-list) already carries the single empty-state message and
+ * points at the Add group button, so the two never overlap (U12).
  */
 function updateEmptyStateHint(groupCount) {
-  const hint = document.querySelector("#tab-groups .fp-tab-hint");
-  if (hint) hint.hidden = groupCount > 0;
-  // The second line says where groups come from, which only helps while there
-  // are none (onboarding.md § 8).
-  const empty = document.getElementById("fp-groups-empty-hint");
-  if (empty) empty.hidden = groupCount > 0;
+  const hint = document.getElementById("fp-groups-tab-hint");
+  if (hint) hint.hidden = groupCount === 0;
 }
 
 /** Narrows the dashboard's map/timeline to `group`'s members (UAT U8). */

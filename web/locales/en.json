@@ -7,9 +7,7 @@
     "delete": "Delete",
     "clear": "Clear",
     "remove": "Remove",
-    "refresh": "Refresh",
     "loading": "Loading…",
-    "error": "Error",
     "emptyValue": "—",
     "lockTitle": "Find+ is locked",
     "lockSub": "Enter your PIN to continue.",
@@ -138,7 +136,7 @@
     }
   },
   "groups": {
-    "tabHint": "Use the Group selector above the map to choose a group.",
+    "tabHint": "Once you have a group, use the selector above the map to pick it.",
     "allDevices": "— All devices —",
     "verdictTogether": "Together",
     "verdictTogetherPartial": "Together ({reporting} of {considered} reporting)",
@@ -175,7 +173,7 @@
       "members_required": "Select at least one member.",
       "duplicate_name": "A group named {name} already exists."
     },
-    "empty": "No groups yet. A group tracks presence for a household, a set of pets, or anything you want a together/apart verdict for.",
+    "empty": "No groups yet. Use Add group to create one. A group tracks presence for a household, a set of pets, or anything you want a together/apart verdict for.",
     "add_button": "Add group",
     "card": {
       "edit": "Edit {name}",
@@ -190,7 +188,6 @@
       "sectionLabel": "Your icons",
       "label": "Custom icon",
       "upload": "Upload",
-      "delete": "Delete",
       "deleteIcon": "Delete icon {id}",
       "deleteConfirm": "Delete this icon?",
       "deleteInUse": "This icon is in use and cannot be deleted.",
@@ -232,7 +229,6 @@
       "failed": "Search failed: {message}"
     },
     "list": {
-      "empty": "No places yet. Use Add place to create one.",
       "radiusMeta": "{radius} m radius",
       "whoIsHere": "Currently here: {names}"
     },
@@ -244,8 +240,6 @@
   "alerts": {
     "telegramHeading": "Telegram",
     "webhookHeading": "Webhook",
-    "whatsappHeading": "WhatsApp",
-    "nativeHeading": "Mac notifications",
     "botToken": "Bot token",
     "connect": "Connect",
     "sendTest": "Send test",
@@ -286,8 +280,8 @@
     "testSent": "Test message sent.",
     "testFailed": "Test failed: {error}",
     "telegramTargets": "Targets",
-    "telegramTargetsPlaceholder": "Chat ID or @username",
-    "telegramTargetsHelp": "Chat IDs or @usernames, comma separated: your own user ID, a group (a negative number), or several people.",
+    "telegramTargetsPlaceholder": "Chat ID, @username, or several separated by commas",
+    "telegramTargetsHelp": "Enter one or more chats, separated by commas: a group or channel ID, a person's numeric ID, or @username. A person has to send your bot any message first; Telegram doesn't let bots message people who haven't. Use Find chat IDs to list chats that have messaged the bot.",
     "saveTargets": "Save targets",
     "enterTargets": "Enter at least one target first.",
     "targetsSaved": "Targets saved.",
@@ -348,15 +342,8 @@
       "native": "Desktop notification"
     },
     "deliveries": {
-      "heading": "Delivery log",
-      "rule": "Rule",
-      "channel": "Channel",
-      "kind": "Kind",
       "text": "Text",
-      "body": "Body",
-      "sent": "Sent",
-      "status": "Status",
-      "error": "Error"
+      "body": "Body"
     }
   },
   "settings": {
@@ -487,8 +474,7 @@
       "pin": "New PIN",
       "pin_confirm": "Confirm PIN",
       "set": "Set PIN",
-      "set_ok": "PIN set. The app lock is on.",
-      "mismatch": "The two PINs do not match."
+      "set_ok": "PIN set. The app lock is on."
     },
     "rerun": "Run setup again",
     "banner": {
@@ -556,8 +542,7 @@
   },
   "notices": {
     "pathDisclaimer": "Observed path — actual route between detections may differ.",
-    "dashboardEmpty": "No devices tracked yet. Devices to choose one, or Run setup again from Settings.",
-    "groupsEmpty": "No groups yet. Create one from Run setup again, or the group selector once you have one."
+    "dashboardEmpty": "No devices tracked yet."
   },
   "timeline": {
     "emptyDay": "No observations recorded for this day.",

@@ -15,6 +15,7 @@ import { renderBadge } from "./components/badge.js";
 import { reload } from "./main.js";
 import { providerWording } from "./devices.js";
 import { t, plural } from "./i18n.js";
+import { nothingTrackedEmptyState } from "./dashboard_empty.js";
 
 function statsHtml(stats) {
   if (!stats || !stats.observation_count) return "";
@@ -118,13 +119,17 @@ export function renderTracks() {
   // members, matching the same filter renderMap() applies (UAT U8).
   const tracks = state.timeline ? visibleTracks(state.timeline.tracks) : [];
   if (!tracks.length) {
-    const empty = document.createElement("div");
-    empty.className = "empty";
     // Nothing tracked at all is a different problem from a quiet day, and it
     // has a different answer: pick a device, or run setup again.
     const nothingTracked = !(state.devices || []).some((d) => d.is_tracked);
-    empty.textContent = nothingTracked ? t("notices.dashboardEmpty") : t("timeline.emptyDay");
-    host.appendChild(empty);
+    if (nothingTracked) {
+      host.appendChild(nothingTrackedEmptyState());
+    } else {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = t("timeline.emptyDay");
+      host.appendChild(empty);
+    }
     return;
   }
 

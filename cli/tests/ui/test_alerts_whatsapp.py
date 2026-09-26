@@ -1,11 +1,9 @@
 """Browser tests for the WhatsApp card, rule channels and delivery log (E10 T2-T4).
 
-Everything here runs end to end against the real live_server, the way
-test_alerts.py already does. The two honesty assertions import
-findplus.honesty rather than retyping a sentence: a hand-typed copy drifts
-silently from the real text and the test keeps passing (test_honesty_text.py's
-rule). CallMeBot itself is never contacted — nothing in this file sends a test
-message, and the autouse socket guard in cli/tests/conftest.py would block it.
+Runs end to end against the real live_server, like test_alerts.py. The two
+honesty assertions import findplus.honesty rather than retyping a sentence
+(test_honesty_text.py's rule). CallMeBot is never contacted -- nothing here
+sends a test message, and conftest.py's socket guard would block it anyway.
 """
 
 from __future__ import annotations
@@ -167,12 +165,9 @@ async def test_saving_an_invalid_apikey_shows_an_inline_error(
 ) -> None:
     """A shape `store.is_valid_apikey` rejects (318d2ae) must not fail silently.
 
-    UAT6 N16: alerts_channels.js's saveWhatsapp() used to put the server's raw
-    422 detail ("apikey must be alphanumeric, at least 4 characters") straight
-    into #fp-wa-status; it now maps that detail to a catalog sentence
-    (WHATSAPP_VALIDATION_KEYS) the same way the Telegram bot-token error
-    already did. The credential on disk must be left exactly as it was --
-    the guard runs before any write (routes_alerts_channels.py's put_whatsapp()).
+    UAT6 N16: the raw 422 detail used to land straight in #fp-wa-status; it is
+    now mapped to a catalog sentence, same as Telegram's bot-token error. The
+    credential on disk is untouched -- the guard runs before any write.
     """
     await _open_alerts_tab(page, base_url)
     await page.wait_for_function("() => document.getElementById('fp-wa-apikey').value.length > 0")
@@ -283,11 +278,9 @@ async def test_the_rule_dialog_populates_its_selects_on_a_cold_page(page, base_u
     """
     await _open_add_rule_dialog(page, base_url)
 
-    # Place has no placeholder option (a rule with no place filter is a
-    # normal choice) -- its first real option lands with a non-empty value,
-    # same check as always. Device/Group now lead with a blank "Choose…"
-    # option (UAT6 N05), so "loaded" is options.length > 1 (placeholder plus
-    # at least one real row) rather than a non-empty first value.
+    # Place's first real option has a non-empty value; Device/Group now lead
+    # with a blank "Choose…" placeholder instead (UAT6 N05), so "loaded" for
+    # those two is options.length > 1, not a non-empty first value.
     await page.wait_for_function(
         "(id) => {"
         "  const el = document.getElementById(id);"

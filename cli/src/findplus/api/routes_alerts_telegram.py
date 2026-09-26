@@ -72,7 +72,8 @@ def put_telegram(body: TelegramPutBody) -> dict[str, Any]:
     existing = load_alerts()
     raw_targets = body.targets if body.targets is not None else body.chat_id
     if raw_targets:
-        chat_ids, chat_labels = _resolve_or_422(raw_targets, body.bot_token)
+        known_labels = _known_labels(existing.telegram)
+        chat_ids, chat_labels = _resolve_or_422(raw_targets, body.bot_token, known_labels)
     else:
         chat_ids = existing.telegram.chat_ids if existing.telegram else ()
         chat_labels = existing.telegram.chat_labels if existing.telegram else ()
@@ -98,13 +99,24 @@ def _prune_rules_to(chat_ids: tuple[str, ...]) -> None:
         prune_rule_telegram_targets(s, chat_ids)
 
 
-def _resolve_or_422(raw_targets: str, bot_token: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
+def _known_labels(tg: TelegramCreds | None) -> dict[str, str]:
+    """`{chat_id: label}` for an already-connected account's own saved
+    targets (UAT7 N04) -- resolve_targets()'s escape from re-deriving a
+    numeric id's label as the bare id every time the list is re-saved."""
+    if tg is None:
+        return {}
+    return dict(zip(tg.chat_ids, tg.chat_labels, strict=False))
+
+
+def _resolve_or_422(
+    raw_targets: str, bot_token: str, known_labels: dict[str, str] | None = None
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
     """resolve_targets(), turning its errors into the HTTPExceptions every
     Telegram-targets route needs (put_telegram and put_telegram_targets share
     this rather than duplicating the try/except twice).
     """
     try:
-        resolved = resolve_targets(raw_targets, bot_token)
+        resolved = resolve_targets(raw_targets, bot_token, known_labels)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except RuntimeError as exc:
@@ -122,7 +134,8 @@ def put_telegram_targets(body: TelegramTargetsBody) -> dict[str, Any]:
     existing = load_alerts()
     if not existing.telegram:
         raise HTTPException(status_code=422, detail="Telegram not configured")
-    chat_ids, chat_labels = _resolve_or_422(body.targets, existing.telegram.bot_token)
+    known_labels = _known_labels(existing.telegram)
+    chat_ids, chat_labels = _resolve_or_422(body.targets, existing.telegram.bot_token, known_labels)
     save_channel(
         telegram=dataclasses.replace(existing.telegram, chat_ids=chat_ids, chat_labels=chat_labels)
     )

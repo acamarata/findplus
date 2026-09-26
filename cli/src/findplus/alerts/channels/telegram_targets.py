@@ -11,7 +11,13 @@ Purpose    : alerts/targets.py only checks the *shape* of a target string, on
              fires every stored target is already a numeric id.
 Inputs     : The raw comma-separated targets string, and a bot token already
              known to look like a real one (is_valid_bot_token is re-checked
-             here too, so this module is safe to call directly).
+             here too, so this module is safe to call directly). An optional
+             `known_labels` (old chat_id -> label) lets a caller re-save a
+             target list that already carries resolved labels without a
+             network round trip for the unchanged entries (UAT7 N04: removing
+             one chip used to re-save every remaining numeric id with its
+             label reset to the bare id itself, since a plain id never
+             carried a label of its own before this).
 Outputs    : A tuple of ResolvedTarget(chat_id, label), in input order,
              deduplicated by the resolved id.
 Constraints: Raises ValueError naming the exact unresolved `@name` -- Telegram
@@ -77,18 +83,26 @@ def _match_seen_chat(chats: list[dict], value: str) -> tuple[str, str] | None:
     return None
 
 
-def resolve_targets(raw: str, token: str) -> tuple[ResolvedTarget, ...]:
+def resolve_targets(
+    raw: str, token: str, known_labels: dict[str, str] | None = None
+) -> tuple[ResolvedTarget, ...]:
     """Comma-separated targets -> stored (numeric id, label) pairs.
 
     Numeric ids (including negative group ids) pass through untouched, with
-    no request made at all. Each `@name` is resolved with getChat first
-    (works for a public group or channel), then matched against the chats
-    the bot has seen via getUpdates (a person who has messaged the bot);
-    still unresolved raises ValueError naming that exact target.
+    no request made at all -- and, when `known_labels` has an entry for that
+    id (the account's own already-stored chat_labels), that stored label is
+    kept rather than falling back to the bare id (UAT7 N04). Each `@name` is
+    resolved with getChat first (works for a public group or channel), then
+    matched against the chats the bot has seen via getUpdates (a person who
+    has messaged the bot); still unresolved raises ValueError naming that
+    exact target. `known_labels` never changes which entries hit the
+    network: an `@name` is always looked up fresh, since only a numeric id
+    can already have a stored label to reuse.
     """
     if not is_valid_bot_token(token):
         raise ValueError("telegram: malformed bot token")
     parsed = parse_targets(raw)
+    known_labels = known_labels or {}
     resolved: list[ResolvedTarget] = []
     seen_ids: set[str] = set()
     seen_chats: list[dict] | None = None
@@ -96,7 +110,7 @@ def resolve_targets(raw: str, token: str) -> tuple[ResolvedTarget, ...]:
     try:
         for value in parsed:
             if not value.startswith("@"):
-                chat_id, label = value, value
+                chat_id, label = value, known_labels.get(value, value)
             else:
                 if client is None:
                     client = httpx.Client(timeout=10.0)

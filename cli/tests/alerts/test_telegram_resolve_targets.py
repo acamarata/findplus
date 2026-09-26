@@ -106,6 +106,45 @@ def test_resolve_dedupes_when_two_entries_resolve_to_the_same_id() -> None:
     assert result == (ResolvedTarget("555", "555"),)
 
 
+def test_resolve_keeps_the_known_label_for_an_unchanged_numeric_id() -> None:
+    """UAT7 N04: re-saving a target list that still contains an already-saved
+    numeric id must keep ITS stored label, not fall back to the bare id --
+    the bug that made "Family chat" read back as "-1001234567890" once any
+    other target in the same list was removed and the remainder re-saved."""
+    known = {"-1001234567890": "Family chat"}
+    with patch(f"{_MOD}.httpx.Client") as mock_client:
+        result = resolve_targets("-1001234567890", TOKEN, known_labels=known)
+    assert result == (ResolvedTarget("-1001234567890", "Family chat"),)
+    mock_client.assert_not_called()
+
+
+def test_resolve_with_no_known_label_falls_back_to_the_id() -> None:
+    """A numeric id with no entry in `known_labels` (never saved before, or
+    `known_labels` omitted entirely) behaves exactly as before this option
+    existed."""
+    with patch(f"{_MOD}.httpx.Client") as mock_client:
+        result = resolve_targets("555", TOKEN, known_labels={"111": "Someone else"})
+    assert result == (ResolvedTarget("555", "555"),)
+    mock_client.assert_not_called()
+
+
+def test_resolve_only_hits_the_network_for_a_new_at_name_not_a_known_id() -> None:
+    """A mixed re-save (one already-known id, one brand-new @name): the known
+    id's label is reused with no request, and only the new @name resolves
+    over the network -- UAT7 N04's "only resolve newly added @names"."""
+    with patch(f"{_MOD}.httpx.Client") as mock_client:
+        instance = mock_client.return_value
+        instance.get.return_value = _response(
+            200, {"result": {"id": -100999, "title": "New Group"}}
+        )
+        result = resolve_targets("-100123, @newgroup", TOKEN, known_labels={"-100123": "Old label"})
+    assert result == (
+        ResolvedTarget("-100123", "Old label"),
+        ResolvedTarget("-100999", "New Group"),
+    )
+    mock_client.assert_called_once()
+
+
 def test_resolve_rejects_a_malformed_token_without_a_request() -> None:
     with (
         patch(f"{_MOD}.httpx.Client") as mock_client,

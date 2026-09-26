@@ -72,7 +72,7 @@ async def _open_add_rule_dialog(page, base_url) -> None:
 async def test_whatsapp_relay_honesty_text_present(page, base_url) -> None:
     await _open_alerts_tab(page, base_url)
     await page.wait_for_function(
-        "() => document.getElementById('fp-wa-relay-notice').textContent.length > 0"
+        "() => document.getElementById('fp-wa-relay-notice')?.textContent?.length > 0"
     )
     assert WHATSAPP_RELAY in await page.locator("#fp-wa-relay-notice").inner_text()
 
@@ -80,7 +80,7 @@ async def test_whatsapp_relay_honesty_text_present(page, base_url) -> None:
 async def test_whatsapp_setup_instructions_present(page, base_url) -> None:
     await _open_alerts_tab(page, base_url)
     await page.wait_for_function(
-        "() => document.getElementById('fp-wa-instructions').textContent.length > 0"
+        "() => document.getElementById('fp-wa-instructions')?.textContent?.length > 0"
     )
     assert WHATSAPP_SETUP in await page.locator("#fp-wa-instructions").inner_text()
 
@@ -111,7 +111,7 @@ async def test_whatsapp_phone_is_only_ever_shown_masked(
     """
     await _open_alerts_tab(page, base_url)
     await page.wait_for_function(
-        "() => document.getElementById('fp-wa-connected').textContent.length > 0"
+        "() => document.getElementById('fp-wa-connected')?.textContent?.length > 0"
     )
 
     connected = await page.locator("#fp-wa-connected").inner_text()
@@ -156,7 +156,7 @@ async def test_saving_both_fields_stores_them(page, base_url, configured_whatsap
     await page.click("#fp-wa-save")
 
     await page.wait_for_function(
-        "() => document.getElementById('fp-wa-connected').textContent.includes('77')"
+        "() => document.getElementById('fp-wa-connected')?.textContent?.includes('77')"
     )
     stored = json.loads(configured_whatsapp.read_text())["channels"]["whatsapp"]
     assert stored == {"phone": "+34999888777", "apikey": "secondapikey456"}
@@ -179,7 +179,7 @@ async def test_saving_an_invalid_apikey_shows_an_inline_error(
     await page.click("#fp-wa-save")
 
     await page.wait_for_function(
-        "() => document.getElementById('fp-wa-status').textContent.length > 0"
+        "() => document.getElementById('fp-wa-status')?.textContent?.length > 0"
     )
     status = await page.locator("#fp-wa-status").inner_text()
     assert "api key" in status.lower(), status
@@ -209,7 +209,7 @@ async def test_the_alerts_locked_sentence_sits_beside_the_channel_choice(page, b
     """Server-sourced through notices.js, never typed into the markup."""
     await _open_alerts_tab(page, base_url)
     await page.wait_for_function(
-        "() => document.getElementById('fp-alerts-locked-notice').textContent.length > 0"
+        "() => document.getElementById('fp-alerts-locked-notice')?.textContent?.length > 0"
     )
     assert ALERTS_LOCKED in await page.locator("#fp-alerts-locked-notice").inner_text()
 

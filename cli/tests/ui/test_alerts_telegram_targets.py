@@ -81,7 +81,7 @@ async def test_add_chats_merges_new_targets_onto_the_existing_ones(
     await page.fill("#fp-tg-targets", " 222, @person ")
     await page.click("#fp-tg-save-targets")
     await page.wait_for_function(
-        "document.getElementById('fp-tg-targets-status').textContent.length > 0"
+        "document.getElementById('fp-tg-targets-status')?.textContent?.length > 0"
     )
     assert saved["body"] == {"targets": "11111,222,@person"}
     status = await page.locator("#fp-tg-targets-status").inner_text()
@@ -104,7 +104,7 @@ async def test_add_chats_with_empty_field_shows_a_hint_and_makes_no_request(
     await page.fill("#fp-tg-targets", "")
     await page.click("#fp-tg-save-targets")
     await page.wait_for_function(
-        "document.getElementById('fp-tg-targets-status').textContent.length > 0"
+        "document.getElementById('fp-tg-targets-status')?.textContent?.length > 0"
     )
     assert called["count"] == 0
 
@@ -122,7 +122,7 @@ async def test_add_chats_bad_entry_shows_the_server_detail(page, base_url, confi
     await page.fill("#fp-tg-targets", "not-a-target")
     await page.click("#fp-tg-save-targets")
     await page.wait_for_function(
-        "document.getElementById('fp-tg-targets-status').textContent.includes('not-a-target')"
+        "document.getElementById('fp-tg-targets-status')?.textContent?.includes('not-a-target')"
     )
 
 
@@ -176,7 +176,7 @@ async def test_find_chat_ids_no_updates_yet_shows_the_instruction(
     await page.route("**/api/alerts/channels/telegram/updates", updates_route)
     await page.click("#fp-tg-find-chats")
     await page.wait_for_function(
-        "document.getElementById('fp-tg-targets-status').textContent.toLowerCase().includes('message')"
+        "document.getElementById('fp-tg-targets-status')?.textContent?.toLowerCase().includes('message')"
     )
     status = await page.locator("#fp-tg-targets-status").inner_text()
     assert "message" in status.lower()
@@ -222,7 +222,7 @@ async def test_send_test_reports_per_target_results(page, base_url, configured_t
     await page.route("**/api/alerts/test", test_route)
     await page.click("#fp-tg-test")
     await page.wait_for_function(
-        "document.getElementById('fp-tg-status').textContent.includes('11111')"
+        "document.getElementById('fp-tg-status')?.textContent?.includes('11111')"
     )
     status = await page.locator("#fp-tg-status").inner_text()
     assert "11111" in status and "sent" in status

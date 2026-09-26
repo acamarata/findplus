@@ -33,7 +33,7 @@ async def _wait_for_lock_caveat(page) -> str:
     replaced).
     """
     await page.wait_for_function(
-        "() => document.getElementById('lock-caveat').textContent.length > 0"
+        "() => document.getElementById('lock-caveat')?.textContent?.length > 0"
     )
     return await page.locator("#lock-caveat").inner_text()
 
@@ -269,7 +269,7 @@ async def test_settings_opens_before_config_resolves(page, base_url):
     # The About line (state.config.poll_interval_minutes) fills in once the
     # delayed response lands, not before.
     await page.wait_for_function(
-        "() => document.getElementById('settings-about').textContent.length > 0",
+        "() => document.getElementById('settings-about')?.textContent?.length > 0",
         timeout=5000,
     )
     assert "polling every" in await about.inner_text()

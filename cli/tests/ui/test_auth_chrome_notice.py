@@ -60,7 +60,7 @@ async def _open_settings_with_status(page, base_url, body: dict) -> None:
     await page.route("**/api/auth/status", fulfill)
     await _open_settings(page, base_url)
     await page.wait_for_function(
-        "() => document.getElementById('fp-auth-google-status').textContent !== ''"
+        "() => (document.getElementById('fp-auth-google-status')?.textContent ?? '') !== ''"
     )
 
 

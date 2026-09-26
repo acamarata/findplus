@@ -144,7 +144,7 @@ async def test_events_panel_shows_the_alerts_latency_honesty_notice(page, base_u
     await _mock_events(page, [], [])
     await _open_places(page, base_url)
     await page.wait_for_function(
-        "() => document.getElementById('fp-places-events-notice').textContent.length > 0"
+        "() => document.getElementById('fp-places-events-notice')?.textContent?.length > 0"
     )
     text = await page.locator("#fp-places-events-notice").inner_text()
     assert "delay" in text.lower()

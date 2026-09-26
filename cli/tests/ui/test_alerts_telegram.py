@@ -100,7 +100,7 @@ async def test_a_bad_bot_token_shows_the_catalog_message_not_the_raw_detail(page
     await page.fill("#fp-tg-token", "not-a-real-token")
     await page.click("#fp-tg-connect")
     await page.wait_for_function(
-        "document.getElementById('fp-tg-status').textContent.includes('BotFather')"
+        "document.getElementById('fp-tg-status')?.textContent?.includes('BotFather')"
     )
     status = await page.locator("#fp-tg-status").inner_text()
     assert status == "That doesn't look like a bot token. Get one from @BotFather in Telegram."
@@ -118,5 +118,5 @@ async def test_clear_telegram_channel_surfaces_a_failed_delete(page, base_url, c
     await open_alerts_tab(page, base_url)
     await page.route("**/api/alerts/channels/telegram", fail_delete)
     await page.click("#fp-tg-clear")
-    await page.wait_for_function("document.getElementById('fp-tg-status').textContent.length > 0")
+    await page.wait_for_function("document.getElementById('fp-tg-status')?.textContent?.length > 0")
     assert "boom" in await page.locator("#fp-tg-status").inner_text()

@@ -93,7 +93,7 @@ async def test_add_rule_requires_at_least_one_event(page, base_url):
         await page.uncheck("#fp-rule-on-enter")
         await page.click("#fp-rule-save")
         await page.wait_for_function(
-            "document.getElementById('fp-rule-error').textContent.length > 0"
+            "document.getElementById('fp-rule-error')?.textContent?.length > 0"
         )
         error = await page.locator("#fp-rule-error").inner_text()
         assert "enter" in error.lower() or "exit" in error.lower(), error
@@ -111,7 +111,7 @@ async def test_add_rule_requires_at_least_one_channel(page, base_url):
         await page.uncheck("#fp-rule-channels input[data-channel=webhook]")
         await page.click("#fp-rule-save")
         await page.wait_for_function(
-            "document.getElementById('fp-rule-error').textContent.length > 0"
+            "document.getElementById('fp-rule-error')?.textContent?.length > 0"
         )
         error = await page.locator("#fp-rule-error").inner_text()
         assert "channel" in error.lower(), error

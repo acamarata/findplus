@@ -67,7 +67,7 @@ async def test_footer_hides_the_findhub_sentence_for_an_apple_only_user(page, ba
     """
     await _open_dashboard(page, base_url)
     await page.wait_for_function(
-        "() => document.getElementById('findhub-notice').textContent !== ''",
+        "() => (document.getElementById('findhub-notice')?.textContent ?? '') !== ''",
         timeout=5000,
     )
 
@@ -97,7 +97,7 @@ async def test_the_footer_sentences_are_blanked_by_the_lock(page, base_url):
     """Both are device-derived, so both leak the tracked networks behind a lock."""
     await _open_dashboard(page, base_url)
     await page.wait_for_function(
-        "() => document.getElementById('findhub-notice').textContent !== ''",
+        "() => (document.getElementById('findhub-notice')?.textContent ?? '') !== ''",
         timeout=5000,
     )
 
@@ -153,7 +153,7 @@ async def test_the_chrome_around_the_footer_names_the_right_network(page, base_u
     """
     await _open_dashboard(page, base_url)
     await page.wait_for_function(
-        "() => document.getElementById('findhub-notice').textContent !== ''",
+        "() => (document.getElementById('findhub-notice')?.textContent ?? '') !== ''",
         timeout=5000,
     )
 

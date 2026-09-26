@@ -1,5 +1,5 @@
-"""Playwright browser tests for the Alerts tab's Telegram Targets field and
-the "Find chat IDs" helper (multi-target Telegram support).
+"""Playwright browser tests for the Alerts tab's Telegram target chips and
+the "Find chat IDs" helper (multi-target Telegram support, chips UAT7 N04).
 
 Telegram "configured" state is seeded by writing alerts.json directly at
 FINDPLUS_STATE_DIR (same pattern test_alerts_telegram.py uses) -- never
@@ -7,6 +7,10 @@ through PUT /api/alerts/channels/telegram, which would call the real
 Telegram getMe API and trip the non-loopback network guard from
 cli/tests/conftest.py. `GET .../updates` and `POST /api/alerts/test` are
 stubbed with page.route so no test here touches the network either.
+
+The confirm-before-remove flow (UAT7 N04: a target still used by a rule)
+moved to test_alerts_telegram_targets_confirm.py at the PRI rule-7 300-line
+file cap.
 """
 
 from __future__ import annotations
@@ -47,13 +51,21 @@ def configured_telegram(ui_env: dict):
     path.write_text(json.dumps({"channels": {}}))
 
 
-async def test_targets_field_shows_the_stored_targets(page, base_url, configured_telegram):
+async def test_add_chats_field_always_renders_empty(page, base_url, configured_telegram):
+    """UAT7 N04: add-only now -- the field never shows the stored id list,
+    even though one chip is already saved."""
     await open_alerts_tab(page, base_url)
-    await page.wait_for_function("document.getElementById('fp-tg-targets').value.length > 0")
-    assert await page.locator("#fp-tg-targets").input_value() == "11111"
+    chip = page.locator("#fp-tg-current-targets li")
+    await chip.first.wait_for(state="visible")
+    assert await page.locator("#fp-tg-targets").input_value() == ""
 
 
-async def test_save_targets_puts_the_parsed_comma_list(page, base_url, configured_telegram):
+async def test_add_chats_merges_new_targets_onto_the_existing_ones(
+    page, base_url, configured_telegram
+):
+    """UAT7 N04: Add chats PUTs the already-saved id plus the newly typed
+    ones, never just what is in the field -- the field holds only the new
+    entries, so this proves the merge, not a re-typed full list."""
     saved = {}
 
     async def targets_route(route):
@@ -61,26 +73,24 @@ async def test_save_targets_puts_the_parsed_comma_list(page, base_url, configure
         await route.fulfill(
             status=200,
             content_type="application/json",
-            body=json.dumps({"telegram": {"configured": True, "targets": "111,-100222,@person"}}),
+            body=json.dumps({"telegram": {"configured": True, "targets": "11111,222,@person"}}),
         )
 
     await open_alerts_tab(page, base_url)
     await page.route("**/api/alerts/channels/telegram/targets", targets_route)
-    await page.fill("#fp-tg-targets", " 111, -100222, @person ")
+    await page.fill("#fp-tg-targets", " 222, @person ")
     await page.click("#fp-tg-save-targets")
     await page.wait_for_function(
         "document.getElementById('fp-tg-targets-status').textContent.length > 0"
     )
-    # saveTelegramTargets() trims the field's raw value before PUTting it
-    # (alerts_telegram_targets.js) -- the server does its own comma-level
-    # trim/validate via alerts/targets.py, this is just "don't send a
-    # leading/trailing space around the whole string".
-    assert saved["body"] == {"targets": "111, -100222, @person"}
+    assert saved["body"] == {"targets": "11111,222,@person"}
     status = await page.locator("#fp-tg-targets-status").inner_text()
     assert "saved" in status.lower()
+    # The field clears once the add succeeds -- nothing left over to re-add.
+    assert await page.locator("#fp-tg-targets").input_value() == ""
 
 
-async def test_save_targets_with_empty_field_shows_a_hint_and_makes_no_request(
+async def test_add_chats_with_empty_field_shows_a_hint_and_makes_no_request(
     page, base_url, configured_telegram
 ):
     called = {"count": 0}
@@ -99,7 +109,7 @@ async def test_save_targets_with_empty_field_shows_a_hint_and_makes_no_request(
     assert called["count"] == 0
 
 
-async def test_save_targets_bad_entry_shows_the_server_detail(page, base_url, configured_telegram):
+async def test_add_chats_bad_entry_shows_the_server_detail(page, base_url, configured_telegram):
     async def targets_route(route):
         await route.fulfill(
             status=422,
@@ -109,14 +119,20 @@ async def test_save_targets_bad_entry_shows_the_server_detail(page, base_url, co
 
     await open_alerts_tab(page, base_url)
     await page.route("**/api/alerts/channels/telegram/targets", targets_route)
-    await page.fill("#fp-tg-targets", "111,not-a-target")
+    await page.fill("#fp-tg-targets", "not-a-target")
     await page.click("#fp-tg-save-targets")
     await page.wait_for_function(
         "document.getElementById('fp-tg-targets-status').textContent.includes('not-a-target')"
     )
 
 
-async def test_find_chat_ids_lists_chats_with_an_add_action(page, base_url, configured_telegram):
+async def test_find_chat_ids_lists_chats_and_marks_an_already_saved_one(
+    page, base_url, configured_telegram
+):
+    """UAT7 N04: a chat already saved (its id is "11111", this fixture's own
+    target) shows "Added" instead of an actionable "Add" -- clicking it again
+    used to offer no new target."""
+
     async def updates_route(route):
         await route.fulfill(
             status=200,
@@ -125,12 +141,7 @@ async def test_find_chat_ids_lists_chats_with_an_add_action(page, base_url, conf
                 {
                     "chats": [
                         {"id": "222", "type": "private", "title": "Alice", "username": "alice"},
-                        {
-                            "id": "-100333",
-                            "type": "supergroup",
-                            "title": "Family",
-                            "username": None,
-                        },
+                        {"id": "11111", "type": "private", "title": "Me", "username": None},
                     ]
                 }
             ),
@@ -140,17 +151,18 @@ async def test_find_chat_ids_lists_chats_with_an_add_action(page, base_url, conf
     await page.route("**/api/alerts/channels/telegram/updates", updates_route)
     await page.click("#fp-tg-find-chats")
     await page.wait_for_selector("#fp-tg-chats-list li")
-    items = await page.locator("#fp-tg-chats-list li").all_text_contents()
-    assert any("Alice" in i and "222" in i for i in items)
-    assert any("Family" in i and "-100333" in i for i in items)
+    items = page.locator("#fp-tg-chats-list li")
+    assert await items.count() == 2
 
-    # Clicking "Add" on the first chat appends its id to the targets field
-    # without clobbering the target already there (E13-style focus-safety:
-    # this is a plain value append, not a re-render).
-    await page.fill("#fp-tg-targets", "11111")
-    await page.locator("#fp-tg-chats-list li", has_text="Alice").locator("button").click()
+    alice_row = page.locator("#fp-tg-chats-list li", has_text="Alice")
+    added_row = page.locator("#fp-tg-chats-list li", has_text="11111")
+    assert not await alice_row.locator("button").is_disabled()
+    assert await added_row.locator("button").is_disabled()
+    assert "added" in (await added_row.locator("button").inner_text()).lower()
+
+    # Clicking "Add" on the not-yet-saved chat appends its id to the field.
+    await alice_row.locator("button").click()
     value = await page.locator("#fp-tg-targets").input_value()
-    assert "11111" in value
     assert "222" in value
 
 
@@ -163,8 +175,6 @@ async def test_find_chat_ids_no_updates_yet_shows_the_instruction(
     await open_alerts_tab(page, base_url)
     await page.route("**/api/alerts/channels/telegram/updates", updates_route)
     await page.click("#fp-tg-find-chats")
-    # The interim "Looking for chats..." status also has non-zero length,
-    # so this waits for the FINAL text specifically, not just any text.
     await page.wait_for_function(
         "document.getElementById('fp-tg-targets-status').textContent.toLowerCase().includes('message')"
     )
@@ -220,13 +230,10 @@ async def test_send_test_reports_per_target_results(page, base_url, configured_t
 
 
 async def test_targets_disabled_until_a_bot_is_connected(page, base_url, ui_env):
-    """UAT6 N15: Targets/Save targets/Find chat IDs used to be live before a
-    bot was ever connected, only answering "Telegram not configured" once
-    clicked -- disabled here instead, with a one-line reason in their place."""
+    """UAT6 N15: Add chats/Find chat IDs used to be live before a bot was
+    ever connected, only answering "Telegram not configured" once clicked --
+    disabled here instead, with a one-line reason in their place."""
     Path(ui_env["FINDPLUS_STATE_DIR"], "alerts.json").write_text(json.dumps({"channels": {}}))
-    # open_alerts_tab() (conftest.py) waits for data-fp-ready="alerts", set at
-    # the end of alerts.js's refreshAll() -- after loadChannels() has already
-    # rendered this (unconfigured) state, so there is nothing left to race.
     await open_alerts_tab(page, base_url)
     for control_id in ("fp-tg-targets", "fp-tg-save-targets", "fp-tg-find-chats"):
         assert await page.is_disabled(f"#{control_id}"), control_id
@@ -235,60 +242,7 @@ async def test_targets_disabled_until_a_bot_is_connected(page, base_url, ui_env)
     assert (await reason.inner_text()).strip() != ""
 
 
-async def test_current_targets_render_as_removable_chips(page, base_url, configured_telegram):
-    """channels_response()'s target_labels (falling back to the raw id, this
-    fixture's target has no chat_labels) render as one chip per target,
-    each with its own remove control -- alerts_telegram_targets.js."""
-    await open_alerts_tab(page, base_url)
-    chips = page.locator("#fp-tg-current-targets li")
-    await chips.first.wait_for(state="visible")
-    assert await chips.count() == 1
-    text = await chips.first.inner_text()
-    assert "11111" in text
-    for control_id in ("fp-tg-targets", "fp-tg-save-targets", "fp-tg-find-chats"):
-        assert not await page.is_disabled(f"#{control_id}"), control_id
-
-
-async def test_removing_a_chip_saves_the_remaining_targets(page, base_url, ui_env):
-    """Two saved targets; removing one PUTs the other alone, and the removed
-    chip disappears once the server confirms it.
-
-    Hits the real PUT .../targets route (no page.route mock, unlike the
-    tests above) -- both targets are pure numeric ids, which resolve_targets()
-    passes through with no Bot API call, but it checks the token's SHAPE
-    first regardless; FAKE_TOKEN fails that shape check on purpose (it is
-    never sent to a mocked route in the tests that use it), so this one test
-    seeds a token shaped like a real BotFather one instead.
-    """
-    shaped_token = "9876543210:ABCdefGHIjklMNOpqrSTUvwxyz012345678"
-    path = Path(ui_env["FINDPLUS_STATE_DIR"]) / "alerts.json"
-    path.write_text(
-        json.dumps(
-            {
-                "channels": {
-                    "telegram": {
-                        "bot_token": shaped_token,
-                        "chat_ids": ["11111", "22222"],
-                        "chat_title": "Test Chat",
-                        "bot_username": "test_bot",
-                        "captured_at": "2026-01-01T00:00:00+00:00",
-                    }
-                }
-            }
-        )
-    )
-    try:
-        await open_alerts_tab(page, base_url)
-        chips = page.locator("#fp-tg-current-targets li")
-        await chips.first.wait_for(state="visible")
-        assert await chips.count() == 2
-        await page.locator("#fp-tg-current-targets li", has_text="11111").locator("button").click()
-        await page.wait_for_function(
-            "document.querySelectorAll('#fp-tg-current-targets li').length === 1"
-        )
-        remaining = await chips.first.inner_text()
-        assert "22222" in remaining
-        saved = json.loads(path.read_text())["channels"]["telegram"]["chat_ids"]
-        assert saved == ["22222"]
-    finally:
-        path.write_text(json.dumps({"channels": {}}))
+# test_current_targets_render_as_chips and
+# test_removing_an_unused_chip_needs_no_confirmation moved to
+# test_alerts_telegram_targets_chips.py at the PRI rule-7 300-line file cap
+# (this file's own `configured_telegram` fixture is re-exported there).

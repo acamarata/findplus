@@ -1,0 +1,76 @@
+/*
+ * Alerts-tab-only styling: the Telegram target chip row (UAT7 N04) and any
+ * other Alerts-specific polish from this round. Its own file so it needs no
+ * shared edit to components.css/components-panels.css, which other in-flight
+ * fixes this round were editing too. Loaded after those files and before
+ * responsive.css (index.html), so the phone tier still wins there.
+ */
+
+/* --- Telegram target chips (UAT7 N04) ------------------------------------
+   `.hidden.` on the SAME element as `.fp-chip-list` needs the extra class in
+   its own selector to win: a bare `.fp-chip-list { display: flex }` here
+   would otherwise outrank style.css's earlier `.hidden { display: none }`
+   at equal specificity purely because this file loads later (the same trap
+   alerts.html's own #fp-rule-telegram-targets-list-wrap comment documents
+   for the rule dialog's picker) -- the two-class selector below sidesteps
+   it instead of needing a wrapper element. */
+.fp-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+}
+.fp-chip-list.hidden { display: none; }
+
+.fp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: .78rem;
+  padding: 3px 4px 3px 10px;
+  border-radius: 9999px;
+  background: rgba(79, 140, 247, .18);
+  color: var(--badge-text);
+}
+
+.fp-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 9999px;
+  background: transparent;
+  color: inherit;
+  font-size: .95rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.fp-chip-remove:hover,
+.fp-chip-remove:focus-visible { background: rgba(0, 0, 0, .18); }
+
+/* --- delivery log body/text toggle (UAT7 N06) -----------------------------
+   components-panels.css truncates Text/Body/Error at desktop widths with
+   `white-space: nowrap; overflow: hidden; text-overflow: ellipsis` on the
+   <td> itself, which still clipped an OPENED <details>'s full-text <p> to
+   one line -- "not truncated" only actually held once the <details> was
+   collapsed again. Undone for the open state only, so expanding a long body
+   reveals the whole thing instead of silently re-ellipsis-ing it. */
+#fp-deliveries-table td:has(> details[open]) {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+/* components-panels.css colours a Text/Body <details> summary with
+   `var(--accent)`, the same token components-panels.css's own link-colour
+   comment already measured at 4.05:1 on a dark panel -- axe flags it as a
+   serious color-contrast failure the moment a delivery's rendered text/body
+   is long enough to collapse into one (this round's longer, always-dated
+   UAT7 N06 timestamps made that reliably true). `--badge-text` is the
+   contrast-safe token that same comment introduced for exactly this. */
+#fp-deliveries-table details summary { color: var(--badge-text); }

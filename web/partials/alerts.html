@@ -14,20 +14,25 @@
           <button class="btn btn-secondary" id="fp-tg-clear" type="button" data-i18n="common.clear">Clear</button>
         </div>
         <p id="fp-tg-status"></p>
-        <!-- UAT6 N15: every currently-saved target as a removable chip,
-             labelled with its display name (channels_response()'s
-             target_labels, falling back to the raw id) -- alerts_telegram_
-             targets.js's renderTelegramTargets(). Hidden with nothing saved. -->
-        <ul id="fp-tg-current-targets" class="hidden" aria-label="Current targets"
+        <!-- UAT6 N15/UAT7 N04: every currently-saved target as a real chip
+             (inline, no bullets, small × remove button), labelled with its
+             display name (channels_response()'s target_labels, falling back
+             to the raw id) -- alerts_telegram_targets.js's
+             renderCurrentTargetsChips(). Hidden with nothing saved. -->
+        <ul id="fp-tg-current-targets" class="fp-chip-list hidden" aria-label="Current targets"
             data-i18n-attr="aria-label:alerts.currentTargetsLabel"></ul>
-        <!-- UAT6 N15: Targets/Save targets/Find chat IDs are disabled until a
+        <!-- UAT6 N15: Targets/Add chats/Find chat IDs are disabled until a
              bot is connected (nothing to send a target to otherwise) -- this
              is the one-line reason shown in their place. -->
         <p id="fp-tg-targets-disabled-reason" class="fp-tab-hint hidden"
            data-i18n="alerts.connectBotFirst">Connect a bot first.</p>
+        <!-- UAT7 N04: add-only now -- always empty, even with targets already
+             saved, so adding one chat never means retyping every other one
+             (alerts_telegram_targets.js's addTelegramTargets() merges this
+             field's entries onto the chips above). -->
         <label class="setting-row">
-          <span data-i18n="alerts.telegramTargets">Targets</span>
-          <input type="text" id="fp-tg-targets" placeholder="Chat ID or @username"
+          <span data-i18n="alerts.addChats">Add chats</span>
+          <input type="text" id="fp-tg-targets" placeholder="Chat ID, @username, or several separated by commas"
                  data-i18n-attr="placeholder:alerts.telegramTargetsPlaceholder">
         </label>
         <!-- UAT6 N15: text lives only in the catalog (alerts.telegramTargetsHelp)
@@ -36,7 +41,7 @@
              surfaces can never drift again. -->
         <p class="fp-tab-hint" data-i18n="alerts.telegramTargetsHelp"></p>
         <div class="fp-alerts-actions">
-          <button class="btn btn-secondary" id="fp-tg-save-targets" type="button" data-i18n="alerts.saveTargets">Save targets</button>
+          <button class="btn btn-secondary" id="fp-tg-save-targets" type="button" data-i18n="alerts.addChats">Add chats</button>
           <button class="btn btn-secondary" id="fp-tg-find-chats" type="button" data-i18n="alerts.findChatIds">Find chat IDs</button>
         </div>
         <p id="fp-tg-targets-status"></p>
@@ -196,7 +201,11 @@
               <input type="radio" name="fp-rule-target" id="fp-rule-target-group" value="group">
               <span data-i18n="alerts.targetGroup">Group</span>
             </label>
-            <select id="fp-rule-group" class="hidden"></select>
+            <!-- UAT7 N13: rendered (disabled, not hidden) from the moment the
+                 dialog opens -- alerts_rule_dialog.js's updateRuleTargetVisibility()
+                 toggles `disabled`, never `hidden`, so the row never grows a
+                 dropdown into existence the instant Group is picked. -->
+            <select id="fp-rule-group" disabled></select>
           </div>
           <label><input type="checkbox" id="fp-rule-on-enter" checked> <span data-i18n="alerts.colOnEnter">On enter</span></label>
           <label><input type="checkbox" id="fp-rule-on-exit"> <span data-i18n="alerts.colOnExit">On exit</span></label>

@@ -136,27 +136,23 @@ when a webhook secret is configured.
 ### Notifying more than one chat
 
 The Telegram card has its own **Targets** field, separate from the bot token: a
-comma-separated list of chat ids or @usernames -- your own user id, a group, or several
-people at once. Find+ accepts up to 10 targets per rule.
+comma-separated list of chat ids or @usernames. Every Telegram alert goes to all the targets you list (up to 10 per bot).
 
-- A numeric id, like `123456789` for a person or `-1001234567890` for a group or
-  supergroup (the id is negative once Telegram promotes a group to a supergroup).
-- An `@username`, for a public chat or a person who has set one.
+Targets can be a group or channel ID, a person's numeric ID, or @username. To use a person's
+@username or numeric ID, they must send your bot any message first (Telegram does not let
+bots message people who have not messaged them). A group or channel must include the bot as a member.
 
-To find a chat's id without knowing it by hand:
+To find a chat's id or username:
 
 1. Message the bot directly, or add it to a group and send any message there. The bot
-   must be a member of a group before it can post there, and it must have received at
-   least one message first -- Telegram has no way to post into a chat it has never heard
-   from.
+   must be a member of a group before it can post there.
 2. Click **Find chat IDs**. Find+ asks the Bot API for the bot's own recent updates (never
    the token itself) and lists every chat it has seen, with its name and type.
 3. Click **Add** next to a chat to append its id to the Targets field, then **Save
    targets**.
 
-You can also type ids or usernames into the Targets field directly and click **Save
-targets**, with no need to message the bot at all if you already know them. **Send test**
-sends to every target and reports each one's own result, so a typo in one id never hides
+You can also type ids or usernames directly into the Targets field and click **Save
+targets**. **Send test** sends to every target and reports each one's own result, so a typo in one id never hides
 whether the rest went through.
 
 Targets set before this release keep working unchanged: a single stored chat id is read the

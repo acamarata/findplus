@@ -228,13 +228,13 @@ cli/tests/               17 files, 262 tests (12 Playwright browser tests skip w
 | D6 | Provider protocol returns `ProviderDevice`, not `FindHubDevice`. |
 | D7 | `findplus serve` writes `~/.findplus/daemon.json` (pid, port, version, started_at). "Never two daemons" = health probe + that file + port-bind failure. The Windows task XML goes in the state dir. |
 | D8 | `findplus stop` unloads both jobs and leaves the unit files (they return at next login; say so). `findplus uninstall --yes` unloads and deletes both. `findplus restart` kickstarts. |
-| D9 | Alert channels: **Telegram** and a generic **webhook** (JSON POST, optional HMAC). WhatsApp-native is deferred to v1.1 and the docs say so. |
+| D9 | Alert channels: **Telegram** and a generic **webhook** (JSON POST, optional HMAC). WhatsApp-native is deferred to v1.1 and the docs say so. (Superseded: WhatsApp via CallMeBot is now shipping; see service-and-settings.md §1.) |
 | D10 | Apple auth uses FindMy.py's `LocalAnisetteProvider` by default; `FINDPLUS_APPLE_ANISETTE_URL` selects a remote one. |
 | D11 | FindMy.py is the optional extra `findplus[apple]`; the provider imports lazily and reports "not installed" cleanly. |
 | D12 | `api.py` → `api/` package with routers; `cli.py` → `cli/` package; `app.js` → ES modules. Behaviour-preserving, snapshot-tested, done while adding the new routes. |
 | D13 | CI adds a `windows-latest` unit-test job. Windows service management is unit-tested and labelled "community-tested" until someone runs it on real Windows. |
 | D14 | The build never blocks on Google sign-in. Everything is verified with fixtures and real protobufs; the owner runs `findplus auth` at handoff. |
-| D15 | `findplus start` state machine: not authenticated → print the two commands, exit 0; authenticated but nothing tracked → refresh devices, open dashboard on `#devices`, exit 0; otherwise install/bootstrap the service and open the dashboard. |
+| D15 | `findplus start` state machine: not authenticated → print the two commands, exit 0; authenticated but nothing tracked → refresh devices, open dashboard on `#devices`, exit 0; otherwise install/bootstrap the service and open the dashboard. (Superseded by D8; see service-and-settings.md §1.) |
 | D16 | The MCP server is a thin client of the running daemon's HTTP API, so the app lock applies to it automatically. |
 | D17 | Geofence defaults: `enter_confirmations=1`, `exit_confirmations=2`, exit margin `max(accuracy, 50 m)`, fixes with accuracy worse than the radius are indeterminate and never change state, the first confirmed fix seeds state without an event. |
 | D18 | Presence: `stale_after_minutes=90`, `cluster_radius_meters=150`, verdict `all_together` needs at least two reporting members; a single reporting member is `partial` and names who is stale. |

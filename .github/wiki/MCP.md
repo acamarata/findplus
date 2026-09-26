@@ -35,6 +35,8 @@ claude mcp add findplus -- findplus mcp
 
 With write tools: `claude mcp add findplus -- findplus mcp --allow-writes`
 
+Alert rule definitions and label configurations are deliberately not exposed over MCP to keep the tool set focused on read-only data queries and exports.
+
 ## Read tools (always available)
 
 | Tool | Description |

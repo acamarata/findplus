@@ -56,11 +56,18 @@ wiki page for a pinned-version URL.
 brew install acamarata/tap/findplus
 ```
 
-**pipx:** Find+ is not on PyPI, so install the wheel attached to the release
-(swap in the newest version from [Releases](https://github.com/acamarata/findplus/releases)):
+**pipx:** Find+ is not on PyPI, so install the wheel from the latest release.
+Download the `findplus-<version>-py3-none-any.whl` from
+[Releases](https://github.com/acamarata/findplus/releases) (for example, v1.1.2):
 
 ```bash
-pipx install https://github.com/acamarata/findplus/releases/download/v1.1.0/findplus-1.1.0-py3-none-any.whl
+pipx install https://github.com/acamarata/findplus/releases/download/v1.1.2/findplus-1.1.2-py3-none-any.whl
+```
+
+Or install from the latest release directly:
+
+```bash
+gh release download --repo acamarata/findplus --pattern '*.whl' && pipx install findplus-*.whl
 ```
 
 Requires Python 3.12, 3.13 or 3.14.
@@ -94,7 +101,7 @@ findplus start --yes
 - Address search when adding a place, via OpenStreetMap's Nominatim geocoder --
   opt-in, only when you type an address and press Search.
 - Groups and quorum-based presence (together, partial, unknown).
-- Telegram (one or more chats per rule), WhatsApp (via CallMeBot), webhook, and native
+- Telegram (every Telegram alert goes to all targets you list, up to 10 per bot), WhatsApp (via CallMeBot), webhook, and native
   macOS notification alert channels, with automatic delivery retry.
 - MCP server exposing devices, places, groups and history as LLM tools.
 - macOS menu-bar app (Tauri) with a WidgetKit status widget and a places widget.

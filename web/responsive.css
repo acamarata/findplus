@@ -27,6 +27,11 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
   clip: rect(0, 0, 0, 0); white-space: nowrap;
 }
 .lock-error { color: var(--err); font-size: 12.5px; min-height: 18px; margin: 12px 0 0; }
+/* UAT6-N07: the forgotten-PIN help, shown after a wrong PIN. */
+.lock-forgot { margin: 6px 0 0; text-align: left; font-size: 12.5px; color: var(--muted); }
+.lock-forgot summary { cursor: pointer; color: var(--text); text-align: center; }
+.lock-forgot p { margin: 8px 0 0; line-height: 1.5; }
+.lock-forgot-advanced { font-size: 12px; }
 
 /* UAT U11: a channel with no stored credentials is flagged, not disabled --
    channel-picker.js still lets it be ticked (a fresh install with nothing
@@ -223,4 +228,23 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
      controls instead of landing alone on its own row (visual gate W2
      finding). */
   .export-group { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; flex: 1 1 100%; }
+
+  /* UAT6-N09: Show and its list take a full row and the list shrinks to it,
+     so the page never scrolls sideways (the fixed tab bar went off-screen). */
+  .fp-show-group { flex: 1 1 100%; }
+  .fp-show-group select, #device-filter { flex: 1 1 auto; max-width: none; }
+
+  /* UAT6-N11: the Devices footer wraps; Save is last and full width. */
+  .modal-foot { flex-wrap: wrap; }
+  .modal-foot .spacer { display: none; }
+  .modal-foot > .btn-secondary { flex: 1 1 auto; }
+  #btn-refresh-devices { flex: 1 1 100%; }
+  #btn-save-devices { flex: 1 1 100%; order: 10; }
+
+  /* UAT6-N34: whatever scrolls the map or a pane into view (tabbar.js,
+     the Skip-map link) stops clear of the fixed bar, not under it. */
+  .layout, .map-pane, .timeline-pane {
+    scroll-margin-top: 8px;
+    scroll-margin-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  }
 }

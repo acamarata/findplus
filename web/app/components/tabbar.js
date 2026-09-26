@@ -64,8 +64,22 @@ function tabButton(entry) {
   btn.addEventListener("click", () => {
     switchTab(entry.tab);
     markCurrent(entry.tab);
+    revealTab(entry.tab);
   });
   return btn;
+}
+
+/** UAT6-N10: the switched pane sits a full screen below the fold on a phone,
+ * so a tap that only swapped it looked like it did nothing. Dashboard goes
+ * back to the top (cards and filters); the others bring the map and their
+ * pane into view. */
+function revealTab(tab) {
+  if (tab === "dashboard") {
+    window.scrollTo({ top: 0 });
+    return;
+  }
+  const layout = document.querySelector(".layout");
+  if (layout) layout.scrollIntoView({ block: "start" });
 }
 
 /** `aria-current="page"` is how a screen reader hears which tab is showing. */

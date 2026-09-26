@@ -12,7 +12,13 @@
     "lockTitle": "Find+ is locked",
     "lockSub": "Enter your PIN to continue.",
     "unlock": "Unlock",
-    "wrongPinHint": "Wrong PIN. Forgot it? Run `findplus lock reset` in a terminal.",
+    "wrongPinHint": "Wrong PIN. Try again.",
+    "lockTooManyTries": "Too many tries. Wait a minute, then try again.",
+    "lockPinFormat": "Enter your PIN without spaces.",
+    "lockUnlockFailed": "Find+ could not check that PIN. Try again in a moment.",
+    "lockForgotSummary": "Forgot your PIN?",
+    "lockForgotBody": "If you remember it later, you can change or remove it in Settings, under App lock. A forgotten PIN can only be removed on this computer itself.",
+    "lockForgotAdvanced": "Advanced: open Terminal and run findplus lock reset, then reload this page.",
     "pin": "PIN",
     "liveDotTitle": "Polling service status",
     "deviceNamePlaceholder": "no tracker selected",
@@ -28,7 +34,7 @@
     "cardPollLabel": "Last successful poll",
     "cardTodayLabel": "Observations today",
     "show": "Show",
-    "groupLabel": "Group:",
+    "groupLabel": "Group",
     "day": "Day",
     "prevDay": "Previous day",
     "nextDay": "Next day",
@@ -65,16 +71,15 @@
     "devicesTrackedRateHint": "About {rate} location fixes per hour, across your tracked devices.",
     "noDevicesTracked": "no devices tracked",
     "pollerActive": "Polling service active (every {interval} min)",
-    "pollerStale": "No recent poll — the service may be stopped",
+    "pollerStale": "No poll has run for a while. The polling service may be stopped.",
+    "pollerFailing": "Polling runs, but the last poll failed.",
+    "pollerIdle": "Nothing is tracked yet, so nothing is polled.",
     "observedAgo": "{age} ago · {device}",
     "retrievalLag": "{lag} after it was seen",
     "noObservationsYet": "no observations yet",
     "lastAttempt": "last attempt: {status}",
     "noPollsYet": "no polls yet",
     "totalOnRecord": "{total} total on record",
-    "pollFailed": "Last poll failed ({status}): {message}",
-    "nothingTracked": "No devices are being tracked. Click \"Devices\" to choose which trackers to poll.",
-    "serviceNotRunning": "The polling service does not appear to be running. Start it with: findplus start",
     "apiUnreachable": "Could not reach the local API: {message}",
     "sectionsNavLabel": "Sections",
     "detailsLandmarkLabel": "Details",
@@ -86,8 +91,8 @@
     "telegramToken": "Telegram bot token"
   },
   "devices": {
-    "title": "Your devices",
-    "note": "Tick every tracker you want polled. Each tracked device costs one provider request per poll cycle, so the request rate rises with the number you tick. Untracking keeps a device's existing history — it just stops being polled.",
+    "title": "Your trackers",
+    "note": "Tick every tracker you want Find+ to poll. Each one adds a request to its provider every poll cycle. Untracking keeps a tracker's history; it just stops being polled.",
     "allTracked": "All tracked devices",
     "refreshProvidersLabel": "Refresh from your providers",
     "trackNone": "Track none",
@@ -97,26 +102,27 @@
     "providerUnknown": "Unknown",
     "notPolledSuffix": " (not polled)",
     "emptyState": "No devices known yet. Use \"Refresh from your providers\".",
-    "obsCount": "{n} obs",
-    "rateTracked": {
-      "one": "1 device tracked → about {rate} {requests} requests per hour, polled sequentially every {interval} min.",
-      "other": "{count} devices tracked → about {rate} {requests} requests per hour, polled sequentially every {interval} min."
+    "obsCount": {
+      "one": "1 observation",
+      "other": "{n} observations"
     },
-    "rateNothing": "Nothing tracked — the poller will not query {requests} at all.",
+    "rateTracked": {
+      "one": "1 device tracked: about {rate} requests per hour to {requests}, polled every {interval} min.",
+      "other": "{count} devices tracked: about {rate} requests per hour to {requests}, polled one after another every {interval} min."
+    },
+    "rateNothing": "Nothing tracked, so Find+ will not query {requests} at all.",
     "pollingLabel": "Polling…",
     "askingProvidersLabel": "Asking your providers…",
     "pollTitleFor": "Queries {requests} once, now",
     "cardObservedFor": "Last observed by {network}",
-    "titleForAccount": "Devices on this {account} account",
-    "noteForRequests": "Tick every tracker you want polled. Each tracked device costs one {requests} request per poll cycle, so the request rate rises with the number you tick. Untracking keeps a device's existing history — it just stops being polled.",
     "pollResultLine": "{device}: {status}",
     "pollResultNew": " (+{n})",
-    "polled": "Polled {devices} device(s) — {observations} new. {lines}",
+    "polled": "Polled {devices} device(s), {observations} new. {lines}",
     "loadFailed": "Could not load devices: {message}",
     "refreshFailed": "Could not refresh devices: {message}",
     "refreshFound": "Found {found} device(s) across {providers} provider(s).",
     "refreshUnreachable": " {names} could not be reached.",
-    "trackedResult": "Tracking {count} device(s) — about {rate} {requests} requests/hour.",
+    "trackedResult": "Tracking {count} device(s), about {rate} requests per hour to {requests}.",
     "trackedNone": "No devices tracked. The poller will not query {requests}.",
     "wordingProviders": "your providers",
     "wordingTracking": "tracking",
@@ -137,7 +143,7 @@
   },
   "groups": {
     "tabHint": "Once you have a group, use the selector above the map to pick it.",
-    "allDevices": "— All devices —",
+    "allDevices": "All devices",
     "verdictTogether": "Together",
     "verdictTogetherPartial": "Together ({reporting} of {considered} reporting)",
     "verdictUnknown": "Unknown",
@@ -146,8 +152,8 @@
     "verdictOnlyOneReporting": "Only 1 reporting",
     "verdictPartial": "Partial",
     "listAway": "Away from the others",
-    "staleBadge": "{name} — no fix for {age}",
-    "staleBadgeNoFix": "{name} — no fix yet",
+    "staleBadge": "{name}: no fix for {age}",
+    "staleBadgeNoFix": "{name}: no fix yet",
     "dialog": {
       "title_add": "Add group",
       "title_edit": "Edit group"
@@ -432,7 +438,7 @@
     },
     "devices": {
       "title": "Devices",
-      "empty": "No devices found yet — refresh once you've added a tracker",
+      "empty": "No devices found yet. Refresh once you've added a tracker.",
       "label_placeholder": "Your name for this tracker",
       "refresh": "Refresh from your providers",
       "edit": "Edit",
@@ -467,7 +473,7 @@
       "connected": "Connected to {chat}.",
       "already_connected": "Telegram is already connected.",
       "telegram_help_token": "Create a bot with @BotFather on Telegram and paste its token here.",
-      "telegram_help_chat": "Then send your new bot any message and press Connect — Find+ reads the chat id from that message."
+      "telegram_help_chat": "Then send your new bot any message and press Connect. Find+ reads the chat id from that message."
     },
     "applock": {
       "title": "App lock (optional)",
@@ -541,8 +547,30 @@
     }
   },
   "notices": {
-    "pathDisclaimer": "Observed path — actual route between detections may differ.",
-    "dashboardEmpty": "No devices tracked yet."
+    "pathDisclaimer": "Observed path. The actual route between detections may differ.",
+    "dashboardEmpty": "No devices tracked yet.",
+    "dashboardEmptyLead": "Choose which trackers Find+ should follow, or run setup again.",
+    "dashboardEmptyNoAccount": "Connect Google Find Hub or Apple Find My, and your trackers show up here."
+  },
+  "pollStatus": {
+    "ok": "worked",
+    "noLocation": "no new location",
+    "signedOut": "not signed in",
+    "unavailable": "provider unavailable",
+    "timeout": "timed out",
+    "failed": "failed",
+    "anyProvider": "your tracking account",
+    "bannerSignedOut": "Find+ is not signed in to {provider}, so it cannot read your trackers yet.",
+    "bannerUnavailable": "Find+ could not use {provider} on the last poll. Check its sign-in, or wait for the next poll.",
+    "bannerTimeout": "{provider} took too long to answer the last poll. Find+ tries again on the next one.",
+    "bannerFailed": "The last poll did not finish. Find+ tries again on the next one.",
+    "bannerNoAccount": "No account is connected yet. Connect Google Find Hub or Apple Find My to see your trackers.",
+    "bannerNothingTracked": "No trackers are being followed yet. Choose the ones Find+ should poll.",
+    "bannerServiceStale": "No poll has run for a while, so the polling service may be stopped.",
+    "serviceStaleHint": "Advanced: if this keeps showing, run findplus start in Terminal.",
+    "actionConnect": "Connect an account",
+    "actionChooseDevices": "Choose devices",
+    "actionPollNow": "Poll now"
   },
   "timeline": {
     "emptyDay": "No observations recorded for this day.",
@@ -558,9 +586,9 @@
     "statLongestGap": "Longest gap",
     "statTimeSpan": "Time span covered",
     "distanceMiles": "{miles} mi",
-    "statNote": "{label} — not the distance actually travelled.",
+    "statNote": "{label}, not the distance actually traveled.",
     "noDetectionsFor": "NO NEW DETECTIONS FOR {duration}",
-    "fromPrevious": "{distance} from previous observation",
+    "fromPrevious": "About {distance} from previous observation",
     "accuracy": "±{meters} m",
     "accuracyUnknown": "Accuracy unknown",
     "belowThreshold": "below movement threshold",
@@ -572,10 +600,10 @@
     "confirmClearAll": "Delete ALL {count} observation(s) for every device?\n\nThis erases the entire location history and cannot be undone.",
     "confirmWord": "DELETE",
     "promptTypeDelete": "Type {word} to confirm erasing all history:",
-    "deleteCancelled": "Cancelled — nothing deleted.",
+    "deleteCancelled": "Canceled. Nothing was deleted.",
     "pickBothDates": "Pick both a start and an end date.",
     "rangeStartAfterEnd": "The range start is after its end.",
-    "latestSummary": "{device} — last observed by {network} {observed} · retrieved {fetched} · age {age}"
+    "latestSummary": "{device}: last observed by {network} {observed} · retrieved {fetched} · age {age}"
   },
   "units": {
     "unknown": "unknown",

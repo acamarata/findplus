@@ -12,98 +12,23 @@
  */
 "use strict";
 
-import { $, state, fmtTime, fmtDuration, todayLocal, applyTheme, showAlert, getStoredTheme } from "./state.js";
+import { $, state, todayLocal, applyTheme, showAlert, getStoredTheme } from "./state.js";
 import { api } from "./api.js";
 import { initMap, setDefaultView } from "./map.js";
 import { loadDay, selectPoint, wireTimelineControls, wireHistoryControls } from "./timeline.js";
 import { loadDevices, openDevices, wireDeviceControls } from "./devices.js";
 import { wireLockControls, refreshLockState, startIdleTimer } from "./lock.js";
 import { wireSettingsControls, openSettings, loadSettings } from "./settings.js";
-import { loadCatalog, applyStaticI18n, t, plural } from "./i18n.js";
+import { loadCatalog, applyStaticI18n, t } from "./i18n.js";
+import { loadStatus } from "./status_view.js";
 import { initTabbar } from "./components/tabbar.js";
 import { wireTabsKeyboard } from "./components/tabs_a11y.js";
 import { openSetupRoute, closeSetupRoute, checkOnboarding } from "./setup_route.js";
 import { loadIconSprite } from "./icon_sprite.js";
 
-/** The topbar device name: the filtered tracker, or how many are tracked.
- * U30: the title tooltip spells out what "~72/hr" counts. */
-function renderDeviceName(s) {
-  const tracked = s.devices.filter((d) => d.is_tracked);
-  const el = $("device-name");
-  el.title = "";
-  if (state.deviceFilter) {
-    el.textContent = (s.devices.find((d) => d.device_id === state.deviceFilter) || {}).name || state.deviceFilter;
-    return;
-  }
-  if (!tracked.length) { el.textContent = t("common.noDevicesTracked"); return; }
-  el.textContent = plural("common.devicesTracked", tracked.length, { n: tracked.length, rate: s.requests_per_hour });
-  el.title = t("common.devicesTrackedRateHint", { rate: s.requests_per_hour });
-}
-
-/** The service dot: colour plus a tooltip saying what the colour means. */
-function renderPollerDot(s) {
-  const dot = $("live-dot");
-  dot.className = "dot " + (s.poller_running ? "live" : "stale");
-  dot.title = s.poller_running
-    ? t("common.pollerActive", { interval: s.poll_interval_minutes })
-    : t("common.pollerStale");
-}
-
-/** The four summary cards. With no observation yet every value reads as empty. */
-function renderCards(s) {
-  const latest = s.latest_observation;
-  if (latest) {
-    $("card-observed").textContent = fmtTime(latest.observed_at_local);
-    $("card-observed-ago").textContent = t("common.observedAgo", {
-      age: fmtDuration(latest.age_seconds),
-      device: latest.device_name,
-    });
-    $("card-fetched").textContent = fmtTime(latest.fetched_at_local);
-    $("card-lag").textContent = t("common.retrievalLag", {
-      lag: fmtDuration(latest.retrieval_lag_seconds),
-    });
-  } else {
-    $("card-observed").textContent = t("common.emptyValue");
-    $("card-observed-ago").textContent = t("common.noObservationsYet");
-    $("card-fetched").textContent = t("common.emptyValue");
-    $("card-lag").textContent = t("common.emptyValue");
-  }
-
-  const run = s.last_successful_poll;
-  $("card-poll").textContent = run ? fmtTime(run.started_at_local) : t("common.emptyValue");
-  $("card-poll-status").textContent = s.last_poll
-    ? t("common.lastAttempt", { status: s.last_poll.status })
-    : t("common.noPollsYet");
-  $("card-today").textContent = String(s.observations_today);
-  $("card-total").textContent = t("common.totalOnRecord", { total: s.observations_total });
-}
-
-/** The banner, in priority order: a failed poll, nothing tracked, a stopped service. */
-function renderStatusAlert(s) {
-  if (s.last_poll && !["ok", "no_location"].includes(s.last_poll.status)) {
-    const message = s.last_poll.error_message || t("common.unknownError");
-    showAlert(t("common.pollFailed", { status: s.last_poll.status, message }), "err");
-  } else if (!s.tracked_count) {
-    showAlert(t("common.nothingTracked"), "warn");
-  } else if (!s.poller_running) {
-    showAlert(t("common.serviceNotRunning"), "warn");
-  } else {
-    showAlert(null);
-  }
-}
-
-export async function loadStatus() {
-  try {
-    const query = state.deviceFilter ? `?device_id=${encodeURIComponent(state.deviceFilter)}` : "";
-    const s = await api(`/api/status${query}`);
-    renderDeviceName(s);
-    renderPollerDot(s);
-    renderCards(s);
-    renderStatusAlert(s);
-  } catch (err) {
-    showAlert(t("common.apiUnreachable", { message: err.message }), "err");
-  }
-}
+// The status chrome (device name, service dot, cards, banner) lives in
+// status_view.js; re-exported so existing `main.js` importers keep working.
+export { loadStatus };
 
 let configLoad = null;
 

@@ -36,6 +36,15 @@ function allTrackedOption() {
   return opt;
 }
 
+/** Longest device name the Show list prints before cutting it with "…". */
+const OPTION_NAME_MAX = 32;
+
+/** `text` cut to `max` characters with a trailing ellipsis. */
+function ellipsize(text, max) {
+  const value = String(text);
+  return value.length > max ? value.slice(0, max - 1).trimEnd() + "…" : value;
+}
+
 export function renderDeviceFilter() {
   const select = $("device-filter");
   const current = state.deviceFilter;
@@ -46,8 +55,12 @@ export function renderDeviceFilter() {
     .forEach((d) => {
       const opt = document.createElement("option");
       opt.value = d.device_id;
-      opt.textContent =
-        displayName(d) + " (" + providerLabel(d.provider) + ")" + (d.is_tracked ? "" : t("devices.notPolledSuffix"));
+      const full = displayName(d) + " (" + providerLabel(d.provider) + ")" + (d.is_tracked ? "" : t("devices.notPolledSuffix"));
+      // UAT6-N09: a <select> is as wide as its longest option, and CSS cannot
+      // ellipsize inside the open list. Cut long names here; the title keeps
+      // the whole thing for hover.
+      opt.textContent = ellipsize(displayName(d), OPTION_NAME_MAX) + full.slice(displayName(d).length);
+      opt.title = full;
       select.appendChild(opt);
     });
   select.value = current;
@@ -72,9 +85,9 @@ function badgeCell(d) {
 
 /** The label (or the name), with the raw device name below it once a label is set. */
 function nameCell(d) {
-  const cell = el("span");
+  const cell = el("span", "d-names");
   const secondary = d.label ? d.name : d.device_id;
-  cell.append(el("span", "d-name", d.label || d.name), el("br"), el("span", "d-id", secondary));
+  cell.append(el("span", "d-name", d.label || d.name), el("span", "d-id", secondary));
   return cell;
 }
 
@@ -92,7 +105,10 @@ function editButton(d) {
   return edit;
 }
 
-/** One row of the Devices dialog. */
+/** One row of the Devices dialog: checkbox, badge and name with Edit beside
+ * them, then the observation count and provider on a line of their own
+ * (UAT6-N11: at phone width the name had one word per line). Layout lives in
+ * style.css's .device-row rules; places.js appends its presence chip last. */
 function deviceRow(d) {
   const row = el("div", "device-row");
   row.dataset.deviceId = d.device_id;
@@ -102,19 +118,18 @@ function deviceRow(d) {
   check.value = d.device_id;
   check.checked = d.is_tracked;
   check.addEventListener("change", updateModalRate);
-  
-  const label = el("label");
+
+  const label = el("label", "d-main");
   label.htmlFor = check.id;
-  label.style.display = "flex";
-  label.style.alignItems = "center";
-  label.style.gap = "10px";
-  label.style.cursor = "pointer";
   label.append(check, badgeCell(d), nameCell(d));
-  
-  const obs = el("span", "d-obs", t("devices.obsCount", { n: Number(d.observation_count) || 0 }));
+
+  const count = Number(d.observation_count) || 0;
+  const obs = el("span", "d-obs", plural("devices.obsCount", count, { n: count }));
   const providerClass = "fp-provider-badge fp-provider-badge--" + (d.provider || "unknown");
   const provider = el("span", providerClass, providerLabel(d.provider));
-  row.append(label, obs, provider, editButton(d));
+  const meta = el("span", "d-meta");
+  meta.append(obs, provider);
+  row.append(label, editButton(d), meta);
   return row;
 }
 

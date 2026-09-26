@@ -15,6 +15,7 @@
      tint those two draw over --panel: --accent itself measured 4.05:1 there
      (CR-C-E4 CF-P2-E4-5), so a separate token, not a reused pinned one. */
   --badge-text: #c7ddff;
+  color-scheme: dark;  /* native pickers, scrollbars and checkboxes follow the theme */
 }
 * { box-sizing: border-box; }
 body {
@@ -34,6 +35,9 @@ h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .07em; color: v
 .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex: 0 0 auto; }
 .dot.live { background: var(--ok); box-shadow: 0 0 0 3px rgba(55,198,122,.18); }
 .dot.stale { background: var(--err); box-shadow: 0 0 0 3px rgba(239,95,95,.18); }
+/* UAT6-N06: polling runs but the last poll failed; nothing tracked yet. */
+.dot.warn { background: var(--warn); box-shadow: 0 0 0 3px rgba(231,181,63,.2); }
+.dot.idle { background: var(--muted); box-shadow: none; }
 .topbar-actions { display: flex; gap: 8px; }
 
 .btn {
@@ -58,6 +62,18 @@ h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .07em; color: v
 .btn-secondary:disabled { opacity: .5; cursor: not-allowed; }
 .btn-tiny { padding: 5px 9px; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); }
 
+/* UAT6-N12: one look for every text-like control in both themes. Per-surface
+   rules only ever added the types they had met, so Telegram's targets and the
+   WhatsApp phone field painted as bright native boxes in dark mode. A form
+   control border is a UI component (WCAG 1.4.11, 3:1): --line-strong. */
+input[type=text], input[type=search], input[type=email], input[type=tel], input[type=url],
+input[type=password], input[type=number], input[type=date], input:not([type]), select, textarea {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line-strong);
+  border-radius: 7px; padding: 6px 9px; font-family: inherit; font-size: 13px;
+}
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
+input[type=checkbox], input[type=radio], input[type=range] { accent-color: var(--accent); }
+
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
          gap: 10px; padding: 14px 18px 0; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px;
@@ -67,16 +83,20 @@ h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .07em; color: v
 .card .sub { font-size: 12px; color: var(--muted); }
 
 .alert { margin: 12px 18px 0; padding: 10px 13px; border-radius: 8px;
-         background: rgba(239,95,95,.12); border: 1px solid rgba(239,95,95,.4); color: #ffd9d9; font-size: 13px; }
+         background: rgba(239,95,95,.12); border: 1px solid rgba(239,95,95,.4); color: #ffd9d9; font-size: 13px;
+         display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.alert-text { flex: 1 1 260px; }
+.alert-action { flex: 0 0 auto; }
+.alert-hint { flex: 1 1 100%; font-size: 12px; }
 .alert.warn { background: rgba(231,181,63,.12); border-color: rgba(231,181,63,.4); color: #ffeec2; }
 .hidden { display: none; }
 
 .controls { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; padding: 14px 18px 0; }
 .controls label { font-size: 12px; color: var(--muted); }
-.controls input[type=date], .controls select {
-  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
-  border-radius: 7px; padding: 6px 9px; font-size: 13px;
-}
+/* UAT6-N09: a <select> grows to its longest option; the Show list pushed
+   Export onto a second row at 1280 and widened the page to 517px at 375. */
+.controls select { max-width: 100%; min-width: 0; text-overflow: ellipsis; }
+#device-filter { max-width: 240px; }
 .toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 .spacer { flex: 1; }
 
@@ -109,6 +129,8 @@ h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .07em; color: v
 .tl-item.jitter::before { background: var(--muted); }
 .tl-time { font-weight: 600; font-variant-numeric: tabular-nums; }
 .tl-coords { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.tl-icon { width: 13px; height: 13px; margin-right: 4px; vertical-align: -2px;
+           fill: none; stroke: currentColor; stroke-width: 2; }
 .tl-meta { color: var(--muted); font-size: 12px; }
 .tl-seq { display: inline-block; min-width: 20px; color: var(--muted); font-size: 11.5px; }
 
@@ -116,6 +138,10 @@ h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .07em; color: v
           color: var(--gap); font-size: 12px; font-weight: 550; background: rgba(231,181,63,.07); }
 
 .empty { color: var(--muted); padding: 22px 4px; text-align: center; font-size: 13px; }
+.empty-state { padding: 28px 8px; }
+.empty-title { color: var(--text); font-size: 15px; font-weight: 600; margin: 0 0 4px; }
+.empty-lead { margin: 0 auto 14px; max-width: 30em; }
+.empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 
 .footer { padding: 6px 18px 24px; }
 .notice { color: var(--muted); font-size: 12px; max-width: 900px; line-height: 1.55; }
@@ -161,22 +187,33 @@ h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .07em; color: v
   width: min(620px, 92vw); max-height: 86vh; overflow-y: auto; padding: 18px 20px 16px;
 }
 .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.modal-head h2 { margin: 0; text-transform: none; letter-spacing: 0; font-size: 16px; color: var(--text); }
+.modal-head h2 { margin: 0; text-transform: none; letter-spacing: 0; font-size: 18px; font-weight: 600; color: var(--text); }
 .modal-note { color: var(--muted); font-size: 12.5px; line-height: 1.55; margin: 10px 0 14px; }
 .modal-rate { color: var(--warn); font-size: 12.5px; margin: 12px 0 0; }
 .modal-foot { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
 
-.device-list { display: flex; flex-direction: column; gap: 2px; }
+/* UAT6-N11: name and Edit on the first line, the count, provider and
+   presence chip on a second line under the name (the ::after is a zero-height
+   line break), so a long name gets the row's width at every size. */
+.device-list { display: flex; flex-direction: column; gap: 6px; }
 .device-row {
-  display: flex; align-items: center; gap: 10px; padding: 9px 10px;
-  border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2);
-  cursor: pointer;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 9px 10px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); cursor: pointer;
 }
+.device-row::after { content: ""; order: 2; flex-basis: 100%; height: 0; }
 .device-row:hover { border-color: var(--accent); }
 .device-row input { cursor: pointer; }
-.device-row .d-name { font-weight: 550; }
-.device-row .d-id { color: var(--muted); font-size: 11.5px; font-family: ui-monospace, Menlo, monospace; }
-.device-row .d-obs { margin-left: auto; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.device-row .d-main { display: flex; align-items: center; gap: 10px; flex: 1 1 0; min-width: 0; cursor: pointer; }
+.device-row .fp-device-edit { order: 1; }
+.device-row .d-names { display: flex; flex-direction: column; min-width: 0; }
+.device-row .d-name { font-weight: 550; overflow-wrap: anywhere; }
+.device-row .d-id { color: var(--muted); font-size: 11.5px; font-family: ui-monospace, Menlo, monospace;
+                    overflow-wrap: anywhere; }
+.device-row .d-meta { order: 3; flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center;
+                      gap: 4px 8px; padding-left: 64px; }
+.device-row .d-meta > *, .device-row .fp-presence-chip { white-space: nowrap; margin-left: 0; }
+.device-row .fp-presence-chip { order: 4; margin-left: 64px; }
+.device-row .d-obs { color: var(--muted); font-size: 12px; }
 
 /* --- light theme ------------------------------------------------------- */
 /* `:root` above holds the dark defaults; this overrides them wholesale so a
@@ -196,6 +233,7 @@ html[data-theme="light"] {
   --gap: #9a6b00;
   /* --accent measured 4.28:1 on the same tint here (CR-C-E4 CF-P2-E4-5). */
   --badge-text: #1e40af;
+  color-scheme: light;
 }
 html[data-theme="light"] .leaflet-container { background: #e6eaf0; }
 html[data-theme="light"] .marker-num { box-shadow: 0 1px 4px rgba(0,0,0,.28); }
@@ -213,12 +251,12 @@ html[data-theme="light"] .alert.warn { color: #6b4a00; }
   background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
   padding: 34px 38px; width: min(380px, 90vw); text-align: center;
 }
-.lock-icon { font-size: 34px; line-height: 1; }
+.lock-icon { display: block; margin: 0 auto; color: var(--accent); }
 .lock-title { font-size: 18px; margin: 14px 0 4px; }
 .lock-sub { color: var(--muted); font-size: 13px; margin: 0 0 18px; }
 #lock-form { display: flex; flex-direction: column; gap: 10px; }
 #lock-pin {
-  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line-strong);
   border-radius: 8px; padding: 11px 13px; font-size: 19px; text-align: center;
   letter-spacing: .3em; font-variant-numeric: tabular-nums;
 }
@@ -241,18 +279,9 @@ html[data-theme="light"] .alert.warn { color: #6b4a00; }
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px; padding: 7px 0; font-size: 13.5px;
 }
-.setting-row input[type=password],
-.setting-row input[type=date],
-.setting-row input[type=url],
-.setting-row input[type=number],
-.setting-row select {
-  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
-  border-radius: 7px; padding: 6px 9px; font-size: 13px; min-width: 190px;
-}
-/* A form control's border is a UI component (WCAG 1.4.11, 3:1). --line is left
-   alone: it also draws decorative card and table dividers, which are exempt. */
-.controls select { border-color: var(--line-strong); }
-.setting-row select { border-color: var(--line-strong); }
+/* Colours come from the shared control rule near the top of this file. */
+.setting-row :where(input:not([type=checkbox], [type=radio], [type=file])),
+.setting-row select { min-width: 190px; }
 .setting-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .btn-danger { background: var(--err); color: #fff; }
 .danger-zone { border-top-color: var(--err); }

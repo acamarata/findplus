@@ -24,12 +24,25 @@
 /* UAT2 N11: style.css's global `h2` rule uppercases every h2 including this
    one, so the device dialog's title read "EDIT CHIPOLO ONE POINT". Dialog
    titles carry a device's own label/name and read as a name, not a label. */
+/* UAT6-N24: titles read as muted, letter-spaced labels (the global h2), so
+   they looked disabled. Every dialog title is a --text heading now, the same
+   as the Devices and Settings modals (style.css .modal-head h2). */
 #fp-group-dialog h2,
 #fp-device-dialog h2,
-#fp-place-dialog h2 { margin: 0 0 12px; font-size: 16px; text-transform: none; }
+#fp-place-dialog h2,
+#fp-add-rule-dialog h2 {
+  margin: 0 0 14px; font-size: 18px; font-weight: 600; letter-spacing: 0;
+  text-transform: none; color: var(--text);
+}
+/* UAT6-N24: the action row sits right like the wizard's footer, primary last
+   (rightmost). Every dialog builds [Save][Cancel], so row-reverse does it. */
 #fp-group-dialog footer,
 #fp-device-dialog footer,
-#fp-place-dialog footer { display: flex; gap: 8px; margin-top: 14px; }
+#fp-place-dialog footer,
+#fp-add-rule-dialog footer {
+  display: flex; flex-direction: row-reverse; flex-wrap: wrap; justify-content: flex-start;
+  gap: 8px; margin-top: 18px;
+}
 /* W3 visual gate finding 2: these two dialogs had no input/select styling at
    all (native white boxes on the dark panel), unlike .setting-row's own
    inputs. Same declarations, reused rather than forked. Native checkbox and

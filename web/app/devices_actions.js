@@ -23,6 +23,7 @@ import { $, showAlert } from "./state.js";
 import { postJson } from "./api.js";
 import { reload } from "./main.js";
 import { t } from "./i18n.js";
+import { shortStatus } from "./poll_status.js";
 import { loadDevices, renderDeviceModal, closeDevices, providerWording } from "./devices.js";
 
 // N50: mirrors MANUAL_POLL_COOLDOWN in cli/src/findplus/api/__init__.py. Used
@@ -70,7 +71,8 @@ export async function pollNow() {
     const r = await postJson("/api/poll-now");
     const lines = r.results.map(
       (x) =>
-        t("devices.pollResultLine", { device: x.device_name, status: x.status }) +
+        // UAT6-N06: plain words, never the raw status code.
+        t("devices.pollResultLine", { device: x.device_name, status: shortStatus(x.status) }) +
         (x.observations_new ? t("devices.pollResultNew", { n: x.observations_new }) : "")
     );
     showAlert(

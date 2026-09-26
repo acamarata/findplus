@@ -33,9 +33,13 @@ def test_wrong_pin_stays_locked_and_reports_it(page: Page) -> None:
     page.wait_for_timeout(1200)
     assert page.is_visible("#lock-screen")
     # UAT U20: the generic 401 handler used to swallow the real reason and
-    # show the bare word "Locked"; a wrong PIN now names itself and points at
-    # the recovery command, not just "something failed".
+    # show the bare word "Locked"; a wrong PIN now names itself. UAT6-N07: the
+    # recovery path follows in words, the terminal command only as its
+    # secondary "Advanced" line, never inside the error itself.
     error_text = page.inner_text("#lock-error").strip()
     assert error_text != "Locked"
     assert "Wrong PIN" in error_text
-    assert "findplus lock reset" in error_text
+    assert "findplus" not in error_text
+    assert page.is_visible("#lock-forgot")
+    page.click("#lock-forgot summary")
+    assert "findplus lock reset" in page.inner_text(".lock-forgot-advanced")

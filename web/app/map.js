@@ -62,13 +62,16 @@ export async function setDefaultView() {
 }
 
 /** Each tracked device paired with its latest fix, skipping any that have
- * none yet (a 404 from /api/latest) rather than failing over one silent
- * tracker. The one fetch both setDefaultView() and
- * renderTrackedDeviceMarkers() build on, so a first-run wizard borrowing this
- * map never issues it twice. */
+ * none yet rather than failing over one silent tracker. A device with zero
+ * observations is not asked at all: its /api/latest is a guaranteed 404,
+ * which the browser logged as a console error on every boot (UAT6-N35).
+ * The one fetch both setDefaultView() and renderTrackedDeviceMarkers() build
+ * on, so a first-run wizard borrowing this map never issues it twice. */
 async function _trackedDeviceLatest() {
   const devicesResp = await api("/api/devices").catch(() => null);
-  const tracked = devicesResp ? devicesResp.devices.filter((d) => d.is_tracked) : [];
+  const tracked = devicesResp
+    ? devicesResp.devices.filter((d) => d.is_tracked && Number(d.observation_count) > 0)
+    : [];
   const fixes = await Promise.all(
     tracked.map((d) =>
       api(`/api/latest?device_id=${encodeURIComponent(d.device_id)}`).catch(() => null),

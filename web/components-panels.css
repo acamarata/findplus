@@ -44,22 +44,28 @@ dialog a:hover,
    it a real <h2>, aria-labelledby-linked). Same rule the group/device/place
    editors already carry above, including the N11 text-transform override --
    style.css's global `h2` would otherwise uppercase "New rule"/"Edit rule". */
-#fp-add-rule-dialog h2 { margin: 0 0 12px; font-size: 16px; text-transform: none; }
 #fp-add-rule-dialog input[type="text"],
 #fp-add-rule-dialog input[type="number"],
 #fp-add-rule-dialog select {
   background: var(--panel-2); color: var(--text); border: 1px solid var(--line-strong);
   border-radius: 7px; padding: 6px 9px; font-size: 13px;
 }
-#fp-add-rule-dialog footer { display: flex; gap: 8px; margin-top: 14px; }
-/* Finding 4: the target radio and the select it governs were two stacked rows
-   that did not line up. One row on a desktop width, stacked on a phone. */
-.fp-rule-target-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
-.fp-rule-target-row label { display: flex; align-items: center; gap: 6px; margin: 0; }
-.fp-rule-target-row select { flex: 1 1 auto; min-width: 0; }
-@media (max-width: 599px) {
-  .fp-rule-target-row { flex-direction: column; align-items: stretch; }
+/* UAT6-N25: one grid row per target -- radio, label, select -- in the same
+   108px label column as Name and Place. style-tabs.css's id-level
+   `#fp-add-rule-dialog label { display: block }` stacked the radio over its
+   own label; the unpicked select keeps its box (visibility, not display) so
+   switching Device/Group no longer moves the rows below. */
+#fp-add-rule-dialog .fp-rule-target-row {
+  display: grid; grid-template-columns: 108px minmax(0, 1fr); align-items: center;
+  gap: 8px; margin: 8px 0;
 }
+#fp-add-rule-dialog .fp-rule-target-row label {
+  display: flex; align-items: center; gap: 6px; margin: 0; color: var(--text); font-size: 13px;
+}
+#fp-add-rule-dialog .fp-rule-target-row select { width: 100%; min-width: 0; }
+#fp-add-rule-dialog .fp-rule-target-row select.hidden { display: block; visibility: hidden; }
+#fp-add-rule-dialog .fp-rule-target-row select:disabled { opacity: .55; }
+#fp-add-rule-dialog form > label { display: flex; align-items: center; gap: 6px; margin: 6px 0; }
 /* UAT2 U32/N7: the channel checkboxes were an unstyled <div> of bare
    <label>s run together on one line. One per row, like every other
    checkbox list in the dialog. */
@@ -212,12 +218,20 @@ dialog a:hover,
 .fp-search-results button:hover { background: var(--panel-2); }
 .fp-search-empty { padding: 7px 9px; color: var(--muted); font-size: 12.5px; }
 
-/* --- places list (UAT U5, same field/button shapes as .fp-group-card) ---- */
+/* --- places list (UAT U5, same field/button shapes as .fp-group-card) ----
+   UAT6-N26: a grid, so a long "Currently here: ..." wraps inside its own cell
+   under the name and Edit/Delete stay together on the first line. */
 #fp-places-list { padding: 0 18px; margin-top: 10px; }
-.fp-place-card { display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
-  padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px;
-  background: var(--panel-2); margin-bottom: 6px; cursor: pointer; }
-.fp-place-card .fp-color-swatch { width: 16px; height: 16px; cursor: default; }
+.fp-place-card { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto auto;
+  grid-template-areas: "dot name edit del" ". meta meta meta" ". who who who";
+  align-items: center; gap: 2px 10px; padding: 9px 10px; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--panel-2); margin-bottom: 6px; cursor: pointer; }
+.fp-place-card > .fp-color-swatch { grid-area: dot; width: 16px; height: 16px; cursor: default; }
+.fp-place-card > .fp-card-name { grid-area: name; }
+.fp-place-card > .fp-card-edit { grid-area: edit; }
+.fp-place-card > .fp-card-delete { grid-area: del; }
+.fp-place-card > .fp-place-card-meta { grid-area: meta; }
+.fp-place-card > .fp-place-card-who { grid-area: who; overflow-wrap: anywhere; }
 .fp-place-card-meta,
 .fp-place-card-who { font-size: 12px; color: var(--muted); }
 .fp-place-card-who:empty { display: none; }

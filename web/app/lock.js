@@ -44,6 +44,7 @@ export async function showLock() {
   $("app-shell").classList.add("hidden");
   $("lock-screen").classList.remove("hidden");
   $("lock-error").textContent = "";
+  $("lock-forgot").hidden = true;
   $("lock-pin").value = "";
   await showLockCaveat();
   $("lock-pin").focus();
@@ -207,6 +208,15 @@ export async function refreshLockState() {
   }
 }
 
+/** UAT6-N07: a catalog sentence per refusal, never the server's detail text
+ * (it named attempt counts and, before, a terminal command). */
+function unlockErrorText(e) {
+  if (e.status === 401) return t("common.wrongPinHint");
+  if (e.status === 429) return t("common.lockTooManyTries");
+  if (e.status === 422) return t("common.lockPinFormat");
+  return t("common.lockUnlockFailed");
+}
+
 export async function submitPin(pin) {
   const err = $("lock-error");
   const btn = $("lock-submit");
@@ -220,7 +230,9 @@ export async function submitPin(pin) {
     err.textContent = "";
     await hideLockAndRestore();
   } catch (e) {
-    err.textContent = e.status === 401 ? t("common.wrongPinHint") : e.message;
+    err.textContent = unlockErrorText(e);
+    // The recovery hint appears once a PIN has been refused, not before.
+    if (e.status === 401) $("lock-forgot").hidden = false;
     $("lock-pin").value = "";
     $("lock-pin").focus();
   } finally {

@@ -16,20 +16,44 @@ import json
 from playwright.sync_api import Page
 
 
+def _empty_state_buttons(page: Page):
+    page.wait_for_selector("#tracks .empty-actions[data-ready]", timeout=10000)
+    buttons = page.locator("#tracks .empty-actions button")
+    assert buttons.count() == 2
+    return buttons
+
+
 def test_dashboard_empty_state_has_one_message_and_working_buttons(page: Page) -> None:
     """U13: the old copy was "Devices to choose one" (no verb) with the two
-    actions named as plain text. Now there is one plain sentence and two
-    real buttons that navigate."""
+    actions named as plain text. UAT6-N32: with no account signed in (this
+    fixture never signs in) the primary action is "Connect an account", and
+    it opens Settings on its Sign-in section."""
     tracks = page.locator("#tracks")
     assert tracks.locator("p", has_text="No devices tracked yet.").count() == 1
 
-    buttons = tracks.locator("button")
-    assert buttons.count() == 2
+    buttons = _empty_state_buttons(page)
     labels = [buttons.nth(i).inner_text() for i in range(2)]
-    assert "Devices" in labels
-    assert "Run setup again" in labels
+    assert labels == ["Connect an account", "Run setup again"]
+    assert "btn-secondary" not in (buttons.nth(0).get_attribute("class") or "")
 
-    buttons.filter(has_text="Devices").click()
+    buttons.nth(0).click()
+    page.wait_for_selector("#settings-modal:not(.hidden)", timeout=10000)
+
+
+def test_dashboard_empty_state_offers_devices_once_signed_in(page: Page) -> None:
+    """UAT6-N32: signed in with nothing tracked, the primary action is Devices."""
+    page.route(
+        "**/api/auth/status",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps({"providers": [{"id": "google-find-hub", "signed_in": True}]}),
+        ),
+    )
+    page.reload()
+    buttons = _empty_state_buttons(page)
+    assert buttons.nth(0).inner_text() == "Choose devices"
+    buttons.nth(0).click()
     page.wait_for_selector("#device-modal:not(.hidden)", timeout=10000)
 
 

@@ -140,7 +140,8 @@ async def _assert_chrome_names_apple_only_when_every_device_is_apple(page) -> No
         assert "Google" not in text, f"{where} still says Google to an Apple-only user: {text}"
         assert "Find Hub" not in text, f"{where} still says Find Hub: {text}"
     assert apple_only["observed"] == "Last observed by Find My"
-    assert apple_only["heading"] == "Devices on this Apple account"
+    # UAT6-N14: one provider-neutral heading for every device set.
+    assert apple_only["heading"] == "Your trackers"
 
 
 async def test_the_chrome_around_the_footer_names_the_right_network(page, base_url):

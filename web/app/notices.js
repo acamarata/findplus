@@ -57,6 +57,8 @@ export async function loadNotices() {
     // and the lock screen has its own copy. Listing it here too put the same
     // paragraph twice in one dialog (E1 honesty round 3 F13).
     "fp-notice-not-affiliated": n.not_affiliated,
+    // UAT6-N08: the dashboard footer says it too, not only Settings > Notices.
+    "fp-footer-not-affiliated": n.not_affiliated,
   };
   for (const [id, text] of Object.entries(map)) {
     const el = document.getElementById(id);

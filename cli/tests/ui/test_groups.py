@@ -217,4 +217,4 @@ async def test_a_stale_member_row_shows_its_real_age(page, base_url):
         }"""
     )
     assert "unknown" not in text, f"the stale row still cannot find its member: {text}"
-    assert text == "Backpack — no fix for 5 h"
+    assert text == "Backpack: no fix for 5 h"

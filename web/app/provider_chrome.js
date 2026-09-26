@@ -58,10 +58,14 @@ export function syncProviderChrome() {
   if (poll) poll.title = t("devices.pollTitleFor", { requests: w.requests });
   const observed = $("card-observed-label");
   if (observed) observed.textContent = t("devices.cardObservedFor", { network: w.network });
+  // UAT6-N14: the heading read "Devices on this Google account" above an
+  // Apple AirTag, and the note "one your providers request". One provider-
+  // neutral heading and note for every device set, rather than a noun phrase
+  // spliced into a sentence built for a single provider.
   const heading = $("device-modal-title");
-  if (heading) heading.textContent = t("devices.titleForAccount", { account: w.account });
+  if (heading) heading.textContent = t("devices.title");
   const note = $("device-modal-note");
-  if (note) note.textContent = t("devices.noteForRequests", { requests: w.requests });
+  if (note) note.textContent = t("devices.note");
 }
 
 /**
@@ -73,8 +77,9 @@ export function syncProviderChrome() {
  * false sentence on screen, so both are device-derived now. Both come verbatim
  * from /api/config.notices, so honesty.py stays the single source.
  *
- * With no devices at all neither sentence renders: there is no history on
- * screen for either one to describe.
+ * With no devices at all both sentences render (UAT6-N32): a first-run user
+ * choosing what to connect is exactly who needs to read how each network
+ * behaves, and neither sentence is then false about any tracker on screen.
  */
 export function syncProviderNotice() {
   const notices = state.config?.notices;
@@ -82,10 +87,11 @@ export function syncProviderNotice() {
   setNotice($("findhub-notice"), (d) => d.provider !== "apple-find-my", notices?.find_hub);
 }
 
-/** Show `text` on `el` when at least one tracked device matches `pred`. */
+/** Show `text` on `el` when a tracked device matches `pred`, or no device is known yet. */
 function setNotice(el, pred, text) {
   if (!el) return;
-  const show = Boolean(text) && state.devices.some(pred);
+  const devices = state.devices || [];
+  const show = Boolean(text) && (!devices.length || devices.some(pred));
   el.textContent = show ? text : "";
   el.hidden = !show;
 }

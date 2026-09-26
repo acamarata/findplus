@@ -33,7 +33,13 @@
      dashboard is not merely hidden, the API refuses to return any data. -->
 <div id="lock-screen" class="lock-screen hidden">
   <div class="lock-box">
-    <div class="lock-icon">🔒</div>
+    <!-- UAT6-N30: Lucide "lock" (ISC, same set as web/icons.svg), inline so it
+         paints before the sprite loads; an emoji rendered differently per OS. -->
+    <svg class="lock-icon" viewBox="0 0 24 24" width="36" height="36" aria-hidden="true"
+         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect>
+      <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+    </svg>
     <h1 class="lock-title" data-i18n="common.lockTitle">Find+ is locked</h1>
     <p class="lock-sub" data-i18n="common.lockSub">Enter your PIN to continue.</p>
     <form id="lock-form" autocomplete="off">
@@ -42,7 +48,14 @@
              data-i18n-attr="placeholder:common.pin,aria-label:common.pin">
       <button type="submit" class="btn" id="lock-submit" data-i18n="common.unlock">Unlock</button>
     </form>
-    <p id="lock-error" class="lock-error"></p>
+    <p id="lock-error" class="lock-error" role="alert"></p>
+    <!-- UAT6-N07: the recovery path in words first; the terminal command is
+         only the secondary "Advanced" line. Shown after a wrong PIN. -->
+    <details id="lock-forgot" class="lock-forgot" hidden>
+      <summary data-i18n="common.lockForgotSummary">Forgot your PIN?</summary>
+      <p data-i18n="common.lockForgotBody">If you remember it later, you can change or remove it in Settings, under App lock. A forgotten PIN can only be removed on this computer itself.</p>
+      <p class="lock-forgot-advanced" data-i18n="common.lockForgotAdvanced">Advanced: open Terminal and run findplus lock reset, then reload this page.</p>
+    </details>
     <!-- honesty.LOCK_NOT_ENCRYPTION, from the PUBLIC /api/lock/requirements.
          The Settings dialog rendered it, but Settings sits BEHIND this screen:
          the one place that presents the lock as protection said nothing about
@@ -105,13 +118,15 @@
 <div id="alert" class="alert hidden" role="status" aria-live="polite"></div>
 
 <section class="controls">
-  <label for="device-filter" data-i18n="common.show">Show</label>
-  <select id="device-filter">
-    <option value="" data-i18n="devices.allTracked">All tracked devices</option>
-  </select>
+  <span class="fp-control-group fp-show-group">
+    <label for="device-filter" data-i18n="common.show">Show</label>
+    <select id="device-filter">
+      <option value="" data-i18n="devices.allTracked">All tracked devices</option>
+    </select>
+  </span>
 
   <span class="fp-control-group">
-    <label for="fp-group-select" data-i18n="common.groupLabel">Group:</label>
+    <label for="fp-group-select" data-i18n="common.groupLabel">Group</label>
     <select id="fp-group-select"></select>
   </span>
 
@@ -217,6 +232,8 @@
     Runs entirely on this computer and binds to 127.0.0.1. No analytics, telemetry or third-party scripts.
     Map tiles are fetched from OpenStreetMap, which necessarily sees the tile coordinates being viewed.
   </p>
+  <!-- UAT6-N08: honesty.NOT_AFFILIATED, filled by notices.js from /api/config. -->
+  <p id="fp-footer-not-affiliated" class="notice small"></p>
 </footer>
 
 </div><!-- /app-shell -->
@@ -224,14 +241,14 @@
 <div id="device-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="device-modal-title">
   <div class="modal-box">
     <header class="modal-head">
-      <h2 id="device-modal-title" data-i18n="devices.title">Your devices</h2>
+      <h2 id="device-modal-title" data-i18n="devices.title">Your trackers</h2>
       <button class="btn btn-tiny" id="btn-close-devices" aria-label="Close"
               data-i18n="common.close" data-i18n-attr="aria-label:common.close">Close</button>
     </header>
     <p class="modal-note" id="device-modal-note" data-i18n="devices.note">
-      Tick every tracker you want polled. Each tracked device costs one provider
-      request per poll cycle, so the request rate rises with the number you tick.
-      Untracking keeps a device's existing history — it just stops being polled.
+      Tick every tracker you want Find+ to poll. Each one adds a request to its
+      provider every poll cycle. Untracking keeps a tracker's history; it just
+      stops being polled.
     </p>
     <div id="device-list" class="device-list"></div>
     <p class="modal-rate" id="device-rate"></p>

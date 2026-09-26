@@ -82,9 +82,10 @@ function migrateLegacyKey(oldKey, newKey) {
   }
 }
 
-/** Resolves the saved theme, migrating the legacy `bt.theme` key if needed. */
+/** Resolves the saved theme, migrating the legacy `bt.theme` key if needed.
+ *  Nothing stored follows the OS (UAT6-N20), not a fixed dark theme. */
 export function getStoredTheme() {
-  return migrateLegacyKey("bt.theme", "findplus.theme") || "dark";
+  return migrateLegacyKey("bt.theme", "findplus.theme") || "system";
 }
 
 /* ----------------------------------------------------------- formatting */
@@ -207,21 +208,51 @@ export function colorFor(deviceId) {
   return state.colors.get(deviceId);
 }
 
-export function showAlert(message, kind) {
+/**
+ * The banner under the cards. `extra` is optional: `action` ({label, run})
+ * adds one in-app button after the sentence, and `hint` a smaller secondary
+ * line (UAT6-N06/N07: the fix a user can make in the app comes first, a
+ * terminal command only ever as that secondary hint).
+ */
+export function showAlert(message, kind, extra = {}) {
   const el = $("alert");
-  if (!message) { el.classList.add("hidden"); return; }
-  el.textContent = message;
+  if (!message) { el.classList.add("hidden"); el.textContent = ""; return; }
+  const text = document.createElement("span");
+  text.className = "alert-text";
+  text.textContent = message;
+  el.replaceChildren(text);
+  if (extra.action) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-tiny alert-action";
+    btn.textContent = extra.action.label;
+    btn.addEventListener("click", extra.action.run);
+    el.appendChild(btn);
+  }
+  if (extra.hint) {
+    const hint = document.createElement("span");
+    hint.className = "alert-hint";
+    hint.textContent = extra.hint;
+    el.appendChild(hint);
+  }
   el.className = `alert ${kind === "warn" ? "warn" : ""}`;
 }
 
 /* ---------------------------------------------------------------- theme */
 
-/** Applied before first paint from localStorage, then reconciled with the server. */
+const OS_LIGHT = "(prefers-color-scheme: light)";
+let chosenTheme = null;
+
+/** Applied before first paint from localStorage, then reconciled with the
+ *  server. "system" keeps following the OS while the page stays open. */
 export function applyTheme(theme) {
-  const resolved =
-    theme === "system"
-      ? (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")
-      : theme;
+  if (chosenTheme === null) {
+    window.matchMedia(OS_LIGHT).addEventListener("change", () => {
+      if (chosenTheme === "system") applyTheme("system");
+    });
+  }
+  chosenTheme = theme;
+  const resolved = theme === "system" ? (window.matchMedia(OS_LIGHT).matches ? "light" : "dark") : theme;
   document.documentElement.setAttribute("data-theme", resolved);
-  localStorage.setItem("findplus.theme", theme);
+  try { localStorage.setItem("findplus.theme", theme); } catch (_) { /* private mode */ }
 }

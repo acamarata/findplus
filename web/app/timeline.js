@@ -17,6 +17,8 @@ import { providerWording } from "./devices.js";
 import { t, plural } from "./i18n.js";
 import { nothingTrackedEmptyState } from "./dashboard_empty.js";
 
+const PIN_ICON = `<svg class="tl-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#lucide-map-pin"></use></svg>`;
+
 function statsHtml(stats) {
   if (!stats || !stats.observation_count) return "";
   const cells = [
@@ -64,10 +66,11 @@ function timelineHtml(track) {
     // Coordinates stay in the title attribute for hover even when a place name
     // is shown in their place (U30b) — the API resolves place_name server-side
     // (routes_history.py::_annotate_place_names) against every saved place.
+    // UAT6-N30: the sprite's map pin, not an emoji that renders per-OS.
     const coordsTitle = `${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}`;
     const coordsLine = point.place_name
-      ? `<div class="tl-coords" title="${esc(coordsTitle)}">📍 ${esc(point.place_name)}</div>`
-      : `<div class="tl-coords">📍 ${esc(coordsTitle)}</div>`;
+      ? `<div class="tl-coords" title="${esc(coordsTitle)}">${PIN_ICON}${esc(point.place_name)}</div>`
+      : `<div class="tl-coords">${PIN_ICON}${esc(coordsTitle)}</div>`;
 
     html +=
       `<li class="tl-item${point.is_movement ? "" : " jitter"}" data-id="${point.id}">` +

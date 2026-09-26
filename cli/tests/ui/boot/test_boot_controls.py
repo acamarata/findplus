@@ -34,7 +34,7 @@ def test_devices_dialog_lists_trackers_with_checkboxes(page: Page) -> None:
     page.wait_for_timeout(1200)
     assert page.is_visible("#device-modal")
     assert page.locator("#device-list input[type=checkbox]").count() >= 1
-    assert "Google requests per hour" in page.inner_text("#device-rate")
+    assert "requests per hour to Google" in page.inner_text("#device-rate")
 
 
 def test_theme_switches_live(page: Page) -> None:

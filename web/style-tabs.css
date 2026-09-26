@@ -40,7 +40,8 @@
   margin-left: 6px; vertical-align: middle;
   background: var(--panel-2); color: var(--muted); }
 .fp-provider-badge--google-find-hub { background: rgba(79,140,247,.18); color: var(--badge-text); }
-.fp-provider-badge--apple-find-my { background: var(--panel-2); color: var(--text); }
+.fp-provider-badge--apple-find-my { background: var(--panel-2); color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--line-strong); }
 
 /* Heading above each group presence name list (honesty round 2 F11): the
    together and diverged lists were two adjacent bare <ul>s with nothing

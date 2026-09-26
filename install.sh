@@ -3,12 +3,10 @@
 # Idempotent, never sudo; --uninstall keeps the state dir; --start runs setup and start after installing.
 # See .github/wiki/Install.md, .github/wiki/Uninstall.md, packaging-and-release.md.
 set -euo pipefail
-
 YES="${FINDPLUS_YES:-0}"
 UNINSTALL=0
 STARTNOW=0
 VERSION_PIN="${FINDPLUS_VERSION:-1.1.2}"
-
 parse_args() {
   while [ $# -gt 0 ]; do
     case "$1" in
@@ -20,7 +18,6 @@ parse_args() {
     esac
   done
 }
-
 find_python() {
   # Debian/Ubuntu split venv into python3-venv; skip to the next candidate instead of failing outright.
   local novenv=""
@@ -40,30 +37,23 @@ find_python() {
   echo "find+: Python 3.12-3.14 with venv required (python3 here: $found); get one via your package manager, python.org or 'uv python install 3.12', then rerun" >&2
   exit 1
 }
-
 PREFIX="${FINDPLUS_PREFIX:-$HOME/.local/share/findplus}"
 BIN="${FINDPLUS_BIN:-$HOME/.local/bin}"
 VENV="$PREFIX/venv"
 SYMLINK="$BIN/findplus"
 STATE_DIR="${FINDPLUS_STATE_DIR:-$HOME/.findplus}"
-
 uninstall() {
-  # The service and watchdog must be unloaded BEFORE the venv goes: launchd and
-  # systemd keep restarting a program whose file has just been deleted, and
-  # once `findplus` is gone there is nothing left that knows the unit paths.
+  # Unload before deleting the venv: launchd/systemd restart a program whose
+  # file is gone, and once findplus itself is gone nothing can unload it.
   if [ -x "$VENV/bin/findplus" ]; then
     echo "Unloading the service and watchdog"
     "$VENV/bin/findplus" uninstall --yes || echo "install.sh: service uninstall reported an error; removing files anyway" >&2
   else
     echo "install.sh: $VENV/bin/findplus is missing, so no service could be unloaded." >&2
-    echo "  If a service is still installed, remove it by hand (also in .github/wiki/Uninstall.md):" >&2
-    echo "    macOS:   launchctl bootout gui/\$(id -u)/com.acamarata.findplus" >&2
-    echo "             launchctl bootout gui/\$(id -u)/com.acamarata.findplus.watchdog" >&2
-    echo "             rm -f ~/Library/LaunchAgents/com.acamarata.findplus*.plist" >&2
-    echo "    Linux:   systemctl --user disable --now findplus.service findplus-watchdog.timer" >&2
-    echo "             rm -f ~/.config/systemd/user/findplus*" >&2
-    echo "    Windows: schtasks /delete /tn FindPlus /f" >&2
-    echo "             schtasks /delete /tn FindPlusWatchdog /f" >&2
+    echo "  Remove it by hand (also in .github/wiki/Uninstall.md):" >&2
+    echo "    macOS:   launchctl bootout gui/\$(id -u)/com.acamarata.findplus; launchctl bootout gui/\$(id -u)/com.acamarata.findplus.watchdog; rm -f ~/Library/LaunchAgents/com.acamarata.findplus*.plist" >&2
+    echo "    Linux:   systemctl --user disable --now findplus.service findplus-watchdog.timer; rm -f ~/.config/systemd/user/findplus*" >&2
+    echo "    Windows: schtasks /delete /tn FindPlus /f & schtasks /delete /tn FindPlusWatchdog /f" >&2
   fi
   echo "Removing $VENV and $SYMLINK"
   rm -rf "$VENV"
@@ -72,10 +62,8 @@ uninstall() {
   echo "State directory $STATE_DIR left intact."
   exit 0
 }
-
-# findplus is not on PyPI yet, so `findplus==<ver>` resolves to nothing and the
-# README's one-liner ends in "Could not find a version that satisfies". Fall
-# back to the GitHub release sdist, the source gen-formula.sh already uses.
+# findplus isn't on PyPI yet, so a bare `findplus==<ver>` resolves to nothing;
+# fall back to the GitHub release sdist, the source gen-formula.sh already uses.
 package_spec() {
   local pin="${FINDPLUS_WHEEL:-${FINDPLUS_SDIST_URL:-}}"
   [ -n "$pin" ] && { echo "$pin"; return; }
@@ -84,14 +72,12 @@ package_spec() {
     { echo "findplus==$VERSION_PIN"; return; }
   echo "https://github.com/${FINDPLUS_REPO:-acamarata/findplus}/releases/download/v$VERSION_PIN/findplus-$VERSION_PIN.tar.gz"
 }
-
 print_plan() {
   echo "  Python:  $PYTHON ($("$PYTHON" --version))"
   echo "  Venv:    $VENV"
   echo "  Symlink: $SYMLINK"
   echo "  Package: $(package_spec)"
 }
-
 install() {
   mkdir -p "$PREFIX" "$BIN"
   local package
@@ -110,9 +96,8 @@ install() {
   fi
   ln -sf "$VENV/bin/findplus" "$SYMLINK"
   if [ "$STARTNOW" = "1" ]; then
-    # setup --yes never signs anyone in, so a fresh --start always reaches
-    # `start --yes` unauthenticated, which exits 4. That is the expected end of
-    # a first install, not a failure: capture it, name the next command, exit 0.
+    # setup --yes never authenticates, so a fresh --start hits start --yes
+    # unauthenticated (exit 4) -- expected, not a failure; name the next step.
     "$SYMLINK" setup --yes || true
     START_RC=0
     "$SYMLINK" start --yes || START_RC=$?
@@ -130,16 +115,12 @@ install() {
     echo "  echo 'export PATH=\"$BIN:\$PATH\"' >> ~/.profile   # then open a new shell"
   fi
 }
-
 main() {
   parse_args "$@"
-
   if [ "$UNINSTALL" = "1" ]; then
     uninstall
   fi
-
   find_python
-
   print_plan
   if [ "$YES" != "1" ]; then
     printf "Continue? [y/N] "
@@ -151,8 +132,6 @@ main() {
       *) echo "Aborted."; exit 1 ;;
     esac
   fi
-
   install
 }
-
 main "$@"

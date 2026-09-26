@@ -18,9 +18,21 @@ An alert rule ties a place, a device or group, and one or more notification chan
 at once: the rule form uses checkboxes, not a single dropdown, and each ticked channel is
 delivered and cooled down on its own. Telegram itself can notify more than one chat: the
 Telegram card's Targets field takes a comma-separated list of chat ids or @usernames, so one
-rule can message a group, a specific person, or several people at once (up to 10 targets).
+account can message a group, a specific person, or several people at once (up to 10 targets).
 Each target is delivered and retried on its own, so one person's blocked bot or a bad id
-never holds up the rest. When a qualifying enter or exit event is confirmed,
+never holds up the rest.
+
+**Every Telegram alert goes to all your chats unless you pick specific chats on the rule.**
+Each rule's dialog has its own Telegram chats picker (only shown when Telegram is a ticked
+channel): "All chats" is the default and needs no action -- a rule left alone behaves exactly
+as if this picker did not exist. Unticking it reveals a checkbox per saved chat; the rule then
+sends only to whichever of those are checked, including none at all (the rules table then
+shows "Telegram (no chats selected)" and the delivery log records a skipped row explaining
+why, rather than silently falling back to every chat). A chat later removed from the saved
+Targets list drops out of every rule's picked subset automatically. The CLI's equivalent is
+`findplus alerts rules add/edit --telegram-target <id>` (repeatable) and `--telegram-all`.
+
+When a qualifying enter or exit event is confirmed,
 Find+ sends a notification. A
 cooldown period (default 30 minutes) prevents repeated alerts for the same tag at the same
 place. Delivery is best-effort: a failed send is recorded in the alert log, and a failed or
@@ -83,8 +95,9 @@ The Alerts tab lists what Find+ actually sent, most recent first:
 `skipped` means the rule matched but nothing was sent, most often because the
 rule names a channel with no credentials, such as a Telegram rule created
 before setup finished, or one left enabled after the Telegram connection was
-deleted. A skipped or failed delivery does not start the rule's cooldown, so
-the next crossing is still eligible.
+deleted -- or, for a rule whose own Telegram chats picker has nothing ticked,
+"no Telegram chats selected for this rule". A skipped or failed delivery does
+not start the rule's cooldown, so the next crossing is still eligible.
 
 `retrying` means the first attempt failed with something that looks
 temporary, and Find+ will try again automatically; the Status column also
@@ -136,7 +149,10 @@ when a webhook secret is configured.
 ### Notifying more than one chat
 
 The Telegram card has its own **Targets** field, separate from the bot token: a
-comma-separated list of chat ids or @usernames. Every Telegram alert goes to all the targets you list (up to 10 per bot).
+comma-separated list of chat ids or @usernames. Every Telegram alert goes to all the targets
+you list here (up to 10 per bot) unless a rule narrows it further with its own chats picker --
+see "Every Telegram alert goes to all your chats unless you pick specific chats on the rule"
+above.
 
 Targets can be a group or channel ID, a person's numeric ID, or @username. To use a person's
 @username or numeric ID, they must send your bot any message first (Telegram does not let

@@ -134,10 +134,14 @@ def test_downgrade_drops_target_and_narrows_constraint(tmp_path: Path) -> None:
     assert version == "0011"
 
 
-def test_full_head_upgrade_reaches_0011(tmp_path: Path) -> None:
+def test_full_head_upgrade_reaches_at_least_0011(tmp_path: Path) -> None:
+    """ "head" moves as later migrations land (0012 added alert_rules.
+    telegram_targets) -- this only proves 0011 is still on the path to head,
+    not that it IS head. test_migration_0012.py pins the current head."""
     cfg, db_path = _cfg(tmp_path)
     command.upgrade(cfg, "head")
     engine = _engine(db_path)
     with engine.begin() as conn:
         version = conn.execute(sa.text("SELECT version_num FROM alembic_version")).scalar_one()
-    assert version == "0011"
+    assert version not in ("0009", "0010")
+    assert "target" in _columns(db_path, "alert_deliveries")

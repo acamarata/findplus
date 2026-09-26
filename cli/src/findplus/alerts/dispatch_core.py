@@ -78,6 +78,15 @@ class Rule:
     cooldown_minutes: int
     enabled: bool
     also_notify_members: bool
+    #: A subset of the account's saved Telegram chat ids, or None for every
+    #: saved target (WP10, gap-audit P13) -- parsed from alert_rules.
+    #: telegram_targets by alerts/rule_telegram_targets.py. `[]` is a
+    #: distinct, meaningful value: the owner picked no chat, so dispatch.py's
+    #: _channel_targets() skips Telegram for this rule instead of falling
+    #: back to "all". Defaulted so retry.py's own Rule rebuild (which never
+    #: needs this -- a retry resends to the row's own already-stored target)
+    #: does not have to pass it.
+    telegram_targets: list[str] | None = None
 
 
 @dataclass(frozen=True)

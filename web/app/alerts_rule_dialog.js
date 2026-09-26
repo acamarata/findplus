@@ -23,13 +23,18 @@ import { $ } from "./state.js";
 import { api } from "./api.js";
 import { t } from "./i18n.js";
 import { renderChannelPicker, readChannelPicker } from "./components/channel-picker.js";
-import { BASE_CHANNELS, availableChannels, connectedChannels, channelLabels } from "./alerts_rule_channels.js";
+import { BASE_CHANNELS, availableChannels, connectedChannels, channelLabels, telegramTargets } from "./alerts_rule_channels.js";
 import { fillLoading, fillOptions, populateRuleSelects } from "./alerts_rule_selects.js";
+import {
+  seedTelegramTargetsFields,
+  readTelegramTargetsSelection,
+  updateTelegramTargetsVisibility,
+} from "./alerts_rule_telegram_targets.js";
 
 // Re-exported: alerts_rules.js's own `export { fillOptions, ... } from
 // "./alerts_rule_dialog.js"` re-export list (its rows use it too) stays
 // correct without knowing fillOptions now lives in alerts_rule_selects.js.
-export { fillOptions };
+export { fillOptions, updateTelegramTargetsVisibility };
 
 export function updateRuleTargetVisibility() {
   const isDevice = $("fp-rule-target-device").checked;
@@ -154,8 +159,8 @@ export async function openRuleDialog(rule = null) {
 
   // In parallel, not in series: the channel list is usually already resolved,
   // and it must never add a round-trip to the time the dialog takes to open.
-  const [, rawAvailable, connected] = await Promise.all([
-    populateRuleSelects(), availableChannels(), connectedChannels(),
+  const [, rawAvailable, connected, tgTargets] = await Promise.all([
+    populateRuleSelects(), availableChannels(), connectedChannels(), telegramTargets(),
   ]);
   const available = availableIncludingRulesOwnChannels(rule, rawAvailable);
   applyRuleTargetValues(rule);
@@ -171,6 +176,9 @@ export async function openRuleDialog(rule = null) {
     labels: channelLabels(connected),
     connected,
   });
+  // WP10 (gap-audit P13): seeded after the channel picker's own final
+  // render lands -- its own visibility check reads that picker's DOM.
+  seedTelegramTargetsFields(rule, tgTargets);
   setDialogReady(dlg, true);
 }
 export const openAddRuleDialog = () => openRuleDialog(null);
@@ -192,6 +200,9 @@ function buildRulePayload(channels) {
     on_exit: $("fp-rule-on-exit").checked,
     channels,
     cooldown_minutes: Number($("fp-rule-cooldown").value),
+    // WP10 (gap-audit P13): always resent, full-replace, same posture as
+    // `channels` above -- null ("All chats") or the checked subset.
+    telegram_targets: readTelegramTargetsSelection(),
   };
   if (!editingRuleId) {
     // RuleUpdate has no device_id/group_id field, and the dialog disables

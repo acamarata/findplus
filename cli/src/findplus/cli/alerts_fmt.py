@@ -17,6 +17,7 @@ Constraints: No session_scope/DB access here -- pure formatting over rows the
 from __future__ import annotations
 
 from findplus.alerts.channels_field import display_channels
+from findplus.alerts.rule_telegram_targets import parse_rule_telegram_targets
 
 from ._fmt import _local_short_time, _yes_no
 
@@ -35,6 +36,9 @@ _RULE_KEYS = (
     "cooldown_minutes",
     "enabled",
     "also_notify_members",
+    #: None = every saved Telegram target, [] = the owner picked none, a
+    #: list = that subset -- migration 0012, WP10 (gap-audit P13).
+    "telegram_targets",
 )
 
 #: Keys for `alerts deliveries --json` -- same convention as `rules list
@@ -78,12 +82,22 @@ def _rule_records(rows: list[tuple]) -> list[dict]:
                     r.cooldown_minutes,
                     r.enabled,
                     r.also_notify_members,
+                    parse_rule_telegram_targets(r.telegram_targets),
                 ),
                 strict=True,
             )
         )
         for r, place_name, group_name, device_name in rows
     ]
+
+
+def _telegram_targets_cell(r) -> str:
+    """ "all" (NULL, the default), "none" ([] -- the owner picked no chat, so
+    dispatch.py skips Telegram for this rule), or the comma ids themselves."""
+    targets = parse_rule_telegram_targets(r.telegram_targets)
+    if targets is None:
+        return "all"
+    return "none" if not targets else ",".join(targets)
 
 
 def _rule_table_rows(rows: list[tuple]) -> list[tuple]:
@@ -100,6 +114,7 @@ def _rule_table_rows(rows: list[tuple]) -> list[tuple]:
             display_channels(r.channels),
             r.cooldown_minutes,
             _yes_no(r.enabled),
+            _telegram_targets_cell(r),
         )
         for r, place_name, group_name, device_name in rows
     ]

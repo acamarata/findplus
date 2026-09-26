@@ -26,6 +26,7 @@ import {
   renderRulesTable,
   saveRule,
   updateRuleTargetVisibility,
+  updateTelegramTargetsVisibility,
 } from "./alerts_rules.js";
 import { loadDeliveries, purgeDeliveries } from "./alerts_deliveries.js";
 import {
@@ -79,6 +80,12 @@ function wireStaticControls() {
   $("fp-rule-cancel").addEventListener("click", () => $("fp-add-rule-dialog").close());
   $("fp-rule-target-device").addEventListener("change", updateRuleTargetVisibility);
   $("fp-rule-target-group").addEventListener("change", updateRuleTargetVisibility);
+  // WP10 (gap-audit P13): both static, persistent elements -- only their
+  // children are replaced on each dialog open (renderChannelPicker()), so
+  // one delegated listener here (never re-added per open) covers every
+  // render. See alerts_rule_telegram_targets.js's own docstring.
+  $("fp-rule-channels").addEventListener("change", updateTelegramTargetsVisibility);
+  $("fp-rule-telegram-all-chats").addEventListener("change", updateTelegramTargetsVisibility);
   wireWidgetToggle();
 }
 /* channels */

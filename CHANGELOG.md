@@ -6,6 +6,13 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Alert rules can now pick a subset of your saved Telegram chats instead of always messaging
+  all of them: a "Telegram chats" picker on the rule dialog defaults to "All chats" (every
+  existing rule keeps behaving exactly as before) and can be narrowed to one or a few. The
+  CLI's equivalent is `findplus alerts rules add/edit --telegram-target <id>` (repeatable) and
+  `--telegram-all`.
+
 ## [1.1.2] - 2026-09-25
 
 ### Fixed

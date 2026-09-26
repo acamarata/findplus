@@ -1,6 +1,8 @@
-"""Alert rule and delivery-history routes.
+"""Alert rule routes: CRUD for alert_rules.
 
-Purpose    : CRUD for alert_rules, and a read-only feed of alert_deliveries.
+Purpose    : CRUD for alert_rules. The read-only alert_deliveries feed lives
+             in routes_alerts_deliveries.py (split out at the PRI rule-7
+             300-line file cap, WP10) -- build_router() below mounts both.
 Outputs    : Rule dicts with place_name/group_name/device_name resolved via a
              joined query (never N+1 selects). ValueError-free: 404s are
              raised directly by this module.
@@ -16,15 +18,20 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, Response
+from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, select
 
 from findplus.alerts.channels_field import format_channels, parse_channels
+from findplus.alerts.rule_telegram_targets import (
+    format_rule_telegram_targets,
+    parse_rule_telegram_targets,
+    validate_rule_telegram_targets,
+)
 from findplus.alerts.store import load_alerts
-from findplus.api._delivery_render import batch_delivery_text_bodies
+from findplus.api import routes_alerts_deliveries
 from findplus.db.models import Device, Group, Place
-from findplus.db.models_alerts import AlertDelivery, AlertRule
+from findplus.db.models_alerts import AlertRule
 from findplus.db.session import session_scope
 
 
@@ -74,8 +81,14 @@ class RuleCreate(BaseModel):
     cooldown_minutes: int = Field(default=30, ge=0, le=1440)
     enabled: bool = True
     also_notify_members: bool = False
+    #: A subset of the account's saved Telegram chat ids, or None for every
+    #: saved target (the default -- WP10, gap-audit P13). `[]` is a distinct,
+    #: valid value: the owner explicitly picked no chat, so dispatch.py skips
+    #: Telegram for this rule instead of falling back to "all".
+    telegram_targets: list[str] | None = None
 
     _check_channels = field_validator("channels")(_validate_channels)
+    _check_telegram_targets = field_validator("telegram_targets")(validate_rule_telegram_targets)
 
 
 class RuleUpdate(BaseModel):
@@ -87,8 +100,10 @@ class RuleUpdate(BaseModel):
     cooldown_minutes: int | None = Field(default=None, ge=0, le=1440)
     enabled: bool | None = None
     also_notify_members: bool | None = None
+    telegram_targets: list[str] | None = None
 
     _check_channels = field_validator("channels")(_validate_channels)
+    _check_telegram_targets = field_validator("telegram_targets")(validate_rule_telegram_targets)
 
 
 def _rule_to_dict(
@@ -109,6 +124,7 @@ def _rule_to_dict(
         "cooldown_minutes": r.cooldown_minutes,
         "enabled": r.enabled,
         "also_notify_members": r.also_notify_members,
+        "telegram_targets": parse_rule_telegram_targets(r.telegram_targets),
     }
 
 
@@ -136,45 +152,6 @@ def _get_rule_or_404(session, rule_id: int) -> AlertRule:
     return rule
 
 
-def _delivery_to_dict(
-    d: AlertDelivery,
-    rule_name: str,
-    rendered: dict[tuple[str, int], tuple[str | None, str | None]],
-) -> dict[str, Any]:
-    """One delivery row. `text`/`body` are rendered on read, for every channel
-    (UAT4 N32 widened this from native-only -- the renderer needs only the
-    event, never the channel, and `None` means the source event was purged).
-
-    `rendered` is the whole page's text/body lookup, built once by
-    `batch_delivery_text_bodies` (CF-P2-16) -- never a per-row query. No join
-    field (place_name, device_name, group_name, event_type) is exposed: a
-    caller that wants any of them already has the rendered text.
-    """
-    text, body = rendered.get((d.event_kind, d.event_id), (None, None))
-    return {
-        "id": d.id,
-        "rule_id": d.rule_id,
-        "rule_name": rule_name,
-        # A stored column since migration 0008: one delivery row per channel per
-        # event, so the rule no longer owns it alone.
-        "channel": d.channel,
-        "target": d.target,  # '' unless the channel is per-target (telegram) -- migration 0011
-        "event_kind": d.event_kind,
-        "event_id": d.event_id,
-        "sent_at": d.sent_at.isoformat(),
-        "delivered_at": d.delivered_at.isoformat() if d.delivered_at else None,
-        "status": d.status,
-        "error": d.error,
-        # Retry scheduling (2026-09-22 feature): attempts is 1 for every row
-        # that has never been retried; next_attempt_at is set only while
-        # status == "retrying".
-        "attempts": d.attempts,
-        "next_attempt_at": d.next_attempt_at.isoformat() if d.next_attempt_at else None,
-        "text": text,
-        "body": body,
-    }
-
-
 def get_rules() -> list[dict[str, Any]]:
     with session_scope() as s:
         return _list_rules(s)
@@ -198,6 +175,7 @@ def post_rule(body: RuleCreate) -> dict[str, Any]:
             cooldown_minutes=body.cooldown_minutes,
             enabled=body.enabled,
             also_notify_members=body.also_notify_members,
+            telegram_targets=format_rule_telegram_targets(body.telegram_targets),
             created_at=datetime.now(UTC),
         )
         s.add(rule)
@@ -217,6 +195,9 @@ def put_rule(rule_id: int, body: RuleUpdate) -> dict[str, Any]:
             if field == "channels":
                 rule.channels = format_channels(value)
                 continue
+            if field == "telegram_targets":
+                rule.telegram_targets = format_rule_telegram_targets(value)
+                continue
             setattr(rule, field, value)
         s.commit()
     with session_scope() as s:
@@ -231,69 +212,11 @@ def delete_rule(rule_id: int) -> Response:
     return Response(status_code=204)
 
 
-def get_deliveries(
-    limit: int = Query(default=100, le=500), since: int | None = None, channel: str | None = None
-) -> list[dict[str, Any]]:
-    """The delivery log, and the queue the desktop native poller drains.
-
-    `since` is an exclusive delivery-id cursor and replaces `limit` when
-    given: the poller wants everything new, in the order it happened, not a
-    fixed page of the most recent (specs/notifications.md § 2).
-
-    `limit` is capped at 500 (422 above it, CR-C closeout m7): unbounded, it
-    let `rows` grow past SQLite's ~32766-variable cap once `batch_delivery_
-    text_bodies` turned it into an IN-list of (event_kind, event_id) pairs
-    for a native-channel request, a 500 where the old row-by-row code was
-    only slow.
-    """
-    with session_scope() as s:
-        stmt = select(AlertDelivery, AlertRule.name).join(
-            AlertRule, AlertRule.id == AlertDelivery.rule_id
-        )
-        if channel is not None:
-            stmt = stmt.filter(AlertDelivery.channel == channel)
-        if since is not None:
-            stmt = stmt.filter(AlertDelivery.id > since).order_by(AlertDelivery.id).limit(limit)
-        else:
-            stmt = stmt.order_by(AlertDelivery.sent_at.desc()).limit(limit)
-        rows = s.execute(stmt).all()
-        # Every row gets rendered, not only when the REQUEST itself filters
-        # to `?channel=native` (UAT3 N18) and not only native rows (UAT4
-        # N32): a telegram/whatsapp row's (event_kind, event_id) resolves
-        # through the exact same batched renderer a native row does, so
-        # gating on `d.channel == "native"` only hid text the server could
-        # already produce. `limit` (capped at 500 above) already bounds how
-        # many keys this can ever build, so widening this costs nothing.
-        keys = [(d.event_kind, d.event_id) for d, _rule_name in rows]
-        rendered = batch_delivery_text_bodies(s, keys) if keys else {}
-        return [_delivery_to_dict(d, rule_name, rendered) for d, rule_name in rows]
-
-
-def ack_delivery(delivery_id: int) -> Response:
-    """The desktop app confirms it showed a queued native notification.
-
-    404 covers both "no such delivery" and "not queued any more". A repeated
-    ack from a retried request is expected, not a conflict, so the client
-    treats 404 as success-equivalent (specs/notifications.md § 2).
-    """
-    with session_scope() as s:
-        delivery = s.get(AlertDelivery, delivery_id)
-        if delivery is None or delivery.status != "queued":
-            raise HTTPException(status_code=404, detail="delivery not queued")
-        delivery.status = "delivered"
-        delivery.delivered_at = datetime.now(UTC)
-        s.commit()
-    return Response(status_code=204)
-
-
 def build_router() -> APIRouter:
     router = APIRouter(prefix="/api/alerts", tags=["alerts"])
     router.add_api_route("/rules", get_rules, methods=["GET"])
     router.add_api_route("/rules", post_rule, methods=["POST"], status_code=201)
     router.add_api_route("/rules/{rule_id}", put_rule, methods=["PUT"])
     router.add_api_route("/rules/{rule_id}", delete_rule, methods=["DELETE"], status_code=204)
-    router.add_api_route("/deliveries", get_deliveries, methods=["GET"])
-    router.add_api_route(
-        "/deliveries/{delivery_id}/ack", ack_delivery, methods=["POST"], status_code=204
-    )
+    routes_alerts_deliveries.register(router)
     return router

@@ -30,8 +30,10 @@ from pydantic import BaseModel
 
 from findplus.alerts.channels.telegram import _get_me, list_chats, send, telegram_setup
 from findplus.alerts.channels.telegram_targets import resolve_targets
+from findplus.alerts.rule_telegram_targets import prune_rule_telegram_targets
 from findplus.alerts.store import TelegramCreds, is_valid_bot_token, load_alerts, save_channel
 from findplus.api._alerts_channels_response import channels_response
+from findplus.db.session import session_scope
 
 
 class TelegramPutBody(BaseModel):
@@ -83,7 +85,17 @@ def put_telegram(body: TelegramPutBody) -> dict[str, Any]:
         captured_at=datetime.now(UTC).isoformat(),
     )
     save_channel(telegram=creds)
+    _prune_rules_to(chat_ids)
     return channels_response()
+
+
+def _prune_rules_to(chat_ids: tuple[str, ...]) -> None:
+    """WP10 (gap-audit P13): a rule narrowed to a subset of saved targets
+    must drop any id no longer saved -- called after every save that can
+    shrink chat_ids (a full re-save here, put_telegram_targets, or
+    delete_telegram with an empty tuple)."""
+    with session_scope() as s:
+        prune_rule_telegram_targets(s, chat_ids)
 
 
 def _resolve_or_422(raw_targets: str, bot_token: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
@@ -114,6 +126,7 @@ def put_telegram_targets(body: TelegramTargetsBody) -> dict[str, Any]:
     save_channel(
         telegram=dataclasses.replace(existing.telegram, chat_ids=chat_ids, chat_labels=chat_labels)
     )
+    _prune_rules_to(chat_ids)
     return channels_response()
 
 
@@ -155,6 +168,7 @@ async def post_telegram_setup(body: TelegramSetupBody, wait: int = 120) -> dict[
 
 def delete_telegram() -> Response:
     save_channel(telegram=None)
+    _prune_rules_to(())
     return Response(status_code=204)
 
 

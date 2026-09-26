@@ -101,8 +101,9 @@ findplus start --yes
 - Address search when adding a place, via OpenStreetMap's Nominatim geocoder --
   opt-in, only when you type an address and press Search.
 - Groups and quorum-based presence (together, partial, unknown).
-- Telegram (every Telegram alert goes to all targets you list, up to 10 per bot), WhatsApp (via CallMeBot), webhook, and native
-  macOS notification alert channels, with automatic delivery retry.
+- Telegram (every Telegram alert goes to all your chats unless you pick specific chats on the
+  rule, up to 10 targets per bot), WhatsApp (via CallMeBot), webhook, and native macOS
+  notification alert channels, with automatic delivery retry.
 - MCP server exposing devices, places, groups and history as LLM tools.
 - macOS menu-bar app (Tauri) with a WidgetKit status widget and a places widget.
 - Device and group labels with a 49-icon picker, your own uploaded custom

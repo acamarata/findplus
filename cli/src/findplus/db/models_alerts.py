@@ -50,6 +50,12 @@ class AlertRule(Base):
     cooldown_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     also_notify_members: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    #: A comma-separated subset of the account's saved Telegram chat ids, or
+    #: NULL for every saved target (migration 0012, gap-audit P13/WP10).
+    #: Parsed/formatted/validated by alerts/rule_telegram_targets.py, never
+    #: split or joined here -- `""` is a distinct, meaningful value ("the
+    #: owner picked no chat"), not the same as NULL ("every chat").
+    telegram_targets: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
 
 

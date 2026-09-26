@@ -21,6 +21,10 @@ import click
 from sqlalchemy import func, select
 
 from findplus.alerts.channels_field import format_channels
+from findplus.alerts.rule_telegram_targets import (
+    format_rule_telegram_targets,
+    validate_rule_telegram_targets,
+)
 from findplus.db.models import Device, Group, Place
 from findplus.db.models_alerts import AlertDelivery, AlertRule
 from findplus.db.session import session_scope
@@ -28,6 +32,7 @@ from findplus.db.session import session_scope
 from . import alerts_channels
 from ._fmt import _render_table
 from .alerts_fmt import _delivery_records, _delivery_table_rows, _rule_records, _rule_table_rows
+from .alerts_rule_telegram import _resolve_telegram_targets_option, _rule_edit_fields
 
 #: A table row's error stays skimmable; the full text is still in the API
 #: and the dashboard's delivery log (UAT U23 asked for the column, not for
@@ -71,8 +76,18 @@ def rules_list(as_json: bool) -> None:
     if as_json:
         click.echo(json.dumps(_rule_records(rows), indent=2))
         return
-    headers = ("ID", "NAME", "PLACE", "GROUP", "DEVICE", "CHANNELS", "COOLDOWN", "ENABLED")
-    _render_table(headers, "<<<<<<>>", _rule_table_rows(rows))
+    headers = (
+        "ID",
+        "NAME",
+        "PLACE",
+        "GROUP",
+        "DEVICE",
+        "CHANNELS",
+        "COOLDOWN",
+        "ENABLED",
+        "TELEGRAM",
+    )
+    _render_table(headers, "<<<<<<>><", _rule_table_rows(rows))
 
 
 @rules_cmd.command("add")
@@ -92,6 +107,18 @@ def rules_list(as_json: bool) -> None:
 )
 @click.option("--cooldown", default=30, show_default=True)
 @click.option("--also-notify-members", is_flag=True, default=False)
+@click.option(
+    "--telegram-target",
+    "telegram_targets",
+    multiple=True,
+    help="Repeatable: limit Telegram delivery to this saved chat id. Omit for every saved target.",
+)
+@click.option(
+    "--telegram-all",
+    is_flag=True,
+    default=False,
+    help="Send to every saved Telegram target (the default).",
+)
 def rules_add(
     name: str,
     group_id: int | None,
@@ -102,10 +129,17 @@ def rules_add(
     channels: tuple[str, ...],
     cooldown: int,
     also_notify_members: bool,
+    telegram_targets: tuple[str, ...],
+    telegram_all: bool,
 ) -> None:
     """Create an alert rule for a place, targeting a group or a single device."""
     if (group_id is None) == (device_id is None):
         raise click.ClickException("Provide exactly one of --group or --device-id")
+    targets_value = _resolve_telegram_targets_option(telegram_targets, telegram_all)
+    try:
+        validate_rule_telegram_targets(targets_value)
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
     with session_scope() as s:
         rule = AlertRule(
             name=name,
@@ -118,6 +152,7 @@ def rules_add(
             cooldown_minutes=cooldown,
             enabled=True,
             also_notify_members=also_notify_members,
+            telegram_targets=format_rule_telegram_targets(targets_value),
             created_at=datetime.now(UTC),
         )
         s.add(rule)
@@ -159,6 +194,18 @@ def rules_remove(id: int, yes: bool) -> None:
 )
 @click.option("--cooldown", type=int, default=None)
 @click.option("--enable/--disable", "enabled", default=None)
+@click.option(
+    "--telegram-target",
+    "telegram_targets",
+    multiple=True,
+    help="Repeatable: limit Telegram delivery to this saved chat id.",
+)
+@click.option(
+    "--telegram-all",
+    is_flag=True,
+    default=False,
+    help="Switch back to every saved Telegram target.",
+)
 def rules_edit(
     id: int,
     name: str | None,
@@ -168,38 +215,28 @@ def rules_edit(
     channels: tuple[str, ...],
     cooldown: int | None,
     enabled: bool | None,
+    telegram_targets: tuple[str, ...],
+    telegram_all: bool,
 ) -> None:
     """Edit an alert rule; only the given options change.
 
     Uses the same PUT /api/alerts/rules/{id} handler the dashboard's edit
     dialog calls (api/routes_alerts_rules.py's `put_rule`/`RuleUpdate`), so
-    validation (known channels, at least one connected channel) matches the
-    UI exactly. There is no `--group`/`--device-id` here: `RuleUpdate` has no
-    such field, and the dashboard disables both target pickers while editing
-    for the same reason -- retarget a rule by removing and re-adding it.
+    validation (known channels, at least one connected channel, known
+    Telegram targets) matches the UI exactly. There is no `--group`/
+    `--device-id` here: `RuleUpdate` has no such field, and the dashboard
+    disables both target pickers while editing for the same reason --
+    retarget a rule by removing and re-adding it.
     """
     from fastapi import HTTPException
 
     from findplus.api.routes_alerts_rules import RuleUpdate, put_rule
 
-    fields: dict = {}
-    if name is not None:
-        fields["name"] = name
-    if place_id is not None:
-        fields["place_id"] = place_id
-    if enter is not None:
-        fields["on_enter"] = enter
-    if exit_ is not None:
-        fields["on_exit"] = exit_
-    if channels:
-        fields["channels"] = list(channels)
-    if cooldown is not None:
-        fields["cooldown_minutes"] = cooldown
-    if enabled is not None:
-        fields["enabled"] = enabled
+    fields = _rule_edit_fields(
+        name, place_id, enter, exit_, channels, cooldown, enabled, telegram_targets, telegram_all
+    )
     if not fields:
         raise click.ClickException("Provide at least one field to change")
-
     try:
         rule = put_rule(id, RuleUpdate(**fields))
     except HTTPException as exc:

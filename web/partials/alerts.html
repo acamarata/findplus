@@ -204,6 +204,26 @@
             <legend data-i18n="alerts.rules.channels">Channels</legend>
             <div id="fp-rule-channels" class="fp-channel-picker"></div>
           </fieldset>
+          <!-- WP10 (gap-audit P13): optional per-rule Telegram target subset.
+               Hidden until "telegram" is ticked above (alerts_rule_dialog.js's
+               updateTelegramTargetsVisibility()); "All chats" is the default
+               (rule.telegram_targets NULL) and hides the per-target list below
+               it, matching the pre-1.1.3 behaviour exactly when left alone. -->
+          <fieldset id="fp-rule-telegram-targets-field" class="fp-dialog-group" hidden>
+            <legend data-i18n="alerts.telegramTargetsFieldLabel">Telegram chats</legend>
+            <label class="fp-channel-picker-option">
+              <input type="checkbox" id="fp-rule-telegram-all-chats" checked>
+              <span data-i18n="alerts.allChats">All chats</span>
+            </label>
+            <!-- The "hidden" toggle lives on this wrapper, never on the
+                 fp-channel-picker div itself: that class sets its own
+                 `display: flex` (components-panels.css, loaded after
+                 style.css's `.hidden`), which would otherwise outrank the
+                 plain "hidden" utility class at equal specificity. -->
+            <div id="fp-rule-telegram-targets-list-wrap" class="hidden">
+              <div id="fp-rule-telegram-targets-list" class="fp-channel-picker"></div>
+            </div>
+          </fieldset>
           <!-- honesty.ALERTS_LOCKED, filled by notices.js from /api/config -
                never typed here. It belongs beside the channel choice: a queued
                native alert is held, not lost, while Find+ is locked. -->

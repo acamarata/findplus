@@ -9,11 +9,13 @@
  *              U11). channelLabels() is the one place every channel's label
  *              (and its "(not connected)" suffix) is resolved, so
  *              channel-picker.js can stay free of any i18n import.
+ *              telegramTargets() (WP10, gap-audit P13) answers which chats are
+ *              saved, for the rule dialog's own per-rule target picker.
  * Inputs     : window.__findplus_native (set only by the Tauri window, see
  *              alerts.js's widget-map toggle for the same check);
  *              GET /api/alerts/channels (gated).
  * Outputs    : BASE_CHANNELS, availableChannels(), connectedChannels(),
- *              channelLabels(connected).
+ *              channelLabels(connected), telegramTargets().
  * Constraints: connectedChannels() is re-fetched every call -- credentials
  *              can be added or removed between dialog opens. A fetch failure
  *              resolves `null` ("unknown, disable nothing") rather than
@@ -51,6 +53,20 @@ export async function connectedChannels() {
     return new Set(BASE_CHANNELS.filter((id) => ch[id] && ch[id].configured));
   } catch (_) {
     return null;
+  }
+}
+
+/** The account's saved Telegram targets, as `{ids, labels}` parallel arrays
+ *  (channels_response()'s own target_ids/target_labels) -- WP10, gap-audit
+ *  P13. Empty arrays when telegram isn't configured or the fetch fails, the
+ *  same "unknown, don't block" posture as connectedChannels(). */
+export async function telegramTargets() {
+  try {
+    const ch = await api("/api/alerts/channels");
+    const tg = ch.telegram || {};
+    return { ids: tg.target_ids || [], labels: tg.target_labels || [] };
+  } catch (_) {
+    return { ids: [], labels: [] };
   }
 }
 

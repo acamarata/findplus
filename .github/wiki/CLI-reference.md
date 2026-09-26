@@ -27,6 +27,8 @@ Create an alert rule for a place, targeting a group or a single device.
 | --channel |  | Repeatable: --channel telegram --channel native. |
 | --cooldown | 30 |  |
 | --also-notify-members |  |  |
+| --telegram-target |  | Repeatable: limit Telegram delivery to this saved chat id. Omit for every saved target. |
+| --telegram-all |  | Send to every saved Telegram target (the default). |
 
 ## findplus alerts rules edit
 Edit an alert rule; only the given options change.
@@ -42,6 +44,8 @@ Edit an alert rule; only the given options change.
 | --channel |  | Repeatable; passing any --channel replaces the whole set. |
 | --cooldown |  |  |
 | --enable |  |  |
+| --telegram-target |  | Repeatable: limit Telegram delivery to this saved chat id. |
+| --telegram-all |  | Switch back to every saved Telegram target. |
 
 ## findplus alerts rules list
 List every alert rule.
@@ -164,6 +168,7 @@ Sign in to a provider (Google via Chrome, or Apple interactively).
 |---|---|---|
 | --status |  | Print sign-in status and exit. |
 | --json |  | With --status, print JSON instead of a table. |
+| --sign-out |  | Remove this provider's saved sign-in credential and exit. |
 | --provider | google-find-hub | Provider to authenticate: google-find-hub or apple-find-my |
 
 ## findplus config get

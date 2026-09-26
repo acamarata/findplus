@@ -15,10 +15,16 @@
 "use strict";
 import { $, showAlert } from "./state.js";
 import { api } from "./api.js";
-import { t } from "./i18n.js";
+import { t, plural } from "./i18n.js";
 import { openRuleDialog } from "./alerts_rule_dialog.js";
 
-export { fillOptions, openAddRuleDialog, saveRule, updateRuleTargetVisibility } from "./alerts_rule_dialog.js";
+export {
+  fillOptions,
+  openAddRuleDialog,
+  saveRule,
+  updateRuleTargetVisibility,
+  updateTelegramTargetsVisibility,
+} from "./alerts_rule_dialog.js";
 
 export async function loadRules() {
   renderRulesTable(await api("/api/alerts/rules"));
@@ -26,6 +32,18 @@ export async function loadRules() {
 function ruleTargetLabel(rule) {
   if (rule.group_id) return rule.group_name || t("alerts.groupFallback", { id: rule.group_id });
   return rule.device_name || rule.device_id || t("common.emptyValue");
+}
+/** WP10 (gap-audit P13): the Channels cell shows the Telegram subset, not
+ *  just the bare channel name -- null (every saved target) reads exactly
+ *  like before this feature existed; a non-null list says how many chats,
+ *  or that none are picked (dispatch.py skips Telegram for that rule). */
+function channelDisplayLabel(rule, channelId) {
+  const base = t("alerts.channels." + channelId);
+  if (channelId !== "telegram" || rule.telegram_targets == null) return base;
+  const count = rule.telegram_targets.length;
+  return count === 0
+    ? t("alerts.telegramNoChatsSelected", { channel: base })
+    : plural("alerts.telegramTargetsCount", count, { channel: base, count });
 }
 /** A labelled `<td>` for the phone-tier/narrow-pane card layout (components.css
  *  turns data-label into the row's own heading below a 500px container,
@@ -80,7 +98,7 @@ function buildRuleRow(rule) {
     cell(rule.on_enter ? t("common.yes") : t("common.no"), t("alerts.colOnEnter")),
     cell(rule.on_exit ? t("common.yes") : t("common.no"), t("alerts.colOnExit")),
     cell(
-      rule.channels.map((c) => t("alerts.channels." + c)).join(", "),
+      rule.channels.map((c) => channelDisplayLabel(rule, c)).join(", "),
       t("alerts.rules.channelsHeader"),
     ),
     enabledToggleCell(rule),

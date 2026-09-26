@@ -32,6 +32,12 @@ from findplus.alerts.dispatch_core import (
 )
 from findplus.alerts.dispatch_events import load_pending_events
 from findplus.alerts.dispatch_send import _status_for
+from findplus.alerts.dispatch_targets import (
+    _already_delivered,
+    _channel_targets,
+    _deliver_skip,
+    _insert_delivery_row,
+)
 
 __all__ = [
     "Delivery",
@@ -50,6 +56,7 @@ __all__ = [
 
 def _load_rules(session) -> list[Rule]:
     from findplus.alerts.channels_field import parse_channels
+    from findplus.alerts.rule_telegram_targets import parse_rule_telegram_targets
     from findplus.db.models_alerts import AlertRule as AlertRuleORM
 
     rows = session.query(AlertRuleORM).filter_by(enabled=True).all()
@@ -66,6 +73,7 @@ def _load_rules(session) -> list[Rule]:
             cooldown_minutes=r.cooldown_minutes,
             enabled=r.enabled,
             also_notify_members=r.also_notify_members,
+            telegram_targets=parse_rule_telegram_targets(r.telegram_targets),
         )
         for r in rows
     ]
@@ -105,66 +113,11 @@ def _load_recent_deliveries(session, now: datetime.datetime) -> list[Delivery]:
     ]
 
 
-def _already_delivered(
-    session, rule_id: int, kind: str, eid: int, channel: str, target: str
-) -> bool:
-    from findplus.db.models_alerts import AlertDelivery as AlertDeliveryORM
-
-    filters = {
-        "rule_id": rule_id,
-        "event_kind": kind,
-        "event_id": eid,
-        "channel": channel,
-        "target": target,
-    }
-    return session.query(AlertDeliveryORM).filter_by(**filters).first() is not None
-
-
-def _channel_targets(channel: str, channels_cfg) -> list[str]:
-    """Every target a channel fans this event out to.
-
-    Telegram is the only multi-target channel today: one delivery row (and
-    one retry ladder) per configured chat id/username. Every other channel,
-    including an unconfigured or misconfigured telegram (channels_cfg.
-    telegram is None, or configured with no targets at all -- store.py never
-    persists an empty chat_ids tuple in practice, but a hand-edited alerts.
-    json could), gets a single `""` target so _deliver_one runs exactly once
-    and dispatch_send._send()'s existing "channel not configured" -> skipped
-    path is unchanged.
-    """
-    if channel == "telegram" and channels_cfg.telegram and channels_cfg.telegram.chat_ids:
-        return list(channels_cfg.telegram.chat_ids)
-    return [""]
-
-
 def _resolve_status(channel: str, rule: Rule, event, kind: str, channels_cfg, now, target: str):
     # "native" has no send and no DeliveryResult, never a retry candidate.
     if channel == "native":
         return "queued", None, None, None
     return _status_for(channel, rule, event, kind, channels_cfg, now, target)
-
-
-def _insert_delivery_row(
-    session, rule, kind, eid, channel, target, now, status, err, attempts, next_attempt_at
-):
-    """The one AlertDeliveryORM insert _deliver_one makes, split out to keep
-    _deliver_one itself under the 50-line cap (PRI rule 7)."""
-    from findplus.db.models_alerts import AlertDelivery as AlertDeliveryORM
-
-    session.add(
-        AlertDeliveryORM(
-            rule_id=rule.id,
-            event_kind=kind,
-            event_id=eid,
-            channel=channel,
-            target=target,
-            sent_at=now,
-            status=status,
-            error=err,
-            attempts=attempts,
-            next_attempt_at=next_attempt_at,
-        )
-    )
 
 
 def _deliver_one(
@@ -255,7 +208,13 @@ def process(events: list, session, settings, now: datetime.datetime | None = Non
                 # same as before multi-target telegram existed: it answers "did
                 # this rule already notify over this channel recently", not
                 # "did this exact person already hear about it".
-                for target in _channel_targets(channel, channels_cfg):
+                targets, skip_reason = _channel_targets(channel, channels_cfg, rule)
+                if skip_reason is not None:
+                    delivered = _deliver_skip(session, rule, channel, event, now, skip_reason)
+                    if delivered is not None:
+                        deliveries.append(delivered)
+                    continue
+                for target in targets:
                     delivered = _deliver_one(
                         session, rule, channel, event, channels_cfg, now, target
                     )

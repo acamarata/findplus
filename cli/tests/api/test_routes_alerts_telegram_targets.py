@@ -211,3 +211,68 @@ def test_test_endpoint_no_targets_configured_is_422(client: TestClient) -> None:
     _seed_telegram(chat_ids=())
     res = client.post("/api/alerts/test", json={"channel": "telegram"})
     assert res.status_code == 422
+
+
+# ------------------------------------- rule pruning (WP10, gap-audit P13)
+def _rule_with_targets(client: TestClient, targets: list[str]) -> int:
+    return client.post(
+        "/api/alerts/rules",
+        json={
+            "name": "r1",
+            "device_id": "dev1",
+            "channels": ["telegram"],
+            "telegram_targets": targets,
+        },
+    ).json()["id"]
+
+
+def test_put_targets_drops_a_removed_id_from_a_rules_subset(client: TestClient) -> None:
+    _seed_telegram(chat_ids=("1", "2"))
+    rule_id = _rule_with_targets(client, ["1", "2"])
+    res = client.put("/api/alerts/channels/telegram/targets", json={"targets": "2"})
+    assert res.status_code == 200
+    rule = client.get("/api/alerts/rules").json()[0]
+    assert rule["id"] == rule_id
+    assert rule["telegram_targets"] == ["2"]
+
+
+def test_put_targets_collapses_a_rule_to_explicit_empty_when_its_whole_subset_is_removed(
+    client: TestClient,
+) -> None:
+    _seed_telegram(chat_ids=("1", "2"))
+    _rule_with_targets(client, ["1"])
+    client.put("/api/alerts/channels/telegram/targets", json={"targets": "2"})
+    rule = client.get("/api/alerts/rules").json()[0]
+    assert rule["telegram_targets"] == []
+
+
+def test_put_targets_never_touches_a_rule_left_at_null_every_target(client: TestClient) -> None:
+    _seed_telegram(chat_ids=("1", "2"))
+    client.post(
+        "/api/alerts/rules", json={"name": "r1", "device_id": "dev1", "channels": ["telegram"]}
+    )
+    client.put("/api/alerts/channels/telegram/targets", json={"targets": "2"})
+    assert client.get("/api/alerts/rules").json()[0]["telegram_targets"] is None
+
+
+def test_delete_telegram_collapses_every_narrowed_rule_to_explicit_empty(
+    client: TestClient,
+) -> None:
+    _seed_telegram(chat_ids=("1", "2"))
+    _rule_with_targets(client, ["1"])
+    assert client.delete("/api/alerts/channels/telegram").status_code == 204
+    assert client.get("/api/alerts/rules").json()[0]["telegram_targets"] == []
+
+
+def test_put_telegram_full_resave_also_prunes_rules(client: TestClient) -> None:
+    """PUT /channels/telegram (reconnecting with a fresh, narrower target
+    list) prunes the same way PUT .../targets does -- both go through
+    put_telegram's own `_prune_rules_to`."""
+    _seed_telegram(chat_ids=("1", "2"))
+    rule_id = _rule_with_targets(client, ["1", "2"])
+    with patch("findplus.api.routes_alerts_telegram._get_me", return_value={"username": "b"}):
+        res = client.put("/api/alerts/channels/telegram", json={"bot_token": TOKEN, "targets": "2"})
+    assert res.status_code == 200
+    rule = client.get("/api/alerts/rules").json()[0]
+    assert rule["id"] == rule_id
+    assert rule["telegram_targets"] == ["2"]

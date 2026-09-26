@@ -17,6 +17,16 @@
  *              second native prompt(). alertDialog({ title, body,
  *              confirmLabel }) is the same chrome with no Cancel button, for
  *              window.alert()'s call sites.
+ *              UAT7-N16: most call sites still send the same generic verb as
+ *              both `title` and `confirmLabel` ("Delete" title, "Delete"
+ *              button) and put the real question in `body` -- the title read
+ *              as the button's own label repeated above itself.
+ *              promoteBodyToTitle() below promotes `body` to the title
+ *              whenever that pattern is detected, so every dialog gets a
+ *              real headline without every call site needing an edit first;
+ *              a caller that already sends its own distinct title (an error
+ *              dialog's "Error", a type-to-confirm dialog's instructions) is
+ *              untouched.
  * Outputs    : confirmDialog resolves true (Confirm clicked, which can only
  *              happen while it is enabled -- never true against an unmet
  *              `input.requireText`) or false (Cancel or Escape). alertDialog
@@ -98,8 +108,22 @@ function ensure() {
 function configureButtons({ confirmLabel, cancelLabel, danger, showCancel }) {
   els.confirmBtn.textContent = confirmLabel || t("common.confirm");
   els.confirmBtn.className = danger ? "btn btn-danger" : "btn";
+  // UAT7-N16: this button never got a class at all, so it painted as a bare
+  // browser-default button -- square-bordered and inconsistent between
+  // themes, unlike every other dialog's Cancel.
+  els.cancelBtn.className = "btn btn-secondary";
   els.cancelBtn.hidden = !showCancel;
   els.cancelBtn.textContent = showCancel ? cancelLabel || t("common.cancel") : "";
+}
+
+/**
+ * See the file header (UAT7-N16). Returns `[title, body]` to actually render.
+ */
+function promoteBodyToTitle(title, body, confirmLabel) {
+  const rawTitle = title || "";
+  const rawBody = body || "";
+  if (rawBody && rawTitle === confirmLabel) return [rawBody, ""];
+  return [rawTitle, rawBody];
 }
 
 /** Shows/hides and seeds the optional text field. Returns the text Confirm
@@ -157,10 +181,12 @@ export function confirmDialog({
   ensure();
   const opener = document.activeElement;
   const showCancel = cancelLabel !== null;
+  const resolvedConfirmLabel = confirmLabel || t("common.confirm");
 
-  els.title.textContent = title || "";
-  els.body.textContent = body || "";
-  configureButtons({ confirmLabel, cancelLabel, danger, showCancel });
+  const [resolvedTitle, resolvedBody] = promoteBodyToTitle(title, body, resolvedConfirmLabel);
+  els.title.textContent = resolvedTitle;
+  els.body.textContent = resolvedBody;
+  configureButtons({ confirmLabel: resolvedConfirmLabel, cancelLabel, danger, showCancel });
   const requireText = configureInput(input);
   els.confirmBtn.disabled = requireText != null && requireText !== "";
 

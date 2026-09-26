@@ -1,11 +1,15 @@
-"""UAT6 N08 (not-affiliated on every card) and N23 (Cancel while waiting).
+"""UAT6 N08 / UAT7 N17 (not-affiliated sentence) and N23 (Cancel while waiting).
 
 Purpose    : N08 -- cards.js's header long claimed every sign-in card said
              "not affiliated with Google/Apple"; it only ever showed on
-             Welcome and Settings > Notices. Both cards on both surfaces now
-             render it themselves. N23 -- there was no way to back out of
-             "waiting on Chrome" short of closing the window; a Cancel button
-             does now, calling POST /api/auth/google/cancel.
+             Welcome and Settings > Notices. N17 -- printing it inside EACH
+             card then showed it twice per surface (three times on Settings,
+             counting Notices); it now prints once, under the card grid,
+             shared by both cards on both surfaces (panel.js's
+             mountSignInPanel(), cards.js's notAffiliatedFooter()). N23 --
+             there was no way to back out of "waiting on Chrome" short of
+             closing the window; a Cancel button does now, calling POST
+             /api/auth/google/cancel.
 Constraints: Every auth route is answered by page.route; no real Chrome, no
              network, nothing written to the real ~/.findplus.
 """
@@ -28,22 +32,25 @@ async def _catalog_honesty(page, base_url) -> str:
     return (await response.json())["honesty"]["notAffiliated"]
 
 
-# --------------------------------------------------------------------- N08
-async def test_not_affiliated_sentence_on_both_wizard_cards(page, base_url):
+# --------------------------------------------------------------- N08 / N17
+async def test_not_affiliated_sentence_once_under_the_wizard_cards(page, base_url):
     try:
         await open_wizard_signin(page, base_url)
         sentence = await _catalog_honesty(page, base_url)
-        await wait_text_local(page, "#fp-setup-google-not-affiliated", sentence)
-        await wait_text_local(page, "#fp-setup-apple-not-affiliated", sentence)
+        await wait_text_local(page, "#fp-setup-not-affiliated", sentence)
+        # N17: not printed a second time inside either card any more.
+        assert await page.locator("#fp-setup-google-not-affiliated").count() == 0
+        assert await page.locator("#fp-setup-apple-not-affiliated").count() == 0
     finally:
         await restore_onboarding(page, base_url)
 
 
-async def test_not_affiliated_sentence_on_both_settings_cards(page, base_url):
+async def test_not_affiliated_sentence_once_under_the_settings_cards(page, base_url):
     await open_settings_signin(page, base_url)
     sentence = await _catalog_honesty(page, base_url)
-    await wait_text_local(page, "#fp-auth-google-not-affiliated", sentence)
-    await wait_text_local(page, "#fp-auth-apple-not-affiliated", sentence)
+    await wait_text_local(page, "#fp-auth-not-affiliated", sentence)
+    assert await page.locator("#fp-auth-google-not-affiliated").count() == 0
+    assert await page.locator("#fp-auth-apple-not-affiliated").count() == 0
 
 
 async def wait_text_local(page, selector: str, text: str) -> None:

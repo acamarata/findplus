@@ -89,6 +89,35 @@ async def test_places_list_renders_the_seeded_place(page, base_url):
     assert "200" in text  # the seeded "Home" place's radius, in the metres meta
 
 
+async def test_places_list_has_no_default_list_indent(page, base_url):
+    """UAT7-N09: #fp-places-list kept its own 18px side padding stacked on
+    top of the pane's own padding, so every card sat well right of the "Add
+    place" button and the "Recent arrivals..." heading in the same pane."""
+    await _open_dashboard(page, base_url)
+    await page.click('button[data-tab="places"]')
+    row = page.locator("#fp-places-list [data-place-id]", has_text="Home")
+    await row.wait_for(state="visible")
+    padding_left = await page.evaluate(
+        "() => getComputedStyle(document.getElementById('fp-places-list')).paddingLeft"
+    )
+    assert padding_left == "0px"
+
+
+async def test_places_tab_hint_aligns_with_its_heading(page, base_url):
+    """UAT7-N09: .fp-tab-hint's own 18px side padding (style-tabs.css) used
+    to stack on top of the pane's own padding, landing the hint (and every
+    other paragraph sharing the class, in every tab) well right of a
+    heading in the same pane, which carries no padding of its own."""
+    await _open_dashboard(page, base_url)
+    await page.click('button[data-tab="places"]')
+    hint = page.locator("#fp-places-tab-hint")
+    await hint.wait_for(state="attached")
+    padding_left = await page.evaluate(
+        "() => getComputedStyle(document.getElementById('fp-places-tab-hint')).paddingLeft"
+    )
+    assert padding_left == "0px"
+
+
 async def test_places_list_edit_opens_the_dialog_prefilled(page, base_url):
     await _open_dashboard(page, base_url)
     await page.click('button[data-tab="places"]')

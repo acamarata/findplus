@@ -79,16 +79,15 @@
       <label class="setting-row setting-row-aligned">
         <span data-i18n="settings.polling.retention_label">Keep history for</span>
         <span class="setting-row-value">
-          <input type="number" id="setting-retention-days" min="7" placeholder="forever"
+          <input type="number" id="setting-retention-days" min="7" placeholder="keep all"
                  data-i18n-attr="placeholder:settings.polling.retention_placeholder">
           <span data-i18n="settings.polling.retention_unit">days</span>
         </span>
       </label>
-      <!-- UAT6 N29: "blank = forever" used to be squeezed into the unit text
-           next to the field ("days (blank = forever)"); it now reads as its
-           own short hint under the field, same convention as a field's
-           modal-note. -->
-      <p class="setting-row-hint" data-i18n="settings.polling.retention_hint">blank = forever</p>
+      <!-- UAT7-N18: "blank = forever" used to repeat as its own hint line
+           AND as the last sentence of the note below ("Leave blank to keep
+           everything."); the placeholder above ("keep all") plus that one
+           note sentence say it once each, not three times. -->
       <p class="modal-note" data-i18n="settings.polling.retention_note">
         Older observations, place visits and group events are deleted automatically once a day.
         Leave blank to keep everything.

@@ -138,6 +138,22 @@ function uploadRow(status, onUploaded) {
 }
 
 /**
+ * The section's own heading (UAT7-N19).
+ *
+ * This used to be a bare <h4>, styled smaller and lowercase -- one visual
+ * language for "Your icons" and a different one (uppercase, letter-spaced)
+ * for the Lucide categories above it in the same picker. Same class
+ * icon-picker.js's own categoryHeading() uses, so both read as one family
+ * of section headings.
+ */
+function customIconsHeading() {
+  const heading = document.createElement("h4");
+  heading.className = "fp-icon-group-heading";
+  heading.textContent = t("icons.custom.sectionLabel");
+  return heading;
+}
+
+/**
  * Build the "Your icons" section and its live handle.
  *
  * `value` is read once at build time; the picker's own `setValue()` (via the
@@ -149,8 +165,7 @@ export function createCustomIconsSection(host, { value, onSelect }) {
   const section = document.createElement("section");
   section.className = "fp-custom-icons";
   section.dataset.group = "custom";
-  const heading = document.createElement("h4");
-  heading.textContent = t("icons.custom.sectionLabel");
+  const heading = customIconsHeading();
   const grid = document.createElement("div");
   grid.className = "fp-icon-grid";
   const status = statusParagraph();

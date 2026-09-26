@@ -18,6 +18,7 @@ import { $, state, fmtTime, fmtDuration, showAlert } from "./state.js";
 import { api } from "./api.js";
 import { t, plural } from "./i18n.js";
 import { anyProviderSignedIn, failedPollNotice, isFailedPoll, openSignin, shortStatus } from "./poll_status.js";
+import { syncProviderChrome } from "./provider_chrome.js";
 
 /** The topbar device name: the filtered tracker, or how many are tracked.
  * U30: the title tooltip spells out what "~72/hr" counts. */
@@ -53,6 +54,39 @@ function renderPollerDot(s) {
   dot.className = "dot " + kind;
   dot.title = title;
   dot.dataset.health = kind;
+  // UAT7-N20: colour and a mouse-only title were the dot's only signal of
+  // state; role="img" plus a matching aria-label gives screen readers and
+  // touch users the same information, refreshed here alongside the title on
+  // every state change.
+  dot.setAttribute("role", "img");
+  dot.setAttribute("aria-label", title);
+}
+
+/** Poll Now and Latest Location both need something tracked to do anything
+ * (UAT7-N14): with nothing tracked they were live buttons that always
+ * failed. Disabled here, with the same "nothing is tracked" wording the
+ * poller-idle dot already uses as the reason -- no new copy invented for it.
+ * `data-cooling` (devices_actions.js's own post-poll cooldown, UAT5-N50) is
+ * left alone while it is set: this function's own periodic re-sync must
+ * never re-enable a button that a separate cooldown is still holding down. */
+function syncTrackingActions(s) {
+  const idle = !s.tracked_count;
+  const reason = t("common.pollerIdle");
+  const poll = $("btn-poll");
+  const latest = $("btn-latest");
+  if (poll) {
+    if (idle) {
+      poll.disabled = true;
+      poll.title = reason;
+    } else if (poll.dataset.cooling !== "1") {
+      poll.disabled = false;
+      syncProviderChrome();
+    }
+  }
+  if (latest) {
+    latest.disabled = idle;
+    latest.title = idle ? reason : "";
+  }
 }
 
 /** The four summary cards. With no observation yet every value reads as empty. */
@@ -79,12 +113,17 @@ function renderCards(s) {
 
 const signinAction = () => ({ label: t("pollStatus.actionConnect"), run: () => openSignin() });
 
-/** Nothing tracked: sign in first if nobody is, else pick devices. */
+/** Nothing tracked: sign in first if nobody is, else pick devices.
+ *
+ * UAT7-N14: the no-account banner used to repeat the timeline empty state's
+ * own "Connect an account" button (dashboard_empty.js), stacked right above
+ * it -- two identical CTAs for the same action. The banner now just says
+ * nothing is connected; the one button to act on it lives in the timeline. */
 async function nothingTrackedBanner() {
   const signedIn = await anyProviderSignedIn();
   if (state.locked) return;  // the lock screen went up while we asked
   if (signedIn === false) {
-    showAlert(t("pollStatus.bannerNoAccount"), "warn", { action: signinAction() });
+    showAlert(t("pollStatus.bannerNoAccount"), "warn");
     return;
   }
   const devices = await import("./devices.js");
@@ -117,6 +156,7 @@ export async function loadStatus() {
     renderDeviceName(s);
     renderPollerDot(s);
     renderCards(s);
+    syncTrackingActions(s);
     await renderStatusAlert(s);
   } catch (err) {
     showAlert(t("common.apiUnreachable", { message: err.message }), "err");

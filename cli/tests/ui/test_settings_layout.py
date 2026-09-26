@@ -53,18 +53,28 @@ async def test_poll_interval_and_retention_inputs_share_one_baseline(page, base_
     assert abs(poll_box["x"] - retention_box["x"]) < 2, "the two inputs no longer share an x"
 
 
-async def test_retention_blank_means_forever_is_its_own_hint(page, base_url):
-    """The unit span now just says "days"; "blank = forever" moved to a
-    hint line under the field instead of being squeezed into the unit."""
+async def test_poll_interval_and_retention_inputs_are_equal_width(page, base_url):
+    """UAT7-N18: with no width rule of their own the two number inputs sized
+    themselves independently and rendered a few pixels apart."""
+    await _open_settings(page, base_url)
+    poll_box = await page.locator("#setting-poll-interval").bounding_box()
+    retention_box = await page.locator("#setting-retention-days").bounding_box()
+    diff = abs(poll_box["width"] - retention_box["width"])
+    assert diff < 2, "the two inputs are different widths"
+
+
+async def test_retention_placeholder_says_keep_all_with_no_separate_hint(page, base_url):
+    """UAT7-N18: "days (blank = forever)" used to be spread across the unit
+    text, a dedicated hint line under the field, AND the explanatory note
+    below it -- three places saying the same thing. The field's own
+    placeholder now says "keep all" and the note is the only explanation
+    left; there is no more separate hint paragraph."""
     await _open_settings(page, base_url)
     unit_text = await page.locator("#setting-retention-days + span").inner_text()
     assert unit_text.strip() == "days"
-    hint = (
-        await page.locator("#setting-retention-days")
-        .locator("xpath=../../following-sibling::p[contains(@class,'setting-row-hint')][1]")
-        .inner_text()
-    )
-    assert "blank = forever" in hint
+    placeholder = await page.locator("#setting-retention-days").get_attribute("placeholder")
+    assert placeholder == "keep all"
+    assert await page.locator("p.setting-row-hint").count() == 0
 
 
 async def test_about_shows_the_display_name_not_the_identifier(page, base_url):

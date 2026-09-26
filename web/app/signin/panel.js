@@ -15,23 +15,34 @@
  */
 "use strict";
 
-import { el, buildGoogleCard, buildAppleCard } from "./cards.js";
+import { el, buildGoogleCard, buildAppleCard, notAffiliatedFooter } from "./cards.js";
 import { GoogleFlow } from "./google_flow.js";
 import { AppleFlow } from "./apple_flow.js";
 
 export const GOOGLE_PROVIDER = "google-find-hub";
 export const APPLE_PROVIDER = "apple-find-my";
 
-export function mountSignInPanel(host, options) {
-  const { prefix, level = 3, withNotices = false, appleExtra = null, onStatus = null } = options;
-  const notices = () => options.notices() || {};
-  const shape = { prefix, level, withNotices, notices: notices() };
+/**
+ * Build both cards and mount them plus the shared honesty footer.
+ *
+ * UAT7-N17: the "not affiliated" sentence used to print inside each card;
+ * one copy under the grid instead, so the pair says it once per surface.
+ */
+function mountCards(host, shape, appleExtra) {
   const googleCard = buildGoogleCard(shape);
   const appleCard = buildAppleCard(shape);
   if (appleExtra) appleCard.root.append(appleExtra);
   const grid = el("div", "fp-signin-cards");
   grid.append(googleCard.root, appleCard.root);
-  host.append(grid);
+  host.append(grid, notAffiliatedFooter(shape.prefix, shape.notices));
+  return { googleCard, appleCard };
+}
+
+export function mountSignInPanel(host, options) {
+  const { prefix, level = 3, withNotices = false, appleExtra = null, onStatus = null } = options;
+  const notices = () => options.notices() || {};
+  const shape = { prefix, level, withNotices, notices: notices() };
+  const { googleCard, appleCard } = mountCards(host, shape, appleExtra);
 
   let generation = 0;
   const panel = {};

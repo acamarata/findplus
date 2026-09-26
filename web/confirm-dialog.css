@@ -22,9 +22,14 @@
 /* Matches the N24 fix for the other dialogs: the page-wide `h2` rule
    (style.css) uppercases and mutes every h2, which read as a disabled label
    rather than a title. */
+/* white-space: pre-line (UAT7-N16): promoteBodyToTitle() (confirm-dialog.js)
+   can promote a body string that still carries the old window.confirm()
+   "\n\n" paragraph break (timeline.js's delete-history confirms) into this
+   title -- the same wrapping the body paragraph below already gets, so that
+   break renders instead of collapsing into one run-on line. */
 #fp-confirm-dialog h2 {
   margin: 0 0 10px; font-size: 18px; font-weight: 600; letter-spacing: 0;
-  text-transform: none; color: var(--text);
+  text-transform: none; color: var(--text); white-space: pre-line;
 }
 #fp-confirm-dialog .fp-confirm-dialog-body {
   margin: 0 0 14px; font-size: 13px; color: var(--text); white-space: pre-line;

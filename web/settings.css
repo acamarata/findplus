@@ -10,9 +10,10 @@
  *              300-line cap for a change scoped to one dialog.
  * Inputs     : `.setting-row-aligned` rows in partials/settings.html (poll
  *              interval, retention days) whose value is wrapped in a
- *              `.setting-row-value` span, plus `.setting-row-hint`.
+ *              `.setting-row-value` span.
  * Outputs    : The input and its unit sit together; both rows' inputs start
- *              at the same x (one fixed-width label column).
+ *              at the same x (one fixed-width label column) and share the
+ *              same width (UAT7-N18).
  * Constraints: Loaded before responsive.css (index.html), same as setup.css,
  *              so the <600px column layout below still wins there. The
  *              phone-tier query here only undoes the desktop-only fixed
@@ -39,14 +40,13 @@
   min-width: 0;
 }
 
-/* Same tone and indent as .modal-note, but sits directly under its field
- * rather than after the longer explanatory note (settings.js keeps the two
- * separate: this is the short "blank = forever" hint, not the paragraph
- * about what retention actually deletes). */
-.setting-row-hint {
-  color: var(--muted);
-  font-size: 12px;
-  margin: 0 0 8px;
+/* UAT7-N18: with no width rule of their own, the poll-interval and
+ * retention-days number inputs sized themselves independently and rendered
+ * a few pixels apart -- a fixed width common to both fixes it outright,
+ * rather than leaving it to whatever the two fields' own attributes imply. */
+#setting-poll-interval,
+#setting-retention-days {
+  width: 90px;
 }
 
 @media (max-width: 599px) {
@@ -62,6 +62,13 @@
    * now that both share `.setting-row-value` as one flex item. */
   .setting-row-value input[type=number] {
     flex: 1 1 auto;
+    width: auto;
+  }
+  /* The two ids above beat this class selector on specificity alone, so the
+   * fixed desktop width has to be undone by name here too, or the phone
+   * tier would keep it. */
+  #setting-poll-interval,
+  #setting-retention-days {
     width: auto;
   }
 }

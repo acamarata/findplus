@@ -15,11 +15,14 @@
  *              vendor sign-in button, logo or wordmark: Find+ uses neither
  *              vendor's identity service and says it is not affiliated. The
  *              icons are neutral Lucide glyphs from the bundled sprite.
- *              UAT6 N08: every card also prints the "not affiliated" honesty
- *              sentence itself, verbatim from /api/config, not just Welcome
- *              and the bottom of Settings > Notices. S11/WP8: every card
- *              also carries a Disconnect control (hidden until signed in)
- *              and the inline confirm row it reveals -- never window.confirm.
+ *              UAT6 N08: the "not affiliated" honesty sentence, verbatim
+ *              from /api/config, is available on every sign-in surface.
+ *              UAT7-N17: it printed inside EACH card (Settings showed it
+ *              twice, plus once more in Notices); notAffiliatedFooter() now
+ *              renders it once, mounted by panel.js under the card grid
+ *              instead. S11/WP8: every card also carries a Disconnect
+ *              control (hidden until signed in) and the inline confirm row
+ *              it reveals -- never window.confirm.
  */
 "use strict";
 
@@ -130,17 +133,19 @@ function feedback(prefix, { withCancel = false } = {}) {
 }
 
 /**
- * The combined "not affiliated" honesty sentence (UAT6 N08), shown on every
- * sign-in card -- it used to appear only on Welcome and at the bottom of
- * Settings > Notices, nowhere near the buttons that actually start a
- * sign-in. Reuses honesty.NOT_AFFILIATED verbatim via /api/config (PROMPT.md
- * invariant 4) instead of a per-provider paraphrase: one honesty sentence,
- * shown in several places, the same pattern the Chrome and Apple-limits
- * notices already use.
+ * The combined "not affiliated" honesty sentence (UAT6 N08), shown once
+ * beneath the sign-in card grid (UAT7-N17) -- it used to print inside each
+ * of the two cards, so Settings showed it twice per card plus once more in
+ * Notices, and the wizard showed it twice. Reuses honesty.NOT_AFFILIATED
+ * verbatim via /api/config (PROMPT.md invariant 4) instead of a
+ * per-provider paraphrase: one honesty sentence, shown once per surface,
+ * the same pattern the Chrome and Apple-limits notices already use.
+ * Mounted by panel.js's mountSignInPanel(), not by either card builder
+ * below, so it survives independently of which cards are shown.
  */
-function notAffiliatedLine(prefix, key, notices) {
+export function notAffiliatedFooter(prefix, notices) {
   const p = el("p", "fp-signin-how", notices.not_affiliated || t("honesty.notAffiliated"));
-  p.id = `${prefix}-${key}-not-affiliated`;
+  p.id = `${prefix}-not-affiliated`;
   return p;
 }
 
@@ -211,7 +216,6 @@ export function buildGoogleCard({ prefix, level, notices, withNotices }) {
   const root = card(`${prefix}-google-card`, "google");
   const top = head("compass", t("signin.google.heading"), level, `${prefix}-google-status`);
   const how = el("p", "fp-signin-how", t("signin.google.how"));
-  const notAffiliated = notAffiliatedLine(prefix, "google", notices);
   const actions = el("div", "fp-signin-actions");
   const signin = button("btn fp-signin-btn", t("signin.google.connect"), `${prefix}-google-signin`);
   const disconnect = button("btn btn-secondary", t("signin.disconnect"), `${prefix}-google-disconnect`);
@@ -221,7 +225,7 @@ export function buildGoogleCard({ prefix, level, notices, withNotices }) {
   const fb = feedback(`${prefix}-google`, { withCancel: true });
   const chrome = chromeBlock(prefix, notices);
   root.append(
-    top.wrap, how, notAffiliated, actions, disconnectConfirm.row, fb.progress, fb.error, chrome.chrome
+    top.wrap, how, actions, disconnectConfirm.row, fb.progress, fb.error, chrome.chrome
   );
   if (withNotices) root.append(el("p", "fp-wizard-footnote", notices.find_hub || ""));
   return { root, account: top.account, button: signin, disconnect, disconnectConfirm, ...fb, ...chrome };
@@ -247,7 +251,6 @@ export function buildAppleCard({ prefix, level, notices, withNotices }) {
   const root = card(`${prefix}-apple-card`, "apple");
   const top = head("key-round", t("signin.apple.heading"), level, `${prefix}-apple-status`);
   const how = el("p", "fp-signin-how", t("signin.apple.how"));
-  const notAffiliated = notAffiliatedLine(prefix, "apple", notices);
   const unavailable = el("p", "fp-signin-note", t("signin.apple.unavailable"));
   unavailable.id = `${prefix}-apple-unavailable`;
   unavailable.hidden = true;
@@ -274,7 +277,7 @@ export function buildAppleCard({ prefix, level, notices, withNotices }) {
   const code = codeRow(prefix);
   const fb = feedback(`${prefix}-apple`);
   root.append(
-    top.wrap, how, notAffiliated, unavailable, form, change, disconnect,
+    top.wrap, how, unavailable, form, change, disconnect,
     disconnectConfirm.row, code.codeRow, fb.progress, fb.error
   );
   if (withNotices) root.append(el("p", "fp-wizard-footnote", notices.apple || ""));

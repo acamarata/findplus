@@ -132,8 +132,12 @@
   border-radius: 50%; border: 1px solid var(--muted); }
 .fp-icon-letter-input { width: 2.5em; margin-top: 6px; }
 
-/* --- "Your icons" (uploaded custom PNGs), same grid as the Lucide swatches */
-.fp-custom-icons h4 { font-size: 12px; color: var(--muted); margin: 8px 0 4px; }
+/* --- "Your icons" (uploaded custom PNGs), same grid as the Lucide swatches
+   UAT7-N19: this heading used to carry its own smaller, non-uppercase style
+   (custom-icons.js now gives it the shared .fp-icon-group-heading class
+   places-events.css's N28 fix already defined for the Lucide category
+   headings, so "Your icons" reads as one more category, not a different
+   kind of label). */
 .fp-icon-swatch img { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; }
 /* The select button and its delete "x" are siblings here, not nested
    (axe `nested-interactive`, 2026-09-23) -- the wrapper positions the "x"
@@ -162,6 +166,15 @@ input[type="file"]::file-selector-button:hover { filter: brightness(1.1); }
 .fp-device-badge { width: 24px; height: 24px; flex: 0 0 auto; line-height: 0; }
 .fp-device-badge svg { width: 100%; height: 100%; }
 .fp-device-edit { margin-left: 6px; }
+
+/* UAT7-N19: style-tabs.css's two provider-badge variants had drifted apart --
+   Find Hub a tinted fill, Apple a plain fill with only a hairline ring, so
+   the same "which provider" role read as two different chip styles. Adding
+   the same ring to the Find Hub variant here (loaded after style-tabs.css)
+   unifies the look without touching Apple's ring, which also keeps its own
+   badge visible against the device row's own same-coloured --panel-2
+   background. */
+.fp-provider-badge--google-find-hub { box-shadow: inset 0 0 0 1px var(--line-strong); }
 
 /* --- map markers ---------------------------------------------------------- */
 /* The badge fills the disc; the sequence number sits on top of it, with a hard

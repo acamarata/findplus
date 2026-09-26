@@ -40,15 +40,21 @@ let cooldownTimer = null;
 
 /** Disable the button for `ms`, then restore its normal label. A later call
  * (a 429 extending an already-running cooldown) replaces the pending timer
- * rather than stacking a second one. */
+ * rather than stacking a second one. `data-cooling` (UAT7-N14) is the DOM
+ * signal status_view.js's own syncTrackingActions() reads before it decides
+ * whether nothing-tracked is the ONLY reason this button is disabled -- a
+ * plain module import back into this file would cycle through main.js
+ * (this file already imports reload() from there). */
 function startCooldown(btn, ms) {
   cooldownUntil = Date.now() + ms;
   btn.disabled = true;
   btn.textContent = t("common.btnPoll");
+  btn.dataset.cooling = "1";
   if (cooldownTimer) clearTimeout(cooldownTimer);
   cooldownTimer = setTimeout(() => {
     cooldownTimer = null;
     cooldownUntil = 0;
+    delete btn.dataset.cooling;
     btn.disabled = false;
   }, ms);
 }
@@ -67,6 +73,11 @@ export async function pollNow() {
   if (Date.now() < cooldownUntil) return;
   btn.disabled = true;
   btn.textContent = t("devices.pollingLabel");
+  // Set before the request even starts (not just once startCooldown() runs
+  // after it): `await reload()` below calls loadStatus() itself, and a
+  // status_view.js resync mid-request must not read "not cooling" and
+  // re-enable a button whose own request has not answered yet.
+  btn.dataset.cooling = "1";
   try {
     const r = await postJson("/api/poll-now");
     const lines = r.results.map(
@@ -91,6 +102,7 @@ export async function pollNow() {
       const wait = WAIT_SECONDS.exec(err.message);
       startCooldown(btn, (wait ? Number(wait[1]) : 60) * 1000);
     } else {
+      delete btn.dataset.cooling;
       btn.disabled = false;
       btn.textContent = t("common.btnPoll");
     }

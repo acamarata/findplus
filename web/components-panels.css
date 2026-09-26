@@ -221,7 +221,33 @@ dialog a:hover,
 /* --- places list (UAT U5, same field/button shapes as .fp-group-card) ----
    UAT6-N26: a grid, so a long "Currently here: ..." wraps inside its own cell
    under the name and Edit/Delete stay together on the first line. */
-#fp-places-list { padding: 0 18px; margin-top: 10px; }
+/* UAT7-N09: this list's own 18px side padding stacked on top of
+   .timeline-pane's own 15px pane padding (style.css), landing every card
+   well right of the "Add place" button and the section heading above it,
+   neither of which carries any padding of its own. */
+#fp-places-list { padding: 0; margin-top: 10px; }
+/* Shared reset for a list container used purely as a layout wrapper, not
+   semantic list content (UAT7-N09): the two Telegram <ul>s below (owned by
+   alerts_telegram_targets.js/alerts.html, another agent's files this round)
+   kept the UA stylesheet's disc bullets and 40px padding-inline-start, so
+   "Connected: ..." and the chip/found-chat rows sat well right of their own
+   section's other text. Applied by id here rather than by adding a class to
+   that markup. */
+#fp-tg-current-targets,
+#fp-tg-chats-list {
+  list-style: none;
+  margin: 6px 0;
+  padding: 0;
+}
+/* UAT7-N09: this class's own 18px side padding (style-tabs.css, another
+   agent's file this round) stacked on top of the same pane padding, landing
+   every "Connected: ...", latency notice and help paragraph -- in every tab,
+   not just Places and Alerts -- well right of its own section's heading.
+   Overridden here (loaded after style-tabs.css) rather than editing that
+   shared file mid-round. */
+.fp-tab-hint {
+  padding: 0;
+}
 .fp-place-card { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto auto;
   grid-template-areas: "dot name edit del" ". meta meta meta" ". who who who";
   align-items: center; gap: 2px 10px; padding: 9px 10px; border: 1px solid var(--line);

@@ -121,6 +121,53 @@ async def test_require_text_gates_confirm_and_focuses_the_field(page, base_url):
     assert await _resolved_value(page) is True
 
 
+async def test_repeated_verb_title_is_promoted_from_the_body(page, base_url):
+    """UAT7-N16: most call sites still send the same generic verb as both
+    `title` and `confirmLabel` ("Delete" title, "Delete" button) with the
+    real question in `body` -- the title read as the button's own label
+    repeated above itself. When that pattern is detected, `body` becomes the
+    title and the body paragraph collapses empty."""
+    await _open(page, base_url)
+    opts = {
+        "title": "Delete",
+        "body": 'Delete place "Home"?',
+        "confirmLabel": "Delete",
+        "danger": True,
+    }
+    await _start_confirm(page, opts)
+    title = await page.locator("#fp-confirm-dialog-title").inner_text()
+    body = await page.locator("#fp-confirm-dialog-body").inner_text()
+    assert title == 'Delete place "Home"?'
+    assert body == ""
+    await page.locator("#fp-confirm-dialog").get_by_role("button", name="Delete").click()
+    assert await _resolved_value(page) is True
+
+
+async def test_a_distinct_title_is_left_alone(page, base_url):
+    """A caller that already sends its own title (an error dialog's "Error",
+    distinct from its "OK" confirmLabel) keeps it -- nothing to promote."""
+    await _open(page, base_url)
+    await _start_confirm(page, {"title": "Error", "body": "Something broke", "confirmLabel": "OK"})
+    title = await page.locator("#fp-confirm-dialog-title").inner_text()
+    body = await page.locator("#fp-confirm-dialog-body").inner_text()
+    assert title == "Error"
+    assert body == "Something broke"
+    await page.locator("#fp-confirm-dialog").get_by_role("button", name="OK").click()
+    await _resolved_value(page)
+
+
+async def test_cancel_button_uses_the_shared_secondary_style(page, base_url):
+    """UAT7-N16: Cancel never got a class at all, so it painted as a bare
+    browser-default button -- square-bordered and inconsistent between
+    themes, unlike every other dialog's Cancel."""
+    await _open(page, base_url)
+    await _start_confirm(page, {"title": "Delete?", "body": "Sure?"})
+    class_name = await page.locator("#fp-confirm-dialog-cancel").get_attribute("class")
+    assert class_name == "btn btn-secondary"
+    await page.locator("#fp-confirm-dialog").get_by_role("button", name="Cancel").click()
+    await _resolved_value(page)
+
+
 async def test_alert_dialog_has_no_cancel_button(page, base_url):
     await page.goto(base_url + "/")
     await page.wait_for_selector("#map.leaflet-container")

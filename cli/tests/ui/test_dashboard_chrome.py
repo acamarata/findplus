@@ -1,10 +1,13 @@
-"""Dashboard chrome from UAT walk 6: controls width, tab bar scroll, banner, footer.
+"""Dashboard chrome from UAT walk 6/7: controls width, tab bar scroll, banner,
+footer, status dot.
 
 Purpose    : Pin the WP-D/E fixes. A long tracker name used to widen the page
              to 517px at 375 (N09) and push Export onto a second row at 1280;
              a tab-bar tap left the page at scrollY 0 (N10); the banner printed
              raw status codes while the service dot stayed green (N06); the
-             footer never said Find+ is not affiliated (N08).
+             footer never said Find+ is not affiliated (N08). UAT7-N20: the
+             dot's state (idle/live/stale/warn) was colour- and title-only,
+             with no accessible name at all.
 Inputs     : live_server (conftest.py) and its ui_db, which this file writes
              one poll_runs row into and removes again.
 Outputs    : Assertions only.
@@ -89,8 +92,26 @@ async def test_the_footer_says_find_plus_is_not_affiliated(page, base_url):
     assert await footer.text_content() == honesty.NOT_AFFILIATED
 
 
+async def test_status_dot_has_an_accessible_name_matching_its_state(page, base_url):
+    """UAT7-N20: role="img" plus an aria-label equal to the title text, so
+    the dot's state reaches screen readers and touch users, not just a mouse
+    hovering for the tooltip."""
+    await _boot(page, base_url, 1280, 800)
+    dot = page.locator("#live-dot")
+    await page.wait_for_function(
+        "() => document.getElementById('live-dot').hasAttribute('data-health')"
+    )
+    role = await dot.get_attribute("role")
+    title = await dot.get_attribute("title")
+    label = await dot.get_attribute("aria-label")
+    assert role == "img"
+    assert title, "the dot has no title to derive an accessible name from"
+    assert label == title
+
+
 async def test_a_failed_poll_reads_as_words_with_an_in_app_fix(page, base_url, ui_db):
-    """N06: no status code on screen, a sign-in action, and an amber dot."""
+    """N06: no status code on screen, a sign-in action, and an amber dot.
+    UAT7-N20: the amber dot's aria-label tracks the same change."""
     conn = sqlite3.connect(ui_db)
     now = datetime.now(UTC).replace(tzinfo=None).isoformat(sep=" ")
     cur = conn.execute(
@@ -106,6 +127,8 @@ async def test_a_failed_poll_reads_as_words_with_an_in_app_fix(page, base_url, u
         banner = await page.inner_text("#alert")
         card = await page.inner_text("#card-poll-status")
         health = await page.get_attribute("#live-dot", "data-health")
+        dot_title = await page.get_attribute("#live-dot", "title")
+        dot_label = await page.get_attribute("#live-dot", "aria-label")
         action = page.locator("#alert .alert-action")
         assert await action.inner_text() == "Connect an account"
         await action.click()
@@ -119,3 +142,4 @@ async def test_a_failed_poll_reads_as_words_with_an_in_app_fix(page, base_url, u
     assert "Google Find Hub" in banner
     assert card == "last attempt: not signed in"
     assert health == "warn", "the dot stayed green while the last poll failed"
+    assert dot_label == dot_title, "the dot's accessible name did not update with its state"

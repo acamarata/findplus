@@ -169,7 +169,7 @@ def _device_timeline_payload(
         "device_id": device_id,
         "movement_threshold_meters": movement,
         "gap_threshold_minutes": gap,
-        "path_disclaimer": "Observed path — actual route between detections may differ.",
+        "path_disclaimer": "Observed path. The actual route between detections may differ.",
         "tracks": payload,
         "total_observations": sum(len(t["points"]) for t in payload),
     }

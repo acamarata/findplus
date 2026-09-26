@@ -77,7 +77,7 @@ class DayTimeline:
             "timezone": self.timezone,
             "movement_threshold_meters": self.movement_threshold_meters,
             "gap_threshold_minutes": self.gap_threshold_minutes,
-            "path_disclaimer": ("Observed path — actual route between detections may differ."),
+            "path_disclaimer": ("Observed path. The actual route between detections may differ."),
             "points": [asdict(p) for p in self.points],
             "stats": asdict(self.stats) if self.stats else None,
         }

@@ -167,7 +167,7 @@ see if sign-in cannot find Chrome, not a general statement.
 > To connect WhatsApp: add +34 623 91 22 04 to your phone's contacts,
 > then send it the message "I allow callmebot to send me messages" from
 > your own WhatsApp. CallMeBot replies with an API key within about
-> two minutes — paste it below.
+> two minutes. Paste it below.
 >
 > Notifications are held while Find+ is locked. Unlock to see what you
 > missed.

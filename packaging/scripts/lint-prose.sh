@@ -28,11 +28,10 @@ HONESTY_SUBSTRINGS=(
   "not affiliated with Apple or Google"
 )
 # Verbatim fragments of honesty.NOTICES entries that are pinned with an em dash
-# (native_generic, whatsapp_setup). Never widen this list to silence a new em
-# dash: add the sentence to honesty.py first, then its fragment here.
+# (native_generic). Never widen this list to silence a new em dash: add the
+# sentence to honesty.py first, then its fragment here.
 EM_DASH_ALLOWED=(
   "place — anyone who can see"
-  "two minutes — paste it below"
 )
 FOUND=0
 

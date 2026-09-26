@@ -50,7 +50,7 @@ EXPECTED = {
     "whatsapp_setup": (
         "To connect WhatsApp: add +34 623 91 22 04 to your phone's contacts, then send it the "
         'message "I allow callmebot to send me messages" from your own WhatsApp. CallMeBot '
-        "replies with an API key within about two minutes — paste it below."
+        "replies with an API key within about two minutes. Paste it below."
     ),
     "alerts_locked": (
         "Notifications are held while Find+ is locked. Unlock to see what you missed."
@@ -186,7 +186,7 @@ README_FRAGMENTS = {
     "presence_stale": "stale, not at home and not left behind",
     "lock_not_encryption": "The app lock stops casual browsing",
     "whatsapp_relay": "relayed through CallMeBot, a third-party free",
-    "whatsapp_setup": "two minutes — paste it below",
+    "whatsapp_setup": "two minutes. Paste it below",
     "alerts_locked": "Notifications are held while Find+ is locked",
     "native_generic": "place — anyone who can see",
     "not_affiliated": "not affiliated with Apple or Google",

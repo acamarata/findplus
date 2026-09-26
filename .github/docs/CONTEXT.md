@@ -52,7 +52,7 @@ Explicit requirements, all implemented unless noted:
 | Leaflet + OpenStreetMap (no paid map API) | done, Leaflet vendored |
 | Main screen: selected tag, latest location, last-seen, how-long-ago, last poll, service status, observations today | done |
 | Date picker; numbered time-ordered markers; connecting polyline; fit bounds; click → details | done |
-| **Never imply the straight line is the real road**; label it "Observed path — actual route between detections may differ." | done, verbatim |
+| **Never imply the straight line is the real road**; label it "Observed path. The actual route between detections may differ." | done, verbatim |
 | Chronological timeline beside the map; click item → pan to marker | done |
 | `MOVEMENT_THRESHOLD_METERS=25`; distinguish raw vs meaningful movement; **never discard raw data** | done, read-time `is_movement` flag |
 | Daily stats: first, last, unique count, approximate distance, longest gap, time span; Haversine | done |

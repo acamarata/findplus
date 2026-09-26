@@ -26,7 +26,8 @@ async def _open_groups_tab(page, base_url):
     await page.wait_for_selector("#fp-add-group-btn", state="attached")
     await page.click('button[data-tab="groups"]')
     await page.wait_for_selector("#fp-add-group-btn", state="visible")
-    await page.wait_for_selector(".fp-group-card, .fp-empty-state", state="attached")
+    # Not ".fp-group-card, .fp-empty-state": places.html's own shares that class.
+    await page.wait_for_selector('[data-fp-ready="groups"]')
 
 
 async def _open_add_dialog(page, base_url):
@@ -159,22 +160,16 @@ async def test_add_remove_member_updates_presence_panel(page, base_url):
 
 
 async def test_delete_group_confirm_cancel_keeps_group(page, base_url):
+    # 108c1cd replaced window.confirm() with the shared in-app
+    # #fp-confirm-dialog (UAT6-N21) -- click its Cancel button rather than
+    # handling a native "dialog" event, the same update test_places_list.py's
+    # own delete test made.
     await _open_groups_tab(page, base_url)
-
-    def dismiss(dialog):
-        return dialog.dismiss()
-
-    # Registered BEFORE the click: a handler attached afterwards races the
-    # confirm() and Playwright's auto-dismiss would pass the test for the
-    # wrong reason.
-    page.on("dialog", dismiss)
-    try:
-        card = page.locator(".fp-group-card", has_text="Family")
-        await card.locator(".fp-card-delete").click()
-        await page.wait_for_timeout(200)
-        assert await page.locator(".fp-group-card", has_text="Family").count() == 1
-    finally:
-        page.remove_listener("dialog", dismiss)
+    card = page.locator(".fp-group-card", has_text="Family")
+    await card.locator(".fp-card-delete").click()
+    await page.wait_for_selector("#fp-confirm-dialog[open]")
+    await page.locator("#fp-confirm-dialog").get_by_role("button", name="Cancel").click()
+    assert await page.locator(".fp-group-card", has_text="Family").count() == 1
 
 
 async def test_delete_group_confirm_removes_from_list_and_selector(page, base_url):
@@ -183,18 +178,14 @@ async def test_delete_group_confirm_removes_from_list_and_selector(page, base_ur
     await page.check('#fp-group-members input[data-device-id="TAG-HOME"]')
     await _save(page)
     await page.locator(".fp-group-card", has_text="Temp Group").wait_for(state="visible")
-
-    def accept(dialog):
-        return dialog.accept()
-
-    page.on("dialog", accept)
     try:
         card = page.locator(".fp-group-card", has_text="Temp Group")
         await card.locator(".fp-card-delete").click()
+        await page.wait_for_selector("#fp-confirm-dialog[open]")
+        await page.locator("#fp-confirm-dialog").get_by_role("button", name="Delete").click()
         await page.locator(".fp-group-card", has_text="Temp Group").wait_for(state="detached")
         assert await page.locator("#fp-group-select option", has_text="Temp Group").count() == 0
     finally:
-        page.remove_listener("dialog", accept)
         await _delete_group_named(page, base_url, "Temp Group")
 
 

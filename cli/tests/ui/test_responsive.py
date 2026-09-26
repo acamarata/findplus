@@ -56,7 +56,10 @@ async def test_no_horizontal_overflow_at_phone_width(page, base_url, surface):
     if surface in ("alerts", "groups"):
         await _open_tab(page, surface)
         if surface == "groups":
-            await page.wait_for_selector(".fp-group-card, .fp-empty-state", state="visible")
+            # Not ".fp-group-card, .fp-empty-state": places.html's own empty
+            # state shares that class (see test_groups_dialog.py's
+            # _open_groups_tab()); this marker is set once groups.js is wired.
+            await page.wait_for_selector('[data-fp-ready="groups"]')
     elif surface == "settings":
         await _open_settings(page)
 

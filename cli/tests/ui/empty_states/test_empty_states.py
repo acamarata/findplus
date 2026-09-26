@@ -78,7 +78,11 @@ def test_groups_empty_state_has_one_message_pointing_at_add_group(page: Page) ->
     button that sits right there."""
     page.click("#fp-tab-groups")
     page.wait_for_selector("#tab-groups:not([hidden])")
-    page.wait_for_selector(".fp-empty-state", timeout=10000)
+    # Not the bare ".fp-empty-state": places.html's own #fp-places-events-empty
+    # shares that class and, sitting first in DOM order, is what Playwright
+    # would poll for visibility forever (it never becomes visible on the
+    # groups tab) -- scope to the container this test is actually about.
+    page.wait_for_selector("#fp-groups-list .fp-empty-state", timeout=10000)
 
     assert page.locator("#fp-groups-list .fp-empty-state").count() == 1
     empty_text = page.inner_text("#fp-groups-list .fp-empty-state")
@@ -114,11 +118,17 @@ def test_groups_tab_hint_appears_once_a_group_exists(page: Page, server: str) ->
 
 def test_places_empty_state_has_one_message(page: Page) -> None:
     """U14: places.tabHint and places.list.empty used to show together.
-    Only the tab hint remains; the list adds nothing when it is empty."""
+    Only the tab hint remains; the list adds nothing when it is empty.
+
+    Not "#tab-places .fp-tab-hint": P19/WP9 gave the events panel's latency
+    caption (#fp-places-events-notice) the same shared muted-text class for
+    its styling, which is unrelated to whether the place list is empty --
+    #fp-places-tab-hint is the one this test is actually about.
+    """
     page.click("#fp-tab-places")
     page.wait_for_selector("#tab-places:not([hidden])")
 
-    hint = page.locator("#tab-places .fp-tab-hint")
+    hint = page.locator("#fp-places-tab-hint")
     assert hint.count() == 1
     assert hint.is_visible()
     assert page.locator("#fp-places-list .fp-empty-state").count() == 0

@@ -83,6 +83,17 @@ export async function loadGroups() {
   // awaiting loadGroups() sees the grid, the selector and the hint agree.
   await groupsList.loadCards();
   updateEmptyStateHint(groups.length);
+  // init() fires loadGroups() without awaiting it, so a fast click (or a
+  // test) can reach the tab before main.js's `await import("./groups.js")`
+  // has actually finished running this module's own init -- the Add/Edit
+  // buttons exist in the static partial from first paint and LOOK live well
+  // before that. This marker is the deterministic "wired and rendered" signal
+  // (matches alerts.js's data-fp-ready="alerts" convention); a card grid
+  // alone is not enough because #places-events-empty already carries the
+  // same `.fp-empty-state` class the old wait relied on, so it is attached at
+  // boot regardless of whether this module has run at all.
+  const list = document.getElementById("fp-groups-list");
+  if (list) list.dataset.fpReady = "groups";
 }
 
 /**

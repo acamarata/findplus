@@ -72,18 +72,16 @@ async def test_delete_selected_group_clears_presence_panel(page, base_url):
     await page.select_option("#fp-group-select", label="Doomed Group")
     await page.wait_for_selector("#fp-presence-panel .fp-verdict")
 
-    def accept(dialog):
-        return dialog.accept()
-
-    page.on("dialog", accept)
+    # 108c1cd replaced window.confirm() with the shared #fp-confirm-dialog.
     try:
         card = page.locator(".fp-group-card", has_text="Doomed Group")
         await card.locator(".fp-card-delete").click()
+        await page.wait_for_selector("#fp-confirm-dialog[open]")
+        await page.locator("#fp-confirm-dialog").get_by_role("button", name="Delete").click()
         await page.locator(".fp-group-card", has_text="Doomed Group").wait_for(state="detached")
         await page.wait_for_function(
             "() => document.getElementById('fp-presence-panel').children.length === 0"
         )
         assert await page.locator("#fp-group-select").input_value() == ""
     finally:
-        page.remove_listener("dialog", accept)
         await _delete_group_named(page, base_url, "Doomed Group")

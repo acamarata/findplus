@@ -156,7 +156,9 @@ async def _open_dialog(page, base_url, dialog: str, width: int) -> None:
         await page.wait_for_selector("#fp-add-group-btn", state="attached")
         await page.click(tab_selector)
         await page.wait_for_selector("#tab-groups:not([hidden])")
-        await page.wait_for_selector(".fp-group-card, .fp-empty-state", state="attached")
+        # Not ".fp-group-card, .fp-empty-state": see _open_groups_tab() in
+        # test_groups_dialog.py.
+        await page.wait_for_selector('[data-fp-ready="groups"]')
         await page.click("#fp-add-group-btn")
         await page.wait_for_selector("#fp-group-dialog[open]")
         await page.wait_for_selector("#fp-group-name", state="visible")

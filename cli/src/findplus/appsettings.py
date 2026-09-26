@@ -24,13 +24,17 @@ PIN_SALT = "lock_pin_salt"
 IDLE_TIMEOUT = "lock_idle_minutes"
 
 VALID_THEMES = ("dark", "light", "system")
+#: UAT6-N20: an unset theme used to read as "dark" no matter the OS. New
+#: installs now follow the OS instead; an explicit choice (dark, light or a
+#: prior "system") is a stored row and is never touched by this default.
+DEFAULT_THEME = "system"
 DEFAULT_IDLE_MINUTES = 15
 MAX_IDLE_MINUTES = 24 * 60
 
 
 @dataclass(frozen=True, slots=True)
 class AppSettings:
-    theme: str = "dark"
+    theme: str = DEFAULT_THEME
     lock_enabled: bool = False
     pin_hash: str | None = None
     pin_salt: str | None = None
@@ -57,9 +61,9 @@ class AppSettings:
 
 
 def load_settings(session: Session) -> AppSettings:
-    theme = get_setting(session, THEME, "dark") or "dark"
+    theme = get_setting(session, THEME, DEFAULT_THEME) or DEFAULT_THEME
     if theme not in VALID_THEMES:
-        theme = "dark"
+        theme = DEFAULT_THEME
     try:
         idle = int(get_setting(session, IDLE_TIMEOUT, str(DEFAULT_IDLE_MINUTES)) or 0)
     except ValueError:

@@ -19,7 +19,13 @@ from tests.conftest import make_observation
 
 
 # ----------------------------------------------------------------- settings
+def test_theme_defaults_to_system(client: TestClient) -> None:  # noqa: F811
+    """UAT6-N20: an unset theme now follows the OS instead of forcing dark."""
+    assert client.get("/api/settings").json()["theme"] == "system"
+
+
 def test_theme_round_trips(client: TestClient) -> None:  # noqa: F811
+    assert client.patch("/api/settings", json={"theme": "dark"}).json()["theme"] == "dark"
     assert client.get("/api/settings").json()["theme"] == "dark"
     assert client.patch("/api/settings", json={"theme": "light"}).json()["theme"] == "light"
     assert client.get("/api/settings").json()["theme"] == "light"

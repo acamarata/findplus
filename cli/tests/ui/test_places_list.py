@@ -149,6 +149,7 @@ async def test_places_list_delete_removes_the_row(page, base_url):
     await page.click('button[data-tab="places"]')
     row = page.locator("#fp-places-list [data-place-id]", has_text="List Delete Me")
     await row.wait_for(state="visible")
-    page.once("dialog", lambda d: d.accept())
     await row.get_by_text("Delete", exact=True).click()
+    await page.wait_for_selector("#fp-confirm-dialog[open]")
+    await page.locator("#fp-confirm-dialog").get_by_role("button", name="Delete").click()
     await row.wait_for(state="detached")

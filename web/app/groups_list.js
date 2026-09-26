@@ -23,6 +23,7 @@ import { renderBadge } from "./components/badge.js";
 import { showAddDialog, openEditDialog } from "./groups_dialog.js";
 import { loadGroups, selectGroupById, clearGroup, isGroupSelected } from "./groups.js";
 import { verdictLabel, verdictTitle } from "./groups_presence_render.js";
+import { confirmDialog, alertDialog } from "./components/confirm-dialog.js";
 
 /** Avatars shown before the grid collapses the rest into a "+N" chip. */
 const MAX_AVATARS = 6;
@@ -165,7 +166,13 @@ async function fetchVerdict(card, groupId) {
 }
 
 async function onDelete(group) {
-  if (!window.confirm(t("groups.confirm.delete", { name: group.name }))) return;
+  const confirmed = await confirmDialog({
+    title: t("common.delete"),
+    body: t("groups.confirm.delete", { name: group.name }),
+    confirmLabel: t("common.delete"),
+    danger: true,
+  });
+  if (!confirmed) return;
   try {
     await api(`/api/groups/${group.id}`, { method: "DELETE" });
     // UAT4 N31: deleting the group the presence panel is currently showing
@@ -178,7 +185,7 @@ async function onDelete(group) {
   } catch (err) {
     // No dialog field to write into here, and a silently surviving card would
     // be worse than an alert (places.js makes the same call).
-    if (err.message !== "Locked") window.alert(err.message);
+    if (err.message !== "Locked") await alertDialog({ title: t("common.errorTitle"), body: err.message });
   }
 }
 

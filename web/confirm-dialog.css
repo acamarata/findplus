@@ -1,0 +1,46 @@
+/*
+ * Find+ dashboard — confirm/alert dialog chrome (UAT6-N21).
+ *
+ * Purpose    : Give #fp-confirm-dialog the same look as the app's other
+ *              <dialog> chrome (components.css's #fp-group-dialog /
+ *              #fp-device-dialog / #fp-place-dialog / #fp-add-rule-dialog)
+ *              without adding another id to that shared file, which the
+ *              same finish round's WP-D was editing concurrently. Every
+ *              other control the dialog uses (.btn, .btn-secondary,
+ *              .btn-danger, .fp-dialog-field, input[type=text]) is already
+ *              styled globally in style.css/components.css and is reused
+ *              here unchanged.
+ * Constraints: Loaded after components.css and before responsive.css (index.
+ *              html), so the phone tier still wins and a future merge of the
+ *              two dialog-id lists there can absorb this file if it wants to.
+ */
+#fp-confirm-dialog {
+  background: var(--panel); color: var(--text); border: 1px solid var(--line);
+  border-radius: 12px; padding: 18px 20px; min-width: 300px; max-width: 420px;
+}
+#fp-confirm-dialog::backdrop { background: rgba(5, 8, 13, .72); }
+/* Matches the N24 fix for the other dialogs: the page-wide `h2` rule
+   (style.css) uppercases and mutes every h2, which read as a disabled label
+   rather than a title. */
+#fp-confirm-dialog h2 {
+  margin: 0 0 10px; font-size: 18px; font-weight: 600; letter-spacing: 0;
+  text-transform: none; color: var(--text);
+}
+#fp-confirm-dialog .fp-confirm-dialog-body {
+  margin: 0 0 14px; font-size: 13px; color: var(--text); white-space: pre-line;
+}
+/* Empty for the type-to-confirm dialog (its instruction lives in the input's
+   own label instead) -- collapses rather than leaving a blank gap, the same
+   convention style.css's `.fp-dialog-error:empty` already uses. */
+#fp-confirm-dialog .fp-confirm-dialog-body:empty { margin: 0; }
+/* UAT6-N01 struck again: `.fp-dialog-field { display: flex }` (components.css)
+   is equal-or-higher specificity than the UA `[hidden]` rule, so setting the
+   `hidden` property on the optional input row left it laid out (and, worse,
+   focusable/autofocused by showModal() -- caught by test_confirm_dialog.py's
+   own focus assertion) instead of actually hidden. */
+#fp-confirm-dialog .fp-dialog-field[hidden] { display: none; }
+/* Primary action rightmost, like every other dialog's footer (N24). */
+#fp-confirm-dialog footer {
+  display: flex; flex-direction: row-reverse; flex-wrap: wrap; justify-content: flex-start;
+  gap: 8px; margin-top: 4px;
+}

@@ -11,16 +11,17 @@
  * Outputs    : #fp-auth-accessory-status (one line, success or error).
  * Constraints: The file is read client-side and never re-sent as anything
  *              but the one request it becomes; nothing here logs its bytes.
- *              A 409 offers "Replace existing" via the same window.confirm
- *              pattern timeline.js's history controls already use, and
- *              retries once with allow_overwrite=true — the field
- *              routes_auth.py now reads from either body shape (CF-P2-19).
+ *              A 409 offers "Replace existing" via the shared confirm-dialog.js
+ *              component (UAT6-N21), and retries once with allow_overwrite=true
+ *              — the field routes_auth.py now reads from either body shape
+ *              (CF-P2-19).
  */
 "use strict";
 
 import { $ } from "./state.js";
 import { api } from "./api.js";
 import { t } from "./i18n.js";
+import { confirmDialog } from "./components/confirm-dialog.js";
 
 function elements() {
   return {
@@ -77,7 +78,12 @@ async function submitWithRetry(name, file, status, nameEl, fileEl, allowOverwrit
   } catch (err) {
     if (err.message === "Locked") return;
     const canRetry = !allowOverwrite && err.status === 409;
-    if (canRetry && window.confirm(t("auth.apple.accessories.confirmReplace", { name }))) {
+    const replace = canRetry && (await confirmDialog({
+      title: t("common.confirm"),
+      body: t("auth.apple.accessories.confirmReplace", { name }),
+      danger: true,
+    }));
+    if (replace) {
       await submitWithRetry(name, file, status, nameEl, fileEl, true);
       return;
     }

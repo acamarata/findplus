@@ -73,22 +73,16 @@ async def _fail(route):
     )
 
 
-async def _clicked_next_with_dialog_guard(page):
-    """Click Next while recording any native confirm() dialog, dismissing it
-    so a regression (the old "Track nothing?" prompt) cannot hang the test."""
-    dialogs: list[str] = []
-
-    async def dismiss(dialog):
-        dialogs.append(dialog.message)
-        await dialog.dismiss()
-
-    page.on("dialog", dismiss)
-    try:
-        await page.click("#fp-wizard-next")
-        await page.wait_for_timeout(300)
-    finally:
-        page.remove_listener("dialog", dismiss)
-    return dialogs
+async def _clicked_next_with_dialog_guard(page) -> bool:
+    """Click Next and report whether the in-app confirm dialog
+    (components/confirm-dialog.js) opened, declining it if so, so a
+    regression (the old "Track nothing?" prompt) cannot hang the test."""
+    await page.click("#fp-wizard-next")
+    await page.wait_for_timeout(300)
+    opened = await page.locator("#fp-confirm-dialog[open]").count() > 0
+    if opened:
+        await page.locator("#fp-confirm-dialog").get_by_role("button", name="Cancel").click()
+    return opened
 
 
 async def test_refresh_failure_still_lists_known_devices_and_keeps_their_tracking(
@@ -132,8 +126,8 @@ async def test_refresh_failure_still_lists_known_devices_and_keeps_their_trackin
         timeout=15000,
     )
 
-    dialogs = await _clicked_next_with_dialog_guard(page)
-    assert dialogs == [], "a device that is still ticked must never trigger the empty confirm"
+    opened = await _clicked_next_with_dialog_guard(page)
+    assert not opened, "a device that is still ticked must never trigger the empty confirm"
     assert track_calls == [{"device_ids": ["TAG-1"]}], track_calls
 
 
@@ -171,6 +165,6 @@ async def test_refresh_and_list_failure_next_never_touches_tracking(page, base_u
         timeout=15000,
     )
 
-    dialogs = await _clicked_next_with_dialog_guard(page)
+    opened = await _clicked_next_with_dialog_guard(page)
     assert track_calls == [], "a device list that never loaded must never post a tracking change"
-    assert dialogs == [], "no confirm should fire when the list never loaded at all"
+    assert not opened, "no confirm should fire when the list never loaded at all"

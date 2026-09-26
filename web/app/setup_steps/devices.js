@@ -27,6 +27,7 @@
 
 import { t } from "../i18n.js";
 import { deviceRow } from "./_device_row.js";
+import { confirmDialog } from "../components/confirm-dialog.js";
 
 /** The live step's elements, replaced on every render. */
 let els = null;
@@ -164,8 +165,12 @@ export default {
     // UAT U15: Next used to POST an empty track list with no word about it,
     // silently leaving nothing tracked. A row exists to tick (the empty
     // step above already returns early) but none is ticked -- ask first.
-    if (!ids.length && !window.confirm(t("setup.devices.confirm_none_tracked"))) {
-      return false;
+    if (!ids.length) {
+      const confirmed = await confirmDialog({
+        title: t("common.confirm"),
+        body: t("setup.devices.confirm_none_tracked"),
+      });
+      if (!confirmed) return false;
     }
     await ctx.postJson("/api/devices/track", { device_ids: ids });
     // UAT U2: ctx.state.devices was still the pre-track snapshot from

@@ -27,6 +27,7 @@ import { t } from "./i18n.js";
 import { initDialog, openEditDialog, purgeDialog, showAddDialog } from "./places_dialog.js";
 import * as placesList from "./places_list.js";
 import * as placesEvents from "./places_events.js";
+import { confirmDialog } from "./components/confirm-dialog.js";
 
 let map = null;
 let placeLayer = null;
@@ -148,7 +149,13 @@ export async function editPlace(id) {
 
 export async function deletePlace(id) {
   const place = placesById.get(String(id));
-  if (!window.confirm(t("places.confirmDelete", { name: place ? place.name : id }))) return;
+  const confirmed = await confirmDialog({
+    title: t("common.delete"),
+    body: t("places.confirmDelete", { name: place ? place.name : id }),
+    confirmLabel: t("common.delete"),
+    danger: true,
+  });
+  if (!confirmed) return;
   try {
     await api(`/api/places/${id}`, { method: "DELETE" });
   } catch (err) {

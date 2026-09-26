@@ -17,6 +17,7 @@ import { $, showAlert } from "./state.js";
 import { api } from "./api.js";
 import { t, plural } from "./i18n.js";
 import { openRuleDialog } from "./alerts_rule_dialog.js";
+import { confirmDialog } from "./components/confirm-dialog.js";
 
 export {
   fillOptions,
@@ -126,7 +127,13 @@ export function renderRulesTable(rules) {
   rules.forEach((rule) => tbody.appendChild(buildRuleRow(rule)));
 }
 async function deleteRule(id, name) {
-  if (!window.confirm(t("alerts.confirmDeleteRule", { name }))) return;
+  const confirmed = await confirmDialog({
+    title: t("common.delete"),
+    body: t("alerts.confirmDeleteRule", { name }),
+    confirmLabel: t("common.delete"),
+    danger: true,
+  });
+  if (!confirmed) return;
   // A refused delete used to leave the row on screen with no message, which is
   // indistinguishable from a no-op (E1 honesty round 3 F10). Through api(),
   // not a raw fetch(), so a 401 shows the lock screen instead of reading as a

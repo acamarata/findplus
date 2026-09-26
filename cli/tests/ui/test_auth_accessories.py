@@ -133,8 +133,9 @@ async def test_409_offers_replace_and_retries_with_allow_overwrite(page, base_ur
     await page.route(URL_PATTERN, conflict_then_ok)
     try:
         await _open_settings(page, base_url)
-        page.once("dialog", lambda d: d.accept())  # window.confirm() -> true
         await _add(page, "Replaced", plist_path)
+        await page.wait_for_selector("#fp-confirm-dialog[open]")
+        await page.locator("#fp-confirm-dialog").get_by_role("button", name="Confirm").click()
         await page.wait_for_function(
             "() => document.getElementById('fp-auth-accessory-status')"
             ".textContent.includes('Replaced')"
@@ -159,8 +160,9 @@ async def test_declining_replace_does_not_retry(page, base_url, tmp_path):
     await page.route(URL_PATTERN, always_409)
     try:
         await _open_settings(page, base_url)
-        page.once("dialog", lambda d: d.dismiss())  # window.confirm() -> false
         await _add(page, "Declined", plist_path)
+        await page.wait_for_selector("#fp-confirm-dialog[open]")
+        await page.locator("#fp-confirm-dialog").get_by_role("button", name="Cancel").click()
         await page.wait_for_function(
             "() => document.getElementById('fp-auth-accessory-status').textContent"
             " === \"accessory 'apple:bb' is already registered\""

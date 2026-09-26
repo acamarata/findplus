@@ -21,6 +21,7 @@
 
 import { api } from "../api.js";
 import { t } from "../i18n.js";
+import { confirmDialog } from "./confirm-dialog.js";
 
 function iconIdShort(id) {
   return id.slice(7); // "custom:" is 7 characters
@@ -33,7 +34,13 @@ function statusParagraph() {
 }
 
 async function deleteCustomIcon(id, onDeleted, status) {
-  if (!window.confirm(t("icons.custom.deleteConfirm"))) return;
+  const confirmed = await confirmDialog({
+    title: t("common.delete"),
+    body: t("icons.custom.deleteConfirm"),
+    confirmLabel: t("common.delete"),
+    danger: true,
+  });
+  if (!confirmed) return;
   try {
     await api(`/api/icons/custom/${iconIdShort(id)}`, { method: "DELETE" });
     status.textContent = "";

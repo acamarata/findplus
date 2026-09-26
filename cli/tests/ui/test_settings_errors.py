@@ -145,20 +145,14 @@ async def test_new_pin_and_poll_interval_are_described_by_their_error_line(page,
 
 async def _remove_configured_pin_via_ui(page, base_url) -> None:
     """Settings is open, a PIN is configured: remove it through the same
-    Remove PIN button/confirm() a user would use, not the raw API."""
+    Remove PIN button/confirm dialog a user would use, not the raw API."""
     await _open_settings(page, base_url)
     await page.wait_for_selector("#lock-is-set:not(.hidden)")
     await page.fill("#current-pin", PIN)
-
-    def accept(dialog):
-        return dialog.accept()
-
-    page.on("dialog", accept)
-    try:
-        await page.click("#btn-remove-pin")
-        await page.wait_for_selector("#lock-not-set:not(.hidden)")
-    finally:
-        page.remove_listener("dialog", accept)
+    await page.click("#btn-remove-pin")
+    await page.wait_for_selector("#fp-confirm-dialog[open]")
+    await page.locator("#fp-confirm-dialog").get_by_role("button", name="Remove").click()
+    await page.wait_for_selector("#lock-not-set:not(.hidden)")
 
 
 async def _clear_pin_if_configured(page, base_url) -> None:

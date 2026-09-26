@@ -130,8 +130,9 @@ async def test_upload_assign_render_and_purge(page, base_url, tmp_path):
         # (nested-interactive fix, 2026-09-23), hence the `+` combinator.
         await _restore_seeded_icon(page, base_url)
         await _open_edit_dialog(page, base_url)
-        page.on("dialog", lambda d: d.accept())
         await page.click(f'#fp-device-dialog [data-icon-id="{icon_id}"] + .fp-icon-delete')
+        await page.wait_for_selector("#fp-confirm-dialog[open]")
+        await page.locator("#fp-confirm-dialog").get_by_role("button", name="Delete").click()
         await page.locator(f'#fp-device-dialog [data-icon-id="{icon_id}"]').wait_for(
             state="detached"
         )

@@ -288,8 +288,8 @@ async def test_delete_place_confirm(page, base_url):
     await _open_dashboard(page, base_url)
     await page.click('button[data-tab="places"]')
     await page.wait_for_selector("#map svg path.leaflet-interactive")
-    page.once("dialog", lambda d: d.accept())  # window.confirm() -> true
     await _click_popup_button(page, "Delete Me", "Delete")
+    await page.locator("#fp-confirm-dialog").get_by_role("button", name="Delete").click()
 
     await page.wait_for_function(
         """async () => {

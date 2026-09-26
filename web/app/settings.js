@@ -14,6 +14,7 @@ import { showLock, startIdleTimer } from "./lock.js";
 import { t } from "./i18n.js";
 import { trapFocus } from "./components/dialog-trap.js";
 import { renderPollingSection, wirePollingControls } from "./settings_polling.js";
+import { confirmDialog } from "./components/confirm-dialog.js";
 
 /** security.py's MIN_PIN_LENGTH — kept in sync by hand, same discipline
  * honesty.py's sentences already require (specs/honesty.md). UAT4 N44. */
@@ -233,7 +234,7 @@ async function removePin() {
   const current = $("current-pin").value.trim();
   showSettingsMessage(null); // UAT4 N40: clear a stale message before this attempt
   if (!current) { showSettingsMessage(t("settings.enterCurrentPin"), "warn"); return; }
-  if (!window.confirm(t("settings.confirmRemovePin"))) return;
+  if (!(await confirmDialog({ title: t("common.remove"), body: t("settings.confirmRemovePin"), confirmLabel: t("common.remove"), danger: true }))) return;
   try {
     await api("/api/settings/pin", {
       method: "DELETE",

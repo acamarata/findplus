@@ -161,21 +161,13 @@ async def test_devices_step_track_header_default_ticks_and_confirm_on_none(page,
     await boxes.nth(0).uncheck()
     await boxes.nth(1).uncheck()
 
-    dialogs: list[str] = []
-
-    async def dismiss(dialog):
-        dialogs.append(dialog.message)
-        await dialog.dismiss()
-
-    page.on("dialog", dismiss)
-    try:
-        await page.click("#fp-wizard-next")
-        await page.wait_for_timeout(300)
-        assert dialogs, "Next with nothing ticked must ask to confirm"
-        # Declining must not advance past the step.
-        assert await page.locator("#fp-setup-devices-list").is_visible()
-    finally:
-        page.remove_listener("dialog", dismiss)
+    await page.click("#fp-wizard-next")
+    # Times out (failing the test) if the in-app confirm dialog never opens --
+    # "Next with nothing ticked must ask to confirm".
+    await page.wait_for_selector("#fp-confirm-dialog[open]")
+    await page.locator("#fp-confirm-dialog").get_by_role("button", name="Cancel").click()
+    # Declining must not advance past the step.
+    assert await page.locator("#fp-setup-devices-list").is_visible()
 
 
 async def test_devices_step_checkbox_stays_inline_with_name_at_375(page, base_url) -> None:

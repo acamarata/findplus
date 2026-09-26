@@ -94,8 +94,9 @@ async def test_delete_rule_removes_row(page, base_url):
     await open_alerts_tab(page, base_url)
     row = page.locator("#fp-rules-tbody tr", has_text="Delete me rule")
     await row.wait_for(state="visible")
-    page.once("dialog", lambda d: d.accept())  # window.confirm() -> true
     await row.get_by_text("Delete", exact=True).click()
+    await page.wait_for_selector("#fp-confirm-dialog[open]")
+    await page.locator("#fp-confirm-dialog").get_by_role("button", name="Delete").click()
     await page.wait_for_function(
         """async () => {
             const r = await fetch('/api/alerts/rules');

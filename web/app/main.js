@@ -253,17 +253,17 @@ async function main() {
   // Paint the cached theme before anything else so there is no flash.
   applyTheme(getStoredTheme());
 
-  // The catalog has no DOM dependency, so it can be loaded first; then ONE walk
-  // over the document renders every data-i18n element. The daemon composed the
-  // shell and all five partials into this page before serving it, so that one
-  // walk covers the whole UI and nothing added later needs a second hook.
+  // Before the first await on purpose: after `await loadCatalog()`, an early
+  // click on #btn-settings landed unwired and was lost (CI run 36250697463).
+  initMap();
+  wireControls();
+
+  // One walk over the document (the daemon composed the shell and all five
+  // partials into this page already) renders every data-i18n element.
   await loadCatalog();
   applyStaticI18n();
   // Needs the catalog labels and static markup, so it runs after applyStaticI18n().
   initTabbar();
-
-  initMap();
-  wireControls();
 
   // UAT2 N12: ask about the lock first (a public GET) so state.locked is set
   // before Places/Groups/Alerts wire up below -- each checks it and skips its

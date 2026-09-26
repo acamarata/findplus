@@ -54,6 +54,8 @@ Versioning: [Semantic Versioning](https://semver.org/).
   raw server text or mismatched time formats.
 
 ### Fixed
+- Google sign-in no longer fails with "chrome not reachable" on a Mac that also has Chromium
+  installed (for example from Homebrew). Find+ now always opens Google Chrome itself.
 - A device refresh that failed partway through setup no longer wipes your already-tracked
   device list; if the refresh fails, your existing choices are kept.
 - Saving alert settings without changing the webhook URL no longer overwrites it with the

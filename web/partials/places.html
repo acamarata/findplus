@@ -1,6 +1,15 @@
       <button id="fp-add-place-btn" type="button" class="btn" data-i18n="places.addPlace">Add place</button>
       <!-- U14: this is the tab's one empty-state message, always shown next
            to Add place. places_list.js no longer renders a second "No
-           places yet" paragraph inside the list, which used to overlap it. -->
-      <p class="fp-tab-hint" data-i18n="places.tabHint">Use Add place to create a geofence.</p>
+           places yet" paragraph inside the list, which used to overlap it.
+           N26: places_list.js's own refresh() hides it once a place exists. -->
+      <p class="fp-tab-hint" id="fp-places-tab-hint" data-i18n="places.tabHint">Use Add place to create a geofence.</p>
       <div id="fp-places-list"></div>
+      <!-- P19/WP9: places_events.js owns everything inside this section. -->
+      <section id="fp-places-events" aria-labelledby="fp-places-events-heading">
+        <h3 id="fp-places-events-heading" data-i18n="places.events.heading">Recent arrivals and departures</h3>
+        <p class="fp-tab-hint" id="fp-places-events-notice"></p>
+        <ul id="fp-places-events-list"></ul>
+        <p id="fp-places-events-empty" class="fp-empty-state" hidden data-i18n="places.events.empty">No arrivals or departures yet.</p>
+        <button id="fp-places-events-more" type="button" class="btn-secondary btn-tiny" hidden data-i18n="places.events.showMore">Show more</button>
+      </section>

@@ -1,19 +1,19 @@
 /*
  * Place locator: element construction.
  *
- * Purpose    : Build the "use a tracker" row and the address-search group
- *              place_locator.js's createPlaceLocator() mounts into a place
- *              dialog. Split out of place_locator.js at the PRI rule-7
- *              50-line function cap (E13 loop-1 follow-up), the same way
- *              groups_dialog_dom.js separates construction from
- *              groups_dialog.js's behavior.
+ * Purpose    : Build the "use a tracker" row, the "Pick on map" button and
+ *              the address-search group place_locator.js's
+ *              createPlaceLocator() mounts into a place dialog. Split out of
+ *              place_locator.js at the PRI rule-7 50-line function cap (E13
+ *              loop-1 follow-up), the same way groups_dialog_dom.js
+ *              separates construction from groups_dialog.js's behavior.
  * Inputs     : The `host` element buildPlaceLocatorDom() mounts into; a
  *              tracked device for trackerOption(); one Nominatim result row
  *              for searchResultRow().
  * Outputs    : buildPlaceLocatorDom() returns every element
  *              createPlaceLocator() wires up or reads (select/useBtn/
- *              searchInput/searchBtn/results/status), so the caller never
- *              queries the DOM for them.
+ *              pickMapBtn/searchInput/searchBtn/results/status), so the
+ *              caller never queries the DOM for them.
  * Constraints: Pure construction, no network, no module state. Every
  *              element is built with createElement/textContent, never raw
  *              markup.
@@ -65,6 +65,22 @@ function buildTrackerRow() {
   return { row, select, useBtn };
 }
 
+/** N13: "click/tap the map to set the center" -- place_locator.js wires this
+ * to a caller-supplied callback (places_dialog.js's beginMapPick()) rather
+ * than owning the map itself, the same separation the tracker row keeps
+ * between "pick a coordinate" and "apply it". */
+function buildMapPickRow() {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "btn btn-tiny";
+  btn.id = "fp-place-pick-map-btn";
+  btn.textContent = t("places.field.pickOnMap");
+  const row = document.createElement("div");
+  row.className = "fp-dialog-field";
+  row.append(btn);
+  return { row, btn };
+}
+
 function buildSearchGroup() {
   const searchInput = document.createElement("input");
   searchInput.type = "text";
@@ -106,17 +122,19 @@ function buildSearchGroup() {
  */
 export function buildPlaceLocatorDom(host) {
   const tracker = buildTrackerRow();
+  const mapPick = buildMapPickRow();
   const search = buildSearchGroup();
 
   const status = document.createElement("p");
   status.className = "fp-field-hint";
   status.id = "fp-place-locator-status";
 
-  host.append(tracker.row, search.group, status);
+  host.append(tracker.row, mapPick.row, search.group, status);
 
   return {
     select: tracker.select,
     useBtn: tracker.useBtn,
+    pickMapBtn: mapPick.btn,
     searchInput: search.searchInput,
     searchBtn: search.searchBtn,
     results: search.results,

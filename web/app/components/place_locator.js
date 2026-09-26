@@ -1,16 +1,20 @@
 /*
  * Place dialog: "Use a tracker's last location" and opt-in address search.
  *
- * Purpose    : Two keyboard-reachable ways to fill a place's coordinates
- *              without a map click (UAT U4/U10): pick a tracked device's
- *              most recent fix, or search an address through the daemon's
- *              own Nominatim proxy. Split out of places_dialog.js so its own
+ * Purpose    : Three keyboard-reachable ways to fill a place's coordinates:
+ *              pick a tracked device's most recent fix, click/tap the real
+ *              map (UAT6 N13), or search an address through the daemon's own
+ *              Nominatim proxy. Split out of places_dialog.js so its own
  *              network calls and DOM stay independently testable, the same
  *              way color-picker.js/icon-picker.js are split from the
  *              dialogs that mount them. DOM construction lives in
  *              place_locator_dom.js (PRI rule-7 50-line function cap, E13
- *              loop-1 follow-up) and the two behaviors below are each their
- *              own small factory for the same reason.
+ *              loop-1 follow-up) and each behavior below is its own small
+ *              factory for the same reason. The map-pick button itself is
+ *              wired here, but starting/ending pick mode is entirely
+ *              places_dialog.js's call (`onPickOnMap`): only that module
+ *              holds the map, the `<dialog>` and the fields a pick has to
+ *              close over, reopen and fill.
  * Inputs     : GET /api/devices for the tracker list (fetched fresh on every
  *              refreshTrackers() rather than trusting `state.devices`, which
  *              may still be empty this early in boot); GET
@@ -139,7 +143,7 @@ function createAddressSearch(searchInput, searchBtn, results, { onPick, setStatu
  * calls `refreshTrackers()`/`reset()` on it rather than rebuilding the DOM
  * every time the dialog opens.
  */
-export function createPlaceLocator(host, { onPick }) {
+export function createPlaceLocator(host, { onPick, onPickOnMap }) {
   const dom = buildPlaceLocatorDom(host);
 
   function setStatus(text) {
@@ -148,6 +152,7 @@ export function createPlaceLocator(host, { onPick }) {
 
   const tracker = createTrackerPicker(dom.select, dom.useBtn, { onPick, setStatus });
   createAddressSearch(dom.searchInput, dom.searchBtn, dom.results, { onPick, setStatus });
+  if (onPickOnMap) dom.pickMapBtn.addEventListener("click", onPickOnMap);
 
   function reset() {
     dom.select.value = "";
@@ -159,5 +164,5 @@ export function createPlaceLocator(host, { onPick }) {
 
   tracker.refreshTrackers();
 
-  return { refreshTrackers: tracker.refreshTrackers, reset };
+  return { refreshTrackers: tracker.refreshTrackers, reset, showStatus: setStatus };
 }

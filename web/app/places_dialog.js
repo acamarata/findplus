@@ -3,7 +3,10 @@
  *
  * Purpose    : Build and drive the reused <dialog> that creates or edits one
  *              place (name/radius/colour/confirmations). Split out of
- *              places.js at the PRI rule-7 300-line file cap.
+ *              places.js at the PRI rule-7 300-line file cap; element
+ *              construction is further split into places_dialog_dom.js at
+ *              the same cap, and "Pick on map" into
+ *              components/place_map_pick.js.
  * Inputs     : A Leaflet map handed in by `initDialog()`; place data handed
  *              in per call (places.js owns the place/circle registries).
  * Outputs    : POST/PUT /api/places(/{id}) on save.
@@ -13,8 +16,8 @@
  * UAT U3/U4/U10: the dialog used to be four bare, unstyled `<label>` rows and
  * needed a map click to open at all. It now gets the shared dialog chrome and
  * opens at the map's current centre, so "Add place" alone is enough;
- * `place_locator.js`'s tracker picker and address search move that starting
- * point somewhere real (UAT2 N8: with visible feedback once they do).
+ * `place_locator.js`'s tracker/map-pick/address locator moves that starting
+ * point somewhere real (UAT2 N8: with visible feedback once it does).
  */
 "use strict";
 
@@ -22,9 +25,14 @@ import { api } from "./api.js";
 import { t } from "./i18n.js";
 import { createColorPicker } from "./components/color-picker.js";
 import { createPlaceLocator } from "./components/place_locator.js";
-import { duplicateNameMessage } from "./dialog_errors.js";
+import { startMapPick } from "./components/place_map_pick.js";
+import { duplicateNameMessage, placeValidationMessage } from "./dialog_errors.js";
+import { buildDialog } from "./places_dialog_dom.js";
 
-const DEFAULT_COLOR = "#3b82f6";
+// N26: a same-default-blue place after another already existed made a new
+// one hard to tell apart on the map circles' colour alone; showAddDialog()
+// picks the next entry for a place that does not exist yet instead.
+const PLACE_PALETTE = ["#3b82f6", "#e7663f", "#37c67a", "#c77ae6", "#e7b53f", "#3fc9d6", "#e64f7a", "#8fb43f"];
 const DEFAULT_RADIUS = "200";
 const PREVIEW_COLOR = "#94a3b8";
 
@@ -35,6 +43,10 @@ let dialogEl = null;
 let fields = null;
 let colorPicker = null;
 let locator = null;
+// place_map_pick.js's abort() while a pick is in progress -- purgeDialog()
+// must be able to end it on lock without treating that as a user Cancel
+// (which would reopen the dialog behind the lock screen).
+let activePick = null;
 
 /** Called once by places.js's init() before any dialog function is used. */
 export function initDialog(mapArg, { onSaved: onSavedArg }) {
@@ -42,132 +54,17 @@ export function initDialog(mapArg, { onSaved: onSavedArg }) {
   onSaved = onSavedArg;
 }
 
-function button(text, onClick, className) {
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.textContent = text;
-  if (className) btn.className = className;
-  btn.addEventListener("click", onClick);
-  return btn;
-}
-
-function field(type, attrs) {
-  const el = document.createElement("input");
-  el.type = type;
-  Object.assign(el, attrs);
-  return el;
-}
-
-/** A `.fp-dialog-field` row — the same wrapper the device/group editors use. */
-function labeled(text, input, id) {
-  const label = document.createElement("label");
-  if (id) label.htmlFor = id;
-  label.textContent = text;
-  const wrap = document.createElement("div");
-  wrap.className = "fp-dialog-field";
-  wrap.append(label, input);
-  return wrap;
-}
-
-function pickerGroup(legendText) {
-  const group = document.createElement("fieldset");
-  group.className = "fp-dialog-group";
-  const legend = document.createElement("legend");
-  legend.textContent = legendText;
-  group.appendChild(legend);
-  return group;
-}
-
-/** The name/lat/lon/radius/colour/confirmation inputs, built once. */
-function buildPlaceFields() {
-  const title = document.createElement("h2");
-  title.id = "fp-place-dialog-title";
-  const name = field("text", { id: "fp-place-name", required: true, maxLength: 80 });
-  const lat = field("hidden", { id: "fp-place-lat" });
-  const lon = field("hidden", { id: "fp-place-lon" });
-  const radius = field("range", {
-    id: "fp-place-radius", min: "50", max: "5000", step: "10", value: DEFAULT_RADIUS,
-  });
-  const color = field("hidden", { id: "fp-place-color", value: DEFAULT_COLOR });
-  const enter = field("number", { id: "fp-place-enter", min: "1", value: "2" });
-  const exit = field("number", { id: "fp-place-exit", min: "1", value: "2" });
-  const radiusOut = document.createElement("output");
-  radiusOut.htmlFor = radius.id;
-  radiusOut.textContent = radius.value;
-  const error = document.createElement("p");
-  error.className = "fp-dialog-error";
-  error.id = "fp-place-dialog-error";
-  return { title, name, lat, lon, radius, color, enter, exit, radiusOut, error };
-}
-
-function radiusRow(f) {
-  const label = document.createElement("label");
-  label.htmlFor = f.radius.id;
-  label.textContent = t("places.radiusLabel");
-  const wrap = document.createElement("div");
-  wrap.className = "fp-dialog-field";
-  wrap.append(label, f.radius, f.radiusOut);
-  return wrap;
-}
-
-/** Assemble the <form> around the built fields, the locator section and the colour picker. */
-function buildPlaceForm(f, colorGroup, locatorHost) {
-  const form = document.createElement("form");
-  form.method = "dialog";
-
-  form.append(
-    f.title,
-    labeled(t("places.nameLabel"), f.name, f.name.id),
-    f.lat,
-    f.lon,
-    f.color,
-    locatorHost,
-    radiusRow(f),
-    colorGroup,
-    labeled(t("places.enterConfirmations"), f.enter, f.enter.id),
-    labeled(t("places.exitConfirmations"), f.exit, f.exit.id),
-  );
-
-  const footer = document.createElement("footer");
-  footer.append(
-    button(t("common.save"), onSave, "btn"),
-    button(t("common.cancel"), onCancel, "btn-secondary"),
-  );
-  form.append(f.error, footer);
-
-  return form;
-}
-
-/** place_locator.js's onPick: move the map and redraw the preview (UAT2 N8). */
-function applyPickedLocation({ latitude, longitude }) {
-  fields.lat.value = String(latitude);
-  fields.lon.value = String(longitude);
-  map.setView([latitude, longitude], Math.max(map.getZoom(), 15));
-  drawPreview({ lat: latitude, lng: longitude }, Number(fields.radius.value));
-}
-
 function ensureDialog() {
   if (dialogEl) return dialogEl;
 
-  const dlg = document.createElement("dialog");
-  dlg.id = "fp-place-dialog";
-  // Names the dialog for a screen reader (same fix as the device/group editors).
-  dlg.setAttribute("aria-labelledby", "fp-place-dialog-title");
-
-  const f = buildPlaceFields();
-  const colorGroup = pickerGroup(t("places.colorLabel"));
-  const locatorHost = document.createElement("div");
-  const loc = createPlaceLocator(locatorHost, { onPick: applyPickedLocation });
-
-  const form = buildPlaceForm(f, colorGroup, locatorHost);
-  dlg.appendChild(form);
+  const { dlg, fields: f, colorGroup, locatorHost } = buildDialog({ onSave, onCancel });
   document.body.appendChild(dlg);
 
   fields = f;
   dialogEl = dlg;
-  locator = loc;
+  locator = createPlaceLocator(locatorHost, { onPick: applyPickedLocation, onPickOnMap: beginMapPick });
   colorPicker = createColorPicker(colorGroup, {
-    value: f.color.value,
+    value: f.color.value || PLACE_PALETTE[0],
     onChange: (value) => {
       f.color.value = value;
     },
@@ -181,6 +78,45 @@ function ensureDialog() {
   dlg.addEventListener("close", removePreviewCircle);
 
   return dlg;
+}
+
+/** place_locator.js's onPick: move the map and redraw the preview (UAT2 N8). */
+function applyPickedLocation({ latitude, longitude }) {
+  fields.lat.value = String(latitude);
+  fields.lon.value = String(longitude);
+  map.setView([latitude, longitude], Math.max(map.getZoom(), 15));
+  drawPreview({ lat: latitude, lng: longitude }, Number(fields.radius.value));
+}
+
+/**
+ * N13: "Pick on map" steps the dialog aside so the real map underneath is
+ * clickable again -- a `<dialog>` open with showModal() backdrops the whole
+ * page, so a crosshair click could never reach the map while the dialog
+ * stayed open. close() only clears the preview circle (the 'close' listener
+ * above); the fields keep whatever the user had already typed, and
+ * fillDialog() (which would reset them) is never called again here.
+ */
+function beginMapPick() {
+  const dlg = dialogEl;
+  const hasPoint = fields.lat.value !== "" && fields.lon.value !== "";
+  const initial = hasPoint ? { lat: Number(fields.lat.value), lng: Number(fields.lon.value) } : null;
+  dlg.close();
+  activePick = startMapPick(map, {
+    latlng: initial,
+    radiusMeters: Number(fields.radius.value),
+    color: fields.color.value || PLACE_PALETTE[0],
+    onConfirm: (picked) => {
+      activePick = null;
+      applyPickedLocation(picked);
+      locator.showStatus(t("places.field.locationSet", { name: t("places.field.map") }));
+      dlg.showModal();
+    },
+    onCancel: () => {
+      activePick = null;
+      if (hasPoint) drawPreview(initial, Number(fields.radius.value));
+      dlg.showModal();
+    },
+  });
 }
 
 function drawPreview(latlng, radiusMeters) {
@@ -202,7 +138,7 @@ function removePreviewCircle() {
   }
 }
 
-function fillDialog(mode, id, place, latlng) {
+function fillDialog(mode, id, place, latlng, existingCount) {
   const dlg = ensureDialog();
   dlg.dataset.mode = mode;
   if (mode === "edit") dlg.dataset.editId = String(id);
@@ -215,7 +151,7 @@ function fillDialog(mode, id, place, latlng) {
   const radius = place ? place.radius_meters : Number(DEFAULT_RADIUS);
   fields.radius.value = String(radius);
   fields.radiusOut.textContent = String(radius);
-  const color = place ? place.color : DEFAULT_COLOR;
+  const color = place ? place.color : PLACE_PALETTE[(existingCount || 0) % PLACE_PALETTE.length];
   fields.color.value = color;
   colorPicker.setValue(color);
   fields.enter.value = String(place ? place.enter_confirmations : 2);
@@ -227,18 +163,30 @@ function fillDialog(mode, id, place, latlng) {
   dlg.showModal();
 }
 
-/** Opens the add dialog at `latlng` (U4/U10: no map click required). */
-export function showAddDialog(latlng) {
-  fillDialog("add", null, null, latlng);
+/** Opens the add dialog at `latlng` (U4/U10: no map click required).
+ * `existingCount` (places.js's own placesById.size) picks this place's
+ * default colour (N26): the Nth place added gets the Nth palette entry
+ * instead of every place starting the same blue. */
+export function showAddDialog(latlng, existingCount = 0) {
+  fillDialog("add", null, null, latlng, existingCount);
 }
 
 /** places.js's editPlace() looks the place up (it owns the registry) and hands it here. */
 export function openEditDialog(id, place) {
-  fillDialog("edit", id, place, { lat: place.latitude, lng: place.longitude });
+  fillDialog("edit", id, place, { lat: place.latitude, lng: place.longitude }, 0);
 }
 
 async function onSave() {
   const dlg = dialogEl;
+  const form = dlg.querySelector("form");
+  // N16: an empty name (or an enter/exit count outside 1-5, once the
+  // spinner's own min/max is bypassed by typing) is caught here, with the
+  // browser's own inline message, before it ever reaches the server as a
+  // raw 422.
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    return;
+  }
   const body = {
     name: fields.name.value,
     latitude: Number(fields.lat.value),
@@ -258,8 +206,13 @@ async function onSave() {
     dlg.close();
     if (onSaved) await onSaved();
   } catch (err) {
-    // api() shows the lock screen for a 401; N48 maps a duplicate-name 409 to the catalog sentence.
-    if (err.message !== "Locked") fields.error.textContent = duplicateNameMessage(err, "places.duplicateName") || err.message;
+    // api() shows the lock screen for a 401; N16 maps a remaining 422 (a
+    // range check `reportValidity()` cannot catch, e.g. radius_meters) to a
+    // catalog sentence, and N48 maps a duplicate-name 409 the same way --
+    // both before the raw server text is ever shown.
+    if (err.message === "Locked") return;
+    fields.error.textContent =
+      placeValidationMessage(err) || duplicateNameMessage(err, "places.duplicateName") || err.message;
   }
 }
 
@@ -280,11 +233,11 @@ function clearDialogFields() {
   fields.lon.value = "";
   fields.radius.value = DEFAULT_RADIUS;
   fields.radiusOut.textContent = DEFAULT_RADIUS;
-  fields.color.value = DEFAULT_COLOR;
+  fields.color.value = PLACE_PALETTE[0];
   fields.enter.value = "2";
   fields.exit.value = "2";
   fields.error.textContent = "";
-  if (colorPicker) colorPicker.setValue(DEFAULT_COLOR);
+  if (colorPicker) colorPicker.setValue(PLACE_PALETTE[0]);
   if (locator) locator.reset();
   if (dialogEl) {
     delete dialogEl.dataset.editId;
@@ -294,6 +247,10 @@ function clearDialogFields() {
 
 /** places.js's purge() hook for the dialog's own state. */
 export function purgeDialog() {
+  if (activePick) {
+    activePick.abort();
+    activePick = null;
+  }
   removePreviewCircle();
   if (dialogEl && dialogEl.open) dialogEl.close();
   clearDialogFields();

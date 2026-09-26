@@ -58,9 +58,22 @@ export function drawGroupOverlays(overlayLayer, presence, group) {
  * whole group (round 3 F3).
  */
 export function verdictLabel(presence) {
-  if (presence.verdict_label) return presence.verdict_label;
   const reporting = presence.reporting_count;
   const considered = presence.considered_count;
+  const hasStaleMember = considered != null && reporting < considered;
+  // N27: two reporting members can be genuinely far apart while a third has
+  // no fix at all. The server's own verdict_label() still says "Diverged"
+  // for that combination -- true about the reporting pair, but a confident
+  // headline for a group Find+ only partly heard from (the body `note`
+  // already names the stale member; the pill should not outrun it). The
+  // all_together branch below already discloses the same gap inline
+  // ("Together (2 of 3 reporting)"), so only the undisclosed, confident
+  // "Diverged" needs the same downgrade, checked before trusting the
+  // server's phrase.
+  if (presence.verdict === "partial" && hasStaleMember && presence.diverged && presence.diverged.length > 0) {
+    return t("groups.verdictPartial");
+  }
+  if (presence.verdict_label) return presence.verdict_label;
   if (presence.verdict === "all_together") {
     return considered && reporting < considered
       ? t("groups.verdictTogetherPartial", { reporting, considered })

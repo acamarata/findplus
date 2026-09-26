@@ -113,6 +113,17 @@ function groupPresenceByPlace(entries) {
   return out;
 }
 
+/** N26: the tab hint ("Use Add place…") only helps before any place exists;
+ * once one does, it just sits above the list forever saying something the
+ * user has already done (the mirror of groups.js's own updateEmptyStateHint(),
+ * whose hint shows only once a group DOES exist — the two hints point
+ * opposite directions on purpose, since one explains how to get started and
+ * the other how to use what already exists). */
+function updateTabHint(placeCount) {
+  const hint = document.getElementById("fp-places-tab-hint");
+  if (hint) hint.hidden = placeCount > 0;
+}
+
 export async function refresh() {
   if (!listEl) return;
   const [places, devicesResp, presence] = await Promise.all([
@@ -122,6 +133,7 @@ export async function refresh() {
   ]);
   const devicesById = new Map(devicesResp.devices.map((d) => [d.device_id, d]));
   const presenceByPlace = groupPresenceByPlace(presence);
+  updateTabHint(places.length);
   clearList();
   // U14: places.html's own .fp-tab-hint ("Use Add place to create a
   // geofence") sits right above #fp-places-list and already is the empty

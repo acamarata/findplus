@@ -355,6 +355,13 @@
     "currentTargetsLabel": "Current targets",
     "removeTargetLabel": "Remove {target}",
     "retryingStatusNoTime": "Retrying (attempt {attempt} of {max})",
+    "telegramTargetsFieldLabel": "Telegram chats",
+    "allChats": "All chats",
+    "telegramTargetsCount": {
+      "one": "{channel} (1 chat)",
+      "other": "{channel} ({count} chats)"
+    },
+    "telegramNoChatsSelected": "{channel} (no chats selected)",
     "statuses": {
       "sent": "Sent",
       "failed": "Failed",

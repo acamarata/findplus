@@ -1,0 +1,141 @@
+/*
+ * Places tab additions (UAT6 WP F / WP9): pick-on-map control, avatar and
+ * icon-picker polish, and the arrivals/departures panel.
+ *
+ * Purpose    : components.css and components-panels.css are other agents'
+ *              files this round (per .claude/temp/agent-rules.md's package
+ *              split), so every rule this ticket's fixes need lives here
+ *              instead, as a small additive file linked after them. Nothing
+ *              here restyles an existing shared selector; every rule below
+ *              either targets a class first used in this file, or narrows an
+ *              existing one with an extra class/id so it never collides with
+ *              components.css's own rule of the same name.
+ * Constraints: Colours are CSS custom properties already defined in
+ *              style.css's :root (both themes), never new literals, so dark
+ *              and light mode both stay correct with no extra rule here.
+ */
+
+/* --- N13: "Pick on map" -- the on-map control while a pick is in progress */
+.fp-map-pick-control {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  max-width: min(260px, calc(100vw - 32px));
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
+}
+.fp-map-pick-control p {
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.fp-map-pick-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.fp-map-pick-marker:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* --- N26: a permanent place-name label on every geofence circle ---------- */
+.fp-place-tooltip {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  font-size: 11px;
+  padding: 1px 6px;
+  box-shadow: none;
+}
+.fp-place-tooltip::before {
+  display: none; /* no arrow needed on a label centered inside its own circle */
+}
+
+/* --- N27: readable, keyboard-reachable member avatars -------------------- */
+.fp-card-members .fp-avatar.fp-avatar--lg {
+  width: 22px;
+  height: 22px;
+  font-size: 13px;
+}
+.fp-avatar--lg:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: 50%;
+}
+
+/* --- N28: icon-picker category headings and a round custom colour swatch */
+.fp-icon-group-heading {
+  margin: 10px 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+.fp-icon-picker section:first-child .fp-icon-group-heading {
+  margin-top: 0;
+}
+.fp-color-custom.fp-color-custom--round {
+  border-radius: 50%;
+  padding: 0;
+  overflow: hidden;
+}
+.fp-color-custom--round::-webkit-color-swatch-wrapper {
+  padding: 0;
+  border-radius: 50%;
+}
+.fp-color-custom--round::-webkit-color-swatch {
+  border: none;
+  border-radius: 50%;
+}
+.fp-color-custom--round::-moz-color-swatch {
+  border: none;
+  border-radius: 50%;
+}
+
+/* --- P19/WP9: "Recent arrivals and departures" panel ---------------------- */
+#fp-places-events {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+#fp-places-events-heading {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  margin: 0 0 6px;
+}
+#fp-places-events-notice {
+  margin: 0 0 8px;
+}
+#fp-places-events-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fp-events-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-2);
+}
+.fp-events-time {
+  font-size: 11px;
+  color: var(--muted);
+}
+.fp-events-text {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+#fp-places-events-more {
+  margin-top: 8px;
+}

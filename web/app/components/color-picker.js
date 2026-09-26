@@ -46,7 +46,11 @@ function paletteSwatch(hex) {
 function customInput(customLabel) {
   const input = document.createElement("input");
   input.type = "color";
-  input.className = "fp-color-custom";
+  // N28: fp-color-custom--round (places-events.css) clips the native
+  // <input type="color"> swatch into a circle to match the 12 palette
+  // swatches beside it, which were already round -- this one alone painted
+  // as a native rectangle.
+  input.className = "fp-color-custom fp-color-custom--round";
   input.setAttribute("aria-label", customLabel);
   return input;
 }

@@ -79,15 +79,22 @@ function memberAvatars(group, devicesById) {
     // the label, not the raw provider name -- member.name is the fallback
     // for a device row that has since been deleted (see the docstring above).
     const shown = displayName(device) || member.name;
-    const avatar = span("fp-avatar");
+    // N27: a 16px, mouse-only title tooltip was the only place a member's
+    // name showed at all -- fp-avatar--lg (places-events.css) draws it
+    // bigger, and tabindex/aria-label/role make the name reachable by
+    // keyboard focus too, not only a hover a touch or keyboard user cannot make.
+    const avatar = span("fp-avatar fp-avatar--lg");
     avatar.title = shown;
+    avatar.tabIndex = 0;
+    avatar.setAttribute("role", "img");
+    avatar.setAttribute("aria-label", shown);
     avatar.appendChild(
       renderBadge({
         icon: (device && device.icon) || "letter",
         color: (device && device.color) || "#888888",
         label: (device && device.label) || null,
         name: shown,
-        size: 16,
+        size: 22,
       }),
     );
     wrap.appendChild(avatar);

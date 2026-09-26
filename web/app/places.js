@@ -22,10 +22,11 @@
 "use strict";
 
 import { api } from "./api.js";
-import { state, showAlert, fmtAgeMinutes } from "./state.js";
+import { state, showAlert, fmtAgeMinutes, esc } from "./state.js";
 import { t } from "./i18n.js";
 import { initDialog, openEditDialog, purgeDialog, showAddDialog } from "./places_dialog.js";
 import * as placesList from "./places_list.js";
+import * as placesEvents from "./places_events.js";
 
 let map = null;
 let placeLayer = null;
@@ -37,12 +38,17 @@ export function init(mapArg, _deviceListEl) {
   placeLayer = L.layerGroup().addTo(map);
   initDialog(map, { onSaved: loadPlaces });
   placesList.init(document.getElementById("fp-places-list"));
+  placesEvents.init(document.getElementById("fp-places-events"));
   const addBtn = document.getElementById("fp-add-place-btn");
   // UAT U4/U10: used to arm a mouse-only crosshair mode; opening the dialog
   // straight at the map's current centre needs no map click at all, so a
   // native <button> (already a Tab stop, already fires on Enter/Space) is
   // now the whole affordance.
-  if (addBtn) addBtn.addEventListener("click", () => showAddDialog(map.getCenter()));
+  // N26: the Nth place added gets the Nth palette entry as its default
+  // colour instead of every place starting the same blue -- placesById is
+  // already current here, loadPlaces() having run at boot before a user can
+  // click this at all.
+  if (addBtn) addBtn.addEventListener("click", () => showAddDialog(map.getCenter(), placesById.size));
   // UAT2 N12: main.js awaits refreshLockState() before calling init(), so
   // state.locked is already known here -- skip the fetch rather than fire it
   // and swallow a 401. lock.js's refreshTabsAfterUnlock() calls refreshAll()
@@ -64,6 +70,7 @@ export function purge() {
   if (placeLayer) placeLayer.clearLayers();
   purgeDialog();
   placesList.purgeList();
+  placesEvents.purge();
   placesById = new Map();
   circlesById.clear();
   document.querySelectorAll(".fp-presence-chip").forEach((chip) => chip.remove());
@@ -77,7 +84,15 @@ export async function loadPlaces() {
   places.forEach((place) => {
     const circle = L.circle([place.latitude, place.longitude], {
       radius: place.radius_meters, color: place.color, fillOpacity: 0.15, keyboard: false,
-    }).bindPopup(buildPlacePopup(place));
+    })
+      // N26: an unlabelled circle only says which one is which through its
+      // colour, which two places can share (or look alike in dark mode) --
+      // a permanent label reads directly off the map with no click needed.
+      // esc(): a place name reaches Leaflet's tooltip content, which treats
+      // a bare string as HTML (esc() is the same guard groups_presence_render.js
+      // uses for a member name on the same kind of circle tooltip).
+      .bindTooltip(esc(place.name), { permanent: true, direction: "center", className: "fp-place-tooltip" })
+      .bindPopup(buildPlacePopup(place));
     circle.addTo(placeLayer);
     circlesById.set(String(place.id), circle);
   });
@@ -86,6 +101,11 @@ export async function loadPlaces() {
   // independent GET /api/devices + /api/places/presence for the "who is
   // here now" column, so it stays correct even when only presence changed.
   await placesList.refresh();
+  // P19/WP9: an add/edit/delete (this function's every caller) is also a
+  // good moment to catch up the arrivals/departures panel; its own timer
+  // (places_events.js) covers "refresh after a poll" for the gap between
+  // these without this module needing to know when a poll happened.
+  await placesEvents.refresh();
 }
 
 /** Pans to a place and reopens its map popup — the list row's click-to-centre
@@ -144,6 +164,7 @@ export async function deletePlace(id) {
   placesById.delete(String(id));
   await loadPresence();
   await placesList.refresh();
+  await placesEvents.refresh();
 }
 
 /* ------------------------------------------------------------- presence */

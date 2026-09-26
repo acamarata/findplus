@@ -17,9 +17,14 @@
  *              one exception to "no fetch": the "Your icons" section
  *              (custom-icons.js) is per-installation and cannot live in the
  *              static sprite, so it fetches its own list independently.
+ * N28: each `<section data-group="…">` keeps its own grid (pinned by
+ * test_icon_picker_renders_grouped_sections) rather than one continuous
+ * grid, so a category heading is what turns "rows of 9, 8, 9, 9, 4…" from a
+ * layout bug into a deliberate boundary.
  */
 "use strict";
 
+import { t } from "../i18n.js";
 import { createCustomIconsSection } from "./custom-icons.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -65,9 +70,26 @@ function iconSwatch(name) {
   return btn;
 }
 
+const CATEGORY_KEYS = {
+  people: "icons.category.people",
+  pets: "icons.category.pets",
+  things: "icons.category.things",
+  places: "icons.category.places",
+  other: "icons.category.other",
+};
+
+function categoryHeading(group) {
+  const heading = document.createElement("h3");
+  heading.className = "fp-icon-group-heading";
+  const key = CATEGORY_KEYS[group];
+  heading.textContent = key ? t(key) : group;
+  return heading;
+}
+
 function groupSection(group, names) {
   const section = document.createElement("section");
   section.dataset.group = group;
+  section.appendChild(categoryHeading(group));
   const grid = document.createElement("div");
   grid.className = "fp-icon-grid";
   for (const name of names) grid.appendChild(iconSwatch(name));
@@ -89,6 +111,7 @@ function createLetterInput(letterLabel) {
 function otherSection(letterInput, letterLabel) {
   const section = document.createElement("section");
   section.dataset.group = "other";
+  section.appendChild(categoryHeading("other"));
   const grid = document.createElement("div");
   grid.className = "fp-icon-grid";
 

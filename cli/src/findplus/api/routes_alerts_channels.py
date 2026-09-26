@@ -39,7 +39,17 @@ __all__ = ["build_router", "mask_url"]
 
 
 class WebhookPutBody(BaseModel):
-    url: str
+    #: None -- omitted or explicit `null`, pydantic cannot tell them apart on
+    #: a plain Optional field -- keeps whatever is already saved; put_webhook()
+    #: below is the only place that decides this, so a fresh save (nothing
+    #: configured yet) still requires url. An empty STRING for secret is the
+    #: one value still distinguishable from "unset" and is what clears it
+    #: (the dashboard's own saveWebhook() never sends it -- an empty field is
+    #: submitted as omitted, alerts_webhook.js). UAT6 N02: the browser never
+    #: has the real URL to resend (channels_response() only ever returns it
+    #: masked), so "leave the field blank to keep it" has to mean something
+    #: on the wire, not just in the UI copy.
+    url: str | None = None
     secret: str | None = None
 
 
@@ -56,10 +66,29 @@ def get_channels() -> dict[str, Any]:
     return channels_response()
 
 
+#: mask_url()'s two masked shapes: "scheme://host/…1234" (the common case)
+#: or a bare/short-tail "scheme://host/***" -- either substring means the
+#: browser sent back a value it read off screen, never a real URL a person
+#: typed (UAT6 N02, defence in depth: the client already never puts a masked
+#: value in the field, this is the server-side half of the same guarantee).
+_MASK_MARKERS = ("***", "…")
+
+
 def put_webhook(body: WebhookPutBody) -> dict[str, Any]:
-    if not is_valid_url(body.url):
+    existing = load_alerts().webhook
+    # None (the key omitted from the request body, not merely "") means
+    # "keep whatever is already saved" -- the browser never has the real URL
+    # to resend (channels_response() only ever returns it masked), so an
+    # unconfigured install still has to provide one.
+    url = body.url if body.url is not None else (existing.url if existing else None)
+    if url is None:
+        raise HTTPException(status_code=422, detail="url is required")
+    if any(marker in url for marker in _MASK_MARKERS):
+        raise HTTPException(status_code=422, detail="url must not repeat the masked placeholder")
+    if not is_valid_url(url):
         raise HTTPException(status_code=422, detail="url must be https or http loopback")
-    save_channel(webhook=WebhookCreds(url=body.url, secret=body.secret))
+    secret = body.secret if body.secret is not None else (existing.secret if existing else None)
+    save_channel(webhook=WebhookCreds(url=url, secret=secret))
     return channels_response()
 
 

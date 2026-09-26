@@ -8,6 +8,8 @@ import {
   renderTelegramTargets,
   wireTelegramTargetsControls,
 } from "./alerts_telegram_targets.js";
+import { purgeWebhook, removeWebhook, renderWebhookSection, saveWebhook } from "./alerts_webhook.js";
+import { mappedError } from "./alerts_channel_errors.js";
 
 /** Blanks a masked credential field the first time it is focused for editing. */
 function clearMaskedToken(el) {
@@ -36,6 +38,13 @@ const VALIDATION_DETAIL_KEYS = {
   "bot_token must look like a BotFather token": "alerts.badBotTokenError",
 };
 
+/** UAT6 N16: routes_alerts_channels.py's put_whatsapp() 422 details are raw
+ *  English too -- same VALIDATION_DETAIL_KEYS pattern as Telegram above. */
+const WHATSAPP_VALIDATION_KEYS = {
+  "phone must be E.164, e.g. +34123123123": "alerts.whatsapp.invalidPhone",
+  "apikey must be alphanumeric, at least 4 characters": "alerts.whatsapp.invalidApikey",
+};
+
 function renderTelegramSection(telegram) {
   const tokenInput = $("fp-tg-token");
   if (telegram.configured) {
@@ -52,34 +61,6 @@ function renderTelegramSection(telegram) {
   );
   renderTelegramTargets(telegram);
   $("fp-tg-status").textContent = "";
-}
-/**
- * The webhook URL field only, never on top of what someone is mid-typing.
- *
- * init()'s boot-time refreshAll() (alerts.js) fires loadChannels() without
- * awaiting it; on a slow daemon that GET can still be in flight when a test
- * or a real user fills #fp-webhook-url and clicks Save. Unconditionally
- * overwriting the field here raced that fill and won intermittently under
- * load (E13 loop3 L3-1, CI 35558... webhook_save: "zero PUT requests reached
- * the server" -- saveWebhook()'s own `if (!url) return` guard fired because
- * this stale render had just cleared the field the click was about to read).
- * Skipping the write while the field is focused closes the gap: the moment
- * loadChannels() runs again (saveWebhook()'s own reload, or the next tab
- * open), focus has moved on and the real server value renders as before.
- */
-function renderWebhookUrl(webhook) {
-  const el = $("fp-webhook-url");
-  if (document.activeElement === el) return;
-  el.value = webhook.configured ? webhook.url || "" : "";
-}
-function renderWebhookSection(webhook) {
-  renderWebhookUrl(webhook);
-  setVisibleText(
-    $("fp-webhook-current"),
-    webhook.configured &&
-      t("alerts.webhookCurrent", { url: webhook.url }) +
-        (webhook.has_secret ? t("alerts.webhookSecretSet") : ""),
-  );
 }
 /**
  * WhatsApp (CallMeBot) section.
@@ -103,13 +84,20 @@ function renderWhatsappSection(whatsapp) {
 async function saveWhatsapp() {
   const phoneEl = $("fp-wa-phone");
   const apikeyEl = $("fp-wa-apikey");
+  const statusEl = $("fp-wa-status");
   // The bullets are a placeholder, not the key: saving them would replace a
   // working credential with punctuation while the card still said connected.
   clearMaskedToken(apikeyEl);
   const phone = phoneEl.value.trim();
   const apikey = apikeyEl.value.trim();
-  // Focus what is missing: a silent return read as a dead Save button.
-  if (!phone || !apikey) return (phone ? apikeyEl : phoneEl).focus();
+  // UAT6 N16: a silent focus() move read as a dead Save button -- a field
+  // error names what is missing, matching every other channel's own Save.
+  if (!phone || !apikey) {
+    statusEl.textContent = t(phone ? "alerts.whatsapp.enterApikey" : "alerts.whatsapp.enterPhone");
+    (phone ? apikeyEl : phoneEl).focus();
+    return;
+  }
+  statusEl.textContent = "";
   try {
     await api("/api/alerts/channels/whatsapp", {
       method: "PUT",
@@ -118,7 +106,7 @@ async function saveWhatsapp() {
     });
     await loadChannels();
   } catch (err) {
-    if (err.message !== "Locked") $("fp-wa-status").textContent = err.message;
+    if (err.message !== "Locked") statusEl.textContent = mappedError(err, WHATSAPP_VALIDATION_KEYS);
   }
 }
 async function sendWhatsappTest() {
@@ -148,7 +136,20 @@ async function clearWhatsappChannel() {
 }
 async function startTelegramSetup() {
   const statusEl = $("fp-tg-status");
-  const token = $("fp-tg-token").value.trim();
+  const tokenEl = $("fp-tg-token");
+  // UAT6 N02: the same "never save the mask" bug the webhook URL had, checked
+  // here instead of relying on the field having been focused first -- a
+  // pointer-device paste, or a user who never clicks into an already-masked
+  // field before pressing Connect, would otherwise send the bullet placeholder
+  // as a bot token. `is_valid_bot_token` on the server rejects that shape
+  // outright (it is never digits-colon-alnum), so nothing masked was ever
+  // actually stored this way, but the round trip and its 422 were pointless.
+  if (tokenEl.classList.contains("fp-token-masked")) {
+    statusEl.textContent = t("alerts.enterBotToken");
+    tokenEl.focus();
+    return;
+  }
+  const token = tokenEl.value.trim();
   if (!token) {
     statusEl.textContent = t("alerts.enterBotToken");
     return;
@@ -209,31 +210,6 @@ async function clearTelegramChannel() {
     if (err.message !== "Locked") $("fp-tg-status").textContent = err.message;
   }
 }
-async function saveWebhook() {
-  const url = $("fp-webhook-url").value.trim();
-  const secret = $("fp-webhook-secret").value;
-  if (!url) return;
-  try {
-    await api("/api/alerts/channels/webhook", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url, secret: secret || null }),
-    });
-    $("fp-webhook-secret").value = "";
-    await loadChannels();
-  } catch (_) { /* api() already surfaced the lock screen or an error */ }
-}
-async function removeWebhook() {
-  try {
-    await api("/api/alerts/channels/webhook", { method: "DELETE" });
-    await loadChannels();
-  } catch (_) {
-    // Webhook has no status slot of its own (unlike Telegram/WhatsApp) --
-    // matches saveWebhook() above, which already swallows the same way
-    // (loop2 B3: the fix is api()'s try/catch, not a new UI surface).
-  }
-}
-
 
 export async function loadChannels() {
   const channels = await api("/api/alerts/channels");
@@ -252,8 +228,11 @@ export function wireChannelControls() {
   $("fp-tg-test").addEventListener("click", sendTelegramTest);
   $("fp-tg-clear").addEventListener("click", clearTelegramChannel);
   wireTelegramTargetsControls();
-  $("fp-webhook-save").addEventListener("click", saveWebhook);
-  $("fp-webhook-remove").addEventListener("click", removeWebhook);
+  // saveWebhook()/removeWebhook() (alerts_webhook.js) take this module's own
+  // loadChannels as their reload callback rather than importing it, so the
+  // two files never import each other (see alerts_webhook.js's docstring).
+  $("fp-webhook-save").addEventListener("click", () => saveWebhook(loadChannels));
+  $("fp-webhook-remove").addEventListener("click", () => removeWebhook(loadChannels));
 }
 
 /** Masks #fp-tg-token before boot's GET /api/alerts/channels resolves, so the
@@ -268,11 +247,9 @@ export function showTelegramTokenPlaceholder() {
 
 export function purgeChannels() {
   renderTelegramSection({ configured: false });
-  renderWebhookSection({ configured: false });
+  purgeWebhook();
   renderWhatsappSection({ configured: false });
   $("fp-tg-status").textContent = "";
   $("fp-wa-status").textContent = "";
   purgeTelegramTargets();
-  const secret = $("fp-webhook-secret");
-  if (secret) secret.value = "";
 }

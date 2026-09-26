@@ -82,3 +82,77 @@ async def test_webhook_save(page, base_url):
     assert channels["webhook"]["configured"] is True, evidence
     assert channels["webhook"]["url"] == "http://localhost:9999/…1234", evidence
     assert "hook-abcd" not in channels["webhook"]["url"], evidence
+
+
+async def test_webhook_url_field_never_shows_the_masked_value(page, base_url):
+    """UAT6 N02 (blocking): the field used to be prefilled with channels_
+    response()'s masked URL ("http://host/…1234"); pressing Save unchanged
+    then wrote that literal masked string back as the real URL, verified in
+    alerts.json. The field must always be empty on load when a webhook is
+    already configured -- the masked value belongs in the "Current:" text
+    and the field's own placeholder only, never its value.
+    """
+    save = await page.request.put(
+        base_url + "/api/alerts/channels/webhook",
+        data=json.dumps({"url": "http://localhost:9999/hook-n02-abcd", "secret": None}),
+        headers={"Content-Type": "application/json"},
+    )
+    assert save.ok, await save.text()
+    try:
+        await open_alerts_tab(page, base_url)
+        await page.wait_for_function(
+            "document.getElementById('fp-webhook-current').textContent.length > 0"
+        )
+        assert await page.locator("#fp-webhook-url").input_value() == ""
+        placeholder = await page.locator("#fp-webhook-url").get_attribute("placeholder")
+        assert "…abcd" in placeholder
+        assert "***" not in placeholder
+    finally:
+        await page.request.delete(base_url + "/api/alerts/channels/webhook")
+
+
+async def test_webhook_save_with_blank_field_keeps_the_existing_url(page, base_url):
+    """Empty input + Save means "keep the current URL", never an empty or
+    masked write -- the other half of N02's fix (alerts_webhook.js's
+    saveWebhook() omits `url` from the PUT body when the field is blank)."""
+    save = await page.request.put(
+        base_url + "/api/alerts/channels/webhook",
+        data=json.dumps({"url": "http://localhost:9999/hook-n02-keep", "secret": None}),
+        headers={"Content-Type": "application/json"},
+    )
+    assert save.ok, await save.text()
+    try:
+        await open_alerts_tab(page, base_url)
+        await page.wait_for_function(
+            "document.getElementById('fp-webhook-current').textContent.length > 0"
+        )
+        assert await page.locator("#fp-webhook-url").input_value() == ""
+        async with page.expect_response(
+            lambda r: r.url.endswith("/api/alerts/channels/webhook") and r.request.method == "PUT"
+        ):
+            await page.click("#fp-webhook-save")
+        resp = await page.request.get(base_url + "/api/alerts/channels")
+        channels = await resp.json()
+        assert channels["webhook"]["url"] == "http://localhost:9999/…keep"
+    finally:
+        await page.request.delete(base_url + "/api/alerts/channels/webhook")
+
+
+async def test_webhook_save_refuses_a_pasted_masked_value(page, base_url):
+    """Defence in depth: even if a masked-looking string ends up in the field
+    by some other means than this app's own render (a paste, say), Save
+    refuses it client-side rather than reaching the server at all
+    (alerts_webhook.js's own MASK_MARKERS check)."""
+    clear = await page.request.delete(base_url + "/api/alerts/channels/webhook")
+    assert clear.ok, await clear.text()
+    await open_alerts_tab(page, base_url)
+    await page.fill("#fp-webhook-url", "http://localhost:9999/hook/…abcd")
+    await page.click("#fp-webhook-save")
+    await page.wait_for_function(
+        "document.getElementById('fp-webhook-status').textContent.length > 0"
+    )
+    status = await page.locator("#fp-webhook-status").inner_text()
+    assert "masked" in status.lower()
+    resp = await page.request.get(base_url + "/api/alerts/channels")
+    channels = await resp.json()
+    assert channels["webhook"]["configured"] is False

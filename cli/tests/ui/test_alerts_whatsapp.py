@@ -167,10 +167,12 @@ async def test_saving_an_invalid_apikey_shows_an_inline_error(
 ) -> None:
     """A shape `store.is_valid_apikey` rejects (318d2ae) must not fail silently.
 
-    alerts_channels.js's saveWhatsapp() catch puts the server's 422 detail
-    into #fp-wa-status, and the credential on disk must be left exactly as it
-    was -- the guard runs before any write (routes_alerts_channels.py's
-    put_whatsapp()).
+    UAT6 N16: alerts_channels.js's saveWhatsapp() used to put the server's raw
+    422 detail ("apikey must be alphanumeric, at least 4 characters") straight
+    into #fp-wa-status; it now maps that detail to a catalog sentence
+    (WHATSAPP_VALIDATION_KEYS) the same way the Telegram bot-token error
+    already did. The credential on disk must be left exactly as it was --
+    the guard runs before any write (routes_alerts_channels.py's put_whatsapp()).
     """
     await _open_alerts_tab(page, base_url)
     await page.wait_for_function("() => document.getElementById('fp-wa-apikey').value.length > 0")
@@ -183,7 +185,8 @@ async def test_saving_an_invalid_apikey_shows_an_inline_error(
         "() => document.getElementById('fp-wa-status').textContent.length > 0"
     )
     status = await page.locator("#fp-wa-status").inner_text()
-    assert "apikey" in status.lower(), status
+    assert "api key" in status.lower(), status
+    assert "must be alphanumeric" not in status, "raw server detail leaked: " + status
 
     stored = json.loads(configured_whatsapp.read_text())["channels"]["whatsapp"]
     assert stored == {"phone": FAKE_PHONE, "apikey": FAKE_APIKEY}
@@ -280,13 +283,21 @@ async def test_the_rule_dialog_populates_its_selects_on_a_cold_page(page, base_u
     """
     await _open_add_rule_dialog(page, base_url)
 
-    for select_id in ("fp-rule-device", "fp-rule-place", "fp-rule-group"):
+    # Place has no placeholder option (a rule with no place filter is a
+    # normal choice) -- its first real option lands with a non-empty value,
+    # same check as always. Device/Group now lead with a blank "Choose…"
+    # option (UAT6 N05), so "loaded" is options.length > 1 (placeholder plus
+    # at least one real row) rather than a non-empty first value.
+    await page.wait_for_function(
+        "(id) => {"
+        "  const el = document.getElementById(id);"
+        "  return el.options.length > 0 && el.options[0].value !== '';"
+        "}",
+        arg="fp-rule-place",
+    )
+    for select_id in ("fp-rule-device", "fp-rule-group"):
         await page.wait_for_function(
-            "(id) => {"
-            "  const el = document.getElementById(id);"
-            "  return el.options.length > 0 && el.options[0].value !== '';"
-            "}",
-            arg=select_id,
+            "(id) => document.getElementById(id).options.length > 1", arg=select_id
         )
 
     # TAG-HOME's option text is its label ("Ali's Keys"), not the raw provider

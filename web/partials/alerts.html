@@ -14,12 +14,27 @@
           <button class="btn btn-secondary" id="fp-tg-clear" type="button" data-i18n="common.clear">Clear</button>
         </div>
         <p id="fp-tg-status"></p>
+        <!-- UAT6 N15: every currently-saved target as a removable chip,
+             labelled with its display name (channels_response()'s
+             target_labels, falling back to the raw id) -- alerts_telegram_
+             targets.js's renderTelegramTargets(). Hidden with nothing saved. -->
+        <ul id="fp-tg-current-targets" class="hidden" aria-label="Current targets"
+            data-i18n-attr="aria-label:alerts.currentTargetsLabel"></ul>
+        <!-- UAT6 N15: Targets/Save targets/Find chat IDs are disabled until a
+             bot is connected (nothing to send a target to otherwise) -- this
+             is the one-line reason shown in their place. -->
+        <p id="fp-tg-targets-disabled-reason" class="fp-tab-hint hidden"
+           data-i18n="alerts.connectBotFirst">Connect a bot first.</p>
         <label class="setting-row">
           <span data-i18n="alerts.telegramTargets">Targets</span>
           <input type="text" id="fp-tg-targets" placeholder="Chat ID or @username"
                  data-i18n-attr="placeholder:alerts.telegramTargetsPlaceholder">
         </label>
-        <p class="fp-tab-hint" data-i18n="alerts.telegramTargetsHelp">Chat IDs or @usernames, comma separated: your own user ID, a group (a negative number), or several people.</p>
+        <!-- UAT6 N15: text lives only in the catalog (alerts.telegramTargetsHelp)
+             now -- the wizard's copy of this help line (setup_steps/
+             _notifications_telegram.js) reads the same key, so the two
+             surfaces can never drift again. -->
+        <p class="fp-tab-hint" data-i18n="alerts.telegramTargetsHelp"></p>
         <div class="fp-alerts-actions">
           <button class="btn btn-secondary" id="fp-tg-save-targets" type="button" data-i18n="alerts.saveTargets">Save targets</button>
           <button class="btn btn-secondary" id="fp-tg-find-chats" type="button" data-i18n="alerts.findChatIds">Find chat IDs</button>
@@ -34,6 +49,10 @@
         <p id="fp-webhook-current" class="fp-tab-hint hidden"></p>
         <label class="setting-row">
           <span data-i18n="alerts.url">URL</span>
+          <!-- UAT6 N02: never prefilled with the masked URL -- see
+               alerts_webhook.js's renderWebhookUrl(). The masked value shows
+               as this field's own placeholder once saved, and as the
+               "Current:" text above; an empty field plus Save keeps it. -->
           <input type="url" id="fp-webhook-url" placeholder="https://example.com/hook"
                  data-i18n-attr="placeholder:alerts.urlPlaceholder">
         </label>
@@ -46,6 +65,7 @@
           <button class="btn" id="fp-webhook-save" type="button" data-i18n="common.save">Save</button>
           <button class="btn btn-secondary" id="fp-webhook-remove" type="button" data-i18n="common.remove">Remove</button>
         </div>
+        <p id="fp-webhook-status"></p>
       </section>
 
       <!-- honesty.WHATSAPP_RELAY and honesty.WHATSAPP_SETUP land in the two

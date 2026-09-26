@@ -154,6 +154,45 @@ def test_saved_file_writes_chat_ids_not_the_legacy_key(_isolated_alerts_file: Pa
     assert '"chat_id"' not in raw
 
 
+def test_save_then_load_chat_labels_round_trip(_isolated_alerts_file: Path) -> None:
+    creds = TelegramCreds(
+        bot_token="123",
+        chat_ids=("111", "-1009876543210"),
+        chat_labels=("111", "@person"),
+        chat_title="t",
+        bot_username="b",
+        captured_at="now",
+    )
+    save_alerts(AlertsChannels(telegram=creds))
+    loaded = load_alerts()
+    assert loaded.telegram == creds
+    assert loaded.telegram.chat_labels == ("111", "@person")
+
+
+def test_load_file_without_chat_labels_defaults_to_empty_tuple(_isolated_alerts_file: Path) -> None:
+    """A file saved before chat_labels existed -- callers fall back to the raw id."""
+    _isolated_alerts_file.parent.mkdir(parents=True, exist_ok=True)
+    _isolated_alerts_file.write_text(
+        '{"channels": {"telegram": {"bot_token": "123", "chat_ids": ["1", "2"], '
+        '"chat_title": "t", "bot_username": "b", "captured_at": "now"}}}'
+    )
+    loaded = load_alerts()
+    assert loaded.telegram.chat_labels == ()
+
+
+def test_load_mismatched_chat_labels_length_is_dropped(_isolated_alerts_file: Path) -> None:
+    """A hand-edited file where chat_labels no longer lines up with chat_ids
+    is not trusted -- better an empty tuple than a label on the wrong id."""
+    _isolated_alerts_file.parent.mkdir(parents=True, exist_ok=True)
+    _isolated_alerts_file.write_text(
+        '{"channels": {"telegram": {"bot_token": "123", "chat_ids": ["1", "2"], '
+        '"chat_labels": ["only-one"], '
+        '"chat_title": "t", "bot_username": "b", "captured_at": "now"}}}'
+    )
+    loaded = load_alerts()
+    assert loaded.telegram.chat_labels == ()
+
+
 def test_redaction_telegram_token() -> None:
     # 35 chars after the colon, matching the real Telegram token secret length
     # (\d{8,10}:[A-Za-z0-9_-]{35}\b) -- the ticket's own 34-char sample string

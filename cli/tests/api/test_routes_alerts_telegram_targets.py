@@ -51,12 +51,11 @@ def test_put_targets_not_configured_is_422(client: TestClient) -> None:
 
 
 def test_put_targets_replaces_the_list(client: TestClient) -> None:
+    """Pure numeric/negative ids need no Bot API call at all."""
     _seed_telegram()
-    res = client.put(
-        "/api/alerts/channels/telegram/targets", json={"targets": "111, -100222, @person"}
-    )
+    res = client.put("/api/alerts/channels/telegram/targets", json={"targets": "111, -100222"})
     assert res.status_code == 200
-    assert res.json()["telegram"]["targets"] == "111,-100222,@person"
+    assert res.json()["telegram"]["targets"] == "111,-100222"
 
 
 def test_put_targets_bad_entry_is_422_naming_the_value(client: TestClient) -> None:

@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 import click
 
 from findplus.alerts.channels.telegram import send, telegram_setup
+from findplus.alerts.channels.telegram_targets import resolve_targets
 from findplus.alerts.channels.webhook import build_payload, is_valid_url, send_webhook
 from findplus.alerts.store import (
     WebhookCreds,
@@ -28,7 +29,6 @@ from findplus.alerts.store import (
     mask_phone,
     save_channel,
 )
-from findplus.alerts.targets import parse_targets
 
 
 def register(alerts_cmd: click.Group) -> None:
@@ -82,16 +82,22 @@ def telegram_targets_cmd(targets: str) -> None:
     TARGETS accepts your own numeric user id, a group/supergroup id (negative,
     e.g. -1001234567890), an @username, or several of any of those separated
     by commas. Telegram must already be connected (`telegram-setup`) -- this
-    only edits which chats an already-connected bot notifies.
+    only edits which chats an already-connected bot notifies. An @username is
+    resolved against Telegram before it is saved; a person who has never
+    messaged the bot is rejected rather than silently stored unusable.
     """
     existing = load_alerts()
     if not existing.telegram:
         raise click.ClickException("Telegram not configured -- run telegram-setup first")
     try:
-        chat_ids = tuple(parse_targets(targets))
-    except ValueError as exc:
+        resolved = resolve_targets(targets, existing.telegram.bot_token)
+    except (ValueError, RuntimeError) as exc:
         raise click.ClickException(str(exc)) from exc
-    save_channel(telegram=dataclasses.replace(existing.telegram, chat_ids=chat_ids))
+    chat_ids = tuple(r.chat_id for r in resolved)
+    chat_labels = tuple(r.label for r in resolved)
+    save_channel(
+        telegram=dataclasses.replace(existing.telegram, chat_ids=chat_ids, chat_labels=chat_labels)
+    )
     click.echo(f"Telegram targets set: {', '.join(chat_ids)}")
 
 

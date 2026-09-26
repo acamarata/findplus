@@ -28,7 +28,8 @@ from dataclasses import dataclass
 
 import httpx
 
-from findplus.alerts.store import TelegramCreds, is_valid_bot_token, save_channel
+from findplus.alerts.store import TelegramCreds, is_valid_bot_token, load_alerts, save_channel
+from findplus.alerts.targets import MAX_TARGETS
 
 TELEGRAM_BASE = "https://api.telegram.org/bot"
 
@@ -186,6 +187,29 @@ def _print_setup_instructions(username: str) -> None:
     )
 
 
+def _merge_target(
+    chat_ids: tuple[str, ...], chat_labels: tuple[str, ...], new_id: str, new_label: str
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Add (or refresh) one chat into an existing target list, capped at MAX_TARGETS.
+
+    Pressing Connect again used to replace the whole list with the one chat
+    just captured (P14) -- this merges it in instead. An id already present
+    has its label refreshed rather than being duplicated; a list already at
+    the cap drops its oldest entry for the new one.
+    """
+    ids = list(chat_ids)
+    labels = list(chat_labels) if len(chat_labels) == len(chat_ids) else list(chat_ids)
+    if new_id in ids:
+        labels[ids.index(new_id)] = new_label
+    else:
+        ids.append(new_id)
+        labels.append(new_label)
+    if len(ids) > MAX_TARGETS:
+        overflow = len(ids) - MAX_TARGETS
+        ids, labels = ids[overflow:], labels[overflow:]
+    return tuple(ids), tuple(labels)
+
+
 def _handle_update(u: dict, token: str, username: str) -> dict | None:
     """Process one getUpdates item; None unless it is a usable chat-connect message.
 
@@ -193,26 +217,36 @@ def _handle_update(u: dict, token: str, username: str) -> dict | None:
     and privacy mode is on, and `channel_post` the only one a channel sends.
     Without both, group and channel setup hangs until the timeout for no
     visible reason.
+
+    Merges the captured chat into the existing target list when the bot
+    token is unchanged (P14); a different token means a different bot, so
+    the previous bot's targets are replaced rather than carried over.
     """
     msg = u.get("message") or u.get("channel_post") or u.get("my_chat_member")
     if not msg:
         return None
     chat = msg["chat"]
+    chat_id = str(chat["id"])
+    label = chat.get("title") or chat.get("username") or "private"
+    existing = load_alerts().telegram
+    if existing and existing.bot_token == token:
+        chat_ids, chat_labels = _merge_target(
+            existing.chat_ids, existing.chat_labels, chat_id, label
+        )
+    else:
+        chat_ids, chat_labels = (chat_id,), (label,)
     creds = TelegramCreds(
         bot_token=token,
-        # This connect flow always establishes exactly one target -- adding
-        # more is the "Find chat IDs" helper (list_chats() below) or typing
-        # them straight into the targets field, both of which PUT the whole
-        # list at once rather than accumulating one message at a time here.
-        chat_ids=(str(chat["id"]),),
-        chat_title=chat.get("title") or chat.get("username") or "private",
+        chat_ids=chat_ids,
+        chat_labels=chat_labels,
+        chat_title=label,
         bot_username=username,
         captured_at=datetime.datetime.now(datetime.UTC).isoformat(),
     )
     save_channel(telegram=creds)
-    send("Find+ connected ✓", token, str(chat["id"]))
+    send("Find+ connected ✓", token, chat_id)
     return {
-        "chat_id": str(chat["id"]),
+        "chat_id": chat_id,
         "chat_title": creds.chat_title,
         "chat_type": chat["type"],
         "bot_username": username,
@@ -252,10 +286,14 @@ def list_chats(token: str, timeout: float = 10.0) -> list[dict]:
             continue
         chat = msg["chat"]
         chat_id = str(chat["id"])
+        # A private chat's own `username` is normally the person's, but some
+        # updates carry it only on `message.from` -- fall back there so
+        # telegram_targets.resolve_targets can still match them by @name.
+        username = chat.get("username") or (msg.get("from") or {}).get("username")
         seen[chat_id] = {
             "id": chat_id,
             "type": chat["type"],
             "title": chat.get("title") or chat.get("username") or chat.get("first_name") or "",
-            "username": chat.get("username"),
+            "username": username,
         }
     return list(seen.values())

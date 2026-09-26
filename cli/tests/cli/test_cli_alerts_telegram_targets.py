@@ -36,16 +36,16 @@ def test_telegram_targets_not_configured(tmp_db: str) -> None:
 
 
 def test_telegram_targets_sets_the_list(tmp_db: str) -> None:
+    """Pure numeric/negative ids need no Bot API call at all."""
     _seed_telegram()
-    result = CliRunner().invoke(main, ["alerts", "telegram-targets", "111, -100222, @person"])
+    result = CliRunner().invoke(main, ["alerts", "telegram-targets", "111, -100222"])
     assert result.exit_code == 0, result.output
     assert "111" in result.output
     assert "-100222" in result.output
-    assert "@person" in result.output
 
     from findplus.alerts.store import load_alerts
 
-    assert load_alerts().telegram.chat_ids == ("111", "-100222", "@person")
+    assert load_alerts().telegram.chat_ids == ("111", "-100222")
 
 
 def test_telegram_targets_bad_entry_names_the_value(tmp_db: str) -> None:

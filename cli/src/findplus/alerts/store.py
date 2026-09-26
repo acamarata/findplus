@@ -34,6 +34,12 @@ class TelegramCreds:
     chat_title: str
     bot_username: str
     captured_at: str
+    #: One label per chat_ids entry, same order and length -- '@name' for a
+    #: person, a group/channel's title, or the id itself when nothing better
+    #: is known (alerts/channels/telegram_targets.py resolves these at save
+    #: time). Empty on a file saved before this field existed, or on any
+    #: mismatch with chat_ids -- callers fall back to showing the raw id.
+    chat_labels: tuple[str, ...] = ()
 
     @property
     def chat_id(self) -> str:
@@ -104,7 +110,11 @@ def _telegram_creds_from_dict(tg: dict) -> TelegramCreds:
     one-item tuple is the whole of the backward-compat contract here -- an
     upgraded install keeps sending to the same chat with no migration step
     and no data loss (an empty/missing value on either key becomes `()`,
-    never a crash on a hand-edited file).
+    never a crash on a hand-edited file). `"chat_labels"` is newer still --
+    missing entirely on any file written before it existed, and dropped
+    rather than trusted if its length ever stops matching chat_ids (a
+    hand-edited file, or one from a build that changed one but not the
+    other).
     """
     tg = dict(tg)
     if "chat_ids" in tg:
@@ -113,7 +123,10 @@ def _telegram_creds_from_dict(tg: dict) -> TelegramCreds:
         single = tg.pop("chat_id", "")
         chat_ids = [single] if single else []
     tg.pop("chat_id", None)  # a dict carrying both keys keeps chat_ids only
-    return TelegramCreds(chat_ids=tuple(chat_ids), **tg)
+    chat_labels = tuple(tg.pop("chat_labels", None) or ())
+    if len(chat_labels) != len(chat_ids):
+        chat_labels = ()
+    return TelegramCreds(chat_ids=tuple(chat_ids), chat_labels=chat_labels, **tg)
 
 
 def load_alerts() -> AlertsChannels:

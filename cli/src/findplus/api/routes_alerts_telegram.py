@@ -29,8 +29,8 @@ from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel
 
 from findplus.alerts.channels.telegram import _get_me, list_chats, send, telegram_setup
+from findplus.alerts.channels.telegram_targets import resolve_targets
 from findplus.alerts.store import TelegramCreds, is_valid_bot_token, load_alerts, save_channel
-from findplus.alerts.targets import parse_targets
 from findplus.api._alerts_channels_response import channels_response
 
 
@@ -70,21 +70,34 @@ def put_telegram(body: TelegramPutBody) -> dict[str, Any]:
     existing = load_alerts()
     raw_targets = body.targets if body.targets is not None else body.chat_id
     if raw_targets:
-        try:
-            chat_ids: tuple[str, ...] = tuple(parse_targets(raw_targets))
-        except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        chat_ids, chat_labels = _resolve_or_422(raw_targets, body.bot_token)
     else:
         chat_ids = existing.telegram.chat_ids if existing.telegram else ()
+        chat_labels = existing.telegram.chat_labels if existing.telegram else ()
     creds = TelegramCreds(
         bot_token=body.bot_token,
         chat_ids=chat_ids,
+        chat_labels=chat_labels,
         chat_title=existing.telegram.chat_title if existing.telegram else "",
         bot_username=me_result["username"],
         captured_at=datetime.now(UTC).isoformat(),
     )
     save_channel(telegram=creds)
     return channels_response()
+
+
+def _resolve_or_422(raw_targets: str, bot_token: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """resolve_targets(), turning its errors into the HTTPExceptions every
+    Telegram-targets route needs (put_telegram and put_telegram_targets share
+    this rather than duplicating the try/except twice).
+    """
+    try:
+        resolved = resolve_targets(raw_targets, bot_token)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return tuple(r.chat_id for r in resolved), tuple(r.label for r in resolved)
 
 
 def put_telegram_targets(body: TelegramTargetsBody) -> dict[str, Any]:
@@ -97,11 +110,10 @@ def put_telegram_targets(body: TelegramTargetsBody) -> dict[str, Any]:
     existing = load_alerts()
     if not existing.telegram:
         raise HTTPException(status_code=422, detail="Telegram not configured")
-    try:
-        chat_ids = tuple(parse_targets(body.targets))
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    save_channel(telegram=dataclasses.replace(existing.telegram, chat_ids=chat_ids))
+    chat_ids, chat_labels = _resolve_or_422(body.targets, existing.telegram.bot_token)
+    save_channel(
+        telegram=dataclasses.replace(existing.telegram, chat_ids=chat_ids, chat_labels=chat_labels)
+    )
     return channels_response()
 
 

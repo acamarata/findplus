@@ -218,6 +218,19 @@ def as_utc(value: datetime.datetime | str | None) -> datetime.datetime | None:
     return value if value.tzinfo else value.replace(tzinfo=datetime.UTC)
 
 
+def _fmt_local_time(dt: datetime.datetime) -> str:
+    """ "Sep 26, 2:12 PM EDT" -- the exact format the delivery log's own row
+    uses for every timestamp it shows (alerts_deliveries.js's
+    fmtDeliveryTime()), so a delivery's rendered body never reads a
+    different clock than its own row for the same instant (UAT7 N06,
+    superseding the old same-day/full-date "HH:MM ZZZ" split from R-P2-31:
+    always spelling out the date is strictly more honest than the old
+    conditional omission, never less). `dt` must already be in the zone to
+    render -- callers pass an already zone-converted value."""
+    hour12 = dt.strftime("%I").lstrip("0") or "12"
+    return f"{dt.strftime('%b')} {dt.day}, {hour12}:{dt.strftime('%M %p %Z')}"
+
+
 def local_zone() -> datetime.tzinfo:
     """The local timezone render_message() renders alert text in.
 
@@ -234,24 +247,23 @@ def local_zone() -> datetime.tzinfo:
 def render_message(event: DeviceEvent | GroupEvent, now: datetime.datetime) -> str:
     """One alert line-set.
 
-    Two honesty rules are load-bearing here, because an alert arrives with no
-    surrounding context:
-      - a bare "Observed 14:20" reads as today, so the date is spelled out
-        whenever the observation fell on a different local day than now;
-      - with no `fetched_at` the lag is unknown, not zero. Printing "0 min
-        late" would claim the report was instant.
+    Two honesty rules matter here, since an alert arrives with no context:
+      - a bare "14:20" reads as today, so Observed/reported always carry the
+        full date via `_fmt_local_time()` -- the same formatter the delivery
+        log's own row uses (UAT7 N06, R-P2-31 superseding the old same-day/
+        full-date split, which read differently between the two surfaces);
+      - with no `fetched_at` the lag is unknown, not zero ("0 min late"
+        would claim the report was instant).
 
-    Rendered in the local timezone of the machine running Find+ -- this text
-    is what a person reads on a WhatsApp/Telegram/desktop notification, not
-    an API payload (the API's own timestamp fields stay UTC ISO-8601; only
-    this rendered body is local). Both times always carry their zone
-    abbreviation (e.g. "14:32 EDT") so the text stays unambiguous on its own,
-    including when the reader is in a different zone than the machine that
-    rendered it. A prior version of this function forced UTC here to chase a
-    CI-vs-local snapshot mismatch (P2); that mismatch was the zone
-    abbreviation itself being untested across zones, not a reason to drop
-    local time -- fixed by pinning TZ in the tests instead (see
-    cli/tests/conftest.py `pinned_tz`).
+    Rendered in the local timezone of the machine running Find+, with a zone
+    abbreviation on both times (e.g. "2:32 PM EDT") so the text stays
+    unambiguous for a reader in a different zone (pin TZ via
+    cli/tests/conftest.py `pinned_tz` for deterministic tests).
+
+    `now` is no longer read here (the dropped same-day check was its only
+    use) but stays in the signature: dispatch.py/retry.py call every
+    render_message() at a fixed instant regardless, and dropping the
+    parameter would only churn every call site for no behaviour change.
     """
     subject = event.device_name if isinstance(event, DeviceEvent) else event.group_name
     verb = "arrived at" if event.event_type == "ENTER" else "left"
@@ -259,9 +271,8 @@ def render_message(event: DeviceEvent | GroupEvent, now: datetime.datetime) -> s
     ft = as_utc(getattr(event, "fetched_at", None))
     zone = local_zone()
     observed_local = observed.astimezone(zone)
-    same_day = observed_local.date() == now.astimezone(zone).date()
-    obs = observed_local.strftime("%H:%M %Z" if same_day else "%Y-%m-%d %H:%M %Z")
-    rep = ft.astimezone(zone).strftime("%H:%M %Z") if ft else "unknown"
+    obs = _fmt_local_time(observed_local)
+    rep = _fmt_local_time(ft.astimezone(zone)) if ft else "unknown"
     lag = f"{round((ft - observed).total_seconds() / 60)} min late" if ft else "lag unknown"
     note = getattr(event, "note", "")
     msg = (

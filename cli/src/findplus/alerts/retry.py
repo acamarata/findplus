@@ -209,9 +209,10 @@ def _retry_one(session, row, channels_cfg, now: datetime.datetime) -> None:
         return
 
     # R7: render with the row's own first-attempt time, not this retry's
-    # `now` -- render_message()'s only time-dependent choice (same-day vs.
-    # full-date formatting) must not drift attempt to attempt; a retry
-    # sends the exact text the first attempt would have. `now` below (the
+    # `now` -- a retry sends the exact text the first attempt would have
+    # (render_message() no longer reads `now` for its content at all since
+    # UAT7 N06 dropped the old same-day/full-date split, but row.sent_at is
+    # still the correct instant to render regardless). `now` below (the
     # real current time) is still used for the retry ladder's own math.
     status, err, status_code, retry_after = _status_for(
         row.channel, rule, event, row.event_kind, channels_cfg, row.sent_at, row.target

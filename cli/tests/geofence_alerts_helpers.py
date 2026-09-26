@@ -51,8 +51,12 @@ _ALERTS_ON = types.SimpleNamespace(alerts_enabled=True)
 
 
 def local_time(base: datetime, minutes_ago: float) -> str:
-    """The exact local "HH:MM ZZZ" render_message() prints for this offset (R-P2-31)."""
-    return (base - timedelta(minutes=minutes_ago)).astimezone(ZoneInfo(ZONE)).strftime("%H:%M %Z")
+    """The exact local time render_message() prints for this offset (R-P2-31,
+    updated by UAT7 N06 to the delivery log row's own "Sep 26, 2:12 PM EDT"
+    format -- see dispatch_core._fmt_local_time())."""
+    from findplus.alerts.dispatch_core import _fmt_local_time
+
+    return _fmt_local_time((base - timedelta(minutes=minutes_ago)).astimezone(ZoneInfo(ZONE)))
 
 
 def _telegram_cfg():
@@ -136,7 +140,10 @@ def assert_message(
     tail = f"\nConfidence: {confidence}." + (f" {note}" if note else "")
     assert tail in text, text
     assert text.endswith(ALERTS_LATENCY), text
-    assert re.search(r"reported (\d{2}:\d{2} \w+|unknown) · (\d+ min late|lag unknown)", text), text
+    assert re.search(
+        r"reported (\w+ \d{1,2}, \d{1,2}:\d{2} [AP]M \w+|unknown) · (\d+ min late|lag unknown)",
+        text,
+    ), text
 
 
 def seed_home(session, base: datetime) -> None:

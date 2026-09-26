@@ -33,14 +33,19 @@ def _pin_render_tz(pinned_tz):
     pinned_tz("UTC")
 
 
+#: UAT7 N06 (R-P2-31): render_message() now uses the delivery log row's own
+#: "Sep 26, 2:12 PM EDT" time format for both Observed and reported, always
+#: dated -- pinned_tz("UTC") above keeps this snapshot deterministic on any
+#: host, matching dispatch_core._fmt_local_time() applied to the seeded
+#: 2026-09-20T12:00:00+00:00 instant.
 _DEVICE_BODY = (
-    "Observed 2026-09-20 12:00 UTC · reported 12:00 UTC · 0 min late\n"
+    "Observed Sep 20, 12:00 PM UTC · reported Sep 20, 12:00 PM UTC · 0 min late\n"
     "Confidence: high.\n"
     "Alerts inherit the network's delay. An arrival or departure may be "
     "reported minutes to hours late."
 )
 _GROUP_BODY = (
-    "Observed 2026-09-20 12:00 UTC · reported unknown · lag unknown\n"
+    "Observed Sep 20, 12:00 PM UTC · reported unknown · lag unknown\n"
     "Confidence: medium. 2 of 3 tags entered Home; 1 tag has no recent fix.\n"
     "Alerts inherit the network's delay. An arrival or departure may be "
     "reported minutes to hours late."

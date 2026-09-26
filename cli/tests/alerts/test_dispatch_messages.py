@@ -43,22 +43,28 @@ def test_unknown_lag_is_not_reported_as_zero() -> None:
     assert "reported unknown" in msg
 
 
-def test_message_omits_the_date_for_a_same_day_observation() -> None:
+def test_message_always_uses_the_delivery_log_rows_own_time_format() -> None:
+    """UAT7 N06 (R-P2-31): Observed/reported render through the exact same
+    formatter as the delivery log's own row ("Sep 26, 2:12 PM EDT") -- always
+    dated, 12-hour, zone abbreviation -- so the same instant never reads on
+    two different clocks between a row and its own expanded body."""
     from findplus.alerts.dispatch import render_message
 
     msg = render_message(_device_event(), NOW)
     observed_local = NOW.astimezone(dispatch_core.local_zone())
-    assert f"Observed {observed_local:%H:%M %Z} ·" in msg
-    assert f"{observed_local:%Y-%m-%d}" not in msg
+    expected = dispatch_core._fmt_local_time(observed_local)
+    assert f"Observed {expected} ·" in msg
 
 
-def test_message_spells_out_the_date_when_the_observation_is_not_today() -> None:
-    """A bare "Observed 14:20" in a notification reads as today."""
+def test_message_spells_out_the_date_for_a_past_observation_too() -> None:
+    """A bare "14:20" in a notification reads as today; the date is never
+    dropped, whether the observation happened today or two days ago."""
     from findplus.alerts.dispatch import render_message
 
     observed = NOW - timedelta(days=2)
     msg = render_message(_device_event(observed_at=observed, fetched_at=NOW), NOW)
-    assert f"Observed {observed.astimezone(dispatch_core.local_zone()):%Y-%m-%d %H:%M %Z} ·" in msg
+    expected = dispatch_core._fmt_local_time(observed.astimezone(dispatch_core.local_zone()))
+    assert f"Observed {expected} ·" in msg
     assert len(msg) <= 400
 
 

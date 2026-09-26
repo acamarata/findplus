@@ -144,10 +144,11 @@ def test_retry_of_an_unconfigured_channel_is_skipped_not_failed(
 
 
 def test_retry_renders_the_same_text_the_first_attempt_would(rule_row, session, settings_enabled):
-    """R7: render_message()'s only time-dependent choice is same-day vs.
-    full-date formatting. A retry due the next local day must still render
-    the exact text the first attempt rendered, not a version that suddenly
-    grew a date because the retry landed later."""
+    """R7: render_message()'s content is keyed off the source event's own
+    observed_at/fetched_at, never off the `now` it is called with (UAT7 N06
+    dropped the old same-day/full-date split, which was the only way `now`
+    ever reached the rendered text). A retry due days later must still
+    render the exact text the first attempt rendered."""
     captured: list[str] = []
 
     def _capturing_send(text, *args, **kwargs):
@@ -157,7 +158,7 @@ def test_retry_renders_the_same_text_the_first_attempt_would(rule_row, session, 
     _seed_and_process(rule_row, session, settings_enabled, _timeout())
     row = session.query(AlertDelivery).one()
 
-    much_later = row.sent_at + timedelta(days=2)  # crosses the same-day boundary
+    much_later = row.sent_at + timedelta(days=2)
     with (
         patch("findplus.alerts.store.load_alerts", return_value=_telegram_configured()),
         patch("findplus.alerts.channels.telegram.send", side_effect=_capturing_send),
@@ -165,15 +166,24 @@ def test_retry_renders_the_same_text_the_first_attempt_would(rule_row, session, 
         process_retries(session, now=much_later)
 
     assert len(captured) == 1
-    # Sanity: rendering with `much_later` as "now" would have produced a
-    # DIFFERENT string (the observation is no longer "today") -- this proves
-    # the test can fail, not just that some string was sent.
     from findplus.alerts.dispatch_core import render_message
 
     first_attempt_text = render_message(_device_event_from_row(session, row), row.sent_at)
+    # Same `now`-independence proven the other way: rendering the identical
+    # event at the much-later `now` still produces byte-identical text --
+    # this is the real R7 guarantee now that no formatting choice reads
+    # `now` at all.
     later_rendered_text = render_message(_device_event_from_row(session, row), much_later)
     assert captured[0] == first_attempt_text
-    assert first_attempt_text != later_rendered_text
+    assert first_attempt_text == later_rendered_text
+    # Sanity: render_message is still sensitive to its actual inputs (not a
+    # constant) -- a different observed event renders different text.
+    import dataclasses
+
+    other_event = dataclasses.replace(
+        _device_event_from_row(session, row), place_name="A Completely Different Place"
+    )
+    assert render_message(other_event, row.sent_at) != first_attempt_text
 
 
 def _device_event_from_row(session, row):

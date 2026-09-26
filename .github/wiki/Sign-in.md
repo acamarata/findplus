@@ -16,12 +16,16 @@ captured.
 If the sign-in cannot start or does not finish, the card says why in plain
 words and offers **Try again**. That covers an error from the Find+ service, a
 service Find+ cannot reach, a sign-in that expired or ran past 5 minutes, and a
-failure Chrome reported.
+failure Chrome reported. A **Cancel** button appears the moment you click
+Connect, while Find+ is opening Chrome and while it is waiting for you to
+finish signing in, so you are never stuck waiting out the 5-minute timeout to
+back out.
 
 The buttons are Find+'s own, not Google's or Apple's sign-in buttons. Find+
 does not use either company's sign-in service: it drives a Chrome sign-in for
-Find Hub and an Apple ID sign-in for Find My, and it is not affiliated with
-either company.
+Find Hub and an Apple ID sign-in for Find My. Every card says so itself, right
+under its own heading: "Find+ is not affiliated with Apple or Google. Find Hub
+and Find My are their trademarks."
 
 Chrome runs in a profile directory of its own, `~/.findplus/chrome-profile`.
 That directory holds the cookies and history of this sign-in only. Your personal
@@ -32,11 +36,11 @@ browser does.
 If Chrome is not installed, the button is disabled and the card says:
 
 > Google Chrome was not found on this machine. Google sign-in drives Chrome
-> directly and cannot run without it. Install it from
-> https://www.google.com/chrome/ and try again.
+> directly and cannot run without it.
 
-A **Download Google Chrome** link sits under it. Once Chrome is installed,
-click **Check again**.
+A **Download Google Chrome** link sits right under it — the notice does not
+also print the raw URL, so there is one way to get Chrome, not two. Once
+Chrome is installed, click **Check again**.
 
 What a Find Hub account gives you:
 
@@ -112,6 +116,40 @@ add-accessory` takes the same plist or base64 key from the terminal, and
 `findplus apple list` shows what is registered. The same thing is reachable
 over the API at `POST /api/apple/accessories`.
 
+## Sign out
+
+Once a card shows "Signed in as ...", a **Disconnect** button appears next to
+it, on both the dashboard's Settings > Sign-in and the setup wizard. Clicking
+it opens an inline confirm row (never a native browser popup) that says what
+disconnecting does and does not do, then a second click carries it out.
+
+Disconnecting **Google** removes Find+'s own copy of your Google credentials
+(`~/.findplus/secrets.json`): the AAS/ADM tokens, FCM credentials and the
+end-to-end owner key. Your Google account itself is untouched; nothing is
+revoked on Google's side.
+
+Disconnecting **Apple** removes the saved session (`~/.findplus/apple-account.json`).
+Any accessory keys you registered (AirTags, other Find My trackers) are kept:
+they are your own imported keys, not something Find+ generated for the
+session, and they are what let Find+ keep decrypting that accessory's future
+reports once you sign back in.
+
+Either way, **tracked devices and their history stay**. Disconnecting only
+removes the credential; it does not stop tracking a device, delete a place,
+group or alert rule, or clear anything from the map. Sign in again any time to
+resume seeing new locations for the same devices.
+
+From the terminal:
+
+```bash
+findplus auth --sign-out --provider google-find-hub
+findplus auth --sign-out --provider apple-find-my
+```
+
+or over the API, `DELETE /api/auth/google-find-hub` / `DELETE
+/api/auth/apple-find-my` (loopback-only, behind the app lock, and requiring the
+same `Origin`/`Sec-Fetch-Site` header the sign-in routes do).
+
 ## Security
 
 Every sign-in route is loopback-only, like the rest of the API, and sits behind
@@ -127,12 +165,15 @@ findplus auth
 findplus auth --provider apple-find-my
 findplus auth --status
 findplus auth --status --json
+findplus auth --sign-out --provider google-find-hub
 ```
 
 `findplus auth` is the terminal-only flow and behaves the same as it always
 has. `findplus auth --status` prints which providers you are signed in to, as
 which account, and what is still missing; `--json` prints the same object the
-dashboard reads from `GET /api/auth/status`.
+dashboard reads from `GET /api/auth/status`. `--sign-out` removes that
+provider's credential and exits; see [Sign out](#sign-out) above for exactly
+what it does and does not remove.
 
 Signing in is also step 2 of the [first-run wizard](First-run).
 

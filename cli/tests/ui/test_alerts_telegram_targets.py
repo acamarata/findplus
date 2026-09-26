@@ -217,3 +217,78 @@ async def test_send_test_reports_per_target_results(page, base_url, configured_t
     status = await page.locator("#fp-tg-status").inner_text()
     assert "11111" in status and "sent" in status
     assert "22222" in status and "blocked" in status
+
+
+async def test_targets_disabled_until_a_bot_is_connected(page, base_url, ui_env):
+    """UAT6 N15: Targets/Save targets/Find chat IDs used to be live before a
+    bot was ever connected, only answering "Telegram not configured" once
+    clicked -- disabled here instead, with a one-line reason in their place."""
+    Path(ui_env["FINDPLUS_STATE_DIR"], "alerts.json").write_text(json.dumps({"channels": {}}))
+    # open_alerts_tab() (conftest.py) waits for data-fp-ready="alerts", set at
+    # the end of alerts.js's refreshAll() -- after loadChannels() has already
+    # rendered this (unconfigured) state, so there is nothing left to race.
+    await open_alerts_tab(page, base_url)
+    for control_id in ("fp-tg-targets", "fp-tg-save-targets", "fp-tg-find-chats"):
+        assert await page.is_disabled(f"#{control_id}"), control_id
+    reason = page.locator("#fp-tg-targets-disabled-reason")
+    assert await reason.is_visible()
+    assert (await reason.inner_text()).strip() != ""
+
+
+async def test_current_targets_render_as_removable_chips(page, base_url, configured_telegram):
+    """channels_response()'s target_labels (falling back to the raw id, this
+    fixture's target has no chat_labels) render as one chip per target,
+    each with its own remove control -- alerts_telegram_targets.js."""
+    await open_alerts_tab(page, base_url)
+    chips = page.locator("#fp-tg-current-targets li")
+    await chips.first.wait_for(state="visible")
+    assert await chips.count() == 1
+    text = await chips.first.inner_text()
+    assert "11111" in text
+    for control_id in ("fp-tg-targets", "fp-tg-save-targets", "fp-tg-find-chats"):
+        assert not await page.is_disabled(f"#{control_id}"), control_id
+
+
+async def test_removing_a_chip_saves_the_remaining_targets(page, base_url, ui_env):
+    """Two saved targets; removing one PUTs the other alone, and the removed
+    chip disappears once the server confirms it.
+
+    Hits the real PUT .../targets route (no page.route mock, unlike the
+    tests above) -- both targets are pure numeric ids, which resolve_targets()
+    passes through with no Bot API call, but it checks the token's SHAPE
+    first regardless; FAKE_TOKEN fails that shape check on purpose (it is
+    never sent to a mocked route in the tests that use it), so this one test
+    seeds a token shaped like a real BotFather one instead.
+    """
+    shaped_token = "9876543210:ABCdefGHIjklMNOpqrSTUvwxyz012345678"
+    path = Path(ui_env["FINDPLUS_STATE_DIR"]) / "alerts.json"
+    path.write_text(
+        json.dumps(
+            {
+                "channels": {
+                    "telegram": {
+                        "bot_token": shaped_token,
+                        "chat_ids": ["11111", "22222"],
+                        "chat_title": "Test Chat",
+                        "bot_username": "test_bot",
+                        "captured_at": "2026-01-01T00:00:00+00:00",
+                    }
+                }
+            }
+        )
+    )
+    try:
+        await open_alerts_tab(page, base_url)
+        chips = page.locator("#fp-tg-current-targets li")
+        await chips.first.wait_for(state="visible")
+        assert await chips.count() == 2
+        await page.locator("#fp-tg-current-targets li", has_text="11111").locator("button").click()
+        await page.wait_for_function(
+            "document.querySelectorAll('#fp-tg-current-targets li').length === 1"
+        )
+        remaining = await chips.first.inner_text()
+        assert "22222" in remaining
+        saved = json.loads(path.read_text())["channels"]["telegram"]["chat_ids"]
+        assert saved == ["22222"]
+    finally:
+        path.write_text(json.dumps({"channels": {}}))

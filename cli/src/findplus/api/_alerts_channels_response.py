@@ -37,6 +37,26 @@ def mask_url(url: str) -> str:
     return f"{parts.scheme}://{parts.netloc}/…{tail[-4:]}"
 
 
+def _target_labels(tg) -> list[str] | None:
+    """One display label per `tg.chat_ids` entry, same order and length.
+
+    UAT6 N15: the Alerts tab used to show a saved Telegram target only as its
+    raw id ("-100222"); TelegramCreds.chat_labels (commit 58a4ac7) resolves a
+    real "@alice" or a group's title at save time, but channels_response()
+    never surfaced it. Falls back to the raw id wherever chat_labels has no
+    entry for it (an old file saved before chat_labels existed, or any
+    length mismatch) -- store.py's own load path already drops a mismatched
+    chat_labels to `()`, so this is the one place that needs the fallback.
+    """
+    if tg is None:
+        return None
+    labels = tg.chat_labels
+    return [
+        labels[i] if i < len(labels) and labels[i] else chat_id
+        for i, chat_id in enumerate(tg.chat_ids)
+    ]
+
+
 def channels_response() -> dict[str, Any]:
     ch = load_alerts()
     tg, wh, wa = ch.telegram, ch.webhook, ch.whatsapp
@@ -49,6 +69,13 @@ def channels_response() -> dict[str, Any]:
             # Comma string, matching what the targets field PUTs and reads
             # back -- ids/usernames are not secrets, so no masking.
             "targets": ",".join(tg.chat_ids) if tg else None,
+            # UAT6 N15: target_ids/target_labels are the same list as
+            # `targets`, just not comma-joined -- alerts_telegram_targets.js's
+            # chip row needs the raw id (to remove a target) and its display
+            # label (to show it) as two parallel arrays, not a string to
+            # re-split.
+            "target_ids": list(tg.chat_ids) if tg else None,
+            "target_labels": _target_labels(tg),
         },
         "webhook": {
             "configured": wh is not None,

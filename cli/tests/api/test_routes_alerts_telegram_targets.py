@@ -86,6 +86,38 @@ def test_put_targets_never_touches_the_bot_token(client: TestClient) -> None:
     assert TOKEN not in res.text
 
 
+# ------------------------------------------------- target_labels (UAT6 N15)
+def test_channels_response_pairs_target_ids_with_labels(client: TestClient) -> None:
+    """channels_response()'s target_ids/target_labels are the same list as
+    the comma-joined `targets`, just not re-splittable-ambiguous -- the
+    Alerts tab's chip row zips them by index (alerts_telegram_targets.js)."""
+    from findplus.alerts.store import AlertsChannels, TelegramCreds, save_alerts
+
+    save_alerts(
+        AlertsChannels(
+            telegram=TelegramCreds(
+                bot_token=TOKEN,
+                chat_ids=("1", "-100222", "3"),
+                chat_labels=("@alice", "Family", ""),
+                chat_title="t",
+                bot_username="b",
+                captured_at="now",
+            )
+        )
+    )
+    telegram = client.get("/api/alerts/channels").json()["telegram"]
+    assert telegram["target_ids"] == ["1", "-100222", "3"]
+    # The third target has no label (empty string) -- falls back to its id,
+    # never a blank chip.
+    assert telegram["target_labels"] == ["@alice", "Family", "3"]
+
+
+def test_channels_response_target_labels_is_none_when_unconfigured(client: TestClient) -> None:
+    telegram = client.get("/api/alerts/channels").json()["telegram"]
+    assert telegram["target_ids"] is None
+    assert telegram["target_labels"] is None
+
+
 # --------------------------------------------------------- GET .../updates
 def test_get_updates_not_configured_is_422(client: TestClient) -> None:
     res = client.get("/api/alerts/channels/telegram/updates")

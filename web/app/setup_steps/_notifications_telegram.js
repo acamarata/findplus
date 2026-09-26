@@ -48,6 +48,23 @@ function setNote(el, text, kind = "info") {
   else el.removeAttribute("role");
 }
 
+/** UAT7-N11: the token, targets, phone and API-key fields across the
+ * Notifications step had a placeholder as their only name -- gone the moment
+ * a value is typed, and never visible at all. Wraps `input` with a real,
+ * always-visible `<label for>` instead, reusing the sign-in step's own
+ * `.fp-signin-field`/`.fp-signin-label` pair rather than a second copy of the
+ * same two rules in setup.css. */
+function labeledField(id, labelText, input, extraClass = "") {
+  const wrap = document.createElement("div");
+  wrap.className = extraClass ? `fp-signin-field ${extraClass}` : "fp-signin-field";
+  const label = document.createElement("label");
+  label.className = "fp-signin-label";
+  label.htmlFor = id;
+  label.textContent = labelText;
+  wrap.append(label, input);
+  return wrap;
+}
+
 function addTargetToField(field, chatId) {
   const existing = field.value
     .split(",")
@@ -68,7 +85,7 @@ function renderChatsList(list, statusEl, targetsField, chats) {
   for (const chat of chats) {
     const li = document.createElement("li");
     const label = document.createElement("span");
-    label.textContent = `${chat.title || chat.username || chat.id} (${chat.type}) — ${chat.id}`;
+    label.textContent = `${chat.title || chat.username || chat.id} (${chat.type}) · ${chat.id}`;
     const addBtn = document.createElement("button");
     addBtn.type = "button";
     addBtn.className = "btn btn-secondary";
@@ -136,8 +153,10 @@ function targetsControls(value, ctx) {
   const targets = document.createElement("input");
   targets.type = "text";
   targets.id = "fp-setup-tg-targets";
-  targets.placeholder = t("alerts.telegramTargetsPlaceholder");
-  targets.setAttribute("aria-label", t("alerts.telegramTargets"));
+  // UAT7-N11: the shared alerts.telegramTargetsPlaceholder clipped to
+  // "...separated by" at 375px; this step gets its own shorter placeholder
+  // rather than shortening the Alerts tab's (wider, unclipped) copy too.
+  targets.placeholder = t("setup.notifications.telegram_targets_placeholder");
   targets.disabled = !connected;
   if (connected) targets.value = value.targets || "";
 
@@ -163,7 +182,8 @@ function targetsControls(value, ctx) {
   const actions = document.createElement("div");
   actions.className = "fp-alerts-actions";
   actions.append(saveBtn, findBtn);
-  frag.append(targets, help, actions, targetsStatus, chatsList);
+  const targetsField = labeledField(targets.id, t("alerts.telegramTargets"), targets);
+  frag.append(targetsField, help, actions, targetsStatus, chatsList);
 
   function enable() {
     targets.disabled = false;
@@ -209,10 +229,12 @@ function buildConnectRow(section, value, ctx, targetsHandle) {
   token.type = "password";
   token.id = "fp-setup-tg-token";
   token.placeholder = t("setup.notifications.token_placeholder");
-  // UAT3 N26: placeholder-only fields have no accessible name once a value
-  // is typed (the placeholder disappears). A short, distinct label beats
-  // repeating the long instructional placeholder text as the aria-label.
-  token.setAttribute("aria-label", t("field.telegramToken"));
+  // UAT7-N11: a short, distinct visible label beats repeating the long
+  // instructional placeholder text once it disappears on input (UAT3 N26).
+  // "fp-signin-field--inline" (setup.css): this row keeps Connect beside the
+  // input, unlike the sign-in step's own full-row fields that
+  // .fp-signin-field was built for.
+  const tokenField = labeledField(token.id, t("field.telegramToken"), token, "fp-signin-field--inline");
 
   const status = document.createElement("p");
   status.className = "modal-note";
@@ -243,7 +265,7 @@ function buildConnectRow(section, value, ctx, targetsHandle) {
       token.value = "";
     }
   });
-  section.append(token, connect, status);
+  section.append(tokenField, connect, status);
 }
 
 export function telegramControls(section, value, ctx) {

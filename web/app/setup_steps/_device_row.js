@@ -16,6 +16,7 @@
 "use strict";
 
 import { t } from "../i18n.js";
+import { displayName, colorFor } from "../state.js";
 import { renderBadge } from "../components/badge.js";
 import { openEditDialog } from "../devices_dialog.js";
 
@@ -68,7 +69,10 @@ function trackBox(device, defaultChecked) {
   track.checked = device.is_tracked || defaultChecked;
   track.dataset.track = "";
   track.dataset.deviceId = device.device_id;
-  track.setAttribute("aria-label", t("setup.devices.trackFor", { name: device.name || device.device_id }));
+  // UAT7-N02: every other surface's aria-label reads the label the user
+  // gave the tracker, not the raw provider name -- displayName() is the one
+  // shared fallback chain (label, then name, then device_id).
+  track.setAttribute("aria-label", t("setup.devices.trackFor", { name: displayName(device) || device.device_id }));
   return track;
 }
 
@@ -93,7 +97,7 @@ function labelInput(ctx, device, error) {
   // input read as two distinct controls rather than "text field" x N.
   label.setAttribute(
     "aria-label",
-    t("setup.devices.labelFor", { name: device.name || device.device_id })
+    t("setup.devices.labelFor", { name: displayName(device) || device.device_id })
   );
   label.addEventListener(
     "input",
@@ -116,19 +120,24 @@ export function deviceRow(ctx, device, onClosed, defaultChecked) {
   // label input, edit button), not the simple label+control pair the
   // generic .fp-dialog-field mobile rule assumes; see responsive.css.
   row.className = "fp-dialog-field fp-setup-device-row";
+  // UAT7-N02: this row used to badge and label the device by its raw
+  // provider name, ignoring a label the user already gave it on the
+  // dashboard -- devices.js's own badgeCell()/nameCell() are the pattern
+  // every other surface follows (colour falls back to colorFor() the same
+  // way, so an unlabelled, uncoloured device still gets a stable badge).
   const badge = document.createElement("span");
   badge.className = "fp-device-badge";
   badge.append(
     renderBadge({
       icon: device.icon || "letter",
-      color: device.color,
+      color: device.color || colorFor(device.device_id),
       label: device.label,
       name: device.name,
       size: 24,
     })
   );
   const name = document.createElement("span");
-  name.textContent = device.name || device.device_id;
+  name.textContent = displayName(device) || device.device_id;
   const error = rowError();
   row.append(
     trackBox(device, defaultChecked),

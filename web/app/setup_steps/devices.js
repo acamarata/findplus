@@ -28,15 +28,23 @@
 import { t } from "../i18n.js";
 import { deviceRow } from "./_device_row.js";
 import { confirmDialog } from "../components/confirm-dialog.js";
+import { anyProviderSignedIn } from "../poll_status.js";
 
 /** The live step's elements, replaced on every render. */
 let els = null;
 /** True when the last GET /api/devices itself failed: onNext must then be a
  * true no-op, the same guarantee Skip already gives (UAT6-N03). */
 let listFailed = false;
+/** True when the last successful GET /api/devices came back with zero rows:
+ * UAT7-N10, there is nothing to tick and nothing to confirm, unlike a list
+ * that loaded with every row deliberately unticked. */
+let isEmptyList = false;
 
 function renderRows(ctx, devices) {
   els.list.textContent = "";
+  // UAT7-N10: an orphan "Track" column header sat above the empty state with
+  // nothing underneath it to be a column header for.
+  els.header.hidden = devices.length === 0;
   if (!devices.length) {
     const empty = document.createElement("p");
     empty.className = "fp-tab-hint";
@@ -93,15 +101,26 @@ function buildRefreshButton(ctx) {
 async function refresh(ctx) {
   els.error.textContent = "";
   let refreshError = null;
-  try {
-    await ctx.postJson("/api/devices/refresh");
-  } catch (err) {
-    refreshError = err;
+  // UAT7-N10: refresh() used to POST /api/devices/refresh unconditionally,
+  // which always 409s with no provider signed in and logged a console error
+  // on every visit to this step on a bare install. `false` is a definite
+  // answer (routes_devices.py's own 409 reason, without the doomed round
+  // trip); `null` (locked, or the lookup itself failed) keeps the old
+  // behaviour rather than guessing.
+  if ((await anyProviderSignedIn()) === false) {
+    refreshError = { status: 409, message: t("setup.devices.refresh_no_provider") };
+  } else {
+    try {
+      await ctx.postJson("/api/devices/refresh");
+    } catch (err) {
+      refreshError = err;
+    }
   }
   try {
     const body = await ctx.api("/api/devices");
     ctx.state.devices = body.devices || [];
     listFailed = false;
+    isEmptyList = ctx.state.devices.length === 0;
     renderRows(ctx, ctx.state.devices);
     if (refreshError) els.error.textContent = refreshErrorText(refreshError);
   } catch (err) {
@@ -117,6 +136,7 @@ export default {
   render(container, ctx) {
     container.textContent = "";
     listFailed = false;
+    isEmptyList = false;
     const heading = document.createElement("h2");
     heading.textContent = t("setup.devices.title");
 
@@ -124,9 +144,13 @@ export default {
     // header; each row's own checkbox also carries an aria-label
     // ("Track {name}", _device_row.js) so a screen reader announces the
     // same word even without this text sitting directly above it.
+    // UAT7-N10: hidden until refresh() knows whether there is anything to
+    // be a column header for -- renderRows() shows it once devices.length
+    // is known, rather than sitting over the empty state on first paint.
     const listHeader = document.createElement("p");
     listHeader.className = "fp-field-hint";
     listHeader.textContent = t("setup.devices.track");
+    listHeader.hidden = true;
 
     const list = document.createElement("div");
     list.id = "fp-setup-devices-list";
@@ -149,7 +173,7 @@ export default {
     // here, where the user is choosing which ones to watch.
     note.textContent = (ctx.state.config && ctx.state.config.notices.presence_stale) || "";
 
-    els = { list, error };
+    els = { list, error, header: listHeader };
     container.append(heading, listHeader, list, error, refreshBtn, note);
   },
   async onEnter(ctx) {
@@ -165,7 +189,10 @@ export default {
     // UAT U15: Next used to POST an empty track list with no word about it,
     // silently leaving nothing tracked. A row exists to tick (the empty
     // step above already returns early) but none is ticked -- ask first.
-    if (!ids.length) {
+    // UAT7-N10: a list that loaded with zero devices in it has nothing to
+    // confirm -- that prompt is for a user who deliberately unticked a row
+    // that DID exist, not a bare install with nothing to tick at all.
+    if (!ids.length && !isEmptyList) {
       const confirmed = await confirmDialog({
         title: t("common.confirm"),
         body: t("setup.devices.confirm_none_tracked"),

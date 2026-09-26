@@ -236,7 +236,7 @@ export function renderMap() {
       // a point from there instead (selectPoint() below draws its marker).
       L.polyline(latlngs, { color, weight: 3, opacity: 0.75, dashArray: "6 5", keyboard: false })
         .addTo(state.layer)
-        .bindTooltip(`${esc(shown)} — observed path; actual route between detections may differ.`);
+        .bindTooltip(`${esc(shown)}: observed path; actual route between detections may differ.`);
     }
 
     points.forEach((point, index) => {

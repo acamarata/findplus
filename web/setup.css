@@ -100,6 +100,16 @@
 #setup-view .fp-wizard-step > .btn,
 #setup-view .fp-wizard-step > .btn-secondary { margin: 4px 0 8px; }
 
+/* UAT7-N11: labeledField()'s wrapper (setup_steps/_notifications_telegram.js)
+   reuses .fp-signin-field, which is block-level and flex-stretches its input
+   to the full row width -- fine for the sign-in step's own full-row fields,
+   but the token field sits beside the Connect button on one row (UAT U17).
+   inline-flex keeps the wrapper (and the stretch it applies to its own
+   label+input) shrink-to-fit, so Connect still lands right after it. */
+/* Two classes on the selector (higher specificity than the single-class
+   .fp-signin-field rule below) so this wins regardless of source order. */
+.fp-signin-field.fp-signin-field--inline { display: inline-flex; vertical-align: top; margin-right: 8px; }
+
 #fp-setup-group-name { width: min(320px, 100%); }
 /* UAT5 N49: "Add a place" sat flush on the borrowed map's top border. */
 .fp-setup-places-add { margin-bottom: 10px; }
@@ -114,6 +124,17 @@
    class on when it renders the "No tracked devices yet" hint instead of any
    member rows. */
 #fp-setup-group-members.fp-setup-group-members-empty { border: none; padding: 0; }
+
+/* UAT7-N11: notifications.js's laterLink() gives the webhook channel's
+   "configure later" sentence a bare, unclassed <p> -- it inherited the 14px
+   body default while every other notice in this step (footnote(), used for
+   the honesty paragraphs above it) is .fp-wizard-footnote at 12px, so it read
+   visibly larger than its neighbours. Matches that size by CSS selector alone
+   rather than adding a class in notifications.js, which is outside this
+   fix's file list. */
+#setup-view section[data-channel="webhook"] > p {
+  color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0 0 12px;
+}
 
 /* --- footer: Back on the left, Skip and Next on the right ---------------- */
 .fp-wizard-footer {

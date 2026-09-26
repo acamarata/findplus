@@ -28,6 +28,22 @@
 
 import { t } from "../i18n.js";
 
+/** UAT7-N11: phone and API key had a placeholder as their only name, gone the
+ * moment a value is typed. Wraps `input` with a real, always-visible
+ * `<label for>` instead, reusing the sign-in step's own
+ * `.fp-signin-field`/`.fp-signin-label` pair (same helper
+ * _notifications_telegram.js defines for its own fields). */
+function labeledField(id, labelText, input) {
+  const wrap = document.createElement("div");
+  wrap.className = "fp-signin-field";
+  const label = document.createElement("label");
+  label.className = "fp-signin-label";
+  label.htmlFor = id;
+  label.textContent = labelText;
+  wrap.append(label, input);
+  return wrap;
+}
+
 function clearMaskedToken(el) {
   if (el.classList.contains("fp-token-masked")) {
     el.value = "";
@@ -98,13 +114,13 @@ export function whatsappControls(section, value, ctx) {
   phone.type = "text";
   phone.id = "fp-setup-wa-phone";
   phone.placeholder = t("alerts.whatsapp.phonePlaceholder");
-  // UAT3 N26: placeholder-only field, no accessible name once typed into.
-  // Same wording the Settings tab's own <label> shows for this field
-  // (web/partials/alerts.html), so a screen reader and a sighted Settings
-  // user hear/read the same thing.
-  phone.setAttribute("aria-label", t("alerts.whatsapp.phone"));
+  // UAT7-N11: a real, visible label instead of an aria-label that vanished
+  // along with the placeholder once typed into (UAT3 N26). Same wording the
+  // Settings tab's own <label> shows for this field (web/partials/alerts.html),
+  // so a screen reader and a sighted Settings user hear/read the same thing.
+  const phoneField = labeledField(phone.id, t("alerts.whatsapp.phone"), phone);
   const apikey = buildApikeyInput(configured);
-  apikey.setAttribute("aria-label", t("alerts.whatsapp.apikey"));
+  const apikeyField = labeledField(apikey.id, t("alerts.whatsapp.apikey"), apikey);
 
   const status = document.createElement("p");
   status.className = "modal-note";
@@ -134,5 +150,5 @@ export function whatsappControls(section, value, ctx) {
   actions.className = "fp-alerts-actions";
   actions.append(save, test);
 
-  section.append(phone, apikey, actions, status);
+  section.append(phoneField, apikeyField, actions, status);
 }

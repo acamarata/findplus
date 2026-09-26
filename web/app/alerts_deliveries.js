@@ -93,6 +93,18 @@ function cell(text, label) {
   return td;
 }
 
+/** A labelled `<td>` left genuinely empty (no placeholder text) when there is
+ *  nothing to show -- UAT7 N06: components-panels.css's phone-tier
+ *  `td:empty { display: none }` only ever fires on an ACTUALLY empty cell;
+ *  Kind/Text/Body used to fill it with the "—" placeholder instead, so that
+ *  rule never matched and a phone card carried three blank labelled rows for
+ *  every native/webhook delivery (which has no kind-independent text of its
+ *  own). Desktop shows a blank cell instead of the dash for the same three
+ *  columns -- an empty table cell reads as "nothing here" there too. */
+function cellOrEmpty(text, label) {
+  return cell(text || "", label);
+}
+
 /** Text/Body (notifications.md §2's rendered message) render for every
  *  channel now (UAT3 N18: the server used to render it only when the
  *  request itself was filtered to `?channel=native`, so the unfiltered
@@ -108,15 +120,19 @@ function cell(text, label) {
  *  values collapse behind a native `<details>` once they are long enough to
  *  squeeze the 360px pane (U9); a short value renders plainly. */
 function detailsCell(text, label, threshold = 30) {
-  const value = text || t("common.emptyValue");
-  if (!text || text.length <= threshold) return cell(value, label);
+  // UAT7 N06: a genuinely empty cell here (never the "—" placeholder) so
+  // components-panels.css's phone-tier `td:empty` rule actually hides a
+  // native/webhook row's unused Text/Body cells instead of showing a blank
+  // "Text —" line for every one of them.
+  if (!text) return cellOrEmpty(text, label);
+  if (text.length <= threshold) return cell(text, label);
   const td = document.createElement("td");
   td.dataset.label = label;
   const details = document.createElement("details");
   const summary = document.createElement("summary");
-  summary.textContent = value.slice(0, threshold) + "…";
+  summary.textContent = text.slice(0, threshold) + "…";
   const body = document.createElement("p");
-  body.textContent = value;
+  body.textContent = text;
   details.append(summary, body);
   td.appendChild(details);
   return td;
@@ -137,6 +153,11 @@ const ERROR_PATTERNS = [
   [/NameResolution|getaddrinfo|Name or service not known|ConnectionError|HTTPSConnectionPool|HTTPConnectionPool|Connection refused|Network is unreachable/i, "alerts.deliveries.errorNetwork"],
   [/timed? ?out|TimeoutError|ReadTimeout|ConnectTimeout/i, "alerts.deliveries.errorTimeout"],
   [/\b401\b|\b403\b|Unauthorized|Forbidden|invalid token|bot was blocked/i, "alerts.deliveries.errorAuth"],
+  // UAT7 N06: dispatch_send.py's own skip reason, verbatim ("telegram is not
+  // configured") -- this used to fall through to the generic "Couldn't
+  // deliver to {channel}." below, which reads like an attempted, failed send
+  // rather than a channel dispatch never even tried.
+  [/is not configured/i, "alerts.deliveries.errorNotConnected"],
 ];
 
 /** The short catalog sentence for a raw error string, or the generic
@@ -156,22 +177,38 @@ function errorCell(delivery) {
   const td = document.createElement("td");
   td.dataset.label = label;
   if (raw) {
-    td.textContent = delivery.error ? friendlyErrorText(raw, delivery.channel) : raw;
+    const friendly = delivery.error ? friendlyErrorText(raw, delivery.channel) : raw;
+    // UAT7 N06: a skipped delivery never even tried to send -- prefixing the
+    // reason with "Skipped:" keeps it from reading like an attempted, failed
+    // one (that distinction already exists in the Status column, but the
+    // Error cell is what a person actually reads for "why").
+    td.textContent =
+      delivery.status === "skipped" ? t("alerts.deliveries.skippedReason", { reason: friendly }) : friendly;
     td.title = raw;
   }
   return td;
 }
 
-function buildDeliveryRow(delivery) {
+/** UAT7 N06: the Target column used to show a Telegram row's raw chat id
+ *  ("-1001234567890") -- `labelMap` (the account's own saved
+ *  target_ids/target_labels, fetched once per table load) resolves it to
+ *  the same display label the chip row/rule dialog use, falling back to the
+ *  id itself for a target with no known label (or no channel with a
+ *  per-target concept at all, which never had a value here anyway). */
+function targetCell(delivery, labelMap) {
+  const value = delivery.target ? labelMap[delivery.target] || delivery.target : "";
+  return cell(value || t("common.emptyValue"), t("alerts.colDeliveryTarget"));
+}
+
+function buildDeliveryRow(delivery, labelMap) {
   const tr = document.createElement("tr");
   tr.append(
     cell(delivery.rule_name || t("alerts.ruleFallback", { id: delivery.rule_id }), t("alerts.colRule")),
     cell(delivery.channel ? t("alerts.channels." + delivery.channel) : t("common.emptyValue"), t("alerts.colChannel")),
-    // '' for every channel with no per-target concept; a telegram row's own
-    // target (chat id/username) otherwise -- the per-target outcome the
-    // owner asked "send test" and the delivery log both surface.
-    cell(delivery.target || t("common.emptyValue"), t("alerts.colDeliveryTarget")),
-    cell(delivery.event_kind ? t("alerts.kinds." + delivery.event_kind) : t("common.emptyValue"), t("alerts.colKind")),
+    targetCell(delivery, labelMap),
+    // UAT7 N06: genuinely empty (never the "—" placeholder) when there is no
+    // kind -- see cellOrEmpty()'s own docstring.
+    cellOrEmpty(delivery.event_kind ? t("alerts.kinds." + delivery.event_kind) : "", t("alerts.colKind")),
     detailsCell(delivery.text, t("alerts.deliveries.text")),
     detailsCell(delivery.body, t("alerts.deliveries.body")),
     cell(sentText(delivery), t("alerts.colSent")),
@@ -184,15 +221,36 @@ function buildDeliveryRow(delivery) {
   return tr;
 }
 
-export function renderDeliveriesTable(deliveries) {
+export function renderDeliveriesTable(deliveries, labelMap = {}) {
   const tbody = $("fp-deliveries-tbody");
   if (!tbody) return;
   while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
-  deliveries.forEach((delivery) => tbody.appendChild(buildDeliveryRow(delivery)));
+  deliveries.forEach((delivery) => tbody.appendChild(buildDeliveryRow(delivery, labelMap)));
+}
+
+/** The account's saved Telegram target labels as `{id: label}` -- targetCell()
+ *  above. Failure (fetch error, or Telegram never connected) reads as "no
+ *  labels known", the same "unknown, don't block" posture
+ *  alerts_rule_channels.js's connectedChannels() already uses; the Target
+ *  column then falls back to the raw id, same as before this fix. */
+async function fetchTelegramLabelMap() {
+  try {
+    const ch = await api("/api/alerts/channels");
+    const tg = ch.telegram || {};
+    const ids = tg.target_ids || [];
+    const labels = tg.target_labels || [];
+    return Object.fromEntries(ids.map((id, i) => [id, labels[i] || id]));
+  } catch (_) {
+    return {};
+  }
 }
 
 export async function loadDeliveries() {
-  renderDeliveriesTable(await api("/api/alerts/deliveries"));
+  const [deliveries, labelMap] = await Promise.all([
+    api("/api/alerts/deliveries"),
+    fetchTelegramLabelMap(),
+  ]);
+  renderDeliveriesTable(deliveries, labelMap);
 }
 
 /** lock.js purgeRenderedData() hook: rule and place names must not survive the lock. */

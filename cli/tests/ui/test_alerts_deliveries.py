@@ -68,9 +68,13 @@ async def _assert_delivery_row_cells(row) -> None:
     assert cells[2] == "—"
     # UAT4 N32: text/body render for every channel now; event_id 4242 was
     # never seeded, so the source event is purged like a native one would
-    # be, and the dash is the honest answer for any channel in that state.
-    assert cells[4] == "—"
-    assert cells[5] == "—"
+    # be. UAT7 N06: a missing Text/Body is a genuinely EMPTY cell now, not
+    # the "—" placeholder -- components-panels.css's phone-tier
+    # `td:empty { display: none }` only ever matches an actually empty cell,
+    # so a placeholder here meant three blank labelled rows on every phone
+    # card with nothing to show.
+    assert cells[4] == ""
+    assert cells[5] == ""
     # UAT6 N17: this row is 'failed' but still carries a real sent_at --
     # showing "—" for it (gating Sent on status) was the exact bug the
     # finding named ("'Sent —' on a failed row that has a sent_at"). Sent

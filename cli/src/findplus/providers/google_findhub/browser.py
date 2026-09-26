@@ -170,16 +170,18 @@ def _patch_vendor_chrome(settings: Any, job_id: str) -> None:
     def _isolated_create_driver() -> _CookieWatchProxy:
         import undetected_chromedriver as uc
 
+        from findplus.providers.google_findhub.chrome_path import chrome_kwargs
+
         profile = settings.chrome_profile_dir
         profile.mkdir(parents=True, exist_ok=True)
-        # `mode=` on mkdir() is masked by the process umask (022 turns 0o700
-        # into 0o755) and does nothing at all when the directory already
-        # exists, so the mode is set as its own call. PRI hard rule 9.
+        # mkdir(mode=) is masked by the umask (0o700 -> 0o755) and skipped for an
+        # existing directory, so the mode is set as its own call. PRI rule 9.
         os.chmod(profile, 0o700)
         driver = uc.Chrome(
             options=chrome_driver.get_options(),
             version_main=None,
             user_data_dir=str(profile),
+            **chrome_kwargs(),  # Google Chrome, never a PATH chromium (chrome_path.py)
         )
         # Recorded so cancel_google_auth() can quit() it from another thread
         # -- the vendor's cookie wait otherwise blocks until the user

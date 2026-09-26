@@ -18,7 +18,7 @@
 
 import { api } from "./api.js";
 import { displayName } from "./state.js";
-import { t } from "./i18n.js";
+import { t, plural } from "./i18n.js";
 import { renderBadge } from "./components/badge.js";
 import { showAddDialog, openEditDialog } from "./groups_dialog.js";
 import { loadGroups, selectGroupById, clearGroup, isGroupSelected } from "./groups.js";
@@ -165,10 +165,23 @@ async function fetchVerdict(card, groupId) {
   badge.title = verdictTitle(presence);
 }
 
+/** How many alert rules point at this group -- see places.js's
+ *  countPlaceRules() docstring; AlertRule.group_id is the same
+ *  ondelete="CASCADE" FK, so this is the truth, not a guess. */
+async function countGroupRules(id) {
+  try {
+    const rules = await api("/api/alerts/rules");
+    return rules.filter((r) => Number(r.group_id) === Number(id)).length;
+  } catch (_) {
+    return 0;
+  }
+}
+
 async function onDelete(group) {
+  const ruleCount = await countGroupRules(group.id);
   const confirmed = await confirmDialog({
-    title: t("common.delete"),
-    body: t("groups.confirm.delete", { name: group.name }),
+    title: t("groups.confirm.delete", { name: group.name }),
+    body: ruleCount > 0 ? plural("groups.confirm.deleteRules", ruleCount, { count: ruleCount }) : "",
     confirmLabel: t("common.delete"),
     danger: true,
   });

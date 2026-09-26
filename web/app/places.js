@@ -23,7 +23,7 @@
 
 import { api } from "./api.js";
 import { state, showAlert, fmtAgeMinutes, esc } from "./state.js";
-import { t } from "./i18n.js";
+import { t, plural } from "./i18n.js";
 import { initDialog, openEditDialog, purgeDialog, showAddDialog } from "./places_dialog.js";
 import * as placesList from "./places_list.js";
 import * as placesEvents from "./places_events.js";
@@ -147,11 +147,26 @@ export async function editPlace(id) {
   openEditDialog(id, place);
 }
 
+/** How many alert rules point at this place, so the delete confirm can say
+ *  the truth: `AlertRule.place_id` is `ondelete="CASCADE"` (models_alerts.py),
+ *  so deleting the place really does delete these rows too, not just orphan
+ *  them. Falls back to 0 (sentence omitted) if the rules fetch itself fails --
+ *  losing the count is better than blocking the delete over it. */
+async function countPlaceRules(id) {
+  try {
+    const rules = await api("/api/alerts/rules");
+    return rules.filter((r) => Number(r.place_id) === Number(id)).length;
+  } catch (_) {
+    return 0;
+  }
+}
+
 export async function deletePlace(id) {
   const place = placesById.get(String(id));
+  const ruleCount = await countPlaceRules(id);
   const confirmed = await confirmDialog({
-    title: t("common.delete"),
-    body: t("places.confirmDelete", { name: place ? place.name : id }),
+    title: t("places.confirmDelete", { name: place ? place.name : id }),
+    body: ruleCount > 0 ? plural("places.confirmDeleteRules", ruleCount, { count: ruleCount }) : "",
     confirmLabel: t("common.delete"),
     danger: true,
   });

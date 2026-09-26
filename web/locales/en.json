@@ -190,7 +190,11 @@
       "delete": "Delete {name}"
     },
     "confirm": {
-      "delete": "Delete group \"{name}\"?"
+      "delete": "Delete group \"{name}\"?",
+      "deleteRules": {
+        "one": "Its 1 alert rule is deleted too.",
+        "other": "Its {count} alert rules are deleted too."
+      }
     }
   },
   "icons": {
@@ -216,6 +220,10 @@
     "addPlace": "Add place",
     "tabHint": "Use Add place to create a geofence.",
     "confirmDelete": "Delete place \"{name}\"?",
+    "confirmDeleteRules": {
+      "one": "Its 1 alert rule is deleted too.",
+      "other": "Its {count} alert rules are deleted too."
+    },
     "deleteFailed": "Could not delete that place ({status}).",
     "duplicateName": "A place named {name} already exists.",
     "sinceLabel": "{place} since {time}",
@@ -481,7 +489,7 @@
     },
     "native_detail": {
       "label": "Show who and where in notifications",
-      "note": "By default, macOS notifications show a generic \"Find+ alert\" instead of who or where, because notification banners can appear on a locked screen. Turn on notification details in Settings to show the person and place. Anyone who can see the screen then sees them too."
+      "note": "By default, macOS notifications show a generic \"Find+ alert\" instead of who or where, because notification banners can appear on a locked screen. Turn on notification details in Settings to show the person and place. Anyone who can see the screen then sees the same thing."
     }
   },
   "setup": {

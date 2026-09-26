@@ -122,7 +122,8 @@ async def test_places_step_list_refreshes_after_adding_a_place(page, base_url):
         await page.wait_for_function("() => !document.getElementById('fp-place-dialog').open")
 
         await page.wait_for_function(
-            "() => document.getElementById('fp-setup-places-list')?.textContent?.includes('Grandma')",
+            "() => document.getElementById('fp-setup-places-list')"
+            "?.textContent?.includes('Grandma')",
             timeout=15000,
         )
     finally:

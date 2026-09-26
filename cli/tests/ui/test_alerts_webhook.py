@@ -75,14 +75,14 @@ async def test_webhook_save_shows_saved_status_cleared_on_edit(page, base_url):
         await page.fill("#fp-webhook-url", "http://localhost:9999/hook-n15-abcd")
         await page.click("#fp-webhook-save")
         await page.wait_for_function(
-            "document.getElementById('fp-webhook-status').textContent.trim().length > 0"
+            "document.getElementById('fp-webhook-status')?.textContent?.trim().length > 0"
         )
         status = await page.locator("#fp-webhook-status").inner_text()
         assert "saved" in status.lower()
 
         await page.fill("#fp-webhook-url", "x")
         await page.wait_for_function(
-            "document.getElementById('fp-webhook-status').textContent.trim() === ''"
+            "document.getElementById('fp-webhook-status')?.textContent?.trim() === ''"
         )
     finally:
         await page.request.delete(base_url + "/api/alerts/channels/webhook")
@@ -151,7 +151,7 @@ async def test_webhook_url_field_never_shows_the_masked_value(page, base_url):
     try:
         await open_alerts_tab(page, base_url)
         await page.wait_for_function(
-            "document.getElementById('fp-webhook-current').textContent.length > 0"
+            "document.getElementById('fp-webhook-current')?.textContent?.length > 0"
         )
         assert await page.locator("#fp-webhook-url").input_value() == ""
         placeholder = await page.locator("#fp-webhook-url").get_attribute("placeholder")
@@ -174,7 +174,7 @@ async def test_webhook_save_with_blank_field_keeps_the_existing_url(page, base_u
     try:
         await open_alerts_tab(page, base_url)
         await page.wait_for_function(
-            "document.getElementById('fp-webhook-current').textContent.length > 0"
+            "document.getElementById('fp-webhook-current')?.textContent?.length > 0"
         )
         assert await page.locator("#fp-webhook-url").input_value() == ""
         async with page.expect_response(
@@ -199,7 +199,7 @@ async def test_webhook_save_refuses_a_pasted_masked_value(page, base_url):
     await page.fill("#fp-webhook-url", "http://localhost:9999/hook/…abcd")
     await page.click("#fp-webhook-save")
     await page.wait_for_function(
-        "document.getElementById('fp-webhook-status').textContent.length > 0"
+        "document.getElementById('fp-webhook-status')?.textContent?.length > 0"
     )
     status = await page.locator("#fp-webhook-status").inner_text()
     assert "masked" in status.lower()

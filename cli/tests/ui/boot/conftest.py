@@ -200,6 +200,6 @@ def _unlock(page: Page) -> None:
     # actually run. Waiting for that text to be gone works regardless of
     # which day is showing.
     page.wait_for_function(
-        "() => !document.getElementById('tracks').textContent.includes('No devices tracked yet')",
+        "() => !document.getElementById('tracks')?.textContent?.includes('No devices tracked yet')",
         timeout=20000,
     )

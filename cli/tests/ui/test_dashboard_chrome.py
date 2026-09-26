@@ -87,7 +87,7 @@ async def test_the_footer_says_find_plus_is_not_affiliated(page, base_url):
     await _boot(page, base_url, 1280, 800)
     footer = page.locator("#fp-footer-not-affiliated")
     await page.wait_for_function(
-        "() => document.getElementById('fp-footer-not-affiliated').textContent !== ''"
+        "() => (document.getElementById('fp-footer-not-affiliated')?.textContent ?? '') !== ''"
     )
     assert await footer.text_content() == honesty.NOT_AFFILIATED
 

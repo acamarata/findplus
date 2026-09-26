@@ -122,7 +122,7 @@ async def test_refresh_failure_still_lists_known_devices_and_keeps_their_trackin
     assert await boxes.count() == 1
     assert await boxes.first.is_checked()
     await page.wait_for_function(
-        "() => document.getElementById('fp-setup-devices-error').textContent.length > 0",
+        "() => document.getElementById('fp-setup-devices-error')?.textContent?.length > 0",
         timeout=15000,
     )
 

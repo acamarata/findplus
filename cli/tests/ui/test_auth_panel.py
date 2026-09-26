@@ -60,7 +60,7 @@ async def _open_settings_settled(page, base_url) -> None:
     """
     await _open_settings(page, base_url)
     await page.wait_for_function(
-        "() => document.getElementById('fp-auth-google-status').textContent !== ''"
+        "() => (document.getElementById('fp-auth-google-status')?.textContent ?? '') !== ''"
     )
 
 
@@ -91,7 +91,7 @@ async def test_auth_status_cards_render_not_signed_in(page, base_url) -> None:
     expected = (await _catalog(page, base_url))["signin"]["account"]["signedOut"]
 
     await page.wait_for_function(
-        "(text) => document.getElementById('fp-auth-google-status').textContent === text",
+        "(text) => document.getElementById('fp-auth-google-status')?.textContent === text",
         arg=expected,
     )
     assert await page.locator("#fp-auth-google-status").inner_text() == expected
@@ -169,7 +169,7 @@ async def test_the_chrome_honesty_sentence_comes_from_the_server(page, base_url)
     """Never typed into the markup: notices.js fills it from /api/config."""
     await _open_settings(page, base_url)
     await page.wait_for_function(
-        "() => document.getElementById('fp-auth-chrome-notice').textContent.length > 0"
+        "() => document.getElementById('fp-auth-chrome-notice')?.textContent?.length > 0"
     )
     assert await page.locator("#fp-auth-chrome-notice").inner_text() == _CHROME_NOTICE_TEXT
 
@@ -213,7 +213,7 @@ async def test_the_lock_purge_empties_the_sign_in_panel(page, base_url) -> None:
     """
     await _open_settings(page, base_url)
     await page.wait_for_function(
-        "() => document.getElementById('fp-auth-google-status').textContent !== ''"
+        "() => (document.getElementById('fp-auth-google-status')?.textContent ?? '') !== ''"
     )
     await page.fill("#fp-auth-apple-id", "someone@example.com")
     await page.fill("#fp-auth-apple-password", "not-a-real-password")
@@ -295,6 +295,6 @@ async def test_in_flight_status_response_does_not_repopulate_after_purge(page, b
         }"""
     )
     await page.wait_for_function(
-        "(text) => document.getElementById('fp-auth-google-status').textContent === text",
+        "(text) => document.getElementById('fp-auth-google-status')?.textContent === text",
         arg=expected,
     )

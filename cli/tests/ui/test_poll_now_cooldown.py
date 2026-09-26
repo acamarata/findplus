@@ -45,7 +45,7 @@ async def test_two_quick_clicks_send_one_poll_request(page, base_url):
     await page.evaluate("document.getElementById('btn-poll').click()")
 
     await page.wait_for_function(
-        "() => document.getElementById('btn-poll').textContent !== 'Polling…'",
+        "() => (document.getElementById('btn-poll')?.textContent ?? '') !== 'Polling…'",
         timeout=15000,
     )
     assert len(calls) == 1

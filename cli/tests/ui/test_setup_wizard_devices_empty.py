@@ -83,7 +83,7 @@ async def test_empty_devices_list_skips_the_refresh_post_when_no_provider_is_sig
     await page.goto(base_url + "/#/setup")
     await page.wait_for_selector("#fp-setup-devices-list", timeout=15000)
     await page.wait_for_function(
-        "() => document.getElementById('fp-setup-devices-list').textContent.length > 0",
+        "() => document.getElementById('fp-setup-devices-list')?.textContent?.length > 0",
         timeout=15000,
     )
 
@@ -108,7 +108,7 @@ async def test_refresh_still_posts_when_a_provider_is_signed_in(page, base_url):
     await page.goto(base_url + "/#/setup")
     await page.wait_for_selector("#fp-setup-devices-list", timeout=15000)
     await page.wait_for_function(
-        "() => document.getElementById('fp-setup-devices-list').textContent.length > 0",
+        "() => document.getElementById('fp-setup-devices-list')?.textContent?.length > 0",
         timeout=15000,
     )
 
@@ -124,7 +124,7 @@ async def test_empty_devices_list_has_no_track_header(page, base_url):
     await page.goto(base_url + "/#/setup")
     await page.wait_for_selector("#fp-setup-devices-list", timeout=15000)
     await page.wait_for_function(
-        "() => document.getElementById('fp-setup-devices-list').textContent.length > 0",
+        "() => document.getElementById('fp-setup-devices-list')?.textContent?.length > 0",
         timeout=15000,
     )
 
@@ -147,7 +147,7 @@ async def test_empty_devices_list_next_has_no_confirm_and_posts_empty_list(page,
     await page.goto(base_url + "/#/setup")
     await page.wait_for_selector("#fp-setup-devices-list", timeout=15000)
     await page.wait_for_function(
-        "() => document.getElementById('fp-setup-devices-list').textContent.length > 0",
+        "() => document.getElementById('fp-setup-devices-list')?.textContent?.length > 0",
         timeout=15000,
     )
 

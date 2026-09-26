@@ -84,11 +84,21 @@ export function verdictLabel(presence) {
   return reporting === 1 ? t("groups.verdictOnlyOneReporting") : t("groups.verdictPartial");
 }
 
-/** U21: a plain-word explanation for the "Diverged" badge — empty for every
- * other verdict, so callers can always set it as a `title` unconditionally. */
+/** U21: a plain-word explanation for the "Diverged" pill — empty for every
+ * other verdict, so callers can always set it as a `title` unconditionally.
+ * UAT7-N07: verdictLabel() above downgrades the pill text itself from
+ * "Diverged" to "Partial" once a stale member makes "Diverged" an overclaim;
+ * this must describe what the pill actually says, not what the raw diverged
+ * flag alone would have said -- the same hasStaleMember condition, checked
+ * the same way, decides which sentence applies. */
 export function verdictTitle(presence) {
-  const diverged = presence.verdict === "partial" && presence.diverged && presence.diverged.length > 0;
-  return diverged ? t("groups.verdictDivergedHint") : "";
+  if (presence.verdict !== "partial") return "";
+  const reporting = presence.reporting_count;
+  const considered = presence.considered_count;
+  const hasStaleMember = considered != null && reporting < considered;
+  const hasDiverged = presence.diverged && presence.diverged.length > 0;
+  if (!hasDiverged) return "";
+  return hasStaleMember ? t("groups.verdictPartialHint") : t("groups.verdictDivergedHint");
 }
 
 export function ageLabel(member) {

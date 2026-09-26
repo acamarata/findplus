@@ -12,6 +12,50 @@ Versioning: [Semantic Versioning](https://semver.org/).
   existing rule keeps behaving exactly as before) and can be narrowed to one or a few. The
   CLI's equivalent is `findplus alerts rules add/edit --telegram-target <id>` (repeatable) and
   `--telegram-all`.
+- Sign-in cards for both Google and Apple now have a Disconnect button, so you can remove a
+  stored account without losing the trackers or history it already collected. The CLI has the
+  same option: `findplus auth --sign-out --provider google` (or `apple`).
+- A Cancel button appears while Google sign-in is waiting on Chrome, so you can back out of a
+  stuck sign-in instead of force-quitting the app.
+- The place dialog's "Pick on map" now shows the real coordinates as you drag the pin and adds
+  a draggable handle on the radius circle itself, so you can resize a geofence without typing
+  a number.
+- A "Recent arrivals and departures" panel on the Places tab lists each device's or group's
+  last few entries and exits.
+- A Telegram target chip now shows the person's or chat's actual name once it resolves, typing
+  an @username looks it up and turns it into a chat id automatically, and "Find chat IDs" marks
+  a chat you have already added instead of offering to add it again.
+- `findplus alerts rules edit` brings the CLI in line with the dashboard: change a rule's name,
+  place, on-enter/on-exit, channels, cooldown or enabled state without deleting and recreating
+  it.
+
+### Changed
+- Every remaining native confirm, prompt and alert popup is now an in-app dialog that matches
+  the rest of Find+, including the delete confirmations for places, groups and alert rules and
+  the history-deletion prompts.
+- The default theme now follows your system's light/dark setting instead of always starting
+  in dark mode.
+- Deleting a place or group that still has alert rules attached now says so in the confirmation,
+  and how many rules go with it.
+- Dialog titles, Cancel buttons and controls for a channel you have not connected yet got a
+  consistent style pass across Settings, sign-in and Alerts: a title now reads as the actual
+  question instead of repeating the button below it, and a disabled control now looks and acts
+  disabled instead of only failing once clicked.
+- Delivery-log errors, chat labels and timestamps read in plain, consistent language instead of
+  raw server text or mismatched time formats.
+
+### Fixed
+- A device refresh that failed partway through setup no longer wipes your already-tracked
+  device list; if the refresh fails, your existing choices are kept.
+- Saving alert settings without changing the webhook URL no longer overwrites it with the
+  masked placeholder shown on screen, which used to silently break the webhook.
+- A newly created place now asks for one confirmed arrival before it counts as "arrived",
+  not two.
+- The lock screen no longer lets a still-loading dashboard reappear behind it.
+- Dashboard controls (Settings, the tabs, and the rest of the top bar) are wired up before the
+  page finishes loading, so an early click during a slow load is never silently dropped.
+- A group's presence tooltip could describe a headline the pill itself no longer showed; layout
+  and heading alignment are also cleaned up across the Places, Groups and Alerts side panels.
 
 ## [1.1.2] - 2026-09-25
 

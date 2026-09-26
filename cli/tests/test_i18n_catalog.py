@@ -104,6 +104,51 @@ def _resolve(catalog: dict, key: str) -> str | None:
     return node if isinstance(node, str) else None
 
 
+#: Em dash and en dash: GCI style bans both as clause connectors (UAT7-N08).
+#: Built with chr() rather than a literal (RUF001): both look identical to a
+#: hyphen in most editors, which is exactly the ambiguity this test catches.
+_DASH_CONNECTOR_CHARS = (chr(0x2014), chr(0x2013))
+
+#: A single dash standing alone as a "no value yet" placeholder (state.js's
+#: age/date formatters, the dashboard's stat cards, common.emptyValue) is a
+#: different, legitimate convention -- not a connector joining two clauses.
+_DASH_PLACEHOLDER_VALUES = set(_DASH_CONNECTOR_CHARS)
+
+#: Dot-path keys allowed to keep a dash connector: text copied verbatim from
+#: honesty.py's NOTICES (test_honesty_block_matches_notices_value_for_value
+#: above pins the two byte-for-byte), which specs/honesty.md, README.md and
+#: .github/wiki/Settings.md all quote with the same dash --
+#: packaging/scripts/lint-prose.sh's own EM_DASH_ALLOWED list carries the
+#: identical exception for the identical reason. Never add a UI-authored key
+#: here; only a value generated from a pinned, external source belongs.
+_DASH_ALLOWED_KEYS = {"honesty.nativeGeneric"}
+
+
+def _walk_strings(node, path=""):
+    """Every string leaf of a nested catalog namespace, as (dot.path, value)."""
+    if isinstance(node, str):
+        yield path, node
+    elif isinstance(node, dict):
+        for key, value in node.items():
+            yield from _walk_strings(value, f"{path}.{key}" if path else key)
+
+
+def test_catalog_values_have_no_dash_connectors():
+    """UAT7-N08: an em/en dash joining two clauses reads as a stand-in for a
+    period or semicolon (GCI human-tone rule). Catches en.json.nativeGeneric's
+    twin under settings.native_detail.note, Find chat IDs rows and the map
+    tooltip -- fixed by editing en.json/map.js/_notifications_telegram.js
+    directly, so this test exists to keep the namespace clean going forward."""
+    catalog = _catalog()
+    offenders = []
+    for path, value in _walk_strings(catalog):
+        if value in _DASH_PLACEHOLDER_VALUES or path in _DASH_ALLOWED_KEYS:
+            continue
+        if any(ch in value for ch in _DASH_CONNECTOR_CHARS):
+            offenders.append(f"{path}: {value!r}")
+    assert not offenders, "\n".join(offenders)
+
+
 def test_every_static_t_call_key_resolves_in_the_catalog():
     """A literal `t("dotted.key")` whose key is missing from en.json renders
     the raw key on screen -- i18n.js's fallback-of-last-resort. This caught

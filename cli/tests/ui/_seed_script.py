@@ -18,7 +18,7 @@ from datetime import UTC, datetime, timedelta
 from findplus.db.migrate import upgrade_to_head
 from findplus.db.models import Device
 from findplus.db.session import session_scope
-from findplus.findhub.types import RawObservation
+from findplus.providers.google_findhub.types import RawObservation
 from findplus.groups.repo import create_group
 from findplus.ingest import ingest_observations, upsert_device
 from findplus.places.repo import create_place

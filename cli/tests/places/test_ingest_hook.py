@@ -5,11 +5,11 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from findplus.findhub.types import RawObservation
 from sqlalchemy import select
 
 from findplus.db.models import LocationObservation, Place, PlaceEvent, PlaceState
 from findplus.ingest import ingest_observations
+from findplus.providers.google_findhub.types import RawObservation
 
 T0 = datetime(2026, 9, 1, 12, 0, 0, tzinfo=UTC)
 

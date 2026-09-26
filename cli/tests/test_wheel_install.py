@@ -138,7 +138,7 @@ def _build_and_extract_sdist(tmp_path: Path, repo_root: Path) -> Path:
     extracted = tmp_path / "extracted"
     extracted.mkdir()
     with tarfile.open(tarballs[0]) as tf:
-        tf.extractall(extracted)
+        tf.extractall(extracted, filter="data")
     with tarfile.open(tarballs[0]) as tf:
         sdist_names = tf.getnames()
 

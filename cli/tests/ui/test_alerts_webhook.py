@@ -19,7 +19,11 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 async def test_remove_webhook_round_trips(page, base_url):
     """loop2 B3: removeWebhook() had the same raw-fetch bug as
     clearTelegramChannel() -- this pins the successful path actually clears
-    the saved webhook, not just that the button no longer throws."""
+    the saved webhook, not just that the button no longer throws.
+
+    UAT7 N05: Remove now confirms first (a destructive, no-undo action) --
+    the in-app dialog, never a native confirm() (page.on("dialog") would
+    fail this suite if one fired)."""
     save = await page.request.put(
         base_url + "/api/alerts/channels/webhook",
         data=json.dumps({"url": "http://localhost:9999/hook-remove-me", "secret": None}),
@@ -29,6 +33,8 @@ async def test_remove_webhook_round_trips(page, base_url):
 
     await open_alerts_tab(page, base_url)
     await page.click("#fp-webhook-remove")
+    await page.wait_for_selector("#fp-confirm-dialog[open]")
+    await page.locator("#fp-confirm-dialog").get_by_role("button", name="Remove").click()
     await page.wait_for_function(
         """async () => {
             const r = await fetch('/api/alerts/channels');
@@ -36,6 +42,50 @@ async def test_remove_webhook_round_trips(page, base_url):
             return body.webhook.configured === false;
         }"""
     )
+
+
+async def test_webhook_remove_disabled_until_configured(page, base_url):
+    """UAT7 N05: nothing to remove before a URL is ever saved."""
+    clear = await page.request.delete(base_url + "/api/alerts/channels/webhook")
+    assert clear.ok, await clear.text()
+    await open_alerts_tab(page, base_url)
+    assert await page.is_disabled("#fp-webhook-remove")
+
+    save = await page.request.put(
+        base_url + "/api/alerts/channels/webhook",
+        data=json.dumps({"url": "http://localhost:9999/hook-enable-remove", "secret": None}),
+        headers={"Content-Type": "application/json"},
+    )
+    assert save.ok, await save.text()
+    try:
+        await open_alerts_tab(page, base_url)
+        assert not await page.is_disabled("#fp-webhook-remove")
+    finally:
+        await page.request.delete(base_url + "/api/alerts/channels/webhook")
+
+
+async def test_webhook_save_shows_saved_status_cleared_on_edit(page, base_url):
+    """UAT7 N15: Save gave no feedback on success -- the status line stayed
+    blank. "Saved." shows once the PUT succeeds, and clears the moment the
+    URL field is edited again."""
+    clear = await page.request.delete(base_url + "/api/alerts/channels/webhook")
+    assert clear.ok, await clear.text()
+    try:
+        await open_alerts_tab(page, base_url)
+        await page.fill("#fp-webhook-url", "http://localhost:9999/hook-n15-abcd")
+        await page.click("#fp-webhook-save")
+        await page.wait_for_function(
+            "document.getElementById('fp-webhook-status').textContent.trim().length > 0"
+        )
+        status = await page.locator("#fp-webhook-status").inner_text()
+        assert "saved" in status.lower()
+
+        await page.fill("#fp-webhook-url", "x")
+        await page.wait_for_function(
+            "document.getElementById('fp-webhook-status').textContent.trim() === ''"
+        )
+    finally:
+        await page.request.delete(base_url + "/api/alerts/channels/webhook")
 
 
 async def test_webhook_save(page, base_url):

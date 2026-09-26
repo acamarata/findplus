@@ -25,6 +25,7 @@ import { $ } from "./state.js";
 import { t } from "./i18n.js";
 import { api } from "./api.js";
 import { mappedError } from "./alerts_channel_errors.js";
+import { confirmDialog } from "./components/confirm-dialog.js";
 
 /** UAT6 N16: routes_alerts_channels.py's put_webhook() 422 details are raw
  *  English -- mapped to a catalog sentence the same way Telegram's own
@@ -101,6 +102,9 @@ export function renderWebhookSection(webhook) {
       t("alerts.webhookCurrent", { url: webhook.url }) +
         (webhook.has_secret ? t("alerts.webhookSecretSet") : ""),
   );
+  // UAT7 N05: nothing to remove before a URL is ever saved -- same
+  // reasoning as Telegram/WhatsApp's own Send test/Clear (alerts_channels.js).
+  $("fp-webhook-remove").disabled = !webhookConfigured;
 }
 
 /**
@@ -139,19 +143,42 @@ export async function saveWebhook(reload) {
       body: JSON.stringify({ url: url || undefined, secret: secret || undefined }),
     });
     $("fp-webhook-secret").value = "";
+    // UAT7 N15: Save gave no feedback on success -- the status line stayed
+    // blank, which read as "did that do anything?" renderWebhookSection()
+    // (reload() below) never touches this element, so "Saved." stays put
+    // until wireWebhookStatusClear() below clears it the instant the URL
+    // field is edited again.
+    statusEl.textContent = t("alerts.webhookSaved");
     await reload();
   } catch (err) {
     if (err.message !== "Locked") statusEl.textContent = mappedError(err, WEBHOOK_VALIDATION_KEYS);
   }
 }
 
+/** UAT7 N05: Remove is a destructive, one-click action with no undo --
+ *  confirmed the same way every other delete in the app is (confirm-dialog.js). */
 export async function removeWebhook(reload) {
+  const confirmed = await confirmDialog({
+    title: t("alerts.confirmRemoveWebhook"),
+    body: t("alerts.confirmRemoveWebhookBody"),
+    confirmLabel: t("common.remove"),
+    danger: true,
+  });
+  if (!confirmed) return;
   try {
     await api("/api/alerts/channels/webhook", { method: "DELETE" });
     await reload();
   } catch (err) {
     if (err.message !== "Locked") $("fp-webhook-status").textContent = err.message;
   }
+}
+
+/** UAT7 N15: "Saved." (saveWebhook() above) is cleared the moment the URL
+ *  field is edited again, so it never lingers past the change it confirmed. */
+export function wireWebhookStatusClear() {
+  $("fp-webhook-url").addEventListener("input", () => {
+    $("fp-webhook-status").textContent = "";
+  });
 }
 
 /** lock.js purgeRenderedData() hook, via alerts_channels.js's purgeChannels():

@@ -8,7 +8,13 @@ import {
   renderTelegramTargets,
   wireTelegramTargetsControls,
 } from "./alerts_telegram_targets.js";
-import { purgeWebhook, removeWebhook, renderWebhookSection, saveWebhook } from "./alerts_webhook.js";
+import {
+  purgeWebhook,
+  removeWebhook,
+  renderWebhookSection,
+  saveWebhook,
+  wireWebhookStatusClear,
+} from "./alerts_webhook.js";
 import { mappedError } from "./alerts_channel_errors.js";
 
 /** Blanks a masked credential field the first time it is focused for editing. */
@@ -59,6 +65,12 @@ function renderTelegramSection(telegram) {
     telegram.chat_title &&
       t("alerts.connectedAsWithBot", { chat: telegram.chat_title, bot: telegram.bot_username || "" }),
   );
+  // UAT7 N05: Send test/Clear had nothing to act on before a bot was ever
+  // connected -- clicking either only ever reached the server's own "not
+  // configured" error, same reasoning UAT6 N15 already applied to the
+  // targets field/Save/Find chat IDs below.
+  $("fp-tg-test").disabled = !telegram.configured;
+  $("fp-tg-clear").disabled = !telegram.configured;
   renderTelegramTargets(telegram);
   $("fp-tg-status").textContent = "";
 }
@@ -79,6 +91,10 @@ function renderWhatsappSection(whatsapp) {
   apikey.classList.toggle("fp-token-masked", configured);
   const masked = configured && whatsapp.phone_masked;
   setVisibleText($("fp-wa-connected"), masked && t("alerts.whatsapp.connected", { phone: masked }));
+  // UAT7 N05: same reasoning as Telegram's Send test/Clear above -- nothing
+  // to test or clear before a phone/apikey is ever saved.
+  $("fp-wa-test").disabled = !configured;
+  $("fp-wa-clear").disabled = !configured;
   $("fp-wa-status").textContent = "";
 }
 async function saveWhatsapp() {
@@ -233,6 +249,7 @@ export function wireChannelControls() {
   // two files never import each other (see alerts_webhook.js's docstring).
   $("fp-webhook-save").addEventListener("click", () => saveWebhook(loadChannels));
   $("fp-webhook-remove").addEventListener("click", () => removeWebhook(loadChannels));
+  wireWebhookStatusClear();
 }
 
 /** Masks #fp-tg-token before boot's GET /api/alerts/channels resolves, so the

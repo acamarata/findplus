@@ -14,16 +14,19 @@
  *              filters "native" out off macOS; a target-picker caller passes
  *              saved chat ids), an optional `labels` map the CALLER resolves
  *              through t() (or, for chat ids, from the account's own saved
- *              labels), and an optional `connected` set (UAT U11) -- an id
- *              present in `available` but absent from `connected` is flagged
- *              (a class the caller's CSS dims, plus whatever "(not
- *              connected)" suffix the caller put in `labels`) rather than
- *              disabled: a fresh install with nothing connected yet must
- *              still be able to create its first rule (`channels` is a
- *              required, non-empty field server-side), so disabling every box
- *              would have made that impossible. `connected` omitted
- *              (null/undefined) means "flag nothing", the pre-U11 behaviour
- *              (and the only mode the target picker ever uses).
+ *              labels), and an optional `connected` set (UAT U11, disabling
+ *              added UAT7 N05) -- an id present in `available` but absent
+ *              from `connected` is flagged (a class the caller's CSS dims,
+ *              plus whatever "(not connected)" suffix the caller put in
+ *              `labels`) AND disabled: ticking it can only ever save a
+ *              channel the server's own `_require_a_connected_channel`
+ *              refuses at save time (routes_alerts_rules.py), so leaving it
+ *              tickable only let a person reach that failure instead of
+ *              avoiding it. `native` is never disabled -- it has no
+ *              credential concept and is always deliverable. `connected`
+ *              omitted (null/undefined) means "flag/disable nothing", the
+ *              pre-U11 behaviour (and the only mode the target picker ever
+ *              uses, since a saved chat id has no "connected" concept).
  * Outputs    : Checkboxes inside the host; readChannelPicker returns the checked
  *              ids, alphabetically sorted.
  * Constraints: Plain render/read functions, not a class, matching
@@ -42,7 +45,7 @@
 export function renderChannelPicker(containerEl, { selected, available, labels = {}, connected = null }) {
   containerEl.textContent = "";
   for (const id of available) {
-    const isConnected = connected === null || connected.has(id);
+    const isConnected = connected === null || id === "native" || connected.has(id);
     const label = document.createElement("label");
     label.className = "fp-channel-picker-option" + (isConnected ? "" : " fp-channel-picker-option--disconnected");
     const input = document.createElement("input");
@@ -50,6 +53,12 @@ export function renderChannelPicker(containerEl, { selected, available, labels =
     input.value = id;
     input.checked = selected.includes(id);
     input.dataset.channel = id;
+    // UAT7 N05: disabled whenever `connected` is known (not null) and this
+    // id isn't in it -- ticking an unconnected channel could only ever
+    // reach the server's own "at least one connected channel" refusal, so
+    // this prevents that round trip instead of just flagging it (see the
+    // file docstring's `connected` paragraph).
+    input.disabled = connected !== null && !isConnected;
     label.append(input, document.createTextNode(" " + (labels[id] || id)));
     containerEl.append(label);
   }

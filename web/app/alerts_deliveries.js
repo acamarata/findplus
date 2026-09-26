@@ -10,16 +10,34 @@
  * Outputs    : Rows inside #fp-deliveries-tbody.
  * Constraints: textContent only, never raw markup. alerts.js owns the wiring
  *              and re-exports purge()/refreshAll() for lock.js; this module has
- *              no top-level side effects of its own. `sent_at` renders in the
- *              viewer's local time via state.fmtDateTime, like every other
- *              timestamp in this dashboard: a raw "...+00:00" in a log of when
- *              alerts went out is read as local and misinforms by hours
- *              (honesty round 2 F14).
+ *              no top-level side effects of its own. Every timestamp in this
+ *              table (Sent, and Retrying's "next at") renders through this
+ *              file's own fmtDeliveryTime() rather than state.js's
+ *              fmtDateTime/fmtTime: UAT6 N17 found the two mixed inside this
+ *              one table (a full date+time in Sent, a bare time-of-day in
+ *              "next at") and asked for one formatter here; it also appends
+ *              the zone abbreviation, matching timeline.js's "Observed …
+ *              EDT" elsewhere in the dashboard (state.js's own formatters,
+ *              used everywhere else, carry no zone -- that is state.js's
+ *              scope, not this file's, and out of this ticket's file list).
  */
 "use strict";
-import { $, fmtDateTime, fmtTime } from "./state.js";
+import { $ } from "./state.js";
 import { api } from "./api.js";
 import { t } from "./i18n.js";
+
+/** One formatter for every timestamp this table shows -- see the module
+ *  docstring above. Returns null for a missing timestamp so each caller
+ *  decides its own "nothing to show" wording instead of a bare "—". */
+function fmtDeliveryTime(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  const datePart = d.toLocaleString([], {
+    month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+  });
+  const zone = d.toLocaleTimeString([], { timeZoneName: "short" }).split(" ").pop();
+  return `${datePart} ${zone}`;
+}
 
 // Mirrors findplus.alerts.dispatch_core.MAX_ATTEMPTS (1 initial send + 3
 // retries): the server enforces the real cap, this only picks the wording.
@@ -27,19 +45,23 @@ const MAX_DELIVERY_ATTEMPTS = 4;
 
 /**
  * "sent"/"skipped"/… go through the alerts.statuses.* catalog (UAT U22). A
- * "retrying" row reports the attempt that is coming next (attempts + 1) and
- * when; a "failed" row that used up every retry says so, distinct from a
- * "failed" row that never qualified for one (attempts stays 1 for those, per
- * notifications.md's retry ruling).
+ * "retrying" row reports the attempt that is coming next (attempts + 1) and,
+ * when the server has actually scheduled one, when; a "failed" row that used
+ * up every retry says so, distinct from a "failed" row that never qualified
+ * for one (attempts stays 1 for those, per notifications.md's retry ruling).
+ *
+ * UAT6 N17: a null `next_attempt_at` used to still render "next at —"
+ * (fmtTime()'s own placeholder for a missing value) inside the sentence,
+ * which reads as a promise the server never made -- the clause is dropped
+ * instead of filled with a dash.
  */
 function statusText(delivery) {
   const attempts = delivery.attempts || 1;
   if (delivery.status === "retrying") {
-    return t("alerts.retryingStatus", {
-      attempt: attempts + 1,
-      max: MAX_DELIVERY_ATTEMPTS,
-      time: fmtTime(delivery.next_attempt_at),
-    });
+    const nextAt = fmtDeliveryTime(delivery.next_attempt_at);
+    return nextAt
+      ? t("alerts.retryingStatus", { attempt: attempts + 1, max: MAX_DELIVERY_ATTEMPTS, time: nextAt })
+      : t("alerts.retryingStatusNoTime", { attempt: attempts + 1, max: MAX_DELIVERY_ATTEMPTS });
   }
   if (delivery.status === "failed" && attempts >= MAX_DELIVERY_ATTEMPTS) {
     return t("alerts.failedAfterRetries", { max: MAX_DELIVERY_ATTEMPTS });
@@ -47,12 +69,16 @@ function statusText(delivery) {
   return t("alerts.statuses." + delivery.status);
 }
 
-/** "Sent" reads as "this went out" -- a "failed" or still-"queued" row never
- *  did, so the timestamp (really "first attempted at", alerts/retry.py) stays
- *  out of that column for those two statuses rather than implying it (U22). */
+/**
+ * "Sent" reads as "this went out" -- gated on whether the row actually
+ * carries a `sent_at`, not on its current `status` (UAT6 N17: a row can be
+ * sent successfully and later marked failed for a downstream reason, and the
+ * old status-based gate showed "—" for it even though it really was sent at
+ * that time; a "queued" row with no `sent_at` yet still shows nothing, same
+ * as before).
+ */
 function sentText(delivery) {
-  if (delivery.status === "failed" || delivery.status === "queued") return t("common.emptyValue");
-  return fmtDateTime(delivery.sent_at);
+  return fmtDeliveryTime(delivery.sent_at) || t("common.emptyValue");
 }
 
 /** A labelled `<td>` for the phone-tier card layout (responsive.css turns
@@ -96,6 +122,46 @@ function detailsCell(text, label, threshold = 30) {
   return td;
 }
 
+/**
+ * UAT6 N17: the Error column used to show whatever the channel's own client
+ * library raised verbatim -- "HTTPSConnectionPool(host='api.telegram.org'…
+ * NameResolutionError)" -- a Python exception repr, not something a user can
+ * act on, and long enough to overflow the 375px pane on its own (no spaces
+ * for the browser to wrap on). Each pattern below is a shape the channel
+ * clients (requests/httpx under Telegram/webhook/WhatsApp) are actually
+ * known to raise; anything unrecognised still gets a short, honest fallback
+ * instead of the raw text. The raw text is never gone -- it sits in the
+ * cell's `title` (cell()'s own convention) for anyone who needs it.
+ */
+const ERROR_PATTERNS = [
+  [/NameResolution|getaddrinfo|Name or service not known|ConnectionError|HTTPSConnectionPool|HTTPConnectionPool|Connection refused|Network is unreachable/i, "alerts.deliveries.errorNetwork"],
+  [/timed? ?out|TimeoutError|ReadTimeout|ConnectTimeout/i, "alerts.deliveries.errorTimeout"],
+  [/\b401\b|\b403\b|Unauthorized|Forbidden|invalid token|bot was blocked/i, "alerts.deliveries.errorAuth"],
+];
+
+/** The short catalog sentence for a raw error string, or the generic
+ *  fallback when nothing above recognises its shape. */
+function friendlyErrorText(raw, channel) {
+  const channelName = channel ? t("alerts.channels." + channel) : t("common.emptyValue");
+  const match = ERROR_PATTERNS.find(([pattern]) => pattern.test(raw));
+  return t(match ? match[1] : "alerts.deliveries.errorGeneric", { channel: channelName });
+}
+
+/** The Error column: a short, mapped sentence as the visible text, the raw
+ *  detail (an exception repr, or the skipped-reason sentence) as the title
+ *  for anyone who wants it -- see friendlyErrorText() above. */
+function errorCell(delivery) {
+  const label = t("alerts.colError");
+  const raw = delivery.error || (delivery.status === "skipped" ? t("alerts.skippedNoReason") : "");
+  const td = document.createElement("td");
+  td.dataset.label = label;
+  if (raw) {
+    td.textContent = delivery.error ? friendlyErrorText(raw, delivery.channel) : raw;
+    td.title = raw;
+  }
+  return td;
+}
+
 function buildDeliveryRow(delivery) {
   const tr = document.createElement("tr");
   tr.append(
@@ -111,8 +177,9 @@ function buildDeliveryRow(delivery) {
     cell(sentText(delivery), t("alerts.colSent")),
     cell(statusText(delivery), t("alerts.colStatus")),
     // A "skipped" row arrived with an empty Error cell and no hint why; the
-    // API now sends the reason in `error`, and a bare skip still says so.
-    cell(delivery.error || (delivery.status === "skipped" ? t("alerts.skippedNoReason") : ""), t("alerts.colError")),
+    // API now sends the reason in `error`, and a bare skip still says so
+    // (errorCell() maps a real exception to a short sentence; UAT6 N17).
+    errorCell(delivery),
   );
   return tr;
 }

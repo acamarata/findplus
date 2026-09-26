@@ -51,6 +51,12 @@ async def test_delivery_log_shows_channel_and_status(page, base_url, ui_db):
 
     row = page.locator("#fp-deliveries-tbody tr", has_text="Delivery log rule")
     await row.wait_for(state="visible")
+    await _assert_delivery_row_cells(row)
+
+
+async def _assert_delivery_row_cells(row) -> None:
+    """The rendered-cell assertions for test_delivery_log_shows_channel_and_status,
+    split out to keep that test under the PRI rule-7 50-line cap."""
     cells = await row.locator("td").all_text_contents()
 
     # UAT U22: channel/status render through the alerts.channels/statuses
@@ -65,11 +71,20 @@ async def test_delivery_log_shows_channel_and_status(page, base_url, ui_db):
     # be, and the dash is the honest answer for any channel in that state.
     assert cells[4] == "—"
     assert cells[5] == "—"
-    # U22: "Sent" stays empty for a failed row -- it never went out at that
-    # timestamp, `sent_at` is really "first attempted at" (alerts/retry.py).
-    assert cells[6] == "—"
+    # UAT6 N17: this row is 'failed' but still carries a real sent_at --
+    # showing "—" for it (gating Sent on status) was the exact bug the
+    # finding named ("'Sent —' on a failed row that has a sent_at"). Sent
+    # now reflects whether sent_at is present, not the row's current status.
+    assert cells[6] != "—", cells[6]
+    assert ":" in cells[6], cells[6]
     assert cells[7] == "Failed"
-    assert cells[8] == "connection refused"
+    # UAT6 N17: the raw exception/detail text ("connection refused") is no
+    # longer shown directly -- it is mapped to a short sentence naming the
+    # channel, with the raw text kept in the cell's title for power users.
+    assert cells[8] != "connection refused"
+    assert "Webhook" in cells[8]
+    error_title = await row.locator("td").nth(8).get_attribute("title")
+    assert error_title == "connection refused"
 
 
 async def _open_alerts_at_viewport(page, base_url: str, viewport: dict) -> None:

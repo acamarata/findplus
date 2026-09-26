@@ -6,6 +6,8 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-09-26
+
 ### Added
 - Alert rules can now pick a subset of your saved Telegram chats instead of always messaging
   all of them: a "Telegram chats" picker on the rule dialog defaults to "All chats" (every

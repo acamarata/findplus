@@ -98,22 +98,36 @@ async def test_a_second_render_replaces_the_first(page, base_url) -> None:
     assert [r["checked"] for r in rendered] == [False, True]
 
 
-async def test_a_channel_absent_from_connected_is_flagged_not_disabled(page, base_url) -> None:
-    """UAT U11: a channel with no stored credentials is flagged (dimmed class
-    + whatever "(not connected)" suffix the caller put in its label), not
-    disabled -- a fresh install with nothing connected yet must still be able
-    to create its first rule (channels is a required, non-empty field
-    server-side), so blocking every checkbox would make that impossible."""
+async def test_a_channel_absent_from_connected_is_flagged_and_disabled(page, base_url) -> None:
+    """UAT U11 (disabling added UAT7 N05): a channel with no stored
+    credentials is flagged (dimmed class + whatever "(not connected)" suffix
+    the caller put in its label) AND disabled -- ticking it could only ever
+    reach the server's own "at least one connected channel" refusal
+    (routes_alerts_rules.py), so this prevents that round trip instead of
+    letting a person reach it."""
     rendered = await _mount(
         page, base_url, ["telegram", "webhook"], ["telegram", "webhook"], connected=["webhook"]
     )
     telegram, webhook = rendered
-    assert telegram["disabled"] is False
+    assert telegram["disabled"] is True
     assert telegram["checked"] is True, "flagged, not force-unticked"
     assert telegram["disconnected"] is True
     assert webhook["disabled"] is False
     assert webhook["checked"] is True
     assert webhook["disconnected"] is False
+
+
+async def test_native_is_never_disabled_even_when_absent_from_connected(page, base_url) -> None:
+    """native has no credential concept and is always deliverable -- it must
+    never be disabled, even though `connected` (built from telegram/webhook/
+    whatsapp credentials only) never actually lists it."""
+    rendered = await _mount(
+        page, base_url, ["native"], ["native", "webhook"], connected=["webhook"]
+    )
+    native, webhook = rendered
+    assert native["disabled"] is False
+    assert native["disconnected"] is False
+    assert webhook["disabled"] is False
 
 
 async def test_no_connected_set_means_nothing_is_flagged(page, base_url) -> None:

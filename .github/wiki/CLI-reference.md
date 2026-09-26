@@ -28,6 +28,21 @@ Create an alert rule for a place, targeting a group or a single device.
 | --cooldown | 30 |  |
 | --also-notify-members |  |  |
 
+## findplus alerts rules edit
+Edit an alert rule; only the given options change.
+
+**Usage:** `findplus alerts rules edit [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --name |  | Rename the rule. |
+| --place |  |  |
+| --enter |  |  |
+| --exit |  |  |
+| --channel |  | Repeatable; passing any --channel replaces the whole set. |
+| --cooldown |  |  |
+| --enable |  |  |
+
 ## findplus alerts rules list
 List every alert rule.
 

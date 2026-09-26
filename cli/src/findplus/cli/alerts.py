@@ -144,6 +144,72 @@ def rules_remove(id: int, yes: bool) -> None:
     click.echo("Removed.")
 
 
+@rules_cmd.command("edit")
+@click.argument("id", type=int)
+@click.option("--name", default=None, help="Rename the rule.")
+@click.option("--place", "place_id", type=int, default=None)
+@click.option("--enter/--no-enter", default=None)
+@click.option("--exit/--no-exit", "exit_", default=None)
+@click.option(
+    "--channel",
+    "channels",
+    multiple=True,
+    type=click.Choice(["telegram", "webhook", "whatsapp", "native"]),
+    help="Repeatable; passing any --channel replaces the whole set.",
+)
+@click.option("--cooldown", type=int, default=None)
+@click.option("--enable/--disable", "enabled", default=None)
+def rules_edit(
+    id: int,
+    name: str | None,
+    place_id: int | None,
+    enter: bool | None,
+    exit_: bool | None,
+    channels: tuple[str, ...],
+    cooldown: int | None,
+    enabled: bool | None,
+) -> None:
+    """Edit an alert rule; only the given options change.
+
+    Uses the same PUT /api/alerts/rules/{id} handler the dashboard's edit
+    dialog calls (api/routes_alerts_rules.py's `put_rule`/`RuleUpdate`), so
+    validation (known channels, at least one connected channel) matches the
+    UI exactly. There is no `--group`/`--device-id` here: `RuleUpdate` has no
+    such field, and the dashboard disables both target pickers while editing
+    for the same reason -- retarget a rule by removing and re-adding it.
+    """
+    from fastapi import HTTPException
+
+    from findplus.api.routes_alerts_rules import RuleUpdate, put_rule
+
+    fields: dict = {}
+    if name is not None:
+        fields["name"] = name
+    if place_id is not None:
+        fields["place_id"] = place_id
+    if enter is not None:
+        fields["on_enter"] = enter
+    if exit_ is not None:
+        fields["on_exit"] = exit_
+    if channels:
+        fields["channels"] = list(channels)
+    if cooldown is not None:
+        fields["cooldown_minutes"] = cooldown
+    if enabled is not None:
+        fields["enabled"] = enabled
+    if not fields:
+        raise click.ClickException("Provide at least one field to change")
+
+    try:
+        rule = put_rule(id, RuleUpdate(**fields))
+    except HTTPException as exc:
+        if exc.status_code == 404:
+            click.echo("Error: rule not found", err=True)
+            sys.exit(1)
+        raise click.ClickException(str(exc.detail)) from exc
+    click.echo(f"Updated rule {rule['id']}: {rule['name']}")
+
+
 @alerts_cmd.command("deliveries")
 @click.option("--limit", default=100, show_default=True)
 @click.option("--json", "as_json", is_flag=True, help="Output JSON.")

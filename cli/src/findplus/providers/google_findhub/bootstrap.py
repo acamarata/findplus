@@ -87,8 +87,61 @@ def ensure_gfmt_importable() -> Path:
 
         token_cache.set_cached_value = _set_and_harden
 
+        install_vendor_guards()
+
         _ready = True
         return vendor_path
+
+
+def _blocked_create_driver(*_args: object, **_kwargs: object):
+    """Stand-in for the vendor's browser launcher outside a user-started job.
+
+    The real one runs `pkill -f chrome` and opens Chrome. Replaced here so an
+    automatic path (a poll's decrypt) can never launch a browser or close the
+    user's; only browser.py / unlock.py install a working driver, and only for
+    the length of a job the user started, restoring this raiser afterwards.
+    """
+    from .types import BrowserLaunchBlockedError
+
+    raise BrowserLaunchBlockedError(
+        "Chrome can only be opened from a sign-in or unlock you start in Find+."
+    )
+
+
+def _blocked_retrieve_shared_key():
+    """Stand-in for the vendor's shared-key retrieval, which calls input() and
+    opens a browser. Raises the typed 'needs unlock' error instead, so a poll
+    surfaces `needs: shared_key` rather than blocking on stdin or launching
+    Chrome."""
+    from .types import SharedKeyRequiredError
+
+    raise SharedKeyRequiredError("This account's encrypted locations have not been unlocked yet.")
+
+
+def install_vendor_guards() -> None:
+    """Neutralise every vendored path that would open a browser on its own.
+
+    Idempotent and best-effort: import failures (a stripped-down environment,
+    a missing selenium) are swallowed, because a path that cannot import the
+    vendored browser code cannot launch a browser either. Called at the end of
+    ensure_gfmt_importable(), the one chokepoint every real vendor use passes.
+    """
+    with contextlib.suppress(Exception):
+        import chrome_driver
+
+        chrome_driver.create_driver = _blocked_create_driver
+    with contextlib.suppress(Exception):
+        import KeyBackup.shared_key_retrieval as shared_key_retrieval
+
+        shared_key_retrieval._retrieve_shared_key = _blocked_retrieve_shared_key
+
+
+def restore_create_driver_guard() -> None:
+    """Put the blocked create_driver back after a job installed a real one."""
+    with contextlib.suppress(Exception):
+        import chrome_driver
+
+        chrome_driver.create_driver = _blocked_create_driver
 
 
 def secrets_exist() -> bool:
@@ -120,6 +173,22 @@ def has_google_session() -> bool:
     """
     data = _read_store() or {}
     return bool(data.get("aas_token")) and bool(data.get("username"))
+
+
+def has_shared_key() -> bool:
+    """True once the Find Hub encryption key is unlocked.
+
+    Either the `shared_key` itself is stored, or the `owner_key` derived from it
+    is already cached -- with the owner key present, decryption needs no fresh
+    unlock. Either one means the "Unlock encrypted locations" step is done.
+    """
+    data = _read_store() or {}
+    return bool(data.get("shared_key")) or bool(data.get("owner_key"))
+
+
+def needs_shared_key() -> bool:
+    """True when the account is signed in but its locations are still locked."""
+    return has_google_session() and not has_shared_key()
 
 
 def describe_stored_auth() -> dict[str, object]:

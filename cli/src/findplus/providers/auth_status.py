@@ -28,9 +28,14 @@ def _needs(name: str) -> list[str]:
     missing: list[str] = []
     if name == _GOOGLE:
         from findplus.cli.doctor import check_chrome
+        from findplus.providers.google_findhub.bootstrap import needs_shared_key
 
         if not check_chrome().passed:
             missing.append("chrome")
+        # Signed in but the E2EE key is still locked: the wizard and Settings
+        # show the "Unlock encrypted locations" step until it is done.
+        if needs_shared_key():
+            missing.append("shared_key")
     elif name == _APPLE:
         from findplus.providers.apple_findmy import is_available
 

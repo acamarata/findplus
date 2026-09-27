@@ -36,6 +36,7 @@ from .types import (
     FindHubError,
     LocationTimeoutError,
     RawObservation,
+    SharedKeyRequiredError,
 )
 
 log = get_logger(__name__)
@@ -58,6 +59,23 @@ class FindHubClient:
             raise AuthRequiredError(
                 f"No Google credentials found at {self.settings.secrets_file}. "
                 "Run `findplus auth` to sign in with Chrome."
+            )
+
+    def _require_unlocked(self) -> None:
+        """Fail with the typed "needs unlock" error before any decrypt.
+
+        Decryption needs the account's E2EE key. Failing here beats making a
+        Nova request whose payload could not be decrypted, and beats letting the
+        vendored decrypt path try to open a browser for the key (the
+        install_vendor_guards() raiser stops that, but only after a wasted
+        get_eid_info() round trip).
+        """
+        from .bootstrap import needs_shared_key
+
+        if needs_shared_key():
+            raise SharedKeyRequiredError(
+                "This account's encrypted locations are locked. Unlock them once "
+                "with your Android phone's screen lock (Find+ Settings > Sign-in)."
             )
 
     def authenticate(self) -> str:
@@ -111,7 +129,7 @@ class FindHubClient:
         """
         self.require_auth()
         ensure_gfmt_importable()
-
+        self._require_unlocked()
         from Auth.fcm_receiver import FcmReceiver
         from NovaApi.ExecuteAction.LocateTracker.location_request import create_location_request
         from NovaApi.nova_request import nova_request
@@ -213,6 +231,11 @@ class FindHubClient:
                 "the account's end-to-end-encrypted data was reset. Delete "
                 f"{self.settings.secrets_file} and run `findplus auth` again."
             ) from exc
+        except SharedKeyRequiredError:
+            # The E2EE key is not unlocked (a race with the pre-check in
+            # locate()): keep it typed, so the poller reports `needs: shared_key`
+            # and not a generic decryption failure.
+            raise
         except Exception as exc:
             raise DecryptionError(f"Identity key retrieval failed: {exc}") from exc
         if identity_key is None:

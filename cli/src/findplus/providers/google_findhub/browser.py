@@ -23,11 +23,9 @@ Constraints: `cli/vendor/GoogleFindMyTools/` is never edited (PRI hard rule 8).
              - `Auth.auth_flow.input`, a blocking stdin read no daemon thread
                can answer.
 
-             Import order is the whole trick: `Auth/auth_flow.py:7` does
-             `from chrome_driver import create_driver`, which binds the name
-             once, at that module's FIRST import. `chrome_driver` must
-             therefore be imported and patched BEFORE `Auth.auth_flow` is
-             imported anywhere in the process.
+             Import order is the whole trick: `Auth/auth_flow.py:7` binds
+             `create_driver` at its FIRST import, so `chrome_driver` must be
+             patched BEFORE `Auth.auth_flow` is imported in the process.
 """
 
 from __future__ import annotations
@@ -41,7 +39,7 @@ from typing import Any
 
 from findplus.honesty import CHROME_REQUIRED as MSG_CHROME_MISSING
 
-from .bootstrap import ensure_gfmt_importable
+from .bootstrap import ensure_gfmt_importable, restore_create_driver_guard
 
 __all__ = [
     "MSG_CANCELLED",
@@ -222,6 +220,8 @@ def _run_google_auth(job_id: str, settings: Any) -> None:
         _set_progress(job_id, "failed", safe_msg[:200])
     else:
         _set_progress(job_id, "done", f"Authenticated as {email}.")
+    finally:
+        restore_create_driver_guard()  # re-arm the blocked guard the job replaced
 
 
 def start_google_auth(settings: Any) -> str:

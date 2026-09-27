@@ -49,4 +49,26 @@ class DecryptionError(FindHubError):
     """The E2EE payload could not be decrypted (usually an owner-key reset)."""
 
 
+class SharedKeyRequiredError(FindHubError):
+    """The account's Find Hub end-to-end-encryption key has not been unlocked yet.
+
+    Google encrypts Find Hub locations end to end; the key is released only to a
+    browser page that has passed the account's Android screen-lock check. Until
+    the user completes that once (the "Unlock encrypted locations" step), no
+    tracker can be decrypted. Raised INSTEAD of letting the vendored code open a
+    browser or block on stdin -- the poller turns it into a `needs: shared_key`
+    state, never a crash and never a `pkill -f chrome`.
+    """
+
+
+class BrowserLaunchBlockedError(FindHubError):
+    """A vendored path tried to launch Chrome outside a user-started Find+ job.
+
+    The upstream `chrome_driver.create_driver` runs `pkill -f chrome` and opens
+    a browser. `bootstrap.install_vendor_guards()` replaces it with a raiser so
+    an automatic path (a poll's decrypt) can never do that; only browser.py /
+    unlock.py install a real driver, for the length of a job the user started.
+    """
+
+
 from findplus.providers.base import RawObservation as RawObservation  # noqa: E402

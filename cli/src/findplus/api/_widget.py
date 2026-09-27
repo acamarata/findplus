@@ -38,18 +38,18 @@ WIDGET_STALE_AFTER_MINUTES = 90
 
 #: `PollRun.error_type` values that put the widget straight into `error`,
 #: without waiting for three consecutive failures.
-#:
 #: api-contract.md § GET /api/widget writes this set as `{auth, decrypt}`, but
 #: poller.py has never stored those two words: it stores the exception class
 #: name (`AuthRequiredError`, `DecryptionError`) or a provider verdict
 #: (`unauthenticated`). Matching only the spec's two words meant a revoked
-#: Google session — the one failure the user must act on, and the only one a
-#: glance at the widget can prompt — showed as `ok` or `stale` for three poll
-#: cycles before `consecutive_failures >= 3` finally fired. Both vocabularies
-#: are accepted so the spec's words keep working if the poller ever adopts them.
+#: Google session — the one failure the user must act on — showed as `ok` or
+#: `stale` for three poll cycles before `consecutive_failures >= 3` fired. Both
+#: vocabularies are accepted so the spec's words keep working if the poller ever
+#: adopts them; `SharedKeyRequiredError` is the locked-E2EE state (unlock step).
 ERROR_STATE_TYPES = frozenset(
-    {"auth", "decrypt", "AuthRequiredError", "DecryptionError", "unauthenticated"}
-)
+    {"auth", "decrypt", "AuthRequiredError", "DecryptionError",
+     "SharedKeyRequiredError", "unauthenticated"}
+)  # fmt: skip
 
 
 def _place_by_device(

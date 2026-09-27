@@ -40,6 +40,7 @@ from findplus.providers.google_findhub.types import (
     DecryptionError,
     FindHubError,
     LocationTimeoutError,
+    SharedKeyRequiredError,
 )
 from findplus.state import get_tracked_devices
 
@@ -100,6 +101,16 @@ def _locate(
     except AuthRequiredError as exc:
         return PollOutcome(
             status="auth_error", error_type="AuthRequiredError", error_message=str(exc)
+        ), None
+    except SharedKeyRequiredError as exc:
+        # Signed in, but the E2EE key is not unlocked yet. A user-fixable state
+        # (the "Unlock encrypted locations" step), never a crash and never a
+        # browser launch: install_vendor_guards() keeps the vendor from opening
+        # Chrome, and client.locate() raises this before any decrypt.
+        return PollOutcome(
+            status="needs_shared_key",
+            error_type="SharedKeyRequiredError",
+            error_message=str(exc),
         ), None
     except LocationTimeoutError as exc:
         return PollOutcome(

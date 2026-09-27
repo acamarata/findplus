@@ -6,6 +6,8 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.4] - 2026-09-27
+
 ### Added
 - Google sign-in now starts with **Sign in with your Chrome**: Find+ opens Google's sign-in page
   as a normal tab of the Chrome you already use, shows five short steps for copying the

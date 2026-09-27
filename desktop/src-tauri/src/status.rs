@@ -1,11 +1,13 @@
 //! Status poller: reads GET /api/status every 45 s and maps it onto the
 //! tray's Status/DotState per specs/desktop-app.md § Status mapping.
 //!
-//! Purpose    : Single source of truth for what colour the tray dot shows
-//!              and what its status line says.
+//! Purpose    : Single source of truth for what the tray icon shows (the
+//!              "F+" glyph, full-opacity or greyed) and what its status
+//!              line says.
 //! Inputs     : /api/status JSON (or a 401 body, treated as locked).
 //! Outputs    : Status, emitted as a "status-update" event to every window.
-//! Constraints: from_api/dot_color are pure and unit-tested without network.
+//! Constraints: from_api/tray_icon_state are pure and unit-tested without
+//!              network.
 
 use serde_json::Value;
 use std::time::Duration;
@@ -21,12 +23,15 @@ pub enum DotState {
     Down,
 }
 
+/// The tray icon's only two visual states, since the P2.1 menu-bar redesign
+/// replaced the five-colour dot set with one "F+" glyph template image:
+/// Normal is full opacity, Greyed is the same glyph at ~38% alpha. The
+/// colour information the old dot icons carried now lives only in the
+/// menu's disabled status-line text (tray_menu.rs's "dot_line" item).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DotColor {
-    Green,
-    Amber,
-    Red,
-    Grey,
+pub enum TrayIconState {
+    Normal,
+    Greyed,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -38,13 +43,14 @@ pub struct Status {
     pub version: String,
 }
 
-pub fn dot_color(s: &DotState) -> DotColor {
+/// Normal only while healthy and polling (Ok); everything else -- starting
+/// up, nothing signed in, stale data, locked, or erroring -- is Greyed.
+pub fn tray_icon_state(s: &DotState) -> TrayIconState {
     match s {
-        DotState::Ok => DotColor::Green,
-        DotState::Stale => DotColor::Amber,
-        DotState::Error => DotColor::Red,
-        DotState::Locked => DotColor::Grey,
-        DotState::Down => DotColor::Grey,
+        DotState::Ok => TrayIconState::Normal,
+        DotState::Stale | DotState::Error | DotState::Locked | DotState::Down => {
+            TrayIconState::Greyed
+        }
     }
 }
 

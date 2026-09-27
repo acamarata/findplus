@@ -4,14 +4,35 @@ use super::*;
 fn down_when_probe_failed() {
     let s = from_api(&serde_json::json!({"http_status": 0}), 5);
     assert_eq!(s.state, DotState::Down);
-    assert_eq!(dot_color(&DotState::Down), DotColor::Grey);
+    assert_eq!(tray_icon_state(&DotState::Down), TrayIconState::Greyed);
 }
 
 #[test]
 fn locked_on_401() {
     let s = from_api(&serde_json::json!({"http_status": 401}), 5);
     assert_eq!(s.state, DotState::Locked);
-    assert_eq!(dot_color(&DotState::Locked), DotColor::Grey);
+    assert_eq!(tray_icon_state(&DotState::Locked), TrayIconState::Greyed);
+}
+
+#[test]
+fn tray_icon_is_normal_only_when_ok() {
+    assert_eq!(tray_icon_state(&DotState::Ok), TrayIconState::Normal);
+}
+
+#[test]
+fn tray_icon_is_greyed_for_every_non_ok_state() {
+    for state in [
+        DotState::Stale,
+        DotState::Error,
+        DotState::Locked,
+        DotState::Down,
+    ] {
+        assert_eq!(
+            tray_icon_state(&state),
+            TrayIconState::Greyed,
+            "{state:?} should show the greyed glyph"
+        );
+    }
 }
 
 #[test]

@@ -17,6 +17,14 @@ Versioning: [Semantic Versioning](https://semver.org/).
   `POST /api/auth/google/token`. From a terminal: `findplus auth --token` (or set
   `FINDPLUS_OAUTH_TOKEN`).
 
+### Changed
+- Find+ is now menu-bar only on macOS: no Dock icon, ever. The tray icon is a simple "F+" glyph
+  that dims when the daemon is down or starting, nothing is signed in, data is stale, or there
+  is an error, and shows at full opacity when everything is healthy. Click the tray icon to
+  open the dashboard (devices, groups, timeline); right-click for the menu. Reopening Find+
+  from Applications or Spotlight while it is already running now brings the dashboard forward
+  instead of doing nothing.
+
 ### Fixed
 - A Google sign-in that failed or was cancelled part-way no longer shows as signed in with no
   account. Signed in now means Find+ holds a Google session and the account it belongs to, in the

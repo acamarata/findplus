@@ -3,19 +3,31 @@
 Find+.app is a menu-bar shell (Tauri 2) around the same daemon the CLI runs,
 with a WidgetKit widget for Notification Center.
 
+Find+ never shows a Dock icon. It lives entirely in the menu bar (a small
+"F+" glyph) and opens its dashboard from there or from Applications/Spotlight.
+
 ## Menu-bar icon states
 
-| State | Dot | Meaning |
-|---|---|---|
-| Ok | Green | Daemon reachable and polling normally. |
-| Stale | Amber | Daemon reachable, but the last poll is older than twice the poll interval. |
-| Error | Red | Sign-in needed, a decryption error, or three or more failed polls in a row. |
-| Locked | Grey | The app lock is on. No location data is shown until you unlock. |
-| Down | Grey | Find+ is not running. "Restart daemon" appears when it was running and stopped. |
+The tray icon is the same "F+" glyph in both states; only its opacity
+changes:
 
-The menu also shows the most recent fix (hidden while locked or down), the
-tracked device count, Poll Now, Lock, Open Dashboard, Settings, Open App and
-Quit Find+. "Start at login" is in the Settings window, not the menu.
+| State | Icon | Meaning |
+|---|---|---|
+| Ok | Full opacity | Daemon reachable and polling normally. |
+| Stale | Dimmed | Daemon reachable, but the last poll is older than twice the poll interval. |
+| Error | Dimmed | Sign-in needed, a decryption error, or three or more failed polls in a row. |
+| Locked | Dimmed | The app lock is on. No location data is shown until you unlock. |
+| Down | Dimmed | Find+ is not running (also shown while it is still starting up). "Restart daemon" appears when it was running and stopped. |
+
+Click the tray icon to open or focus the dashboard. Right-click for the menu,
+which shows the status line above (spelling out which of the dimmed states
+applies), the most recent fix (hidden while locked or down), the tracked
+device count, Poll Now, Lock, Open Dashboard, Settings, Open App and Quit
+Find+. "Start at login" is in the Settings window, not the menu.
+
+Opening Find+.app again from Applications or Spotlight while it is already
+running brings the dashboard forward instead of doing nothing; the first
+launch after installing still shows the setup wizard, same as before.
 
 ## Widget
 

@@ -7,7 +7,7 @@
 //!              /api/settings's alerts.native_detail; a persisted cursor file.
 //! Outputs    : OS notifications (generic or detailed); POST .../ack calls; notify-cursor.json.
 //! Constraints: next_cursor/should_process/generic_pair are pure and unit-tested without
-//!              network, matching status.rs's from_api/dot_color split. Every network
+//!              network, matching status.rs's from_api/tray_icon_state split. Every network
 //!              helper fails CLOSED to the generic pair, never open to real content. The
 //!              poll cadence backs off on an unreachable daemon or a daemon-error status
 //!              (loop2 C2): 15s when healthy, doubling to a 60s cap, reset to 15s the

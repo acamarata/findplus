@@ -12,7 +12,7 @@
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
-use tauri::tray::TrayIconBuilder;
+use tauri::tray::{TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Listener, Manager};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogResult};
 
@@ -22,6 +22,13 @@ use status::{DotState, Status};
 #[path = "tray_menu.rs"]
 mod tray_menu;
 use tray_menu::build_menu_items;
+
+#[path = "tray_click.rs"]
+mod tray_click;
+
+#[path = "tray_icon.rs"]
+mod tray_icon;
+use tray_icon::load_icon;
 
 const QUIT_DIALOG_TEXT: &str =
     "Polling stops when Find+ quits. Install the background service so it keeps running?";
@@ -56,15 +63,41 @@ pub fn setup(app: &mut tauri::App) -> tauri::Result<()> {
     let menu = build_menu_items(app.handle(), &initial, false)?;
 
     let tray = TrayIconBuilder::new()
-        .icon(load_template_icon(app.handle()))
+        .icon(load_icon(app.handle(), &initial.state))
         .icon_as_template(true)
         .menu(&menu)
-        .show_menu_on_left_click(true)
+        // The menu now only shows on right click; a left click opens the
+        // dashboard instead (handle_tray_icon_event below). Right click keeps
+        // working from tray-icon's own default (menu_on_right_click), which
+        // Tauri never exposes a setter for because it never needs turning off.
+        .show_menu_on_left_click(false)
         .on_menu_event(|app, event| handle_menu_event(app, event.id().as_ref()))
+        .on_tray_icon_event(handle_tray_icon_event)
         .build(app)?;
 
-    let tray_id = tray.id().clone();
+    wire_status_listeners(app, tray.id().clone());
+    Ok(())
+}
 
+/// A left click (button-up) on the tray icon opens/focuses the dashboard;
+/// every other click just falls through to tray-icon's own menu handling.
+fn handle_tray_icon_event(tray: &tauri::tray::TrayIcon, event: TrayIconEvent) {
+    if let TrayIconEvent::Click {
+        button,
+        button_state,
+        ..
+    } = event
+    {
+        if tray_click::opens_dashboard(button, button_state) {
+            windows::open_main(tray.app_handle());
+        }
+    }
+}
+
+/// Rebuild the menu (and swap the icon) on every signal that changes what it
+/// should show: a fresh /api/status snapshot, or the daemon supervisor
+/// spotting a port squatter or a crash.
+fn wire_status_listeners(app: &mut tauri::App, tray_id: tauri::tray::TrayIconId) {
     let app_handle = app.handle().clone();
     let id1 = tray_id.clone();
     app.listen("status-update", move |event| {
@@ -82,12 +115,9 @@ pub fn setup(app: &mut tauri::App) -> tauri::Result<()> {
     });
 
     let app_handle = app.handle().clone();
-    let id3 = tray_id;
     app.listen("daemon-crashed", move |_event| {
-        let _ = build_menu(&app_handle, &id3, &effective_status());
+        let _ = build_menu(&app_handle, &tray_id, &effective_status());
     });
-
-    Ok(())
 }
 
 /// The status the menu should actually show: the daemon supervisor's own
@@ -175,9 +205,8 @@ fn apply_menu(
     };
     let menu = build_menu_items(app, status, chrome_missing())?;
     tray.set_menu(Some(menu))?;
-    // Colour dots carry real colour; template mode would flatten them to a
-    // monochrome mask, so it is off for every state after the first paint.
-    tray.set_icon_as_template(false)?;
+    // Both icon states are alpha-only template PNGs, so iconAsTemplate stays
+    // on for the tray's whole life; only the icon bitmap changes.
     tray.set_icon(Some(load_icon(app, &status.state)))?;
     Ok(())
 }
@@ -251,41 +280,4 @@ fn handle_quit(app: &AppHandle) {
             }
             _ => {}
         });
-}
-
-fn load_icon(app: &AppHandle, state: &DotState) -> tauri::image::Image<'static> {
-    let name = match status::dot_color(state) {
-        status::DotColor::Green => "dot-green.png",
-        status::DotColor::Amber => "dot-amber.png",
-        status::DotColor::Red => "dot-red.png",
-        status::DotColor::Grey => "dot-grey.png",
-    };
-    load_icon_named(app, name)
-}
-
-/// The initial, monochrome tray icon: white so `iconAsTemplate` lets macOS
-/// auto-invert it for dark/light menu bars, before the first status arrives.
-fn load_template_icon(app: &AppHandle) -> tauri::image::Image<'static> {
-    load_icon_named(app, "tray-template.png")
-}
-
-fn load_icon_named(app: &AppHandle, name: &str) -> tauri::image::Image<'static> {
-    let candidates = [
-        app.path()
-            .resource_dir()
-            .ok()
-            .map(|d| d.join("icons").join(name)),
-        Some(
-            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("icons")
-                .join(name),
-        ),
-    ];
-    for candidate in candidates.into_iter().flatten() {
-        if let Ok(img) = tauri::image::Image::from_path(&candidate) {
-            return img.to_owned();
-        }
-    }
-    // Fallback: a 1x1 transparent pixel if the named PNG cannot be loaded.
-    tauri::image::Image::new_owned(vec![0, 0, 0, 0], 1, 1)
 }

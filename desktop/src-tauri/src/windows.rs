@@ -37,7 +37,7 @@ pub fn open_main(app: &AppHandle) {
         let _ = win.set_focus();
         return;
     }
-    let _ = WebviewWindowBuilder::new(
+    let win = WebviewWindowBuilder::new(
         app,
         "main",
         WebviewUrl::External("http://127.0.0.1:8647/".parse().unwrap()),
@@ -50,6 +50,15 @@ pub fn open_main(app: &AppHandle) {
     // :8647 never sees it (R-P2-13).
     .initialization_script("window.__findplus_native = true;")
     .build();
+    // The app runs with ActivationPolicy::Accessory (no Dock icon), which
+    // means a freshly created window is not guaranteed to come to the front
+    // on its own; set_focus() calls through to activateIgnoringOtherApps on
+    // macOS, so a brand-new window gets the same "come to front" treatment
+    // as the show()+set_focus() path above for an existing one.
+    if let Ok(win) = win {
+        let _ = win.show();
+        let _ = win.set_focus();
+    }
 }
 
 pub fn open_settings(app: &AppHandle) {
@@ -62,7 +71,7 @@ pub fn open_settings(app: &AppHandle) {
         let _ = win.set_focus();
         return;
     }
-    let _ = WebviewWindowBuilder::new(
+    let win = WebviewWindowBuilder::new(
         app,
         "main",
         WebviewUrl::External("http://127.0.0.1:8647/#settings".parse().unwrap()),
@@ -75,6 +84,12 @@ pub fn open_settings(app: &AppHandle) {
     // :8647 never sees it (R-P2-13).
     .initialization_script("window.__findplus_native = true;")
     .build();
+    // See open_main(): a fresh window under ActivationPolicy::Accessory
+    // still needs an explicit focus to come to the front.
+    if let Ok(win) = win {
+        let _ = win.show();
+        let _ = win.set_focus();
+    }
 }
 
 pub fn open_places(app: &AppHandle) {
@@ -87,7 +102,7 @@ pub fn open_places(app: &AppHandle) {
         let _ = win.set_focus();
         return;
     }
-    let _ = WebviewWindowBuilder::new(
+    let win = WebviewWindowBuilder::new(
         app,
         "main",
         WebviewUrl::External("http://127.0.0.1:8647/#places".parse().unwrap()),
@@ -100,6 +115,12 @@ pub fn open_places(app: &AppHandle) {
     // :8647 never sees it (R-P2-13).
     .initialization_script("window.__findplus_native = true;")
     .build();
+    // See open_main(): a fresh window under ActivationPolicy::Accessory
+    // still needs an explicit focus to come to the front.
+    if let Ok(win) = win {
+        let _ = win.show();
+        let _ = win.set_focus();
+    }
 }
 
 pub fn open_splash(app: &AppHandle) {

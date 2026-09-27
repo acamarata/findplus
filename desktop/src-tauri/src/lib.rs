@@ -9,39 +9,66 @@
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|_app, _argv, _cwd| {}))
+        .plugin(tauri_plugin_single_instance::init(on_second_instance))
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             notify::request_notification_permission
         ])
-        .setup(|app| {
-            tray::setup(app)?;
-            windows::open_splash(app.handle());
-            daemon::start(app.handle().clone());
-            status::start(app.handle().clone());
-            first_launch::start(app.handle().clone());
-            notify::start(app.handle().clone());
-            Ok(())
-        })
+        .setup(on_setup)
         .build(tauri::generate_context!())
         .expect("error building Find+")
-        .run(|app_handle, event| match event {
-            tauri::RunEvent::Opened { urls, .. } => {
-                for url in urls {
-                    urlscheme::handle(app_handle, url.as_str());
-                }
+        .run(on_run_event);
+}
+
+/// A second launch from Applications/Spotlight/`open` while Find+ is already
+/// running is killed by the single-instance plugin; this callback runs in
+/// the FIRST (already-running) instance, so re-opening the app must behave
+/// like the tray's left click, not do nothing as it did through v1.1.3 (the
+/// callback was a no-op).
+fn on_second_instance(app: &tauri::AppHandle, _argv: Vec<String>, _cwd: String) {
+    windows::open_main(app);
+}
+
+fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    // Info.plist's LSUIElement keeps Find+ out of the Dock at launch, but
+    // Tauri's own default (NSApplicationActivationPolicyRegular) would
+    // re-show it the moment the event loop starts, so Accessory must be set
+    // here explicitly -- this is a permanent menu-bar-only app, never a Dock
+    // icon that appears while a window is open.
+    #[cfg(target_os = "macos")]
+    app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+    tray::setup(app)?;
+    windows::open_splash(app.handle());
+    daemon::start(app.handle().clone());
+    status::start(app.handle().clone());
+    first_launch::start(app.handle().clone());
+    notify::start(app.handle().clone());
+    Ok(())
+}
+
+fn on_run_event(app_handle: &tauri::AppHandle, event: tauri::RunEvent) {
+    match event {
+        tauri::RunEvent::Opened { urls, .. } => {
+            for url in urls {
+                urlscheme::handle(app_handle, url.as_str());
             }
-            // A menu-bar app must outlive its windows. Without this, closing
-            // the splash with setup already finished (or closing the
-            // dashboard) left no window, Tauri quit with code 0 and the tray
-            // icon vanished while the sidecar kept running (v1.1.0). `code`
-            // is None only for that implicit last-window exit; the tray's
-            // Quit path exits the process itself.
-            tauri::RunEvent::ExitRequested { code: None, api, .. } => api.prevent_exit(),
-            _ => {}
-        });
+        }
+        // Fires when the Dock/Spotlight/Finder reactivates an already-running
+        // app that has no Dock icon of its own to click. Bring the dashboard
+        // forward exactly like the tray's left click.
+        #[cfg(target_os = "macos")]
+        tauri::RunEvent::Reopen { .. } => windows::open_main(app_handle),
+        // A menu-bar app must outlive its windows. Without this, closing the
+        // splash with setup already finished (or closing the dashboard) left
+        // no window, Tauri quit with code 0 and the tray icon vanished while
+        // the sidecar kept running (v1.1.0). `code` is None only for that
+        // implicit last-window exit; the tray's Quit path exits the process
+        // itself.
+        tauri::RunEvent::ExitRequested { code: None, api, .. } => api.prevent_exit(),
+        _ => {}
+    }
 }
 
 mod daemon;

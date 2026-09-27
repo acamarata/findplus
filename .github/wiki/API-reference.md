@@ -1436,6 +1436,13 @@ Google Progress
 |---|---|---|---|
 | job_id | query | False | string |
 
+### GET /api/auth/google/unlock/progress
+Google Unlock Progress
+
+| name | in | required | type |
+|---|---|---|---|
+| job_id | query | False | string |
+
 ### GET /api/auth/status
 Auth Status
 
@@ -1543,4 +1550,27 @@ Exchange a pasted `oauth_token` for a Find Hub session.
   "description": "The Google email and the oauth_token cookie value copied from Chrome."
 }
 ```
+
+### POST /api/auth/google/unlock/cancel
+Google Unlock Cancel
+
+**Request body:**
+```json
+{
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "title": "Job Id"
+    }
+  },
+  "type": "object",
+  "required": [
+    "job_id"
+  ],
+  "title": "GoogleUnlockCancelBody"
+}
+```
+
+### POST /api/auth/google/unlock/start
+Google Unlock Start
 

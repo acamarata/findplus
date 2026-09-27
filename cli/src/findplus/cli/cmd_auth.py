@@ -5,8 +5,9 @@ Purpose    : The sign-in command and its two provider branches, plus
              credential without a terminal round trip through the file
              system directly.
 Inputs     : `--provider google-find-hub|apple-find-my`, plus `--status`,
-             `--json`, `--sign-out` and `--token` (Google via your own Chrome,
-             cmd_auth_token.py) (specs/cli-reference.md § auth).
+             `--json`, `--sign-out`, `--token` (Google via your own Chrome,
+             cmd_auth_token.py) and `--unlock` (unlock encrypted locations,
+             cmd_auth_unlock.py) (specs/cli-reference.md § auth).
 Outputs    : Credentials written by the provider itself (secrets.json /
              apple-account.json, both 0600); console guidance only here.
              `--sign-out` removes that same file via providers/signout.py,
@@ -114,13 +115,25 @@ def _sign_out(provider: str, settings) -> None:
     "(or set FINDPLUS_OAUTH_TOKEN).",
 )
 @click.option(
+    "--unlock",
+    "do_unlock",
+    is_flag=True,
+    help="Google: unlock encrypted locations with your Android phone's screen "
+    "lock, in a Find+ Chrome window.",
+)
+@click.option(
     "--provider",
     type=click.Choice(["google-find-hub", "apple-find-my"]),
     default="google-find-hub",
     help="Provider to authenticate: google-find-hub or apple-find-my",
 )
 def auth(
-    provider: str, show_status: bool, as_json: bool, sign_out_flag: bool, use_token: bool
+    provider: str,
+    show_status: bool,
+    as_json: bool,
+    sign_out_flag: bool,
+    use_token: bool,
+    do_unlock: bool,
 ) -> None:
     """Sign in to a provider (Google via Chrome, or Apple interactively)."""
     # _prep() first: build_auth_status() reads settings and the secrets store,
@@ -138,6 +151,12 @@ def auth(
 
     if provider == "apple-find-my":
         _auth_apple(settings)
+        return
+
+    if do_unlock:
+        from .cmd_auth_unlock import auth_google_unlock
+
+        auth_google_unlock(settings)
         return
 
     if use_token:

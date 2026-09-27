@@ -59,6 +59,8 @@ _REQUIRES_OWN_SIGNAL = {
     ("POST", "/api/auth/google/cancel"),
     ("POST", "/api/auth/google/open"),
     ("POST", "/api/auth/google/token"),
+    ("POST", "/api/auth/google/unlock/start"),
+    ("POST", "/api/auth/google/unlock/cancel"),
     ("DELETE", "/api/auth/{provider}"),
 }
 _HEADERLESS_ROUTES = [r for r in _ROUTES if r not in _REQUIRES_OWN_SIGNAL]

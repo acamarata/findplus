@@ -30,6 +30,11 @@ from pydantic import BaseModel
 
 from findplus.api._routes_auth_accessories import read_accessory_body
 from findplus.api._routes_auth_google_token import google_open, google_token
+from findplus.api._routes_auth_google_unlock import (
+    google_unlock_cancel,
+    google_unlock_progress,
+    google_unlock_start,
+)
 from findplus.config import get_settings
 from findplus.providers.apple_findmy.accessories import add_accessory
 from findplus.providers.apple_findmy.web_auth import (
@@ -237,6 +242,13 @@ def build_router() -> APIRouter:
     # The main-Chrome flow (_routes_auth_google_token.py): open, then paste.
     router.add_api_route("/auth/google/open", google_open, methods=["POST"])
     router.add_api_route("/auth/google/token", google_token, methods=["POST"])
+    # The "Unlock encrypted locations" step (_routes_auth_google_unlock.py):
+    # Find+'s own Chrome window runs the vendored shared-key flow.
+    router.add_api_route(
+        "/auth/google/unlock/start", google_unlock_start, methods=["POST"], status_code=202
+    )
+    router.add_api_route("/auth/google/unlock/progress", google_unlock_progress, methods=["GET"])
+    router.add_api_route("/auth/google/unlock/cancel", google_unlock_cancel, methods=["POST"])
     router.add_api_route("/auth/apple/start", apple_start, methods=["POST"], status_code=202)
     router.add_api_route("/auth/apple/code", apple_code, methods=["POST"])
     router.add_api_route("/auth/apple/progress", apple_progress, methods=["GET"])

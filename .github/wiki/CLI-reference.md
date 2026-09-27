@@ -170,6 +170,7 @@ Sign in to a provider (Google via Chrome, or Apple interactively).
 | --json |  | With --status, print JSON instead of a table. |
 | --sign-out |  | Remove this provider's saved sign-in credential and exit. |
 | --token |  | Google: sign in in your own Chrome and paste the oauth_token cookie (or set FINDPLUS_OAUTH_TOKEN). |
+| --unlock |  | Google: unlock encrypted locations with your Android phone's screen lock, in a Find+ Chrome window. |
 | --provider | google-find-hub | Provider to authenticate: google-find-hub or apple-find-my |
 
 ## findplus config get

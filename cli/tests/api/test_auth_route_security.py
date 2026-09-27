@@ -116,11 +116,12 @@ def _auth_routes() -> list[tuple[str, str]]:
 _E6_ROUTES = _auth_routes()
 
 
-def test_the_dynamic_sweep_sees_all_eleven_routes() -> None:
+def test_the_dynamic_sweep_sees_all_fourteen_routes() -> None:
     """7 from E6, plus S11/WP8's `POST /auth/google/cancel` and
     `DELETE /auth/{provider}` (sign-out), plus the main-Chrome
-    `POST /auth/google/open` and `POST /auth/google/token`."""
-    assert len(_E6_ROUTES) == 11, _E6_ROUTES
+    `POST /auth/google/open` and `POST /auth/google/token`, plus the unlock
+    step's start/progress/cancel."""
+    assert len(_E6_ROUTES) == 14, _E6_ROUTES
 
 
 @pytest.mark.parametrize("method,path", _E6_ROUTES)

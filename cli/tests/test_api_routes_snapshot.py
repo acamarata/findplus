@@ -78,7 +78,8 @@ def test_route_count():
     # +2 for /channels/telegram/targets (PUT) and /channels/telegram/updates
     # (GET, the "Find chat IDs" helper) -- multi-target Telegram support.
     # +2 for S11/WP8: POST /auth/google/cancel and DELETE /auth/{provider}.
-    assert len(routes) == 82
+    # +2 for the main-Chrome Google sign-in: POST /auth/google/open and /token.
+    assert len(routes) == 84
 
 
 #: T1 (2026-09-22, PRI rule-7 50-line function cap): pulled out of
@@ -120,6 +121,8 @@ _EXPECTED_PATHS = {
     "/api/auth/status",
     "/api/auth/google/start",
     "/api/auth/google/progress",
+    "/api/auth/google/open",
+    "/api/auth/google/token",
     "/api/auth/apple/start",
     "/api/auth/apple/code",
     "/api/auth/apple/progress",

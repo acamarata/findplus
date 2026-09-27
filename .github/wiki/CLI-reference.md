@@ -169,6 +169,7 @@ Sign in to a provider (Google via Chrome, or Apple interactively).
 | --status |  | Print sign-in status and exit. |
 | --json |  | With --status, print JSON instead of a table. |
 | --sign-out |  | Remove this provider's saved sign-in credential and exit. |
+| --token |  | Google: sign in in your own Chrome and paste the oauth_token cookie (or set FINDPLUS_OAUTH_TOKEN). |
 | --provider | google-find-hub | Provider to authenticate: google-find-hub or apple-find-my |
 
 ## findplus config get

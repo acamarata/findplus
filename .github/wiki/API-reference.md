@@ -1512,6 +1512,35 @@ UAT6 N23: Cancel while waiting on Chrome. Same Origin guard as start.
 }
 ```
 
+### POST /api/auth/google/open
+Open Google's sign-in page (EmbeddedSetup) in the user's own Chrome.
+
 ### POST /api/auth/google/start
 Google Start
+
+### POST /api/auth/google/token
+Exchange a pasted `oauth_token` for a Find Hub session.
+
+**Request body:**
+```json
+{
+  "properties": {
+    "email": {
+      "type": "string",
+      "title": "Email",
+      "description": "The Google email you signed in with.",
+      "default": ""
+    },
+    "oauth_token": {
+      "type": "string",
+      "title": "Oauth Token",
+      "description": "The Value of the oauth_token cookie. Starts with oauth2_4/.",
+      "default": ""
+    }
+  },
+  "type": "object",
+  "title": "GoogleTokenBody",
+  "description": "The Google email and the oauth_token cookie value copied from Chrome."
+}
+```
 

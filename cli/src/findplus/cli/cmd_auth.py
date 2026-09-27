@@ -5,7 +5,8 @@ Purpose    : The sign-in command and its two provider branches, plus
              credential without a terminal round trip through the file
              system directly.
 Inputs     : `--provider google-find-hub|apple-find-my`, plus `--status`,
-             `--json` and `--sign-out` (specs/cli-reference.md § auth).
+             `--json`, `--sign-out` and `--token` (Google via your own Chrome,
+             cmd_auth_token.py) (specs/cli-reference.md § auth).
 Outputs    : Credentials written by the provider itself (secrets.json /
              apple-account.json, both 0600); console guidance only here.
              `--sign-out` removes that same file via providers/signout.py,
@@ -106,12 +107,21 @@ def _sign_out(provider: str, settings) -> None:
     help="Remove this provider's saved sign-in credential and exit.",
 )
 @click.option(
+    "--token",
+    "use_token",
+    is_flag=True,
+    help="Google: sign in in your own Chrome and paste the oauth_token cookie "
+    "(or set FINDPLUS_OAUTH_TOKEN).",
+)
+@click.option(
     "--provider",
     type=click.Choice(["google-find-hub", "apple-find-my"]),
     default="google-find-hub",
     help="Provider to authenticate: google-find-hub or apple-find-my",
 )
-def auth(provider: str, show_status: bool, as_json: bool, sign_out_flag: bool) -> None:
+def auth(
+    provider: str, show_status: bool, as_json: bool, sign_out_flag: bool, use_token: bool
+) -> None:
     """Sign in to a provider (Google via Chrome, or Apple interactively)."""
     # _prep() first: build_auth_status() reads settings and the secrets store,
     # so the status path needs the same environment the sign-in path does.
@@ -130,6 +140,19 @@ def auth(provider: str, show_status: bool, as_json: bool, sign_out_flag: bool) -
         _auth_apple(settings)
         return
 
+    if use_token:
+        from .cmd_auth_token import auth_google_token
+
+        auth_google_token(settings)
+        return
+    _auth_google_automated(provider, settings)
+
+
+def _auth_google_automated(provider: str, settings) -> None:
+    """The terminal's automated Google flow: the vendor driver opens Chrome itself.
+
+    Split out of `auth()` for the 50-line function cap when `--token` landed.
+    """
     from findplus.cli.doctor import check_chrome
     from findplus.providers.base import get_provider
 

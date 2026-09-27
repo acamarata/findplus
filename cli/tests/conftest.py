@@ -12,6 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from findplus.ingest import ingest_observations, upsert_device
+from tests._no_browser_launch import no_real_browser  # noqa: F401 (autouse guard)
 
 # Point every setting at a throwaway location BEFORE findplus.config is imported.
 os.environ.setdefault("FINDPLUS_STATE_DIR", "/tmp/findplus-tests-state")
@@ -123,8 +124,7 @@ def _isolate_bind_env_vars() -> None:
     failures across test_api*.py, test_multi_device_api.py and others,
     order-dependent on whichever test ran last (CF-P2-3 follow-up, 2026-09-22).
     One autouse fixture here, rather than a fix in that one test file, so any
-    other direct os.environ write -- present or future -- gets the same
-    snapshot/restore.
+    other direct os.environ write -- present or future -- gets the same snapshot/restore.
     """
     before_port = os.environ.get("FINDPLUS_PORT")
     before_host = os.environ.get("FINDPLUS_HOST")

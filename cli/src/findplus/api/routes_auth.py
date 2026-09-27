@@ -5,6 +5,8 @@ Purpose    : HTTP over the job runners in providers/google_findhub/browser.py
              plus the provider-status aggregate, so signing in never needs a
              terminal (specs/auth-ui.md §3, D-P2-6). Also DELETE
              /auth/{provider} (S11/WP8): sign out via providers/signout.py.
+             The main-Chrome Google routes (/auth/google/open, /token) live in
+             _routes_auth_google_token.py and are registered here.
 Inputs     : JSON request bodies; a `job_id` query parameter; `provider`.
 Outputs    : 200/202/204 on success; 400/403/404/409/422 typed errors.
 Constraints: Only HTTP mapping lives here — no Chrome, no findmy, no state.
@@ -27,6 +29,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from findplus.api._routes_auth_accessories import read_accessory_body
+from findplus.api._routes_auth_google_token import google_open, google_token
 from findplus.config import get_settings
 from findplus.providers.apple_findmy.accessories import add_accessory
 from findplus.providers.apple_findmy.web_auth import (
@@ -231,6 +234,9 @@ def build_router() -> APIRouter:
     router.add_api_route("/auth/google/start", google_start, methods=["POST"], status_code=202)
     router.add_api_route("/auth/google/progress", google_progress, methods=["GET"])
     router.add_api_route("/auth/google/cancel", google_cancel, methods=["POST"])
+    # The main-Chrome flow (_routes_auth_google_token.py): open, then paste.
+    router.add_api_route("/auth/google/open", google_open, methods=["POST"])
+    router.add_api_route("/auth/google/token", google_token, methods=["POST"])
     router.add_api_route("/auth/apple/start", apple_start, methods=["POST"], status_code=202)
     router.add_api_route("/auth/apple/code", apple_code, methods=["POST"])
     router.add_api_route("/auth/apple/progress", apple_progress, methods=["GET"])

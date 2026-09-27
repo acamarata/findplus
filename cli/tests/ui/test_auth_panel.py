@@ -112,10 +112,8 @@ async def test_each_provider_card_says_which_provider_it_is(page, base_url) -> N
 async def test_signed_in_google_card_offers_switch_account(page, base_url) -> None:
     """UAT3 N23: a signed-in account used to leave a dimmed "Sign in with
     Google" button -- a real action with nothing to do. The button now stays
-    enabled and relabels to "Switch Google account"; the wizard mounts the
-    same component (signin/panel.js), so it cannot drift from this. The
-    primary button is the main-Chrome one; the separate-window option keeps
-    its own label either way."""
+    enabled and relabels to "Switch Google account" (now the main-Chrome
+    button); the wizard mounts the same component, so it cannot drift."""
     await _open_settings_settled(page, base_url)
     catalog = (await _catalog(page, base_url))["signin"]["google"]
 
@@ -126,8 +124,7 @@ async def test_signed_in_google_card_offers_switch_account(page, base_url) -> No
     assert await page.locator("#fp-auth-google-signin").inner_text() == catalog["ownWindow"]
 
     await _render_google(page, {"signed_in": False, "account": None, "needs": []})
-    assert await button.inner_text() == catalog["openChrome"]
-    assert await button.is_disabled() is False
+    assert (await button.inner_text(), await button.is_disabled()) == (catalog["openChrome"], False)
 
 
 async def test_apple_2fa_field_hidden_by_default(page, base_url) -> None:

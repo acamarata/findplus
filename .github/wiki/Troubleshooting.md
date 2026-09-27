@@ -2,9 +2,12 @@
 
 ## 1. Chrome closed by auth
 
-The Google sign-in flow runs `pkill -f chrome` before launching its own
-controlled Chrome window, so any Chrome windows you have open will be
-closed. Save your work first, then rerun `findplus auth`.
+The terminal's automatic Google flow (`findplus auth` without `--token`) runs
+`pkill -f chrome` before launching its own controlled Chrome window, so any
+Chrome windows you have open will be closed. Save your work first, then rerun
+`findplus auth`. `findplus auth --token` and the dashboard's "Sign in with your
+Chrome" close nothing: they open Google's page as a tab of your own Chrome and
+you paste the token back ([Sign in](Sign-in)).
 
 ## 2. 409 on Telegram
 

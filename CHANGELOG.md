@@ -6,6 +6,24 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Google sign-in now starts with **Sign in with your Chrome**: Find+ opens Google's sign-in page
+  as a normal tab of the Chrome you already use, shows five short steps for copying the
+  `oauth_token` cookie from Chrome's developer tools, and signs in once you paste it with your
+  email. Chrome 136 and later refuse automation of your everyday profile, and Google hands this
+  token only to a browser, so the copy step is the way to use your own Chrome. Find+ exchanges
+  the token right away and never stores, logs or echoes it. The older flow stays as a smaller
+  option, "Or let Find+ open its own Chrome window". New routes: `POST /api/auth/google/open` and
+  `POST /api/auth/google/token`. From a terminal: `findplus auth --token` (or set
+  `FINDPLUS_OAUTH_TOKEN`).
+
+### Fixed
+- A Google sign-in that failed or was cancelled part-way no longer shows as signed in with no
+  account. Signed in now means Find+ holds a Google session and the account it belongs to, in the
+  dashboard, `findplus auth --status`, `findplus doctor` and `findplus start`.
+- Signing in to a different Google account drops the previous account's encryption keys, so the
+  first poll fetches the new account's keys instead of failing to decrypt.
+
 ## [1.1.3] - 2026-09-26
 
 ### Added

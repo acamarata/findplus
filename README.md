@@ -94,6 +94,33 @@ findplus setup --yes
 findplus start --yes
 ```
 
+## Sign in
+
+**Google Find Hub, with your own Chrome (recommended).** In Settings or the setup
+wizard, click **Sign in with your Chrome**. Find+ opens Google's sign-in page as a
+normal tab of the Chrome you already use. Then:
+
+1. Sign in to your Google account in that tab. The page may look blank or keep
+   spinning after you sign in. That is expected.
+2. Open Chrome's developer tools: Option+Command+I on a Mac, Ctrl+Shift+I on
+   Windows or Linux.
+3. Go to the Application tab, then Storage > Cookies > https://accounts.google.com.
+4. Click the `oauth_token` row and copy its Value. It starts with `oauth2_4/`.
+5. Paste it into Find+ with your Google email and click **Connect**.
+
+Why the copy step: Chrome 136 and later refuse to let another program drive your
+everyday Chrome profile, and Google hands the Find Hub token only to a browser, as
+that cookie. Find+ exchanges it with Google right away and never stores it. It
+expires within minutes, so copy it right after you sign in. From a terminal,
+`findplus auth --token` does the same.
+
+**Or let Find+ open its own Chrome window.** The smaller option on the same card
+opens a separate Chrome window with a profile of its own and picks the token up by
+itself. It needs Google Chrome installed.
+
+**Apple Find My** takes your Apple ID, password and verification code on its own
+card. Details for both: [Sign-in](https://github.com/acamarata/findplus/wiki/Sign-in).
+
 ## Features
 
 - Location history with a map and chronological timeline.

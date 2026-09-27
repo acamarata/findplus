@@ -65,8 +65,10 @@ findplus auth
 findplus start
 ```
 
-`findplus auth` opens Chrome to sign in with your Google account (or runs an
-interactive Apple sign-in with `--provider apple-find-my`). `findplus start`
+`findplus auth` opens Chrome to sign in with your Google account;
+`findplus auth --token` uses your own Chrome instead and asks you to paste the
+token it shows you ([Sign in](Sign-in)). `--provider apple-find-my` runs an
+interactive Apple sign-in. `findplus start`
 then discovers your devices, tracks them, installs a user-level service, begins
 polling, and opens the dashboard at http://localhost:8647 in your browser
 automatically. Run it before signing in and it stops with exit code 4 and tells

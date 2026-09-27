@@ -7,33 +7,81 @@ terminal. All three write the same credentials to `~/.findplus/`.
 ## Google
 
 Open **Settings**. Sign-in is the first section of the dialog, and the setup
-wizard shows the same two cards. Click **Connect Google Find Hub** and Find+
-opens Chrome on Google's own sign-in page. You type your password there, not
-into Find+. The card reports each stage as it runs: opening Chrome, waiting for
+wizard shows the same two cards. The Google card offers two ways in. The first
+uses the Chrome you already use and is the one to pick; the second lets Find+
+open a Chrome window of its own.
+
+### Sign in with your Chrome
+
+Click **Sign in with your Chrome**. Find+ opens Google's own sign-in page,
+`https://accounts.google.com/EmbeddedSetup`, as a normal tab of your Google
+Chrome, and the card says where it opened it. Without Google Chrome, the page
+opens in your default browser instead and the card says that; the steps below
+are written for Chrome. The card then shows the same steps:
+
+1. Sign in to your Google account in that Chrome tab, including any 2-step
+   prompt. The page may look blank or keep spinning after you sign in. That is
+   expected.
+2. Open Chrome's developer tools: Option+Command+I on a Mac, Ctrl+Shift+I on
+   Windows or Linux.
+3. Go to the Application tab, then Storage > Cookies >
+   `https://accounts.google.com`.
+4. Click the `oauth_token` row and copy its Value. It starts with `oauth2_4/`.
+5. Paste it into the card with your Google email, then click **Connect**.
+
+Find+ checks the token with Google, saves the session and shows "Signed in as"
+with your account. If Google refuses the token, the card says so in plain
+words: "Google did not accept that token. It expires within minutes: sign in
+again in Chrome and copy a fresh one." If Google cannot be reached, it says
+that instead.
+
+Why a copy step at all: Chrome 136 and later ignore the switches another
+program needs to drive your everyday Chrome profile, so Find+ cannot automate
+the browser you actually use. And Google issues the Find Hub token only to a
+browser, as the `oauth_token` cookie that page sets after you sign in. So you
+copy that one value across, once.
+
+What happens to the token: Find+ exchanges it with Google right away for the
+long-lived session Find Hub needs, then forgets it. It is never written to
+disk, never logged and never sent back to the browser. The token field is
+cleared the moment you click Connect. The token expires within minutes, so
+copy it right after you sign in.
+
+### Or let Find+ open its own Chrome window
+
+The smaller button under the steps, **Or let Find+ open its own Chrome
+window**, runs the older automatic flow. Find+ opens a separate Chrome window
+on Google's sign-in page, waits for you to sign in there and picks the token
+up itself. The card reports each stage as it runs: opening Chrome, waiting for
 you to finish in the Chrome window, saving the session, then the account it
 captured.
 
-If the sign-in cannot start or does not finish, the card says why in plain
+If that sign-in cannot start or does not finish, the card says why in plain
 words and offers **Try again**. That covers an error from the Find+ service, a
 service Find+ cannot reach, a sign-in that expired or ran past 5 minutes, and a
-failure Chrome reported. A **Cancel** button appears the moment you click
-Connect, while Find+ is opening Chrome and while it is waiting for you to
-finish signing in, so you are never stuck waiting out the 5-minute timeout to
-back out.
+failure Chrome reported. A **Cancel** button appears the moment you click it,
+while Find+ is opening Chrome and while it is waiting for you to finish signing
+in, so you are never stuck waiting out the 5-minute timeout to back out.
+
+That window runs in a profile directory of its own,
+`~/.findplus/chrome-profile`. The directory holds the cookies and history of
+this sign-in only. Your personal Chrome profile is not read, not written, and
+not closed. It is a separate profile, not a sandbox: the browser still reaches
+the network the way any browser does.
+
+### Both ways
 
 The buttons are Find+'s own, not Google's or Apple's sign-in buttons. Find+
-does not use either company's sign-in service: it drives a Chrome sign-in for
-Find Hub and an Apple ID sign-in for Find My. Every card says so itself, right
-under its own heading: "Find+ is not affiliated with Apple or Google. Find Hub
-and Find My are their trademarks."
+does not use either company's sign-in service. The sign-in panel says so once,
+under the cards: "Find+ is not affiliated with Apple or Google. Find Hub and
+Find My are their trademarks."
 
-Chrome runs in a profile directory of its own, `~/.findplus/chrome-profile`.
-That directory holds the cookies and history of this sign-in only. Your personal
-Chrome profile is not read, not written, and not closed. It is a separate
-profile, not a sandbox: the browser still reaches the network the way any
-browser does.
+A sign-in that fails or is cancelled part-way never shows as signed in: the
+card counts you as signed in only once Find+ holds a Google session and the
+account it belongs to.
 
-If Chrome is not installed, the button is disabled and the card says:
+If Chrome is not installed, the separate-window button is disabled and the
+card says:
 
 > Google Chrome was not found on this machine. Google sign-in drives Chrome
 > directly and cannot run without it.
@@ -158,9 +206,16 @@ every other data route does. Starting a sign-in also requires the request to
 carry an `Origin` or `Sec-Fetch-Site` header, which browsers and the macOS app
 always send.
 
+The two routes behind "Sign in with your Chrome" are `POST
+/api/auth/google/open` (opens the page, answers which browser got it) and
+`POST /api/auth/google/token` with `{"email", "oauth_token"}`. Both carry the
+same header requirement, and the token route never quotes the token back, even
+in an error.
+
 ## Command line
 
 ```bash
+findplus auth --token
 findplus auth
 findplus auth --provider apple-find-my
 findplus auth --status
@@ -168,8 +223,13 @@ findplus auth --status --json
 findplus auth --sign-out --provider google-find-hub
 ```
 
-`findplus auth` is the terminal-only flow and behaves the same as it always
-has. `findplus auth --status` prints which providers you are signed in to, as
+`findplus auth --token` is the terminal version of "Sign in with your Chrome":
+it offers to open Google's page in your Chrome, prints the same steps, then asks
+for your email and the token (typed hidden). For a script, set
+`FINDPLUS_OAUTH_TOKEN` instead and only the email is asked for. The token never
+goes on the command line, so it stays out of your shell history. `findplus
+auth` without `--token` is the terminal's automatic flow and behaves the same
+as it always has. `findplus auth --status` prints which providers you are signed in to, as
 which account, and what is still missing; `--json` prints the same object the
 dashboard reads from `GET /api/auth/status`. `--sign-out` removes that
 provider's credential and exits; see [Sign out](#sign-out) above for exactly

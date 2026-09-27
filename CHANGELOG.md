@@ -42,7 +42,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ### Security
 - The vendored Google code's key-retrieval path could open a browser and run `pkill -f chrome`
-  (closing your own Chrome) on its own during a poll. Find+ now neutralises that path: a poll of
+  (closing your own Chrome) on its own during a poll. Find+ now neutralizes that path: a poll of
   a locked account raises a typed "needs unlock" state instead of launching a browser or blocking,
   and a real browser is opened only for a sign-in or unlock you start yourself.
 

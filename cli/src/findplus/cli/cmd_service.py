@@ -122,7 +122,10 @@ def start(yes: bool, no_open: bool, program_override: str | None, no_track_all: 
     settings = get_settings()
     auth_info = describe_stored_auth()
     apple_signed_in = (settings.state_dir / "apple-account.json").exists()
-    if not auth_info["exists"] and not apple_signed_in:
+    # "signed_in", not "exists": a secrets.json holding only FCM credentials
+    # (a failed or cancelled sign-in) is not a Google session.
+    google_signed_in = bool(auth_info["signed_in"])
+    if not google_signed_in and not apple_signed_in:
         click.echo("Find+ is not signed in yet. Run:")
         click.echo("  findplus auth       (or findplus setup for a guided walkthrough)")
         click.echo("  findplus start")
@@ -131,7 +134,7 @@ def start(yes: bool, no_open: bool, program_override: str | None, no_track_all: 
     with session_scope() as sess:
         tracked = get_tracked_devices(sess)
     if not tracked:
-        _discover_and_track(auth_info["exists"], apple_signed_in, no_track_all)
+        _discover_and_track(google_signed_in, apple_signed_in, no_track_all)
 
     program = _resolve_program(program_override)
     if not _install_or_start(service, program, yes):

@@ -34,14 +34,14 @@ class _FakeDevice:
 def _no_google(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "findplus.providers.google_findhub.bootstrap.describe_stored_auth",
-        lambda: {"exists": False},
+        lambda: {"exists": False, "signed_in": False},
     )
 
 
 def _google_with(monkeypatch: pytest.MonkeyPatch, devices: list[_FakeDevice]) -> None:
     monkeypatch.setattr(
         "findplus.providers.google_findhub.bootstrap.describe_stored_auth",
-        lambda: {"exists": True},
+        lambda: {"exists": True, "signed_in": True},
     )
     monkeypatch.setattr(
         "findplus.providers.google_findhub.client.FindHubClient.list_devices",

@@ -92,7 +92,34 @@ def ensure_gfmt_importable() -> Path:
 
 
 def secrets_exist() -> bool:
+    """True when secrets.json exists at all. NOT "signed in": see has_google_session()."""
     return get_settings().secrets_file.exists()
+
+
+def _read_store() -> dict[str, object] | None:
+    """secrets.json as a dict, or None when it is missing, unreadable or not an object."""
+    import json
+
+    path = get_settings().secrets_file
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def has_google_session() -> bool:
+    """True only when the store holds a Google session: an `aas_token` AND a username.
+
+    The one definition of "signed in to Google" (client.is_authenticated(), and
+    through it /api/auth/status, doctor and the poller; describe_stored_auth()'s
+    `signed_in` for `findplus start`). The file merely existing is not enough:
+    FcmReceiver writes `fcm_credentials` into it before the token exchange runs,
+    so a failed or cancelled sign-in left a file that used to read as "signed
+    in" with no account.
+    """
+    data = _read_store() or {}
+    return bool(data.get("aas_token")) and bool(data.get("username"))
 
 
 def describe_stored_auth() -> dict[str, object]:
@@ -104,16 +131,18 @@ def describe_stored_auth() -> dict[str, object]:
     info: dict[str, object] = {
         "path": str(path),
         "exists": path.exists(),
+        "signed_in": False,
         "permissions": None,
         "keys_present": [],
     }
     if not path.exists():
         return info
     info["permissions"] = oct(path.stat().st_mode & 0o777)
+    info["signed_in"] = has_google_session()
     try:
         data = json.loads(path.read_text())
         info["keys_present"] = sorted(data.keys())
-    except (OSError, json.JSONDecodeError):
+    except (OSError, json.JSONDecodeError, AttributeError):
         info["keys_present"] = ["<unreadable>"]
     return info
 
@@ -129,14 +158,6 @@ def stored_account_email() -> str | None:
     this never requires `ensure_gfmt_importable()` and has no import-time
     side effect on read-only status surfaces (/api/providers, `doctor`).
     """
-    import json
-
-    path = get_settings().secrets_file
-    if not path.exists():
-        return None
-    try:
-        data = json.loads(path.read_text())
-    except (OSError, json.JSONDecodeError):
-        return None
+    data = _read_store() or {}
     value = data.get("username")
     return value or None

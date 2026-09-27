@@ -27,7 +27,7 @@ from typing import Any
 from findplus.config import Settings, get_settings
 from findplus.logging_setup import get_logger
 
-from .bootstrap import ensure_gfmt_importable, secrets_exist
+from .bootstrap import ensure_gfmt_importable, has_google_session
 from .decrypt import decode_one_report, maybe_battery
 from .types import (
     AuthRequiredError,
@@ -50,7 +50,8 @@ class FindHubClient:
 
     # ------------------------------------------------------------------ auth
     def is_authenticated(self) -> bool:
-        return secrets_exist()
+        # A session, not merely a secrets.json: see has_google_session().
+        return has_google_session()
 
     def require_auth(self) -> None:
         if not self.is_authenticated():
@@ -72,10 +73,10 @@ class FindHubClient:
         from Auth.aas_token_retrieval import get_aas_token
         from Auth.username_provider import get_username
 
+        from .session import finish_sign_in
+
         get_aas_token()  # value deliberately not captured, logged or returned
-        email = get_username() or "<unknown>"
-        log.info("auth_complete", account=email, secrets_path=str(self.settings.secrets_file))
-        return email
+        return finish_sign_in(get_username() or "<unknown>")
 
     # --------------------------------------------------------------- devices
     def list_devices(self) -> list[FindHubDevice]:

@@ -25,7 +25,7 @@ def test_config_exposes_thresholds_and_the_findhub_notice(client: TestClient) ->
 def test_config_never_leaks_secret_values(client: TestClient) -> None:
     """The auth block must describe WHICH material is stored, never the values."""
     auth = client.get("/api/config").json()["auth"]
-    assert set(auth) == {"path", "exists", "permissions", "keys_present"}
+    assert set(auth) == {"path", "exists", "signed_in", "permissions", "keys_present"}
     assert "aas_token" not in str(auth.get("permissions"))
     blob = client.get("/api/config").text
     for leak in ("aas_et", "ya29.", "oauth2_4"):

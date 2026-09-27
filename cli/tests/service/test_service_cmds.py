@@ -29,7 +29,7 @@ def _no_browser(monkeypatch: pytest.MonkeyPatch) -> list[str]:
 def test_start_not_authenticated_prints_next_steps(tmp_db, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "findplus.providers.google_findhub.bootstrap.describe_stored_auth",
-        lambda: {"exists": False},
+        lambda: {"exists": False, "signed_in": False},
     )
     calls: list[bool] = []
     monkeypatch.setattr("findplus.service.install", lambda *a, **k: calls.append(True))
@@ -54,7 +54,8 @@ def test_start_nothing_tracked_discovers_prints_and_tracks_all(
     tmp_db, monkeypatch: pytest.MonkeyPatch, _no_browser: list[str]
 ) -> None:
     monkeypatch.setattr(
-        "findplus.providers.google_findhub.bootstrap.describe_stored_auth", lambda: {"exists": True}
+        "findplus.providers.google_findhub.bootstrap.describe_stored_auth",
+        lambda: {"exists": True, "signed_in": True},
     )
     monkeypatch.setattr(
         "findplus.providers.google_findhub.client.FindHubClient.list_devices",
@@ -80,7 +81,8 @@ def test_start_nothing_tracked_discovers_prints_and_tracks_all(
 # ------------------------------------------------------------- f: refresh fails
 def test_start_refresh_failure_exits_1(tmp_db, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "findplus.providers.google_findhub.bootstrap.describe_stored_auth", lambda: {"exists": True}
+        "findplus.providers.google_findhub.bootstrap.describe_stored_auth",
+        lambda: {"exists": True, "signed_in": True},
     )
 
     def _raise(self):
@@ -102,7 +104,7 @@ def test_start_apple_refresh_failure_exits_1(tmp_db, monkeypatch: pytest.MonkeyP
     """CR-C-E7 F3: branch B's Apple discovery gets the same guard as Google's."""
     monkeypatch.setattr(
         "findplus.providers.google_findhub.bootstrap.describe_stored_auth",
-        lambda: {"exists": False},
+        lambda: {"exists": False, "signed_in": False},
     )
     settings = get_settings()
     settings.state_dir.mkdir(parents=True, exist_ok=True)
@@ -125,7 +127,8 @@ def test_start_apple_refresh_failure_exits_1(tmp_db, monkeypatch: pytest.MonkeyP
 
 def _track_one_device(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "findplus.providers.google_findhub.bootstrap.describe_stored_auth", lambda: {"exists": True}
+        "findplus.providers.google_findhub.bootstrap.describe_stored_auth",
+        lambda: {"exists": True, "signed_in": True},
     )
     from findplus.db.session import session_scope
     from findplus.ingest import upsert_device

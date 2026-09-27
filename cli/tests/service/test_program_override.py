@@ -39,7 +39,7 @@ def _native_absolute_path(posix_like: str) -> str:
 def _track_one_device(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "findplus.providers.google_findhub.bootstrap.describe_stored_auth",
-        lambda: {"exists": True},
+        lambda: {"exists": True, "signed_in": True},
     )
     from findplus.db.session import session_scope
     from findplus.ingest import upsert_device

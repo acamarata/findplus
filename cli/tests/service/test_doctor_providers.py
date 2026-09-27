@@ -19,7 +19,7 @@ def test_check_providers_reports_the_google_account(tmp_db) -> None:
 
     settings = get_settings()
     settings.ensure_dirs()
-    settings.secrets_file.write_text(json.dumps({"username": "kid@example.com"}))
+    settings.secrets_file.write_text(json.dumps({"username": "kid@example.com", "aas_token": "t"}))
 
     c = check_providers()
     assert c.passed is True

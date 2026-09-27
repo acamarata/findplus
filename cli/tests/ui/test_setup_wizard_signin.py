@@ -118,7 +118,7 @@ async def test_a_409_rejoins_the_running_sign_in(page, base_url):
         await page.goto(base_url + "/#/setup")
         await page.wait_for_selector("#fp-setup-signin-status", timeout=15000)
 
-        await page.get_by_role("button", name="Connect Google Find Hub").click()
+        await page.get_by_role("button", name="Or let Find+ open its own Chrome window").click()
         await page.wait_for_function(
             "() => document.getElementById('fp-setup-google-progress')"
             ".textContent.includes('Finish signing in')",
@@ -223,7 +223,7 @@ async def test_signed_out_and_chrome_missing_shows_the_notice(page, base_url) ->
 
         assert (await page.locator("#fp-setup-signin-status").inner_text()).strip() == ""
         assert await page.locator("#fp-setup-chrome-notice").is_visible()
-        button = page.get_by_role("button", name="Connect Google Find Hub")
+        button = page.get_by_role("button", name="Or let Find+ open its own Chrome window")
         assert not await button.is_enabled()
     finally:
         await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)

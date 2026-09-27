@@ -75,12 +75,14 @@ async def test_cancel_while_waiting_on_chrome(page, base_url):
         )
         await page.route("**/api/auth/google/cancel", cancel_route)
 
-        await page.get_by_role("button", name="Connect Google Find Hub").click()
+        await page.get_by_role("button", name="Or let Find+ open its own Chrome window").click()
         await page.locator("#fp-setup-google-cancel").wait_for(state="visible", timeout=15000)
 
         await page.click("#fp-setup-google-cancel")
 
-        assert await page.get_by_role("button", name="Connect Google Find Hub").is_enabled()
+        assert await page.get_by_role(
+            "button", name="Or let Find+ open its own Chrome window"
+        ).is_enabled()
         assert await page.locator("#fp-setup-google-progress").is_hidden()
         assert cancel_calls == [{"job_id": "job-cancel"}]
     finally:
@@ -104,11 +106,13 @@ async def test_cancel_before_the_job_id_is_known_still_ends_the_wait(page, base_
         await page.route("**/api/auth/google/start", hold)
         await page.route("**/api/auth/google/cancel", cancel_route)
 
-        await page.get_by_role("button", name="Connect Google Find Hub").click()
+        await page.get_by_role("button", name="Or let Find+ open its own Chrome window").click()
         await page.locator("#fp-setup-google-cancel").wait_for(state="visible", timeout=15000)
         await page.click("#fp-setup-google-cancel")
 
-        assert await page.get_by_role("button", name="Connect Google Find Hub").is_enabled()
+        assert await page.get_by_role(
+            "button", name="Or let Find+ open its own Chrome window"
+        ).is_enabled()
 
         for route in held:
             await route.fulfill(status=202, json={"job_id": "job-late"})

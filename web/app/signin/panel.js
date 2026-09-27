@@ -15,7 +15,8 @@
  */
 "use strict";
 
-import { el, buildGoogleCard, buildAppleCard, notAffiliatedFooter } from "./cards.js";
+import { el, buildAppleCard, notAffiliatedFooter } from "./cards.js";
+import { buildGoogleCard } from "./google_card.js";
 import { GoogleFlow } from "./google_flow.js";
 import { AppleFlow } from "./apple_flow.js";
 

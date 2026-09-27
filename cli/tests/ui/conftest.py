@@ -236,6 +236,20 @@ def reset_alert_and_observation_state(ui_db: Path) -> None:
         conn.close()
 
 
+async def _never_open_a_real_browser(ctx) -> None:
+    """POST /api/auth/google/open on the live server really opens Google Chrome.
+
+    Answered here for every page, so no test can open the owner's own Chrome
+    by clicking "Sign in with your Chrome". A test's own page.route() for the
+    same URL still wins (page routes take precedence over context routes).
+    """
+
+    async def fake_open(route):
+        await route.fulfill(json={"browser": "chrome", "url": "https://accounts.google.com/"})
+
+    await ctx.route("**/api/auth/google/open", fake_open)
+
+
 @pytest_asyncio.fixture(loop_scope="session")
 async def page(browser_session):
     # One BrowserContext per test. The dashboard persists UI state (open
@@ -248,6 +262,7 @@ async def page(browser_session):
     # The header itself is still asserted by the security tests.
     ctx = await browser.new_context(bypass_csp=True)
     await stub_osm_tiles(ctx)  # PRI rule 3: no real tile fetches
+    await _never_open_a_real_browser(ctx)
     pg = await ctx.new_page()
     yield pg
     await ctx.close()

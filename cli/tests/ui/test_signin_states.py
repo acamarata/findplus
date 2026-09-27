@@ -28,7 +28,7 @@ from ._signin_helpers import (
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
-CONNECT = "Connect Google Find Hub"
+CONNECT = "Or let Find+ open its own Chrome window"
 ERROR = "#fp-setup-google-error"
 PROGRESS = "#fp-setup-google-progress"
 

@@ -8,10 +8,11 @@
  *              the heading level that fits the surrounding page, and whether
  *              to print each provider's honesty sentence under its card.
  * Outputs    : { root, ...named elements } per card, for the flows in
- *              google_flow.js / apple_flow.js to drive.
+ *              google_flow.js / apple_flow.js to drive. The Google card itself
+ *              is built in google_card.js from the helpers exported here.
  * Constraints: textContent only. Every string comes from t() or from the
  *              /api/config notices the caller passes in. The buttons name what
- *              happens ("Connect Google Find Hub"); they deliberately copy no
+ *              happens ("Sign in with your Chrome"); they deliberately copy no
  *              vendor sign-in button, logo or wordmark: Find+ uses neither
  *              vendor's identity service and says it is not affiliated. The
  *              icons are neutral Lucide glyphs from the bundled sprite.
@@ -40,7 +41,7 @@ export function el(tag, className, text) {
   return node;
 }
 
-function button(className, label, id) {
+export function button(className, label, id) {
   const btn = el("button", className, label);
   btn.type = "button";
   if (id) btn.id = id;
@@ -69,7 +70,7 @@ function icon(name) {
  * apple_flow.js's setFieldError() fills it; `aria-describedby` links the
  * input to it either way.
  */
-function field(labelText, id, type, autocomplete, { withError = false } = {}) {
+export function field(labelText, id, type, autocomplete, { withError = false } = {}) {
   const label = el("label", "fp-signin-field");
   const input = el("input");
   input.type = type;
@@ -85,7 +86,7 @@ function field(labelText, id, type, autocomplete, { withError = false } = {}) {
 }
 
 /** Icon, provider name and the "Signed in as ..." line. */
-function head(glyph, headingText, level, statusId) {
+export function head(glyph, headingText, level, statusId) {
   const wrap = el("div", "fp-signin-head");
   const badge = el("span", "fp-signin-icon");
   badge.append(icon(glyph));
@@ -108,7 +109,7 @@ function head(glyph, headingText, level, statusId) {
  * shows and hides with the row's own `hidden` toggling instead of needing a
  * second place to track busy/idle.
  */
-function feedback(prefix, { withCancel = false } = {}) {
+export function feedback(prefix, { withCancel = false } = {}) {
   const progress = el("div", "fp-signin-progress");
   progress.id = `${prefix}-progress`;
   progress.setAttribute("role", "status");
@@ -155,7 +156,7 @@ export function notAffiliatedFooter(prefix, notices) {
  * not a modal: a plain row beside the card's own actions, hidden until
  * Disconnect is clicked.
  */
-function disconnectConfirmRow(prefix, key, confirmText) {
+export function disconnectConfirmRow(prefix, key, confirmText) {
   const row = el("div", "fp-signin-confirm");
   row.id = `${prefix}-${key}-disconnect-confirm`;
   row.hidden = true;
@@ -168,7 +169,7 @@ function disconnectConfirmRow(prefix, key, confirmText) {
   return { row, text, confirm, cancel };
 }
 
-function card(id, provider) {
+export function card(id, provider) {
   const root = el("section", "fp-signin-card");
   root.id = id;
   root.dataset.provider = provider;
@@ -190,45 +191,6 @@ const CHROME_INSTALL_SENTENCE = /\s*Install it from https?:\/\/\S+ and try again
  */
 export function chromeNoticeText(full) {
   return (full || "").replace(CHROME_INSTALL_SENTENCE, "");
-}
-
-/** The Chrome-missing notice, its download link and a re-check button. */
-function chromeBlock(prefix, notices) {
-  const wrap = el("div", "fp-signin-chrome");
-  wrap.hidden = true;
-  const notice = el("p", "fp-signin-note", chromeNoticeText(notices.chrome_required) || "");
-  notice.id = `${prefix}-chrome-notice`;
-  notice.hidden = true;
-  const link = el("a", "fp-signin-link", t("signin.google.downloadChrome"));
-  link.id = `${prefix}-chrome-download`;
-  link.href = CHROME_URL;
-  link.target = "_blank";
-  link.rel = "noopener";
-  link.hidden = true;
-  const recheck = button("btn btn-secondary", t("signin.google.checkAgain"));
-  wrap.append(notice, link, recheck);
-  return { chrome: wrap, chromeNotice: notice, chromeLink: link, recheck };
-}
-
-/** The Google Find Hub card: one button that opens Chrome, then feedback. */
-export function buildGoogleCard({ prefix, level, notices, withNotices }) {
-  loadIconSprite().catch(() => {});
-  const root = card(`${prefix}-google-card`, "google");
-  const top = head("compass", t("signin.google.heading"), level, `${prefix}-google-status`);
-  const how = el("p", "fp-signin-how", t("signin.google.how"));
-  const actions = el("div", "fp-signin-actions");
-  const signin = button("btn fp-signin-btn", t("signin.google.connect"), `${prefix}-google-signin`);
-  const disconnect = button("btn btn-secondary", t("signin.disconnect"), `${prefix}-google-disconnect`);
-  disconnect.hidden = true;
-  actions.append(signin, disconnect);
-  const disconnectConfirm = disconnectConfirmRow(prefix, "google", t("signin.google.disconnectConfirm"));
-  const fb = feedback(`${prefix}-google`, { withCancel: true });
-  const chrome = chromeBlock(prefix, notices);
-  root.append(
-    top.wrap, how, actions, disconnectConfirm.row, fb.progress, fb.error, chrome.chrome
-  );
-  if (withNotices) root.append(el("p", "fp-wizard-footnote", notices.find_hub || ""));
-  return { root, account: top.account, button: signin, disconnect, disconnectConfirm, ...fb, ...chrome };
 }
 
 /** The 2FA row the Apple card reveals once the server asks for a code. */

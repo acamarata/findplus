@@ -1,12 +1,15 @@
 /*
- * Google Find Hub sign-in: open Chrome, wait for the person, save the session.
+ * Google Find Hub sign-in: the card's two paths and its shared controls.
  *
- * Purpose    : Drive POST /api/auth/google/start and GET
+ * Purpose    : The primary path, sign in with your own Chrome and paste the
+ *              token, lives in google_token_flow.js and is created here. This
+ *              file drives the secondary, automatic path (Find+ opens its own
+ *              Chrome window): POST /api/auth/google/start and GET
  *              /api/auth/google/progress, and show every state they can
  *              report: starting ("Opening Chrome..."), waiting for the person
  *              in Chrome, capturing, done, failed, Chrome missing, a refused
  *              start, a lost daemon and a timeout. Nothing ends silently.
- * Inputs     : The Google card from cards.js; deps from panel.js.
+ * Inputs     : The Google card from google_card.js; deps from panel.js.
  * Outputs    : DOM state on that card; deps.onSettled() once a job is done.
  * Constraints: The Chrome-missing sentence is honesty.CHROME_REQUIRED from
  *              /api/config (deps.notices()), never the thrown 400 text: the
@@ -27,6 +30,7 @@ import { t } from "../i18n.js";
 import { googleChromeNoticeNeeded } from "../provider_chrome.js";
 import { chromeNoticeText } from "./cards.js";
 import { FlowBase } from "./flow_base.js";
+import { GoogleTokenFlow } from "./google_token_flow.js";
 import { describeError } from "./job_poller.js";
 
 const PROGRESS_ROUTE = "/api/auth/google/progress";
@@ -44,6 +48,7 @@ export class GoogleFlow extends FlowBase {
     super(card, deps);
     this.jobId = null;
     this.cancelRequested = false;
+    this.tokenFlow = new GoogleTokenFlow(card, deps, () => this.settle());
     card.button.addEventListener("click", () => this.start());
     card.retry.addEventListener("click", () => this.start());
     card.recheck.addEventListener("click", () => this.deps.onSettled());
@@ -59,7 +64,7 @@ export class GoogleFlow extends FlowBase {
     this.card.account.textContent = this.signedIn
       ? t("signin.account.signedIn", { account: provider.account })
       : t("signin.account.signedOut");
-    this.card.button.textContent = t(this.signedIn ? "signin.google.switch" : "signin.google.connect");
+    this.card.open.textContent = t(this.signedIn ? "signin.google.switch" : "signin.google.openChrome");
     this.card.disconnect.hidden = !this.signedIn;
     if (!this.signedIn) this.hideDisconnectConfirm();
     if (this.busy) return;
@@ -183,6 +188,7 @@ export class GoogleFlow extends FlowBase {
 
   purge() {
     super.purge();
+    this.tokenFlow.purge();
     this.jobId = null;
     this.cancelRequested = false;
     this.hideDisconnectConfirm();

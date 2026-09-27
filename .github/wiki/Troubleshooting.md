@@ -9,14 +9,23 @@ Chrome windows you have open will be closed. Save your work first, then rerun
 Chrome" close nothing: they open Google's page as a tab of your own Chrome and
 you paste the token back ([Sign in](Sign-in)).
 
-## 2. 409 on Telegram
+## 2. "Locations are locked" after signing in
+
+Google encrypts Find Hub locations end to end, so a fresh sign-in cannot decrypt
+anything until you unlock the key once. Open **Settings > Sign-in** (or the setup
+wizard) and use **Unlock encrypted locations**: Find+ opens a Chrome window of its
+own and Google asks for your Android phone's screen lock in it. From a terminal,
+run `findplus auth --unlock`. The step disappears once the key is stored, and polls
+decrypt from then on. Find+ never asks you to paste anything into a console.
+
+## 3. 409 on Telegram
 
 A `409 Conflict` from the Telegram API means another process (or another
 bot) already holds the long-poll connection for that token. Use a different
 bot token, or remove the webhook set on the existing bot in
 [@BotFather](https://t.me/BotFather) (`/deletewebhook`) before retrying.
 
-## 3. Port already in use
+## 4. Port already in use
 
 If `findplus serve` or `findplus start` cannot bind port 8647, change it:
 
@@ -25,13 +34,13 @@ findplus config set port 8648
 findplus restart
 ```
 
-## 4. Gatekeeper blocks Find+.app
+## 5. Gatekeeper blocks Find+.app
 
 macOS refuses to open the app because it is not notarised through the Mac
 App Store. Right-click Find+.app and choose **Open** on first launch only;
 subsequent launches work normally.
 
-## 5. Why is my alert 40 minutes late?
+## 6. Why is my alert 40 minutes late?
 
 Alerts inherit the network's delay. An arrival or departure may be reported
 minutes to hours late.
@@ -52,7 +61,7 @@ Apple Find My locations come from nearby Apple devices and can be delayed,
 sparse or unavailable.
 
 
-## 6. "Database not migrated. Run findplus db upgrade."
+## 7. "Database not migrated. Run findplus db upgrade."
 
 Every API call returns HTTP 503 with this message. The database file exists but
 its schema is older than the code, usually after installing a new version

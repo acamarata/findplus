@@ -69,6 +69,29 @@ this sign-in only. Your personal Chrome profile is not read, not written, and
 not closed. It is a separate profile, not a sandbox: the browser still reaches
 the network the way any browser does.
 
+### Unlock encrypted locations
+
+Google encrypts your Find Hub locations end to end. After you sign in, Find+
+still needs to unlock that encryption once before it can read any tracker, and
+the card shows an **Unlock encrypted locations** step until you do. It needs
+your Android phone's screen lock (PIN, pattern or password): that is what
+proves to Google you are allowed the key.
+
+Click **Unlock encrypted locations**. Find+ opens a Chrome window of its own
+and Google asks for your phone's screen lock in it. Enter it there. Find+ never
+asks you to paste anything into a console, and it does not touch your everyday
+Chrome. When the key is stored the step disappears and the next poll can
+decrypt. A **Cancel** button backs out while it waits, and a failure is shown
+with the step still there to try again.
+
+Find+ stores the key (`shared_key`) in `~/.findplus/secrets.json` at mode 0600
+and never logs it. From a terminal, `findplus auth --unlock` does the same:
+it opens the window, waits for the screen lock, and stores the key.
+
+If a poll ever reports that locations are locked again (for example after the
+end-to-end data is reset on your account), the same step reappears; unlock once
+more.
+
 ### Both ways
 
 The buttons are Find+'s own, not Google's or Apple's sign-in buttons. Find+
@@ -210,12 +233,15 @@ The two routes behind "Sign in with your Chrome" are `POST
 /api/auth/google/open` (opens the page, answers which browser got it) and
 `POST /api/auth/google/token` with `{"email", "oauth_token"}`. Both carry the
 same header requirement, and the token route never quotes the token back, even
-in an error.
+in an error. The unlock step's routes (`POST
+/api/auth/google/unlock/start`, `GET .../unlock/progress`, `POST
+.../unlock/cancel`) carry the same header requirement.
 
 ## Command line
 
 ```bash
 findplus auth --token
+findplus auth --unlock
 findplus auth
 findplus auth --provider apple-find-my
 findplus auth --status
@@ -229,7 +255,9 @@ for your email and the token (typed hidden). For a script, set
 `FINDPLUS_OAUTH_TOKEN` instead and only the email is asked for. The token never
 goes on the command line, so it stays out of your shell history. `findplus
 auth` without `--token` is the terminal's automatic flow and behaves the same
-as it always has. `findplus auth --status` prints which providers you are signed in to, as
+as it always has. `findplus auth --unlock` runs the unlock step (above) from a
+terminal: it opens Find+'s own Chrome window for your Android screen lock and
+stores the encryption key. `findplus auth --status` prints which providers you are signed in to, as
 which account, and what is still missing; `--json` prints the same object the
 dashboard reads from `GET /api/auth/status`. `--sign-out` removes that
 provider's credential and exits; see [Sign out](#sign-out) above for exactly

@@ -16,6 +16,12 @@ Versioning: [Semantic Versioning](https://semver.org/).
   option, "Or let Find+ open its own Chrome window". New routes: `POST /api/auth/google/open` and
   `POST /api/auth/google/token`. From a terminal: `findplus auth --token` (or set
   `FINDPLUS_OAUTH_TOKEN`).
+- **Unlock encrypted locations**: Google encrypts Find Hub locations end to end, so after signing
+  in the card shows an unlock step. It opens a Chrome window of Find+'s own where Google asks for
+  your Android phone's screen lock, once; Find+ stores the key and never asks you to paste code.
+  A locked account now shows this step (and a poll reports it) instead of failing to decrypt. New
+  routes: `POST /api/auth/google/unlock/{start,cancel}` and `GET /api/auth/google/unlock/progress`.
+  From a terminal: `findplus auth --unlock`.
 
 ### Changed
 - Find+ is now menu-bar only on macOS: no Dock icon, ever. The tray icon is a simple "F+" glyph
@@ -31,6 +37,12 @@ Versioning: [Semantic Versioning](https://semver.org/).
   dashboard, `findplus auth --status`, `findplus doctor` and `findplus start`.
 - Signing in to a different Google account drops the previous account's encryption keys, so the
   first poll fetches the new account's keys instead of failing to decrypt.
+
+### Security
+- The vendored Google code's key-retrieval path could open a browser and run `pkill -f chrome`
+  (closing your own Chrome) on its own during a poll. Find+ now neutralises that path: a poll of
+  a locked account raises a typed "needs unlock" state instead of launching a browser or blocking,
+  and a real browser is opened only for a sign-in or unlock you start yourself.
 
 ## [1.1.3] - 2026-09-26
 

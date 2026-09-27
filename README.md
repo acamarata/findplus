@@ -118,6 +118,12 @@ expires within minutes, so copy it right after you sign in. From a terminal,
 opens a separate Chrome window with a profile of its own and picks the token up by
 itself. It needs Google Chrome installed.
 
+**Unlock encrypted locations.** Google encrypts Find Hub locations end to end, so
+after you sign in the card shows an **Unlock encrypted locations** step. Click it and
+Find+ opens a Chrome window of its own where Google asks for your Android phone's
+screen lock, once. That releases the key; Find+ stores it and never asks you to paste
+anything. From a terminal, `findplus auth --unlock` does the same.
+
 **Apple Find My** takes your Apple ID, password and verification code on its own
 card. Details for both: [Sign-in](https://github.com/acamarata/findplus/wiki/Sign-in).
 

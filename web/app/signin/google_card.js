@@ -95,6 +95,41 @@ function tokenPanel(prefix) {
   };
 }
 
+/**
+ * The "Unlock encrypted locations" step, shown when the account is signed in
+ * but its E2EE key is still locked (`needs` includes `shared_key`). Honest:
+ * Google encrypts Find Hub locations end to end; unlocking needs the Android
+ * phone's screen lock once, in a Chrome window Find+ opens itself, and Find+
+ * never asks you to paste code. google_unlock_flow.js drives it.
+ */
+function unlockBlock(prefix) {
+  const wrap = el("div", "fp-signin-unlock");
+  wrap.id = `${prefix}-google-unlock`;
+  wrap.hidden = true;
+  const why = el("p", "fp-signin-how", t("signin.google.unlock.why"));
+  const actions = el("div", "fp-signin-actions");
+  const btn = button("btn fp-signin-btn", t("signin.google.unlock.button"), `${prefix}-google-unlock-btn`);
+  const cancel = button("btn btn-secondary", t("signin.cancel"), `${prefix}-google-unlock-cancel`);
+  cancel.hidden = true;
+  actions.append(btn, cancel);
+  const status = el("p", "fp-signin-how");
+  status.id = `${prefix}-google-unlock-status`;
+  status.setAttribute("role", "status");
+  status.hidden = true;
+  const error = el("div", "fp-signin-error");
+  error.id = `${prefix}-google-unlock-error`;
+  error.setAttribute("role", "alert");
+  error.hidden = true;
+  const errorDetail = el("p", "fp-signin-error-detail");
+  error.append(errorDetail);
+  wrap.append(el("p", "fp-signin-unlock-head", t("signin.google.unlock.heading")), why, actions,
+    status, error);
+  return {
+    unlock: wrap, unlockButton: btn, unlockCancel: cancel, unlockStatus: status,
+    unlockError: error, unlockErrorDetail: errorDetail,
+  };
+}
+
 /** The Google Find Hub card (see the header for its two paths). */
 export function buildGoogleCard({ prefix, level, notices, withNotices }) {
   loadIconSprite().catch(() => {});
@@ -108,17 +143,18 @@ export function buildGoogleCard({ prefix, level, notices, withNotices }) {
   actions.append(open, disconnect);
   const disconnectConfirm = disconnectConfirmRow(prefix, "google", t("signin.google.disconnectConfirm"));
   const panel = tokenPanel(prefix);
+  const unlock = unlockBlock(prefix);
   const alt = el("div", "fp-signin-alt");
   const signin = button("btn btn-secondary fp-signin-alt-btn", t("signin.google.ownWindow"),
     `${prefix}-google-signin`);
   alt.append(signin);
   const fb = feedback(`${prefix}-google`, { withCancel: true });
   const chrome = chromeBlock(prefix, notices);
-  root.append(top.wrap, how, actions, disconnectConfirm.row, panel.tokenPanel, alt, fb.progress,
-    fb.error, chrome.chrome);
+  root.append(top.wrap, how, actions, disconnectConfirm.row, unlock.unlock, panel.tokenPanel, alt,
+    fb.progress, fb.error, chrome.chrome);
   if (withNotices) root.append(el("p", "fp-wizard-footnote", notices.find_hub || ""));
   return {
     root, account: top.account, open, button: signin, disconnect, disconnectConfirm,
-    ...panel, ...fb, ...chrome,
+    ...unlock, ...panel, ...fb, ...chrome,
   };
 }

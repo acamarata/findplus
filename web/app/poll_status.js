@@ -34,6 +34,7 @@ export function shortStatus(code) {
     case "no_location": return t("pollStatus.noLocation");
     case "provider_unauthenticated":
     case "auth_error": return t("pollStatus.signedOut");
+    case "needs_shared_key": return t("pollStatus.locked");
     case "provider_unavailable": return t("pollStatus.unavailable");
     case "timeout": return t("pollStatus.timeout");
     default: return t("pollStatus.failed");
@@ -64,6 +65,8 @@ export function failedPollNotice(run) {
     case "provider_unauthenticated":
     case "auth_error":
       return { message: t("pollStatus.bannerSignedOut", { provider }), action: "signin" };
+    case "needs_shared_key":
+      return { message: t("pollStatus.bannerNeedsUnlock", { provider }), action: "signin" };
     case "provider_unavailable":
       return { message: t("pollStatus.bannerUnavailable", { provider }), action: "signin" };
     case "timeout":

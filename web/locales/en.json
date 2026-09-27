@@ -623,6 +623,13 @@
         "missingEmail": "Enter the Google email you signed in with.",
         "missingToken": "Paste the oauth_token value first."
       },
+      "unlock": {
+        "heading": "Unlock encrypted locations",
+        "why": "Google encrypts your Find Hub locations end to end. Unlocking them needs your Android phone's screen lock, once. Find+ opens a Chrome window of its own for this, because Google releases the key only to a browser page. Find+ never asks you to paste code.",
+        "button": "Unlock encrypted locations",
+        "starting": "Opening the Find+ Chrome window…",
+        "waiting": "Enter your Android phone's screen lock in the Find+ Chrome window."
+      },
       "starting": "Opening Chrome…",
       "waiting": "Finish signing in in the Chrome window that opened. This page updates by itself.",
       "capturing": "Signed in. Saving your session…",
@@ -669,11 +676,13 @@
     "ok": "worked",
     "noLocation": "no new location",
     "signedOut": "not signed in",
+    "locked": "locked",
     "unavailable": "provider unavailable",
     "timeout": "timed out",
     "failed": "failed",
     "anyProvider": "your tracking account",
     "bannerSignedOut": "Find+ is not signed in to {provider}, so it cannot read your trackers yet.",
+    "bannerNeedsUnlock": "{provider} locations are encrypted and not unlocked yet. Open Sign-in and unlock them with your Android phone's screen lock.",
     "bannerUnavailable": "Find+ could not use {provider} on the last poll. Check its sign-in, or wait for the next poll.",
     "bannerTimeout": "{provider} took too long to answer the last poll. Find+ tries again on the next one.",
     "bannerFailed": "The last poll did not finish. Find+ tries again on the next one.",

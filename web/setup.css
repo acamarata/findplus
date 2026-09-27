@@ -233,6 +233,14 @@
 }
 .fp-signin-alt .fp-signin-alt-btn { font-size: 12px; padding: 5px 10px; }
 
+/* Unlock encrypted locations: shown when the account is signed in but its
+   end-to-end key is still locked (needs shared_key). */
+.fp-signin-unlock {
+  display: flex; flex-direction: column; gap: 8px;
+  border-top: 1px solid var(--line); padding-top: 12px;
+}
+.fp-signin-unlock-head { font-size: 14px; font-weight: 650; color: var(--text); }
+
 /* Blocked: Chrome missing, or the Apple extra not installed. */
 .fp-signin-chrome { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
 .fp-signin-note {

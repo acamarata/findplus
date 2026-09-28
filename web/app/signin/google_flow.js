@@ -30,6 +30,7 @@ import { t } from "../i18n.js";
 import { googleChromeNoticeNeeded } from "../provider_chrome.js";
 import { chromeNoticeText } from "./cards.js";
 import { FlowBase } from "./flow_base.js";
+import { GoogleHelperFlow } from "./google_helper_flow.js";
 import { GoogleTokenFlow } from "./google_token_flow.js";
 import { GoogleUnlockFlow } from "./google_unlock_flow.js";
 import { describeError } from "./job_poller.js";
@@ -51,6 +52,7 @@ export class GoogleFlow extends FlowBase {
     this.cancelRequested = false;
     this.tokenFlow = new GoogleTokenFlow(card, deps, () => this.settle());
     this.unlockFlow = new GoogleUnlockFlow(card, deps, () => this.settle());
+    this.helperFlow = new GoogleHelperFlow(card, deps, () => this.settle());
     card.button.addEventListener("click", () => this.start());
     card.retry.addEventListener("click", () => this.start());
     card.recheck.addEventListener("click", () => this.deps.onSettled());
@@ -66,9 +68,9 @@ export class GoogleFlow extends FlowBase {
     this.card.account.textContent = this.signedIn
       ? t("signin.account.signedIn", { account: provider.account })
       : t("signin.account.signedOut");
-    this.card.open.textContent = t(this.signedIn ? "signin.google.switch" : "signin.google.openChrome");
     this.card.disconnect.hidden = !this.signedIn;
     if (!this.signedIn) this.hideDisconnectConfirm();
+    this.helperFlow.render(provider);
     this.unlockFlow.render(provider);
     if (this.busy) return;
     if (this.card.root.dataset.state !== "failed") this.showIdle();
@@ -189,16 +191,18 @@ export class GoogleFlow extends FlowBase {
     }
   }
 
-  /** Stop both this flow's poll and the unlock flow's, without repainting. */
+  /** Stop this flow's poll and the unlock/helper polls, without repainting. */
   stop() {
     super.stop();
     this.unlockFlow.poller.stop();
+    this.helperFlow.stopPoll();
   }
 
   purge() {
     super.purge();
     this.tokenFlow.purge();
     this.unlockFlow.purge();
+    this.helperFlow.purge();
     this.jobId = null;
     this.cancelRequested = false;
     this.hideDisconnectConfirm();

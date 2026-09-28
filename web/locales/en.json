@@ -603,10 +603,17 @@
     "disconnect": "Disconnect",
     "google": {
       "heading": "Google Find Hub",
-      "how": "Sign in on Google's own page in your Chrome, then copy one value from it into Find+. You type your password in Chrome, not into Find+.",
+      "how": "Sign in with Google in the Chrome you already use. The Find+ helper passes the sign-in to Find+ on this computer; you type your password on Google's own page.",
       "openChrome": "Sign in with your Chrome",
       "ownWindow": "Or let Find+ open its own Chrome window",
+      "otherWays": "Other ways to sign in",
       "switch": "Switch Google account",
+      "hello": {
+        "button": "Sign in with Google",
+        "opening": "Opening Chrome…",
+        "waiting": "Finish signing in in Chrome. This page updates on its own.",
+        "timeout": "Sign-in did not finish. Make sure the Find+ helper is added to Chrome, then try again."
+      },
       "token": {
         "openedChrome": "Google's sign-in page is open in Google Chrome.",
         "openedDefault": "Google's sign-in page is open in your default browser. These steps are written for Google Chrome.",

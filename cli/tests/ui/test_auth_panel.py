@@ -50,6 +50,12 @@ async def _open_settings(page, base_url) -> None:
     await page.goto(base_url + DASHBOARD)
     await page.click("#btn-settings")
     await page.wait_for_selector("#fp-settings-signin")
+    # Reveal the "Other ways to sign in" details so the demoted paste /
+    # separate-window controls this suite drives are interactable.
+    await page.evaluate(
+        "() => document.querySelectorAll('details.fp-signin-other')"
+        ".forEach((d) => { d.open = true; })"
+    )
 
 
 async def _open_settings_settled(page, base_url) -> None:
@@ -118,13 +124,16 @@ async def test_signed_in_google_card_offers_switch_account(page, base_url) -> No
     catalog = (await _catalog(page, base_url))["signin"]["google"]
 
     await _render_google(page, {"signed_in": True, "account": "a@example.com", "needs": []})
-    button = page.locator("#fp-auth-google-open")
-    assert await button.inner_text() == catalog["switch"]
-    assert await button.is_disabled() is False
+    # The primary "Sign in with Google" button relabels to "Switch Google
+    # account" when signed in; the separate-window option keeps its own label.
+    hello = page.locator("#fp-auth-google-hello")
+    assert await hello.inner_text() == catalog["switch"]
+    assert await hello.is_disabled() is False
     assert await page.locator("#fp-auth-google-signin").inner_text() == catalog["ownWindow"]
 
     await _render_google(page, {"signed_in": False, "account": None, "needs": []})
-    assert (await button.inner_text(), await button.is_disabled()) == (catalog["openChrome"], False)
+    assert await hello.inner_text() == catalog["hello"]["button"]
+    assert await hello.is_disabled() is False
 
 
 async def test_apple_2fa_field_hidden_by_default(page, base_url) -> None:

@@ -130,31 +130,78 @@ function unlockBlock(prefix) {
   };
 }
 
-/** The Google Find Hub card (see the header for its two paths). */
+/**
+ * The primary "Sign in with Google" button (google_helper_flow.js) and its own
+ * status/cancel/error line. A neutral white button: no Google "G" artwork,
+ * which is reserved for Google Identity Services. It signs in through the Find+
+ * helper extension in the user's own Chrome.
+ */
+function helloBlock(prefix) {
+  const wrap = el("div", "fp-signin-hello");
+  const actions = el("div", "fp-signin-actions");
+  const hello = button("btn fp-signin-btn fp-google-btn", t("signin.google.hello.button"),
+    `${prefix}-google-hello`);
+  actions.append(hello);
+  const status = el("div", "fp-signin-progress");
+  status.id = `${prefix}-google-hello-status`;
+  status.setAttribute("role", "status");
+  status.hidden = true;
+  const statusText = el("span", "fp-signin-progress-text");
+  const cancel = button("btn btn-secondary", t("signin.cancel"), `${prefix}-google-hello-cancel`);
+  cancel.hidden = true;
+  status.append(el("span", "fp-signin-spinner"), statusText, cancel);
+  const error = el("div", "fp-signin-error");
+  error.id = `${prefix}-google-hello-error`;
+  error.setAttribute("role", "alert");
+  error.hidden = true;
+  const errorDetail = el("p", "fp-signin-error-detail");
+  const retry = button("btn btn-secondary", t("signin.retry"), `${prefix}-google-hello-retry`);
+  error.append(errorDetail, retry);
+  wrap.append(actions, status, error);
+  return {
+    helloBlock: wrap, hello, helloStatus: statusText, helloStatusRow: status,
+    helloCancel: cancel, helloError: error, helloErrorDetail: errorDetail, helloRetry: retry,
+  };
+}
+
+/** The Google Find Hub card. Primary: "Sign in with Google" (the helper). The
+ * paste flow and the separate-window flow move under an "Other ways" details. */
 export function buildGoogleCard({ prefix, level, notices, withNotices }) {
   loadIconSprite().catch(() => {});
   const root = card(`${prefix}-google-card`, "google");
   const top = head("compass", t("signin.google.heading"), level, `${prefix}-google-status`);
   const how = el("p", "fp-signin-how", t("signin.google.how"));
-  const actions = el("div", "fp-signin-actions");
-  const open = button("btn fp-signin-btn", t("signin.google.openChrome"), `${prefix}-google-open`);
+  const hello = helloBlock(prefix);
   const disconnect = button("btn btn-secondary", t("signin.disconnect"), `${prefix}-google-disconnect`);
   disconnect.hidden = true;
-  actions.append(open, disconnect);
+  const disconnectRow = el("div", "fp-signin-actions");
+  disconnectRow.append(disconnect);
   const disconnectConfirm = disconnectConfirmRow(prefix, "google", t("signin.google.disconnectConfirm"));
-  const panel = tokenPanel(prefix);
   const unlock = unlockBlock(prefix);
+
+  // "Other ways to sign in": the paste flow and the separate-window flow, in a
+  // native <details> so it collapses with no inline handler (CSP-safe).
+  const other = document.createElement("details");
+  other.className = "fp-signin-other";
+  const summary = document.createElement("summary");
+  summary.textContent = t("signin.google.otherWays");
+  const open = button("btn fp-signin-btn", t("signin.google.openChrome"), `${prefix}-google-open`);
+  const openRow = el("div", "fp-signin-actions");
+  openRow.append(open);
+  const panel = tokenPanel(prefix);
   const alt = el("div", "fp-signin-alt");
   const signin = button("btn btn-secondary fp-signin-alt-btn", t("signin.google.ownWindow"),
     `${prefix}-google-signin`);
   alt.append(signin);
   const fb = feedback(`${prefix}-google`, { withCancel: true });
   const chrome = chromeBlock(prefix, notices);
-  root.append(top.wrap, how, actions, disconnectConfirm.row, unlock.unlock, panel.tokenPanel, alt,
-    fb.progress, fb.error, chrome.chrome);
+  other.append(summary, openRow, panel.tokenPanel, alt, fb.progress, fb.error, chrome.chrome);
+
+  root.append(top.wrap, how, hello.helloBlock, disconnectRow, disconnectConfirm.row,
+    unlock.unlock, other);
   if (withNotices) root.append(el("p", "fp-wizard-footnote", notices.find_hub || ""));
   return {
-    root, account: top.account, open, button: signin, disconnect, disconnectConfirm,
-    ...unlock, ...panel, ...fb, ...chrome,
+    root, account: top.account, open, button: signin, disconnect, disconnectConfirm, other,
+    ...hello, ...unlock, ...panel, ...fb, ...chrome,
   };
 }

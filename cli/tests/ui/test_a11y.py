@@ -189,7 +189,7 @@ WIZARD_STEPS = {
     "devices": ".fp-setup-device-row",
     "notifications": "#fp-setup-wa-phone",
     # E14: the shared sign-in cards (icons, forms, live regions).
-    "signin": "#fp-setup-google-signin",
+    "signin": "#fp-setup-google-hello",
 }
 
 

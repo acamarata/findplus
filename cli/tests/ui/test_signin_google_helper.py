@@ -99,3 +99,24 @@ async def test_other_ways_reveals_the_paste_and_separate_window_flows(page, base
     assert await page.get_by_role(
         "button", name="Or let Find+ open its own Chrome window"
     ).is_visible()
+
+
+async def test_show_folder_and_open_extensions_post_their_routes(page, base_url):
+    reveal = []
+    openext = []
+    await _open(page, base_url)
+    await page.route("**/api/auth/google/helper/reveal", reply({"path": "/x/1.1.5"}, 200, reveal))
+    await page.route(
+        "**/api/auth/google/helper/open-extensions", reply({"opened": True}, 200, openext)
+    )
+    await page.locator("#fp-auth-google-card details.fp-signin-install > summary").click()
+    await page.get_by_role("button", name="Show helper folder").click()
+    await page.get_by_role("button", name="Open Chrome extensions").click()
+    assert len(reveal) == 1 and len(openext) == 1
+
+
+async def test_helper_installed_line_follows_status(page, base_url):
+    body = {"providers": status_body()["providers"], "google_helper_installed": True}
+    await _open(page, base_url, body)
+    await page.locator("#fp-auth-google-card details.fp-signin-install > summary").click()
+    assert await page.locator("#fp-auth-google-helper-installed").is_visible()

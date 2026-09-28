@@ -96,9 +96,18 @@ findplus start --yes
 
 ## Sign in
 
-**Google Find Hub, with your own Chrome (recommended).** In Settings or the setup
-wizard, click **Sign in with your Chrome**. Find+ opens Google's sign-in page as a
-normal tab of the Chrome you already use. Then:
+**Google Find Hub, with the Find+ helper (recommended).** Click **Sign in with
+Google**. Find+ opens Google's sign-in in the Chrome you already use, and the
+open-source [Find+ helper](browser-helper/) extension passes the sign-in to Find+
+on your computer. You land on a "Signed in. You can close this tab." page and
+Find+ continues on its own. The first time, add the helper once: the card's
+**Show helper folder** and **Open Chrome extensions** buttons walk you through
+Load unpacked. The helper talks only to Google and to Find+ on 127.0.0.1, with no
+analytics and no remote code
+([privacy](https://github.com/acamarata/findplus/wiki/Chrome-helper-privacy)).
+
+**Or copy one value by hand.** Under "Other ways to sign in", **Sign in with your
+Chrome** opens Google's sign-in page as a normal tab of your Chrome. Then:
 
 1. Sign in to your Google account in that tab. The page may look blank or keep
    spinning after you sign in. That is expected.

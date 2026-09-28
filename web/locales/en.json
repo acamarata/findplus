@@ -614,6 +614,13 @@
         "waiting": "Finish signing in in Chrome. This page updates on its own.",
         "timeout": "Sign-in did not finish. Make sure the Find+ helper is added to Chrome, then try again."
       },
+      "helper": {
+        "addTitle": "First time? Add the Find+ helper to Chrome",
+        "addHow": "The helper lets \"Sign in with Google\" use the Chrome you already use. Add it once: show its folder, open Chrome's extensions page, turn on Developer mode, and Load unpacked.",
+        "showFolder": "Show helper folder",
+        "openExtensions": "Open Chrome extensions",
+        "installed": "Find+ helper detected in Chrome."
+      },
       "token": {
         "openedChrome": "Google's sign-in page is open in Google Chrome.",
         "openedDefault": "Google's sign-in page is open in your default browser. These steps are written for Google Chrome.",

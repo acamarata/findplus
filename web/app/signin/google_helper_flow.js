@@ -39,6 +39,24 @@ export class GoogleHelperFlow {
     card.hello.addEventListener("click", () => this.start());
     card.helloRetry.addEventListener("click", () => this.start());
     card.helloCancel.addEventListener("click", () => this.cancel());
+    card.helperReveal.addEventListener("click", () => this.post("/api/auth/google/helper/reveal"));
+    card.helperOpenExt.addEventListener("click", () =>
+      this.post("/api/auth/google/helper/open-extensions")
+    );
+  }
+
+  /** Fire a one-shot install action (reveal folder / open extensions). */
+  async post(route) {
+    try {
+      await this.deps.postJson(route);
+    } catch (_err) {
+      // Best-effort: these open native windows; nothing to show on failure.
+    }
+  }
+
+  /** Reflect status.google_helper_installed on the card. */
+  setHelperInstalled(installed) {
+    this.card.helperInstalled.hidden = !installed;
   }
 
   reset() {

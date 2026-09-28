@@ -6,6 +6,21 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Google sign-in now leads with a single **Sign in with Google** button. Find+ opens Google's
+  sign-in in the Chrome you already use, and the new open-source **Find+ helper for Chrome**
+  extension (`browser-helper/`) passes the sign-in token and the end-to-end unlock keys to Find+
+  on 127.0.0.1. You land on a "Signed in. You can close this tab." page and the card advances on
+  its own. The helper talks only to Google and to 127.0.0.1, with no analytics and no remote
+  code. A one-time "Add the helper to Chrome" step (Show helper folder, Open Chrome extensions,
+  Load unpacked) is built into the card, and the helper ships inside the app. The older paste
+  flow and the separate-window flow move under "Other ways to sign in". New endpoints:
+  `POST /api/auth/google/helper/{begin,unlock-begin,token,unlock,seen,reveal,open-extensions}`.
+  The two ingest routes accept only the pinned extension origin and a single-use state.
+- Groundwork to publish the helper on the Chrome Web Store: a keyless store-zip build
+  (`packaging/scripts/build-chrome-helper.sh`), a listing kit and privacy policy, and a
+  generated icon and promo tile.
+
 ## [1.1.4] - 2026-09-27
 
 ### Added

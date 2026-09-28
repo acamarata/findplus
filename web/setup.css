@@ -292,3 +292,8 @@
   cursor: pointer; font-size: 13px; color: var(--muted); padding: 4px 0; list-style: revert;
 }
 .fp-signin-other[open] > summary { margin-bottom: 8px; }
+
+/* One-time helper install hint on the Google card. */
+.fp-signin-install { border-top: 1px solid var(--line); padding-top: 8px; }
+.fp-signin-install > summary { cursor: pointer; font-size: 13px; color: var(--muted); padding: 4px 0; }
+.fp-signin-installed { color: var(--ok); font-weight: 600; }

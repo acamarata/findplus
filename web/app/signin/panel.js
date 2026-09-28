@@ -59,10 +59,11 @@ export function mountSignInPanel(host, options) {
   /** Re-read who is signed in and repaint both cards. */
   panel.refresh = async () => {
     const mine = generation;
-    const { providers } = await options.api("/api/auth/status");
+    const status = await options.api("/api/auth/status");
     if (mine !== generation) return null;
-    const list = providers || [];
+    const list = status.providers || [];
     panel.google.render(list.find((p) => p.id === GOOGLE_PROVIDER));
+    panel.google.helperFlow.setHelperInstalled(!!status.google_helper_installed);
     panel.apple.render(list.find((p) => p.id === APPLE_PROVIDER));
     if (onStatus) onStatus(list);
     return list;

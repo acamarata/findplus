@@ -157,11 +157,32 @@ function helloBlock(prefix) {
   const errorDetail = el("p", "fp-signin-error-detail");
   const retry = button("btn btn-secondary", t("signin.retry"), `${prefix}-google-hello-retry`);
   error.append(errorDetail, retry);
-  wrap.append(actions, status, error);
+  const install = installHint(prefix);
+  wrap.append(actions, status, error, install.installHint);
   return {
     helloBlock: wrap, hello, helloStatus: statusText, helloStatusRow: status,
     helloCancel: cancel, helloError: error, helloErrorDetail: errorDetail, helloRetry: retry,
+    ...install,
   };
+}
+
+/** The one-time "Add the Find+ helper to Chrome" hint and its two buttons. */
+function installHint(prefix) {
+  const wrap = el("details", "fp-signin-install");
+  const summary = document.createElement("summary");
+  summary.textContent = t("signin.google.helper.addTitle");
+  const how = el("p", "fp-signin-how", t("signin.google.helper.addHow"));
+  const actions = el("div", "fp-signin-actions");
+  const reveal = button("btn btn-secondary", t("signin.google.helper.showFolder"),
+    `${prefix}-google-helper-reveal`);
+  const openExt = button("btn btn-secondary", t("signin.google.helper.openExtensions"),
+    `${prefix}-google-helper-open`);
+  actions.append(reveal, openExt);
+  const installed = el("p", "fp-signin-how fp-signin-installed", t("signin.google.helper.installed"));
+  installed.id = `${prefix}-google-helper-installed`;
+  installed.hidden = true;
+  wrap.append(summary, how, actions, installed);
+  return { installHint: wrap, helperReveal: reveal, helperOpenExt: openExt, helperInstalled: installed };
 }
 
 /** The Google Find Hub card. Primary: "Sign in with Google" (the helper). The

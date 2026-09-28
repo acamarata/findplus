@@ -46,8 +46,19 @@ def _collect_routes() -> list[tuple[str, str]]:
         (method, route.path)
         for route in _app_routes(create_app())
         for method in route.methods
-        if route.path != "/" and route.path not in _PUBLIC
+        if route.path != "/" and route.path not in _PUBLIC and not _is_helper_page(route.path)
     )
+
+
+def _is_helper_page(path: str) -> bool:
+    """The daemon-served Chrome-helper begin/success pages are plain HTML with
+    no location data, opened in the user's own Chrome (which has no session
+    cookie), so they are public by design and never lock-gated."""
+    return path in {
+        "/auth/google/begin",
+        "/auth/google/unlock/begin",
+        "/auth/google/success",
+    }
 
 
 _NON_PUBLIC_ROUTES = _collect_routes()

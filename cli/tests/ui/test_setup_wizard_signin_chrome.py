@@ -16,6 +16,7 @@ import pytest
 
 from findplus.honesty import CHROME_REQUIRED
 
+from ._signin_helpers import reveal_other_ways
 from .conftest import SEEDED_COMPLETED_AT
 
 # cards.js's chromeNoticeText() strips CHROME_REQUIRED's trailing "Install
@@ -48,10 +49,7 @@ async def _open_step(page, base_url, step):
     await _set_last_step(page, base_url, step)
     await page.goto(base_url + "/#/setup")
     await page.wait_for_selector("#setup-view .fp-wizard-step", timeout=15000)
-    await page.evaluate(
-        "() => document.querySelectorAll('details.fp-signin-other')"
-        ".forEach((d) => { d.open = true; })"
-    )
+    await reveal_other_ways(page)
 
 
 async def test_signin_step_shows_chrome_notice_before_any_click(page, base_url):

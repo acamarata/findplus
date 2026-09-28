@@ -205,9 +205,11 @@ fn apply_menu(
     };
     let menu = build_menu_items(app, status, chrome_missing())?;
     tray.set_menu(Some(menu))?;
-    // Both icon states are alpha-only template PNGs, so iconAsTemplate stays
-    // on for the tray's whole life; only the icon bitmap changes.
+    // set_icon() replaces the NSImage, and the new image is not a template:
+    // macOS then drew the black glyph as-is, invisible on a dark menu bar
+    // (1.1.4). Re-mark it after every swap so macOS tints it.
     tray.set_icon(Some(load_icon(app, &status.state)))?;
+    tray.set_icon_as_template(true)?;
     Ok(())
 }
 

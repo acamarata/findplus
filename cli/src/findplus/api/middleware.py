@@ -253,6 +253,28 @@ def same_origin_problem(request: Request) -> str | None:
     return None
 
 
+def _is_pinned_helper_ingest(request: Request) -> bool:
+    """True for the two Chrome-helper ingest POSTs carrying the pinned extension
+    origin.
+
+    Those posts come from the helper's service worker, so their Origin is
+    `chrome-extension://<id>`, which same_origin_problem() would refuse. This
+    narrow exemption lets exactly the two ingest paths through for exactly the
+    trusted extension id(s); the handlers still re-check the origin and require
+    a valid single-use state, so this widens nothing else.
+    """
+    from findplus.providers.google_findhub.helper_state import (
+        HELPER_INGEST_PATHS,
+        is_allowed_extension_origin,
+    )
+
+    return (
+        request.method == "POST"
+        and request.url.path in HELPER_INGEST_PATHS
+        and is_allowed_extension_origin(request.headers.get("origin"))
+    )
+
+
 class OriginGuardMiddleware(BaseHTTPMiddleware):
     """Refuse foreign Host headers outright, and foreign origins on /api/."""
 
@@ -260,7 +282,7 @@ class OriginGuardMiddleware(BaseHTTPMiddleware):
         state = request.app.state
         if not is_allowed_host(request.headers.get("host"), state.bound_host, state.bound_port):
             return JSONResponse(status_code=421, content={"detail": _FOREIGN_HOST_DETAIL})
-        if request.url.path.startswith("/api/"):
+        if request.url.path.startswith("/api/") and not _is_pinned_helper_ingest(request):
             problem = same_origin_problem(request)
             if problem is not None:
                 return JSONResponse(status_code=403, content={"detail": problem})

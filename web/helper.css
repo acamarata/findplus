@@ -1,0 +1,26 @@
+/* The plain begin/success pages Find+ serves for the Chrome-helper sign-in.
+   No inline styles (the app CSP forbids them), so this small sheet is linked. */
+body.fp-helper-body,
+.fp-helper {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #1a1a1a;
+  background: #fff;
+}
+.fp-helper {
+  max-width: 34rem;
+  margin: 4rem auto;
+  padding: 0 1.25rem;
+  line-height: 1.55;
+}
+.fp-helper h1 { font-size: 1.4rem; }
+.fp-helper h2 { font-size: 1.05rem; margin-top: 1.5rem; }
+.fp-helper code {
+  background: #f0f0f2;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+.fp-helper [hidden] { display: none; }
+@media (prefers-color-scheme: dark) {
+  body.fp-helper-body, .fp-helper { color: #e8e8ea; background: #17171a; }
+  .fp-helper code { background: #2a2a2e; }
+}

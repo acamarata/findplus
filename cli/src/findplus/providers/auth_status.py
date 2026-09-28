@@ -69,4 +69,10 @@ def build_auth_status() -> dict[str, Any]:
                 "needs": needs,
             }
         )
-    return {"providers": providers}
+    try:
+        from findplus.providers.google_findhub.helper_state import helper_seen
+
+        google_helper_installed = helper_seen()
+    except Exception:
+        google_helper_installed = False
+    return {"providers": providers, "google_helper_installed": google_helper_installed}

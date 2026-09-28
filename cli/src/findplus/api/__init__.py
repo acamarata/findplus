@@ -232,6 +232,9 @@ def _register_routers(app: FastAPI, *, settings, sessions, sync_idle_timeout) ->
     app.include_router(routes_icons.build_router())
     app.include_router(routes_providers.build_router())
     app.include_router(routes_auth.build_router())
+    from findplus.api._routes_auth_google_helper import build_pages_router
+
+    app.include_router(build_pages_router())
     app.include_router(routes_places.build_router())
     app.include_router(routes_places_search.build_router())
     app.include_router(routes_groups.build_router())

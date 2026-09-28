@@ -148,11 +148,25 @@ def _run_with_timeout(email: str, token: str, timeout: float) -> dict[str, Any]:
 
 
 def sign_in_with_oauth_token(
-    email: object, oauth_token: object, *, timeout: float = EXCHANGE_TIMEOUT_SECONDS
+    email: object,
+    oauth_token: object,
+    *,
+    timeout: float = EXCHANGE_TIMEOUT_SECONDS,
+    require_email: bool = True,
 ) -> str:
-    """Validate, exchange and save. Returns the account email Google confirmed."""
-    clean = clean_email(email)
+    """Validate, exchange and save. Returns the account email Google confirmed.
+
+    `require_email=False` is the helper-extension path: the vendored flow signs
+    in with an empty email and Google's response supplies it, so the typed email
+    is optional there. The account still comes from `response['Email']`; if
+    Google returns none, that is a rejection, so `username` is never stored empty.
+    """
+    clean = (
+        clean_email(email) if require_email else (email.strip() if isinstance(email, str) else "")
+    )
     token = clean_oauth_token(oauth_token)
     response = _run_with_timeout(clean, token, timeout)
     account = str(response.get("Email") or clean)
+    if not account:
+        raise TokenRejectedError(MSG_REJECTED)
     return save_session(response["Token"], account)

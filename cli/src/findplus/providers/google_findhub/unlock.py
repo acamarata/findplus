@@ -45,6 +45,14 @@ MSG_DONE = "Encrypted locations unlocked."
 MSG_CANCELLED = "Unlock cancelled."
 MSG_FAILED = "The unlock did not finish. Try again."
 MSG_NO_KEY = "That page did not return an encryption key. Try again."
+MSG_NO_VAULT_KEY = (
+    "No usable encryption key was found. Enter your Android screen lock and try again."
+)
+
+
+class SharedKeyParseError(Exception):
+    """The vault keys held no usable finder_hw key; message is safe to show."""
+
 
 _JOB_TTL_SECONDS = 600
 _STALLED_SECONDS = 600
@@ -133,6 +141,27 @@ def _store_shared_key(shared_key_hex: str) -> None:
     import Auth.token_cache as token_cache
 
     token_cache.set_cached_value("shared_key", shared_key_hex)
+
+
+def store_vault_keys(vault_keys: object) -> None:
+    """Parse the vault keys the unlock page produced and store the shared key 0600.
+
+    The Chrome-helper path (api/_routes_auth_google_helper.py) calls this with
+    the value the extension relayed. Accepts a JSON string or an already-parsed
+    object. The key is never logged. Raises SharedKeyParseError (a friendly
+    message, no vendor traceback) when no finder_hw key is present.
+    """
+    import json
+
+    ensure_gfmt_importable()
+    from KeyBackup.response_parser import get_fmdn_shared_key
+
+    payload = vault_keys if isinstance(vault_keys, str) else json.dumps(vault_keys)
+    try:
+        key = get_fmdn_shared_key(payload)
+    except Exception:
+        raise SharedKeyParseError(MSG_NO_VAULT_KEY) from None
+    _store_shared_key(bytes(key).hex())
 
 
 def _run_google_unlock(job_id: str, settings: Any) -> None:

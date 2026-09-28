@@ -81,7 +81,9 @@ def test_route_count():
     # +2 for the main-Chrome Google sign-in: POST /auth/google/open and /token.
     # +3 for the Google unlock step: POST /auth/google/unlock/start and /cancel,
     # GET /auth/google/unlock/progress.
-    assert len(routes) == 87
+    # +8 for the Chrome helper: POST helper/{begin,unlock-begin,token,unlock,seen}
+    # and the GET pages /auth/google/{begin,unlock/begin,success}.
+    assert len(routes) == 95
 
 
 #: T1 (2026-09-22, PRI rule-7 50-line function cap): pulled out of
@@ -128,6 +130,14 @@ _EXPECTED_PATHS = {
     "/api/auth/google/unlock/start",
     "/api/auth/google/unlock/progress",
     "/api/auth/google/unlock/cancel",
+    "/api/auth/google/helper/begin",
+    "/api/auth/google/helper/unlock-begin",
+    "/api/auth/google/helper/token",
+    "/api/auth/google/helper/unlock",
+    "/api/auth/google/helper/seen",
+    "/auth/google/begin",
+    "/auth/google/unlock/begin",
+    "/auth/google/success",
     "/api/auth/apple/start",
     "/api/auth/apple/code",
     "/api/auth/apple/progress",

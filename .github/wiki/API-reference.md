@@ -1446,6 +1446,23 @@ Google Unlock Progress
 ### GET /api/auth/status
 Auth Status
 
+### GET /auth/google/begin
+Begin Page
+
+| name | in | required | type |
+|---|---|---|---|
+| state | query | False | string |
+
+### GET /auth/google/success
+Success Page
+
+### GET /auth/google/unlock/begin
+Unlock Begin Page
+
+| name | in | required | type |
+|---|---|---|---|
+| state | query | False | string |
+
 ### POST /api/apple/accessories
 Apple Accessories
 
@@ -1518,6 +1535,80 @@ UAT6 N23: Cancel while waiting on Chrome. Same Origin guard as start.
   "title": "GoogleCancelBody"
 }
 ```
+
+### POST /api/auth/google/helper/begin
+Helper Begin
+
+### POST /api/auth/google/helper/open-extensions
+Open chrome://extensions in the user's Google Chrome (their explicit ask).
+
+### POST /api/auth/google/helper/reveal
+Copy the extension to a stable folder and reveal it in the file manager.
+
+### POST /api/auth/google/helper/seen
+Helper Seen
+
+**Request body:**
+```json
+{
+  "properties": {
+    "state": {
+      "type": "string",
+      "title": "State",
+      "default": ""
+    }
+  },
+  "type": "object",
+  "title": "HelperSeenBody"
+}
+```
+
+### POST /api/auth/google/helper/token
+Helper Token
+
+**Request body:**
+```json
+{
+  "properties": {
+    "state": {
+      "type": "string",
+      "title": "State",
+      "default": ""
+    },
+    "oauth_token": {
+      "title": "Oauth Token",
+      "default": ""
+    }
+  },
+  "type": "object",
+  "title": "HelperTokenBody"
+}
+```
+
+### POST /api/auth/google/helper/unlock
+Helper Unlock
+
+**Request body:**
+```json
+{
+  "properties": {
+    "state": {
+      "type": "string",
+      "title": "State",
+      "default": ""
+    },
+    "vault_keys": {
+      "title": "Vault Keys",
+      "default": ""
+    }
+  },
+  "type": "object",
+  "title": "HelperUnlockBody"
+}
+```
+
+### POST /api/auth/google/helper/unlock-begin
+Helper Unlock Begin
 
 ### POST /api/auth/google/open
 Open Google's sign-in page (EmbeddedSetup) in the user's own Chrome.

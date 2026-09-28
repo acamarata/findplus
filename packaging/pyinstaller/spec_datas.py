@@ -51,6 +51,7 @@ def daemon_datas(root):
             "findplus/_vendor/GoogleFindMyTools",
             keep_dotted=True,
         ),
+        *tree_datas(root / "browser-helper", "findplus/browser_helper"),
     ]
 
 

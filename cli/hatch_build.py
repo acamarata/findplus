@@ -28,6 +28,7 @@ from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 _SOURCES = [
     ("web", "web", "findplus/web/static"),
     ("packaging/data", "packaging/data", "findplus/_data"),
+    ("browser-helper", "browser-helper", "findplus/browser_helper"),
 ]
 
 

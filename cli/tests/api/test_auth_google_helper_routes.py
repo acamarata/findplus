@@ -189,3 +189,29 @@ def test_the_success_page_renders(auth_client) -> None:
     res = auth_client.get("/auth/google/success")
     assert res.status_code == 200
     assert "You can close this tab" in res.text
+
+
+# --------------------------------------------------------------- install UX
+def test_reveal_installs_and_returns_the_path(auth_client, monkeypatch) -> None:
+    from findplus.providers.google_findhub import browser_helper
+
+    monkeypatch.setattr(
+        browser_helper,
+        "reveal_helper",
+        lambda settings: __import__("pathlib").Path("/tmp/findplus-helper/1.1.5"),
+    )
+    res = auth_client.post("/api/auth/google/helper/reveal", headers=SAME_ORIGIN_HEADERS)
+    assert res.status_code == 200
+    assert res.json()["path"].endswith("1.1.5")
+
+
+def test_reveal_needs_same_origin_proof(auth_client) -> None:
+    assert auth_client.post("/api/auth/google/helper/reveal").status_code == 403
+
+
+def test_open_extensions_reports_whether_it_launched(auth_client, monkeypatch) -> None:
+    from findplus.providers.google_findhub import browser_helper
+
+    monkeypatch.setattr(browser_helper, "open_chrome_extensions", lambda: True)
+    res = auth_client.post("/api/auth/google/helper/open-extensions", headers=SAME_ORIGIN_HEADERS)
+    assert res.status_code == 200 and res.json() == {"opened": True}

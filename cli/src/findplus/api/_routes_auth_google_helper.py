@@ -120,6 +120,29 @@ def helper_seen(body: HelperSeenBody) -> dict[str, Any]:
     return {"ok": True}
 
 
+def helper_reveal(request: Request) -> dict[str, Any]:
+    """Copy the extension to a stable folder and reveal it in the file manager."""
+    from findplus.api.routes_auth import _require_origin_signal
+    from findplus.config import get_settings
+    from findplus.providers.google_findhub.browser_helper import reveal_helper
+
+    _require_origin_signal(request)
+    try:
+        path = reveal_helper(get_settings())
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from None
+    return {"path": str(path)}
+
+
+def helper_open_extensions(request: Request) -> dict[str, Any]:
+    """Open chrome://extensions in the user's Google Chrome (their explicit ask)."""
+    from findplus.api.routes_auth import _require_origin_signal
+    from findplus.providers.google_findhub.browser_helper import open_chrome_extensions
+
+    _require_origin_signal(request)
+    return {"opened": open_chrome_extensions()}
+
+
 # --------------------------------------------------------------------- pages
 _BEGIN_TEMPLATE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
@@ -188,6 +211,10 @@ def register(router) -> None:
     router.add_api_route("/auth/google/helper/token", helper_token, methods=["POST"])
     router.add_api_route("/auth/google/helper/unlock", helper_unlock, methods=["POST"])
     router.add_api_route("/auth/google/helper/seen", helper_seen, methods=["POST"])
+    router.add_api_route("/auth/google/helper/reveal", helper_reveal, methods=["POST"])
+    router.add_api_route(
+        "/auth/google/helper/open-extensions", helper_open_extensions, methods=["POST"]
+    )
 
 
 def build_pages_router():

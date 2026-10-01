@@ -50,6 +50,7 @@ EXPECTED_COMMANDS = {
     "status",
     "stop",
     "theme",
+    "trips",
     "uninstall",
     "version",
     "watchdog",

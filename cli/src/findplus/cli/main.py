@@ -34,6 +34,7 @@ from .alerts import alerts_cmd
 from .cmd_mcp import mcp
 from .cmd_poll import poll_now
 from .cmd_selfcheck import selfcheck
+from .cmd_trips import trips_cmd
 from .cmd_version import version_cmd
 from .doctor import doctor_cmd
 from .groups import groups_cmd
@@ -86,6 +87,7 @@ main.add_command(providers_cmd, name="providers")
 
 main.add_command(cmd_apple.apple_group, name="apple")
 
+main.add_command(trips_cmd)
 main.add_command(places_cmd)
 main.add_command(groups_cmd)
 main.add_command(alerts_cmd)

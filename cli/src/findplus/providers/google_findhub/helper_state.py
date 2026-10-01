@@ -44,6 +44,9 @@ _SEEN_TTL_SECONDS = 3600.0
 _lock = threading.Lock()
 _states: dict[str, tuple[str, float]] = {}
 _seen_monotonic: float | None = None
+_signin_generation = 0
+_inflight: set[str] = set()
+_outcome: dict[str, object] | None = None
 
 
 def allowed_extension_ids() -> list[str]:
@@ -67,15 +70,18 @@ def _sweep(now: float) -> None:
     for state, (_kind, expiry) in list(_states.items()):
         if expiry <= now:
             del _states[state]
+            _inflight.discard(state)
 
 
 def create_state(kind: str) -> str:
     """Mint a single-use state for `kind` ("signin" or "unlock")."""
+    global _outcome
     now = time.monotonic()
     with _lock:
         _sweep(now)
         state = secrets.token_urlsafe(32)
         _states[state] = (kind, now + _STATE_TTL_SECONDS)
+        _outcome = None
         return state
 
 
@@ -96,6 +102,50 @@ def consume_state(kind: str, state: str | None) -> bool:
         return True
 
 
+def begin_exchange(kind: str, state: str | None) -> bool:
+    """Claim `state` for one exchange attempt without burning it.
+
+    True for a valid, unexpired, not-already-running state of `kind`. Unlike
+    `consume_state` the state stays valid until `end_exchange(..., ok=True)`, so
+    a transient failure (Google slow, 502) can be retried within the TTL. A
+    second concurrent attempt on the same state is refused.
+    """
+    if not state:
+        return False
+    now = time.monotonic()
+    with _lock:
+        _sweep(now)
+        entry = _states.get(state)
+        if entry is None or entry[0] != kind or entry[1] <= now or state in _inflight:
+            return False
+        _inflight.add(state)
+        return True
+
+
+def end_exchange(state: str, ok: bool) -> None:
+    """Finish the attempt: success burns the state (single use), failure keeps it."""
+    with _lock:
+        _inflight.discard(state)
+        if ok:
+            _states.pop(state, None)
+
+
+def record_outcome(kind: str, ok: bool, message: str = "") -> None:
+    """Remember how the latest helper hand-off ended, for the dashboard card.
+
+    `message` is plain words written for a person; never a token or a key.
+    """
+    global _outcome
+    with _lock:
+        _outcome = {"kind": kind, "ok": ok, "message": message}
+
+
+def last_outcome() -> dict[str, object] | None:
+    """The latest helper hand-off outcome since the last begin, or None."""
+    with _lock:
+        return dict(_outcome) if _outcome else None
+
+
 def mark_seen() -> None:
     """Record that the helper's begin page reported it is installed."""
     global _seen_monotonic
@@ -111,9 +161,30 @@ def helper_seen() -> bool:
         )
 
 
+def signin_generation() -> int:
+    """How many helper sign-ins have completed since the daemon started.
+
+    "Switch Google account" compares this against the value it saw when it
+    began, so an already-signed-in status is never mistaken for the new sign-in.
+    """
+    with _lock:
+        return _signin_generation
+
+
+def bump_signin_generation() -> int:
+    """Record one more completed helper sign-in; returns the new generation."""
+    global _signin_generation
+    with _lock:
+        _signin_generation += 1
+        return _signin_generation
+
+
 def reset_for_tests() -> None:
     """Clear all state; used by tests, never in normal operation."""
-    global _seen_monotonic
+    global _seen_monotonic, _signin_generation, _outcome
     with _lock:
+        _signin_generation = 0
+        _inflight.clear()
+        _outcome = None
         _states.clear()
         _seen_monotonic = None

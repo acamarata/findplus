@@ -20,6 +20,15 @@ import { t } from "../i18n.js";
 import { JobPoller, describeError } from "./job_poller.js";
 
 const PROGRESS_ROUTE = "/api/auth/google/unlock/progress";
+const STATUS_ROUTE = "/api/auth/status";
+const PROVIDER_ID = "google-find-hub";
+
+function pollMs() {
+  return window.__FP_TEST_STATUS_POLL_MS__ || 2000;
+}
+function pollCap() {
+  return window.__FP_TEST_STATUS_POLL_CAP__ || 180;
+}
 
 export class GoogleUnlockFlow {
   constructor(card, deps, settle) {
@@ -29,8 +38,22 @@ export class GoogleUnlockFlow {
     this.poller = new JobPoller(deps.api);
     this.jobId = null;
     this.cancelRequested = false;
+    this.helperInstalled = false;
+    this.timer = null;
+    this.ticks = 0;
     card.unlockButton.addEventListener("click", () => this.start());
+    card.unlockOwn.addEventListener("click", () => this.startOwnWindow());
     card.unlockCancel.addEventListener("click", () => this.cancel());
+  }
+
+  /** When the Find+ helper is detected, unlock through it; the separate Chrome
+   *  window stays available as "other way". */
+  setHelperInstalled(installed) {
+    this.helperInstalled = !!installed;
+    this.card.unlockOwn.hidden = !this.helperInstalled;
+    this.card.unlockWhy.textContent = t(
+      this.helperInstalled ? "signin.google.unlock.whyHelper" : "signin.google.unlock.why"
+    );
   }
 
   /** Show the block only for a signed-in account whose key is still locked. */
@@ -39,7 +62,7 @@ export class GoogleUnlockFlow {
     const show = !!(provider && provider.signed_in) && needs.includes("shared_key");
     this.card.unlock.hidden = !show;
     if (!show) {
-      this.poller.stop();
+      this.stopAll();
       this.reset();
     }
   }
@@ -61,7 +84,7 @@ export class GoogleUnlockFlow {
   }
 
   showError(message) {
-    this.poller.stop();
+    this.stopAll();
     this.card.unlockErrorDetail.textContent = message;
     this.card.unlockError.hidden = false;
     this.card.unlockStatus.hidden = true;
@@ -69,7 +92,60 @@ export class GoogleUnlockFlow {
     this.card.unlockCancel.hidden = true;
   }
 
-  async start() {
+  stopAll() {
+    this.poller.stop();
+    this.stopTimer();
+  }
+
+  stopTimer() {
+    if (this.timer !== null) clearInterval(this.timer);
+    this.timer = null;
+  }
+
+  start() {
+    return this.helperInstalled ? this.startHelper() : this.startOwnWindow();
+  }
+
+  /** The helper route: Google's unlock page opens in the user's own Chrome and
+   *  the helper posts the key back; we just watch for the lock to clear. */
+  async startHelper() {
+    this.cancelRequested = false;
+    this.busy(t("signin.google.unlock.helperOpening"));
+    try {
+      await this.deps.postJson("/api/auth/google/helper/unlock-begin");
+    } catch (err) {
+      if (err.status === 401) return this.reset();
+      return this.showError(t("signin.error.startFailed", { message: describeError(err) }));
+    }
+    this.busy(t("signin.google.unlock.helperWaiting"));
+    this.watchStatus();
+  }
+
+  watchStatus() {
+    this.stopTimer();
+    this.ticks = 0;
+    const tick = async () => {
+      if (++this.ticks > pollCap()) return this.showError(t("signin.google.unlock.helperTimeout"));
+      try {
+        const status = await this.deps.api(STATUS_ROUTE);
+        const outcome = status.google_helper_outcome;
+        if (outcome && outcome.ok === false && outcome.kind === "unlock") {
+          return this.showError(outcome.message || t("signin.error.unknown"));
+        }
+        const google = (status.providers || []).find((p) => p.id === PROVIDER_ID);
+        if (google && !(google.needs || []).includes("shared_key")) {
+          this.stopTimer();
+          await this.settle();
+        }
+      } catch (err) {
+        if (err.status === 401) this.stopTimer();
+      }
+    };
+    this.timer = setInterval(tick, pollMs());
+    tick();
+  }
+
+  async startOwnWindow() {
     this.cancelRequested = false;
     this.busy(t("signin.google.unlock.starting"));
     try {
@@ -106,7 +182,7 @@ export class GoogleUnlockFlow {
   async cancel() {
     this.cancelRequested = true;
     const jobId = this.jobId;
-    this.poller.stop();
+    this.stopAll();
     this.reset();
     if (jobId) await this.cancelJob(jobId);
   }
@@ -120,7 +196,7 @@ export class GoogleUnlockFlow {
   }
 
   purge() {
-    this.poller.stop();
+    this.stopAll();
     this.reset();
     this.jobId = null;
     this.cancelRequested = false;

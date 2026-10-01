@@ -13,6 +13,11 @@
  */
 import {
   HELPER_VERSION,
+  PORT_STORAGE_KEY,
+  acceptBegin,
+  deliver,
+  pendingIsLive,
+  pickSuccessTab,
   isOauthCookieChange,
   successUrl,
   tokenBody,
@@ -25,7 +30,12 @@ const PENDING_KEY = "findplus_pending";
 
 async function getPending() {
   const stored = await chrome.storage.session.get(PENDING_KEY);
-  return stored[PENDING_KEY] || null;
+  const pending = stored[PENDING_KEY] || null;
+  if (pending && !pendingIsLive(pending, Date.now())) {
+    await clearPending(); // a flow nobody finished within 10 minutes is dropped
+    return null;
+  }
+  return pending;
 }
 async function setPending(pending) {
   await chrome.storage.session.set({ [PENDING_KEY]: pending });
@@ -34,25 +44,32 @@ async function clearPending() {
   await chrome.storage.session.remove(PENDING_KEY);
 }
 
-async function postJson(url, body) {
+/** The daemon port this helper was configured for (default 8647). */
+async function configuredPort() {
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    return res.ok;
+    const stored = await chrome.storage.local.get(PORT_STORAGE_KEY);
+    return stored[PORT_STORAGE_KEY];
   } catch (_err) {
-    return false;
+    return undefined;
   }
 }
 
-async function moveTabToSuccess(port) {
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Hand one body to Find+ (after confirming the port is Find+), retrying a
+ *  transient failure. Resolves to the final HTTP status; 0 means nothing was
+ *  delivered. */
+async function send(port, url, body) {
+  const result = await deliver({ fetchImpl: fetch, port, url, body, sleep });
+  return result.status;
+}
+
+async function moveTabToSuccess(pending) {
   const tabs = await chrome.tabs.query({ url: "https://accounts.google.com/*" });
-  const tab = tabs[0];
-  if (tab && tab.id !== undefined) {
+  const tab = pickSuccessTab(tabs, pending);
+  if (tab) {
     try {
-      await chrome.tabs.update(tab.id, { url: successUrl(port) });
+      await chrome.tabs.update(tab.id, { url: successUrl(pending.port, pending.mode) });
     } catch (_err) {
       /* the tab may be gone; the daemon already has the value */
     }
@@ -63,18 +80,29 @@ chrome.cookies.onChanged.addListener(async (change) => {
   if (!isOauthCookieChange(change)) return;
   const pending = await getPending();
   if (!pending || pending.mode !== "signin") return;
-  const ok = await postJson(tokenEndpoint(pending.port), tokenBody(pending.state, change.cookie.value));
-  if (ok) {
-    await clearPending();
-    await moveTabToSuccess(pending.port);
-  }
+  const status = await send(
+    pending.port,
+    tokenEndpoint(pending.port),
+    tokenBody(pending.state, change.cookie.value)
+  );
+  // Whatever happened, this flow is over: the daemon shows any reason on the
+  // Find+ card and the person starts again there. Only a 2xx moves the tab.
+  await clearPending();
+  if (status >= 200 && status < 300) await moveTabToSuccess(pending);
 });
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   (async () => {
     if (msg && msg.type === "findplus-begin") {
-      await setPending({ mode: msg.mode, state: msg.state, port: msg.port });
-      sendResponse({ ok: true, version: HELPER_VERSION });
+      const verdict = acceptBegin({
+        msg,
+        sender,
+        pending: await getPending(),
+        configuredPort: await configuredPort(),
+        now: Date.now(),
+      });
+      if (verdict.ok) await setPending(verdict.pending);
+      sendResponse({ ok: verdict.ok, version: HELPER_VERSION });
       return;
     }
     if (msg && msg.type === "findplus-unlock-active") {
@@ -86,11 +114,13 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (msg && msg.type === "findplus-vault") {
       const pending = await getPending();
       if (pending && pending.mode === "unlock") {
-        const ok = await postJson(unlockEndpoint(pending.port), unlockBody(pending.state, msg.vaultKeys));
-        if (ok) {
-          await clearPending();
-          await moveTabToSuccess(pending.port);
-        }
+        const status = await send(
+          pending.port,
+          unlockEndpoint(pending.port),
+          unlockBody(pending.state, msg.vaultKeys)
+        );
+        await clearPending();
+        if (status >= 200 && status < 300) await moveTabToSuccess(pending);
       }
       sendResponse({ ok: true });
       return;

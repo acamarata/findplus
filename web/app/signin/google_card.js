@@ -122,10 +122,15 @@ function unlockBlock(prefix) {
   error.hidden = true;
   const errorDetail = el("p", "fp-signin-error-detail");
   error.append(errorDetail);
+  // Offered only when the Find+ helper is detected: the primary button then
+  // uses the helper, and this runs the separate Chrome window instead.
+  const own = button("btn btn-secondary fp-signin-alt-btn", t("signin.google.unlock.otherWay"),
+    `${prefix}-google-unlock-own`);
+  own.hidden = true;
   wrap.append(el("p", "fp-signin-unlock-head", t("signin.google.unlock.heading")), why, actions,
-    status, error);
+    own, status, error);
   return {
-    unlock: wrap, unlockButton: btn, unlockCancel: cancel, unlockStatus: status,
+    unlock: wrap, unlockWhy: why, unlockOwn: own, unlockButton: btn, unlockCancel: cancel, unlockStatus: status,
     unlockError: error, unlockErrorDetail: errorDetail,
   };
 }

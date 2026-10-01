@@ -44,9 +44,14 @@ PY
 )"
 
 pyproject_version="$(sed -n 's/^version = "\(.*\)"/\1/p' "${repo_root}/cli/pyproject.toml" | head -1)"
-if [ "${version}" != "${pyproject_version}" ]; then
-  echo "note: helper manifest ${version} != cli/pyproject.toml ${pyproject_version}" >&2
-  echo "note: these converge when the release bump lands; the store uses ${version}" >&2
+core_version="$(sed -n 's/^export const HELPER_VERSION = "\(.*\)";/\1/p' "${src_dir}/helper_core.js" | head -1)"
+if [ "${version}" != "${pyproject_version}" ] || [ "${version}" != "${core_version}" ]; then
+  echo "error: version mismatch, refusing to build a store zip:" >&2
+  echo "  browser-helper/manifest.json          ${version}" >&2
+  echo "  browser-helper/helper_core.js         ${core_version:-<not found>}" >&2
+  echo "  cli/pyproject.toml                    ${pyproject_version:-<not found>}" >&2
+  echo "Bump all three together (bump-version.sh moves only pyproject), then build again." >&2
+  exit 1
 fi
 
 # Copy the runtime files, then rewrite manifest.json without the "key" field.

@@ -57,12 +57,12 @@ and the end-to-end encryption keys from Google's own pages to Find+ on
 
 - **cookies**: to read the single `oauth_token` cookie that
   `accounts.google.com` sets after sign-in, which is the Find Hub sign-in token,
-  and only while a Find+ sign-in is in progress.
+  and acts on it only while a Find+ sign-in is in progress (ignored otherwise).
 - **storage**: to remember, in session storage only, that a Find+ sign-in or
   unlock is in progress, so the extension knows when to listen.
 - **host permission `https://accounts.google.com/*`**: to read that one cookie
   and to provide the vault-key hook on Google's own unlock page.
-- **host permission `http://127.0.0.1/*`**: to pass the values to Find+ running
+- **host permission `http://127.0.0.1:8647/*`**: to pass the values to Find+ running
   locally, and to be told by Find+'s own begin page which flow is starting.
 
 ## Remote code

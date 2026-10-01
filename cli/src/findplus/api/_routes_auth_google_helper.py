@@ -72,7 +72,12 @@ def _open(request: Request, path: str, kind: str) -> dict[str, Any]:
         browser = open_sign_in_page(_begin_url(request, path, state))
     except BrowserOpenError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from None
-    return {"browser": browser}
+    # `url` lets the CLI print the begin address when no browser could be raised.
+    return {
+        "browser": browser,
+        "generation": helper_state.signin_generation(),
+        "url": _begin_url(request, path, state),
+    }
 
 
 def helper_begin(request: Request) -> dict[str, Any]:
@@ -88,28 +93,53 @@ def _require_extension_origin(request: Request) -> None:
         raise HTTPException(status_code=403, detail="not the Find+ helper")
 
 
+MSG_STATE_GONE = "This sign-in expired or was already used. Start it again from Find+."
+MSG_HANDOFF_FAILED = "Find+ could not finish the sign-in. Start it again from Find+."
+
+
+def _claim(kind: str, state: str) -> None:
+    if not helper_state.begin_exchange(kind, state):
+        helper_state.record_outcome(kind, False, MSG_STATE_GONE)
+        raise HTTPException(status_code=403, detail="invalid or expired state")
+
+
+def _fail(kind: str, state: str, status: int, exc: Exception) -> HTTPException:
+    """Keep the state for a retry, remember the plain-words reason, build the error."""
+    helper_state.end_exchange(state, ok=False)
+    message = str(exc) if isinstance(exc, (TokenSignInError, SharedKeyParseError)) else ""
+    helper_state.record_outcome(kind, False, message or MSG_HANDOFF_FAILED)
+    return HTTPException(status_code=status, detail=message or MSG_HANDOFF_FAILED)
+
+
 def helper_token(body: HelperTokenBody, request: Request) -> dict[str, Any]:
     _require_extension_origin(request)
-    if not helper_state.consume_state(helper_state.KIND_SIGNIN, body.state):
-        raise HTTPException(status_code=403, detail="invalid or expired state")
+    kind = helper_state.KIND_SIGNIN
+    _claim(kind, body.state)
     try:
         # Empty email on purpose: Google's response supplies it (vendored flow).
         account = sign_in_with_oauth_token("", body.oauth_token, require_email=False)
     except TokenRejectedError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from None
-    except TokenSignInError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from None
+        raise _fail(kind, body.state, 400, exc) from None
+    except Exception as exc:
+        raise _fail(kind, body.state, 502, exc) from None
+    helper_state.end_exchange(body.state, ok=True)
+    helper_state.bump_signin_generation()
+    helper_state.record_outcome(kind, True)
     return {"state": "done", "account": account}
 
 
 def helper_unlock(body: HelperUnlockBody, request: Request) -> dict[str, Any]:
     _require_extension_origin(request)
-    if not helper_state.consume_state(helper_state.KIND_UNLOCK, body.state):
-        raise HTTPException(status_code=403, detail="invalid or expired state")
+    kind = helper_state.KIND_UNLOCK
+    _claim(kind, body.state)
     try:
         store_vault_keys(body.vault_keys)
     except SharedKeyParseError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from None
+        raise _fail(kind, body.state, 400, exc) from None
+    except Exception as exc:
+        raise _fail(kind, body.state, 502, exc) from None
+    helper_state.end_exchange(body.state, ok=True)
+    helper_state.record_outcome(kind, True)
     return {"state": "done"}
 
 
@@ -147,18 +177,20 @@ def helper_open_extensions(request: Request) -> dict[str, Any]:
 _BEGIN_TEMPLATE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Find+ sign-in</title>
+<title>{title}</title>
 <link rel="stylesheet" href="/static/helper.css">
 </head><body>
 <main class="fp-helper" data-fp-begin data-fp-target="{target}" data-fp-state="{state}">
   <h1>Connecting to Google</h1>
   <p class="fp-helper-wait" data-fp-wait>Starting the Find+ helper...</p>
+  <p class="fp-helper-note">The Find+ helper works in Google Chrome only. Other
+    browsers cannot use it.</p>
   <section class="fp-helper-install" data-fp-install hidden>
     <h2>Add the Find+ helper to Chrome (one time)</h2>
     <p>The Find+ helper for Chrome is not installed yet. In Find+, open
       Settings then Sign-in and use "Show helper folder", then in Chrome open
       <code>chrome://extensions</code>, turn on Developer mode, click Load
-      unpacked, and choose that folder. Then start sign-in again.</p>
+      unpacked, and choose that folder. Then start again from Find+.</p>
   </section>
 </main>
 <script type="module" src="/static/app/helper-begin.js"></script>
@@ -169,14 +201,17 @@ _SUCCESS_PAGE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Find+</title><link rel="stylesheet" href="/static/helper.css">
-</head><body><main class="fp-helper"><h1>Signed in</h1>
+</head><body><main class="fp-helper"><h1>{heading}</h1>
 <p>You can close this tab. Find+ continues on its own.</p></main></body></html>
 """
 
+_SUCCESS_HEADINGS = {"unlock": "Unlocked", "": "Signed in"}
 
-def _begin_page(target: str, state: str) -> HTMLResponse:
+
+def _begin_page(target: str, state: str, title: str = "Find+ sign-in") -> HTMLResponse:
     return HTMLResponse(
         _BEGIN_TEMPLATE.format(
+            title=html.escape(title),
             target=html.escape(target, quote=True),
             state=html.escape(state, quote=True),
         )
@@ -193,11 +228,12 @@ def unlock_begin_page(state: str = Query(default="")) -> HTMLResponse:
     ensure_gfmt_importable()
     from KeyBackup.shared_key_request import get_security_domain_request_url
 
-    return _begin_page(get_security_domain_request_url(), state)
+    return _begin_page(get_security_domain_request_url(), state, "Find+ unlock")
 
 
-def success_page() -> HTMLResponse:
-    return HTMLResponse(_SUCCESS_PAGE)
+def success_page(kind: str = Query(default="")) -> HTMLResponse:
+    heading = _SUCCESS_HEADINGS.get(kind, _SUCCESS_HEADINGS[""])
+    return HTMLResponse(_SUCCESS_PAGE.format(heading=heading))
 
 
 def register(router) -> None:

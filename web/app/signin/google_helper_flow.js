@@ -36,6 +36,7 @@ export class GoogleHelperFlow {
     this.settle = settle;
     this.timer = null;
     this.ticks = 0;
+    this.baseline = null;
     card.hello.addEventListener("click", () => this.start());
     card.helloRetry.addEventListener("click", () => this.start());
     card.helloCancel.addEventListener("click", () => this.cancel());
@@ -88,7 +89,10 @@ export class GoogleHelperFlow {
   async start() {
     this.busy(t("signin.google.hello.opening"));
     try {
-      await this.deps.postJson("/api/auth/google/helper/begin");
+      const begun = await this.deps.postJson("/api/auth/google/helper/begin");
+      // The sign-in generation at the moment Chrome opened. When already signed
+      // in, only a LATER generation means the new sign-in landed.
+      this.baseline = begun && typeof begun.generation === "number" ? begun.generation : null;
     } catch (err) {
       if (err.status === 401) return this.reset();
       return this.showError(t("signin.error.startFailed", { message: describeError(err) }));
@@ -103,9 +107,14 @@ export class GoogleHelperFlow {
     const tick = async () => {
       if (++this.ticks > pollCap()) return this.showError(t("signin.google.hello.timeout"));
       try {
-        const { providers } = await this.deps.api(STATUS_ROUTE);
-        const google = (providers || []).find((p) => p.id === PROVIDER_ID);
-        if (google && google.signed_in) {
+        const status = await this.deps.api(STATUS_ROUTE);
+        const outcome = status.google_helper_outcome;
+        if (outcome && outcome.ok === false && outcome.kind === "signin") {
+          // The helper handed the sign-in over and Find+ could not finish it.
+          return this.showError(outcome.message || t("signin.error.unknown"));
+        }
+        const google = (status.providers || []).find((p) => p.id === PROVIDER_ID);
+        if (google && google.signed_in && this.landed(status)) {
           this.reset();
           await this.settle();
         }
@@ -115,6 +124,12 @@ export class GoogleHelperFlow {
     };
     this.timer = setInterval(tick, pollMs());
     tick();
+  }
+
+  /** True once the sign-in this click started has been stored. */
+  landed(status) {
+    if (this.baseline === null) return true;
+    return (status.google_signin_generation || 0) > this.baseline;
   }
 
   stopPoll() {

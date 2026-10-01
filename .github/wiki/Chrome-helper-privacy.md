@@ -14,23 +14,26 @@ passes those values from Google's own pages to Find+ on your machine.
 ## What it accesses
 
 - The `oauth_token` cookie that `accounts.google.com` sets after you sign in.
-  This is the Find Hub sign-in token. The helper reads it only while a Find+
-  sign-in is in progress.
+  This is the Find Hub sign-in token. Chrome lets the helper see that this cookie
+  changed at any time, but the helper acts on it only while a Find+ sign-in is
+  in progress (started from Find+'s own page, expires after 10 minutes) and
+  otherwise ignores it.
 - The end-to-end vault keys that Google's unlock page produces after your
-  Android screen-lock check. The helper reads these only while a Find+ unlock is
-  in progress.
+  Android screen-lock check. The helper forwards these only while a Find+ unlock is
+  in progress (same 10-minute limit).
 
 It never accesses your Google password, which you type on Google's own page.
 
 ## Where the data goes
 
 The helper sends those values only to Find+ running on your own computer, at
-`http://127.0.0.1`, together with a single-use token that Find+ generated for
+`http://127.0.0.1:8647`, after checking that the program answering there is
+Find+, together with a single-use token that Find+ generated for
 that one sign-in or unlock. Find+ exchanges the sign-in token with Google right
 away and does not store it.
 
 The helper's Chrome permissions restrict it to two hosts: `accounts.google.com`
-and `127.0.0.1`. It cannot reach any other website.
+and `127.0.0.1:8647`. It cannot reach any other website.
 
 ## What it does not do
 
@@ -42,7 +45,8 @@ and `127.0.0.1`. It cannot reach any other website.
 ## Data retention
 
 The helper keeps nothing of its own beyond a short session-storage note that a
-sign-in or unlock is in progress, which Chrome clears when the browser closes.
+sign-in or unlock is in progress. The note holds the single-use state, not a
+token, expires after 10 minutes and is cleared by Chrome when the browser closes.
 It stores no tokens or keys.
 
 ## Source

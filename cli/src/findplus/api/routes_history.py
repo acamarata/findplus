@@ -254,8 +254,8 @@ def _register_poll_now_route(router: APIRouter, *, check_poll_cooldown) -> None:
         from findplus.poller import poll_once
 
         cycle = poll_once()
-        if cycle.ok:
-            # A manual poll worked: the loop must not keep sleeping out an old backoff.
+        if cycle.reached_google:
+            # A manual poll reached Google: the loop must not keep sleeping out an old backoff.
             from findplus.poller_service import reset_backoff
 
             reset_backoff()

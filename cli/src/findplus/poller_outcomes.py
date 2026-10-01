@@ -75,6 +75,16 @@ class CycleOutcome:
         return not self.outcomes or any(o.ok for o in self.outcomes)
 
     @property
+    def reached_google(self) -> bool:
+        """True when at least one device actually got an answer from Google.
+
+        Narrower than `ok`: signed-out and unavailable outcomes count as `ok` (they
+        must not escalate backoff) but prove nothing about Google, so a manual poll
+        may reset the daemon's backoff only when this is True.
+        """
+        return any(o.status in ("ok", "no_location") for o in self.outcomes)
+
+    @property
     def no_google_traffic(self) -> bool:
         """True when every device stopped at a local check (locked, signed out, unavailable)."""
         return bool(self.outcomes) and all(o.status in NO_GOOGLE_TRAFFIC for o in self.outcomes)

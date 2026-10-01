@@ -22,6 +22,7 @@ See [Privacy and threat model](Privacy-and-threat-model).
 - [CLI reference](CLI-reference)
 - [API reference](API-reference)
 - [MCP](MCP): connect Find+ to Claude Desktop or Claude Code.
+- [Packaging and release](Packaging-and-release): how a release is built, signed and published.
 - Fresh-machine rehearsal: `.github/docs/REHEARSAL.md` in the repo records the install, reinstall and uninstall run that was verified before release.
 - First-run screenshots: `.github/docs/screenshots/setup/` in the repo (16 shots, 1280px and 375px, from the scripted wizard rehearsal).
 

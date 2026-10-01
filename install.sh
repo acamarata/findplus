@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # install.sh - Find+ curl-pipe installer. Env: FINDPLUS_YES/VERSION/WHEEL/PREFIX/BIN/STATE_DIR. Flags: --yes --uninstall --version X.
 # Idempotent, never sudo; --uninstall keeps the state dir; --start runs setup and start after installing.
-# See .github/wiki/Install.md, .github/wiki/Uninstall.md, packaging-and-release.md.
+# See .github/wiki/Install.md, .github/wiki/Uninstall.md, Packaging-and-release.md.
 set -euo pipefail
 YES="${FINDPLUS_YES:-0}"
 UNINSTALL=0

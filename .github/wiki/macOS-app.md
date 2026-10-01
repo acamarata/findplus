@@ -74,14 +74,17 @@ curl -fsSL https://github.com/acamarata/findplus/releases/latest/download/update
 `update-app.sh --dmg FindPlus-<version>-aarch64.dmg` installs a dmg you already
 downloaded. Homebrew users run `brew upgrade findplus`.
 
+The sha256 check catches a corrupted download. It does not authenticate the release, so it
+is not protection against a release that was itself tampered with.
+
 ## Gatekeeper
 
 Find+ is distributed outside the Mac App Store. Release builds are signed
 with a Developer ID and notarised by Apple, so they open normally.
 
-A build produced without signing credentials is published with `-UNSIGNED`
-in its filename. For one of those, right-click Find+.app and choose **Open**
-the first time; later launches open normally.
+A build made locally without signing credentials carries `-UNSIGNED` in its
+filename and is never attached to a release. For one of those, right-click
+Find+.app and choose **Open** the first time; later launches open normally.
 
 To check a build yourself, assess it as an executable, not as an installer:
 

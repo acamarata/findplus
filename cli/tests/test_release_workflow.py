@@ -66,7 +66,7 @@ def test_the_tap_pr_is_gated_on_a_published_release() -> None:
     assert any("isDraft" in str(s.get("run", "")) for s in steps), (
         "github-release creates a draft, whose assets are not publicly downloadable"
     )
-    gated = [s for s in steps if s.get("if") == "steps.release.outputs.draft != 'true'"]
+    gated = [s for s in steps if s.get("if") == "steps.release.outputs.open_pr == 'true'"]
     assert len(gated) >= 4, "every step that writes or pushes the formula must be gated"
 
 
@@ -142,3 +142,12 @@ def test_pypi_publishing_is_off_unless_opted_in() -> None:
     yaml = pytest.importorskip("yaml")
     job = yaml.safe_load(RELEASE.read_text(encoding="utf-8"))["jobs"]["publish-pypi"]
     assert job.get("if") == "vars.PUBLISH_PYPI == 'true'"
+
+
+def test_the_tap_pr_needs_the_push_token() -> None:
+    """No TAP_PUSH_TOKEN, no outbound write: the job skips instead of failing."""
+    yaml = pytest.importorskip("yaml")
+    steps = yaml.safe_load(RELEASE.read_text(encoding="utf-8"))["jobs"]["update-tap"]["steps"]
+    gate = next(s for s in steps if s.get("id") == "release")
+    assert "TAP_PUSH_TOKEN" in gate["env"]
+    assert '-z "$TAP_PUSH_TOKEN"' in gate["run"]

@@ -269,6 +269,9 @@ jobs:
           draft: true
           fail_on_unmatched_files: false
 
+  # Opens a PR (never a merge) on acamarata/homebrew-tap with the new formula. It runs
+  # only for a tag, only once the release is published, and only when the repo secret
+  # TAP_PUSH_TOKEN exists. See .github/wiki/Packaging-and-release.md.
   update-tap:
     needs: github-release
     if: startsWith(github.ref, 'refs/tags/') && needs.github-release.result == 'success'
@@ -283,30 +286,36 @@ jobs:
       - id: release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAP_PUSH_TOKEN: ${{ secrets.TAP_PUSH_TOKEN }}
         run: |
           draft=$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft)
           echo "draft=$draft" >> "$GITHUB_OUTPUT"
+          echo "open_pr=false" >> "$GITHUB_OUTPUT"
           if [ "$draft" = "true" ]; then
             echo "::notice::$GITHUB_REF_NAME is still a draft; skipping the tap PR."
             echo "Publish the release and re-run this job to open it."
+          elif [ -z "$TAP_PUSH_TOKEN" ]; then
+            echo "::notice::TAP_PUSH_TOKEN is not set; skipping the tap PR."
+          else
+            echo "open_pr=true" >> "$GITHUB_OUTPUT"
           fi
       # Hash the sdist users will actually download: the one attached to the
       # release. When the release was cut locally first, github-release skips
       # and keeps those assets, so this run's own python-dist build is a
       # different tarball and its sha256 would break `brew install` (v1.1.0).
-      - if: steps.release.outputs.draft != 'true'
+      - if: steps.release.outputs.open_pr == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release download "$GITHUB_REF_NAME" --pattern 'findplus-*.tar.gz' --dir dist
-      - if: steps.release.outputs.draft != 'true'
+      - if: steps.release.outputs.open_pr == 'true'
         run: bash packaging/scripts/gen-formula.sh dist/findplus-*.tar.gz
-      - if: steps.release.outputs.draft != 'true'
+      - if: steps.release.outputs.open_pr == 'true'
         uses: actions/checkout@v7
         with:
           repository: acamarata/homebrew-tap
           token: ${{ secrets.TAP_PUSH_TOKEN }}
           path: homebrew-tap
-      - if: steps.release.outputs.draft != 'true'
+      - if: steps.release.outputs.open_pr == 'true'
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           cp packaging/homebrew/findplus.rb homebrew-tap/Formula/findplus.rb

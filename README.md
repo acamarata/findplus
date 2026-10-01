@@ -58,10 +58,10 @@ brew install acamarata/tap/findplus
 
 **pipx:** Find+ is not on PyPI, so install the wheel from the latest release.
 Download the `findplus-<version>-py3-none-any.whl` from
-[Releases](https://github.com/acamarata/findplus/releases) (for example, v1.1.2):
+[Releases](https://github.com/acamarata/findplus/releases) (for example, v1.1.5):
 
 ```bash
-pipx install https://github.com/acamarata/findplus/releases/download/v1.1.2/findplus-1.1.2-py3-none-any.whl
+pipx install https://github.com/acamarata/findplus/releases/download/v1.1.5/findplus-1.1.5-py3-none-any.whl
 ```
 
 Or install from the latest release directly:
@@ -112,7 +112,8 @@ Load unpacked. The helper talks only to Google and to Find+ on 127.0.0.1, with n
 analytics and no remote code
 ([privacy](https://github.com/acamarata/findplus/wiki/Chrome-helper-privacy)).
 
-**Or copy one value by hand.** Under "Other ways to sign in", **Sign in with your
+**Fallback: copy one value by hand.** Use this only if you cannot or would rather
+not add the helper. Under "Other ways to sign in", **Sign in with your
 Chrome** opens Google's sign-in page as a normal tab of your Chrome. Then:
 
 1. Sign in to your Google account in that tab. The page may look blank or keep
@@ -129,7 +130,7 @@ that cookie. Find+ exchanges it with Google right away and never stores it. It
 expires within minutes, so copy it right after you sign in. From a terminal,
 `findplus auth --token` does the same.
 
-**Or let Find+ open its own Chrome window.** The smaller option on the same card
+**Fallback: let Find+ open its own Chrome window.** The smaller option on the same card
 opens a separate Chrome window with a profile of its own and picks the token up by
 itself. It needs Google Chrome installed.
 

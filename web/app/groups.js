@@ -79,7 +79,7 @@ function failGroups(err) {
   groupsList.showListError(
     paneError({ title: t("groups.loadFailedTitle"), message: err.message, onRetry: () => loadGroups() })
   );
-  updateEmptyStateHint(0);
+  updateEmptyStateHint();
   const list = document.getElementById("fp-groups-list");
   if (list) list.dataset.fpReady = "groups";
 }
@@ -116,7 +116,7 @@ export async function loadGroups() {
     failGroups(err);
     return;
   }
-  updateEmptyStateHint(groups.length);
+  updateEmptyStateHint();
   // init() fires loadGroups() without awaiting it, so a fast click (or a
   // test) can reach the tab before main.js's `await import("./groups.js")`
   // has actually finished running this module's own init -- the Add/Edit
@@ -138,9 +138,10 @@ export async function loadGroups() {
  * #fp-groups-list) already carries the single empty-state message and
  * points at the Add group button, so the two never overlap (U12).
  */
-function updateEmptyStateHint(groupCount) {
+function updateEmptyStateHint() {
   const hint = document.getElementById("fp-groups-tab-hint");
-  if (hint) hint.hidden = groupCount === 0;
+  // UAT #10: once a group IS picked the hint has done its job.
+  if (hint) hint.hidden = groupsById.size === 0 || selectedGroupId != null;
 }
 
 /** Narrows the dashboard's map/timeline to `group`'s members (UAT U8). */
@@ -153,6 +154,7 @@ function applyGroupFilter(group) {
 
 export async function selectGroup(id) {
   selectedGroupId = id;
+  updateEmptyStateHint();
   const group = groupsById.get(String(id));
   if (!group) return;
   applyGroupFilter(group);
@@ -234,6 +236,7 @@ export function renderPresencePanel(presence) {
 
 export function clearGroup() {
   selectedGroupId = null;
+  updateEmptyStateHint();
   // Locking before the Groups tab was ever opened leaves overlayLayer null,
   // and an unguarded clearLayers() threw out of purgeRenderedData() — the one
   // path that must never throw (T0 wave-2 visual gate).

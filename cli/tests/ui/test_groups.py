@@ -218,3 +218,17 @@ async def test_a_stale_member_row_shows_its_real_age(page, base_url):
     )
     assert "unknown" not in text, f"the stale row still cannot find its member: {text}"
     assert text == "Backpack: no fix for 5 h"
+
+
+async def test_tab_hint_goes_away_once_a_group_is_picked(page, base_url):
+    """UAT #10: "Pick a group in the selector above the map" stayed on screen
+    after Family was picked. It shows again when the selection is cleared."""
+    await page.goto(base_url + "/")
+    await page.wait_for_selector('#fp-group-select option[value]:not([value=""])', state="attached")
+    await page.click('button[data-tab="groups"]')
+    hint = page.locator("#fp-groups-tab-hint")
+    await hint.wait_for(state="visible")
+    await page.select_option("#fp-group-select", label="Family")
+    await hint.wait_for(state="hidden")
+    await page.select_option("#fp-group-select", "")
+    await hint.wait_for(state="visible")

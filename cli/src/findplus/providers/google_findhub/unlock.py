@@ -28,6 +28,7 @@ import time
 import uuid
 from typing import Any
 
+from . import unlock_flow
 from .bootstrap import ensure_gfmt_importable, restore_create_driver_guard, stored_account_email
 
 __all__ = [
@@ -59,7 +60,10 @@ class SharedKeyParseError(Exception):
 
 
 _JOB_TTL_SECONDS = 600
-_STALLED_SECONDS = 600
+#: A job that has not moved for this long is swept. It must outlast the flow's own
+#: deadline (the user sits on the unlock page without any progress write), or the
+#: sweep deletes a live job and the flow's MSG_TIMEOUT is never shown.
+_STALLED_SECONDS = unlock_flow._TOTAL_SECONDS + 120
 _TERMINAL = ("done", "failed")
 
 _lock = threading.Lock()
@@ -191,7 +195,6 @@ def _wake_poller() -> None:
 
 def _run_google_unlock(job_id: str, settings: Any) -> None:
     """Thread body: run the key flow in Find+'s Chrome, store the key."""
-    from . import unlock_flow
     from .bootstrap import install_vendor_guards
 
     try:

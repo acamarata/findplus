@@ -14,6 +14,12 @@ Constraints:
       order; hysteresis (N consecutive same-side fixes) and an accuracy-scaled
       confidence band are what keep that jitter from flapping ENTER/EXIT
       (ADR-P1-04). A `low`-confidence fix never changes state.
+    - Accuracy-aware: a fix whose accuracy circle straddles the edge is
+      "indeterminate" and neither enters nor exits. Inside needs the whole
+      accuracy circle within the radius; outside needs the fix beyond
+      radius + max(accuracy, exit margin), where the exit margin defaults to
+      half the radius (`exit_margin()`), so a tracker idling near the edge of
+      a small place cannot flap ENTER/EXIT.
     - `advance()` processes one fix; `evaluate_batch()` sorts by `observed_at`
       and folds `advance()` so an out-of-order batch still respects the
       backfill guard.
@@ -82,6 +88,19 @@ class GeofenceEvent:
     accuracy_meters: float | None
 
 
+#: Smallest radius Find+ recommends: crowd-sourced fixes are routinely off by
+#: 50-200 m, so a smaller circle mostly produces uncertain fixes.
+RECOMMENDED_MIN_RADIUS_METERS = 100
+_MIN_EXIT_MARGIN_METERS = 50.0
+
+
+def exit_margin(radius_meters: int) -> float:
+    """The "ignore small movements" band beyond the radius: half the radius,
+    never less than 50 m. A fix must clear radius + max(accuracy, this) to
+    count as outside."""
+    return max(radius_meters * 0.5, _MIN_EXIT_MARGIN_METERS)
+
+
 def classify(place: PlaceSpec, fix: Fix, default_accuracy: float = 100.0) -> Classification:
     """Classify one fix as inside/outside/indeterminate of one place."""
     if fix.observed_at.tzinfo is None:
@@ -102,9 +121,9 @@ def classify(place: PlaceSpec, fix: Fix, default_accuracy: float = 100.0) -> Cla
 
     if confidence == "low":
         side: Side = "indeterminate"
-    elif distance <= place.radius_meters:
+    elif distance + acc <= place.radius_meters:
         side = "inside"
-    elif distance > place.radius_meters + max(acc, 50.0):
+    elif distance > place.radius_meters + max(acc, exit_margin(place.radius_meters)):
         side = "outside"
     else:
         side = "indeterminate"

@@ -85,10 +85,17 @@ def _inside_state(since: datetime | None = None) -> GeofenceState:
 
 # --------------------------------------------------------------- classify()
 def test_classify_inside_high_confidence() -> None:
-    cls = classify(_place(), _fix(80, 30.0, T0))
+    cls = classify(_place(), _fix(60, 30.0, T0))
     assert cls.side == "inside"
     assert cls.confidence == "high"
-    assert cls.distance_meters == pytest.approx(80, abs=0.1)
+    assert cls.distance_meters == pytest.approx(60, abs=0.1)
+
+
+def test_classify_accuracy_circle_straddling_the_edge_is_uncertain() -> None:
+    # Centre is 80 m out (inside a 100 m radius) but the 30 m accuracy circle
+    # reaches 110 m: it could be on either side, so it decides nothing.
+    cls = classify(_place(), _fix(80, 30.0, T0))
+    assert cls.side == "indeterminate"
 
 
 def test_classify_outside_high_confidence() -> None:
@@ -251,11 +258,13 @@ def test_jitter_fixture_one_enter_zero_exit() -> None:
     radius=100 and acc=30, outside requires d > radius + max(acc, 50) = 150,
     so the outside leg alternates at 200 m (120 m only ever landed as
     indeterminate and never exercised the exit-hysteresis branch at all).
+    The inside leg is 60 m: with 30 m accuracy an 80 m fix straddles the
+    100 m edge and is uncertain, so it could not enter at all.
     """
     place = _place()
     fixes = []
     for i in range(40):
-        meters = 80 if i % 2 == 0 else 200
+        meters = 60 if i % 2 == 0 else 200
         fixes.append(_fix(meters, 30.0, T0 + timedelta(minutes=i), obs_id=i))
     state, events = evaluate_batch(_outside_state(since=T0 - timedelta(hours=1)), fixes, place)
     enters = [e for e in events if e.event_type == "ENTER"]

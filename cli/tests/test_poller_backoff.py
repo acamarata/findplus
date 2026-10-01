@@ -105,6 +105,7 @@ def test_status_next_poll_includes_the_backoff(client, monkeypatch: pytest.Monke
     monkeypatch.setattr(poller_service, "_running_here", 1)
     monkeypatch.setitem(poller_service._schedule, "next_attempt_at", due)
     monkeypatch.setitem(poller_service._schedule, "busy", False)
+    monkeypatch.setitem(poller_service._schedule, "heartbeat", time.monotonic())
     body = client.get("/api/status").json()
     assert body["poller_running"] is True
     assert body["next_poll_at"].startswith(due.strftime("%Y-%m-%dT%H:%M"))

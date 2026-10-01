@@ -119,6 +119,13 @@ ruling in the phase state with its reason.
 
 ## 2. What already exists — do not rebuild any of this
 
+> **Historical snapshot (takeover, 2026-09-19).** The file inventory, line counts and
+> test counts below describe the code before P1. Since then `api.py` and `cli.py`
+> became the `api/` and `cli/` packages, the Google client moved to
+> `providers/google_findhub/` (`findhub/` is a deprecation shim), and settings are
+> stored in `~/.findplus/config.env`, not `config.json`. The **Invariants** list below
+> is still current; `cli/tests/INVARIANTS.md` maps each one to its tests.
+
 7,324 lines of Python across 43 files, plus a vanilla-JS dashboard. 262 tests pass.
 `ruff check` and `ruff format --check` are clean. Keep them that way.
 

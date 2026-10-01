@@ -170,6 +170,17 @@ export function closePopoverIfOutside(fields, target) {
   }
 }
 
+/** The sentence that ties quorum, member count and radius together; kept live by
+ * groups_dialog_quorum.js so "Most members arrive" is never abstract. */
+function quorumSentenceEl() {
+  const sentence = document.createElement("p");
+  sentence.id = "fp-group-quorum-sentence";
+  sentence.className = "fp-quorum-sentence";
+  sentence.setAttribute("role", "status");
+  sentence.setAttribute("aria-live", "polite");
+  return sentence;
+}
+
 export function buildDialog({ onSave, onCancel }) {
   const dlg = document.createElement("dialog");
   dlg.id = "fp-group-dialog";
@@ -191,13 +202,7 @@ export function buildDialog({ onSave, onCancel }) {
   const radius = radiusRow();
   const stale = staleRow();
   const members = membersFieldset();
-  // The sentence that ties quorum, member count and radius together; kept live
-  // by groups_dialog_quorum.js so "Most members arrive" is never abstract.
-  const sentence = document.createElement("p");
-  sentence.id = "fp-group-quorum-sentence";
-  sentence.className = "fp-quorum-sentence";
-  sentence.setAttribute("role", "status");
-  sentence.setAttribute("aria-live", "polite");
+  const sentence = quorumSentenceEl();
 
   const error = document.createElement("p");
   error.className = "fp-dialog-error";

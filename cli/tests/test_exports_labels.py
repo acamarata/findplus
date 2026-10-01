@@ -48,13 +48,13 @@ def rows(session):
 # ------------------------------------------------------ device labels (P2-E2)
 def test_csv_label_column_present_when_devices_have_labels(rows) -> None:
     body = to_csv(rows, EASTERN, labels={"TAG-001": "Mom's Keys"})
-    table = list(csv.DictReader(io.StringIO(body.split("\n", 1)[1])))
+    table = list(csv.DictReader(io.StringIO(csv_table(body))))
     assert table[0]["label"] == "Mom's Keys"
 
 
 def test_csv_label_column_empty_when_absent(rows) -> None:
     body = to_csv(rows, EASTERN)
-    table = list(csv.DictReader(io.StringIO(body.split("\n", 1)[1])))
+    table = list(csv.DictReader(io.StringIO(csv_table(body))))
     assert CSV_COLUMNS[CSV_COLUMNS.index("device_name") + 1] == "label"
     assert table[0]["label"] == ""
 

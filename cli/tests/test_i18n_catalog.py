@@ -167,3 +167,13 @@ def test_every_static_t_call_key_resolves_in_the_catalog():
             if _resolve(catalog, key) is None:
                 missing.append(f"{path.relative_to(REPO_ROOT)}: t({key!r})")
     assert not missing, "\n".join(missing)
+
+
+def test_apple_badge_text_is_pinned_in_the_catalog_and_its_fallback():
+    """The short Apple badge (honesty `apple`) states the keys limit."""
+    badge = "Apple Find My (keys you hold)"
+    assert _catalog()["devices"]["providerAppleFindMy"] == badge
+    assert _fallback_catalog()["devices"]["providerAppleFindMy"] == badge
+    assert "providerAppleFindMy" in "".join(
+        p.read_text(encoding="utf-8") for p in WEB_APP.rglob("*.js") if "catalog" not in p.name
+    )

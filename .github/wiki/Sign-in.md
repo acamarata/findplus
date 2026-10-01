@@ -8,8 +8,9 @@ terminal. All three write the same credentials to `~/.findplus/`.
 
 Open **Settings**. Sign-in is the first section of the dialog, and the setup
 wizard shows the same card. The Google card leads with one button, **Sign in
-with Google**, which uses the Find+ helper for Chrome. Two older ways sit under
-**Other ways to sign in** if you prefer not to install the helper.
+with Google**, which uses the Find+ helper for Chrome. Two fallbacks sit under
+**Other ways to sign in**, for when you cannot or would rather not install the
+helper.
 
 ### Sign in with Google (the helper)
 
@@ -39,16 +40,17 @@ and its privacy policy is
 it is published on the Chrome Web Store you will be able to add it with one
 click instead.
 
-### Other ways to sign in
+### Fallbacks: other ways to sign in
 
-Under **Other ways to sign in** the card keeps two paths that need no extension:
+The helper is the main route. Under **Other ways to sign in** the card keeps two
+fallback paths that need no extension:
 "Sign in with your Chrome" (you copy one cookie value by hand) and "Or let Find+
 open its own Chrome window" (Find+ drives a separate Chrome window). Both are
 described below.
 
-### Sign in with your Chrome
+### Fallback: sign in with your Chrome
 
-Click **Sign in with your Chrome**. Find+ opens Google's own sign-in page,
+This is the manual route. Prefer the helper above. Click **Sign in with your Chrome**. Find+ opens Google's own sign-in page,
 `https://accounts.google.com/EmbeddedSetup`, as a normal tab of your Google
 Chrome, and the card says where it opened it. Without Google Chrome, the page
 opens in your default browser instead and the card says that; the steps below
@@ -82,9 +84,9 @@ disk, never logged and never sent back to the browser. The token field is
 cleared the moment you click Connect. The token expires within minutes, so
 copy it right after you sign in.
 
-### Or let Find+ open its own Chrome window
+### Fallback: let Find+ open its own Chrome window
 
-The smaller button under the steps, **Or let Find+ open its own Chrome
+Also a fallback. The smaller button under the steps, **Or let Find+ open its own Chrome
 window**, runs the older automatic flow. Find+ opens a separate Chrome window
 on Google's sign-in page, waits for you to sign in there and picks the token
 up itself. The card reports each stage as it runs: opening Chrome, waiting for

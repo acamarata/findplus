@@ -24,6 +24,8 @@ what it actually shows, not what the spec assumed it would show.
   targets, and `findplus selfcheck` guards the packaged daemon.
 - Homebrew tap formula is at 1.1.2 (acamarata/homebrew-tap#3). No PyPI, no Intel dmg, by decision.
   The Homebrew install has no Apple support (the apple extra needs libunicorn); the app has it.
+- Later patch releases (1.1.3 to 1.1.5) are recorded in `CHANGELOG.md`; this handoff is not
+  maintained past 1.1.2, and the P2 phase is closed (mode normal).
 - Release log for 1.1.1: `.claude/phases/current/p2/release/release-1.1.1-log.md`.
 
 ## 1. Proven

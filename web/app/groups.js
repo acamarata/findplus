@@ -20,6 +20,7 @@ import { api } from "./api.js";
 import { state } from "./state.js";
 import { t } from "./i18n.js";
 import { initDialog, purgeDialog } from "./groups_dialog.js";
+import { paneError } from "./pane_error.js";
 import * as groupsList from "./groups_list.js";
 import { renderMap } from "./map.js";
 import { renderTracks } from "./timeline.js";
@@ -61,8 +62,36 @@ export function init(mapArg, _deviceListEl) {
   if (!state.locked) loadGroups().catch(() => {});
 }
 
+/**
+ * The Groups tab after a failed load: a Retry pane, and nothing left over from
+ * the last good load (an old selector, overlay, verdict or hint) that would pass
+ * for current data (UAT #2). A locked app is left to the lock screen.
+ */
+function failGroups(err) {
+  if (err.message === "Locked") return;
+  groupsById = new Map();
+  const select = document.getElementById("fp-group-select");
+  if (select) {
+    select.replaceChildren(new Option(t("groups.allDevices"), ""));
+    select.value = "";
+  }
+  clearGroup();
+  groupsList.showListError(
+    paneError({ title: t("groups.loadFailedTitle"), message: err.message, onRetry: () => loadGroups() })
+  );
+  updateEmptyStateHint(0);
+  const list = document.getElementById("fp-groups-list");
+  if (list) list.dataset.fpReady = "groups";
+}
+
 export async function loadGroups() {
-  const groups = await api("/api/groups");
+  let groups;
+  try {
+    groups = await api("/api/groups");
+  } catch (err) {
+    failGroups(err);
+    return;
+  }
   groupsById = new Map(groups.map((g) => [String(g.id), g]));
   const select = document.getElementById("fp-group-select");
   if (!select) return;
@@ -81,7 +110,12 @@ export async function loadGroups() {
   select.value = current;
   // One fetched list, two renderings: awaiting the cards here means a caller
   // awaiting loadGroups() sees the grid, the selector and the hint agree.
-  await groupsList.loadCards();
+  try {
+    await groupsList.loadCards();
+  } catch (err) {
+    failGroups(err);
+    return;
+  }
   updateEmptyStateHint(groups.length);
   // init() fires loadGroups() without awaiting it, so a fast click (or a
   // test) can reach the tab before main.js's `await import("./groups.js")`
@@ -126,12 +160,26 @@ export async function selectGroup(id) {
   let presence;
   try {
     presence = await api(`/api/groups/${id}/presence?window=60`);
-  } catch (_) {
+  } catch (err) {
+    if (myGeneration === generation) showPresenceError(err, id);
     return;
   }
   if (myGeneration !== generation) return; // a later selectGroup() already won
   drawGroupOverlays(overlayLayer, presence, group);
   renderPresencePanel(presence);
+}
+
+/** A failed presence call: drop the last group's circles and verdict, offer Retry. */
+function showPresenceError(err, id) {
+  if (err.message === "Locked") return;
+  if (overlayLayer) overlayLayer.clearLayers();
+  const legend = document.getElementById("fp-group-legend");
+  if (legend) legend.replaceChildren();
+  const panel = document.getElementById("fp-presence-panel");
+  if (!panel) return;
+  panel.replaceChildren(
+    paneError({ title: t("groups.presenceFailedTitle"), message: err.message, onRetry: () => selectGroup(id) })
+  );
 }
 
 /** Playwright's test_groups.py dynamic-imports this straight off groups.js,

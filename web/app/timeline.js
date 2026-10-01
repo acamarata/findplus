@@ -8,80 +8,17 @@
  */
 "use strict";
 
-import { $, state, displayName, visibleTracks, fmtTime, fmtDateTime, fmtDuration, fmtDistance, todayLocal, showAlert, esc } from "./state.js";
+import { $, state, displayName, visibleTracks, fmtDateTime, fmtDuration, todayLocal, showAlert } from "./state.js";
 import { api, postJson } from "./api.js";
-import { renderMap, visiblePoints, deviceForTrack } from "./map.js";
+import { renderMap, deviceForTrack } from "./map.js";
 import { renderBadge } from "./components/badge.js";
 import { reload } from "./main.js";
 import { providerWording } from "./devices.js";
 import { t, plural } from "./i18n.js";
 import { nothingTrackedEmptyState, emptyDayState } from "./dashboard_empty.js";
 import { confirmDialog } from "./components/confirm-dialog.js";
-
-const PIN_ICON = `<svg class="tl-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#lucide-map-pin"></use></svg>`;
-
-function statsHtml(stats) {
-  if (!stats || !stats.observation_count) return "";
-  const cells = [
-    [t("timeline.statFirst"), fmtTime(stats.first_observed_at_local)],
-    [t("timeline.statLast"), fmtTime(stats.last_observed_at_local)],
-    [t("timeline.statUnique"), String(stats.observation_count)],
-    [t("timeline.statMovements"), String(stats.movement_count)],
-    [t("timeline.statDistance"), t("timeline.distanceMiles", { miles: stats.approximate_distance_miles.toFixed(2) })],
-    [t("timeline.statLongestGap"), fmtDuration(stats.longest_gap_seconds)],
-    [t("timeline.statTimeSpan"), fmtDuration(stats.time_span_seconds)],
-  ];
-  return `<div class="stats">` +
-    cells.map(([l, v]) => `<div class="stat"><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join("") +
-    `<div class="stat-note">${esc(t("timeline.statNote", { label: stats.distance_label }))}</div>` +
-    `</div>`;
-}
-
-function timelineHtml(track) {
-  const points = visiblePoints(track);
-  if (!points.length) {
-    return `<div class="empty">${esc(t("timeline.emptyDay"))}</div>`;
-  }
-  let html = `<ol class="timeline">`;
-  points.forEach((point) => {
-    if (point.gap_before && point.seconds_since_previous) {
-      const gap = t("timeline.noDetectionsFor", {
-        duration: fmtDuration(point.seconds_since_previous).toUpperCase(),
-      });
-      html += `<li class="tl-gap">${esc(gap)}</li>`;
-    }
-    const dist = fmtDistance(point.meters_from_previous);
-    const meta = [];
-    if (dist) meta.push(t("timeline.fromPrevious", { distance: dist }));
-    if (point.accuracy_meters != null) {
-      meta.push(t("timeline.accuracy", { meters: Math.round(point.accuracy_meters) }));
-    } else {
-      // Apple Find My never reports a metres figure (CF-P2-6): say so plainly
-      // instead of just omitting the line, which could read as "exact".
-      meta.push(t("timeline.accuracyUnknown"));
-    }
-    if (!point.is_movement && point.seconds_since_previous !== null) {
-      meta.push(t("timeline.belowThreshold"));
-    }
-
-    // Coordinates stay in the title attribute for hover even when a place name
-    // is shown in their place (U30b) — the API resolves place_name server-side
-    // (routes_history.py::_annotate_place_names) against every saved place.
-    // UAT6-N30: the sprite's map pin, not an emoji that renders per-OS.
-    const coordsTitle = `${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}`;
-    const coordsLine = point.place_name
-      ? `<div class="tl-coords" title="${esc(coordsTitle)}">${PIN_ICON}${esc(point.place_name)}</div>`
-      : `<div class="tl-coords">${PIN_ICON}${esc(coordsTitle)}</div>`;
-
-    html +=
-      `<li class="tl-item${point.is_movement ? "" : " jitter"}" data-id="${point.id}">` +
-      `<div><span class="tl-seq">${point.sequence}.</span> <span class="tl-time">${fmtTime(point.observed_at_local)}</span></div>` +
-      coordsLine +
-      (meta.length ? `<div class="tl-meta">${esc(meta.join(" · "))}</div>` : "") +
-      `</li>`;
-  });
-  return html + `</ol>`;
-}
+import { statsHtml, timelineHtml } from "./timeline_list.js";
+import { paneError } from "./pane_error.js";
 
 /**
  * The sticky header above one track: badge, name, observation count.
@@ -168,13 +105,43 @@ function highlightSelection() {
   });
 }
 
+/** What a loaded timeline is FOR: the day and the device filter it was fetched with. */
+let loadedKey = null;
+let loadSeq = 0;
+const keyFor = (day, filter) => `${day}|${filter || ""}`;
+
+/**
+ * The pane after a failed load. A failure for a NEW selection (another day or
+ * device) clears what was on screen, so the pane never shows device A's rows
+ * under device B's name (UAT #1); a failed background refresh of the SAME
+ * selection keeps its still-correct rows and only raises the banner.
+ */
+function showLoadError(day, err, key) {
+  showAlert(t("timeline.loadFailed", { day, message: err.message }), "err");
+  if (key === loadedKey || err.message === "Locked") return;
+  state.timeline = null;
+  state.selectedId = null;
+  loadedKey = null;
+  renderMap();
+  const host = $("tracks");
+  host.replaceChildren(
+    paneError({ title: t("timeline.loadFailedTitle"), message: err.message, onRetry: () => loadDay(day) })
+  );
+}
+
 export async function loadDay(day) {
   const lockGenAtFetch = state.lockGeneration; state.day = day; $("day-picker").value = day;
   const params = new URLSearchParams({ day });
   if (state.deviceFilter) params.set("device_id", state.deviceFilter);
+  const key = keyFor(day, state.deviceFilter);
+  const seq = ++loadSeq;
   try {
-    state.timeline = await api(`/api/timeline?${params}`);
+    const timeline = await api(`/api/timeline?${params}`);
     if (state.lockGeneration !== lockGenAtFetch) return; // locked mid-fetch: never render it
+    // A newer loadDay() superseded this one while it was in flight.
+    if (seq !== loadSeq) return;
+    state.timeline = timeline;
+    loadedKey = key;
     state.selectedId = null;
     if (state.timeline.path_disclaimer) {
       $("path-disclaimer").textContent = state.timeline.path_disclaimer;
@@ -182,7 +149,8 @@ export async function loadDay(day) {
     renderMap();
     renderTracks();
   } catch (err) {
-    showAlert(t("timeline.loadFailed", { day, message: err.message }), "err");
+    if (state.lockGeneration !== lockGenAtFetch || seq !== loadSeq) return;
+    showLoadError(day, err, key);
   }
 }
 

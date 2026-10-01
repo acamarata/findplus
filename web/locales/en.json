@@ -87,7 +87,8 @@
     "sectionsNavLabel": "Sections",
     "detailsLandmarkLabel": "Details",
     "statusRegionLabel": "Status and filters",
-    "skipMap": "Skip map, go to timeline"
+    "skipMap": "Skip map, go to timeline",
+    "retry": "Retry"
   },
   "field": {
     "customColor": "Custom color",
@@ -217,7 +218,10 @@
     "verdictNoLocation": "No location yet",
     "verdictNoRecentLocation": "No recent location",
     "verdictUnavailable": "Status unavailable",
-    "verdictUnavailableHint": "Could not load this group's status. Reload the page to try again."
+    "verdictUnavailableHint": "Could not load this group's status. Reload the page to try again.",
+    "loadFailedTitle": "Could not load your groups",
+    "loadFailed": "Could not load groups: {message}",
+    "presenceFailedTitle": "Could not load this group's presence"
   },
   "icons": {
     "custom": {
@@ -796,7 +800,8 @@
     "deleteCancelled": "Canceled. Nothing was deleted.",
     "pickBothDates": "Pick both a start and an end date.",
     "rangeStartAfterEnd": "The range start is after its end.",
-    "latestSummary": "{device}: last observed by {network} {observed} · retrieved {fetched} · age {age}"
+    "latestSummary": "{device}: last observed by {network} {observed} · retrieved {fetched} · age {age}",
+    "loadFailedTitle": "Could not load this day"
   },
   "units": {
     "unknown": "unknown",

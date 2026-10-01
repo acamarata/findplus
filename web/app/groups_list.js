@@ -47,6 +47,13 @@ function clearList() {
   while (listEl.firstChild) listEl.removeChild(listEl.firstChild);
 }
 
+/** Replace the card grid with one error pane (groups.js's failed-load state). */
+export function showListError(pane) {
+  if (!listEl) return;
+  clearList();
+  listEl.appendChild(pane);
+}
+
 function span(className, text) {
   const el = document.createElement("span");
   if (className) el.className = className;

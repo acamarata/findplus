@@ -28,6 +28,7 @@ import { createPlaceLocator } from "./components/place_locator.js";
 import { startMapPick } from "./components/place_map_pick.js";
 import { duplicateNameMessage, placeValidationMessage } from "./dialog_errors.js";
 import { buildDialog } from "./places_dialog_dom.js";
+import { showWhere, clearWhere } from "./places_dialog_where.js";
 
 // N26: a same-default-blue place after another already existed made a new
 // one hard to tell apart on the map circles' colour alone; showAddDialog()
@@ -105,6 +106,7 @@ function ensureDialog() {
 function applyPickedLocation({ latitude, longitude, radiusMeters }) {
   fields.lat.value = String(latitude);
   fields.lon.value = String(longitude);
+  showWhere(fields.where, "picked", latitude, longitude);
   if (radiusMeters) {
     fields.radius.value = String(radiusMeters);
     fields.radiusNumber.value = fields.radius.value;
@@ -195,6 +197,7 @@ function fillDialog(mode, id, place, latlng, existingCount) {
   fields.enter.value = place ? String(place.enter_confirmations) : DEFAULT_ENTER_CONFIRMATIONS;
   fields.exit.value = place ? String(place.exit_confirmations) : DEFAULT_EXIT_CONFIRMATIONS;
   fields.error.textContent = "";
+  showWhere(fields.where, mode === "edit" ? "current" : "centre", latlng.lat, latlng.lng);
   locator.refreshTrackers();
   locator.reset();
   drawPreview(latlng, radius);
@@ -275,6 +278,7 @@ function clearDialogFields() {
   fields.enter.value = DEFAULT_ENTER_CONFIRMATIONS;
   fields.exit.value = DEFAULT_EXIT_CONFIRMATIONS;
   fields.error.textContent = "";
+  clearWhere(fields.where);
   if (colorPicker) colorPicker.setValue(PLACE_PALETTE[0]);
   if (locator) locator.reset();
   if (dialogEl) {

@@ -162,23 +162,23 @@ def test_export_group_json_carries_device_label(group_client_labeled) -> None:
 
 
 def test_export_group_gpx_carries_device_label(group_client_labeled) -> None:
-    """GPX `<trk><name>`: TAG-A's set label, TAG-B falls back to device_id
-    (not device_name — mirrors the single-device `to_gpx()` fallback)."""
+    """GPX `<trk><name>`: TAG-A's set label, TAG-B falls back to its device
+    name ("Tag B"), never the raw device id (UAT #19)."""
     client, group_id = group_client_labeled
     resp = client.get(f"/api/export?group_id={group_id}&fmt=gpx")
     root = ElementTree.fromstring(resp.text)
     ns = {"g": "http://www.topografix.com/GPX/1/1"}
     names = {trk.find("g:name", ns).text for trk in root.findall(".//g:trk", ns)}
-    assert names == {"Mom's Keys", "TAG-B"}
+    assert names == {"Mom's Keys", "Tag B"}
 
 
 def test_export_group_kml_carries_device_label(group_client_labeled) -> None:
-    """KML `<Placemark><name>`: TAG-A's set label, TAG-B falls back to
-    device_id (not device_name — mirrors the single-device `to_kml()`)."""
+    """KML `<Placemark><name>`: TAG-A's set label, TAG-B falls back to its
+    device name, never the raw device id (UAT #19)."""
     client, group_id = group_client_labeled
     resp = client.get(f"/api/export?group_id={group_id}&fmt=kml")
     root = ElementTree.fromstring(resp.text)
     ns = {"k": "http://www.opengis.net/kml/2.2"}
     names = {pm.find("k:name", ns).text for pm in root.findall(".//k:Placemark", ns)}
     assert "Mom's Keys" in names
-    assert "TAG-B" in names
+    assert "Tag B" in names

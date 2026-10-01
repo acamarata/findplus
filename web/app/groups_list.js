@@ -17,7 +17,7 @@
 "use strict";
 
 import { api } from "./api.js";
-import { displayName } from "./state.js";
+import { uniqueLabel } from "./device_label.js";
 import { t, plural } from "./i18n.js";
 import { renderBadge } from "./components/badge.js";
 import { showAddDialog, openEditDialog } from "./groups_dialog.js";
@@ -45,6 +45,13 @@ export async function init(container) {
 
 function clearList() {
   while (listEl.firstChild) listEl.removeChild(listEl.firstChild);
+}
+
+/** Replace the card grid with one error pane (groups.js's failed-load state). */
+export function showListError(pane) {
+  if (!listEl) return;
+  clearList();
+  listEl.appendChild(pane);
 }
 
 function span(className, text) {
@@ -79,7 +86,7 @@ function memberAvatars(group, devicesById) {
     // UAT U6: the group member list is one of the surfaces that must show
     // the label, not the raw provider name -- member.name is the fallback
     // for a device row that has since been deleted (see the docstring above).
-    const shown = displayName(device) || member.name;
+    const shown = uniqueLabel(device) || member.name;
     // N27: a 16px, mouse-only title tooltip was the only place a member's
     // name showed at all -- fp-avatar--lg (places-events.css) draws it
     // bigger, and tabindex/aria-label/role make the name reachable by

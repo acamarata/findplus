@@ -185,7 +185,9 @@ export function initTabbar() {
   tabbarEl.className = "fp-tabbar hidden";
   tabbarEl.setAttribute("aria-label", t("common.sectionsNavLabel"));
   TABS.forEach((entry) => tabbarEl.appendChild(tabButton(entry)));
-  tabs.insertAdjacentElement("afterend", tabbarEl);
+  // After the outer <nav>, not inside it: that <nav> is hidden at phone width
+  // (UAT #18), and the bar must stay visible there.
+  (tabs.closest("nav") || tabs).insertAdjacentElement("afterend", tabbarEl);
   markCurrent("dashboard");
 
   const menu = wireMoreMenu();

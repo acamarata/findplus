@@ -125,6 +125,8 @@ export function renderRulesTable(rules) {
   if (!tbody) return;
   while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
   rules.forEach((rule) => tbody.appendChild(buildRuleRow(rule)));
+  const empty = $("fp-rules-empty");
+  if (empty) empty.hidden = rules.length > 0;
 }
 async function deleteRule(id, name) {
   const confirmed = await confirmDialog({

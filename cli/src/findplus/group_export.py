@@ -25,6 +25,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from findplus.db.models import Device, DeviceGroup, Group, LocationObservation
+from findplus.device_labels import unique_names
 from findplus.exporters import CSV_COMMENT, csv_table, to_csv, to_json
 from findplus.timeline import fetch_observations
 
@@ -97,7 +98,12 @@ def export_group(
     group = resolve_group(session, group_id)
     members = member_device_ids(session, group.id)
     blocks = member_observations(session, members, start_utc, end_utc)
-    labels = _labels_for(session, members)
+    # GPX and KML name each track by its device: the display name, with an id
+    # tail only where two trackers share one (UAT #7/#19). CSV and JSON keep
+    # `labels` to the user's own label, which is what their column means.
+    labels = (
+        unique_names(session) if fmt.lower() in {"gpx", "kml"} else _labels_for(session, members)
+    )
     body = render_group(fmt, blocks, zone, group.name, labels)
     return body, group.name.replace(" ", "-")
 

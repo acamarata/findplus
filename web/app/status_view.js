@@ -185,7 +185,9 @@ export async function loadStatus() {
     return s;
   } catch (err) {
     if (state.lockGeneration !== gen) return null; // the lock's own 401, not an outage
-    showAlert(t("common.apiUnreachable", { message: err.message }), "err");
+    showAlert(t("common.apiUnreachable", { message: err.message }), "err", {
+      action: { label: t("common.retry"), run: () => loadStatus() },
+    });
     return null;
   }
 }

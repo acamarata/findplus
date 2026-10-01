@@ -230,7 +230,7 @@ html[data-theme="light"] {
   --ok: #148150;  /* 4.53:1 on --bg; #16915a was 3.71:1 */
   --warn: #956800;  /* 4.56:1 on --bg; #9a6b00 was 4.34:1 */
   --err: #c53232;
-  --gap: #9a6b00;
+  --gap: #8a6000;  /* 5.36:1 on the gap tint; #9a6b00 was 4.49:1 */
   /* --accent measured 4.28:1 on the same tint here (CR-C-E4 CF-P2-E4-5). */
   --badge-text: #1e40af;
   color-scheme: light;

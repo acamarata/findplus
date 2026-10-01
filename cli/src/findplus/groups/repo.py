@@ -28,6 +28,7 @@ from findplus.db.models import (
     Place,
     PlaceState,
 )
+from findplus.device_labels import unique_names
 from findplus.groups.place_event_list import list_group_place_events  # re-exported
 from findplus.groups.presence import (
     Fix,
@@ -39,7 +40,6 @@ from findplus.groups.presence import (
 )
 from findplus.groups.timeline import list_group_timeline  # re-exported, see timeline.py
 from findplus.groups.validation import clean_name, validate_group_fields
-from findplus.labels import display_name
 
 
 def list_groups(session: Session) -> list[Group]:
@@ -172,13 +172,15 @@ def set_members(session: Session, group_id: int, member_ids: list[str]) -> Group
 
 def _member_inputs(session: Session, group: Group) -> list[MemberInput]:
     members: list[MemberInput] = []
-    for device_id, name, label in session.execute(
-        select(Device.device_id, Device.name, Device.label)
+    shown = unique_names(session)
+    for (device_id,) in session.execute(
+        select(Device.device_id)
         .join(DeviceGroup, DeviceGroup.device_id == Device.device_id)
         .where(DeviceGroup.group_id == group.id)
     ).all():
-        # Label-first, like every other surface (UAT2 N2).
-        name = display_name(label, name, device_id)
+        # Label-first, like every other surface (UAT2 N2), with an id tail only
+        # when another visible tracker shares the name (UAT #7).
+        name = shown[device_id]
         # No `observed_at >= cutoff` filter (UAT3 N19): a stale member's last
         # fix is exactly what the UI needs for "no fix for N min", and the old
         # lookback window dropped that row, so member_status() saw last_fix=

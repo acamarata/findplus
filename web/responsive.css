@@ -19,7 +19,7 @@
    #lock-pin above keeps :focus deliberately (a full-screen modal input). */
 .btn:focus-visible, .btn-secondary:focus-visible, .btn-tiny:focus-visible,
 input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
-.fp-tabbar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.fp-tabbar button:focus-visible, .tl-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* Visible to a screen reader, not on screen. */
 .sr-only {
@@ -109,8 +109,15 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
    collapse behind a "More" button, the map gives the timeline room, and
    dialogs go full-screen. Every rule here is an override of a rule above,
    never a new component. */
+/* UAT #18: at tablet width four cards wrapped 3 + 1. Two by two reads evenly. */
+@media (min-width: 600px) and (max-width: 1000px) {
+  .cards { grid-template-columns: 1fr 1fr; }
+}
+
 @media (max-width: 599px) {
-  .fp-tabs { display: none; }
+  /* The whole top <nav>, not just its tab row: an empty "Sections" landmark
+     beside the bottom bar's own made axe's landmark-unique fail (UAT #18). */
+  .fp-topnav, .fp-tabs { display: none; }
   .fp-tabbar { display: flex; }
 
   .topbar #device-name { display: none; }

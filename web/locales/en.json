@@ -87,7 +87,14 @@
     "sectionsNavLabel": "Sections",
     "detailsLandmarkLabel": "Details",
     "statusRegionLabel": "Status and filters",
-    "skipMap": "Skip map, go to timeline"
+    "skipMap": "Skip map, go to timeline",
+    "retry": "Retry",
+    "networkDown": "Find+ is not answering. Check that it is still running, then try again.",
+    "wrongPinLeft": {
+      "one": "Wrong PIN. 1 try left before Find+ makes you wait.",
+      "other": "Wrong PIN. {n} tries left before Find+ makes you wait."
+    },
+    "lockWait": "Too many tries. Try again in {seconds} seconds."
   },
   "field": {
     "customColor": "Custom color",
@@ -218,7 +225,13 @@
     "verdictNoLocation": "No location yet",
     "verdictNoRecentLocation": "No recent location",
     "verdictUnavailable": "Status unavailable",
-    "verdictUnavailableHint": "Could not load this group's status. Reload the page to try again."
+    "verdictUnavailableHint": "Could not load this group's status. Reload the page to try again.",
+    "loadFailedTitle": "Could not load your groups",
+    "loadFailed": "Could not load groups: {message}",
+    "presenceFailedTitle": "Could not load this group's presence",
+    "quorumRange": "Use a whole number from {min} to {max}.",
+    "quorumTooHigh": "This group needs {n} members reporting, but only {members} are ticked, so it can never fire. Lower the number or tick more members.",
+    "staleBadgeUntracked": "{name}: not tracked, so Find+ is not polling it"
   },
   "icons": {
     "custom": {
@@ -307,7 +320,13 @@
     "card": {
       "edit": "Edit {name}",
       "delete": "Delete {name}"
-    }
+    },
+    "where": {
+      "centre": "Location: the centre of the map ({lat}, {lon}). Choose a tracker, a point on the map or an address above to move it.",
+      "current": "Location: {lat}, {lon}.",
+      "picked": "Location: {lat}, {lon}, as chosen above."
+    },
+    "loadFailedTitle": "Could not load your places"
   },
   "alerts": {
     "telegramHeading": "Telegram",
@@ -376,7 +395,7 @@
     "skippedNoReason": "suppressed, no reason recorded",
     "retryingStatus": "Retrying (attempt {attempt} of {max}, next at {time})",
     "failedAfterRetries": "Failed after {max} attempts",
-    "channelNotConnected": "{channel} (not connected, connect it above)",
+    "channelNotConnected": "{channel} (not connected: close this and connect it in the sections above the rules)",
     "badBotTokenError": "That doesn't look like a bot token. Get one from @BotFather in Telegram.",
     "colEnabled": "Enabled",
     "editRule": "Edit rule",
@@ -453,7 +472,9 @@
       "errorNotConnected": "{channel} isn't connected.",
       "errorGeneric": "Couldn't deliver to {channel}.",
       "skippedReason": "Skipped: {reason}"
-    }
+    },
+    "deliveriesEmpty": "No alerts have been sent yet. Each one that fires appears here.",
+    "rulesEmpty": "No rules yet. Use Add rule to be told when a tracker arrives or leaves a place."
   },
   "settings": {
     "title": "Settings",
@@ -800,7 +821,8 @@
     "deleteCancelled": "Canceled. Nothing was deleted.",
     "pickBothDates": "Pick both a start and an end date.",
     "rangeStartAfterEnd": "The range start is after its end.",
-    "latestSummary": "{device}: last observed by {network} {observed} · retrieved {fetched} · age {age}"
+    "latestSummary": "{device}: last observed by {network} {observed} · retrieved {fetched} · age {age}",
+    "loadFailedTitle": "Could not load this day"
   },
   "units": {
     "unknown": "unknown",

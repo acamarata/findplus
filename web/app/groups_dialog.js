@@ -29,6 +29,7 @@ import {
 import { groupBody, saveGroup } from "./groups_dialog_save.js";
 import { renderMemberList, applyMemberSelection } from "./groups_members.js";
 import { duplicateNameMessage } from "./dialog_errors.js";
+import { refreshQuorumWarning, quorumProblem, wireQuorumGuard } from "./groups_dialog_quorum.js";
 
 const DEFAULT_ICON = "lucide:users";
 const DEFAULT_COLOR = "#27ae60";
@@ -90,6 +91,7 @@ function wireDialog(dlg) {
   fields.quorum.addEventListener("change", () => {
     fields.quorumN.hidden = fields.quorum.value !== "custom";
   });
+  wireQuorumGuard(fields);
   // A bare "letter" icon draws its glyph from the name (CR-C-E5 F7): keep the
   // preview live as the user types instead of only on icon/colour pick.
   fields.name.addEventListener("input", () => renderIconPreview(fields));
@@ -150,6 +152,7 @@ function applyGroup(group) {
   fields.stale.value = group ? String(group.stale_after_minutes) : DEFAULT_STALE;
   const ids = new Set(((group && group.members) || []).map((m) => m.device_id));
   applyMemberSelection(fields.members, ids);
+  refreshQuorumWarning(fields);
 }
 
 async function fillDialog(mode, id, group) {
@@ -228,6 +231,12 @@ async function onSave() {
     fields.error.textContent = t("groups.error.members_required");
     return;
   }
+  const quorumProblemText = quorumProblem(fields);
+  if (quorumProblemText) {
+    fields.error.textContent = quorumProblemText;
+    fields.quorumN.focus();
+    return;
+  }
   try {
     await saveGroup(dialogEl.dataset.mode, dialogEl.dataset.editId, groupBody(fields));
     dialogEl.close();
@@ -249,6 +258,7 @@ function clearDialogFields() {
   fields.quorum.value = DEFAULT_QUORUM;
   fields.quorumN.value = "";
   fields.quorumN.hidden = true;
+  refreshQuorumWarning(fields);
   fields.radius.value = DEFAULT_RADIUS;
   fields.radiusOut.textContent = DEFAULT_RADIUS;
   fields.stale.value = DEFAULT_STALE;

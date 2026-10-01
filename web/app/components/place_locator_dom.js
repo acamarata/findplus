@@ -22,12 +22,26 @@
 
 import { t } from "../i18n.js";
 import { displayName } from "../state.js";
+import { labelMap } from "../device_label.js";
 
-export function trackerOption(device) {
+/** `labels` is device_label.js's labelMap() of the list this select shows. */
+export function trackerOption(device, labels = labelMap([device])) {
   const opt = document.createElement("option");
   opt.value = device.device_id;
-  opt.textContent = displayName(device) || device.device_id;
+  opt.textContent = labels.get(device.device_id) || displayName(device) || device.device_id;
   return opt;
+}
+
+/** One option per tracked device, labelled apart where names clash (UAT #7). A
+ * tracker never seen is marked: asking /api/latest for it would answer 404,
+ * which the browser logs as a console error (UAT #20). */
+export function appendTrackerOptions(select, tracked) {
+  const labels = labelMap(tracked);
+  tracked.forEach((d) => {
+    const opt = trackerOption(d, labels);
+    if (!d.observation_count) opt.dataset.noFix = "1";
+    select.appendChild(opt);
+  });
 }
 
 export function searchResultRow(row, onPick, results) {

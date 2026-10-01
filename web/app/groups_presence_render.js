@@ -21,7 +21,7 @@
  */
 "use strict";
 
-import { esc, fmtAgeMinutes } from "./state.js";
+import { esc, fmtAgeMinutes, state } from "./state.js";
 import { t } from "./i18n.js";
 
 export function drawGroupOverlays(overlayLayer, presence, group) {
@@ -113,6 +113,21 @@ export function verdictTitle(presence) {
 
 export function ageLabel(member) {
   return fmtAgeMinutes(member ? member.age_minutes : null);
+}
+
+/**
+ * The line for one stale member (UAT #12). A tracker Find+ is not polling has
+ * no fix because nothing ever asked for one, which is a different thing to say
+ * than "no fix yet": the Devices dialog and the group dialog both call it "not
+ * tracked", so this does too. Anything else keeps the age or "no fix yet" text.
+ */
+export function staleBadgeText(member, key) {
+  const name = (member && member.name) || key;
+  const device = member && (state.devices || []).find((d) => d.device_id === member.device_id);
+  if (device && !device.is_tracked) return t("groups.staleBadgeUntracked", { name });
+  return hasEverReported(member)
+    ? t("groups.staleBadge", { name, age: ageLabel(member) })
+    : t("groups.staleBadgeNoFix", { name });
 }
 
 // Ever reported at all? (UAT3 N19: "no fix yet" vs "no fix for {age}".)

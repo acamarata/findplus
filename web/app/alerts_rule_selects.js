@@ -19,7 +19,8 @@
  * Constraints: textContent only, via DOM option nodes -- never raw markup.
  */
 "use strict";
-import { $, state, displayName } from "./state.js";
+import { $, state } from "./state.js";
+import { labelMap } from "./device_label.js";
 import { api } from "./api.js";
 import { t } from "./i18n.js";
 
@@ -70,10 +71,11 @@ async function ensureDevices() {
 function fillDeviceSelect(devices) {
   const tracked = devices.filter((d) => d.is_tracked);
   const untracked = devices.filter((d) => !d.is_tracked);
+  const labels = labelMap(devices);
   fillOptions($("fp-rule-device"), [null, ...tracked, ...untracked], (d) =>
     d === null
       ? ["", t("alerts.chooseDevice")]
-      : [d.device_id, displayName(d) + (d.is_tracked ? "" : t("devices.notPolledSuffix"))],
+      : [d.device_id, labels.get(d.device_id) + (d.is_tracked ? "" : t("devices.notPolledSuffix"))],
   );
 }
 

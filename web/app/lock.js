@@ -18,6 +18,7 @@ import { closeModals, bootDashboard } from "./main.js";
 import { WORLD_VIEW_CENTER, WORLD_VIEW_ZOOM } from "./map.js";
 import { purgeMapOverlay } from "./map_empty.js";
 import { stopLiveRefresh } from "./live_refresh.js";
+import { unlockErrorText } from "./lock_errors.js";
 
 /**
  * Show the lock screen.
@@ -225,15 +226,6 @@ export async function refreshLockState() {
   }
 }
 
-/** UAT6-N07: a catalog sentence per refusal, never the server's detail text
- * (it named attempt counts and, before, a terminal command). */
-function unlockErrorText(e) {
-  if (e.status === 401) return t("common.wrongPinHint");
-  if (e.status === 429) return t("common.lockTooManyTries");
-  if (e.status === 422) return t("common.lockPinFormat");
-  return t("common.lockUnlockFailed");
-}
-
 export async function submitPin(pin) {
   const err = $("lock-error");
   const btn = $("lock-submit");
@@ -247,7 +239,7 @@ export async function submitPin(pin) {
     err.textContent = "";
     await hideLockAndRestore();
   } catch (e) {
-    err.textContent = unlockErrorText(e);
+    err.textContent = await unlockErrorText(e);
     // The recovery hint appears once a PIN has been refused, not before.
     if (e.status === 401) $("lock-forgot").hidden = false;
     $("lock-pin").value = "";

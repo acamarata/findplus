@@ -10,6 +10,7 @@
  */
 "use strict";
 
+import { uniqueLabel } from "./device_label.js";
 import { state, colorFor, displayName, visibleTracks, fmtTime, fmtDateTime, fmtDuration, fmtDistance, esc } from "./state.js";
 import { selectPoint } from "./timeline.js";
 import { renderBadge } from "./components/badge.js";
@@ -242,7 +243,7 @@ export function renderMap() {
     // The tooltip, the hover title and the popup are the only text the map
     // has, so they read the label first, exactly as the device list and the
     // timeline track head do (UAT U6: the one displayName() helper).
-    const shown = displayName(device) || track.device_name;
+    const shown = uniqueLabel(device) || track.device_name;
     const latlngs = points.map((p) => [p.latitude, p.longitude]);
     allLatLngs.push(...latlngs);
 

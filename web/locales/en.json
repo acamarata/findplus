@@ -664,6 +664,11 @@
         "heading": "Unlock encrypted locations",
         "why": "Google encrypts your Find Hub locations end to end. Unlocking them needs your Android phone's screen lock, once. Find+ opens a Chrome window of its own for this, because Google releases the key only to a browser page. Find+ never asks you to paste code.",
         "button": "Unlock encrypted locations",
+        "whyHelper": "Google encrypts your Find Hub locations end to end. Unlocking them needs your Android phone's screen lock, once. Find+ opens Google's unlock page in the Chrome you already use, and the Find+ helper passes the key to Find+ on this computer. Find+ never asks you to paste code.",
+        "otherWay": "Or let Find+ open its own Chrome window",
+        "helperOpening": "Opening Chrome…",
+        "helperWaiting": "In Chrome, sign in with the same Google account first if Google asks, then enter your Android phone's screen lock. This page updates on its own.",
+        "helperTimeout": "The unlock did not finish. Make sure the Find+ helper is added to Chrome, then try again.",
         "starting": "Opening the Find+ Chrome window…",
         "waiting": "In the Find+ Chrome window, sign in with the same Google account first if Google asks, then enter your Android phone's screen lock."
       },

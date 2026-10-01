@@ -120,7 +120,9 @@ const keyFor = (day, filter) => `${day}|${filter || ""}`;
  * selection keeps its still-correct rows and only raises the banner.
  */
 function showLoadError(day, err, key) {
-  showAlert(t("timeline.loadFailed", { day, message: err.message }), "err");
+  showAlert(t("timeline.loadFailed", { day, message: err.message }), "err", {
+    action: { label: t("common.retry"), run: () => loadDay(day) },
+  });
   if (key === loadedKey || err.message === "Locked") return;
   state.timeline = null;
   state.selectedId = null;

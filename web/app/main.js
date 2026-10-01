@@ -231,5 +231,7 @@ async function main() {
 // trips the browser suite's no-page-errors assertion; the banner at least says
 // what failed.
 main().catch((err) => {
-  showAlert(t("common.apiUnreachable", { message: err.message }), "err");
+  showAlert(t("common.apiUnreachable", { message: err.message }), "err", {
+    action: { label: t("common.retry"), run: () => window.location.reload() },
+  });
 });

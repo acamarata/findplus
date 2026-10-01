@@ -88,7 +88,8 @@
     "detailsLandmarkLabel": "Details",
     "statusRegionLabel": "Status and filters",
     "skipMap": "Skip map, go to timeline",
-    "retry": "Retry"
+    "retry": "Retry",
+    "networkDown": "Find+ is not answering. Check that it is still running, then try again."
   },
   "field": {
     "customColor": "Custom color",

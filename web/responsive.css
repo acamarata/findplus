@@ -19,7 +19,7 @@
    #lock-pin above keeps :focus deliberately (a full-screen modal input). */
 .btn:focus-visible, .btn-secondary:focus-visible, .btn-tiny:focus-visible,
 input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
-.fp-tabbar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.fp-tabbar button:focus-visible, .tl-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* Visible to a screen reader, not on screen. */
 .sr-only {

@@ -19,6 +19,7 @@ import { nothingTrackedEmptyState, emptyDayState } from "./dashboard_empty.js";
 import { confirmDialog } from "./components/confirm-dialog.js";
 import { statsHtml, timelineHtml } from "./timeline_list.js";
 import { paneError } from "./pane_error.js";
+import { syncRoving, wireTimelineKeys } from "./timeline_keys.js";
 
 /**
  * The sticky header above one track: badge, name, observation count.
@@ -85,6 +86,7 @@ export function renderTracks() {
     el.addEventListener("click", () => selectPoint(Number(el.dataset.id), true));
   });
   highlightSelection();
+  syncRoving(host);
 }
 
 export function selectPoint(id, panTo) {
@@ -179,6 +181,7 @@ function startExport() {
 
 /** Wire day navigation, the movement-only toggle, export, and "jump to latest". */
 export function wireTimelineControls() {
+  wireTimelineKeys($("tracks"), (id) => selectPoint(id, true));
   $("day-picker").addEventListener("change", (e) => loadDay(e.target.value));
   $("btn-today").addEventListener("click", () => loadDay(todayLocal()));
   $("btn-prev-day").addEventListener("click", () => shiftDay(-1));

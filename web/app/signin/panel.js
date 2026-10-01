@@ -68,7 +68,7 @@ export function mountSignInPanel(host, options) {
     if (mine !== generation) return null;
     const list = status.providers || [];
     panel.google.render(list.find((p) => p.id === GOOGLE_PROVIDER));
-    panel.google.helperFlow.setHelperInstalled(!!status.google_helper_installed);
+    panel.google.setHelperInstalled(!!status.google_helper_installed);
     panel.apple.render(list.find((p) => p.id === APPLE_PROVIDER));
     if (onStatus) onStatus(list);
     return list;

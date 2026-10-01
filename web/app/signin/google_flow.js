@@ -192,10 +192,16 @@ export class GoogleFlow extends FlowBase {
     }
   }
 
+  /** The Find+ helper was (not) detected: sign-in and unlock both follow it. */
+  setHelperInstalled(installed) {
+    this.helperFlow.setHelperInstalled(installed);
+    this.unlockFlow.setHelperInstalled(installed);
+  }
+
   /** Stop this flow's poll and the unlock/helper polls, without repainting. */
   stop() {
     super.stop();
-    this.unlockFlow.poller.stop();
+    this.unlockFlow.stopAll();
     this.helperFlow.stopPoll();
   }
 

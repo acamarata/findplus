@@ -83,6 +83,15 @@ open the dashboard in your browser.
 curl -fsSL https://github.com/acamarata/findplus/releases/latest/download/update-app.sh | bash
 ```
 
+The updater checks the download against the sha256 published on the same release.
+That catches a corrupted download. It does not prove who published the release.
+
+**Chrome helper (every install route).** Google sign-in runs through the Find+
+helper extension in your own Chrome. Whether you used the dmg, Homebrew, pipx or
+the curl installer, add it once: the sign-in card has **Show helper folder** and
+**Open Chrome extensions** buttons that walk you through Load unpacked. Details:
+[Install](.github/wiki/Install.md#chrome-helper).
+
 ## First run
 
 ```bash

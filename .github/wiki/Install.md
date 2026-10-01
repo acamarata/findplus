@@ -60,6 +60,20 @@ The app is built for Apple Silicon only. On an Intel Mac, install with
 Homebrew or the curl installer above and open the dashboard in your browser
 at http://127.0.0.1:8647.
 
+## Chrome helper
+
+Every install route above (curl, pipx, Homebrew, dmg) needs the Find+ Chrome
+helper for Google sign-in. Add it once: open the sign-in card in the dashboard,
+click **Show helper folder**, then **Open Chrome extensions**, turn on Developer
+mode and choose Load unpacked. See [Chrome helper privacy](Chrome-helper-privacy)
+for what it reads.
+
+## Updating the macOS app
+
+`update-app.sh` checks the dmg against the sha256 published on the same release.
+That detects a corrupted download only. It does not authenticate the release, so
+it is no protection against a release that was itself tampered with.
+
 ## Post-install
 
 Run `findplus setup` for a guided walkthrough (or `findplus auth` then

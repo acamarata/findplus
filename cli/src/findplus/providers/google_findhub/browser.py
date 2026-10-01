@@ -37,6 +37,7 @@ from typing import Any
 
 from findplus.honesty import CHROME_REQUIRED as MSG_CHROME_MISSING
 
+from . import job_guards
 from .bootstrap import ensure_gfmt_importable, restore_create_driver_guard, set_create_driver
 
 __all__ = [
@@ -55,12 +56,10 @@ MSG_CAPTURING = "Finishing up..."
 #: `Auth/auth_flow.py:30` caps the cookie wait at 300 s. Say what that means in
 #: minutes rather than surfacing a selenium traceback.
 MSG_TIMEOUT = "No sign-in was completed within 5 minutes. Try again."
-#: UAT6 N23: there was no way to back out of "waiting on Chrome" short of
-#: closing the window and leaving the job to time out 5 minutes later.
+#: UAT6 N23: backing out of "waiting on Chrome" without closing the window.
 MSG_CANCELLED = "Sign-in cancelled."
 
-#: How long a finished job stays readable before a lazy sweep drops it. A
-#: background timer would be a second thread to own for no gain.
+#: How long a finished job stays readable before a lazy sweep drops it.
 _JOB_TTL_SECONDS = 600
 
 #: How long a job may sit without a state transition before it counts as
@@ -139,10 +138,7 @@ def _sweep_expired_jobs() -> None:
 
 
 def _set_progress(job_id: str, state: str, message: str) -> None:
-    """Record a state transition. Ignores an already-swept or cancelled job:
-    `cancel_google_auth()` sets its own terminal state under the same lock,
-    and the background thread's own outcome (racing `driver.quit()`) must
-    never overwrite it."""
+    """Record a state transition; a swept or cancelled job keeps its own outcome."""
     with _lock:
         job = _jobs.get(job_id)
         if job is None or job.get("cancelled"):
@@ -197,25 +193,6 @@ def _patch_vendor_chrome(settings: Any, job_id: str) -> None:
     auth_flow.input = lambda _prompt="": ""
 
 
-def _cancelled_during_run(job_id: str) -> bool:
-    with _lock:
-        job = _jobs.get(job_id)
-        return job is not None and bool(job.get("cancelled"))
-
-
-def _discard_late_credential(settings: Any) -> None:
-    """Delete the secrets file a cancelled sign-in job wrote as it finished."""
-    with contextlib.suppress(OSError):
-        settings.secrets_file.unlink()
-
-
-def cancel_active_google_auth() -> bool:
-    """Cancel whichever own-window sign-in job is running (Disconnect calls this)."""
-    with _lock:
-        job_id = _active_job_id
-    return cancel_google_auth(job_id) if job_id else False
-
-
 def _run_google_auth(job_id: str, settings: Any) -> None:
     """Thread body: patch the vendor, run the real sign-in, record the outcome."""
     from selenium.common.exceptions import TimeoutException
@@ -235,10 +212,8 @@ def _run_google_auth(job_id: str, settings: Any) -> None:
         safe_msg = redact_text(str(exc)) or "Unknown error"
         _set_progress(job_id, "failed", safe_msg[:200])
     else:
-        if _cancelled_during_run(job_id):
-            # Disconnect or Cancel arrived while the vendor flow was finishing: it
-            # has already written the token, so remove it rather than sign back in.
-            _discard_late_credential(settings)
+        if job_guards.explicitly_cancelled(_lock, _jobs, job_id):
+            job_guards.discard_late_secrets(settings)  # Disconnect won the race
             return
         from findplus.poller_service import wake_poller
 

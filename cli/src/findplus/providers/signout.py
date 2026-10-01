@@ -99,12 +99,10 @@ def _cancel_google_jobs() -> None:
     for the account the user just signed out of, and Chrome would rewrite its
     cookies under the profile wipe.
     """
-    from .google_findhub import helper_state
-    from .google_findhub.browser import cancel_active_google_auth
-    from .google_findhub.unlock import cancel_active_google_unlock
+    from .google_findhub import browser, helper_state, job_guards, unlock
 
-    cancel_active_google_auth()
-    cancel_active_google_unlock()
+    job_guards.cancel_active(browser, browser.cancel_google_auth)
+    job_guards.cancel_active(unlock, unlock.cancel_google_unlock)
     helper_state.drop_all_states()
 
 

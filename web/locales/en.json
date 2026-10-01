@@ -89,7 +89,12 @@
     "statusRegionLabel": "Status and filters",
     "skipMap": "Skip map, go to timeline",
     "retry": "Retry",
-    "networkDown": "Find+ is not answering. Check that it is still running, then try again."
+    "networkDown": "Find+ is not answering. Check that it is still running, then try again.",
+    "wrongPinLeft": {
+      "one": "Wrong PIN. 1 try left before Find+ makes you wait.",
+      "other": "Wrong PIN. {n} tries left before Find+ makes you wait."
+    },
+    "lockWait": "Too many tries. Try again in {seconds} seconds."
   },
   "field": {
     "customColor": "Custom color",

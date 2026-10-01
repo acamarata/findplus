@@ -39,7 +39,7 @@ from typing import Any
 
 from findplus.honesty import CHROME_REQUIRED as MSG_CHROME_MISSING
 
-from .bootstrap import ensure_gfmt_importable, restore_create_driver_guard
+from .bootstrap import ensure_gfmt_importable, restore_create_driver_guard, set_create_driver
 
 __all__ = [
     "MSG_CANCELLED",
@@ -191,10 +191,9 @@ def _patch_vendor_chrome(settings: Any, job_id: str) -> None:
         _set_progress(job_id, "waiting_for_user", MSG_WAITING)
         return _CookieWatchProxy(driver, job_id)
 
-    chrome_driver.create_driver = _isolated_create_driver
-
-    # Imported only AFTER create_driver is replaced: auth_flow binds the name
-    # into its own namespace at import time and never looks it up again.
+    # auth_flow binds the name into its own namespace at its first import (maybe
+    # long ago, as the blocked guard), so every copy is rebound, not just chrome_driver's.
+    set_create_driver(_isolated_create_driver)
     import Auth.auth_flow as auth_flow
 
     auth_flow.input = lambda _prompt="": ""
@@ -219,6 +218,9 @@ def _run_google_auth(job_id: str, settings: Any) -> None:
         safe_msg = redact_text(str(exc)) or "Unknown error"
         _set_progress(job_id, "failed", safe_msg[:200])
     else:
+        from findplus.poller_service import wake_poller
+
+        wake_poller()  # the signed-out failures before this are over: poll now
         _set_progress(job_id, "done", f"Authenticated as {email}.")
     finally:
         restore_create_driver_guard()  # re-arm the blocked guard the job replaced

@@ -29,6 +29,7 @@ from findplus.logging_setup import get_logger
 
 from .bootstrap import ensure_gfmt_importable, has_google_session
 from .decrypt import decode_one_report, maybe_battery
+from .revoked import revoked_as_auth_error
 from .types import (
     AuthRequiredError,
     DecryptionError,
@@ -37,6 +38,7 @@ from .types import (
     LocationTimeoutError,
     RawObservation,
     SharedKeyRequiredError,
+    UndecryptableReportsError,
 )
 
 log = get_logger(__name__)
@@ -93,8 +95,19 @@ class FindHubClient:
 
         from .session import finish_sign_in
 
+        self._forget_revoked_token()
         get_aas_token()  # value deliberately not captured, logged or returned
         return finish_sign_in(get_username() or "<unknown>")
+
+    @staticmethod
+    def _forget_revoked_token() -> None:
+        """A revoked AAS token must not be reused: the vendored flow would skip Chrome."""
+        from .bootstrap import _read_store
+
+        if (_read_store() or {}).get("auth_revoked"):
+            import Auth.token_cache as token_cache
+
+            token_cache.set_cached_value("aas_token", "")
 
     # --------------------------------------------------------------- devices
     def list_devices(self) -> list[FindHubDevice]:
@@ -105,7 +118,8 @@ class FindHubClient:
         from ProtoDecoders.decoder import get_canonic_ids, parse_device_list_protobuf
 
         try:
-            hex_result = request_device_list()
+            with revoked_as_auth_error():
+                hex_result = request_device_list()
         except SystemExit as exc:
             raise FindHubError("GoogleFindMyTools aborted during device listing") from exc
         if not hex_result:
@@ -153,7 +167,7 @@ class FindHubClient:
 
         # FcmReceiver is an upstream singleton holding one long-lived push
         # connection; serialise registration so concurrent polls cannot race it.
-        with self._fcm_lock:
+        with self._fcm_lock, revoked_as_auth_error():
             fcm_token = FcmReceiver().register_for_location_updates(_on_response)
             payload = create_location_request(device_id, fcm_token, request_uuid)
             response = nova_request(NOVA_ACTION_API_SCOPE, payload)
@@ -201,6 +215,7 @@ class FindHubClient:
             pairs.append((reports.recentLocation, reports.recentLocationTimestamp))
 
         observations: list[RawObservation] = []
+        skips: dict[str, int] = {}
         for loc, ts in pairs:
             obs = decode_one_report(
                 loc,
@@ -213,10 +228,17 @@ class FindHubClient:
                 decrypt,
                 decrypt_aes_gcm,
                 DeviceUpdate_pb2,
+                skips,
             )
             if obs is not None:
                 observations.append(obs)
 
+        if not observations and skips.get("undecryptable"):
+            raise UndecryptableReportsError(
+                f"Find Hub sent {len(pairs)} location report(s) for this tracker, but Find+ "
+                "could not decrypt them. This can follow a reset of Google's encrypted data: "
+                "disconnect in Settings > Sign-in, sign in again and unlock."
+            )
         observations.sort(key=lambda o: o.observed_at)
         log.info("observations_decrypted", count=len(observations), device=device_name)
         return observations

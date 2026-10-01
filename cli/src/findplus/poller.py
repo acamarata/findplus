@@ -41,6 +41,7 @@ from findplus.providers.google_findhub.types import (
     FindHubError,
     LocationTimeoutError,
     SharedKeyRequiredError,
+    UndecryptableReportsError,
 )
 from findplus.state import get_tracked_devices
 
@@ -115,6 +116,11 @@ def _locate(
     except LocationTimeoutError as exc:
         return PollOutcome(
             status="timeout", error_type="LocationTimeoutError", error_message=str(exc)
+        ), None
+    except UndecryptableReportsError as exc:
+        # Google sent reports Find+ could not read: a failure, not "no new location".
+        return PollOutcome(
+            status="decrypt_failed", error_type="UndecryptableReportsError", error_message=str(exc)
         ), None
     except DecryptionError as exc:
         return PollOutcome(

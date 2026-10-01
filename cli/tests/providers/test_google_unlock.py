@@ -36,16 +36,16 @@ def _wait_terminal(job_id: str, timeout: float = 3.0) -> dict:
 
 
 def _fake_flow(monkeypatch, result=SHARED_KEY_HEX, block: threading.Event | None = None):
-    import KeyBackup.shared_key_flow as shared_key_flow
+    from findplus.providers.google_findhub import unlock_flow
 
-    def flow():
+    def flow(*_args, **_kwargs):
         if block is not None:
             block.wait(3)
         if isinstance(result, Exception):
             raise result
         return result
 
-    monkeypatch.setattr(shared_key_flow, "request_shared_key_flow", flow)
+    monkeypatch.setattr(unlock_flow, "run_shared_key_flow", flow)
 
 
 @pytest.fixture(autouse=True)
@@ -150,3 +150,10 @@ def test_cancel_of_an_unknown_job_is_false(tmp_db) -> None:
 
 def test_progress_of_an_unknown_job_is_none(tmp_db) -> None:
     assert unlock.get_google_unlock_progress("nope") is None
+
+
+def test_the_waiting_text_names_the_same_account_then_the_screen_lock() -> None:
+    text = unlock.MSG_WAITING
+    assert "same Google account" in text
+    assert text.index("same Google account") < text.index("screen lock")
+    assert "did not return" not in unlock.MSG_TIMEOUT

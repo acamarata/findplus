@@ -106,6 +106,20 @@ def _block_non_loopback_sockets(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
+def _clear_poller_flag_files() -> None:
+    """Remove the cross-process wake/reset flag files a test may have left behind.
+
+    `wake_poller()` / `reset_backoff()` from a process with no poll loop leave a
+    file the next loop would consume, which would end an unrelated test's sleep.
+    """
+    from findplus.config import get_settings
+
+    for name in ("wake", "reset"):
+        (get_settings().state_dir / f"poller.{name}").unlink(missing_ok=True)
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _isolate_bind_env_vars() -> None:
     """Undo whatever a test's `serve --host/--port` invocation exported.
 

@@ -20,6 +20,7 @@ import contextlib
 import os
 import threading
 from pathlib import Path
+from typing import Any
 
 from findplus.config import get_settings
 from findplus.providers.findhub.bootstrap import ensure_gfmt_importable as _resolve_path
@@ -88,6 +89,10 @@ def ensure_gfmt_importable() -> Path:
         token_cache.set_cached_value = _set_and_harden
 
         install_vendor_guards()
+        with contextlib.suppress(Exception):
+            from .revoked import install_oauth_probe
+
+            install_oauth_probe()
 
         _ready = True
         return vendor_path
@@ -126,22 +131,30 @@ def install_vendor_guards() -> None:
     vendored browser code cannot launch a browser either. Called at the end of
     ensure_gfmt_importable(), the one chokepoint every real vendor use passes.
     """
-    with contextlib.suppress(Exception):
-        import chrome_driver
-
-        chrome_driver.create_driver = _blocked_create_driver
+    set_create_driver(_blocked_create_driver)
     with contextlib.suppress(Exception):
         import KeyBackup.shared_key_retrieval as shared_key_retrieval
 
         shared_key_retrieval._retrieve_shared_key = _blocked_retrieve_shared_key
 
 
-def restore_create_driver_guard() -> None:
-    """Put the blocked create_driver back after a job installed a real one."""
-    with contextlib.suppress(Exception):
-        import chrome_driver
+#: Every vendor module that did `from chrome_driver import create_driver` keeps
+#: its own binding, so all of them must be rebound and restored together.
+_DRIVER_MODULES = ("chrome_driver", "Auth.auth_flow", "KeyBackup.shared_key_flow")
 
-        chrome_driver.create_driver = _blocked_create_driver
+
+def set_create_driver(factory: Any) -> None:
+    """Point `create_driver` at `factory` on chrome_driver and every module that copied it."""
+    import importlib
+
+    for name in _DRIVER_MODULES:
+        with contextlib.suppress(Exception):
+            importlib.import_module(name).create_driver = factory
+
+
+def restore_create_driver_guard() -> None:
+    """Put the blocked create_driver back, on every module, after a job installed a real one."""
+    set_create_driver(_blocked_create_driver)
 
 
 def secrets_exist() -> bool:
@@ -161,6 +174,11 @@ def _read_store() -> dict[str, object] | None:
     return data if isinstance(data, dict) else None
 
 
+def is_session_revoked() -> bool:
+    """True when Google refused the saved login (revoked.py set the mark)."""
+    return bool((_read_store() or {}).get("auth_revoked"))
+
+
 def has_google_session() -> bool:
     """True only when the store holds a Google session: an `aas_token` AND a username.
 
@@ -172,6 +190,8 @@ def has_google_session() -> bool:
     in" with no account.
     """
     data = _read_store() or {}
+    if data.get("auth_revoked"):
+        return False  # Google refused the saved login; see revoked.py
     return bool(data.get("aas_token")) and bool(data.get("username"))
 
 
@@ -183,7 +203,12 @@ def has_shared_key() -> bool:
     unlock. Either one means the "Unlock encrypted locations" step is done.
     """
     data = _read_store() or {}
-    return bool(data.get("shared_key")) or bool(data.get("owner_key"))
+    if not (data.get("shared_key") or data.get("owner_key")):
+        return False
+    tag = data.get("shared_key_account")
+    username = str(data.get("username") or "").lower()
+    # A key unlocked while another account was signed in is not this account's.
+    return not (tag and username and tag != username)
 
 
 def needs_shared_key() -> bool:

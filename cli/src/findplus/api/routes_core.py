@@ -15,7 +15,7 @@ import importlib.util
 import os
 import platform
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +40,7 @@ from ._helpers import (
     _group_rows,
     _iso_z,
     _newest,
+    _next_poll_at,
     _poller_appears_live,
     _provider_health,
     _serialize_run,
@@ -143,9 +144,7 @@ def _register_widget_route(router: APIRouter, *, settings) -> None:
         with session_scope() as session:
             last_run = session.scalar(select(PollRun).order_by(desc(PollRun.started_at)).limit(1))
             last_poll_at = last_run.started_at if last_run else None
-            next_poll_at = (
-                last_poll_at + timedelta(seconds=interval_seconds) if last_poll_at else None
-            )
+            next_poll_at = _next_poll_at(last_run, settings.effective_poll_interval_minutes)
             state = _widget_state(
                 last_run.error_type if last_run else None,
                 _consecutive_failures(session),
@@ -195,7 +194,7 @@ def _register_status_route(router: APIRouter, *, settings, find_hub_notice: str)
 
             last_run, last_ok = _last_runs(session)
             interval = settings.effective_poll_interval_minutes
-            next_poll_at = last_run.started_at + timedelta(minutes=interval) if last_run else None
+            next_poll_at = _next_poll_at(last_run, interval)
             return {
                 "devices": per_device,
                 "tracked_count": len(tracked),

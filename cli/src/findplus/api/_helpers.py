@@ -40,6 +40,7 @@ __all__ = [
     "_group_rows",
     "_iso_z",
     "_newest",
+    "_next_poll_at",
     "_parse_day",
     "_poller_appears_live",
     "_provider_health",
@@ -167,8 +168,30 @@ def _serialize_run(run, zone) -> dict[str, Any] | None:
     }
 
 
+def _next_poll_at(last_run, interval_minutes: float):
+    """When the next poll is due: the live loop's own answer (it includes backoff),
+    else the last run plus one interval."""
+    from findplus.poller_service import schedule_snapshot
+
+    sched = schedule_snapshot()
+    if sched and sched.get("next_attempt_at") is not None:
+        return sched["next_attempt_at"]
+    if last_run is None:
+        return None
+    return last_run.started_at + timedelta(minutes=interval_minutes)
+
+
 def _poller_appears_live(last_run, settings) -> bool:
-    """Heuristic: a poll within ~2.5 intervals means the daemon is alive."""
+    """True when the poll loop in this process is running, else a heuristic: a poll
+    within ~2.5 intervals means the daemon is alive.
+
+    A loop sleeping out a backoff (20 to 60 minutes) is alive but has not polled
+    for longer than 2.5 intervals, so the loop's own state wins when it exists.
+    """
+    from findplus.poller_service import schedule_snapshot
+
+    if schedule_snapshot() is not None:
+        return True
     if last_run is None:
         return False
     window = settings.effective_poll_interval_minutes * 60 * 2.5

@@ -2,8 +2,8 @@
 
 Purpose    : Google encrypts Find Hub locations end to end and releases the key
              only to a browser page that has passed the account's Android
-             screen-lock check. This runs the vendored
-             `KeyBackup.shared_key_flow.request_shared_key_flow()` through
+             screen-lock check. This runs the shared-key
+             page flow (unlock_flow.py, same steps as the vendored one) through
              Find+'s OWN isolated Chrome window (never the user's), stores the
              resulting key 0600, and exposes a job-id progress machine the API
              polls -- the same shape as browser.py's sign-in.
@@ -15,8 +15,8 @@ Constraints: `cli/vendor/GoogleFindMyTools/` is never edited (PRI hard rule 8).
              a JavaScript bridge the page itself calls; Find+ pastes nothing and
              shows no console snippet. It runs only in a window the user started
              here, in a profile of its own. The shared key is never logged.
-             This installs a real `create_driver` for the length of the job and
-             restores bootstrap's blocked guard afterwards.
+             The flow loop (unlock_flow.py) takes the Chrome factory directly and
+             stops on cancel, deadline or any browser error.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ import time
 import uuid
 from typing import Any
 
-from .bootstrap import ensure_gfmt_importable, restore_create_driver_guard
+from .bootstrap import ensure_gfmt_importable, restore_create_driver_guard, stored_account_email
 
 __all__ = [
     "MSG_CANCELLED",
@@ -39,11 +39,15 @@ __all__ = [
 ]
 
 MSG_LAUNCHING = "Starting the Find+ Chrome window..."
-MSG_WAITING = "Enter your Android phone's screen lock in the Find+ Chrome window."
+MSG_WAITING = (
+    "In the Find+ Chrome window, sign in with the same Google account first if Google asks, "
+    "then enter your Android phone's screen lock."
+)
 MSG_SAVING = "Saving the key..."
 MSG_DONE = "Encrypted locations unlocked."
 MSG_CANCELLED = "Unlock cancelled."
 MSG_FAILED = "The unlock did not finish. Try again."
+MSG_TIMEOUT = "The unlock window was open too long. Start the unlock again."
 MSG_NO_KEY = "That page did not return an encryption key. Try again."
 MSG_NO_VAULT_KEY = (
     "No usable encryption key was found. Enter your Android screen lock and try again."
@@ -99,16 +103,14 @@ def _set_progress(job_id: str, state: str, message: str) -> None:
             job["finished_monotonic"] = time.monotonic()
 
 
-def _install_isolated_driver(settings: Any, job_id: str) -> None:
-    """Point the vendored shared-key flow at Find+'s own Chrome profile.
+def _make_isolated_driver(settings: Any, job_id: str) -> Any:
+    """Return a factory for Find+'s own Chrome profile, recorded on the job.
 
-    `KeyBackup.shared_key_flow` did `from chrome_driver import create_driver` at
-    import, so its module attribute is rebound directly (not only
-    chrome_driver's). Restored to bootstrap's blocked guard when the job ends.
+    The flow in unlock_flow.py receives it directly, so no vendor module has its
+    `create_driver` rebound for an unlock and the blocked guard stays in place.
     """
     ensure_gfmt_importable()
     import chrome_driver
-    import KeyBackup.shared_key_flow as shared_key_flow
 
     def _isolated_create_driver() -> Any:
         import undetected_chromedriver as uc
@@ -131,16 +133,31 @@ def _install_isolated_driver(settings: Any, job_id: str) -> None:
         _set_progress(job_id, "waiting_for_user", MSG_WAITING)
         return driver
 
-    chrome_driver.create_driver = _isolated_create_driver
-    shared_key_flow.create_driver = _isolated_create_driver
+    return _isolated_create_driver
+
+
+def _is_cancelled(job_id: str) -> bool:
+    """True once the job was cancelled or swept; the flow loop stops on it."""
+    with _lock:
+        job = _jobs.get(job_id)
+        return job is None or bool(job.get("cancelled"))
 
 
 def _store_shared_key(shared_key_hex: str) -> None:
-    """Persist the key 0600 via the vendored, hardened token store. Never logged."""
+    """Persist the key 0600 via the vendored, hardened token store. Never logged.
+
+    The key is tagged with the account Find+ is signed in as, so a key unlocked
+    for another account is never mistaken for this one's (has_shared_key()).
+    """
     ensure_gfmt_importable()
     import Auth.token_cache as token_cache
 
+    account = str(token_cache.get_cached_value("username") or "").lower()
+    previous = token_cache.get_cached_value("shared_key_account")
+    if previous and previous != account:
+        token_cache.set_cached_value("owner_key", "")  # derived from the other account's key
     token_cache.set_cached_value("shared_key", shared_key_hex)
+    token_cache.set_cached_value("shared_key_account", account)
 
 
 def store_vault_keys(vault_keys: object) -> None:
@@ -173,19 +190,27 @@ def _wake_poller() -> None:
 
 
 def _run_google_unlock(job_id: str, settings: Any) -> None:
-    """Thread body: run the vendored flow in Find+'s Chrome, store the key."""
+    """Thread body: run the key flow in Find+'s Chrome, store the key."""
+    from . import unlock_flow
     from .bootstrap import install_vendor_guards
 
     try:
-        _install_isolated_driver(settings, job_id)
-        from KeyBackup.shared_key_flow import request_shared_key_flow
-
-        shared_key_hex = request_shared_key_flow()
+        shared_key_hex = unlock_flow.run_shared_key_flow(
+            _make_isolated_driver(settings, job_id),
+            lambda: _is_cancelled(job_id),
+            expected_account=stored_account_email(),
+        )
         if not shared_key_hex:
             _set_progress(job_id, "failed", MSG_NO_KEY)
             return
         _set_progress(job_id, "capturing", MSG_SAVING)
         _store_shared_key(shared_key_hex)
+    except unlock_flow.FlowCancelledError:
+        return  # cancel_google_unlock() already recorded the outcome
+    except unlock_flow.AccountMismatchError as exc:
+        _set_progress(job_id, "failed", str(exc))
+    except unlock_flow.FlowTimeoutError:
+        _set_progress(job_id, "failed", MSG_TIMEOUT)
     except Exception as exc:
         from findplus.redaction import redact_text
 
@@ -195,8 +220,8 @@ def _run_google_unlock(job_id: str, settings: Any) -> None:
         _wake_poller()
         _set_progress(job_id, "done", MSG_DONE)
     finally:
-        # Put the blocked create_driver back, on BOTH the module the flow reads
-        # and chrome_driver, so no later automatic path can launch a browser.
+        # Belt and braces: a job never rebinds create_driver now, but a leftover
+        # real launcher on any vendor module must not outlive the job.
         restore_create_driver_guard()
         install_vendor_guards()
 

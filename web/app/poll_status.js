@@ -37,6 +37,7 @@ export function shortStatus(code) {
     case "needs_shared_key": return t("pollStatus.locked");
     case "provider_unavailable": return t("pollStatus.unavailable");
     case "timeout": return t("pollStatus.timeout");
+    case "decrypt_failed": return t("pollStatus.cannotRead");
     default: return t("pollStatus.failed");
   }
 }
@@ -71,6 +72,8 @@ export function failedPollNotice(run) {
       return { message: t("pollStatus.bannerUnavailable", { provider }), action: "signin" };
     case "timeout":
       return { message: t("pollStatus.bannerTimeout", { provider }), action: null };
+    case "decrypt_failed":
+      return { message: t("pollStatus.bannerCannotRead", { provider }), action: "signin" };
     default:
       return { message: t("pollStatus.bannerFailed"), action: null };
   }

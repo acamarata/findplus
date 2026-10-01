@@ -618,7 +618,8 @@
   "signin": {
     "account": {
       "signedIn": "Signed in as {account}",
-      "signedOut": "Not signed in"
+      "signedOut": "Not signed in",
+      "revoked": "Google signed Find+ out. Sign in again."
     },
     "retry": "Try again",
     "cancel": "Cancel",
@@ -664,14 +665,14 @@
         "why": "Google encrypts your Find Hub locations end to end. Unlocking them needs your Android phone's screen lock, once. Find+ opens a Chrome window of its own for this, because Google releases the key only to a browser page. Find+ never asks you to paste code.",
         "button": "Unlock encrypted locations",
         "starting": "Opening the Find+ Chrome window…",
-        "waiting": "Enter your Android phone's screen lock in the Find+ Chrome window."
+        "waiting": "In the Find+ Chrome window, sign in with the same Google account first if Google asks, then enter your Android phone's screen lock."
       },
       "starting": "Opening Chrome…",
       "waiting": "Finish signing in in the Chrome window that opened. This page updates by itself.",
       "capturing": "Signed in. Saving your session…",
       "downloadChrome": "Download Google Chrome",
       "checkAgain": "Check again",
-      "disconnectConfirm": "Disconnect Google Find Hub? Tracked devices and their history stay. Sign in again any time to see new locations."
+      "disconnectConfirm": "Disconnect Google Find Hub? This also signs Google out of the Find+ Chrome window. Tracked devices and their history stay. Sign in again any time to see new locations."
     },
     "apple": {
       "heading": "Apple Find My",
@@ -715,12 +716,14 @@
     "locked": "locked",
     "unavailable": "provider unavailable",
     "timeout": "timed out",
+    "cannotRead": "could not read the reports",
     "failed": "failed",
     "anyProvider": "your tracking account",
     "bannerSignedOut": "Find+ is not signed in to {provider}, so it cannot read your trackers yet.",
     "bannerNeedsUnlock": "{provider} locations are encrypted and not unlocked yet. Open Sign-in and unlock them with your Android phone's screen lock.",
     "bannerUnavailable": "Find+ could not use {provider} on the last poll. Check its sign-in, or wait for the next poll.",
     "bannerTimeout": "{provider} took too long to answer the last poll. Find+ tries again on the next one.",
+    "bannerCannotRead": "{provider} sent location reports, but Find+ could not decrypt them. Open Sign-in, disconnect, then sign in and unlock again.",
     "bannerFailed": "The last poll did not finish. Find+ tries again on the next one.",
     "bannerNoAccount": "No account is connected yet.",
     "bannerNothingTracked": "No trackers are being followed yet. Choose the ones Find+ should poll.",

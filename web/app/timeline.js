@@ -244,23 +244,35 @@ export function wireTimelineControls() {
   });
 }
 const confirmDelete = (body) => confirmDialog({ title: t("common.delete"), body, confirmLabel: t("common.delete"), danger: true }); // UAT6-N21
+/**
+ * One line under the Delete history buttons, inside the Settings dialog.
+ *
+ * A message sent to the page banner sits behind the dialog's backdrop, so an
+ * empty date or a failed delete looked like a button that did nothing (UAT #16).
+ */
+function showDeleteResult(message, kind = "warn") {
+  const el = $("delete-result");
+  el.textContent = message;
+  el.className = kind === "err" ? "fp-dialog-error" : "modal-rate";
+}
+
 /** Wire the delete-before-date and clear-all-history controls. */
 export function wireHistoryControls() {
   $("btn-delete-before").addEventListener("click", async () => {
     const before = $("delete-before-date").value;
-    if (!before) { showAlert(t("timeline.pickDateFirst"), "warn"); return; }
+    if (!before) { showDeleteResult(t("timeline.pickDateFirst")); return; }
     try {
       const dry = await postJson("/api/history/delete-before", { before });
       if (!dry.would_delete) {
-        $("delete-result").textContent = t("timeline.nothingOlderThan", { date: before });
+        showDeleteResult(t("timeline.nothingOlderThan", { date: before }));
         return;
       }
       if (!(await confirmDelete(t("timeline.confirmDeleteBefore", { count: dry.would_delete, date: before })))) return;
       const done = await postJson("/api/history/delete-before", { before, confirm: true });
-      $("delete-result").textContent = done.message;
+      showDeleteResult(done.message);
       await reload();
     } catch (e) {
-      showAlert(e.message, "err");
+      showDeleteResult(e.message, "err");
     }
   });
 
@@ -268,19 +280,19 @@ export function wireHistoryControls() {
     try {
       const dry = await postJson("/api/history/clear", {});
       if (!dry.would_delete) {
-        $("delete-result").textContent = t("timeline.noHistoryToClear");
+        showDeleteResult(t("timeline.noHistoryToClear"));
         return;
       }
       if (!(await confirmDelete(t("timeline.confirmClearAll", { count: dry.would_delete })))) return;
       // window.prompt()'s "type DELETE" step is now confirmDialog()'s input.
       const confirmWord = t("timeline.confirmWord");
       const typed = await confirmDialog({ title: t("common.confirm"), body: "", confirmLabel: t("common.delete"), danger: true, input: { requireText: confirmWord, label: t("timeline.promptTypeDelete", { word: confirmWord }) } });
-      if (!typed) { $("delete-result").textContent = t("timeline.deleteCancelled"); return; }
+      if (!typed) { showDeleteResult(t("timeline.deleteCancelled")); return; }
       const done = await postJson("/api/history/clear", { confirm: true });
-      $("delete-result").textContent = done.message;
+      showDeleteResult(done.message);
       await reload();
     } catch (e) {
-      showAlert(e.message, "err");
+      showDeleteResult(e.message, "err");
     }
   });
 }

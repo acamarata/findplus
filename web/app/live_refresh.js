@@ -59,10 +59,11 @@ function nextDelay(s) {
 /** New data arrived: reload the lists, the day and, if the map was bare, its view. */
 async function refreshData(gen) {
   await loadDevices();
-  if (state.lockGeneration !== gen) return;
+  if (state.lockGeneration !== gen) return false;
   await loadDay(state.day || todayLocal());
-  if (state.lockGeneration !== gen) return;
+  if (state.lockGeneration !== gen) return false;
   if (!state.markers.size) await setDefaultView().catch(() => {});
+  return true;
 }
 
 /**
@@ -77,9 +78,12 @@ export async function refreshOnce({ fast = false } = {}) {
   if (!s || state.lockGeneration !== gen) return s;
   const sig = signature(s);
   const changed = lastSignature !== null && sig !== lastSignature;
-  lastSignature = sig;
-  if (changed) await refreshData(gen);
-  else if (!fast && state.day === todayLocal()) await loadDay(state.day);
+  if (lastSignature === null) lastSignature = sig;
+  // The change counts as seen only once the redraw finished: a failed or
+  // lock-cancelled refresh is retried on the next look, not lost.
+  if (changed) {
+    if (await refreshData(gen)) lastSignature = sig;
+  } else if (!fast && state.day === todayLocal()) await loadDay(state.day);
   return s;
 }
 

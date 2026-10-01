@@ -116,8 +116,7 @@ def auth_google_helper(settings) -> bool:
     status = _daemon_status(base)
     if status is None:
         click.echo(
-            "The helper sign-in needs the Find+ service running and unlocked; "
-            "using the other way."
+            "The helper sign-in needs the Find+ service running and unlocked; using the other way."
         )
         return False
     seen = bool(status.get("google_helper_installed"))

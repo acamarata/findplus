@@ -15,7 +15,8 @@ async def test_poll_now_signed_out_ends_polling_and_shows_the_reason(page, base_
     # Three trackers, no Google sign-in: no request leaves the machine, so the
     # answer must come back in seconds, not after a 10 s gap per tracker.
     await page.wait_for_function(
-        "() => !document.getElementById('alert').textContent.includes('Polling')",
+        "() => !document.getElementById('alert').textContent.includes('Polling')"
+        " && document.getElementById('btn-poll').textContent === 'Poll Now'",
         timeout=8000,
     )
     text = (await page.inner_text("#alert")).lower()

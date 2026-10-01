@@ -111,8 +111,18 @@ export function tokenEndpoint(port) {
 export function unlockEndpoint(port) {
   return `${baseUrl(port)}/api/auth/google/helper/unlock`;
 }
-export function successUrl(port) {
-  return `${baseUrl(port)}/auth/google/success`;
+/** The success page; an unlock says "Unlocked" instead of "Signed in". */
+export function successUrl(port, mode) {
+  const suffix = mode === "unlock" ? "?kind=unlock" : "";
+  return `${baseUrl(port)}/auth/google/success${suffix}`;
+}
+
+/** The tab to send to the success page: only the one that began the flow, and
+ *  only while it is still on Google. Never an unrelated accounts.google.com tab. */
+export function pickSuccessTab(tabs, pending) {
+  if (!pending || pending.tabId === undefined) return null;
+  const tab = (tabs || []).find((t) => t && t.id === pending.tabId);
+  return tab && String(tab.url || "").startsWith("https://accounts.google.com/") ? tab : null;
 }
 
 /** {mode, state, port} from a location-like object; mode is "unlock" on the

@@ -17,6 +17,7 @@ import {
   acceptBegin,
   deliver,
   pendingIsLive,
+  pickSuccessTab,
   isOauthCookieChange,
   successUrl,
   tokenBody,
@@ -63,12 +64,12 @@ async function send(port, url, body) {
   return result.status;
 }
 
-async function moveTabToSuccess(port) {
+async function moveTabToSuccess(pending) {
   const tabs = await chrome.tabs.query({ url: "https://accounts.google.com/*" });
-  const tab = tabs[0];
-  if (tab && tab.id !== undefined) {
+  const tab = pickSuccessTab(tabs, pending);
+  if (tab) {
     try {
-      await chrome.tabs.update(tab.id, { url: successUrl(port) });
+      await chrome.tabs.update(tab.id, { url: successUrl(pending.port, pending.mode) });
     } catch (_err) {
       /* the tab may be gone; the daemon already has the value */
     }
@@ -87,7 +88,7 @@ chrome.cookies.onChanged.addListener(async (change) => {
   // Whatever happened, this flow is over: the daemon shows any reason on the
   // Find+ card and the person starts again there. Only a 2xx moves the tab.
   await clearPending();
-  if (status >= 200 && status < 300) await moveTabToSuccess(pending.port);
+  if (status >= 200 && status < 300) await moveTabToSuccess(pending);
 });
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -119,7 +120,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           unlockBody(pending.state, msg.vaultKeys)
         );
         await clearPending();
-        if (status >= 200 && status < 300) await moveTabToSuccess(pending.port);
+        if (status >= 200 && status < 300) await moveTabToSuccess(pending);
       }
       sendResponse({ ok: true });
       return;

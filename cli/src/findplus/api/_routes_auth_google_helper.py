@@ -172,18 +172,20 @@ def helper_open_extensions(request: Request) -> dict[str, Any]:
 _BEGIN_TEMPLATE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Find+ sign-in</title>
+<title>{title}</title>
 <link rel="stylesheet" href="/static/helper.css">
 </head><body>
 <main class="fp-helper" data-fp-begin data-fp-target="{target}" data-fp-state="{state}">
   <h1>Connecting to Google</h1>
   <p class="fp-helper-wait" data-fp-wait>Starting the Find+ helper...</p>
+  <p class="fp-helper-note">The Find+ helper works in Google Chrome only. Other
+    browsers cannot use it.</p>
   <section class="fp-helper-install" data-fp-install hidden>
     <h2>Add the Find+ helper to Chrome (one time)</h2>
     <p>The Find+ helper for Chrome is not installed yet. In Find+, open
       Settings then Sign-in and use "Show helper folder", then in Chrome open
       <code>chrome://extensions</code>, turn on Developer mode, click Load
-      unpacked, and choose that folder. Then start sign-in again.</p>
+      unpacked, and choose that folder. Then start again from Find+.</p>
   </section>
 </main>
 <script type="module" src="/static/app/helper-begin.js"></script>
@@ -194,14 +196,17 @@ _SUCCESS_PAGE = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Find+</title><link rel="stylesheet" href="/static/helper.css">
-</head><body><main class="fp-helper"><h1>Signed in</h1>
+</head><body><main class="fp-helper"><h1>{heading}</h1>
 <p>You can close this tab. Find+ continues on its own.</p></main></body></html>
 """
 
+_SUCCESS_HEADINGS = {"unlock": "Unlocked", "": "Signed in"}
 
-def _begin_page(target: str, state: str) -> HTMLResponse:
+
+def _begin_page(target: str, state: str, title: str = "Find+ sign-in") -> HTMLResponse:
     return HTMLResponse(
         _BEGIN_TEMPLATE.format(
+            title=html.escape(title),
             target=html.escape(target, quote=True),
             state=html.escape(state, quote=True),
         )
@@ -218,11 +223,12 @@ def unlock_begin_page(state: str = Query(default="")) -> HTMLResponse:
     ensure_gfmt_importable()
     from KeyBackup.shared_key_request import get_security_domain_request_url
 
-    return _begin_page(get_security_domain_request_url(), state)
+    return _begin_page(get_security_domain_request_url(), state, "Find+ unlock")
 
 
-def success_page() -> HTMLResponse:
-    return HTMLResponse(_SUCCESS_PAGE)
+def success_page(kind: str = Query(default="")) -> HTMLResponse:
+    heading = _SUCCESS_HEADINGS.get(kind, _SUCCESS_HEADINGS[""])
+    return HTMLResponse(_SUCCESS_PAGE.format(heading=heading))
 
 
 def register(router) -> None:

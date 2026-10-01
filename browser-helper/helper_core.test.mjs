@@ -136,3 +136,19 @@ test("pendingIsLive expires after ten minutes", () => {
   assert.equal(core.pendingIsLive(p, 1000 + core.PENDING_TTL_MS), false);
   assert.equal(core.pendingIsLive(null, 1), false);
 });
+
+test("successUrl says unlock only for an unlock", () => {
+  assert.equal(core.successUrl("8647", "unlock"), "http://127.0.0.1:8647/auth/google/success?kind=unlock");
+  assert.equal(core.successUrl("8647", "signin"), "http://127.0.0.1:8647/auth/google/success");
+});
+
+test("pickSuccessTab never redirects an unrelated accounts.google.com tab", () => {
+  const pending = { tabId: 5, mode: "signin" };
+  const mine = { id: 5, url: "https://accounts.google.com/signin" };
+  const other = { id: 9, url: "https://accounts.google.com/AccountChooser" };
+  assert.equal(core.pickSuccessTab([other, mine], pending), mine);
+  assert.equal(core.pickSuccessTab([other], pending), null); // my tab is gone: touch nothing
+  assert.equal(core.pickSuccessTab([{ id: 5, url: "https://example.com/" }], pending), null);
+  assert.equal(core.pickSuccessTab([mine], { mode: "signin" }), null);
+  assert.equal(core.pickSuccessTab([mine], null), null);
+});

@@ -28,6 +28,7 @@ import time
 import uuid
 from typing import Any
 
+from . import job_guards, unlock_flow
 from .bootstrap import ensure_gfmt_importable, restore_create_driver_guard, stored_account_email
 
 __all__ = [
@@ -48,6 +49,7 @@ MSG_DONE = "Encrypted locations unlocked."
 MSG_CANCELLED = "Unlock cancelled."
 MSG_FAILED = "The unlock did not finish. Try again."
 MSG_TIMEOUT = "The unlock window was open too long. Start the unlock again."
+MSG_NOT_SIGNED_IN = "Find+ is not signed in to Google. Sign in first, then unlock."
 MSG_NO_KEY = "That page did not return an encryption key. Try again."
 MSG_NO_VAULT_KEY = (
     "No usable encryption key was found. Enter your Android screen lock and try again."
@@ -59,7 +61,9 @@ class SharedKeyParseError(Exception):
 
 
 _JOB_TTL_SECONDS = 600
-_STALLED_SECONDS = 600
+#: Stalled-job sweep. Must outlast the flow's own deadline (the user sits on the
+#: page with no progress write), or MSG_TIMEOUT is never shown.
+_STALLED_SECONDS = unlock_flow._TOTAL_SECONDS + 120
 _TERMINAL = ("done", "failed")
 
 _lock = threading.Lock()
@@ -153,6 +157,9 @@ def _store_shared_key(shared_key_hex: str) -> None:
     import Auth.token_cache as token_cache
 
     account = str(token_cache.get_cached_value("username") or "").lower()
+    if not account:
+        # Signed out: an untagged key would later pass for any account's.
+        raise SharedKeyParseError(MSG_NOT_SIGNED_IN)
     previous = token_cache.get_cached_value("shared_key_account")
     if previous and previous != account:
         token_cache.set_cached_value("owner_key", "")  # derived from the other account's key
@@ -191,7 +198,6 @@ def _wake_poller() -> None:
 
 def _run_google_unlock(job_id: str, settings: Any) -> None:
     """Thread body: run the key flow in Find+'s Chrome, store the key."""
-    from . import unlock_flow
     from .bootstrap import install_vendor_guards
 
     try:
@@ -203,6 +209,8 @@ def _run_google_unlock(job_id: str, settings: Any) -> None:
         if not shared_key_hex:
             _set_progress(job_id, "failed", MSG_NO_KEY)
             return
+        if job_guards.explicitly_cancelled(_lock, _jobs, job_id):
+            return  # Disconnect or Cancel arrived first: never store a key for it
         _set_progress(job_id, "capturing", MSG_SAVING)
         _store_shared_key(shared_key_hex)
     except unlock_flow.FlowCancelledError:
@@ -217,11 +225,11 @@ def _run_google_unlock(job_id: str, settings: Any) -> None:
         safe = redact_text(str(exc)) or "Unknown error"
         _set_progress(job_id, "failed", MSG_FAILED if not safe else safe[:200])
     else:
-        _wake_poller()
-        _set_progress(job_id, "done", MSG_DONE)
+        if not job_guards.explicitly_cancelled(_lock, _jobs, job_id):
+            _wake_poller()
+            _set_progress(job_id, "done", MSG_DONE)
     finally:
-        # Belt and braces: a job never rebinds create_driver now, but a leftover
-        # real launcher on any vendor module must not outlive the job.
+        # A leftover real launcher on any vendor module must not outlive the job.
         restore_create_driver_guard()
         install_vendor_guards()
 

@@ -186,12 +186,14 @@ def _poller_appears_live(last_run, settings) -> bool:
     within ~2.5 intervals means the daemon is alive.
 
     A loop sleeping out a backoff (20 to 60 minutes) is alive but has not polled
-    for longer than 2.5 intervals, so the loop's own state wins when it exists.
+    for longer than 2.5 intervals, so the loop's own state wins when it exists,
+    unless its heartbeat is older than backoff + interval (a hung cycle).
     """
-    from findplus.poller_service import schedule_snapshot
+    from findplus.poller_service import loop_is_alive, schedule_snapshot
 
-    if schedule_snapshot() is not None:
-        return True
+    snapshot = schedule_snapshot()
+    if snapshot is not None:
+        return loop_is_alive(settings, snapshot)  # a hung cycle is not "running"
     if last_run is None:
         return False
     window = settings.effective_poll_interval_minutes * 60 * 2.5

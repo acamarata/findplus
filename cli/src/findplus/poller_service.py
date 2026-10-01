@@ -42,11 +42,16 @@ _RESET = threading.Event()
 _running_here = 0
 
 #: The live loop's own view of itself, for /api/status (next attempt, backoff).
-_schedule: dict[str, object] = {"next_attempt_at": None, "failures": 0, "busy": False}
+_schedule: dict[str, object] = {
+    "next_attempt_at": None,
+    "failures": 0,
+    "busy": False,
+    "heartbeat": None,  # time.monotonic() of the loop's last sign of life
+}
 
 
-def _flag_path(name: str) -> Path:
-    return get_settings().state_dir / f"poller.{name}"
+def _flag_path(name: str, base: Path | None = None) -> Path:
+    return (base if base is not None else get_settings().state_dir) / f"poller.{name}"
 
 
 def _touch_flag(name: str) -> None:
@@ -56,9 +61,11 @@ def _touch_flag(name: str) -> None:
         path.touch(mode=0o600)
 
 
-def _take_flag(name: str) -> bool:
+def _take_flag(name: str, base: Path | None = None) -> bool:
+    """Consume a flag file. `base` is the state dir, resolved once by a caller that
+    polls every second (building Settings each tick costs real CPU over a day)."""
     try:
-        _flag_path(name).unlink()
+        _flag_path(name, base).unlink()
     except OSError:
         return False
     return True
@@ -83,10 +90,25 @@ def reset_backoff() -> None:
 
 
 def schedule_snapshot() -> dict[str, object] | None:
-    """`{next_attempt_at, failures, busy}` of the poll loop in THIS process, or None."""
+    """`{next_attempt_at, failures, busy, heartbeat}` of the poll loop in THIS process, or None."""
     if not _running_here:
         return None
     return dict(_schedule)
+
+
+def loop_is_alive(settings: Settings, snapshot: dict[str, object]) -> bool:
+    """False when the loop has shown no sign of life for longer than backoff + interval.
+
+    The loop beats every sleeping second and at each cycle start, so only a cycle
+    that never returns (a hung FCM wait or chromedriver) outlasts the window.
+    """
+    beat = snapshot.get("heartbeat")
+    if not isinstance(beat, float):
+        return True  # not beaten yet: the loop has only just started
+    interval = settings.effective_poll_interval_minutes * 60.0
+    failures = int(snapshot.get("failures") or 0)
+    backoff = min(interval * 2 ** min(failures, 6), settings.poll_max_backoff_minutes * 60.0)
+    return time.monotonic() - beat <= backoff + interval + 60.0
 
 
 class PollerService:
@@ -112,6 +134,7 @@ class PollerService:
         """Record when the next attempt is due, for the status API."""
         _schedule["failures"] = self._consecutive_failures
         _schedule["busy"] = busy
+        _schedule["heartbeat"] = time.monotonic()
         _schedule["next_attempt_at"] = (
             None if delay is None else datetime.now(UTC) + timedelta(seconds=delay)
         )
@@ -124,20 +147,23 @@ class PollerService:
         """
         end = time.monotonic() + delay
         self._publish(delay)
+        settings = getattr(self, "settings", None)
+        state_dir = getattr(settings, "state_dir", None) or get_settings().state_dir
         while not self._stop.is_set():
             woke = _WAKE.is_set()
-            if _take_flag("wake") or woke:
+            if _take_flag("wake", state_dir) or woke:
                 _WAKE.clear()
                 self._consecutive_failures = 0
                 self._publish(0)
                 return
             reset = _RESET.is_set()
-            if _take_flag("reset") or reset:
+            if _take_flag("reset", state_dir) or reset:
                 _RESET.clear()
                 self._consecutive_failures = 0
-                settings = getattr(self, "settings", None) or get_settings()
+                settings = settings or get_settings()
                 end = min(end, time.monotonic() + settings.effective_poll_interval_minutes * 60.0)
                 self._publish(end - time.monotonic())
+            _schedule["heartbeat"] = time.monotonic()
             left = end - time.monotonic()
             if left <= 0:
                 return

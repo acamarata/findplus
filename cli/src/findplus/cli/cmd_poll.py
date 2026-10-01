@@ -65,7 +65,7 @@ def poll_now(device_ids: tuple[str, ...]) -> None:
         click.echo(f"   returned: {o.received}  new: {o.inserted}  dup: {o.duplicates}")
         if o.error_message:
             click.secho(f"    {o.error_message}", fg="red")
-    if cycle.ok and cycle.outcomes:
+    if cycle.reached_google:
         # Tell a running daemon (another process) to stop sleeping out an old backoff.
         from findplus.poller_service import reset_backoff
 

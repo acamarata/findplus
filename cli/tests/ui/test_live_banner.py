@@ -166,6 +166,6 @@ async def test_some_trackers_without_a_sighting_are_named(page, base_url):
     text = await page.locator("#alert.info").inner_text()
     assert "No recent sighting: " in text
     assert "Away Tag" in text and "Stale Tag" in text and "Ali's Keys" not in text
-    assert "same place as before" in text
+    assert "Find Hub sent no newer locations" in text and "same place" not in text
     card = await page.inner_text("#card-poll-status")
     assert card == "last attempt: worked · 2 trackers with no recent sighting"

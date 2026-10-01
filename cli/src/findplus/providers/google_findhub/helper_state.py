@@ -179,6 +179,12 @@ def bump_signin_generation() -> int:
         return _signin_generation
 
 
+def drop_all_states() -> None:
+    """Forget every unconsumed state (Disconnect: a begin URL minted earlier is dead)."""
+    with _lock:
+        _states.clear()
+
+
 def reset_for_tests() -> None:
     """Clear all state; used by tests, never in normal operation."""
     global _seen_monotonic, _signin_generation, _outcome

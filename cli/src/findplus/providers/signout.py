@@ -92,6 +92,20 @@ def _wipe_chrome_profile(settings) -> bool:
     return removed
 
 
+def _cancel_google_jobs() -> None:
+    """Stop any running sign-in/unlock job and kill unconsumed helper states first.
+
+    A job that finished after Disconnect would otherwise write a fresh token or key
+    for the account the user just signed out of, and Chrome would rewrite its
+    cookies under the profile wipe.
+    """
+    from .google_findhub import browser, helper_state, job_guards, unlock
+
+    job_guards.cancel_active(browser, browser.cancel_google_auth)
+    job_guards.cancel_active(unlock, unlock.cancel_google_unlock)
+    helper_state.drop_all_states()
+
+
 def sign_out(provider: str, settings) -> bool:
     """Remove `provider`'s saved sign-in credential, if any.
 
@@ -100,6 +114,8 @@ def sign_out(provider: str, settings) -> bool:
     404 / a plain error message rather than silently doing nothing.
     """
     path = _credential_path(provider, settings)
+    if provider == GOOGLE:
+        _cancel_google_jobs()
     existed = path.exists()
     if existed:
         path.unlink()

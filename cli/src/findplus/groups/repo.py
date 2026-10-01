@@ -130,9 +130,15 @@ def update_group(session: Session, group_id: int, **fields) -> Group:
         icon=fields.get("icon"),
     )
     if fields.get("name") is not None:
-        fields["name"] = clean_name(fields["name"])
-        if _name_taken(session, fields["name"], except_id=group_id):
-            raise ValueError(f"group name {fields['name']!r} already exists")
+        # Name rules apply only to a name that actually changes: a legacy group
+        # (case-variant twin, over 64 chars) must stay editable when the dialog
+        # resends its stored name unchanged.
+        if fields["name"] == group.name or fields["name"].strip() == group.name:
+            del fields["name"]
+        else:
+            fields["name"] = clean_name(fields["name"])
+            if _name_taken(session, fields["name"], except_id=group_id):
+                raise ValueError(f"group name {fields['name']!r} already exists")
     for key, value in fields.items():
         if value is not None:
             setattr(group, key, value)

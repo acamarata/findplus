@@ -28,9 +28,9 @@ _PUBLIC = frozenset(
 
 
 #: Chrome-helper ingest routes: the extension has no dashboard cookie, so a
-#: locked app would time its sign-in out. Each handler needs the pinned
-#: extension origin and a single-use state minted by an unlocked session, and
-#: none returns location data.
+#: locked app would time its sign-in out. token and unlock need the pinned
+#: extension origin and a single-use state minted by an unlocked session; `seen`
+#: checks neither (it only sets a UI hint). None returns location data.
 _STATE_GATED = frozenset(
     {
         "/api/auth/google/helper/token",

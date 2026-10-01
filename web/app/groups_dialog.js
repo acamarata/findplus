@@ -27,7 +27,7 @@ import {
   closeOpenPopover, closePopoverIfOutside, clampPopoverToViewport,
 } from "./groups_dialog_dom.js";
 import { groupBody, saveGroup } from "./groups_dialog_save.js";
-import { renderMemberList } from "./groups_members.js";
+import { renderMemberList, applyMemberSelection } from "./groups_members.js";
 import { duplicateNameMessage } from "./dialog_errors.js";
 
 const DEFAULT_ICON = "lucide:users";
@@ -149,9 +149,7 @@ function applyGroup(group) {
   fields.radiusOut.textContent = radius;
   fields.stale.value = group ? String(group.stale_after_minutes) : DEFAULT_STALE;
   const ids = new Set(((group && group.members) || []).map((m) => m.device_id));
-  fields.members.querySelectorAll("input[data-device-id]").forEach((box) => {
-    box.checked = ids.has(box.dataset.deviceId);
-  });
+  applyMemberSelection(fields.members, ids);
 }
 
 async function fillDialog(mode, id, group) {

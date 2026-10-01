@@ -24,12 +24,17 @@ from findplus.config import Settings, get_settings
 from findplus.db.session import session_scope
 from findplus.ingest import ingest_observations
 from findplus.logging_setup import get_logger
+from findplus.poller_outcomes import (
+    NO_GOOGLE_TRAFFIC,
+    _log_outcome,
+    _record,
+    _select_targets,
+)
 
 # Re-exported so `from findplus.poller import PollOutcome` and existing
 # monkeypatch targets keep resolving after the outcome types moved out.
 from findplus.poller_outcomes import CycleOutcome as CycleOutcome
 from findplus.poller_outcomes import PollOutcome as PollOutcome
-from findplus.poller_outcomes import _log_outcome, _record, record_config_error_cycle
 
 # Re-exported so `from findplus.poller import PollerService` (cmd_serve.py,
 # tests) keeps resolving after the split (E13 loop2 A3, file-cap only).
@@ -244,33 +249,6 @@ def poll_once(
     return _run_poll_cycle(targets, settings, stagger, stop_event)
 
 
-def _select_targets(
-    targets: list[tuple[str, str, str]], device_ids: set[str] | None
-) -> tuple[list[tuple[str, str, str]], CycleOutcome | None]:
-    """(targets, early_outcome) -- early_outcome is set when polling must stop
-    now instead: an unknown requested id, or nothing left to poll."""
-    if device_ids:
-        known_ids = {device_id for device_id, _name, _provider in targets}
-        unknown = set(device_ids) - known_ids
-        if unknown:
-            return [], record_config_error_cycle(
-                "UnknownDevice",
-                "Not tracked or does not exist: " + ", ".join(sorted(unknown)),
-                "poll_unknown_device",
-                requested=sorted(unknown),
-            )
-        targets = [t for t in targets if t[0] in device_ids]
-
-    if not targets:
-        return [], record_config_error_cycle(
-            "NoDeviceTracked",
-            "No devices are being tracked. Run `findplus devices --track-all`.",
-            "poll_no_devices_tracked",
-            config_error=True,
-        )
-    return targets, None
-
-
 def _run_poll_cycle(
     targets: list[tuple[str, str, str]],
     settings: Settings,
@@ -282,7 +260,11 @@ def _run_poll_cycle(
         if stop_event is not None and stop_event.is_set():
             log.info("poll_cycle_interrupted", completed=index, total=len(targets))
             break
-        if index and stagger:  # space requests out rather than firing N at once
+        # Space Google requests out rather than firing N at once. A device that
+        # stopped at a local check (signed out, locked, unavailable) sent nothing,
+        # so waiting after it only made "Poll Now" hang for 10 s per tracker.
+        previous = cycle.outcomes[-1].status if cycle.outcomes else None
+        if index and stagger and previous not in NO_GOOGLE_TRAFFIC:
             (stop_event or threading.Event()).wait(stagger)
         cycle.outcomes.append(poll_device(device_id, device_name, provider_name, settings))
 

@@ -184,6 +184,7 @@ export async function loadStatus() {
     syncMapOverlay();
     return s;
   } catch (err) {
+    if (state.lockGeneration !== gen) return null; // the lock's own 401, not an outage
     showAlert(t("common.apiUnreachable", { message: err.message }), "err");
     return null;
   }

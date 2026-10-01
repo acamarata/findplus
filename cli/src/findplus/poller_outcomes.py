@@ -75,6 +75,16 @@ class CycleOutcome:
         return not self.outcomes or any(o.ok for o in self.outcomes)
 
     @property
+    def reached_google(self) -> bool:
+        """True when at least one device actually got an answer from Google.
+
+        Narrower than `ok`: signed-out and unavailable outcomes count as `ok` (they
+        must not escalate backoff) but prove nothing about Google, so a manual poll
+        may reset the daemon's backoff only when this is True.
+        """
+        return any(o.status in ("ok", "no_location") for o in self.outcomes)
+
+    @property
     def no_google_traffic(self) -> bool:
         """True when every device stopped at a local check (locked, signed out, unavailable)."""
         return bool(self.outcomes) and all(o.status in NO_GOOGLE_TRAFFIC for o in self.outcomes)
@@ -152,3 +162,30 @@ def record_config_error_cycle(
         _record(session, None, datetime.now(UTC), outcome)
     log.error(log_event, **log_extra)
     return CycleOutcome([outcome], config_error=config_error)
+
+
+def _select_targets(
+    targets: list[tuple[str, str, str]], device_ids: set[str] | None
+) -> tuple[list[tuple[str, str, str]], CycleOutcome | None]:
+    """(targets, early_outcome) -- early_outcome is set when polling must stop
+    now instead: an unknown requested id, or nothing left to poll."""
+    if device_ids:
+        known_ids = {device_id for device_id, _name, _provider in targets}
+        unknown = set(device_ids) - known_ids
+        if unknown:
+            return [], record_config_error_cycle(
+                "UnknownDevice",
+                "Not tracked or does not exist: " + ", ".join(sorted(unknown)),
+                "poll_unknown_device",
+                requested=sorted(unknown),
+            )
+        targets = [t for t in targets if t[0] in device_ids]
+
+    if not targets:
+        return [], record_config_error_cycle(
+            "NoDeviceTracked",
+            "No devices are being tracked. Run `findplus devices --track-all`.",
+            "poll_no_devices_tracked",
+            config_error=True,
+        )
+    return targets, None

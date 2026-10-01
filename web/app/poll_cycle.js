@@ -18,7 +18,7 @@
  */
 "use strict";
 
-import { state, displayName } from "./state.js";
+import { state, displayName, fmtTime } from "./state.js";
 import { t, plural } from "./i18n.js";
 import { isFailedPoll } from "./poll_status.js";
 
@@ -81,21 +81,32 @@ function listNames(names) {
   return more > 0 ? `${shown} ${t("live.andMore", { n: more })}` : shown;
 }
 
+/** The sentence about the next attempt: the loop's real time, never a quoted interval. */
+function nextAttempt(s) {
+  if (s.next_poll_at) return t("live.zeroNewNext", { time: fmtTime(s.next_poll_at) });
+  return s.poll_interval_minutes ? t("live.zeroNewEvery", { interval: s.poll_interval_minutes }) : "";
+}
+
 /**
  * Why the last cycle added nothing, in plain words; null when it did add
  * something, failed, or today already has observations (nothing to explain).
+ * Find Hub re-sending an old fix is "no newer location", never "same place".
+ * Trackers that timed out or failed are listed apart from the quiet ones.
  */
 export function zeroNewMessage(s) {
   const runs = cycleRuns(s);
   if (!runs.length || bannerRun(s)) return null;
   const fresh = runs.reduce((n, r) => n + (r.run.observations_new || 0), 0);
   if (fresh > 0 || s.observations_today > 0) return null;
-  const silent = noSightingNames(s);
-  if (silent.length === runs.length) {
-    return t("live.zeroNewAll", { n: runs.length, interval: s.poll_interval_minutes });
-  }
-  if (silent.length) return t("live.zeroNewSome", { names: listNames(silent) });
-  return t("live.zeroNewSame");
+  const answered = runs.filter((r) => !isFailedPoll(r.run));
+  const failed = runs.filter((r) => isFailedPoll(r.run)).map((r) => nameOf(r.device));
+  const silent = answered.filter((r) => r.run.status === "no_location").map((r) => nameOf(r.device));
+  let text;
+  if (silent.length === answered.length) text = t("live.zeroNewAll", { n: answered.length });
+  else if (silent.length) text = t("live.zeroNewSome", { names: listNames(silent) });
+  else text = t("live.zeroNewSame");
+  if (failed.length) text += " " + t("live.zeroNewFailed", { names: listNames(failed) });
+  return `${text} ${nextAttempt(s)}`.trim();
 }
 
 /** Short tail for the "last attempt" card line: how many have no sighting. */

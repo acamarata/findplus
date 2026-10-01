@@ -229,8 +229,7 @@ def _run_google_unlock(job_id: str, settings: Any) -> None:
             _wake_poller()
             _set_progress(job_id, "done", MSG_DONE)
     finally:
-        # Belt and braces: a job never rebinds create_driver now, but a leftover
-        # real launcher on any vendor module must not outlive the job.
+        # A leftover real launcher on any vendor module must not outlive the job.
         restore_create_driver_guard()
         install_vendor_guards()
 

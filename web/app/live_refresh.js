@@ -38,6 +38,8 @@ let slowMs = 45000;
 let timer = null;
 let lastSignature = null;
 let started = false;
+/** Bumped by stopLiveRefresh(): a look still in flight then must not re-arm the old chain. */
+let chain = 0;
 
 /** What changes when there is something new to draw. */
 export function signature(s) {
@@ -94,13 +96,14 @@ function schedule(s) {
 
 async function tick() {
   timer = null;
+  const mine = chain;
   let s = state.status;
   if (!state.locked && !document.hidden) {
     try {
       s = await refreshOnce({ fast: nextDelay(state.status) < slowMs });
     } catch (_) { /* a lock mid-refresh is handled by api() */ }
   }
-  schedule(s);
+  if (mine === chain) schedule(s);
 }
 
 /** Wait for the poll an unlock or sign-in is about to trigger. */
@@ -111,10 +114,14 @@ export function expectPoll(s) {
 /** An account was signed in, unlocked or removed: look now, then watch closely. */
 async function onAccountsChanged() {
   if (!started || state.locked) return;
+  const gen = state.lockGeneration; // a lock during these awaits must not leave "Polling..." behind
   resetSignedInCache();
   const s = await refreshOnce({ fast: true });
+  if (state.lockGeneration !== gen) return;
   if (!s || !s.tracked_count) return schedule(s);
-  if (await anyProviderSignedIn()) {
+  const signedIn = await anyProviderSignedIn();
+  if (state.lockGeneration !== gen) return;
+  if (signedIn) {
     expectPoll(s);
     await loadStatus();  // draws "Polling N trackers…" at once
   }
@@ -148,6 +155,7 @@ export function startLiveRefresh(seconds) {
 export function stopLiveRefresh() {
   if (timer) clearTimeout(timer);
   timer = null;
+  chain++;
   lastSignature = null;
   state.awaitingPoll = null;
 }

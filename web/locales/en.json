@@ -20,7 +20,7 @@
     "lockPinFormat": "Enter your PIN without spaces.",
     "lockUnlockFailed": "Find+ could not check that PIN. Try again in a moment.",
     "lockForgotSummary": "Forgot your PIN?",
-    "lockForgotBody": "If you remember it later, you can change or remove it in Settings, under App lock. A forgotten PIN can only be removed on this computer itself.",
+    "lockForgotBody": "Find+ cannot recover a forgotten PIN for you. If you remember it later, you can change or remove it in Settings, under App lock. If you cannot, the PIN can only be removed on this computer itself.",
     "lockForgotAdvanced": "Advanced: open Terminal and run findplus lock reset, then reload this page.",
     "pin": "PIN",
     "liveDotTitle": "Polling service status",
@@ -94,11 +94,27 @@
       "one": "Wrong PIN. 1 try left before Find+ makes you wait.",
       "other": "Wrong PIN. {n} tries left before Find+ makes you wait."
     },
-    "lockWait": "Too many tries. Try again in {seconds} seconds."
+    "lockWait": "Too many tries. Try again in {seconds} seconds.",
+    "showPin": "Show PIN"
   },
   "field": {
     "customColor": "Custom color",
-    "telegramToken": "Telegram bot token"
+    "telegramToken": "Telegram bot token",
+    "colorName": {
+      "blue": "Blue",
+      "orange": "Orange",
+      "green": "Green",
+      "lilac": "Lilac",
+      "yellow": "Yellow",
+      "cyan": "Cyan",
+      "pink": "Pink",
+      "olive": "Olive",
+      "peach": "Peach",
+      "violet": "Violet",
+      "mint": "Mint",
+      "coral": "Coral"
+    },
+    "colorGroupLabel": "Colour choices"
   },
   "devices": {
     "title": "Your trackers",
@@ -194,7 +210,21 @@
     "add_button": "Add group",
     "card": {
       "edit": "Edit {name}",
-      "delete": "Delete {name}"
+      "delete": "Delete {name}",
+      "members": {
+        "one": "1 member",
+        "other": "{count} members"
+      },
+      "rule": {
+        "any": "alerts when any member arrives",
+        "majority": "alerts when most members arrive",
+        "all": "alerts when every member arrives",
+        "custom": "alerts when {n} members arrive"
+      },
+      "untracked": {
+        "one": "1 member is not tracked, so Find+ never checks it.",
+        "other": "{count} members are not tracked, so Find+ never checks them."
+      }
     },
     "confirm": {
       "delete": "Delete group \"{name}\"?",
@@ -220,7 +250,13 @@
       "count": {
         "one": "1 device",
         "other": "{count} devices"
-      }
+      },
+      "track_button": "Track this tracker",
+      "track_cost": "Adds about {rate} location requests an hour at your {interval}-minute interval.",
+      "track_cost_unknown": "Find+ will start asking for this tracker's location on every poll.",
+      "tracking": "Tracking…",
+      "track_failed": "Could not track {name}: {message}",
+      "untracked_note_track": "Find+ only checks tracked devices, so an untracked one would never show a location or send an alert as part of a group. Press Track this tracker to add it."
     },
     "verdictNoLocation": "No location yet",
     "verdictNoRecentLocation": "No recent location",
@@ -231,7 +267,12 @@
     "presenceFailedTitle": "Could not load this group's presence",
     "quorumRange": "Use a whole number from {min} to {max}.",
     "quorumTooHigh": "This group needs {n} members reporting, but only {members} are ticked, so it can never fire. Lower the number or tick more members.",
-    "staleBadgeUntracked": "{name}: not tracked, so Find+ is not polling it"
+    "staleBadgeUntracked": "{name}: not tracked, so Find+ is not polling it",
+    "quorumSentence": {
+      "one": "Alerts when {k} of {n} member reaches the same place. Members with no recent fix are not counted. Members are together when they are within {radius} m of each other.",
+      "other": "Alerts when {k} of {n} members reach the same place. Members with no recent fix are not counted. Members are together when they are within {radius} m of each other."
+    },
+    "quorumSentenceNone": "Tick members to see when this group alerts."
   },
   "icons": {
     "custom": {
@@ -517,7 +558,7 @@
     "enterNewPin": "Enter the new PIN.",
     "pinChanged": "PIN changed. All existing sessions were signed out.",
     "enterCurrentPin": "Enter the current PIN to remove it.",
-    "confirmRemovePin": "Remove the PIN and disable the app lock?",
+    "confirmRemovePin": "Remove the PIN and turn off the app lock? Anyone who opens Find+ on this computer will then see your locations without a PIN.",
     "pinRemoved": "PIN removed. The app no longer locks.",
     "signInHeading": "Sign-in",
     "polling": {
@@ -529,12 +570,33 @@
       "retention_label": "Keep history for",
       "retention_unit": "days",
       "retention_placeholder": "keep all",
-      "retention_note": "Older observations, place visits and group events are deleted automatically once a day. Leave blank to keep everything."
+      "retention_note": "Older observations, place visits and group events are deleted automatically once a day. Leave blank to keep everything.",
+      "rate": {
+        "one": "At this interval Find+ makes about {rate} location requests an hour for your 1 tracked device.",
+        "other": "At this interval Find+ makes about {rate} location requests an hour across your {count} tracked devices."
+      },
+      "rateNone": "Nothing is tracked yet, so Find+ makes no requests. Track devices in Devices.",
+      "rateFast": "Short intervals add up. If Google starts refusing requests Find+ backs off on its own, but a longer interval is gentler on your account.",
+      "retention_range_error": "Use 7 days or more, or leave it blank to keep everything.",
+      "retentionKeepAll": "Everything is kept. Nothing is deleted automatically.",
+      "retentionDays": "Observations, place visits and group events older than {days} days are deleted once a day. This cannot be undone."
     },
     "native_detail": {
       "label": "Show who and where in notifications",
       "note": "By default, macOS notifications show a generic \"Find+ alert\" instead of who or where, because notification banners can appear on a locked screen. Turn on notification details in Settings to show the person and place. Anyone who can see the screen then sees the same thing."
-    }
+    },
+    "autosaveNote": "Changes save as you make them. There is no Save button.",
+    "saved": "Saved.",
+    "language": "Language",
+    "languageEnglish": "English",
+    "languageNote": "Find+ is English only for now. Every sentence lives in one catalog file, so another language can be added without changing the app.",
+    "newPinChange": "New PIN",
+    "lockHow": "With a PIN set, Find+ asks for it after the idle time you choose and whenever the service restarts. Five wrong tries in a row pause the lock screen, and each pause is longer than the last.",
+    "backupHeading": "Back up your settings",
+    "backupNote": "Saves your settings as a JSON file: theme, polling interval, how long history is kept and the lock timeout. It leaves out your PIN, your sign-ins, your trackers and your history. Export history with the Export control on the dashboard.",
+    "backupButton": "Download settings",
+    "backupFailed": "Could not read your settings: {message}",
+    "pinWrong": "That is not your current PIN."
   },
   "setup": {
     "back": "Back",
@@ -693,7 +755,7 @@
     "account": {
       "signedIn": "Signed in as {account}",
       "signedOut": "Not signed in",
-      "revoked": "Google signed Find+ out. Sign in again."
+      "revoked": "Needs sign-in again"
     },
     "retry": "Try again",
     "cancel": "Cancel",
@@ -751,7 +813,14 @@
       "capturing": "Signed in. Saving your session…",
       "downloadChrome": "Download Google Chrome",
       "checkAgain": "Check again",
-      "disconnectConfirm": "Disconnect Google Find Hub? This also signs Google out of the Find+ Chrome window. Tracked devices and their history stay. Sign in again any time to see new locations."
+      "disconnectConfirm": "Disconnect Google Find Hub? This also signs Google out of the Find+ Chrome window. Find+ stops checking Google for new locations. Your trackers and history stay on this computer. Sign in again any time.",
+      "revoked": {
+        "title": "Google signed Find+ out",
+        "body": "This usually happens after a password change. Find+ cannot get new locations until you sign in again. Your trackers and history are kept.",
+        "button": "Sign in again"
+      },
+      "ready": "Encrypted locations are unlocked.",
+      "switchHint": "Switching accounts replaces this sign-in. You may need to unlock encrypted locations again."
     },
     "apple": {
       "heading": "Apple Find My",
@@ -761,7 +830,7 @@
       "connect": "Connect Apple Find My",
       "switch": "Use a different Apple ID",
       "signingIn": "Signing in to Apple…",
-      "codePrompt": "Enter the verification code Apple sent to your device or phone.",
+      "codePrompt": "Apple sent a 6-digit code to your trusted Apple devices. If none of them is signed in, Apple sends it by text message to your phone number instead.",
       "code": "Verification code",
       "verify": "Verify code",
       "checking": "Checking the code…",
@@ -770,7 +839,9 @@
       "missingPassword": "Enter your password.",
       "missingCode": "Enter the verification code first.",
       "unavailable": "Apple Find My support is not installed in this copy of Find+. Install the Apple extra with pip install 'findplus[apple]', then restart Find+.",
-      "disconnectConfirm": "Disconnect Apple Find My? Tracked devices and their history stay. Sign in again any time to see new locations."
+      "disconnectConfirm": "Disconnect Apple Find My? Find+ stops checking Apple for new locations. Your trackers and history stay on this computer. Sign in again any time.",
+      "startOver": "Start over",
+      "badFormat": "The code is 6 digits. Check it and try again."
     },
     "error": {
       "title": "Sign-in did not finish",

@@ -111,6 +111,10 @@ def loop_is_alive(settings: Settings, snapshot: dict[str, object]) -> bool:
     return time.monotonic() - beat <= backoff + interval + 60.0
 
 
+#: A wake that lands right after a cycle that reached Google waits this long (review r1 #9).
+_MIN_WAKE_GAP_SECONDS = 30.0
+
+
 class PollerService:
     """Runs a poll cycle forever with backoff. Stoppable via `stop()`."""
 
@@ -119,6 +123,9 @@ class PollerService:
         self._stop = threading.Event()
         self._consecutive_failures = 0
         self.last_cycle: CycleOutcome | None = None
+        #: When the last cycle that reached Google ended; a wake right after it waits out
+        #: _MIN_WAKE_GAP_SECONDS instead of running a second cycle back to back.
+        self._last_traffic_end: float | None = None
 
     def stop(self) -> None:
         self._stop.set()
@@ -139,6 +146,13 @@ class PollerService:
             None if delay is None else datetime.now(UTC) + timedelta(seconds=delay)
         )
 
+    def _wake_gap_left(self) -> float:
+        """Seconds a wake must still wait: zero unless a cycle that reached Google just ended."""
+        ended = getattr(self, "_last_traffic_end", None)
+        if ended is None:
+            return 0.0
+        return _MIN_WAKE_GAP_SECONDS - (time.monotonic() - ended)
+
     def _sleep(self, delay: float) -> None:
         """Wait `delay` seconds, returning early on stop or `wake_poller()`.
 
@@ -154,8 +168,12 @@ class PollerService:
             if _take_flag("wake", state_dir) or woke:
                 _WAKE.clear()
                 self._consecutive_failures = 0
-                self._publish(0)
-                return
+                gap = self._wake_gap_left()
+                if gap <= 0:
+                    self._publish(0)
+                    return
+                end = min(end, time.monotonic() + gap)
+                self._publish(gap)
             reset = _RESET.is_set()
             if _take_flag("reset", state_dir) or reset:
                 _RESET.clear()
@@ -209,6 +227,9 @@ class PollerService:
             self._publish(None, busy=True)
             cycle = poll_once(self.settings, stop_event=self._stop)
             self.last_cycle = cycle
+            self._last_traffic_end = (
+                None if cycle.config_error or cycle.no_google_traffic else time.monotonic()
+            )
             if cycle.ok or cycle.config_error or cycle.no_google_traffic:
                 # A config error, a locked key or a signed-out account means "nothing
                 # to do yet": no Google request was made, so there is nothing to back off.

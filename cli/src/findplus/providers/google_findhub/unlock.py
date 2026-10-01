@@ -10,12 +10,10 @@ Purpose    : Google encrypts Find Hub locations end to end and releases the key
 Inputs     : a `Settings` (for `chrome_profile_dir`), and a job id minted here.
 Outputs    : `start_google_unlock()` -> job id; `get_google_unlock_progress()`
              -> `{"state", "message"}` or None; `cancel_google_unlock()` -> bool.
-Constraints: `cli/vendor/GoogleFindMyTools/` is never edited (PRI hard rule 8).
-             The vendored flow reaches the encryption key through a browser and
-             a JavaScript bridge the page itself calls; Find+ pastes nothing and
-             shows no console snippet. It runs only in a window the user started
-             here, in a profile of its own. The shared key is never logged.
-             The flow loop (unlock_flow.py) takes the Chrome factory directly and
+Constraints: `cli/vendor/GoogleFindMyTools/` is never edited (PRI hard rule 8). The key
+             reaches Find+ through a browser page and a JS bridge the page itself calls; Find+
+             pastes nothing. It runs only in a window the user started, in a profile of its own,
+             and the key is never logged. unlock_flow.py takes the Chrome factory directly and
              stops on cancel, deadline or any browser error.
 """
 
@@ -28,32 +26,34 @@ import time
 import uuid
 from typing import Any
 
+from findplus.logging_setup import get_logger
+
 from . import job_guards, unlock_flow
 from .bootstrap import ensure_gfmt_importable, restore_create_driver_guard, stored_account_email
+from .unlock_messages import (
+    MSG_CANCELLED,
+    MSG_DONE,
+    MSG_DONE_UNVERIFIED,
+    MSG_FAILED,
+    MSG_LAUNCHING,
+    MSG_NO_KEY,
+    MSG_NO_VAULT_KEY,
+    MSG_NOT_SIGNED_IN,
+    MSG_SAVING,
+    MSG_TIMEOUT,
+    MSG_WAITING,
+)
+
+log = get_logger(__name__)
 
 __all__ = [
     "MSG_CANCELLED",
+    "MSG_DONE_UNVERIFIED",
     "GoogleUnlockAlreadyRunningError",
     "cancel_google_unlock",
     "get_google_unlock_progress",
     "start_google_unlock",
 ]
-
-MSG_LAUNCHING = "Starting the Find+ Chrome window..."
-MSG_WAITING = (
-    "In the Find+ Chrome window, sign in with the same Google account first if Google asks, "
-    "then enter your Android phone's screen lock."
-)
-MSG_SAVING = "Saving the key..."
-MSG_DONE = "Encrypted locations unlocked."
-MSG_CANCELLED = "Unlock cancelled."
-MSG_FAILED = "The unlock did not finish. Try again."
-MSG_TIMEOUT = "The unlock window was open too long. Start the unlock again."
-MSG_NOT_SIGNED_IN = "Find+ is not signed in to Google. Sign in first, then unlock."
-MSG_NO_KEY = "That page did not return an encryption key. Try again."
-MSG_NO_VAULT_KEY = (
-    "No usable encryption key was found. Enter your Android screen lock and try again."
-)
 
 
 class SharedKeyParseError(Exception):
@@ -200,11 +200,18 @@ def _run_google_unlock(job_id: str, settings: Any) -> None:
     """Thread body: run the key flow in Find+'s Chrome, store the key."""
     from .bootstrap import install_vendor_guards
 
+    unverified: list[bool] = []
+
+    def _note_unverified() -> None:
+        unverified.append(True)
+        log.warning("unlock_account_unverified")
+
     try:
         shared_key_hex = unlock_flow.run_shared_key_flow(
             _make_isolated_driver(settings, job_id),
             lambda: _is_cancelled(job_id),
             expected_account=stored_account_email(),
+            on_unverified=_note_unverified,
         )
         if not shared_key_hex:
             _set_progress(job_id, "failed", MSG_NO_KEY)
@@ -227,18 +234,14 @@ def _run_google_unlock(job_id: str, settings: Any) -> None:
     else:
         if not job_guards.explicitly_cancelled(_lock, _jobs, job_id):
             _wake_poller()
-            _set_progress(job_id, "done", MSG_DONE)
+            _set_progress(job_id, "done", MSG_DONE_UNVERIFIED if unverified else MSG_DONE)
     finally:
-        # A leftover real launcher on any vendor module must not outlive the job.
         restore_create_driver_guard()
         install_vendor_guards()
 
 
 def start_google_unlock(settings: Any) -> str:
-    """Start an unlock and return its job id.
-
-    Raises GoogleUnlockAlreadyRunningError when one is already in flight.
-    """
+    """Start an unlock, return its job id; raises GoogleUnlockAlreadyRunningError if one runs."""
     global _active_job_id
     with _lock:
         _sweep_expired_jobs()
@@ -271,10 +274,7 @@ def get_google_unlock_progress(job_id: str) -> dict[str, Any] | None:
 
 
 def cancel_google_unlock(job_id: str) -> bool:
-    """Best-effort cancel: quit the Chrome window, unblocking the vendored wait.
-
-    Returns False for a job that never existed or already ended.
-    """
+    """Best-effort cancel: quit the Chrome window. False for an unknown or ended job."""
     global _active_job_id
     with _lock:
         _sweep_expired_jobs()

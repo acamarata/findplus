@@ -242,10 +242,10 @@ async def test_wrong_current_pin_reports_beside_the_fields(page, base_url):
         await page.wait_for_selector("#lock-is-set:not(.hidden)")
         await page.fill("#current-pin", "000000")
         await page.click("#btn-remove-pin")
-        await page.wait_for_selector("#fp-confirm-dialog[open]")
-        await page.locator("#fp-confirm-dialog").get_by_role("button", name="Remove").click()
         line = page.locator("#setting-change-pin-error")
         await line.wait_for(state="visible")
+        # The PIN is checked before any confirmation is asked.
+        assert await page.locator("#fp-confirm-dialog[open]").count() == 0
         assert "incorrect" in (await line.inner_text()).lower()
         assert await page.get_attribute("#current-pin", "aria-invalid") == "true"
         assert await page.locator("#settings-message").inner_text() == ""

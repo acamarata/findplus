@@ -303,6 +303,26 @@ Set or change the PIN. Changing it requires the existing one.
 }
 ```
 
+### POST /api/settings/pin/check
+Say whether `current_pin` is the PIN, changing nothing.
+
+**Request body:**
+```json
+{
+  "properties": {
+    "current_pin": {
+      "type": "string",
+      "title": "Current Pin"
+    }
+  },
+  "type": "object",
+  "required": [
+    "current_pin"
+  ],
+  "title": "Body_check_pin_api_settings_pin_check_post"
+}
+```
+
 ### POST /api/settings/widget.show_map
 Persist whether the widget renders a map snapshot.
 

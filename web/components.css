@@ -100,7 +100,8 @@
    row when it did, under a tap already on its way (CI run 35909159774). The
    verdict row keeps its height while empty, so nothing below it moves. */
 .fp-group-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-template-areas: "icon name members" "verdict verdict verdict" "actions actions actions";
+  grid-template-areas: "icon name members" "meta meta meta" "verdict verdict verdict"
+    "actions actions actions" "explain explain explain";
   align-items: center; gap: 6px 10px; padding: 9px 10px; border: 1px solid var(--line);
   border-radius: 8px; background: var(--panel-2); margin-bottom: 6px; }
 .fp-group-card > .fp-card-icon { grid-area: icon; }

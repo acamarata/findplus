@@ -10,6 +10,15 @@
          writes here instead, for every section (sign-in included). -->
     <p id="settings-message" class="fp-dialog-error" role="alert"></p>
 
+    <!-- Save model, stated once: every control saves the moment it changes. The
+         status line below confirms each save, so "did that stick?" never needs
+         a guess. The PIN and delete buttons are explicit actions with their own
+         messages. -->
+    <p class="modal-note settings-intro" data-i18n="settings.autosaveNote">
+      Changes save as you make them. There is no Save button.
+    </p>
+    <p id="settings-saved" class="settings-saved" role="status" aria-live="polite"></p>
+
     <!-- The sign-in panel is the FIRST section of this dialog (ruling R-P2-8).
          auth.js mounts the shared sign-in component (web/app/signin/panel.js)
          into #fp-auth-cards at boot: the same Google Find Hub and Apple Find
@@ -46,6 +55,16 @@
           <option value="system" data-i18n="settings.themeSystem">Match system</option>
         </select>
       </label>
+      <label class="setting-row">
+        <span data-i18n="settings.language">Language</span>
+        <select id="setting-language" disabled>
+          <option value="en" data-i18n="settings.languageEnglish">English</option>
+        </select>
+      </label>
+      <p class="modal-note" data-i18n="settings.languageNote">
+        Find+ is English only for now. Every sentence lives in one catalog file, so
+        another language can be added without changing the app.
+      </p>
     </section>
 
     <section class="setting-group">
@@ -71,6 +90,8 @@
            for a client-side rejection and for the server's own 422. -->
       <p id="setting-poll-interval-error" class="fp-dialog-error hidden"
          data-i18n="settings.polling.interval_range_error">Choose 5 to 1440 minutes.</p>
+      <p id="setting-poll-rate" class="modal-note fp-setting-consequence" role="status"
+         aria-live="polite"></p>
       <p class="modal-note" data-i18n="settings.polling.interval_note">
         Find+ never polls faster than every 5 minutes, to avoid rate-limiting your account.
         Takes effect after Find+ restarts. An environment variable, if one is set, wins over
@@ -80,10 +101,17 @@
         <span data-i18n="settings.polling.retention_label">Keep history for</span>
         <span class="setting-row-value">
           <input type="number" id="setting-retention-days" min="7" placeholder="keep all"
+                 aria-describedby="setting-retention-error setting-retention-effect"
                  data-i18n-attr="placeholder:settings.polling.retention_placeholder">
           <span data-i18n="settings.polling.retention_unit">days</span>
         </span>
       </label>
+      <p id="setting-retention-error" class="fp-dialog-error hidden"
+         data-i18n="settings.polling.retention_range_error">
+        Use 7 days or more, or leave it blank to keep everything.
+      </p>
+      <p id="setting-retention-effect" class="modal-note fp-setting-consequence"
+         role="status" aria-live="polite"></p>
       <!-- UAT7-N18: "blank = forever" used to repeat as its own hint line
            AND as the last sentence of the note below ("Leave blank to keep
            everything."); the placeholder above ("keep all") plus that one
@@ -121,6 +149,11 @@
            SCREEN has its own copy (#lock-caveat-screen), which is a different
            surface making the same claim. -->
       <p class="modal-note" id="lock-caveat"></p>
+      <p class="modal-note" data-i18n="settings.lockHow">
+        With a PIN set, Find+ asks for it after the idle time you choose and whenever the
+        service restarts. Five wrong tries in a row pause the lock screen, and each pause
+        is longer than the last.
+      </p>
 
       <div id="lock-not-set">
         <label class="setting-row">
@@ -167,7 +200,7 @@
                  data-i18n-attr="placeholder:settings.currentPinPlaceholder">
         </label>
         <label class="setting-row">
-          <span data-i18n="settings.newPinOptional">New PIN (optional)</span>
+          <span data-i18n="settings.newPinChange">New PIN</span>
           <input type="password" id="change-pin" autocomplete="new-password"
                  aria-describedby="setting-change-pin-error">
         </label>
@@ -197,6 +230,19 @@
         <button class="btn btn-danger" id="btn-clear-all" data-i18n="settings.clearAll">Clear ALL history</button>
       </div>
       <p id="delete-result" class="modal-rate" role="status"></p>
+    </section>
+
+    <section class="setting-group">
+      <h3 data-i18n="settings.backupHeading">Back up your settings</h3>
+      <p class="modal-note" data-i18n="settings.backupNote">
+        Saves your settings as a JSON file: theme, polling interval, how long history is kept
+        and the lock timeout. It leaves out your PIN, your sign-ins, your trackers and your
+        history. Export history with the Export control on the dashboard.
+      </p>
+      <div class="setting-actions">
+        <button class="btn btn-secondary" id="btn-export-settings" type="button"
+                data-i18n="settings.backupButton">Download settings</button>
+      </div>
     </section>
 
     <section class="setting-group">

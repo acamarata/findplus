@@ -24,6 +24,7 @@ import { showAddDialog, openEditDialog } from "./groups_dialog.js";
 import { loadGroups, selectGroupById, clearGroup, isGroupSelected } from "./groups.js";
 import { verdictLabel, verdictTitle } from "./groups_presence_render.js";
 import { confirmDialog, alertDialog } from "./components/confirm-dialog.js";
+import { metaLine, explainSlot, fillExplanation } from "./groups_card_meta.js";
 
 /** Avatars shown before the grid collapses the rest into a "+N" chip. */
 const MAX_AVATARS = 6;
@@ -147,8 +148,10 @@ function renderCard(group, devicesById) {
     icon,
     span("fp-card-name", group.name),
     memberAvatars(group, devicesById),
+    metaLine(group, devicesById),
     span("fp-card-verdict"),
     actions,
+    explainSlot(),
   );
   card.addEventListener("click", (event) => onCardClick(event, group));
   return card;
@@ -170,6 +173,7 @@ async function fetchVerdict(card, groupId) {
   badge.className = `fp-card-verdict fp-verdict fp-verdict--${presence.verdict}`;
   badge.textContent = verdictLabel(presence);
   badge.title = verdictTitle(presence);
+  fillExplanation(card, presence);
 }
 
 /** A failed presence call left the pill blank, which read as "still loading". */

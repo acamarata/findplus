@@ -29,6 +29,7 @@
 import { t } from "../i18n.js";
 import { googleChromeNoticeNeeded } from "../provider_chrome.js";
 import { chromeNoticeText } from "./cards.js";
+import { renderNotices } from "./google_card_notices.js";
 import { FlowBase } from "./flow_base.js";
 import { GoogleHelperFlow } from "./google_helper_flow.js";
 import { GoogleTokenFlow } from "./google_token_flow.js";
@@ -53,6 +54,7 @@ export class GoogleFlow extends FlowBase {
     this.tokenFlow = new GoogleTokenFlow(card, deps, () => this.settle());
     this.unlockFlow = new GoogleUnlockFlow(card, deps, () => this.settle());
     this.helperFlow = new GoogleHelperFlow(card, deps, () => this.settle());
+    card.revokedButton.addEventListener("click", () => card.hello.click());
     card.button.addEventListener("click", () => this.start());
     card.retry.addEventListener("click", () => this.start());
     card.recheck.addEventListener("click", () => this.deps.onSettled());
@@ -71,6 +73,8 @@ export class GoogleFlow extends FlowBase {
       : t(revoked ? "signin.account.revoked" : "signin.account.signedOut");
     this.card.disconnect.hidden = !this.signedIn;
     if (!this.signedIn) this.hideDisconnectConfirm();
+    const needsKey = this.signedIn && ((provider && provider.needs) || []).includes("shared_key");
+    renderNotices(this.card, { signedIn: this.signedIn, revoked, needsKey });
     this.helperFlow.render(provider);
     this.unlockFlow.render(provider);
     if (this.busy) return;
@@ -214,5 +218,6 @@ export class GoogleFlow extends FlowBase {
     this.cancelRequested = false;
     this.hideDisconnectConfirm();
     this.showChromeMissing(false);
+    renderNotices(this.card, { signedIn: false, revoked: false, needsKey: false });
   }
 }

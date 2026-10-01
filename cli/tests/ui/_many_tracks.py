@@ -9,8 +9,6 @@ Outputs    : `install_busy_day(page, ...)` routes /api/timeline and returns
 Constraints: Only /api/timeline is stubbed; everything else is the real server.
 """
 
-# ruff: noqa: E501  (inline JS one-liners and fixture rows read better unwrapped)
-
 from __future__ import annotations
 
 from datetime import datetime, timedelta

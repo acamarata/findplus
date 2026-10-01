@@ -216,6 +216,22 @@ def to_gpx(
     return "\n".join(lines)
 
 
+def _kml_path(observations: list[LocationObservation]) -> list[str]:
+    """The LineString placemark; its description carries the approximate distance."""
+    total = sum(m for _, m in _with_deltas(observations) if m is not None)
+    coords = " ".join(f"{o.longitude:.7f},{o.latitude:.7f},0" for o in observations)
+    return [
+        "    <Placemark>",
+        "      <name>Observed path</name>",
+        f"      <description>{escape(DISCLAIMER)} "
+        f"{escape(DISTANCE_LABEL)}: {total:.0f} m.</description>",
+        "      <styleUrl>#observed-path</styleUrl>",
+        "      <LineString><tessellate>1</tessellate>"
+        f"<coordinates>{coords}</coordinates></LineString>",
+        "    </Placemark>",
+    ]
+
+
 def to_kml(
     observations: list[LocationObservation],
     tz,
@@ -253,18 +269,7 @@ def to_kml(
             "    </Placemark>",
         ]
     if len(observations) > 1:
-        total = sum(m for _, m in _with_deltas(observations) if m is not None)
-        coords = " ".join(f"{o.longitude:.7f},{o.latitude:.7f},0" for o in observations)
-        lines += [
-            "    <Placemark>",
-            "      <name>Observed path</name>",
-            f"      <description>{escape(DISCLAIMER)} "
-            f"{escape(DISTANCE_LABEL)}: {total:.0f} m.</description>",
-            "      <styleUrl>#observed-path</styleUrl>",
-            "      <LineString><tessellate>1</tessellate>"
-            f"<coordinates>{coords}</coordinates></LineString>",
-            "    </Placemark>",
-        ]
+        lines += _kml_path(observations)
     lines += ["  </Document>", "</kml>", ""]
     return "\n".join(lines)
 

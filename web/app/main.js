@@ -126,6 +126,14 @@ function wireControls() {
  * Runs on a normal start AND after unlock -- starting locked used to skip
  * this, leaving `state.config` null and the auto-refresh timer never created.
  */
+function applyResumeFilters(resume) {
+  if (!resume) return;
+  state.deviceFilter = resume.deviceFilter;
+  state.movementOnly = resume.movementOnly;
+  $("device-filter").value = resume.deviceFilter || "";
+  $("toggle-movement").checked = resume.movementOnly;
+}
+
 export async function bootDashboard(resume) {
   // A lock (state.js's lockGeneration, bumped by lock.js's showLock()) that
   // fires mid-boot must stop this call from writing any more DOM or state:
@@ -150,12 +158,7 @@ export async function bootDashboard(resume) {
   await setDefaultView().catch(() => {});
   if (stale()) return;
 
-  if (resume) {
-    state.deviceFilter = resume.deviceFilter;
-    state.movementOnly = resume.movementOnly;
-    $("device-filter").value = resume.deviceFilter || "";
-    $("toggle-movement").checked = resume.movementOnly;
-  }
+  applyResumeFilters(resume);
 
   await loadStatus();
   if (stale()) return;

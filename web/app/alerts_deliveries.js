@@ -226,6 +226,9 @@ export function renderDeliveriesTable(deliveries, labelMap = {}) {
   if (!tbody) return;
   while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
   deliveries.forEach((delivery) => tbody.appendChild(buildDeliveryRow(delivery, labelMap)));
+  // UAT #5: a bare heading over an empty table read as "still loading".
+  const empty = $("fp-deliveries-empty");
+  if (empty) empty.hidden = deliveries.length > 0;
 }
 
 /** The account's saved Telegram target labels as `{id: label}` -- targetCell()

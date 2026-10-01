@@ -456,7 +456,9 @@
       "errorNotConnected": "{channel} isn't connected.",
       "errorGeneric": "Couldn't deliver to {channel}.",
       "skippedReason": "Skipped: {reason}"
-    }
+    },
+    "deliveriesEmpty": "No alerts have been sent yet. Each one that fires appears here.",
+    "rulesEmpty": "No rules yet. Use Add rule to be told when a tracker arrives or leaves a place."
   },
   "settings": {
     "title": "Settings",

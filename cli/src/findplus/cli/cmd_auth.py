@@ -122,6 +122,13 @@ def _sign_out(provider: str, settings) -> None:
     "lock, in a Find+ Chrome window.",
 )
 @click.option(
+    "--helper/--no-helper",
+    "use_helper",
+    default=None,
+    help="Google: sign in through the Find+ helper in your own Chrome (the default in a "
+    "terminal when the service is running), or skip it and use the separate window.",
+)
+@click.option(
     "--provider",
     type=click.Choice(["google-find-hub", "apple-find-my"]),
     default="google-find-hub",
@@ -134,6 +141,7 @@ def auth(
     sign_out_flag: bool,
     use_token: bool,
     do_unlock: bool,
+    use_helper: bool | None,
 ) -> None:
     """Sign in to a provider (Google via Chrome, or Apple interactively)."""
     # _prep() first: build_auth_status() reads settings and the secrets store,
@@ -164,6 +172,14 @@ def auth(
 
         auth_google_token(settings)
         return
+    # Helper route first, like the dashboard. Automatic only on a terminal, so
+    # scripts and tests keep the old behaviour; --helper forces it.
+    wanted = sys.stdin.isatty() if use_helper is None else use_helper
+    if wanted:
+        from .cmd_auth_helper import auth_google_helper
+
+        if auth_google_helper(settings):
+            return
     _auth_google_automated(provider, settings)
 
 

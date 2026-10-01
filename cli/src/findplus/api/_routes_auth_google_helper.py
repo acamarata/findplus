@@ -72,7 +72,12 @@ def _open(request: Request, path: str, kind: str) -> dict[str, Any]:
         browser = open_sign_in_page(_begin_url(request, path, state))
     except BrowserOpenError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from None
-    return {"browser": browser, "generation": helper_state.signin_generation()}
+    # `url` lets the CLI print the begin address when no browser could be raised.
+    return {
+        "browser": browser,
+        "generation": helper_state.signin_generation(),
+        "url": _begin_url(request, path, state),
+    }
 
 
 def helper_begin(request: Request) -> dict[str, Any]:

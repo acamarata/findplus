@@ -151,7 +151,6 @@ bake_installer_version() {
 
 print_instructions() {
   echo "Release $VERSION built locally. To finish:"
-  echo "  $TWINE upload dist/*"
   echo "  gh release create v${VERSION} dist/*.whl dist/*.tar.gz install.sh packaging/scripts/update-app.sh FindPlus-${VERSION}-*.dmg FindPlus-${VERSION}-*.dmg.sha256 --draft"
 }
 

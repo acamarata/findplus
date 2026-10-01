@@ -23,6 +23,10 @@ Versioning: [Semantic Versioning](https://semver.org/).
   (`packaging/scripts/build-chrome-helper.sh`), a listing kit and privacy policy, and a
   generated icon and promo tile.
 
+### Added (update)
+- `update-app.sh` (a release asset): update the macOS app while it is running. It quits Find+ and its
+  daemon, verifies the dmg checksum, swaps the app and starts it again; your data is untouched.
+
 ### Fixed
 - After you unlock encrypted locations or sign in, Find+ now polls straight away and clears its
   retry delay. Before, the dashboard stayed empty for up to ten minutes after a successful unlock.

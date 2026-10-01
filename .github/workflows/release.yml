@@ -244,6 +244,7 @@ jobs:
             dist/*.whl
             dist/*.tar.gz
             install.sh
+            packaging/scripts/update-app.sh
             FindPlus-*.dmg
             FindPlus-*.dmg.sha256
           draft: true

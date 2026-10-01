@@ -77,6 +77,12 @@ from [Releases](https://github.com/acamarata/findplus/releases). There is no
 Intel build of the app; on an Intel Mac use Homebrew or the curl installer and
 open the dashboard in your browser.
 
+**Update the macOS app** (works while Find+ is running; keeps your history and settings):
+
+```bash
+curl -fsSL https://github.com/acamarata/findplus/releases/latest/download/update-app.sh | bash
+```
+
 ## First run
 
 ```bash

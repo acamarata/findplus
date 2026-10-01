@@ -34,6 +34,8 @@ export class AppleFlow extends FlowBase {
     card.button.addEventListener("click", () => this.start());
     card.verify.addEventListener("click", () => this.submitCode());
     card.retry.addEventListener("click", () => this.restart());
+    card.codeRestart.addEventListener("click", () => this.restart());
+    card.code.addEventListener("keydown", (e) => { if (e.key === "Enter") this.submitCode(); });
     card.change.addEventListener("click", () => this.restart());
     card.disconnect.addEventListener("click", () => this.showDisconnectConfirm());
     card.disconnectConfirm.cancel.addEventListener("click", () => this.hideDisconnectConfirm());
@@ -165,8 +167,9 @@ export class AppleFlow extends FlowBase {
   }
 
   async submitCode() {
-    const code = this.card.code.value.trim();
+    const code = this.card.code.value.replace(/\s+/g, "");
     if (!code) return this.showError(t("signin.apple.missingCode"));
+    if (!/^\d{6}$/.test(code)) return this.showError(t("signin.apple.badFormat"));
     this.card.code.value = "";
     this.showBusy(t("signin.apple.checking"));
     this.card.verify.disabled = true;

@@ -1,0 +1,34 @@
+/*
+ * Sign-in cards: action-needed states.
+ *
+ * Purpose    : UAT #22. "Google signed Find+ out" looked exactly like "Not signed
+ *              in". The card now carries `data-attention` ("reauth" or "unlock")
+ *              and these rules give it a visible edge, a boxed notice and one
+ *              button. Kept apart from setup.css, which is at its line cap.
+ * Inputs     : `.fp-signin-card[data-attention]`, `.fp-signin-attention`,
+ *              `.fp-signin-ready`, `.fp-signin-code-actions` (cards.js and
+ *              google_card_notices.js).
+ * Constraints: Colour is never the only signal: the notice has a title and a
+ *              button, and the account line says what is wrong in words.
+ */
+
+.fp-signin-card[data-attention="reauth"] { border-color: var(--err); }
+.fp-signin-card[data-attention="unlock"] { border-color: var(--warn); }
+.fp-signin-card[data-attention="reauth"] .fp-signin-account { color: var(--err); font-weight: 600; }
+.fp-signin-card[data-attention="unlock"] .fp-signin-account { font-weight: 600; }
+
+.fp-signin-attention {
+  display: flex; flex-direction: column; gap: 8px;
+  border: 1px solid var(--err); border-radius: 8px; padding: 12px;
+  background: color-mix(in srgb, var(--err) 8%, transparent);
+}
+.fp-signin-attention-title { font-weight: 650; color: var(--err); }
+
+/* While Google needs a fresh sign-in, the attention box owns the one button. */
+.fp-signin-card[data-attention="reauth"] .fp-signin-hello > .fp-signin-actions,
+.fp-signin-card[data-attention="reauth"] .fp-signin-install { display: none; }
+
+.fp-signin-ready { color: var(--ok); font-weight: 600; }
+
+.fp-signin-code-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.fp-signin-code { letter-spacing: .3em; font-variant-numeric: tabular-nums; max-width: 12ch; }

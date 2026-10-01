@@ -22,6 +22,7 @@
 
 import { t } from "../i18n.js";
 import { loadIconSprite } from "../icon_sprite.js";
+import { buildNotices } from "./google_card_notices.js";
 import {
   CHROME_URL, button, card, chromeNoticeText, disconnectConfirmRow, el, feedback, field, head,
 } from "./cards.js";
@@ -204,6 +205,7 @@ export function buildGoogleCard({ prefix, level, notices, withNotices }) {
   disconnectRow.append(disconnect);
   const disconnectConfirm = disconnectConfirmRow(prefix, "google", t("signin.google.disconnectConfirm"));
   const unlock = unlockBlock(prefix);
+  const states = buildNotices(prefix);
 
   // "Other ways to sign in": the paste flow and the separate-window flow, in a
   // native <details> so it collapses with no inline handler (CSP-safe).
@@ -223,11 +225,11 @@ export function buildGoogleCard({ prefix, level, notices, withNotices }) {
   const chrome = chromeBlock(prefix, notices);
   other.append(summary, openRow, panel.tokenPanel, alt, fb.progress, fb.error, chrome.chrome);
 
-  root.append(top.wrap, how, hello.helloBlock, disconnectRow, disconnectConfirm.row,
-    unlock.unlock, other);
+  root.append(top.wrap, states.revoked, how, hello.helloBlock, states.switchHint, states.ready,
+    disconnectRow, disconnectConfirm.row, unlock.unlock, other);
   if (withNotices) root.append(el("p", "fp-wizard-footnote", notices.find_hub || ""));
   return {
     root, account: top.account, open, button: signin, disconnect, disconnectConfirm, other,
-    ...hello, ...unlock, ...panel, ...fb, ...chrome,
+    ...hello, ...unlock, ...panel, ...fb, ...chrome, ...states,
   };
 }

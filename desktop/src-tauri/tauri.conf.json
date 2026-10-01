@@ -23,7 +23,8 @@
       "binaries/findplus-daemon"
     ],
     "resources": [
-      "resources/findplus-daemon/**/*"
+      "resources/findplus-daemon/**/*",
+      "notices/THIRD-PARTY-NOTICES.txt"
     ],
     "icon": [
       "icons/32x32.png",

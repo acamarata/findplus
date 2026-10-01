@@ -65,9 +65,10 @@ export class GoogleFlow extends FlowBase {
   /** One GET /api/auth/status entry (or undefined) onto the card. */
   render(provider) {
     this.signedIn = !!(provider && provider.signed_in);
+    const revoked = !this.signedIn && ((provider && provider.needs) || []).includes("reauth");
     this.card.account.textContent = this.signedIn
       ? t("signin.account.signedIn", { account: provider.account })
-      : t("signin.account.signedOut");
+      : t(revoked ? "signin.account.revoked" : "signin.account.signedOut");
     this.card.disconnect.hidden = !this.signedIn;
     if (!this.signedIn) this.hideDisconnectConfirm();
     this.helperFlow.render(provider);

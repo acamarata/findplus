@@ -89,6 +89,10 @@ def ensure_gfmt_importable() -> Path:
         token_cache.set_cached_value = _set_and_harden
 
         install_vendor_guards()
+        with contextlib.suppress(Exception):
+            from .revoked import install_oauth_probe
+
+            install_oauth_probe()
 
         _ready = True
         return vendor_path
@@ -170,6 +174,11 @@ def _read_store() -> dict[str, object] | None:
     return data if isinstance(data, dict) else None
 
 
+def is_session_revoked() -> bool:
+    """True when Google refused the saved login (revoked.py set the mark)."""
+    return bool((_read_store() or {}).get("auth_revoked"))
+
+
 def has_google_session() -> bool:
     """True only when the store holds a Google session: an `aas_token` AND a username.
 
@@ -181,6 +190,8 @@ def has_google_session() -> bool:
     in" with no account.
     """
     data = _read_store() or {}
+    if data.get("auth_revoked"):
+        return False  # Google refused the saved login; see revoked.py
     return bool(data.get("aas_token")) and bool(data.get("username"))
 
 

@@ -153,7 +153,7 @@ function buildPlacePopup(place) {
 export async function editPlace(id) {
   const place = placesById.get(String(id));
   if (!place) return;
-  openEditDialog(id, place);
+  openEditDialog(id, place, await countPlaceRules(id));
 }
 
 /** How many alert rules point at this place, so the delete confirm can say

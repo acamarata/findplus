@@ -88,7 +88,12 @@ function buildPlaceFields() {
   const where = document.createElement("p");
   where.className = "fp-field-hint";
   where.id = "fp-place-where";
-  return { title, name, lat, lon, radius, color, enter, exit, radiusNumber, error, where };
+  // Edit only: how many alert rules lean on this place (set by showUsage()).
+  const usage = document.createElement("p");
+  usage.className = "fp-field-hint fp-place-usage";
+  usage.id = "fp-place-usage";
+  usage.hidden = true;
+  return { title, name, lat, lon, radius, color, enter, exit, radiusNumber, error, where, usage };
 }
 
 function radiusRow(f) {
@@ -97,8 +102,36 @@ function radiusRow(f) {
   label.textContent = t("places.radiusLabel");
   const wrap = document.createElement("div");
   wrap.className = "fp-dialog-field";
+  const hint = document.createElement("p");
+  hint.className = "fp-field-hint";
+  hint.id = "fp-place-radius-hint";
+  hint.textContent = t("places.radiusHint");
+  f.radius.setAttribute("aria-describedby", hint.id);
   wrap.append(label, f.radius, f.radiusNumber);
-  return wrap;
+  const group = document.createElement("div");
+  group.append(wrap, hint);
+  return group;
+}
+
+/**
+ * UAT7-N12: the slider and the number box stay in sync both ways. Setting a
+ * range input's `.value` clamps it to its own min/max for free, so the slider
+ * is always valid; the number box is only clamped back on `change` (blur or
+ * Enter) so a value mid-typed (e.g. "5" on the way to "500") is not fought
+ * keystroke by keystroke. `onPreview` redraws the live circle on the map.
+ */
+export function wireRadius(f, onPreview) {
+  f.radius.addEventListener("input", () => {
+    f.radiusNumber.value = f.radius.value;
+    onPreview();
+  });
+  f.radiusNumber.addEventListener("input", () => {
+    f.radius.value = f.radiusNumber.value;
+    onPreview();
+  });
+  f.radiusNumber.addEventListener("change", () => {
+    f.radiusNumber.value = f.radius.value;
+  });
 }
 
 /** Assemble the <dialog>/<form> around the built fields, leaving the locator
@@ -124,6 +157,7 @@ export function buildDialog({ onSave, onCancel }) {
     locatorHost,
     f.where,
     radiusRow(f),
+    f.usage,
     colorGroup,
     labeled(t("places.enterConfirmations"), f.enter, f.enter.id),
     labeled(t("places.exitConfirmations"), f.exit, f.exit.id),

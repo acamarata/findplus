@@ -27,8 +27,8 @@ import { createColorPicker } from "./components/color-picker.js";
 import { createPlaceLocator } from "./components/place_locator.js";
 import { startMapPick } from "./components/place_map_pick.js";
 import { duplicateNameMessage, placeValidationMessage } from "./dialog_errors.js";
-import { buildDialog } from "./places_dialog_dom.js";
-import { showWhere, clearWhere } from "./places_dialog_where.js";
+import { buildDialog, wireRadius } from "./places_dialog_dom.js";
+import { showWhere, clearWhere, showUsage } from "./places_dialog_where.js";
 
 // N26: a same-default-blue place after another already existed made a new
 // one hard to tell apart on the map circles' colour alone; showAddDialog()
@@ -78,22 +78,7 @@ function ensureDialog() {
     customLabel: t("places.field.customColor"),
   });
 
-  // UAT7-N12: the slider and the number box stay in sync both ways. Setting
-  // a range input's `.value` clamps it to its own min/max for free, so the
-  // slider is always valid; the number box is only clamped back on `change`
-  // (blur/Enter) so a value mid-typed (e.g. "5" on the way to "500") is not
-  // fought keystroke by keystroke.
-  f.radius.addEventListener("input", () => {
-    f.radiusNumber.value = f.radius.value;
-    updatePreviewCircle();
-  });
-  f.radiusNumber.addEventListener("input", () => {
-    f.radius.value = f.radiusNumber.value;
-    updatePreviewCircle();
-  });
-  f.radiusNumber.addEventListener("change", () => {
-    f.radiusNumber.value = f.radius.value;
-  });
+  wireRadius(f, updatePreviewCircle);
   dlg.addEventListener("close", removePreviewCircle);
 
   return dlg;
@@ -178,7 +163,7 @@ function removePreviewCircle() {
   }
 }
 
-function fillDialog(mode, id, place, latlng, existingCount) {
+function fillDialog(mode, id, place, latlng, existingCount, ruleCount = 0) {
   const dlg = ensureDialog();
   dlg.dataset.mode = mode;
   if (mode === "edit") dlg.dataset.editId = String(id);
@@ -198,6 +183,7 @@ function fillDialog(mode, id, place, latlng, existingCount) {
   fields.exit.value = place ? String(place.exit_confirmations) : DEFAULT_EXIT_CONFIRMATIONS;
   fields.error.textContent = "";
   showWhere(fields.where, mode === "edit" ? "current" : "centre", latlng.lat, latlng.lng);
+  showUsage(fields.usage, mode === "edit" ? ruleCount : 0);
   locator.refreshTrackers();
   locator.reset();
   drawPreview(latlng, radius);
@@ -213,8 +199,8 @@ export function showAddDialog(latlng, existingCount = 0) {
 }
 
 /** places.js's editPlace() looks the place up (it owns the registry) and hands it here. */
-export function openEditDialog(id, place) {
-  fillDialog("edit", id, place, { lat: place.latitude, lng: place.longitude }, 0);
+export function openEditDialog(id, place, ruleCount = 0) {
+  fillDialog("edit", id, place, { lat: place.latitude, lng: place.longitude }, 0, ruleCount);
 }
 
 async function onSave() {
@@ -279,6 +265,7 @@ function clearDialogFields() {
   fields.exit.value = DEFAULT_EXIT_CONFIRMATIONS;
   fields.error.textContent = "";
   clearWhere(fields.where);
+  showUsage(fields.usage, 0);
   if (colorPicker) colorPicker.setValue(PLACE_PALETTE[0]);
   if (locator) locator.reset();
   if (dialogEl) {

@@ -298,12 +298,13 @@
     },
     "events": {
       "heading": "Recent arrivals and departures",
-      "empty": "No arrivals or departures yet.",
+      "empty": "No arrivals or departures yet. One appears here when a tracker crosses the edge of a place.",
       "showMore": "Show more",
       "entered": "entered",
       "left": "left",
       "deviceLine": "{device} {verb} {place}",
-      "groupLine": "{group}: {note}"
+      "groupLine": "{group}: {note}",
+      "loadFailed": "Could not load recent arrivals and departures"
     },
     "search": {
       "label": "Address search",
@@ -315,7 +316,13 @@
     },
     "list": {
       "radiusMeta": "{radius} m radius",
-      "whoIsHere": "Currently here: {names}"
+      "whoIsHere": "Currently here: {names}",
+      "coords": "{lat}, {lon}",
+      "rules": {
+        "one": "1 alert rule",
+        "other": "{count} alert rules"
+      },
+      "noRules": "no alert rules"
     },
     "card": {
       "edit": "Edit {name}",
@@ -326,7 +333,23 @@
       "current": "Location: {lat}, {lon}.",
       "picked": "Location: {lat}, {lon}, as chosen above."
     },
-    "loadFailedTitle": "Could not load your places"
+    "loadFailedTitle": "Could not load your places",
+    "tools": {
+      "searchPlaceholder": "Search places",
+      "searchLabel": "Search your places by name",
+      "sortLabel": "Sort places",
+      "sort": {
+        "name": "A to Z",
+        "newest": "Newest first",
+        "radius": "Biggest first"
+      },
+      "noMatch": "No place matches \"{query}\"."
+    },
+    "radiusHint": "The circle on the map shows this size. Find Hub locations can be off by tens of metres, so a very small place may report late.",
+    "usage": {
+      "one": "1 alert rule uses this place. Changes apply to it right away.",
+      "other": "{count} alert rules use this place. Changes apply to them right away."
+    }
   },
   "alerts": {
     "telegramHeading": "Telegram",

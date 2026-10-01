@@ -22,8 +22,6 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - Groundwork to publish the helper on the Chrome Web Store: a keyless store-zip build
   (`packaging/scripts/build-chrome-helper.sh`), a listing kit and privacy policy, and a
   generated icon and promo tile.
-
-### Added (update)
 - `update-app.sh` (a release asset): update the macOS app while it is running. It quits Find+ and its
   daemon, verifies the dmg checksum, swaps the app and starts it again; your data is untouched.
 

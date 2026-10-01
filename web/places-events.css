@@ -174,3 +174,14 @@
 .fp-places-tools[hidden] { display: none; }
 .fp-places-tools input[type="search"] { flex: 1 1 auto; min-width: 0; }
 .fp-places-tools select { flex: 0 0 auto; max-width: 45%; }
+
+/* --- Places list: a place that messages nobody says so -------------------- */
+.fp-place-card {
+  grid-template-areas: "dot name edit del" ". meta meta meta" ". who who who" ". notify notify notify";
+}
+.fp-place-card > .fp-place-notify { grid-area: notify; }
+.fp-place-notify {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+  font-size: 12px; font-weight: 600; color: var(--text);
+}
+.fp-place-notify:empty { display: none; }

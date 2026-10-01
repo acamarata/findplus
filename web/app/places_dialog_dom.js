@@ -89,11 +89,16 @@ function buildPlaceFields() {
   where.className = "fp-field-hint";
   where.id = "fp-place-where";
   // Edit only: how many alert rules lean on this place (set by showUsage()).
+  // A radius under the recommended minimum says why that is a bad idea.
+  const radiusWarn = document.createElement("p");
+  radiusWarn.className = "fp-field-hint fp-radius-warn";
+  radiusWarn.id = "fp-place-radius-warn";
+  radiusWarn.hidden = true;
   const usage = document.createElement("p");
   usage.className = "fp-field-hint fp-place-usage";
   usage.id = "fp-place-usage";
   usage.hidden = true;
-  return { title, name, lat, lon, radius, color, enter, exit, radiusNumber, error, where, usage };
+  return { title, name, lat, lon, radius, color, enter, exit, radiusNumber, error, where, usage, radiusWarn };
 }
 
 function radiusRow(f) {
@@ -109,8 +114,19 @@ function radiusRow(f) {
   f.radius.setAttribute("aria-describedby", hint.id);
   wrap.append(label, f.radius, f.radiusNumber);
   const group = document.createElement("div");
-  group.append(wrap, hint);
+  group.append(wrap, hint, f.radiusWarn);
   return group;
+}
+
+/** Smallest radius Find+ recommends (mirrors places/geofence.py's
+ *  RECOMMENDED_MIN_RADIUS_METERS; a test pins the two together). */
+export const RECOMMENDED_MIN_RADIUS = 100;
+
+/** Show the "too small" reason while the radius is under the recommended minimum. */
+export function updateRadiusWarning(f) {
+  const small = Number(f.radius.value) < RECOMMENDED_MIN_RADIUS;
+  f.radiusWarn.hidden = !small;
+  f.radiusWarn.textContent = small ? t("places.radiusSmall", { min: RECOMMENDED_MIN_RADIUS }) : "";
 }
 
 /**
@@ -121,13 +137,17 @@ function radiusRow(f) {
  * keystroke by keystroke. `onPreview` redraws the live circle on the map.
  */
 export function wireRadius(f, onPreview) {
+  const changed = () => {
+    updateRadiusWarning(f);
+    onPreview();
+  };
   f.radius.addEventListener("input", () => {
     f.radiusNumber.value = f.radius.value;
-    onPreview();
+    changed();
   });
   f.radiusNumber.addEventListener("input", () => {
     f.radius.value = f.radiusNumber.value;
-    onPreview();
+    changed();
   });
   f.radiusNumber.addEventListener("change", () => {
     f.radiusNumber.value = f.radius.value;

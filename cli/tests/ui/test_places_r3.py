@@ -36,6 +36,10 @@ async def _add_place(page, base_url, name, radius=100, lat=40.0, lon=-74.0):
     return (await res.json())["id"]
 
 
+async def card_text(page, pid):
+    return await page.locator(f'[data-place-id="{pid}"]').inner_text()
+
+
 async def _drop_places(page, base_url, ids):
     for pid in ids:
         await page.request.delete(f"{base_url}/api/places/{pid}")
@@ -147,7 +151,7 @@ async def test_card_shows_coordinates_and_rule_count(page, base_url):
         meta = page.locator(f'[data-place-id="{pid}"] .fp-place-card-meta')
         text = await meta.inner_text()
         assert "120 m radius" in text and "40.5000, -74.2500" in text
-        assert "no alert rules" in text
+        assert "Not notifying anyone yet" in await card_text(page, pid)
     finally:
         await _drop_places(page, base_url, [pid])
 
@@ -195,3 +199,28 @@ async def test_radius_hint_is_attached_to_the_slider(page, base_url):
         await page.get_attribute("#fp-place-radius", "aria-describedby") == "fp-place-radius-hint"
     )
     assert "Find Hub" in await page.locator("#fp-place-radius-hint").inner_text()
+
+
+async def test_small_radius_says_why_it_is_a_poor_choice(page, base_url):
+    await _open_places(page, base_url)
+    await page.click("#fp-add-place-btn")
+    await page.wait_for_selector("#fp-place-dialog[open]")
+    warn = page.locator("#fp-place-radius-warn")
+    assert await warn.is_hidden()  # the default is 200 m
+    await page.fill("#fp-place-radius-number", "60")
+    await warn.wait_for(state="visible")
+    text = await warn.inner_text()
+    assert "Under 100 m" in text and "late" in text
+    await page.fill("#fp-place-radius-number", "150")
+    assert await warn.is_hidden()
+
+
+async def test_ui_and_engine_agree_on_the_recommended_minimum_radius():
+    import re
+    from pathlib import Path
+
+    from findplus.places.geofence import RECOMMENDED_MIN_RADIUS_METERS
+
+    dom = Path(__file__).resolve().parents[3] / "web" / "app" / "places_dialog_dom.js"
+    match = re.search(r"RECOMMENDED_MIN_RADIUS = (\d+);", dom.read_text(encoding="utf-8"))
+    assert match and int(match.group(1)) == RECOMMENDED_MIN_RADIUS_METERS

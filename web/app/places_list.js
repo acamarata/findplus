@@ -23,7 +23,7 @@
 import { api } from "./api.js";
 import { t, plural } from "./i18n.js";
 import { uniqueLabel } from "./device_label.js";
-import { editPlace, deletePlace, centerOnPlace, refreshAll } from "./places.js";
+import { editPlace, deletePlace, centerOnPlace, refreshAll, offerRuleFor } from "./places.js";
 import { paneError } from "./pane_error.js";
 import { activeQuery, applyTools, buildTools, reset as resetTools, toolsVisible } from "./places_list_tools.js";
 
@@ -66,14 +66,25 @@ function onCardClick(event, place) {
   centerOnPlace(place.id);
 }
 
-/** "200 m radius · 41.1000, -80.1000 · 2 alert rules": everything a place is, in one line. */
+/** "200 m radius · 41.1000, -80.1000 · 2 alert rules": everything a place is, in one line.
+ * A place with no rule says so, with a button: it messages nobody on its own. */
 function metaText(place, ruleCount) {
-  const rules = ruleCount > 0 ? plural("places.list.rules", ruleCount, { count: ruleCount }) : t("places.list.noRules");
-  return [
+  const parts = [
     t("places.list.radiusMeta", { radius: place.radius_meters }),
     t("places.list.coords", { lat: place.latitude.toFixed(4), lon: place.longitude.toFixed(4) }),
-    rules,
-  ].join(" · ");
+  ];
+  if (ruleCount > 0) parts.push(plural("places.list.rules", ruleCount, { count: ruleCount }));
+  return parts.join(" · ");
+}
+
+function notifyRow(place) {
+  const row = document.createElement("span");
+  row.className = "fp-place-notify";
+  const text = document.createElement("span");
+  text.textContent = t("places.list.notNotifying");
+  row.append(text, cardButton("btn btn-tiny fp-place-notify-btn", t("places.list.setUpAlert"),
+    t("places.list.setUpAlertFor", { name: place.name }), () => offerRuleFor(place.id)));
+  return row;
 }
 
 function renderCard(place, presenceByPlace, devicesById, ruleCount) {
@@ -103,6 +114,7 @@ function renderCard(place, presenceByPlace, devicesById, ruleCount) {
     name,
     meta,
     who,
+    ...(ruleCount === 0 ? [notifyRow(place)] : []),
     // V1: these had no button class at all (fully browser-default); devices.js's
     // own row-edit button is the precedent for this exact "btn btn-tiny" pairing.
     cardButton("fp-card-edit btn btn-tiny", t("common.edit"), t("places.card.edit", { name: place.name }),

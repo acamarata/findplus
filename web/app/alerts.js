@@ -28,7 +28,8 @@ import {
   updateRuleTargetVisibility,
   updateTelegramTargetsVisibility,
 } from "./alerts_rules.js";
-import { loadDeliveries, purgeDeliveries } from "./alerts_deliveries.js";
+import { loadDeliveries, purgeDeliveries, wireDeliveryControls } from "./alerts_deliveries.js";
+import { wirePreview, resetPreview } from "./alerts_rule_preview.js";
 import {
   loadChannels,
   wireChannelControls,
@@ -77,6 +78,12 @@ function wireStaticControls() {
   wireChannelControls();
   $("fp-add-rule-btn").addEventListener("click", openAddRuleDialog);
   $("fp-rule-save").addEventListener("click", saveRule);
+  wirePreview();
+  // The rule dialog is also opened from the Places tab ("Add place" ends with
+  // it), where the Alerts pane is display:none and would swallow it: a dialog
+  // is only visible when no ancestor is hidden, so it lives on <body>.
+  document.body.appendChild($("fp-add-rule-dialog"));
+  wireDeliveryControls();
   $("fp-rule-cancel").addEventListener("click", () => $("fp-add-rule-dialog").close());
   $("fp-rule-target-device").addEventListener("change", updateRuleTargetVisibility);
   $("fp-rule-target-group").addEventListener("change", updateRuleTargetVisibility);
@@ -130,6 +137,11 @@ export function purge() {
   });
   const err = $("fp-rule-error");
   if (err) err.textContent = "";
+  resetPreview();
+  ["fp-rule-sentence", "fp-rule-missing", "fp-rule-group-note"].forEach((id) => {
+    const el = $(id);
+    if (el) el.textContent = "";
+  });
   const dlg = $("fp-add-rule-dialog");
   if (dlg && dlg.open) dlg.close();
 }

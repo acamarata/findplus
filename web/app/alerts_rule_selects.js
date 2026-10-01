@@ -79,8 +79,15 @@ function fillDeviceSelect(devices) {
   );
 }
 
+/** The groups the last open loaded, so the dialog can explain one's quorum. */
+let loadedGroups = [];
+export function groupById(id) {
+  return loadedGroups.find((g) => String(g.id) === String(id)) || null;
+}
+
 /** Same "nothing chosen by default" fix as fillDeviceSelect(), for the group target. */
 function fillGroupSelect(groups) {
+  loadedGroups = groups;
   fillOptions($("fp-rule-group"), [null, ...groups], (g) =>
     g === null ? ["", t("alerts.chooseGroup")] : [String(g.id), g.name],
   );

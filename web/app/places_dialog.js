@@ -27,7 +27,7 @@ import { createColorPicker } from "./components/color-picker.js";
 import { createPlaceLocator } from "./components/place_locator.js";
 import { startMapPick } from "./components/place_map_pick.js";
 import { duplicateNameMessage, placeValidationMessage } from "./dialog_errors.js";
-import { buildDialog, wireRadius } from "./places_dialog_dom.js";
+import { buildDialog, updateRadiusWarning, wireRadius } from "./places_dialog_dom.js";
 import { showWhere, clearWhere, showUsage } from "./places_dialog_where.js";
 
 // N26: a same-default-blue place after another already existed made a new
@@ -95,6 +95,7 @@ function applyPickedLocation({ latitude, longitude, radiusMeters }) {
   if (radiusMeters) {
     fields.radius.value = String(radiusMeters);
     fields.radiusNumber.value = fields.radius.value;
+    updateRadiusWarning(fields);
   }
   map.setView([latitude, longitude], Math.max(map.getZoom(), 15));
   drawPreview({ lat: latitude, lng: longitude }, Number(fields.radius.value));
@@ -176,6 +177,7 @@ function fillDialog(mode, id, place, latlng, existingCount, ruleCount = 0) {
   const radius = place ? place.radius_meters : Number(DEFAULT_RADIUS);
   fields.radius.value = String(radius);
   fields.radiusNumber.value = String(radius);
+  updateRadiusWarning(fields);
   const color = place ? place.color : PLACE_PALETTE[(existingCount || 0) % PLACE_PALETTE.length];
   fields.color.value = color;
   colorPicker.setValue(color);
@@ -225,13 +227,13 @@ async function onSave() {
   };
   const opts = { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
   try {
-    if (dlg.dataset.mode === "edit") {
-      await api(`/api/places/${dlg.dataset.editId}`, { ...opts, method: "PUT" });
-    } else {
-      await api("/api/places", { ...opts, method: "POST" });
-    }
+    const editing = dlg.dataset.mode === "edit";
+    const saved = editing
+      ? await api(`/api/places/${dlg.dataset.editId}`, { ...opts, method: "PUT" })
+      : await api("/api/places", { ...opts, method: "POST" });
     dlg.close();
-    if (onSaved) await onSaved();
+    // A new place also gets the "who should be told" step (places.js).
+    if (onSaved) await onSaved(saved, editing ? "edit" : "add");
   } catch (err) {
     // api() shows the lock screen for a 401; N16 maps a remaining 422 (a
     // range check `reportValidity()` cannot catch, e.g. radius_meters) to a

@@ -322,7 +322,10 @@
         "one": "1 alert rule",
         "other": "{count} alert rules"
       },
-      "noRules": "no alert rules"
+      "noRules": "no alert rules",
+      "notNotifying": "Not notifying anyone yet",
+      "setUpAlert": "Set up an alert",
+      "setUpAlertFor": "Set up an alert for {name}"
     },
     "card": {
       "edit": "Edit {name}",
@@ -349,14 +352,15 @@
     "usage": {
       "one": "1 alert rule uses this place. Changes apply to it right away.",
       "other": "{count} alert rules use this place. Changes apply to them right away."
-    }
+    },
+    "radiusSmall": "Under {min} m is smaller than Find Hub locations can reliably tell apart. A tracker here may report late, and alerts for this place may be missed."
   },
   "alerts": {
     "telegramHeading": "Telegram",
     "webhookHeading": "Webhook",
     "botToken": "Bot token",
     "connect": "Connect",
-    "sendTest": "Send test",
+    "sendTest": "Send a test message now",
     "url": "URL",
     "urlPlaceholder": "https://example.com/hook",
     "secret": "Secret",
@@ -418,7 +422,7 @@
     "skippedNoReason": "suppressed, no reason recorded",
     "retryingStatus": "Retrying (attempt {attempt} of {max}, next at {time})",
     "failedAfterRetries": "Failed after {max} attempts",
-    "channelNotConnected": "{channel} (not connected: close this and connect it in the sections above the rules)",
+    "channelNotConnected": "{channel} (not connected)",
     "badBotTokenError": "That doesn't look like a bot token. Get one from @BotFather in Telegram.",
     "colEnabled": "Enabled",
     "editRule": "Edit rule",
@@ -468,7 +472,7 @@
       "phonePlaceholder": "+1 555 555 0123",
       "apikey": "API key",
       "save": "Save",
-      "test": "Send test",
+      "test": "Send a test message now",
       "clear": "Clear",
       "connected": "Connected: {phone}",
       "enterPhone": "Enter a phone number first.",
@@ -497,7 +501,87 @@
       "skippedReason": "Skipped: {reason}"
     },
     "deliveriesEmpty": "No alerts have been sent yet. Each one that fires appears here.",
-    "rulesEmpty": "No rules yet. Use Add rule to be told when a tracker arrives or leaves a place."
+    "rulesEmpty": "No rules yet. A place does not message you on its own: add a rule to be told when a tracker arrives at or leaves it.",
+    "sentence": {
+      "withChannel": "Tell me on {channels} when {who} {events} {place}.",
+      "noChannel": "Tell me when {who} {events} {place}.",
+      "aTracker": "a tracker",
+      "aGroup": "a group",
+      "aPlace": "a place",
+      "arrives": "arrives at",
+      "leaves": "leaves",
+      "arrivesOrLeaves": "arrives at or leaves",
+      "noEvent": "arrives at or leaves (choose which)",
+      "stillNeeded": "To save, still needed: {items}.",
+      "needName": "a name",
+      "needTracker": "a tracker to watch",
+      "needGroup": "a group to watch",
+      "needEvent": "arrives, leaves or both",
+      "needChannel": "a channel to send to",
+      "needPlace": "a place"
+    },
+    "groupNote": {
+      "intro": "A group counts as arriving or leaving when {rule}.",
+      "any": "any one member does",
+      "majority": "most of its members do",
+      "all": "every member does",
+      "count": "{count} members do",
+      "stale": "A member with no fix in the last {minutes} minutes is left out of the count, so a silent tracker never counts as left behind."
+    },
+    "ruleChannelsNone": "No channel is connected yet, so a rule has nowhere to send. Connect Telegram, a webhook or WhatsApp first.",
+    "ruleChannelsConnect": "Connect a channel",
+    "ruleChannelsDisabled": "Greyed out channels are not connected yet.",
+    "ruleIntroAfterPlace": "{place} is saved. A place does not tell you anything on its own: choose who to watch and where to send the message.",
+    "ruleSkip": "Skip for now",
+    "dryRun": {
+      "button": "Show what this would have sent in the last 24 hours",
+      "needTarget": "Choose a tracker or a group first.",
+      "running": "Checking the last 24 hours...",
+      "failed": "Could not check: {error}",
+      "none": "Nothing matched in the last 24 hours. That is normal if nobody crossed the edge of the place; it does not mean the rule is broken.",
+      "summary": {
+        "one": "1 message would have been sent in the last 24 hours.",
+        "other": "{count} messages would have been sent in the last 24 hours."
+      },
+      "held": "held back by the cooldown",
+      "basis": "Based on the arrivals and departures Find+ recorded, not on a live check of the channel."
+    },
+    "ruleTest": {
+      "button": "Send a test message now",
+      "none": "Tick a connected channel first.",
+      "running": "Sending...",
+      "sent": "{channel}: sent.",
+      "failed": "{channel}: not sent ({error}).",
+      "native": "Desktop notifications cannot be tested from here."
+    },
+    "webhookTestNeedsSave": "Save a webhook URL first.",
+    "summary": {
+      "heading": "Where alerts go",
+      "rules": {
+        "one": "1 rule",
+        "other": "{count} rules"
+      },
+      "connected": "{channel}: connected",
+      "notConnected": "{channel}: not connected",
+      "jumpRules": "Rules",
+      "jumpLog": "Delivery log"
+    },
+    "filters": {
+      "statusLabel": "Show deliveries with this status",
+      "channelLabel": "Show deliveries for this channel",
+      "anyStatus": "Any status",
+      "anyChannel": "Any channel",
+      "clear": "Clear filters"
+    },
+    "deliveriesNoMatch": "No deliveries match these filters.",
+    "deliveriesShowing": "Showing {shown} of {total}.",
+    "deliveriesMore": "Show more",
+    "telegramSteps": {
+      "one": "In Telegram, message @BotFather, create a bot and copy its token.",
+      "two": "Paste the token below and press Connect.",
+      "three": "Within two minutes, send your new bot any message. Find+ then connects to that chat.",
+      "four": "To also tell other people or groups, add the bot to them and use Find chat IDs."
+    }
   },
   "settings": {
     "title": "Settings",

@@ -98,7 +98,22 @@
   },
   "field": {
     "customColor": "Custom color",
-    "telegramToken": "Telegram bot token"
+    "telegramToken": "Telegram bot token",
+    "colorName": {
+      "blue": "Blue",
+      "orange": "Orange",
+      "green": "Green",
+      "lilac": "Lilac",
+      "yellow": "Yellow",
+      "cyan": "Cyan",
+      "pink": "Pink",
+      "olive": "Olive",
+      "peach": "Peach",
+      "violet": "Violet",
+      "mint": "Mint",
+      "coral": "Coral"
+    },
+    "colorGroupLabel": "Colour choices"
   },
   "devices": {
     "title": "Your trackers",
@@ -194,7 +209,21 @@
     "add_button": "Add group",
     "card": {
       "edit": "Edit {name}",
-      "delete": "Delete {name}"
+      "delete": "Delete {name}",
+      "members": {
+        "one": "1 member",
+        "other": "{count} members"
+      },
+      "rule": {
+        "any": "alerts when any member arrives",
+        "majority": "alerts when most members arrive",
+        "all": "alerts when every member arrives",
+        "custom": "alerts when {n} members arrive"
+      },
+      "untracked": {
+        "one": "1 member is not tracked, so Find+ never checks it.",
+        "other": "{count} members are not tracked, so Find+ never checks them."
+      }
     },
     "confirm": {
       "delete": "Delete group \"{name}\"?",
@@ -220,7 +249,13 @@
       "count": {
         "one": "1 device",
         "other": "{count} devices"
-      }
+      },
+      "track_button": "Track this tracker",
+      "track_cost": "Adds about {rate} location requests an hour at your {interval}-minute interval.",
+      "track_cost_unknown": "Find+ will start asking for this tracker's location on every poll.",
+      "tracking": "Tracking…",
+      "track_failed": "Could not track {name}: {message}",
+      "untracked_note_track": "Find+ only checks tracked devices, so an untracked one would never show a location or send an alert as part of a group. Press Track this tracker to add it."
     },
     "verdictNoLocation": "No location yet",
     "verdictNoRecentLocation": "No recent location",
@@ -231,7 +266,12 @@
     "presenceFailedTitle": "Could not load this group's presence",
     "quorumRange": "Use a whole number from {min} to {max}.",
     "quorumTooHigh": "This group needs {n} members reporting, but only {members} are ticked, so it can never fire. Lower the number or tick more members.",
-    "staleBadgeUntracked": "{name}: not tracked, so Find+ is not polling it"
+    "staleBadgeUntracked": "{name}: not tracked, so Find+ is not polling it",
+    "quorumSentence": {
+      "one": "Alerts when {k} of {n} member reaches the same place. Members with no recent fix are not counted. Members are together when they are within {radius} m of each other.",
+      "other": "Alerts when {k} of {n} members reach the same place. Members with no recent fix are not counted. Members are together when they are within {radius} m of each other."
+    },
+    "quorumSentenceNone": "Tick members to see when this group alerts."
   },
   "icons": {
     "custom": {

@@ -17,6 +17,8 @@
  */
 "use strict";
 
+import { t } from "../i18n.js";
+
 const DEVICE_PALETTE = [
   "#4f8cf7",
   "#e7663f",
@@ -32,14 +34,23 @@ const DEVICE_PALETTE = [
   "#d65f5f",
 ];
 
-function paletteSwatch(hex) {
+//: Plain names for the palette, in the same order, so a screen reader hears "Blue"
+//: and not "#4f8cf7" (the hex stays in the tooltip for anyone who wants it).
+const COLOR_NAMES = [
+  "blue", "orange", "green", "lilac", "yellow", "cyan",
+  "pink", "olive", "peach", "violet", "mint", "coral",
+];
+
+function paletteSwatch(hex, index) {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "fp-color-swatch";
   btn.dataset.color = hex;
   btn.style.background = hex;
   btn.setAttribute("aria-pressed", "false");
-  btn.setAttribute("aria-label", hex);
+  const name = t(`field.colorName.${COLOR_NAMES[index]}`);
+  btn.setAttribute("aria-label", name);
+  btn.title = `${name} (${hex})`;
   return btn;
 }
 
@@ -54,12 +65,12 @@ function customInput(customLabel) {
   input.setAttribute("aria-label", customLabel);
   return input;
 }
-import { t } from "../i18n.js";
-
 export function createColorPicker(host, { value, onChange, customLabel = t("field.customColor") } = {}) {
   const root = document.createElement("div");
   root.className = "fp-color-picker";
-  for (const hex of DEVICE_PALETTE) root.appendChild(paletteSwatch(hex));
+  root.setAttribute("role", "group");
+  root.setAttribute("aria-label", t("field.colorGroupLabel"));
+  DEVICE_PALETTE.forEach((hex, index) => root.appendChild(paletteSwatch(hex, index)));
   const custom = customInput(customLabel);
   root.appendChild(custom);
   host.appendChild(root);

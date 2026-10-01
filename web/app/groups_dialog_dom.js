@@ -191,6 +191,13 @@ export function buildDialog({ onSave, onCancel }) {
   const radius = radiusRow();
   const stale = staleRow();
   const members = membersFieldset();
+  // The sentence that ties quorum, member count and radius together; kept live
+  // by groups_dialog_quorum.js so "Most members arrive" is never abstract.
+  const sentence = document.createElement("p");
+  sentence.id = "fp-group-quorum-sentence";
+  sentence.className = "fp-quorum-sentence";
+  sentence.setAttribute("role", "status");
+  sentence.setAttribute("aria-live", "polite");
 
   const error = document.createElement("p");
   error.className = "fp-dialog-error";
@@ -200,7 +207,7 @@ export function buildDialog({ onSave, onCancel }) {
 
   form.append(
     title, labeled(t("groups.field.name"), name, name.id), icon.wrap, color.wrap,
-    quorum.wrap, radius.wrap, stale.wrap, members.fieldset, error, footer,
+    quorum.wrap, radius.wrap, sentence, stale.wrap, members.fieldset, error, footer,
   );
   dlg.appendChild(form);
 
@@ -208,7 +215,7 @@ export function buildDialog({ onSave, onCancel }) {
     title, name, error,
     icon: iconValue, iconBtn: icon.btn, iconHost: icon.host,
     color: colorValue, colorBtn: color.btn, colorHost: color.host,
-    quorum: quorum.select, quorumN: quorum.n, quorumWarn: quorum.warn,
+    quorum: quorum.select, quorumN: quorum.n, quorumWarn: quorum.warn, quorumSentence: sentence,
     radius: radius.input, radiusOut: radius.out,
     stale: stale.input, members: members.fieldset, membersLegend: members.legend,
   };

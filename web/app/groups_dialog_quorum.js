@@ -13,7 +13,8 @@
  */
 "use strict";
 
-import { t } from "./i18n.js";
+import { t, plural } from "./i18n.js";
+import { quorumNeeded } from "./groups_quorum_math.js";
 
 const MIN = 1;
 const MAX = 20;
@@ -21,8 +22,25 @@ const MAX = 20;
 const memberCount = (fields) => fields.members.querySelectorAll("input[data-device-id]:checked").length;
 const typed = (fields) => Number(fields.quorumN.value);
 
+/** The live sentence: how many of how many members must arrive for an alert. */
+export function refreshQuorumSentence(fields) {
+  const el = fields.quorumSentence;
+  if (!el) return;
+  const n = memberCount(fields);
+  const quorum = fields.quorum.value === "custom" ? fields.quorumN.value : fields.quorum.value;
+  const k = n ? quorumNeeded(quorum, n) : 0;
+  // A custom number above the ticked members has its own warning just above;
+  // a second sentence promising "3 of 3" would contradict it.
+  const tooHigh = fields.quorum.value === "custom" && Number(quorum) > n && n > 0;
+  el.hidden = tooHigh;
+  el.textContent = k
+    ? plural("groups.quorumSentence", n, { k, n, radius: fields.radius.value })
+    : t("groups.quorumSentenceNone");
+}
+
 /** Show or hide the warning under the quorum row for the current values. */
 export function refreshQuorumWarning(fields) {
+  refreshQuorumSentence(fields);
   const warn = fields.quorumWarn;
   if (!warn) return;
   const n = typed(fields);
@@ -59,4 +77,5 @@ export function wireQuorumGuard(fields) {
     refresh();
   });
   fields.members.addEventListener("change", refresh);
+  fields.radius.addEventListener("input", refresh);
 }

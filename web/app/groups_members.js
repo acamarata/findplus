@@ -19,6 +19,8 @@
  */
 "use strict";
 
+import { api } from "./api.js";
+import { state, displayName } from "./state.js";
 import { t, plural } from "./i18n.js";
 import { labelMap, tailOf } from "./device_label.js";
 import { memberRow } from "./groups_dialog_dom.js";
@@ -59,6 +61,62 @@ function deviceRow(device, labels, tracked) {
   return row;
 }
 
+/** The poll interval in minutes, from the config the dashboard loaded, else the setting. */
+function pollInterval() {
+  const n = Number((state.config && state.config.poll_interval_minutes)
+    || (state.settings && state.settings["poll.interval_minutes"]));
+  return n > 0 ? n : null;
+}
+
+/** What tracking one more device costs, in words (or the generic sentence if unknown). */
+function trackCost() {
+  const interval = pollInterval();
+  if (!interval) return t("groups.members.track_cost_unknown");
+  const rate = Math.round((60 * 10) / interval) / 10;
+  return t("groups.members.track_cost", { rate, interval });
+}
+
+/**
+ * The one-click "Track this tracker" button beside an untracked device. It turns
+ * tracking on for that device only (PATCH /api/devices/{id}), re-reads the list
+ * and ticks the device, keeping every other tick. The cost sits in the note
+ * above the rows (`describedBy`), so the person reads it before pressing.
+ */
+function trackButton(device, box, name, describedBy) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "btn-tiny btn-secondary fp-member-track";
+  btn.textContent = t("groups.members.track_button");
+  btn.setAttribute("aria-label", `${t("groups.members.track_button")}: ${name}`);
+  btn.setAttribute("aria-describedby", describedBy);
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    btn.textContent = t("groups.members.tracking");
+    try {
+      const ticked = new Set(
+        [...box.querySelectorAll("input[data-device-id]:checked")].map((i) => i.dataset.deviceId)
+      );
+      await api(`/api/devices/${encodeURIComponent(device.device_id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tracked: true }),
+      });
+      const { devices } = await api("/api/devices");
+      // Bring the filter, header and footer in line; a failure there is not this action's.
+      import("./devices.js").then((m) => m.loadDevices()).catch(() => {});
+      ticked.add(device.device_id);
+      renderMemberList(box, devices);
+      applyMemberSelection(box, ticked);
+    } catch (err) {
+      if (err.message === "Locked") return;
+      btn.disabled = false;
+      btn.textContent = t("groups.members.track_button");
+      box.append(hint(t("groups.members.track_failed", { name, message: err.message })));
+    }
+  });
+  return btn;
+}
+
 /** Replace everything in `box` except its legend with the current checklist. */
 export function renderMemberList(box, devices, { wizard = false } = {}) {
   [...box.children].forEach((child) => { if (child.tagName !== "LEGEND") child.remove(); });
@@ -77,10 +135,19 @@ export function renderMemberList(box, devices, { wizard = false } = {}) {
     tracked.forEach((d) => box.append(deviceRow(d, labels, true)));
   }
   if (untracked.length) {
-    const key = wizard ? "groups.members.untracked_note_setup" : "groups.members.untracked_note";
-    box.append(hint(plural("groups.members.untracked_count", untracked.length, { count: untracked.length })
-      + " " + t(key)));
-    untracked.forEach((d) => box.append(deviceRow(d, labels, false)));
+    const key = wizard ? "groups.members.untracked_note_setup" : "groups.members.untracked_note_track";
+    const note = hint(plural("groups.members.untracked_count", untracked.length, { count: untracked.length })
+      + " " + t(key) + (wizard ? "" : " " + trackCost()));
+    note.id = "fp-members-untracked-note";
+    box.append(note);
+    untracked.forEach((d) => {
+      const row = deviceRow(d, labels, false);
+      if (wizard) { box.append(row); return; }
+      const line = document.createElement("div");
+      line.className = "fp-member-line";
+      line.append(row, trackButton(d, box, displayName(d) + tailOf(d, labels), note.id));
+      box.append(line);
+    });
   }
 }
 

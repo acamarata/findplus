@@ -150,3 +150,10 @@ def test_cancel_of_an_unknown_job_is_false(tmp_db) -> None:
 
 def test_progress_of_an_unknown_job_is_none(tmp_db) -> None:
     assert unlock.get_google_unlock_progress("nope") is None
+
+
+def test_the_waiting_text_names_the_same_account_then_the_screen_lock() -> None:
+    text = unlock.MSG_WAITING
+    assert "same Google account" in text
+    assert text.index("same Google account") < text.index("screen lock")
+    assert "did not return" not in unlock.MSG_TIMEOUT

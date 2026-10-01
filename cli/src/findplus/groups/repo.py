@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from findplus.db.models import (
@@ -39,7 +39,7 @@ from findplus.groups.presence import (
 )
 from findplus.groups.quorum import group_event_note, stale_note_for_count
 from findplus.groups.timeline import list_group_timeline  # re-exported, see timeline.py
-from findplus.groups.validation import validate_group_fields
+from findplus.groups.validation import clean_name, validate_group_fields
 from findplus.labels import display_name
 
 
@@ -64,6 +64,23 @@ def _members_of(session: Session, group_id: int) -> list[dict]:
     ]
 
 
+def check_member_ids(session: Session, member_ids: list[str]) -> list[str]:
+    """Drop repeats (order kept) and refuse an id that is not a known device."""
+    unique = list(dict.fromkeys(member_ids))
+    for device_id in unique:
+        if session.get(Device, device_id) is None:
+            raise ValueError(f"device {device_id} not found")
+    return unique
+
+
+def _name_taken(session: Session, name: str, *, except_id: int | None = None) -> bool:
+    """Case-insensitive: "kids" and "Kids" are one name to a person reading a list."""
+    stmt = select(Group.id).where(func.lower(Group.name) == name.lower())
+    if except_id is not None:
+        stmt = stmt.where(Group.id != except_id)
+    return session.scalar(stmt) is not None
+
+
 def create_group(
     session: Session,
     *,
@@ -81,6 +98,10 @@ def create_group(
         stale_after_minutes=stale_after_minutes,
         icon=icon,
     )
+    name = clean_name(name)
+    if _name_taken(session, name):
+        raise ValueError(f"group name {name!r} already exists")
+    member_ids = check_member_ids(session, member_ids or [])
     group = Group(
         name=name,
         color=color,
@@ -92,7 +113,7 @@ def create_group(
     )
     session.add(group)
     session.flush()  # IntegrityError on a duplicate name propagates to the caller.
-    for device_id in member_ids or []:
+    for device_id in member_ids:
         session.add(DeviceGroup(device_id=device_id, group_id=group.id))
     session.flush()
     group._members = _members_of(session, group.id)
@@ -109,6 +130,10 @@ def update_group(session: Session, group_id: int, **fields) -> Group:
         stale_after_minutes=fields.get("stale_after_minutes"),
         icon=fields.get("icon"),
     )
+    if fields.get("name") is not None:
+        fields["name"] = clean_name(fields["name"])
+        if _name_taken(session, fields["name"], except_id=group_id):
+            raise ValueError(f"group name {fields['name']!r} already exists")
     for key, value in fields.items():
         if value is not None:
             setattr(group, key, value)
@@ -129,9 +154,7 @@ def set_members(session: Session, group_id: int, member_ids: list[str]) -> Group
     group = session.get(Group, group_id)
     if group is None:
         raise ValueError(f"group {group_id} not found")
-    for device_id in member_ids:
-        if session.get(Device, device_id) is None:
-            raise ValueError(f"device {device_id} not found")
+    member_ids = check_member_ids(session, member_ids)
     session.query(DeviceGroup).filter(DeviceGroup.group_id == group_id).delete(
         synchronize_session=False
     )

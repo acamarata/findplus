@@ -22,7 +22,8 @@ async def _open(page, base_url):
 
 async def _visible_ids(page):
     return await page.evaluate(
-        "() => [...document.querySelectorAll('#device-list .device-row')].filter((r) => !r.hidden).map((r) => r.dataset.deviceId)"
+        "() => [...document.querySelectorAll('#device-list .device-row')]"
+        ".filter((r) => !r.hidden).map((r) => r.dataset.deviceId)"
     )
 
 

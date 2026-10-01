@@ -64,10 +64,12 @@ function showLoadError(day, err, key) {
 /** The pane while a NEW selection loads, so it is never blank (UAT #13). */
 function showPaneLoading(seq) {
   if (seq !== loadSeq) return;
+  // Grey placeholder rows, not a bare word: the pane keeps its shape while it waits.
   const note = document.createElement("div");
-  note.className = "empty";
+  note.className = "skeleton";
   note.setAttribute("role", "status");
-  note.textContent = t("common.loading");
+  note.setAttribute("aria-label", t("common.loading"));
+  for (let i = 0; i < 7; i += 1) note.appendChild(document.createElement("i"));
   $("tracks").replaceChildren(note);
 }
 

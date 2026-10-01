@@ -43,9 +43,7 @@ STUBS = {
 def _make_app(path: Path, version: str) -> Path:
     (path / "Contents" / "MacOS").mkdir(parents=True)
     with (path / "Contents" / "Info.plist").open("wb") as fh:
-        plistlib.dump(
-            {"CFBundleShortVersionString": version, "CFBundleExecutable": "findplus"}, fh
-        )
+        plistlib.dump({"CFBundleShortVersionString": version, "CFBundleExecutable": "findplus"}, fh)
     (path / "Contents" / "MacOS" / "findplus").write_text(version)
     return path
 

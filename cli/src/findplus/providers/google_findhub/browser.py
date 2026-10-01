@@ -197,6 +197,25 @@ def _patch_vendor_chrome(settings: Any, job_id: str) -> None:
     auth_flow.input = lambda _prompt="": ""
 
 
+def _cancelled_during_run(job_id: str) -> bool:
+    with _lock:
+        job = _jobs.get(job_id)
+        return job is not None and bool(job.get("cancelled"))
+
+
+def _discard_late_credential(settings: Any) -> None:
+    """Delete the secrets file a cancelled sign-in job wrote as it finished."""
+    with contextlib.suppress(OSError):
+        settings.secrets_file.unlink()
+
+
+def cancel_active_google_auth() -> bool:
+    """Cancel whichever own-window sign-in job is running (Disconnect calls this)."""
+    with _lock:
+        job_id = _active_job_id
+    return cancel_google_auth(job_id) if job_id else False
+
+
 def _run_google_auth(job_id: str, settings: Any) -> None:
     """Thread body: patch the vendor, run the real sign-in, record the outcome."""
     from selenium.common.exceptions import TimeoutException
@@ -216,6 +235,11 @@ def _run_google_auth(job_id: str, settings: Any) -> None:
         safe_msg = redact_text(str(exc)) or "Unknown error"
         _set_progress(job_id, "failed", safe_msg[:200])
     else:
+        if _cancelled_during_run(job_id):
+            # Disconnect or Cancel arrived while the vendor flow was finishing: it
+            # has already written the token, so remove it rather than sign back in.
+            _discard_late_credential(settings)
+            return
         from findplus.poller_service import wake_poller
 
         wake_poller()  # the signed-out failures before this are over: poll now

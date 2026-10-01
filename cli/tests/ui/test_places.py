@@ -14,6 +14,8 @@ import json
 
 import pytest
 
+from findplus.honesty import ADDRESS_SEARCH
+
 from .conftest import assert_dialog_has_real_chrome
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -215,6 +217,7 @@ async def test_address_search_is_opt_in_and_mocked(page, base_url):
     await page.click("#fp-add-place-btn")
     dialog = page.locator("#fp-place-dialog")
     await dialog.wait_for(state="visible")
+    assert ADDRESS_SEARCH in await dialog.inner_text()
 
     search_input = dialog.locator("#fp-place-search-input")
     await search_input.fill("1600 Amphitheatre Pkwy")

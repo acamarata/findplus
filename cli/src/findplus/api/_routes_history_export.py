@@ -25,6 +25,7 @@ from sqlalchemy import func, select
 
 from findplus.db.models import Device, LocationObservation
 from findplus.db.session import session_scope
+from findplus.device_labels import unique_names
 from findplus.exporters import MEDIA_TYPES, export
 from findplus.group_export import GroupNotFoundError, export_group
 from findplus.logging_setup import get_logger
@@ -87,14 +88,38 @@ def export_history(
     with session_scope() as session:
         start_utc, end_utc, label = _resolve_range(day, start, end, zone)
         rows = fetch_observations(session, device_id, start_utc, end_utc)
+        shown = unique_names(session)
         name = "Find+ history"
-        if device_id:
-            device = session.get(Device, device_id)
-            if device:
-                name = device.name
-                label = f"{device.name.replace(' ', '-')}-{label}"
-        body = export(fmt, rows, zone, name=f"{name} {label}", labels=_labels_for(session, rows))
-    return _download(body, fmt, f"findplus-{label}.{fmt}")
+        stem = label
+        if device_id and device_id in shown:
+            # UAT #7/#19: the label (with an id tail only when two trackers share
+            # a name) names the file and the document, once.
+            name = shown[device_id]
+            stem = f"{_file_slug(name)}-{label}"
+        # GPX and KML name each point by its device; every other format keeps
+        # `labels` to the user's own label, which is what its column means.
+        labels = shown if fmt in {"gpx", "kml"} else _labels_for(session, rows)
+        body = export(fmt, rows, zone, name=f"{name} {label}", labels=labels)
+    return _download(_note_if_empty(body, fmt, rows), fmt, f"findplus-{stem}.{fmt}")
+
+
+def _file_slug(name: str) -> str:
+    """`Ali Pixel 8a (1a2b)` -> `Ali-Pixel-8a-1a2b`: no spaces or brackets in a filename."""
+    return name.replace(" (", " ").replace(")", "").replace(" ", "-")
+
+
+def _note_if_empty(body: str, fmt: str, rows) -> str:
+    """A CSV with no rows says so in a comment line, so an empty file is not a mystery."""
+    return body if rows or fmt != "csv" else _csv_note(body)
+
+
+def _csv_note(body: str) -> str:
+    lines = body.split("\n")
+    comments = 0
+    while comments < len(lines) and lines[comments].startswith("#"):
+        comments += 1
+    lines.insert(comments, "# No observations were recorded for this selection.")
+    return "\n".join(lines)
 
 
 def delete_before(

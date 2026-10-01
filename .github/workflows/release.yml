@@ -49,6 +49,8 @@ jobs:
           # runners -- `actionlint` against this file lists the current
           # labels, and the free Intel image is now `macos-15-intel` (there
           # is also `macos-26-intel`; 15 is the more conservative pick).
+          # The Intel leg is built for local testing only: the release job
+          # attaches the signed aarch64 dmg alone (there is no Intel app).
           # Both are free for public repos (ASI Policy 8 — never pay
           # GitHub). Each leg builds its own sidecar and app natively — no
           # cross-compiled Python.
@@ -74,6 +76,17 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      - name: Require signing on a tag run
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          # A tag run must never produce an unsigned app. Fail here, before the
+          # long build, instead of shipping an -UNSIGNED dmg.
+          for v in APPLE_CERTIFICATE_P12_BASE64 APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY; do
+            if [ -z "${!v}" ]; then
+              echo "::error::$v is empty. A tag run must be signed; add the APPLE_* secrets or cut the dmg locally."
+              exit 1
+            fi
+          done
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -147,8 +160,10 @@ jobs:
         run: |
           APP_PATH="desktop/src-tauri/target/${{ matrix.target }}/release/bundle/macos/Find+.app"
           if [ -n "$APPLE_API_KEY_P8_BASE64" ]; then
-            echo "$APPLE_API_KEY_P8_BASE64" | base64 -d > /tmp/api-key.p8
-            export APPLE_API_KEY=/tmp/api-key.p8
+            API_KEY_FILE=$(mktemp)
+            trap 'rm -f "$API_KEY_FILE"' EXIT
+            echo "$APPLE_API_KEY_P8_BASE64" | base64 -d > "$API_KEY_FILE"
+            export APPLE_API_KEY="$API_KEY_FILE"
             export APPLE_API_ISSUER="$APPLE_API_ISSUER_ID"
           fi
           APP_PATH="$APP_PATH" ARCH_SUFFIX="${{ matrix.arch }}" bash packaging/scripts/embed-widget.sh
@@ -160,7 +175,8 @@ jobs:
           cp "$DMG" "dist/FindPlus-unsigned.dmg"
       - name: Finalise artefact
         run: |
-          VERSION=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || true)
+          VERSION=""
+          if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then VERSION="${GITHUB_REF_NAME#v}"; fi
           if [ -z "$VERSION" ]; then
             VERSION=$(python3 -c "import tomllib;print(tomllib.load(open('cli/pyproject.toml','rb'))['project']['version'])")
           fi
@@ -245,8 +261,8 @@ jobs:
             dist/*.tar.gz
             install.sh
             packaging/scripts/update-app.sh
-            FindPlus-*.dmg
-            FindPlus-*.dmg.sha256
+            FindPlus-*-aarch64.dmg
+            FindPlus-*-aarch64.dmg.sha256
           draft: true
           fail_on_unmatched_files: false
 

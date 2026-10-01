@@ -68,6 +68,10 @@
   font-size: 11px;
   padding: 1px 6px;
   box-shadow: none;
+  /* UAT #18: a 60-character name ran past the map edge and clipped. */
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .fp-place-tooltip::before {
   display: none; /* no arrow needed on a label centered inside its own circle */

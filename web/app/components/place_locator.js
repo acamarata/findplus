@@ -33,8 +33,7 @@
 
 import { api } from "../api.js";
 import { t } from "../i18n.js";
-import { buildPlaceLocatorDom, searchResultRow, trackerOption } from "./place_locator_dom.js";
-import { labelMap } from "../device_label.js";
+import { buildPlaceLocatorDom, searchResultRow, appendTrackerOptions } from "./place_locator_dom.js";
 
 /** The "use a tracker's last location" half: its own select + button. */
 function createTrackerPicker(select, useBtn, { onPick, setStatus }) {
@@ -58,14 +57,16 @@ function createTrackerPicker(select, useBtn, { onPick, setStatus }) {
     placeholder.value = "";
     placeholder.textContent = t("places.field.chooseTracker");
     select.appendChild(placeholder);
-    const tracked = resp.devices.filter((d) => d.is_tracked);
-    const labels = labelMap(tracked);
-    tracked.forEach((d) => select.appendChild(trackerOption(d, labels)));
+    appendTrackerOptions(select, resp.devices.filter((d) => d.is_tracked));
   }
 
   async function useTrackerLocation() {
     if (!select.value) {
       setStatus(t("places.field.chooseTrackerFirst"));
+      return;
+    }
+    if (select.selectedOptions[0]?.dataset.noFix) {
+      setStatus(t("places.field.noTrackerFix"));
       return;
     }
     setStatus(t("common.loading"));

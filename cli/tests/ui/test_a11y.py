@@ -275,3 +275,42 @@ async def test_no_serious_axe_violations_in_the_wizard(page, base_url, step):
     finally:
         await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
         await _set_last_step(page, base_url, None)
+
+
+LANDMARK_OPTIONS = {
+    "resultTypes": ["violations"],
+    "runOnly": {"type": "rule", "values": ["landmark-unique"]},
+}
+
+
+@pytest.mark.parametrize("width", WIDTHS)
+async def test_landmarks_are_unique(page, base_url, width):
+    """UAT #18: at phone width the empty top "Sections" nav and the bottom bar
+    both carried the name, so landmark-unique failed."""
+    await page.set_viewport_size({"width": width, "height": 800})
+    await page.goto(base_url + "/")
+    await page.wait_for_selector("#map.leaflet-container")
+    await page.wait_for_selector("#tracks > *", state="attached")
+    results = await Axe().run(page, options=LANDMARK_OPTIONS)
+    violations = results.response["violations"]
+    assert not violations, "\n".join(_describe(v, "dashboard", "n/a", width) for v in violations)
+
+
+@pytest.mark.parametrize("theme", THEMES)
+async def test_timeline_gap_text_has_enough_contrast(page, base_url, theme):
+    """UAT #17: light-theme .tl-gap text was 4.49:1. A gap row is injected,
+    since the seed day has none, and axe's color-contrast rule scans it."""
+    await page.goto(base_url + "/")
+    await page.wait_for_selector("#tracks > *", state="attached")
+    await set_theme(page, theme)
+    await page.evaluate(
+        """() => { const li = document.createElement('div'); li.className = 'tl-gap';
+        li.id = 'probe-gap'; li.textContent = 'NO NEW DETECTIONS FOR 2 HR';
+        document.getElementById('tracks').prepend(li); }"""
+    )
+    options = {
+        "resultTypes": ["violations"],
+        "runOnly": {"type": "rule", "values": ["color-contrast"]},
+    }
+    results = await Axe().run(page, context="#probe-gap", options=options)
+    assert not results.response["violations"], results.response["violations"]

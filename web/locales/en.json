@@ -394,7 +394,7 @@
     "skippedNoReason": "suppressed, no reason recorded",
     "retryingStatus": "Retrying (attempt {attempt} of {max}, next at {time})",
     "failedAfterRetries": "Failed after {max} attempts",
-    "channelNotConnected": "{channel} (not connected, connect it above)",
+    "channelNotConnected": "{channel} (not connected: close this and connect it in the sections above the rules)",
     "badBotTokenError": "That doesn't look like a bot token. Get one from @BotFather in Telegram.",
     "colEnabled": "Enabled",
     "editRule": "Edit rule",

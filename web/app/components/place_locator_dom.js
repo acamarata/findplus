@@ -32,6 +32,18 @@ export function trackerOption(device, labels = labelMap([device])) {
   return opt;
 }
 
+/** One option per tracked device, labelled apart where names clash (UAT #7). A
+ * tracker never seen is marked: asking /api/latest for it would answer 404,
+ * which the browser logs as a console error (UAT #20). */
+export function appendTrackerOptions(select, tracked) {
+  const labels = labelMap(tracked);
+  tracked.forEach((d) => {
+    const opt = trackerOption(d, labels);
+    if (!d.observation_count) opt.dataset.noFix = "1";
+    select.appendChild(opt);
+  });
+}
+
 export function searchResultRow(row, onPick, results) {
   const li = document.createElement("li");
   const btn = document.createElement("button");

@@ -517,7 +517,7 @@
     "enterNewPin": "Enter the new PIN.",
     "pinChanged": "PIN changed. All existing sessions were signed out.",
     "enterCurrentPin": "Enter the current PIN to remove it.",
-    "confirmRemovePin": "Remove the PIN and disable the app lock?",
+    "confirmRemovePin": "Remove the PIN and turn off the app lock? Anyone who opens Find+ on this computer will then see your locations without a PIN.",
     "pinRemoved": "PIN removed. The app no longer locks.",
     "signInHeading": "Sign-in",
     "polling": {
@@ -529,12 +529,33 @@
       "retention_label": "Keep history for",
       "retention_unit": "days",
       "retention_placeholder": "keep all",
-      "retention_note": "Older observations, place visits and group events are deleted automatically once a day. Leave blank to keep everything."
+      "retention_note": "Older observations, place visits and group events are deleted automatically once a day. Leave blank to keep everything.",
+      "rate": {
+        "one": "At this interval Find+ makes about {rate} location requests an hour for your 1 tracked device.",
+        "other": "At this interval Find+ makes about {rate} location requests an hour across your {count} tracked devices."
+      },
+      "rateNone": "Nothing is tracked yet, so Find+ makes no requests. Track devices in Devices.",
+      "rateFast": "Short intervals add up. If Google starts refusing requests Find+ backs off on its own, but a longer interval is gentler on your account.",
+      "retention_range_error": "Use 7 days or more, or leave it blank to keep everything.",
+      "retentionKeepAll": "Everything is kept. Nothing is deleted automatically.",
+      "retentionDays": "Observations, place visits and group events older than {days} days are deleted once a day. This cannot be undone."
     },
     "native_detail": {
       "label": "Show who and where in notifications",
       "note": "By default, macOS notifications show a generic \"Find+ alert\" instead of who or where, because notification banners can appear on a locked screen. Turn on notification details in Settings to show the person and place. Anyone who can see the screen then sees the same thing."
-    }
+    },
+    "autosaveNote": "Changes save as you make them. There is no Save button.",
+    "saved": "Saved.",
+    "language": "Language",
+    "languageEnglish": "English",
+    "languageNote": "Find+ is English only for now. Every sentence lives in one catalog file, so another language can be added without changing the app.",
+    "newPinChange": "New PIN",
+    "lockHow": "With a PIN set, Find+ asks for it after the idle time you choose and whenever the service restarts. Five wrong tries in a row pause the lock screen, and each pause is longer than the last.",
+    "backupHeading": "Back up your settings",
+    "backupNote": "Saves your settings as a JSON file: theme, polling interval, how long history is kept and the lock timeout. It leaves out your PIN, your sign-ins, your trackers and your history. Export history with the Export control on the dashboard.",
+    "backupButton": "Download settings",
+    "backupFailed": "Could not read your settings: {message}",
+    "pinWrong": "That is not your current PIN."
   },
   "setup": {
     "back": "Back",

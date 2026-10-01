@@ -99,6 +99,7 @@ async function changePin({ showSettingsMessage }) {
   showSettingsMessage(null); // UAT4 N40: clear a stale message before this attempt
   showChangePinError(null);
   if (!next) { showChangePinError(t("settings.enterNewPin"), "new"); return; }
+  if (next.length < MIN_PIN_LENGTH) { showChangePinError(t("settings.pinTooShort"), "new"); return; }
   try {
     await postJson("/api/settings/pin", { new_pin: next, current_pin: current });
     $("current-pin").value = $("change-pin").value = "";
@@ -110,15 +111,22 @@ async function changePin({ showSettingsMessage }) {
 }
 
 /**
- * Remove the PIN, which disables the lock entirely. Confirmed first because the
- * server's DELETE is also the only check of the current PIN: there is no
- * check-only route, so a wrong PIN is reported after the confirmation.
+ * Remove the PIN, which disables the lock entirely. The current PIN is checked
+ * FIRST (POST /api/settings/pin/check, which changes nothing), so a wrong PIN is
+ * reported beside the field before any "Remove the PIN?" question is asked
+ * (UAT #4). The DELETE still checks it again: the server never trusts the dialog.
  */
 async function removePin({ showSettingsMessage, loadSettings }) {
   const current = $("current-pin").value.trim();
   showSettingsMessage(null); // UAT4 N40: clear a stale message before this attempt
   showChangePinError(null);
   if (!current) { showChangePinError(t("settings.enterCurrentPin"), "current"); return; }
+  try {
+    await postJson("/api/settings/pin/check", { current_pin: current });
+  } catch (e) {
+    changeFailure(e, showSettingsMessage);
+    return;
+  }
   if (!(await confirmDialog({ title: t("common.remove"), body: t("settings.confirmRemovePin"), confirmLabel: t("common.remove"), danger: true }))) return;
   try {
     await api("/api/settings/pin", {

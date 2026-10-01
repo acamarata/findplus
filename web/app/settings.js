@@ -15,6 +15,7 @@ import { t } from "./i18n.js";
 import { trapFocus } from "./components/dialog-trap.js";
 import { renderPollingSection, wirePollingControls } from "./settings_polling.js";
 import { showNewPinError, wirePinActions } from "./settings_pin.js";
+import { markSaved, clearSaved, wireBackup } from "./settings_saved.js";
 
 /** The focus trap for #settings-modal while it is open, or null. */
 let settingsTrap = null;
@@ -91,6 +92,7 @@ export async function saveSettings(patch) {
   $("btn-lock").classList.toggle("hidden", !state.settings.lock_active);
   renderLockSection();
   startIdleTimer();
+  markSaved();
   return state.settings;
 }
 
@@ -114,6 +116,7 @@ export async function openSettings() {
   $("settings-modal").classList.remove("hidden");
   settingsTrap = trapFocus($("settings-modal"), closeSettings);
   showSettingsMessage(null); // never a stale message from the previous open
+  clearSaved();
   try {
     await loadSettings();
     const req = await api("/api/lock/requirements");
@@ -206,6 +209,7 @@ function wirePinControls() {
 export function wireSettingsControls() {
   wireModalToggle();
   wireThemeAndLockControls();
-  wirePollingControls(saveSettings, showSettingsMessage);
+  wirePollingControls(saveSettings, showSettingsMessage, markSaved);
+  wireBackup(showSettingsMessage);
   wirePinControls();
 }

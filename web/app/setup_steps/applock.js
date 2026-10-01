@@ -124,6 +124,8 @@ async function setPin(ctx) {
  * the transition (return false) so Next never silently stays put.
  */
 async function onNext(ctx) {
+  // A PIN already exists: the fields are hidden and there is nothing to set.
+  if (els.fields.hidden) return true;
   const first = els.pin.value.trim();
   const second = els.confirm.value.trim();
   if (!first && !second) return;
@@ -133,6 +135,34 @@ async function onNext(ctx) {
     setFieldError(err.message);
     return false;
   }
+}
+
+/** The lead line, the "PIN already on" notice and the field block. */
+function buildFields({ pin, confirm, fieldError, note, status, submit }) {
+    const lead = document.createElement("p");
+    lead.className = "fp-wizard-lead";
+    lead.textContent = t("setup.applock.lead");
+    // Shown instead of the fields when a PIN exists: setting another needs the
+    // current one, which belongs in Settings, so offering the fields here would
+    // only produce an error (a re-run of setup on a locked-down install).
+    const already = document.createElement("p");
+    already.id = "fp-setup-pin-already";
+    already.textContent = t("setup.applock.on");
+    already.hidden = true;
+    const after = document.createElement("p");
+    after.className = "fp-wizard-footnote";
+    after.textContent = t("setup.applock.after");
+    const fields = document.createElement("div");
+    fields.append(
+      labelFor(pin, t("setup.applock.pin")),
+      fieldError,
+      labelFor(confirm, t("setup.applock.pin_confirm")),
+      note,
+      after,
+      submit,
+      status
+    );
+  return { lead, already, fields };
 }
 
 export default {
@@ -176,15 +206,13 @@ export default {
     submit.textContent = t("setup.applock.set");
     submit.addEventListener("click", () => setPin(ctx));
 
-    els = { pin, confirm, status, fieldError };
-    container.append(
-      heading,
-      labelFor(pin, t("setup.applock.pin")),
-      fieldError,
-      labelFor(confirm, t("setup.applock.pin_confirm")),
-      note,
-      submit,
-      status
-    );
+    const { lead, already, fields } = buildFields({ pin, confirm, fieldError, note, status, submit });
+    els = { pin, confirm, status, fieldError, fields, already };
+    container.append(heading, lead, already, fields);
+  },
+  async onEnter(ctx) {
+    const lock = await ctx.api("/api/lock/status");
+    els.fields.hidden = !!lock.lock_configured;
+    els.already.hidden = !lock.lock_configured;
   },
 };

@@ -146,7 +146,7 @@ export default {
     // word about what a group is for.
     const lead = document.createElement("p");
     lead.className = "fp-wizard-lead";
-    lead.textContent = t("setup.groups.lead");
+    lead.textContent = `${t("setup.groups.lead")} ${t("setup.groups.skip_hint")}`;
 
     const list = document.createElement("div");
     list.id = "fp-setup-groups-list";

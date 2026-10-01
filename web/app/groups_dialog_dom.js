@@ -77,21 +77,25 @@ export function pickerRow(id, labelText, hiddenInput, swatchClass) {
   return { btn, host, wrap };
 }
 
-/** One tracked device: its checkbox, its badge and its name. */
-export function memberRow(device) {
+/** One device: its checkbox, its badge and its name. `disabled` draws an
+ * untracked device that cannot be ticked; `suffix` tells apart devices that
+ * share a name (groups_members.js decides when). */
+export function memberRow(device, { disabled = false, suffix = "" } = {}) {
   const row = document.createElement("label");
   row.className = "fp-member-row";
   const box = field("checkbox", {});
   box.dataset.deviceId = device.device_id;
+  box.disabled = disabled;
+  row.classList.toggle("fp-member-row--off", disabled);
   const badge = document.createElement("span");
   badge.appendChild(
     renderBadge({
-      icon: device.icon, color: device.color, label: device.label, name: device.name, size: 16,
+      icon: device.icon || "letter", color: device.color, label: device.label, name: device.name, size: 16,
     }),
   );
   const name = document.createElement("span");
   // UAT U6: the group dialog's own member picker shows the label too.
-  name.textContent = displayName(device);
+  name.textContent = displayName(device) + suffix;
   row.append(box, badge, name);
   return row;
 }

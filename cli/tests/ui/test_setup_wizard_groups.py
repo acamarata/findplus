@@ -139,9 +139,10 @@ async def test_groups_step_empty_name_shows_inline_error(page, base_url):
     assert calls == []
 
 
-async def test_groups_step_lead_and_untracked_device_excluded(page, base_url):
+async def test_groups_step_lead_and_untracked_device_not_selectable(page, base_url):
     """UAT6-N18: no intro sentence, and the untracked AirTag from the Devices
-    step was still offered as a group member."""
+    step was still offered as a member. It is now listed, greyed out, with
+    the reason, and cannot be ticked."""
     keys = _device("TAG-1", "Keys", tracked=True)
     airtag = _device("TAG-2", "AirTag", tracked=False)
     await page.route("**/api/devices", _serve_devices([keys, airtag]))
@@ -152,12 +153,15 @@ async def test_groups_step_lead_and_untracked_device_excluded(page, base_url):
 
     step_text = await page.locator("#setup-view .fp-wizard-step").inner_text()
     assert "group" in step_text.lower()
-    members = await page.locator("#fp-setup-group-members .fp-member-row").all_inner_texts()
-    assert any("Keys" in m for m in members)
-    assert not any("AirTag" in m for m in members)
+    rows = page.locator("#fp-setup-group-members .fp-member-row")
+    texts = await rows.all_inner_texts()
+    assert any("Keys" in m for m in texts)
+    air = rows.filter(has_text="AirTag").locator("input")
+    assert await air.is_disabled()
+    assert await rows.filter(has_text="Keys").locator("input").is_enabled()
 
 
-async def test_groups_step_no_tracked_devices_shows_empty_hint_no_border(page, base_url):
+async def test_groups_step_no_tracked_devices_explains_why_the_list_is_empty(page, base_url):
     """UAT6-N18: with nothing tracked, the members box drew as an empty
     bordered strip instead of saying why it was empty."""
     await page.route("**/api/devices", _serve_devices([_device("TAG-1", "AirTag", tracked=False)]))
@@ -167,7 +171,7 @@ async def test_groups_step_no_tracked_devices_shows_empty_hint_no_border(page, b
     await page.wait_for_selector("#fp-setup-group-name", timeout=15000)
 
     members = page.locator("#fp-setup-group-members")
-    await members.locator(".fp-tab-hint").wait_for(state="visible")
-    assert "fp-setup-group-members-empty" in (await members.get_attribute("class") or "")
-    border = await members.evaluate("(el) => getComputedStyle(el).borderStyle")
-    assert border == "none", border
+    await members.locator(".fp-members-hint").first.wait_for(state="visible")
+    text = await members.inner_text()
+    assert "None of your 1 devices are tracked yet" in text
+    assert await members.locator("input:not([disabled])").count() == 0

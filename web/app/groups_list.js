@@ -165,6 +165,15 @@ async function fetchVerdict(card, groupId) {
   badge.title = verdictTitle(presence);
 }
 
+/** A failed presence call left the pill blank, which read as "still loading". */
+function showVerdictUnavailable(card) {
+  const badge = card.querySelector(".fp-card-verdict");
+  if (!badge || !card.isConnected) return;
+  badge.className = "fp-card-verdict fp-verdict fp-verdict--unknown";
+  badge.textContent = t("groups.verdictUnavailable");
+  badge.title = t("groups.verdictUnavailableHint");
+}
+
 /** How many alert rules point at this group -- see places.js's
  *  countPlaceRules() docstring; AlertRule.group_id is the same
  *  ondelete="CASCADE" FK, so this is the truth, not a guess. */
@@ -217,7 +226,7 @@ export async function loadCards() {
   groups.forEach((group) => {
     const card = renderCard(group, devicesById);
     listEl.appendChild(card);
-    fetchVerdict(card, group.id).catch(() => {});
+    fetchVerdict(card, group.id).catch(() => showVerdictUnavailable(card));
   });
 }
 

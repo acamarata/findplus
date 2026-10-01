@@ -195,7 +195,29 @@
         "one": "Its 1 alert rule is deleted too.",
         "other": "Its {count} alert rules are deleted too."
       }
-    }
+    },
+    "members": {
+      "select_all": "Select all",
+      "clear": "Clear all",
+      "none_found": "No devices found yet. Sign in and refresh your devices first.",
+      "none_tracked": "None of your {count} devices are tracked yet, so there is nothing to add to a group. Track some in Devices first, then come back.",
+      "none_tracked_setup": "None of your {count} devices are tracked yet. Go back to Devices, tick the ones to track, then come back here.",
+      "untracked_count": {
+        "one": "1 device is not tracked.",
+        "other": "{count} devices are not tracked."
+      },
+      "untracked_note": "Find+ only checks tracked devices, so an untracked one would never show a location or send an alert as part of a group. Track it in Devices to add it.",
+      "untracked_note_setup": "Find+ only checks tracked devices, so an untracked one would never show a location or send an alert as part of a group. Go back to Devices to track it.",
+      "untracked_row": "Not tracked yet. Track it in Devices to add it to a group.",
+      "count": {
+        "one": "1 device",
+        "other": "{count} devices"
+      }
+    },
+    "verdictNoLocation": "No location yet",
+    "verdictNoRecentLocation": "No recent location",
+    "verdictUnavailable": "Status unavailable",
+    "verdictUnavailableHint": "Could not load this group's status. Reload the page to try again."
   },
   "icons": {
     "custom": {

@@ -73,6 +73,13 @@ export function verdictLabel(presence) {
   if (presence.verdict === "partial" && hasStaleMember && presence.diverged && presence.diverged.length > 0) {
     return t("groups.verdictPartial");
   }
+  // Nobody has reported: "Unknown" is true but explains nothing. Right after a
+  // first sign-in, with Google still locked, every group reads this way.
+  if (presence.verdict === "unknown" && considered > 0 && reporting === 0) {
+    return (presence.members || []).some(hasEverReported)
+      ? t("groups.verdictNoRecentLocation")
+      : t("groups.verdictNoLocation");
+  }
   if (presence.verdict_label) return presence.verdict_label;
   if (presence.verdict === "all_together") {
     return considered && reporting < considered
@@ -92,6 +99,9 @@ export function verdictLabel(presence) {
  * flag alone would have said -- the same hasStaleMember condition, checked
  * the same way, decides which sentence applies. */
 export function verdictTitle(presence) {
+  // The server's own sentence names the silent members and says a missing fix
+  // is not evidence of where they are.
+  if (presence.verdict === "unknown") return presence.note || "";
   if (presence.verdict !== "partial") return "";
   const reporting = presence.reporting_count;
   const considered = presence.considered_count;

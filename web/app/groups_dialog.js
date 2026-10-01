@@ -23,10 +23,11 @@ import { t } from "./i18n.js";
 import { createIconPicker } from "./components/icon-picker.js";
 import { createColorPicker } from "./components/color-picker.js";
 import {
-  buildDialog, memberRow, renderIconPreview, renderColorPreview,
+  buildDialog, renderIconPreview, renderColorPreview,
   closeOpenPopover, closePopoverIfOutside, clampPopoverToViewport,
 } from "./groups_dialog_dom.js";
 import { groupBody, saveGroup } from "./groups_dialog_save.js";
+import { renderMemberList } from "./groups_members.js";
 import { duplicateNameMessage } from "./dialog_errors.js";
 
 const DEFAULT_ICON = "lucide:users";
@@ -117,11 +118,11 @@ function clearMembers() {
   while (box.lastChild && box.lastChild !== fields.membersLegend) box.removeChild(box.lastChild);
 }
 
-/** Untracked devices cannot report presence, so they are not offered. */
+/** Untracked devices cannot report presence, so they are listed but not
+ * tickable, with the reason beside them (groups_members.js). */
 async function populateMembers() {
   const { devices } = await api("/api/devices");
-  clearMembers();
-  devices.filter((d) => d.is_tracked).forEach((d) => fields.members.appendChild(memberRow(d)));
+  renderMemberList(fields.members, devices);
 }
 
 function applyQuorum(quorum) {
@@ -209,7 +210,7 @@ function handleSaveError(err) {
   // N48: the raw server text named the field and quoted the name in Python
   // repr style ("group name 'Pets' already exists") -- a catalog sentence
   // when that is what happened, the raw message for anything else.
-  const duplicate = duplicateNameMessage(err, "groups.error.duplicate_name");
+  const duplicate = duplicateNameMessage(err, "groups.error.duplicate_name", fields.name.value.trim());
   fields.error.textContent = duplicate || err.message;
   if (duplicate) fields.name.focus();
 }

@@ -84,3 +84,41 @@ def test_sign_out_does_not_touch_devices(auth_client: TestClient) -> None:
     after = auth_client.get("/api/devices").json()
 
     assert before == after
+
+
+def test_sign_out_google_also_empties_the_find_plus_chrome_profile(
+    auth_client: TestClient,
+) -> None:
+    """The Find+ Chrome profile holds a live Google login; Disconnect removes it
+    (and only it: a neighbouring folder in the state dir stays)."""
+    settings = get_settings()
+    settings.ensure_dirs()
+    settings.secrets_file.write_text("{}")
+    profile = settings.chrome_profile_dir
+    (profile / "Default" / "Network").mkdir(parents=True)
+    (profile / "Default" / "Network" / "Cookies").write_text("google session")
+    (profile / "Local State").write_text("{}")
+    neighbour = settings.state_dir / "icons"
+    neighbour.mkdir(exist_ok=True)
+    (neighbour / "keep.png").write_text("x")
+
+    res = auth_client.delete("/api/auth/google-find-hub", headers=SAME_ORIGIN_HEADERS)
+
+    assert res.status_code == 204
+    assert profile.is_dir()
+    assert list(profile.iterdir()) == []
+    assert (neighbour / "keep.png").exists()
+
+
+def test_sign_out_google_never_follows_a_symlinked_profile(auth_client: TestClient, tmp_path) -> None:
+    settings = get_settings()
+    settings.ensure_dirs()
+    outside = tmp_path / "elsewhere"
+    outside.mkdir()
+    (outside / "precious.txt").write_text("keep")
+    settings.chrome_profile_dir.symlink_to(outside, target_is_directory=True)
+
+    res = auth_client.delete("/api/auth/google-find-hub", headers=SAME_ORIGIN_HEADERS)
+
+    assert res.status_code == 204
+    assert (outside / "precious.txt").exists()

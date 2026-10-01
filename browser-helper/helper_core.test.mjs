@@ -77,3 +77,12 @@ test("manifest pins the daemon port in matches and host permissions", async () =
   assert.ok(pins.length >= 3);
   for (const u of pins) assert.match(u, /^http:\/\/127\.0\.0\.1:8647\//);
 });
+
+test("shouldRetry retries only transient failures, a bounded number of times", () => {
+  assert.equal(core.shouldRetry(0, 1), true);
+  assert.equal(core.shouldRetry(502, 2), true);
+  assert.equal(core.shouldRetry(502, 3), false);
+  assert.equal(core.shouldRetry(400, 1), false);
+  assert.equal(core.shouldRetry(403, 1), false);
+  assert.equal(core.shouldRetry(200, 1), false);
+});

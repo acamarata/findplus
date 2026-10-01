@@ -88,29 +88,53 @@ def _require_extension_origin(request: Request) -> None:
         raise HTTPException(status_code=403, detail="not the Find+ helper")
 
 
+MSG_STATE_GONE = "This sign-in expired or was already used. Start it again from Find+."
+MSG_HANDOFF_FAILED = "Find+ could not finish the sign-in. Start it again from Find+."
+
+
+def _claim(kind: str, state: str) -> None:
+    if not helper_state.begin_exchange(kind, state):
+        helper_state.record_outcome(kind, False, MSG_STATE_GONE)
+        raise HTTPException(status_code=403, detail="invalid or expired state")
+
+
+def _fail(kind: str, state: str, status: int, exc: Exception) -> HTTPException:
+    """Keep the state for a retry, remember the plain-words reason, build the error."""
+    helper_state.end_exchange(state, ok=False)
+    message = str(exc) if isinstance(exc, (TokenSignInError, SharedKeyParseError)) else ""
+    helper_state.record_outcome(kind, False, message or MSG_HANDOFF_FAILED)
+    return HTTPException(status_code=status, detail=message or MSG_HANDOFF_FAILED)
+
+
 def helper_token(body: HelperTokenBody, request: Request) -> dict[str, Any]:
     _require_extension_origin(request)
-    if not helper_state.consume_state(helper_state.KIND_SIGNIN, body.state):
-        raise HTTPException(status_code=403, detail="invalid or expired state")
+    kind = helper_state.KIND_SIGNIN
+    _claim(kind, body.state)
     try:
         # Empty email on purpose: Google's response supplies it (vendored flow).
         account = sign_in_with_oauth_token("", body.oauth_token, require_email=False)
     except TokenRejectedError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from None
-    except TokenSignInError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from None
+        raise _fail(kind, body.state, 400, exc) from None
+    except Exception as exc:
+        raise _fail(kind, body.state, 502, exc) from None
+    helper_state.end_exchange(body.state, ok=True)
     helper_state.bump_signin_generation()
+    helper_state.record_outcome(kind, True)
     return {"state": "done", "account": account}
 
 
 def helper_unlock(body: HelperUnlockBody, request: Request) -> dict[str, Any]:
     _require_extension_origin(request)
-    if not helper_state.consume_state(helper_state.KIND_UNLOCK, body.state):
-        raise HTTPException(status_code=403, detail="invalid or expired state")
+    kind = helper_state.KIND_UNLOCK
+    _claim(kind, body.state)
     try:
         store_vault_keys(body.vault_keys)
     except SharedKeyParseError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from None
+        raise _fail(kind, body.state, 400, exc) from None
+    except Exception as exc:
+        raise _fail(kind, body.state, 502, exc) from None
+    helper_state.end_exchange(body.state, ok=True)
+    helper_state.record_outcome(kind, True)
     return {"state": "done"}
 
 

@@ -53,6 +53,14 @@ export function pendingIsLive(pending, now) {
   return Boolean(pending) && now - (pending.at || 0) < PENDING_TTL_MS;
 }
 
+/** Only a transient failure (network error, status 0, or a 5xx) is worth another
+ *  attempt; a 4xx means the daemon refused it, and repeating cannot help. */
+export function shouldRetry(status, attempt, max = 3) {
+  return (status === 0 || status >= 500) && attempt < max;
+}
+
+export const RETRY_DELAY_MS = 2000;
+
 export function baseUrl(port) {
   return `http://127.0.0.1:${port}`;
 }

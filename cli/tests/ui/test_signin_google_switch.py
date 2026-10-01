@@ -48,3 +48,34 @@ async def test_switch_account_keeps_waiting_until_the_generation_advances(page, 
     state.update(generation=4, account="new@example.com")
     await wait_text(page, "#fp-auth-google-status", "new@example.com")
     assert not await page.locator(HELLO_STATUS).is_visible()
+
+
+async def test_a_failed_hand_off_shows_a_plain_error_on_the_card(page, base_url):
+    outcome = {"v": None}
+
+    def body() -> dict:
+        out = status_body()
+        out["google_signin_generation"] = 0
+        out["google_helper_outcome"] = outcome["v"]
+        return out
+
+    async def status_route(route):
+        await route.fulfill(json=body())
+
+    async def begin_route(route):
+        outcome["v"] = {"kind": "signin", "ok": False, "message": "Couldn't reach Google."}
+        await route.fulfill(json={"browser": "chrome", "generation": 0})
+
+    await page.add_init_script("window.__FP_TEST_STATUS_POLL_MS__ = 40;")
+    await page.route("**/api/auth/status", status_route)
+    await page.route("**/api/auth/google/helper/begin", begin_route)
+    await page.goto(base_url + "/#dashboard")
+    await page.click("#btn-settings")
+    await page.wait_for_selector("#fp-auth-google-status:not(:empty)", timeout=15000)
+    await page.get_by_role("button", name="Sign in with Google").click()
+    await wait_text(page, "#fp-auth-google-hello-error", "Couldn't reach Google.")
+    assert (
+        await page.locator("#fp-auth-google-hello-error")
+        .get_by_role("button", name="Try again")
+        .is_visible()
+    )

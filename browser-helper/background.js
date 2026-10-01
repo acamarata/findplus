@@ -14,7 +14,9 @@
 import {
   HELPER_VERSION,
   PORT_STORAGE_KEY,
+  RETRY_DELAY_MS,
   acceptBegin,
+  shouldRetry,
   isOauthCookieChange,
   successUrl,
   tokenBody,
@@ -53,9 +55,21 @@ async function postJson(url, body) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    return res.ok;
+    return res.status;
   } catch (_err) {
-    return false;
+    return 0;
+  }
+}
+
+/** POST, retrying a transient failure (Google slow, daemon restarting) a few
+ *  times. Resolves to the final HTTP status, 0 meaning "could not reach Find+". */
+async function postWithRetry(url, body) {
+  let attempt = 1;
+  for (;;) {
+    const status = await postJson(url, body);
+    if (!shouldRetry(status, attempt)) return status;
+    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * attempt));
+    attempt += 1;
   }
 }
 
@@ -75,11 +89,14 @@ chrome.cookies.onChanged.addListener(async (change) => {
   if (!isOauthCookieChange(change)) return;
   const pending = await getPending();
   if (!pending || pending.mode !== "signin") return;
-  const ok = await postJson(tokenEndpoint(pending.port), tokenBody(pending.state, change.cookie.value));
-  if (ok) {
-    await clearPending();
-    await moveTabToSuccess(pending.port);
-  }
+  const status = await postWithRetry(
+    tokenEndpoint(pending.port),
+    tokenBody(pending.state, change.cookie.value)
+  );
+  // A refusal (4xx) is final: the daemon shows the reason on the Find+ card, and
+  // the person starts again there. Only a 2xx moves the tab to the success page.
+  if (status >= 200 && status < 300) await moveTabToSuccess(pending.port);
+  if (status !== 0 && status < 500) await clearPending();
 });
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -105,11 +122,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg && msg.type === "findplus-vault") {
       const pending = await getPending();
       if (pending && pending.mode === "unlock") {
-        const ok = await postJson(unlockEndpoint(pending.port), unlockBody(pending.state, msg.vaultKeys));
-        if (ok) {
-          await clearPending();
-          await moveTabToSuccess(pending.port);
-        }
+        const status = await postWithRetry(
+          unlockEndpoint(pending.port),
+          unlockBody(pending.state, msg.vaultKeys)
+        );
+        if (status >= 200 && status < 300) await moveTabToSuccess(pending.port);
+        if (status !== 0 && status < 500) await clearPending();
       }
       sendResponse({ ok: true });
       return;

@@ -108,6 +108,11 @@ export class GoogleHelperFlow {
       if (++this.ticks > pollCap()) return this.showError(t("signin.google.hello.timeout"));
       try {
         const status = await this.deps.api(STATUS_ROUTE);
+        const outcome = status.google_helper_outcome;
+        if (outcome && outcome.ok === false && outcome.kind === "signin") {
+          // The helper handed the sign-in over and Find+ could not finish it.
+          return this.showError(outcome.message || t("signin.error.unknown"));
+        }
         const google = (status.providers || []).find((p) => p.id === PROVIDER_ID);
         if (google && google.signed_in && this.landed(status)) {
           this.reset();

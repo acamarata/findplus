@@ -77,10 +77,12 @@ def build_auth_status() -> dict[str, Any]:
 
         google_helper_installed = helper_state.helper_seen()
         generation = helper_state.signin_generation()
+        outcome = helper_state.last_outcome()
     except Exception:
-        google_helper_installed, generation = False, 0
+        google_helper_installed, generation, outcome = False, 0, None
     return {
         "providers": providers,
         "google_helper_installed": google_helper_installed,
         "google_signin_generation": generation,
+        "google_helper_outcome": outcome,
     }

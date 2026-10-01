@@ -22,11 +22,13 @@
 
 import { t } from "../i18n.js";
 import { displayName } from "../state.js";
+import { labelMap } from "../device_label.js";
 
-export function trackerOption(device) {
+/** `labels` is device_label.js's labelMap() of the list this select shows. */
+export function trackerOption(device, labels = labelMap([device])) {
   const opt = document.createElement("option");
   opt.value = device.device_id;
-  opt.textContent = displayName(device) || device.device_id;
+  opt.textContent = labels.get(device.device_id) || displayName(device) || device.device_id;
   return opt;
 }
 

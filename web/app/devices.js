@@ -8,6 +8,7 @@
 "use strict";
 
 import { $, state, colorFor, displayName, showAlert } from "./state.js";
+import { labelMap, tailOf } from "./device_label.js";
 import { api } from "./api.js";
 import { applyHashRoute, reload } from "./main.js";
 import { loadPresence } from "./places.js";
@@ -50,12 +51,14 @@ export function renderDeviceFilter() {
   const current = state.deviceFilter;
   while (select.firstChild) select.removeChild(select.firstChild);
   select.appendChild(allTrackedOption());
-  state.devices
-    .filter((d) => d.is_tracked || d.observation_count > 0)
-    .forEach((d) => {
+  const shownDevices = state.devices.filter((d) => d.is_tracked || d.observation_count > 0);
+  const labels = labelMap(shownDevices);
+  shownDevices.forEach((d) => {
       const opt = document.createElement("option");
       opt.value = d.device_id;
-      const full = displayName(d) + " (" + providerLabel(d.provider) + ")" + (d.is_tracked ? "" : t("devices.notPolledSuffix"));
+      // UAT #7: the shared label adds an id tail only when two names clash.
+      const tail = tailOf(d, labels);
+      const full = displayName(d) + tail + " (" + providerLabel(d.provider) + ")" + (d.is_tracked ? "" : t("devices.notPolledSuffix"));
       // UAT6-N09: a <select> is as wide as its longest option, and CSS cannot
       // ellipsize inside the open list. Cut long names here; the title keeps
       // the whole thing for hover.

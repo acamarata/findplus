@@ -34,6 +34,7 @@
 import { api } from "../api.js";
 import { t } from "../i18n.js";
 import { buildPlaceLocatorDom, searchResultRow, trackerOption } from "./place_locator_dom.js";
+import { labelMap } from "../device_label.js";
 
 /** The "use a tracker's last location" half: its own select + button. */
 function createTrackerPicker(select, useBtn, { onPick, setStatus }) {
@@ -57,7 +58,9 @@ function createTrackerPicker(select, useBtn, { onPick, setStatus }) {
     placeholder.value = "";
     placeholder.textContent = t("places.field.chooseTracker");
     select.appendChild(placeholder);
-    resp.devices.filter((d) => d.is_tracked).forEach((d) => select.appendChild(trackerOption(d)));
+    const tracked = resp.devices.filter((d) => d.is_tracked);
+    const labels = labelMap(tracked);
+    tracked.forEach((d) => select.appendChild(trackerOption(d, labels)));
   }
 
   async function useTrackerLocation() {

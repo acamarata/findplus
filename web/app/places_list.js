@@ -22,7 +22,7 @@
 
 import { api } from "./api.js";
 import { t } from "./i18n.js";
-import { displayName } from "./state.js";
+import { uniqueLabel } from "./device_label.js";
 import { editPlace, deletePlace, centerOnPlace } from "./places.js";
 
 let listEl = null;
@@ -51,7 +51,7 @@ function cardButton(className, label, ariaLabel, onClick) {
  * announcing an empty "Currently here:" on every place with nobody in it. */
 function whoIsHereText(place, presenceByPlace, devicesById) {
   const here = (presenceByPlace.get(String(place.id)) || [])
-    .map((deviceId) => displayName(devicesById.get(deviceId)) || deviceId);
+    .map((deviceId) => uniqueLabel(devicesById.get(deviceId)) || deviceId);
   return here.length ? t("places.list.whoIsHere", { names: here.join(", ") }) : "";
 }
 

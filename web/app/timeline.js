@@ -8,7 +8,7 @@
  */
 "use strict";
 
-import { $, state, displayName, visibleTracks, fmtDateTime, fmtDuration, todayLocal, showAlert } from "./state.js";
+import { $, state, visibleTracks, fmtDateTime, fmtDuration, todayLocal, showAlert } from "./state.js";
 import { api, postJson } from "./api.js";
 import { renderMap, deviceForTrack } from "./map.js";
 import { renderBadge } from "./components/badge.js";
@@ -19,6 +19,7 @@ import { nothingTrackedEmptyState, emptyDayState } from "./dashboard_empty.js";
 import { confirmDialog } from "./components/confirm-dialog.js";
 import { statsHtml, timelineHtml } from "./timeline_list.js";
 import { paneError } from "./pane_error.js";
+import { uniqueLabel } from "./device_label.js";
 import { syncRoving, wireTimelineKeys } from "./timeline_keys.js";
 
 /**
@@ -44,7 +45,7 @@ function trackHead(track) {
   );
   const name = document.createElement("span");
   name.className = "track-name";
-  name.textContent = displayName(device) || track.device_name || track.device_id;
+  name.textContent = uniqueLabel(device) || track.device_name || track.device_id;
   const count = document.createElement("span");
   count.className = "track-count";
   count.textContent = plural("timeline.observations", track.points.length, {

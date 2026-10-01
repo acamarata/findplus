@@ -20,7 +20,7 @@
 "use strict";
 
 import { t, plural } from "./i18n.js";
-import { displayName } from "./state.js";
+import { labelMap, tailOf } from "./device_label.js";
 import { memberRow } from "./groups_dialog_dom.js";
 
 function hint(text) {
@@ -28,16 +28,6 @@ function hint(text) {
   p.className = "fp-field-hint fp-members-hint";
   p.textContent = text;
   return p;
-}
-
-/** Display names that more than one device carries. */
-function repeatedNames(devices) {
-  const seen = new Map();
-  devices.forEach((d) => {
-    const key = displayName(d);
-    seen.set(key, (seen.get(key) || 0) + 1);
-  });
-  return new Set([...seen].filter(([, n]) => n > 1).map(([name]) => name));
 }
 
 function selectAllButton(box) {
@@ -62,8 +52,8 @@ function selectAllButton(box) {
   return btn;
 }
 
-function deviceRow(device, repeated, tracked) {
-  const suffix = repeated.has(displayName(device)) ? ` (${String(device.device_id).slice(-4)})` : "";
+function deviceRow(device, labels, tracked) {
+  const suffix = tailOf(device, labels); // UAT #7: an id tail only on a name clash
   const row = memberRow(device, { disabled: !tracked, suffix });
   if (!tracked) row.title = t("groups.members.untracked_row");
   return row;
@@ -78,18 +68,18 @@ export function renderMemberList(box, devices, { wizard = false } = {}) {
   }
   const tracked = devices.filter((d) => d.is_tracked);
   const untracked = devices.filter((d) => !d.is_tracked);
-  const repeated = repeatedNames(devices);
+  const labels = labelMap(devices);
   if (!tracked.length) {
     const key = wizard ? "groups.members.none_tracked_setup" : "groups.members.none_tracked";
     box.append(hint(t(key, { count: devices.length })));
   } else {
     box.append(selectAllButton(box));
-    tracked.forEach((d) => box.append(deviceRow(d, repeated, true)));
+    tracked.forEach((d) => box.append(deviceRow(d, labels, true)));
   }
   if (untracked.length) {
     const key = wizard ? "groups.members.untracked_note_setup" : "groups.members.untracked_note";
     box.append(hint(plural("groups.members.untracked_count", untracked.length, { count: untracked.length })
       + " " + t(key)));
-    untracked.forEach((d) => box.append(deviceRow(d, repeated, false)));
+    untracked.forEach((d) => box.append(deviceRow(d, labels, false)));
   }
 }

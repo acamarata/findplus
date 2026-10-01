@@ -16,6 +16,7 @@ import json
 from datetime import datetime
 from xml.sax.saxutils import escape
 
+from findplus.csv_safety import csv_safe as _csv_safe
 from findplus.db.models import LocationObservation
 from findplus.geo import haversine_meters
 
@@ -31,6 +32,15 @@ DISCLAIMER = (
 #: travels with the file the way it already does in JSON, GPX and KML.
 #: `csv_table()` strips it back off for any caller that re-parses the output.
 CSV_COMMENT = f"# {DISCLAIMER}"
+
+#: Invariant 7 (PROMPT.md section 2): any distance reads as approximate. The
+#: same sentence the timeline stats carry (`timeline_models.DayStats`).
+DISTANCE_LABEL = "Approximate distance between observed locations"
+
+#: Second CSV comment line, naming the column that carries the distance.
+CSV_DISTANCE_COMMENT = (
+    f"# {DISTANCE_LABEL}: column approx_meters_from_previous (straight line, metres)."
+)
 
 
 def csv_table(body: str) -> str:
@@ -65,23 +75,6 @@ CSV_COLUMNS = [
 ]
 
 
-#: Characters a spreadsheet treats as the start of a formula.
-_FORMULA_LEAD = ("=", "+", "-", "@", "\t", "\r")
-
-
-def _csv_safe(value: object) -> object:
-    """Prefix a formula-leading cell with `'` so Excel/Sheets treat it as text.
-
-    Device names come from the provider and from the user, so a name like
-    `=HYPERLINK("http://…")` would otherwise execute the moment someone opened
-    the export. The apostrophe is the documented spreadsheet escape and is not
-    shown in the cell.
-    """
-    if isinstance(value, str) and value.startswith(_FORMULA_LEAD):
-        return "'" + value
-    return value
-
-
 def _local(ts: datetime, tz) -> str:
     return ts.astimezone(tz).isoformat()
 
@@ -113,7 +106,7 @@ def to_csv(
     labels: dict[str, str] | None = None,
 ) -> str:
     buf = io.StringIO()
-    buf.write(CSV_COMMENT + "\n")
+    buf.write(CSV_COMMENT + "\n" + CSV_DISTANCE_COMMENT + "\n")
     writer = csv.DictWriter(buf, fieldnames=CSV_COLUMNS, lineterminator="\n")
     writer.writeheader()
     for obs, meters in _with_deltas(observations):
@@ -147,6 +140,7 @@ def to_json(
 ) -> str:
     payload = {
         "disclaimer": DISCLAIMER,
+        "distance_label": DISTANCE_LABEL,
         "exported_at": datetime.now(tz).isoformat(),
         "timezone": str(tz),
         "count": len(observations),
@@ -259,11 +253,13 @@ def to_kml(
             "    </Placemark>",
         ]
     if len(observations) > 1:
+        total = sum(m for _, m in _with_deltas(observations) if m is not None)
         coords = " ".join(f"{o.longitude:.7f},{o.latitude:.7f},0" for o in observations)
         lines += [
             "    <Placemark>",
             "      <name>Observed path</name>",
-            f"      <description>{escape(DISCLAIMER)}</description>",
+            f"      <description>{escape(DISCLAIMER)} "
+            f"{escape(DISTANCE_LABEL)}: {total:.0f} m.</description>",
             "      <styleUrl>#observed-path</styleUrl>",
             "      <LineString><tessellate>1</tessellate>"
             f"<coordinates>{coords}</coordinates></LineString>",

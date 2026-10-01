@@ -19,7 +19,9 @@ from sqlalchemy import select
 from findplus.db.models import LocationObservation
 from findplus.exporters import (
     CSV_COLUMNS,
+    CSV_DISTANCE_COMMENT,
     DISCLAIMER,
+    DISTANCE_LABEL,
     csv_table,
     export,
     to_csv,
@@ -115,7 +117,11 @@ def test_csv_preserves_seven_decimal_places(rows) -> None:
 
 def test_csv_of_empty_history_is_a_comment_and_a_header(session) -> None:
     body = to_csv([], EASTERN)
-    assert body.splitlines() == [f"# {DISCLAIMER}", ",".join(CSV_COLUMNS)]
+    assert body.splitlines() == [
+        f"# {DISCLAIMER}",
+        CSV_DISTANCE_COMMENT,
+        ",".join(CSV_COLUMNS),
+    ]
 
 
 # ------------------------------------------------------------------ JSON
@@ -191,3 +197,12 @@ def test_dispatcher_supports_every_documented_format(rows, fmt: str) -> None:
 def test_dispatcher_rejects_unknown_formats(rows) -> None:
     with pytest.raises(ValueError, match="Unsupported export format"):
         export("shapefile", rows, EASTERN)
+
+
+def test_every_export_that_carries_a_distance_labels_it_approximate(rows) -> None:
+    """Invariant 7: CSV, JSON and KML name the distance as approximate."""
+    assert DISTANCE_LABEL == "Approximate distance between observed locations"
+    assert to_csv(rows, EASTERN).splitlines()[1] == CSV_DISTANCE_COMMENT
+    assert DISTANCE_LABEL in CSV_DISTANCE_COMMENT
+    assert json.loads(to_json(rows, EASTERN))["distance_label"] == DISTANCE_LABEL
+    assert DISTANCE_LABEL in to_kml(rows, EASTERN)

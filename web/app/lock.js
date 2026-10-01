@@ -106,6 +106,7 @@ export async function purgeRenderedData() {
   state.selectedId = null;
   state.markers.clear();
   if (state.layer) state.layer.clearLayers();
+  if (state.legend) { state.legend.remove(); state.legend = null; }  // names of trackers
   // U4: the same neutral world view initMap() starts at, not the old US
   // default -- a locked screen must not hint at a last-viewed region either.
   if (state.map) state.map.setView(WORLD_VIEW_CENTER, WORLD_VIEW_ZOOM);

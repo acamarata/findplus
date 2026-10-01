@@ -868,5 +868,11 @@
     "notAffiliated": "Find+ is not affiliated with Apple or Google. Find Hub and Find My are their trademarks.",
     "chromeRequired": "Google Chrome was not found on this machine. Google sign-in drives Chrome directly and cannot run without it. Install it from https://www.google.com/chrome/ and try again.",
     "addressSearch": "Address search sends the text you type to OpenStreetMap's Nominatim service, a third party not affiliated with Find+, and only when you press Search."
+  },
+  "map": {
+    "label": "Map of tracker locations",
+    "legendLabel": "Trackers on the map",
+    "legendFrame": "Show {name} on the map",
+    "tilesFailed": "The map background could not load, so you may be offline. Your points and paths are still drawn."
   }
 }

@@ -17,6 +17,7 @@ import { renderBadge } from "./components/badge.js";
 import { t } from "./i18n.js";
 import { api } from "./api.js";
 import { syncMapOverlay } from "./map_empty.js";
+import { renderLegend, syncDense, watchTiles } from "./map_extras.js";
 
 // U4 (R-P2-30.2): a US-centred default read as "my child is in Kansas" the
 // first time the map had no data to fit. A neutral world view says nothing
@@ -37,10 +38,13 @@ function fitWorld() {
 
 export function initMap() {
   state.map = L.map("map", { zoomControl: true }).setView(WORLD_VIEW_CENTER, WORLD_VIEW_ZOOM);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  const tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(state.map);
+  watchTiles(tiles, document.querySelector(".map-pane"));
+  state.map.getContainer().setAttribute("aria-label", t("map.label"));
+  state.map.on("zoomend", () => syncDense(state.map, state.markers.size));
   state.layer = L.layerGroup().addTo(state.map);
   // Leaflet only measures its container once. If the pane was hidden, still
   // laying out, or later resized (window drag, tab switch, banner appearing),
@@ -228,17 +232,24 @@ export function visiblePoints(track) {
 export function renderMap({ fit = true } = {}) {
   state.layer.clearLayers();
   state.markers.clear();
-  if (!state.timeline) { syncMapOverlay(); return; }
+  if (!state.timeline) {
+    if (state.legend) { state.legend.remove(); state.legend = null; }
+    syncMapOverlay();
+    return;
+  }
 
   const allLatLngs = [];
+  const legend = [];
 
   // The dashboard's group select narrows both the map and the timeline to
   // one group's members client-side, with no second fetch (UAT U8).
   visibleTracks(state.timeline.tracks).forEach((track) => {
     const points = visiblePoints(track);
     if (!points.length) return;
-    const color = colorFor(track.device_id);
     const device = deviceForTrack(track);
+    // The path takes the tracker's own colour, the same one its markers and
+    // timeline badge use, so the map and the legend agree.
+    const color = device.color || colorFor(track.device_id);
     // D-P2-15: a map marker shows the label as well as the icon and colour.
     // The tooltip, the hover title and the popup are the only text the map
     // has, so they read the label first, exactly as the device list and the
@@ -246,6 +257,7 @@ export function renderMap({ fit = true } = {}) {
     const shown = uniqueLabel(device) || track.device_name;
     const latlngs = points.map((p) => [p.latitude, p.longitude]);
     allLatLngs.push(...latlngs);
+    legend.push({ name: shown, color, latlngs });
 
     if (latlngs.length > 1) {
       // keyboard: false (U31) — Leaflet's default Tab-stop-per-path/marker
@@ -269,6 +281,8 @@ export function renderMap({ fit = true } = {}) {
     });
   });
 
+  state.legend = renderLegend(state.map, legend, state.legend);
+  syncDense(state.map, state.markers.size);
   if (allLatLngs.length && fit) {
     state.map.fitBounds(L.latLngBounds(allLatLngs), { padding: [42, 42], maxZoom: 17 });
   }

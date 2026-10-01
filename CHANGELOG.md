@@ -27,6 +27,8 @@ Versioning: [Semantic Versioning](https://semver.org/).
   The checksum catches a corrupted download. It does not prove who published the release.
 - The dashboard has an **Unlock** action, and its status refreshes by itself and polls at once
   after you act.
+- When the Chrome helper is detected, **Unlock encrypted locations** and `findplus auth` use it
+  too; the separate Find+ Chrome window stays as the other way.
 - The groups page explains why a group is empty or locked, and lists devices that are not
   tracked.
 - `install.sh --help` prints usage. The Homebrew caveats, README and Install page now mention the
@@ -44,7 +46,24 @@ Versioning: [Semantic Versioning](https://semver.org/).
   dmg is attached to a release. CI runs with read-only token permissions by default and scans for
   secrets with gitleaks.
 
+- The Chrome helper only talks to Find+ on port 8647 (checked against `/api/health`), forgets a
+  pending sign-in after 10 minutes, and only moves the tab that started the flow.
+- Devices that share a name get a short id suffix in pickers, group notes, place events and
+  export file names.
+
 ### Fixed
+- Groups saved by older versions with case-variant or very long names can be edited again, and a
+  member that is no longer tracked can be removed from a group.
+- Poll Now while signed out ends in seconds and says why. Trackers Find Hub has no newer sighting
+  for are listed as "no recent sighting", not as errors, and the banner no longer claims they
+  "reported the same place".
+- A failed helper hand-off shows its reason on the card and can be retried; "Switch Google
+  account" waits for the new sign-in instead of finishing on the old one.
+- Disconnect cancels a running sign-in or unlock, so a late job cannot sign you back in.
+- The timeline and Groups panes show an error with a Retry button instead of stale or blank
+  content, and timeline entries work from the keyboard.
+- `update-app.sh` checks the new app's signature and architecture, and rolls back if the swap
+  fails.
 - The unlock wait loop can be cancelled, times out, and ends cleanly.
 - The helper's token and unlock hand-off, and its "seen" ping, work while the app lock is on.
 - The unlock key is tagged with its Google account, and a key that belongs to another account is

@@ -18,6 +18,8 @@ use tauri::AppHandle;
 /// How long to wait for the daemon, and how often to ask.
 const HEALTH_BUDGET: Duration = Duration::from_secs(30);
 const HEALTH_INTERVAL: Duration = Duration::from_millis(500);
+/// After the budget is spent: keep checking, but gently.
+const SLOW_INTERVAL: Duration = Duration::from_secs(2);
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// The wire key is dotted (ruling F6) and the settings body is flat, so this
@@ -51,8 +53,9 @@ pub fn decide(settings_json: &Value, http_status: Option<i64>) -> bool {
 
 /// Poll health until the daemon answers, read the settings once, then decide.
 ///
-/// If the daemon never becomes healthy inside the budget, the splash keeps
-/// showing its own error state: close_splash is deliberately never called.
+/// If the daemon is not healthy inside the budget, the splash switches to its
+/// "could not start" state and polling carries on; the splash closes as soon
+/// as the daemon answers, however late.
 pub fn start(app: AppHandle) {
     std::thread::spawn(move || {
         let Ok(client) = reqwest::blocking::Client::builder()
@@ -63,6 +66,7 @@ pub fn start(app: AppHandle) {
         };
         let base = crate::daemon::daemon_base();
         let deadline = Instant::now() + HEALTH_BUDGET;
+        let mut gave_up = false;
         loop {
             if client
                 .get(format!("{base}/api/health"))
@@ -72,10 +76,15 @@ pub fn start(app: AppHandle) {
             {
                 break;
             }
-            if Instant::now() >= deadline {
-                return;
+            // A slow start (a login-service daemon that was just restarted
+            // can take half a minute) must not strand the splash: say so once,
+            // then keep waiting at a calmer pace and close the splash the
+            // moment the daemon does answer.
+            if !gave_up && Instant::now() >= deadline {
+                gave_up = true;
+                crate::windows::show_splash_error(&app);
             }
-            std::thread::sleep(HEALTH_INTERVAL);
+            std::thread::sleep(if gave_up { SLOW_INTERVAL } else { HEALTH_INTERVAL });
         }
 
         let (settings_json, http_status) = match client.get(format!("{base}/api/settings")).send() {

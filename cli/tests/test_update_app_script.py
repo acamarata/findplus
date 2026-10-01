@@ -36,7 +36,8 @@ STUBS = {
     '[ "$1" = print ] && [ "$2" = "gui/$(id -u)/com.acamarata.findplus" ] || '
     '[ "$1" = kickstart ]',
     "xattr": 'echo "$@" >> "$STUB_LOG/xattr"',
-    "mv": 'if [ "${STUB_MV_FAIL:-0}" = 1 ] && [ "${1##*.}" = new ]; then exit 1; fi; exec /bin/mv "$@"',
+    "mv": 'if [ "${STUB_MV_FAIL:-0}" = 1 ] && [ "${1##*.}" = new ]; then exit 1; fi; '
+    'exec /bin/mv "$@"',
 }
 
 

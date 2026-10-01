@@ -24,8 +24,35 @@ Versioning: [Semantic Versioning](https://semver.org/).
   generated icon and promo tile.
 - `update-app.sh` (a release asset): update the macOS app while it is running. It quits Find+ and its
   daemon, verifies the dmg checksum, swaps the app and starts it again; your data is untouched.
+  The checksum catches a corrupted download. It does not prove who published the release.
+- The dashboard has an **Unlock** action, and its status refreshes by itself and polls at once
+  after you act.
+- The groups page explains why a group is empty or locked, and lists devices that are not
+  tracked.
+- `install.sh --help` prints usage. The Homebrew caveats, README and Install page now mention the
+  one-time Chrome helper step for every install route.
+- The macOS app bundle now ships a notices file with the licences of the packages inside it.
+  Leaflet's licence text sits next to its vendored copy.
+
+### Changed
+- Group names are trimmed and compared without regard to case, so "Family" and "family" no longer
+  both exist.
+- JSON, KML and CSV exports label distances as approximate.
+- `update-app.sh` restarts the login-service daemon after it swaps the app.
+- The helper sign-in leads in the README and wiki; the paste route is marked as the fallback.
+- Release builds on a tag now fail rather than ship an unsigned app. Only the signed Apple Silicon
+  dmg is attached to a release. CI runs with read-only token permissions by default and scans for
+  secrets with gitleaks.
 
 ### Fixed
+- The unlock wait loop can be cancelled, times out, and ends cleanly.
+- The helper's token and unlock hand-off, and its "seen" ping, work while the app lock is on.
+- The unlock key is tagged with its Google account, and a key that belongs to another account is
+  refused.
+- Disconnect also empties the Google data held in the Find+ Chrome profile.
+- A revoked Google login now reads as signed out and offers a sign-in prompt.
+- A location report Find+ cannot decrypt counts as a failed poll, not as "no data".
+- Find+ no longer backs off when no Google traffic happened.
 - After you unlock encrypted locations or sign in, Find+ now polls straight away and clears its
   retry delay. Before, the dashboard stayed empty for up to ten minutes after a successful unlock.
 - The dashboard map no longer renders into a small corner box when the window or layout changes

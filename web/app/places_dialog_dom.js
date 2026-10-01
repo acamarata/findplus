@@ -61,7 +61,7 @@ function pickerGroup(legendText) {
 function buildPlaceFields() {
   const title = document.createElement("h2");
   title.id = "fp-place-dialog-title";
-  const name = field("text", { id: "fp-place-name", required: true, maxLength: 80 });
+  const name = field("text", { id: "fp-place-name", required: true, maxLength: 64 });
   const lat = field("hidden", { id: "fp-place-lat" });
   const lon = field("hidden", { id: "fp-place-lon" });
   const radius = field("range", {
@@ -84,7 +84,11 @@ function buildPlaceFields() {
   const error = document.createElement("p");
   error.className = "fp-dialog-error";
   error.id = "fp-place-dialog-error";
-  return { title, name, lat, lon, radius, color, enter, exit, radiusNumber, error };
+  // UAT #9: where the place will be saved, in words, under the locator.
+  const where = document.createElement("p");
+  where.className = "fp-field-hint";
+  where.id = "fp-place-where";
+  return { title, name, lat, lon, radius, color, enter, exit, radiusNumber, error, where };
 }
 
 function radiusRow(f) {
@@ -118,6 +122,7 @@ export function buildDialog({ onSave, onCancel }) {
     f.lon,
     f.color,
     locatorHost,
+    f.where,
     radiusRow(f),
     colorGroup,
     labeled(t("places.enterConfirmations"), f.enter, f.enter.id),

@@ -310,6 +310,11 @@
     "card": {
       "edit": "Edit {name}",
       "delete": "Delete {name}"
+    },
+    "where": {
+      "centre": "Location: the centre of the map ({lat}, {lon}). Choose a tracker, a point on the map or an address above to move it.",
+      "current": "Location: {lat}, {lon}.",
+      "picked": "Location: {lat}, {lon}, as chosen above."
     }
   },
   "alerts": {

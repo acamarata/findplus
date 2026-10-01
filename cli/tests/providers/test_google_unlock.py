@@ -36,16 +36,16 @@ def _wait_terminal(job_id: str, timeout: float = 3.0) -> dict:
 
 
 def _fake_flow(monkeypatch, result=SHARED_KEY_HEX, block: threading.Event | None = None):
-    import KeyBackup.shared_key_flow as shared_key_flow
+    from findplus.providers.google_findhub import unlock_flow
 
-    def flow():
+    def flow(*_args, **_kwargs):
         if block is not None:
             block.wait(3)
         if isinstance(result, Exception):
             raise result
         return result
 
-    monkeypatch.setattr(shared_key_flow, "request_shared_key_flow", flow)
+    monkeypatch.setattr(unlock_flow, "run_shared_key_flow", flow)
 
 
 @pytest.fixture(autouse=True)

@@ -20,6 +20,7 @@ import contextlib
 import os
 import threading
 from pathlib import Path
+from typing import Any
 
 from findplus.config import get_settings
 from findplus.providers.findhub.bootstrap import ensure_gfmt_importable as _resolve_path
@@ -126,22 +127,30 @@ def install_vendor_guards() -> None:
     vendored browser code cannot launch a browser either. Called at the end of
     ensure_gfmt_importable(), the one chokepoint every real vendor use passes.
     """
-    with contextlib.suppress(Exception):
-        import chrome_driver
-
-        chrome_driver.create_driver = _blocked_create_driver
+    set_create_driver(_blocked_create_driver)
     with contextlib.suppress(Exception):
         import KeyBackup.shared_key_retrieval as shared_key_retrieval
 
         shared_key_retrieval._retrieve_shared_key = _blocked_retrieve_shared_key
 
 
-def restore_create_driver_guard() -> None:
-    """Put the blocked create_driver back after a job installed a real one."""
-    with contextlib.suppress(Exception):
-        import chrome_driver
+#: Every vendor module that did `from chrome_driver import create_driver` keeps
+#: its own binding, so all of them must be rebound and restored together.
+_DRIVER_MODULES = ("chrome_driver", "Auth.auth_flow", "KeyBackup.shared_key_flow")
 
-        chrome_driver.create_driver = _blocked_create_driver
+
+def set_create_driver(factory: Any) -> None:
+    """Point `create_driver` at `factory` on chrome_driver and every module that copied it."""
+    import importlib
+
+    for name in _DRIVER_MODULES:
+        with contextlib.suppress(Exception):
+            importlib.import_module(name).create_driver = factory
+
+
+def restore_create_driver_guard() -> None:
+    """Put the blocked create_driver back, on every module, after a job installed a real one."""
+    set_create_driver(_blocked_create_driver)
 
 
 def secrets_exist() -> bool:

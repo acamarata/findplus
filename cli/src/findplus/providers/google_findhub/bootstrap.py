@@ -65,7 +65,10 @@ def ensure_gfmt_importable() -> Path:
         import Auth.token_cache as token_cache
 
         def _our_secrets_file() -> str:
-            return str(secrets_path)
+            # Resolved per call, not captured once: the store follows the
+            # current settings (and a test's own state dir) instead of whichever
+            # state dir the first vendor use happened to see.
+            return str(get_settings().secrets_file)
 
         token_cache._get_secrets_file = _our_secrets_file
 

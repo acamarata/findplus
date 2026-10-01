@@ -44,6 +44,23 @@ from .types import (
 log = get_logger(__name__)
 
 
+def _undecryptable(count: int) -> UndecryptableReportsError:
+    return UndecryptableReportsError(
+        f"Find Hub sent {count} location report(s) for this tracker, but Find+ "
+        "could not decrypt them. This can follow a reset of Google's encrypted data: "
+        "disconnect in Settings > Sign-in, sign in again and unlock."
+    )
+
+
+def _report_pairs(info: Any) -> list[tuple[Any, Any]]:
+    """Every (location, timestamp) report in a device's metadata, network ones first."""
+    reports = info.locationInformation.reports.recentLocationAndNetworkLocations
+    pairs = list(zip(reports.networkLocations, reports.networkLocationTimestamps, strict=False))
+    if reports.HasField("recentLocation"):
+        pairs.append((reports.recentLocation, reports.recentLocationTimestamp))
+    return pairs
+
+
 class FindHubClient:
     """Thin, typed façade over GoogleFindMyTools."""
 
@@ -209,10 +226,7 @@ class FindHubClient:
         identity_key = self._resolve_identity_key(registration, retrieve_identity_key)
         is_mcu = is_mcu_tracker(registration)
         battery = maybe_battery(info)
-        reports = info.locationInformation.reports.recentLocationAndNetworkLocations
-        pairs = list(zip(reports.networkLocations, reports.networkLocationTimestamps, strict=False))
-        if reports.HasField("recentLocation"):
-            pairs.append((reports.recentLocation, reports.recentLocationTimestamp))
+        pairs = _report_pairs(info)
 
         observations: list[RawObservation] = []
         skips: dict[str, int] = {}
@@ -234,11 +248,7 @@ class FindHubClient:
                 observations.append(obs)
 
         if not observations and skips.get("undecryptable"):
-            raise UndecryptableReportsError(
-                f"Find Hub sent {len(pairs)} location report(s) for this tracker, but Find+ "
-                "could not decrypt them. This can follow a reset of Google's encrypted data: "
-                "disconnect in Settings > Sign-in, sign in again and unlock."
-            )
+            raise _undecryptable(len(pairs))
         observations.sort(key=lambda o: o.observed_at)
         log.info("observations_decrypted", count=len(observations), device=device_name)
         return observations

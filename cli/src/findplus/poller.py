@@ -282,12 +282,8 @@ def _run_poll_cycle(
         if stop_event is not None and stop_event.is_set():
             log.info("poll_cycle_interrupted", completed=index, total=len(targets))
             break
-        if index and stagger:
-            # Space requests out rather than firing N at once.
-            if stop_event is not None:
-                stop_event.wait(stagger)
-            else:
-                threading.Event().wait(stagger)
+        if index and stagger:  # space requests out rather than firing N at once
+            (stop_event or threading.Event()).wait(stagger)
         cycle.outcomes.append(poll_device(device_id, device_name, provider_name, settings))
 
     _process_alert_retries(settings)

@@ -58,6 +58,11 @@ def _is_helper_page(path: str) -> bool:
         "/auth/google/begin",
         "/auth/google/unlock/begin",
         "/auth/google/success",
+        # Ingest routes the extension posts to without a cookie; each has its
+        # own gate (extension origin + single-use state), see _STATE_GATED.
+        "/api/auth/google/helper/token",
+        "/api/auth/google/helper/unlock",
+        "/api/auth/google/helper/seen",
     }
 
 

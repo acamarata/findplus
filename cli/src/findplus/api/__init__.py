@@ -28,6 +28,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from findplus import __version__, honesty
+from findplus.api._lock_paths import _PUBLIC, _STATE_GATED
 from findplus.appsettings import load_settings
 from findplus.config import PROJECT_ROOT, get_settings
 from findplus.db.session import session_scope
@@ -71,40 +72,6 @@ STATIC_DIR = _static_dir()
 FIND_HUB_NOTICE = honesty.FIND_HUB
 
 SESSION_COOKIE = "findplus_session"
-
-#: Endpoints reachable while the app is locked. Everything else 401s.
-#: The lock is enforced HERE, server-side — hiding the UI would leave the data
-#: one `curl` away. Corrected to the 8-path set from specs/api-contract.md
-#: (renamed from the legacy 3-entry _UNGATED_PATHS, which was under-enforced).
-#: `/static/*` and `/` were dead entries: this middleware only inspects paths
-#: that start with `/api/`, so neither could ever be compared against, and a
-#: literal `"/static/*"` never equals a real request path anyway.
-_PUBLIC = frozenset(
-    {
-        "/api/health",
-        "/api/version",
-        "/api/lock/status",
-        "/api/lock/unlock",
-        "/api/lock/lock",
-        "/api/lock/requirements",
-    }
-)
-
-
-#: Chrome-helper ingest routes. The extension runs on 127.0.0.1 and has no
-#: dashboard cookie, so a locked app would reject its hand-off and the sign-in
-#: would silently time out. They are safe to leave open: each handler requires
-#: the pinned extension origin AND a single-use state minted by an unlocked
-#: dashboard session (helper_state), and neither returns any location data.
-_STATE_GATED = frozenset(
-    {
-        "/api/auth/google/helper/token",
-        "/api/auth/google/helper/unlock",
-        # The begin page (also cookie-less, in the user's own Chrome) reports the
-        # helper is installed. It only sets a "helper detected" hint.
-        "/api/auth/google/helper/seen",
-    }
-)
 
 
 #: Guards manual polls so the UI cannot be used to hammer Google. Process-wide

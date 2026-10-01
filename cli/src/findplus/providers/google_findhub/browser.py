@@ -9,9 +9,8 @@ Outputs    : `start_google_auth()` -> job id; `get_google_auth_progress()` ->
              `cancel_google_auth()` -> bool, True when a live job was stopped
              (UAT6 N23: Cancel while waiting on Chrome).
 Constraints: `cli/vendor/GoogleFindMyTools/` is never edited (PRI hard rule 8).
-             Two vendor attributes are rebound at runtime instead, the same
-             surgical pattern `google_findhub/bootstrap.py` uses on
-             `Auth.token_cache._get_secrets_file`:
+             Two vendor attributes are rebound at runtime instead, the same pattern
+             `google_findhub/bootstrap.py` uses on `Auth.token_cache._get_secrets_file`:
 
              - `chrome_driver.create_driver`, whose original runs
                `pkill -f chrome` and then opens the user's DEFAULT Chrome
@@ -23,9 +22,8 @@ Constraints: `cli/vendor/GoogleFindMyTools/` is never edited (PRI hard rule 8).
              - `Auth.auth_flow.input`, a blocking stdin read no daemon thread
                can answer.
 
-             Import order is the whole trick: `Auth/auth_flow.py:7` binds
-             `create_driver` at its FIRST import, so `chrome_driver` must be
-             patched BEFORE `Auth.auth_flow` is imported in the process.
+             Import order matters: `Auth/auth_flow.py:7` binds `create_driver` at its
+             FIRST import, so `chrome_driver` is patched BEFORE `Auth.auth_flow`.
 """
 
 from __future__ import annotations

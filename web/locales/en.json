@@ -68,11 +68,11 @@
     "unknownError": "unknown error",
     "unknown": "unknown",
     "devicesTracked": {
-      "one": "1 device tracked · ~{rate}/hr",
-      "other": "{n} devices tracked · ~{rate}/hr"
+      "one": "1 tracker · checked every {interval} min",
+      "other": "{n} trackers · checked every {interval} min"
     },
-    "devicesTrackedRateHint": "About {rate} location fixes per hour, across your tracked devices.",
-    "noDevicesTracked": "no devices tracked",
+    "devicesTrackedRateHint": "Find+ asks about each tracker in turn: about {rate} location requests per hour in all.",
+    "noDevicesTracked": "no trackers chosen yet",
     "pollerActive": "Polling service active (every {interval} min)",
     "pollerStale": "No poll has run for a while. The polling service may be stopped.",
     "pollerFailing": "Polling runs, but the last poll failed.",
@@ -94,7 +94,16 @@
       "one": "Wrong PIN. 1 try left before Find+ makes you wait.",
       "other": "Wrong PIN. {n} tries left before Find+ makes you wait."
     },
-    "lockWait": "Too many tries. Try again in {seconds} seconds."
+    "lockWait": "Too many tries. Try again in {seconds} seconds.",
+    "cardsHelpSummary": "What do these four boxes mean?",
+    "cardsHelpObservedTerm": "Last observed",
+    "cardsHelpObservedBody": "When the tracking network last recorded a tracker's location. This is the time of the sighting, not the time Find+ asked.",
+    "cardsHelpFetchedTerm": "Retrieved by this computer",
+    "cardsHelpFetchedBody": "When Find+ on this computer downloaded that location from your account. The gap shows how long the report waited before Find+ saw it.",
+    "cardsHelpPollTerm": "Last successful poll",
+    "cardsHelpPollBody": "The last time Find+ asked your account for locations and got an answer, even if the answer held nothing new.",
+    "cardsHelpTodayTerm": "Observations today",
+    "cardsHelpTodayBody": "Locations recorded today, with the total Find+ keeps on this computer underneath."
   },
   "field": {
     "customColor": "Custom color",

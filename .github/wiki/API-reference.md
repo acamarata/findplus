@@ -1456,6 +1456,10 @@ Begin Page
 ### GET /auth/google/success
 Success Page
 
+| name | in | required | type |
+|---|---|---|---|
+| kind | query | False | string |
+
 ### GET /auth/google/unlock/begin
 Unlock Begin Page
 

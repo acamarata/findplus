@@ -889,6 +889,7 @@
     "label": "Map of tracker locations",
     "legendLabel": "Trackers on the map",
     "legendFrame": "Show {name} on the map",
-    "tilesFailed": "The map background could not load, so you may be offline. Your points and paths are still drawn."
+    "tilesFailed": "The map background could not load, so you may be offline. Your points and paths are still drawn.",
+    "legendHead": "Trackers ({n})"
   }
 }

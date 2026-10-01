@@ -18,7 +18,11 @@ async def _boot(page, base_url, **kw):
 
 async def test_legend_lists_each_tracker_and_frames_it(page, base_url):
     await _boot(page, base_url)
-    rows = page.locator(".map-legend button")
+    # Six trackers is a long legend, so it starts folded behind its heading.
+    head = page.locator(".map-legend .lg-head")
+    assert await head.get_attribute("aria-expanded") == "false"
+    await head.click()
+    rows = page.locator(".map-legend .lg-list button")
     assert await rows.count() == 6
     assert "Busy Tag 3" in await rows.nth(3).inner_text()
     before = await page.evaluate(
@@ -29,6 +33,11 @@ async def test_legend_lists_each_tracker_and_frames_it(page, base_url):
         "() => import('/static/app/state.js').then((m) => m.state.map.getBounds().toBBoxString())"
     )
     assert before != after
+
+
+async def test_short_legend_starts_open(page, base_url):
+    await _boot(page, base_url, tracks=3, points=3)
+    assert await page.locator(".map-legend .lg-list button:visible").count() == 3
 
 
 async def test_no_legend_for_a_single_tracker(page, base_url):

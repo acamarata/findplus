@@ -47,6 +47,9 @@ export function syncDense(map, total) {
   el.classList.toggle("map--dense", total > DENSE_OVER && map.getZoom() < DENSE_UNTIL_ZOOM);
 }
 
+/** A legend longer than this starts folded, so it does not cover a small map. */
+const LEGEND_OPEN_UP_TO = 4;
+
 /** One row per tracker: its colour, name and point count; a click frames its path. */
 export function renderLegend(map, entries, previous) {
   if (previous) previous.remove();
@@ -56,6 +59,16 @@ export function renderLegend(map, entries, previous) {
     const box = L.DomUtil.create("div", "map-legend");
     box.setAttribute("role", "group");
     box.setAttribute("aria-label", t("map.legendLabel"));
+    const head = document.createElement("button");
+    head.type = "button";
+    head.className = "lg-head";
+    head.textContent = t("map.legendHead", { n: entries.length });
+    const list = document.createElement("div");
+    list.className = "lg-list";
+    const setOpen = (open) => { head.setAttribute("aria-expanded", String(open)); list.hidden = !open; };
+    head.addEventListener("click", () => setOpen(list.hidden));
+    box.append(head, list);
+    setOpen(entries.length <= LEGEND_OPEN_UP_TO);
     entries.forEach(({ name, color, latlngs }) => {
       const row = document.createElement("button");
       row.type = "button";
@@ -68,7 +81,7 @@ export function renderLegend(map, entries, previous) {
       row.append(dot, label);
       row.title = t("map.legendFrame", { name });
       row.addEventListener("click", () => map.fitBounds(L.latLngBounds(latlngs), { padding: [42, 42], maxZoom: 17 }));
-      box.appendChild(row);
+      list.appendChild(row);
     });
     L.DomEvent.disableClickPropagation(box);
     L.DomEvent.disableScrollPropagation(box);

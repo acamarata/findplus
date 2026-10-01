@@ -73,9 +73,14 @@ def build_auth_status() -> dict[str, Any]:
             }
         )
     try:
-        from findplus.providers.google_findhub.helper_state import helper_seen
+        from findplus.providers.google_findhub import helper_state
 
-        google_helper_installed = helper_seen()
+        google_helper_installed = helper_state.helper_seen()
+        generation = helper_state.signin_generation()
     except Exception:
-        google_helper_installed = False
-    return {"providers": providers, "google_helper_installed": google_helper_installed}
+        google_helper_installed, generation = False, 0
+    return {
+        "providers": providers,
+        "google_helper_installed": google_helper_installed,
+        "google_signin_generation": generation,
+    }

@@ -44,6 +44,7 @@ _SEEN_TTL_SECONDS = 3600.0
 _lock = threading.Lock()
 _states: dict[str, tuple[str, float]] = {}
 _seen_monotonic: float | None = None
+_signin_generation = 0
 
 
 def allowed_extension_ids() -> list[str]:
@@ -111,9 +112,28 @@ def helper_seen() -> bool:
         )
 
 
+def signin_generation() -> int:
+    """How many helper sign-ins have completed since the daemon started.
+
+    "Switch Google account" compares this against the value it saw when it
+    began, so an already-signed-in status is never mistaken for the new sign-in.
+    """
+    with _lock:
+        return _signin_generation
+
+
+def bump_signin_generation() -> int:
+    """Record one more completed helper sign-in; returns the new generation."""
+    global _signin_generation
+    with _lock:
+        _signin_generation += 1
+        return _signin_generation
+
+
 def reset_for_tests() -> None:
     """Clear all state; used by tests, never in normal operation."""
-    global _seen_monotonic
+    global _seen_monotonic, _signin_generation
     with _lock:
+        _signin_generation = 0
         _states.clear()
         _seen_monotonic = None

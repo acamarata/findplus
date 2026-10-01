@@ -72,7 +72,7 @@ def _open(request: Request, path: str, kind: str) -> dict[str, Any]:
         browser = open_sign_in_page(_begin_url(request, path, state))
     except BrowserOpenError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from None
-    return {"browser": browser}
+    return {"browser": browser, "generation": helper_state.signin_generation()}
 
 
 def helper_begin(request: Request) -> dict[str, Any]:
@@ -99,6 +99,7 @@ def helper_token(body: HelperTokenBody, request: Request) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail=str(exc)) from None
     except TokenSignInError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from None
+    helper_state.bump_signin_generation()
     return {"state": "done", "account": account}
 
 

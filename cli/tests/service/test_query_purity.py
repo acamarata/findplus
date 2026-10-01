@@ -54,6 +54,8 @@ def test_is_installed_does_not_create_the_state_dir(tmp_path, monkeypatch) -> No
     from findplus import service
 
     _patch_manager(monkeypatch, "launchd")
+    # The unit file lives under HOME; a Mac with Find+ really installed has one.
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
     s = _settings(tmp_path)
     assert service.is_installed(s) is False
     assert not s.state_dir.exists()

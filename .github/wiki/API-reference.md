@@ -526,6 +526,9 @@ Poll Runs
 |---|---|---|---|
 | limit | query | False | integer |
 
+### GET /api/settings/routing.endpoint
+Get Routing Endpoint
+
 ### GET /api/timeline
 One day of history, as one INDEPENDENT track per device.
 
@@ -536,6 +539,28 @@ One day of history, as one INDEPENDENT track per device.
 | group_id | query | False | integer |
 | movement_threshold_meters | query | False | number |
 | gap_threshold_minutes | query | False | number |
+| timezone | query | False | string |
+
+### GET /api/trips
+Stays (with a saved-place label), trips between them, and no-sighting gaps.
+
+| name | in | required | type |
+|---|---|---|---|
+| device_id | query | True | string |
+| date | query | False | string |
+| days | query | False | integer |
+| gap_minutes | query | False | number |
+| timezone | query | False | string |
+
+### GET /api/trips/route
+A likely road route for one trip, or dashed straight segments.
+
+| name | in | required | type |
+|---|---|---|---|
+| device_id | query | True | string |
+| trip_id | query | True | string |
+| date | query | False | string |
+| days | query | False | integer |
 | timezone | query | False | string |
 
 ### POST /api/history/clear
@@ -595,6 +620,30 @@ Delete observations older than a date. Requires explicit confirmation.
 
 ### POST /api/poll-now
 Trigger one immediate Find Hub query. Rate-limited to protect the account.
+
+### POST /api/settings/routing.endpoint
+Set (or clear, with an empty value) the OSRM-compatible routing server.
+
+**Request body:**
+```json
+{
+  "properties": {
+    "value": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Value"
+    }
+  },
+  "type": "object",
+  "title": "Body_set_routing_endpoint_api_settings_routing_endpoint_post"
+}
+```
 
 ## places
 ### DELETE /api/places/{place_id}

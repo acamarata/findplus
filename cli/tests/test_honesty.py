@@ -69,6 +69,9 @@ def test_notices_dict_matches_named_constants() -> None:
         "not_affiliated": honesty.NOT_AFFILIATED,
         "chrome_required": honesty.CHROME_REQUIRED,
         "address_search": honesty.ADDRESS_SEARCH,
+        "trips_approximate": honesty.TRIPS_APPROXIMATE,
+        "route_likely": honesty.ROUTE_LIKELY,
+        "routing_privacy": honesty.ROUTING_PRIVACY,
     }
 
 

@@ -158,6 +158,8 @@ card. Details for both: [Sign-in](https://github.com/acamarata/findplus/wiki/Sig
 - Places and geofence alerts, with configurable enter/exit confirmations.
 - Address search when adding a place, via OpenStreetMap's Nominatim geocoder --
   opt-in, only when you type an address and press Search.
+- Trips view: a day's history as stays (home noise collapsed into one row) and trips between
+  them, with honest no-sighting gaps. Optional road route through a routing server you run.
 - Groups and quorum-based presence (together, partial, unknown).
 - Telegram (every Telegram alert goes to all your chats unless you pick specific chats on the
   rule, up to 10 targets per bot), WhatsApp (via CallMeBot), webhook, and native macOS
@@ -188,6 +190,8 @@ Find+ connects to the following external services during normal operation:
 - OpenStreetMap's Nominatim geocoder -- only when you type an address into the
   place dialog and press Search. The daemon makes this request, not your
   browser, and sends nothing else.
+- A routing server you name (`routing.endpoint`, an OSRM-compatible address) -- off by
+  default. Only when set, and only for a trip you open, that trip's sightings go to it.
 
 ## Honesty
 
@@ -246,6 +250,16 @@ see if sign-in cannot find Chrome, not a general statement.
 > Address search sends the text you type to OpenStreetMap's Nominatim
 > service, a third party not affiliated with Find+, and only when you
 > press Search.
+>
+> Stays and trips are worked out from sparse, delayed sightings. Times
+> are when a tag was seen, and distances are approximate straight lines,
+> not the road driven.
+>
+> Likely route between sparse sightings, not a record of the road driven.
+>
+> Road routes are off unless you enter a routing server address. When
+> one is set, the sightings of each trip you open are sent to that
+> server to draw the path, so use a server you run yourself.
 
 ## CLI
 

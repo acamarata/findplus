@@ -569,6 +569,19 @@ Set the dashboard theme without opening the UI.
 
 **Usage:** `findplus theme [OPTIONS]`
 
+## findplus trips
+Show stays, trips and gaps for one device. Distances are approximate.
+
+**Usage:** `findplus trips [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --device-id |  | Device to show. Optional when one is tracked. |
+| --date |  | Local date, YYYY-MM-DD. Default today. |
+| --days | 1 | Number of days from --date. |
+| --timezone |  | IANA zone. Default this computer's. |
+| --json |  | Print the API payload as JSON. |
+
 ## findplus uninstall
 Unload and delete the service and watchdog unit files, and daemon.json.
 

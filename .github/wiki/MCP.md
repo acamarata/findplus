@@ -47,6 +47,7 @@ Alert rule definitions and label configurations are deliberately not exposed ove
 | `list_places` | All saved places |
 | `get_latest` | Most recent fix per device |
 | `get_timeline` | Location history for a day |
+| `get_trips` | Stays, trips and no-sighting gaps for one device and day (approximate) |
 | `get_place_events` | Place ENTER/EXIT event log |
 | `get_group_presence` | Group presence verdict |
 | `export` | Export history as CSV, JSON, GPX or KML (capped at 5 MB) |

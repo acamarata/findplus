@@ -48,6 +48,7 @@ from . import (
     routes_places_search,
     routes_providers,
     routes_settings,
+    routes_trips,
 )
 from ._app_instance import new_fastapi_app
 from ._routes_history_export import build_export_router
@@ -226,6 +227,7 @@ def _register_routers(app: FastAPI, *, settings, sessions, sync_idle_timeout) ->
     app.include_router(
         routes_history.build_router(settings=settings, check_poll_cooldown=_check_poll_cooldown)
     )
+    app.include_router(routes_trips.build_router())
     app.include_router(build_export_router())
 
 

@@ -79,6 +79,19 @@ ADDRESS_SEARCH = (
     "third party not affiliated with Find+, and only when you press Search."
 )
 
+TRIPS_APPROXIMATE = (
+    "Stays and trips are worked out from sparse, delayed sightings. Times are when a tag "
+    "was seen, and distances are approximate straight lines, not the road driven."
+)
+
+ROUTE_LIKELY = "Likely route between sparse sightings, not a record of the road driven."
+
+ROUTING_PRIVACY = (
+    "Road routes are off unless you enter a routing server address. When one is set, the "
+    "sightings of each trip you open are sent to that server to draw the path, so use a "
+    "server you run yourself."
+)
+
 NOTICES: dict[str, str] = {
     "find_hub": FIND_HUB,
     "apple": APPLE,
@@ -92,4 +105,7 @@ NOTICES: dict[str, str] = {
     "not_affiliated": NOT_AFFILIATED,
     "chrome_required": CHROME_REQUIRED,
     "address_search": ADDRESS_SEARCH,
+    "trips_approximate": TRIPS_APPROXIMATE,
+    "route_likely": ROUTE_LIKELY,
+    "routing_privacy": ROUTING_PRIVACY,
 }

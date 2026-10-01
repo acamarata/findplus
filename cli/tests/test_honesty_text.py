@@ -73,6 +73,16 @@ EXPECTED = {
         "Address search sends the text you type to OpenStreetMap's Nominatim service, a "
         "third party not affiliated with Find+, and only when you press Search."
     ),
+    "trips_approximate": (
+        "Stays and trips are worked out from sparse, delayed sightings. Times are when a tag "
+        "was seen, and distances are approximate straight lines, not the road driven."
+    ),
+    "route_likely": "Likely route between sparse sightings, not a record of the road driven.",
+    "routing_privacy": (
+        "Road routes are off unless you enter a routing server address. When one is set, the "
+        "sightings of each trip you open are sent to that server to draw the path, so use a "
+        "server you run yourself."
+    ),
 }
 
 
@@ -192,6 +202,9 @@ README_FRAGMENTS = {
     "not_affiliated": "not affiliated with Apple or Google",
     "chrome_required": "cannot run without it",
     "address_search": "a third party not affiliated with Find+",
+    "trips_approximate": "distances are approximate straight lines",
+    "route_likely": "not a record of the road driven",
+    "routing_privacy": "use a server you run yourself",
 }
 
 

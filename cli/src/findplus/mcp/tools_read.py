@@ -83,6 +83,13 @@ async def _timeline_raw(
     return await client.get("/api/timeline", params)
 
 
+async def _trips_raw(
+    client: DaemonClient, device_id: str, date: str | None, days: int, timezone: str | None
+) -> dict | list:
+    params = _params(device_id=device_id, date=date, days=days, timezone=timezone)
+    return await client.get("/api/trips", params)
+
+
 async def _place_events_raw(
     client: DaemonClient,
     place_id: int | None,
@@ -183,6 +190,17 @@ def _register_query_tools(mcp: MCPServer, _c) -> None:
         """Location history for one day, per device or per group member."""
         data = await _timeline_raw(_c(), day, device_id, group_id, timezone)
         return await _with_notice(data, _c())
+
+    @mcp.tool(structured_output=True)
+    async def get_trips(
+        device_id: str,
+        date: str | None = None,
+        days: int = 1,
+        timezone: str | None = None,
+    ) -> dict[str, Any]:
+        """Stays, trips and no-sighting gaps for one device and day (approximate)."""
+        data = await _trips_raw(_c(), device_id, date, days, timezone)
+        return await _with_notice(data, _c(), caveats=(honesty.TRIPS_APPROXIMATE,))
 
     @mcp.tool(structured_output=True)
     async def get_place_events(

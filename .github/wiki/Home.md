@@ -8,7 +8,7 @@ places, groups, and alerts through a browser dashboard, a CLI, a REST API,
 and an MCP server. Everything runs on this computer. Your location history
 stays on this machine. Map tiles always load from OpenStreetMap; anything
 else leaves only when you turn it on: signing in to Google or Apple, address
-search, and any alert channel you connect (Telegram, WhatsApp or a webhook).
+search, road routes through a server you name, and any alert channel you connect (Telegram, WhatsApp or a webhook).
 See [Privacy and threat model](Privacy-and-threat-model).
 
 ## Get started
@@ -18,6 +18,7 @@ See [Privacy and threat model](Privacy-and-threat-model).
 - [Sign in](Sign-in): connect Google or Apple from the dashboard.
 - [Devices and groups](Devices-and-groups): track trackers, form groups.
 - [Places and alerts](Places-and-alerts): geofences and notifications.
+- [Trips and routes](Trips-and-routes): stays, trips and gaps for one device and day.
 - [Settings](Settings): poll interval, history retention, app lock, notifications.
 - [CLI reference](CLI-reference)
 - [API reference](API-reference)

@@ -853,6 +853,9 @@
     "nativeGeneric": "By default, macOS notifications show a generic \"Find+ alert\" instead of who or where, because notification banners can appear on a locked screen. Turn on notification details in Settings to show the person and place. Anyone who can see the screen then sees the same thing.",
     "notAffiliated": "Find+ is not affiliated with Apple or Google. Find Hub and Find My are their trademarks.",
     "chromeRequired": "Google Chrome was not found on this machine. Google sign-in drives Chrome directly and cannot run without it. Install it from https://www.google.com/chrome/ and try again.",
-    "addressSearch": "Address search sends the text you type to OpenStreetMap's Nominatim service, a third party not affiliated with Find+, and only when you press Search."
+    "addressSearch": "Address search sends the text you type to OpenStreetMap's Nominatim service, a third party not affiliated with Find+, and only when you press Search.",
+    "tripsApproximate": "Stays and trips are worked out from sparse, delayed sightings. Times are when a tag was seen, and distances are approximate straight lines, not the road driven.",
+    "routeLikely": "Likely route between sparse sightings, not a record of the road driven.",
+    "routingPrivacy": "Road routes are off unless you enter a routing server address. When one is set, the sightings of each trip you open are sent to that server to draw the path, so use a server you run yourself."
   }
 }

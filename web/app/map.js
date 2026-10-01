@@ -15,6 +15,7 @@ import { selectPoint } from "./timeline.js";
 import { renderBadge } from "./components/badge.js";
 import { t } from "./i18n.js";
 import { api } from "./api.js";
+import { syncMapOverlay } from "./map_empty.js";
 
 // U4 (R-P2-30.2): a US-centred default read as "my child is in Kansas" the
 // first time the map had no data to fit. A neutral world view says nothing
@@ -23,6 +24,15 @@ import { api } from "./api.js";
 // so the lock screen never regresses to the old US default either.
 export const WORLD_VIEW_CENTER = [20, 0];
 export const WORLD_VIEW_ZOOM = 2;
+
+/** The inhabited world, trimmed of the polar bands. */
+const WORLD_BOUNDS = [[-58, -170], [78, 175]];
+
+/** Fit the whole world into the map's own box, whatever size it is. A fixed
+ * zoom 2 left a wide, short box showing the same continents twice. */
+function fitWorld() {
+  state.map.fitBounds(WORLD_BOUNDS, { animate: false });
+}
 
 export function initMap() {
   state.map = L.map("map", { zoomControl: true }).setView(WORLD_VIEW_CENTER, WORLD_VIEW_ZOOM);
@@ -65,7 +75,7 @@ export async function setDefaultView() {
     );
     return;
   }
-  state.map.setView(WORLD_VIEW_CENTER, WORLD_VIEW_ZOOM);
+  fitWorld();
 }
 
 /** Each tracked device paired with its latest fix, skipping any that have
@@ -217,7 +227,7 @@ export function visiblePoints(track) {
 export function renderMap() {
   state.layer.clearLayers();
   state.markers.clear();
-  if (!state.timeline) return;
+  if (!state.timeline) { syncMapOverlay(); return; }
 
   const allLatLngs = [];
 
@@ -261,4 +271,5 @@ export function renderMap() {
   if (allLatLngs.length) {
     state.map.fitBounds(L.latLngBounds(allLatLngs), { padding: [42, 42], maxZoom: 17 });
   }
+  syncMapOverlay();
 }

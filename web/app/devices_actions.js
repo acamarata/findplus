@@ -19,11 +19,12 @@
  */
 "use strict";
 
-import { $, showAlert } from "./state.js";
+import { $, state, showAlert } from "./state.js";
 import { postJson } from "./api.js";
 import { reload } from "./main.js";
 import { t } from "./i18n.js";
 import { shortStatus } from "./poll_status.js";
+import { bannerRun, pollingMessage } from "./poll_cycle.js";
 import { loadDevices, renderDeviceModal, closeDevices, providerWording } from "./devices.js";
 
 // N50: mirrors MANUAL_POLL_COOLDOWN in cli/src/findplus/api/__init__.py. Used
@@ -78,25 +79,35 @@ export async function pollNow() {
   // status_view.js resync mid-request must not read "not cooling" and
   // re-enable a button whose own request has not answered yet.
   btn.dataset.cooling = "1";
+  // The API reports a poll only when it ends, so say it is under way from
+  // here, and let status refreshes mid-request keep saying it.
+  state.pollInFlight = true;
+  showAlert(pollingMessage(state.status), "info", { busy: true, hint: t("live.pollingHint") });
   try {
     const r = await postJson("/api/poll-now");
+    state.pollInFlight = false;
     const lines = r.results.map(
       (x) =>
         // UAT6-N06: plain words, never the raw status code.
         t("devices.pollResultLine", { device: x.device_name, status: shortStatus(x.status) }) +
         (x.observations_new ? t("devices.pollResultNew", { n: x.observations_new }) : "")
     );
-    showAlert(
-      t("devices.polled", {
-        devices: r.devices_polled,
-        observations: r.observations_new,
-        lines: lines.join(" · "),
-      }),
-      "warn"
-    );
+    // Reload first: it redraws the banner, and a failure it names (locked,
+    // signed out) must keep its action rather than be covered by this summary.
     await reload();
+    if (!state.status || !bannerRun(state.status)) {
+      showAlert(
+        t("devices.polled", {
+          devices: r.devices_polled,
+          observations: r.observations_new,
+          lines: lines.join(" · "),
+        }),
+        "info"
+      );
+    }
     startCooldown(btn, POLL_COOLDOWN_MS);
   } catch (err) {
+    state.pollInFlight = false;
     showAlert(err.message, "err");
     if (err.status === 429) {
       const wait = WAIT_SECONDS.exec(err.message);

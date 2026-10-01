@@ -46,3 +46,33 @@ async def test_observed_label_stays_put_when_nothing_is_tracked(page, base_url):
     after = await page.locator("#card-observed-label").inner_text()
     assert before == after
     assert "your providers" not in after
+
+
+async def test_many_poll_results_are_counted_not_listed(page, base_url):
+    await _boot(page, base_url)
+    results = [
+        {
+            "device_id": f"X{i}",
+            "device_name": f"Tag {i}",
+            "status": "no_location",
+            "observations_new": 0,
+        }
+        for i in range(9)
+    ]
+    body = {"devices_polled": 9, "observations_new": 0, "results": results}
+    await page.route("**/api/poll-now", lambda r: r.fulfill(json=body))
+    await page.evaluate("() => import('/static/app/devices_actions.js').then((m) => m.pollNow())")
+    text = await page.locator("#alert").inner_text()
+    assert "Polled 9 trackers" in text and "9 no recent sighting" in text
+    assert "Tag 3:" not in text, "nine one-line results would fill the banner"
+
+
+async def test_failed_poll_banner_offers_try_again(page, base_url):
+    from ._live_helpers import feed_for, open_dashboard
+
+    feed = await feed_for(page, base_url)
+    feed.cycle({"TAG-HOME": ("error", 0)}, 300)
+    await open_dashboard(page, base_url)
+    banner = page.locator("#alert")
+    await banner.get_by_role("button", name="Try again").wait_for()
+    assert "did not finish" in await banner.inner_text()

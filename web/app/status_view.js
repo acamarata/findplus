@@ -120,7 +120,8 @@ function renderCards(s) {
 
 const signinAction = () => ({ label: t("pollStatus.actionConnect"), run: () => openSignin() });
 const unlockAction = () => ({ label: t("pollStatus.actionUnlock"), run: () => openUnlock() });
-const ACTIONS = { signin: signinAction, unlock: unlockAction };
+const retryAction = () => ({ label: t("pollStatus.actionRetry"), run: () => $("btn-poll").click() });
+const ACTIONS = { signin: signinAction, unlock: unlockAction, retry: retryAction };
 
 /** Nothing tracked: sign in first if nobody is, else pick devices.
  *

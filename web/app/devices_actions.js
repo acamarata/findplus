@@ -66,8 +66,21 @@ function dialogError(text) {
   if (line) line.textContent = text;
 }
 
-/** The "N devices polled" sentence with one plain-words line per tracker. */
+/** Past this many trackers the result is counted by outcome, not listed one by one. */
+const LIST_UP_TO = 4;
+
+/** "12 no recent sighting · 3 not signed in": one count per outcome. */
+function pollTally(results) {
+  const counts = new Map();
+  results.forEach((x) => counts.set(shortStatus(x.status), (counts.get(shortStatus(x.status)) || 0) + 1));
+  return [...counts].map(([status, n]) => t("devices.pollTally", { n, status })).join(" · ");
+}
+
+/** The "N trackers polled" sentence: a line per tracker for a few, counts for many. */
 function pollSummary(r) {
+  if (r.results.length > LIST_UP_TO) {
+    return t("devices.polledMany", { devices: r.devices_polled, observations: r.observations_new, tally: pollTally(r.results) });
+  }
   const lines = r.results.map(
     (x) =>
       // UAT6-N06: plain words, never the raw status code.

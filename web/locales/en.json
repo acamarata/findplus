@@ -171,7 +171,9 @@
       "tracked": "Tracked first",
       "name": "Name A to Z",
       "seen": "Most recently seen"
-    }
+    },
+    "polledMany": "Polled {devices} trackers, {observations} new. {tally}.",
+    "pollTally": "{n} {status}"
   },
   "groups": {
     "tabHint": "Pick a group in the selector above the map to see it.",
@@ -781,7 +783,8 @@
     "actionConnect": "Connect an account",
     "actionChooseDevices": "Choose devices",
     "actionPollNow": "Poll now",
-    "actionUnlock": "Unlock locations"
+    "actionUnlock": "Unlock locations",
+    "actionRetry": "Try again"
   },
   "live": {
     "polling": {

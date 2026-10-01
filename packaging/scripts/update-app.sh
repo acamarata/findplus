@@ -9,8 +9,10 @@
 #              sha256, install it. --dmg PATH installs a dmg you already have;
 #              --app PATH installs an already-built Find+.app (developers).
 #              --no-launch skips the relaunch. APP_DIR overrides /Applications.
+#              --force installs an app whose code signature does not verify
+#              (it stays quarantined, so macOS still asks before opening it).
 # Outputs    : APP_DIR/Find+.app replaced; the old one is deleted only after the
-#              new one is in place. Never uses sudo.
+#              new one is in place, and put back if the swap fails. Never uses sudo.
 # Constraints: macOS Apple Silicon only. Requires curl, hdiutil, ditto, osascript.
 set -euo pipefail
 
@@ -18,6 +20,7 @@ REPO="acamarata/findplus"
 APP_DIR="${APP_DIR:-/Applications}"
 APP="$APP_DIR/Find+.app"
 LAUNCH=1
+FORCE=0
 SRC_DMG=""
 SRC_APP=""
 
@@ -26,6 +29,7 @@ while [ $# -gt 0 ]; do
     --dmg) SRC_DMG="${2:?update: --dmg needs a path}"; shift 2 ;;
     --app) SRC_APP="${2:?update: --app needs a path}"; shift 2 ;;
     --no-launch) LAUNCH=0; shift ;;
+    --force) FORCE=1; shift ;;
     *) echo "update: unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -95,19 +99,54 @@ NEW_VER="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$SRC_A
 OLD_VER="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APP/Contents/Info.plist" 2>/dev/null || echo none)"
 echo "update: Find+ $OLD_VER -> $NEW_VER"
 
+# Checks that can refuse run BEFORE anything is quit or moved.
+check_arm64() {
+  # uname -m says x86_64 inside a Rosetta shell, so ask the hardware.
+  [ "$(sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" = 1 ] \
+    || { echo "update: this Mac is not Apple Silicon; the app is arm64 only." >&2; exit 1; }
+  local exe
+  exe="$SRC_APP/Contents/MacOS/$(/usr/libexec/PlistBuddy -c 'Print CFBundleExecutable' "$SRC_APP/Contents/Info.plist" 2>/dev/null || echo findplus)"
+  lipo -archs "$exe" 2>/dev/null | grep -qw arm64 \
+    || { echo "update: the new app has no arm64 build, nothing installed." >&2; exit 1; }
+}
+
+SIGNED=1
+check_signature() {
+  if ! codesign --verify --deep --strict "$SRC_APP" >/dev/null 2>&1; then
+    SIGNED=0
+    if [ "$FORCE" != 1 ]; then
+      echo "update: the new app's code signature does not verify, nothing installed." >&2
+      echo "update: rerun with --force if you built it yourself and trust it." >&2
+      exit 1
+    fi
+    echo "update: signature does not verify; installing anyway (--force). It stays quarantined."
+  fi
+}
+
+check_arm64
+check_signature
 quit_running
+
+rm -rf "$APP.new"   # a leftover from an interrupted run would be merged into by ditto
 ditto "$SRC_APP" "$APP.new"
 rm -rf "$APP.old"
-[ -d "$APP" ] && mv "$APP" "$APP.old"
-mv "$APP.new" "$APP"
+if [ -d "$APP" ]; then mv "$APP" "$APP.old"; fi
+if ! mv "$APP.new" "$APP"; then
+  echo "update: could not put the new app in place; restoring the old one." >&2
+  rm -rf "$APP.new"
+  if [ -d "$APP.old" ]; then mv "$APP.old" "$APP"; fi
+  exit 1
+fi
 rm -rf "$APP.old"
-xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true
+# Only a verified app loses its quarantine flag; an unverified one keeps it.
+if [ "$SIGNED" = 1 ]; then xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true; fi
 echo "update: installed Find+ $NEW_VER in $APP_DIR"
 
 # If Find+ runs its daemon as a login service, quitting the app stopped it and
 # launchd will not bring it back by itself. Start it again from the new app.
+# `print` matches the exact label (a grep also matched ...findplus.watchdog).
 LABEL="com.acamarata.findplus"
-if launchctl list 2>/dev/null | grep -q "$LABEL"; then
+if launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1; then
   launchctl kickstart -k "gui/$(id -u)/$LABEL" 2>/dev/null || true
 fi
 

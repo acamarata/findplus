@@ -6,6 +6,8 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.5] - 2026-10-01
+
 ### Added
 - Google sign-in now leads with a single **Sign in with Google** button. Find+ opens Google's
   sign-in in the Chrome you already use, and the new open-source **Find+ helper for Chrome**
@@ -20,6 +22,12 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - Groundwork to publish the helper on the Chrome Web Store: a keyless store-zip build
   (`packaging/scripts/build-chrome-helper.sh`), a listing kit and privacy policy, and a
   generated icon and promo tile.
+
+### Fixed
+- After you unlock encrypted locations or sign in, Find+ now polls straight away and clears its
+  retry delay. Before, the dashboard stayed empty for up to ten minutes after a successful unlock.
+- The dashboard map no longer renders into a small corner box when the window or layout changes
+  size after start-up; it re-measures whenever its area resizes.
 
 ## [1.1.4] - 2026-09-27
 

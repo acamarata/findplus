@@ -39,7 +39,10 @@ __all__ = [
 ]
 
 MSG_LAUNCHING = "Starting the Find+ Chrome window..."
-MSG_WAITING = "Enter your Android phone's screen lock in the Find+ Chrome window."
+MSG_WAITING = (
+    "In the Find+ Chrome window, sign in with the same Google account first if Google asks, "
+    "then enter your Android phone's screen lock."
+)
 MSG_SAVING = "Saving the key..."
 MSG_DONE = "Encrypted locations unlocked."
 MSG_CANCELLED = "Unlock cancelled."

@@ -38,6 +38,7 @@ from .types import (
     LocationTimeoutError,
     RawObservation,
     SharedKeyRequiredError,
+    UndecryptableReportsError,
 )
 
 log = get_logger(__name__)
@@ -214,6 +215,7 @@ class FindHubClient:
             pairs.append((reports.recentLocation, reports.recentLocationTimestamp))
 
         observations: list[RawObservation] = []
+        skips: dict[str, int] = {}
         for loc, ts in pairs:
             obs = decode_one_report(
                 loc,
@@ -226,10 +228,17 @@ class FindHubClient:
                 decrypt,
                 decrypt_aes_gcm,
                 DeviceUpdate_pb2,
+                skips,
             )
             if obs is not None:
                 observations.append(obs)
 
+        if not observations and skips.get("undecryptable"):
+            raise UndecryptableReportsError(
+                f"Find Hub sent {len(pairs)} location report(s) for this tracker, but Find+ "
+                "could not decrypt them. This can follow a reset of Google's encrypted data: "
+                "disconnect in Settings > Sign-in, sign in again and unlock."
+            )
         observations.sort(key=lambda o: o.observed_at)
         log.info("observations_decrypted", count=len(observations), device=device_name)
         return observations

@@ -48,7 +48,7 @@ WIDGET_STALE_AFTER_MINUTES = 90
 #: adopts them; `SharedKeyRequiredError` is the locked-E2EE state (unlock step).
 ERROR_STATE_TYPES = frozenset(
     {"auth", "decrypt", "AuthRequiredError", "DecryptionError",
-     "SharedKeyRequiredError", "unauthenticated"}
+     "SharedKeyRequiredError", "UndecryptableReportsError", "unauthenticated"}
 )  # fmt: skip
 
 

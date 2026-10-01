@@ -110,7 +110,9 @@ def test_sign_out_google_also_empties_the_find_plus_chrome_profile(
     assert (neighbour / "keep.png").exists()
 
 
-def test_sign_out_google_never_follows_a_symlinked_profile(auth_client: TestClient, tmp_path) -> None:
+def test_sign_out_google_never_follows_a_symlinked_profile(
+    auth_client: TestClient, tmp_path
+) -> None:
     settings = get_settings()
     settings.ensure_dirs()
     outside = tmp_path / "elsewhere"

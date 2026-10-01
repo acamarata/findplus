@@ -49,6 +49,14 @@ class DecryptionError(FindHubError):
     """The E2EE payload could not be decrypted (usually an owner-key reset)."""
 
 
+class UndecryptableReportsError(FindHubError):
+    """Find Hub sent location reports, but none of them could be decrypted.
+
+    Distinct from "no new location": the poller records `decrypt_failed` so the UI
+    and API say so in plain words instead of showing a healthy poll.
+    """
+
+
 class SharedKeyRequiredError(FindHubError):
     """The account's Find Hub end-to-end-encryption key has not been unlocked yet.
 

@@ -741,9 +741,12 @@
       "other": "Polling {n} trackers…"
     },
     "pollingHint": "This can take a minute. This page updates by itself when it finishes.",
-    "zeroNewAll": "The last poll found no new locations. Find Hub has no recent sighting for any of your {n} trackers. Find+ asks again every {interval} minutes.",
-    "zeroNewSome": "The last poll found no new locations. No recent sighting: {names}. The other trackers reported the same place as before.",
-    "zeroNewSame": "The last poll found no new locations. Your trackers reported the same places as before.",
+    "zeroNewAll": "The last poll found no new locations. Find Hub has no recent sighting for any of your {n} trackers.",
+    "zeroNewSome": "The last poll found no new locations. No recent sighting: {names}. Find Hub sent no newer locations for the others.",
+    "zeroNewSame": "The last poll found no new locations. Find Hub sent no newer locations for your trackers.",
+    "zeroNewFailed": "{names} did not answer this time.",
+    "zeroNewNext": "Find+ asks again at {time}.",
+    "zeroNewEvery": "Find+ asks again every {interval} minutes.",
     "andMore": "and {n} more",
     "noSightingCount": {
       "one": "1 tracker with no recent sighting",

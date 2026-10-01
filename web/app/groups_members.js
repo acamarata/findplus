@@ -93,3 +93,25 @@ export function renderMemberList(box, devices, { wizard = false } = {}) {
     untracked.forEach((d) => box.append(deviceRow(d, repeated, false)));
   }
 }
+
+/**
+ * Tick `ids` in a rendered checklist. A member that is ticked but no longer
+ * tracked (it was untracked after the group was made) gets an enabled box and a
+ * "not tracked" tag, so it can be unticked; a disabled box could never be.
+ */
+export function applyMemberSelection(box, ids) {
+  box.querySelectorAll("input[data-device-id]").forEach((input) => {
+    input.checked = ids.has(input.dataset.deviceId);
+    if (!input.checked || !input.disabled) return;
+    input.disabled = false;
+    const row = input.closest(".fp-member-row");
+    if (!row) return;
+    row.classList.remove("fp-member-row--off");
+    const tag = document.createElement("span");
+    tag.className = "fp-field-hint fp-member-untracked";
+    tag.textContent = t("groups.members.untracked_tag");
+    row.append(tag);
+  });
+  // Programmatic ticks fire no change event; resync the Select all label.
+  box.dispatchEvent(new Event("change"));
+}

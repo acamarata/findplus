@@ -209,6 +209,7 @@
       "untracked_note": "Find+ only checks tracked devices, so an untracked one would never show a location or send an alert as part of a group. Track it in Devices to add it.",
       "untracked_note_setup": "Find+ only checks tracked devices, so an untracked one would never show a location or send an alert as part of a group. Go back to Devices to track it.",
       "untracked_row": "Not tracked yet. Track it in Devices to add it to a group.",
+      "untracked_tag": "not tracked",
       "count": {
         "one": "1 device",
         "other": "{count} devices"

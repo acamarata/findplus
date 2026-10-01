@@ -7,14 +7,7 @@ YES="${FINDPLUS_YES:-0}"
 UNINSTALL=0
 STARTNOW=0
 VERSION_PIN="${FINDPLUS_VERSION:-1.1.5}"
-usage() {
-  cat <<'USAGE'
-Usage: install.sh [--yes] [--uninstall] [--start] [--version X] [-h|--help]
-Find+ curl-pipe installer. Env: FINDPLUS_YES/VERSION/WHEEL/PREFIX/BIN/STATE_DIR.
-Idempotent, never sudo; --uninstall keeps the state dir; --start runs setup and start after installing.
-After installing, load the Find+ Chrome helper once (see .github/wiki/Install.md).
-USAGE
-}
+usage() { printf '%s\n' "Usage: install.sh [--yes] [--uninstall] [--start] [--version X] [-h|--help]" "Env: FINDPLUS_YES/VERSION/WHEEL/PREFIX/BIN/STATE_DIR. Idempotent, never sudo; --uninstall keeps the state dir; --start runs setup and start." "Afterwards add the Find+ Chrome helper once (.github/wiki/Install.md)."; }
 parse_args() {
   while [ $# -gt 0 ]; do
     case "$1" in

@@ -51,7 +51,12 @@ export function mountSignInPanel(host, options) {
     api: options.api,
     postJson: options.postJson,
     notices,
-    onSettled: () => panel.refresh(),
+    // The dashboard (live_refresh.js) listens for this: a sign-in, an unlock or
+    // a disconnect changes what the next poll can do, so it looks right away.
+    onSettled: () => panel.refresh().then((list) => {
+      if (list) window.dispatchEvent(new CustomEvent("findplus:accounts-changed"));
+      return list;
+    }),
   };
   panel.google = new GoogleFlow(googleCard, deps);
   panel.apple = new AppleFlow(appleCard, deps, appleExtra);

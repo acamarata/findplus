@@ -15,7 +15,7 @@ import { renderBadge } from "./components/badge.js";
 import { reload } from "./main.js";
 import { providerWording } from "./devices.js";
 import { t, plural } from "./i18n.js";
-import { nothingTrackedEmptyState } from "./dashboard_empty.js";
+import { nothingTrackedEmptyState, emptyDayState } from "./dashboard_empty.js";
 import { confirmDialog } from "./components/confirm-dialog.js";
 
 const PIN_ICON = `<svg class="tl-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#lucide-map-pin"></use></svg>`;
@@ -129,10 +129,7 @@ export function renderTracks() {
     if (nothingTracked) {
       host.appendChild(nothingTrackedEmptyState());
     } else {
-      const empty = document.createElement("div");
-      empty.className = "empty";
-      empty.textContent = t("timeline.emptyDay");
-      host.appendChild(empty);
+      host.appendChild(emptyDayState());
     }
     return;
   }

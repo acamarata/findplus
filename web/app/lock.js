@@ -16,6 +16,8 @@ import { postJson, api } from "./api.js";
 import { t } from "./i18n.js";
 import { closeModals, bootDashboard } from "./main.js";
 import { WORLD_VIEW_CENTER, WORLD_VIEW_ZOOM } from "./map.js";
+import { purgeMapOverlay } from "./map_empty.js";
+import { stopLiveRefresh } from "./live_refresh.js";
 
 /**
  * Show the lock screen.
@@ -86,6 +88,11 @@ async function showLockCaveat() {
 export async function purgeRenderedData() {
   state.timeline = null;
   state.devices = [];
+  // The last status names devices and says what the poll found: gone too.
+  state.status = null;
+  state.pollInFlight = false;
+  stopLiveRefresh();
+  purgeMapOverlay();
   // Both footer sentences are device-derived: leaving either up behind the
   // lock screen would tell a passer-by which networks this person tracks on.
   for (const id of ["apple-notice", "findhub-notice"]) {

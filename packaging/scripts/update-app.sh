@@ -104,6 +104,13 @@ rm -rf "$APP.old"
 xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true
 echo "update: installed Find+ $NEW_VER in $APP_DIR"
 
+# If Find+ runs its daemon as a login service, quitting the app stopped it and
+# launchd will not bring it back by itself. Start it again from the new app.
+LABEL="com.acamarata.findplus"
+if launchctl list 2>/dev/null | grep -q "$LABEL"; then
+  launchctl kickstart -k "gui/$(id -u)/$LABEL" 2>/dev/null || true
+fi
+
 if [ "$LAUNCH" = 1 ]; then
   open "$APP"
   echo "update: Find+ is starting (look for F+ in the menu bar)."

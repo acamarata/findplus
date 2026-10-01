@@ -33,7 +33,7 @@ sidecar to produce an Intel binary locally.
 ## Sidecar
 
 ```
-cd /Volumes/UG/Sites/acamarata/findplus && pyinstaller packaging/pyinstaller/findplus-daemon.spec
+pyinstaller packaging/pyinstaller/findplus-daemon.spec
 ```
 
 Copies the PyInstaller onedir to `desktop/src-tauri/resources/findplus-daemon/`, which

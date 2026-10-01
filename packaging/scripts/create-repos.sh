@@ -41,4 +41,4 @@ run gh repo create acamarata/homebrew-tap \
   --description "Homebrew tap for acamarata packages" \
   --license MIT || echo "gh repo create: homebrew-tap already exists, continuing"
 
-run echo "Done. Push with: cd /Volumes/UG/Sites/acamarata/findplus && git remote add origin https://github.com/acamarata/findplus.git && git push -u origin main"
+run echo "Done. Push with: git remote add origin https://github.com/acamarata/findplus.git && git push -u origin main"

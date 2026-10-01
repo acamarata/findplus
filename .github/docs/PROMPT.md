@@ -57,13 +57,13 @@ returns nothing. 262 tests pass; ruff and `node --check` are clean.
 ## 1. First actions, in order
 
 The directory was named `waypost` during planning. **The owner renames it to
-`/Volumes/UG/Sites/acamarata/findplus` before starting your session.** Everything
+`findplus` before starting your session.** Everything
 below assumes that path. Nothing in the code depends on the directory name
 (`PROJECT_ROOT` is derived from `__file__`), but the existing `.venv` has absolute
 paths baked in and must be recreated.
 
 ```bash
-cd /Volumes/UG/Sites/acamarata/findplus
+cd <path to your findplus checkout>
 git log --oneline | head -3
 ```
 Expect `70b220b refactor: monorepo layout (cli/, web/, desktop/) with a shared dashboard folder` on top of
@@ -77,8 +77,7 @@ lsof -iTCP:8647 -sTCP:LISTEN
 All three must print nothing.
 
 ```bash
-rm -rf .venv
-python3.12 -m venv .venv
+python3.12 -m venv --clear .venv
 ./.venv/bin/pip install -e "./cli[dev]" playwright
 ./.venv/bin/python -m pytest cli/tests/ -q
 ./.venv/bin/ruff check cli/src cli/tests cli/migrations
@@ -88,15 +87,12 @@ node --check web/app.js
 Expect `262 passed`, ruff clean, node clean. If anything differs, stop and report. Commands run from the
 repo root; `pip install -e ./cli` installs the package; the venv stays at the root.
 
-**Then remove the old tree.** The copy was verified green in the new location on
+**Then retire the old tree.** The copy was verified green in the new location on
 2026-09-19 (262 passed before and after the rename), so the owner's original
-instruction to delete the source after verification now applies:
+instruction to delete the source after verification now applies.
 
-```bash
-rm -rf /Users/admin/Developer/bike-tracker
-rm -rf ~/.bike-tracker
-```
-`~/.bike-tracker` holds only `logs/`. There is no history in it (the owner never
+The owner removes the old `bike-tracker` source directory and its state directory by hand
+(owner machine only). The state directory holds only `logs/`. There is no history in it (the owner never
 completed Google auth). Do **not** write migration code for the old state dir or the
 old `data/` database.
 

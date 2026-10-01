@@ -13,9 +13,9 @@ find the reason here first.
 - **Session 2 (planning, copy, rename):** 2026-09-19, same machine. Produced the
   first plan under the working name "Waypost", then copied and renamed the code to
   `findplus` after the owner chose the final name. Details in §12.
-- **Code at handoff:** `/Volumes/UG/Sites/acamarata/findplus` (renamed in session 3; see §12h;
+- **Code at handoff:** the repo root (renamed in session 3; see §12h;
   directory to `findplus` before session 3), 6 commits, clean tree, 262 tests passing,
-  ruff clean. The original `/Users/admin/Developer/bike-tracker` still exists and is
+  ruff clean. The original `bike-tracker` working copy still existed and is
   deleted by session 3 (`PROMPT.md` §1).
 
 ---
@@ -347,7 +347,7 @@ And, on 2026-09-19 after the first plan:
 ## 9. State of the code at handoff (after session 2)
 
 ```
-/Volumes/UG/Sites/acamarata/findplus      (renamed 2026-09-19; the session runs here)
+findplus/      (renamed 2026-09-19; the session runs here)
   6 commits, clean tree (PROMPT.md, CONTEXT.md, PLAN.md untracked, to move to .github/docs/ in E1-T2)
   .claude/ and .opencode/ present (gitignored): phase P1 forged, see §12h
   262 tests passing · ruff check clean · ruff format clean · node --check clean
@@ -500,8 +500,8 @@ extra.
 ### 12g. What session 2 did to the working tree
 
 1. `rsync -a --exclude .venv --exclude .pytest_cache --exclude .ruff_cache
-   --exclude __pycache__ --exclude data` from `/Users/admin/Developer/bike-tracker/`
-   into `/Volumes/UG/Sites/acamarata/findplus/`, preserving `.git`.
+   --exclude __pycache__ --exclude data` from the old `bike-tracker` directory
+   into the `findplus` directory, preserving `.git`.
 2. New venv (`python3.12`), `pip install -e ".[dev]" playwright`; baseline 262 passed.
 3. `git mv src/bike_tracker src/findplus`; perl substitutions in 44 files:
    `Bike Tracker`→`Find+`, `BikeTracker`→`FindPlus`, `BIKE_TRACKER`→`FINDPLUS`,
@@ -513,7 +513,7 @@ extra.
 5. Committed `a6dd275`. Removed an empty stray `docs/` directory. Left
    `PROMPT.md`, `CONTEXT.md`, `PLAN.md` untracked for session 3 to move under
    `.github/docs/` and commit.
-6. Did **not** delete `/Users/admin/Developer/bike-tracker` or `~/.bike-tracker`
+6. Did **not** delete the old `bike-tracker` directory or its state directory
    (session 3 does, per `PROMPT.md` §1). Did not create any GitHub repo. Did not
    rename the directory.
 
@@ -522,7 +522,7 @@ stays.
 
 ### 12h. Session 3 (2026-09-19, same day): directory renamed, phase tree forged
 
-- The owner authorised the rename: `/Volumes/UG/Sites/acamarata/waypost` → `/Volumes/UG/Sites/acamarata/findplus`;
+- The owner authorised the rename: the `waypost` directory to `findplus`;
   the session moved with it; the venv was recreated; 262 passed and ruff clean at the new path.
 - The owner added a requirement: a native macOS widget "that works just as good as the Apple Weather one".
   Decision D21 (ADR-P1-03, `specs/widget.md`): Swift WidgetKit extension, sandboxed, reads `GET /api/widget`

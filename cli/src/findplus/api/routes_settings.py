@@ -235,6 +235,28 @@ def _register_remove_pin_route(router: APIRouter, *, sessions: SessionStore) -> 
         return updated.public()
 
 
+def _register_check_pin_route(router: APIRouter) -> None:
+    @router.post("/pin/check")
+    def check_pin(current_pin: str = Body(..., embed=True)) -> dict[str, bool]:
+        """Say whether `current_pin` is the PIN, changing nothing.
+
+        The dialog asks this before it shows "Remove the PIN?", so a wrong PIN is
+        reported beside the field first instead of after a confirmation. Same body
+        rule as the other PIN routes: the PIN never rides in a URL.
+        """
+        try:
+            reject_padded_pin(current_pin, "current_pin")
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        with session_scope() as session:
+            existing = load_settings(session)
+            if existing.pin_configured and not verify_pin(
+                current_pin, existing.pin_salt or "", existing.pin_hash or ""
+            ):
+                raise HTTPException(status_code=403, detail="Current PIN is incorrect.")
+        return {"ok": True}
+
+
 def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeout) -> APIRouter:
     router = APIRouter(prefix="/api/settings", tags=["settings"])
     _register_value_routes(router, sync_idle_timeout=sync_idle_timeout)
@@ -245,5 +267,6 @@ def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeo
         sync_idle_timeout=sync_idle_timeout,
     )
     _register_remove_pin_route(router, sessions=sessions)
+    _register_check_pin_route(router)
     register_key_routes(router)
     return router

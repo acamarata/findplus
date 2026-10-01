@@ -51,6 +51,13 @@ class PollOutcome:
         }
 
 
+#: Statuses that mean no request reached Google (the poll stopped at a local check),
+#: so they never escalate backoff: a user fixing them should be picked up promptly.
+NO_GOOGLE_TRAFFIC = frozenset(
+    {"provider_unavailable", "provider_unauthenticated", "needs_shared_key"}
+)
+
+
 @dataclass(slots=True)
 class CycleOutcome:
     """Result of polling every tracked device once."""
@@ -66,6 +73,11 @@ class CycleOutcome:
     def ok(self) -> bool:
         """True when at least one device succeeded, or there was nothing to do."""
         return not self.outcomes or any(o.ok for o in self.outcomes)
+
+    @property
+    def no_google_traffic(self) -> bool:
+        """True when every device stopped at a local check (locked, signed out, unavailable)."""
+        return bool(self.outcomes) and all(o.status in NO_GOOGLE_TRAFFIC for o in self.outcomes)
 
     @property
     def inserted(self) -> int:

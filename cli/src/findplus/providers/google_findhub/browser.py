@@ -218,6 +218,9 @@ def _run_google_auth(job_id: str, settings: Any) -> None:
         safe_msg = redact_text(str(exc)) or "Unknown error"
         _set_progress(job_id, "failed", safe_msg[:200])
     else:
+        from findplus.poller_service import wake_poller
+
+        wake_poller()  # the signed-out failures before this are over: poll now
         _set_progress(job_id, "done", f"Authenticated as {email}.")
     finally:
         restore_create_driver_guard()  # re-arm the blocked guard the job replaced

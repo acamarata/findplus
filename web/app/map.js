@@ -31,6 +31,13 @@ export function initMap() {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(state.map);
   state.layer = L.layerGroup().addTo(state.map);
+  // Leaflet only measures its container once. If the pane was hidden, still
+  // laying out, or later resized (window drag, tab switch, banner appearing),
+  // tiles render into a stale tiny box. Re-measure whenever the box changes.
+  const el = document.getElementById("map");
+  if (el && typeof ResizeObserver === "function") {
+    new ResizeObserver(() => state.map && state.map.invalidateSize()).observe(el);
+  }
 }
 
 /**

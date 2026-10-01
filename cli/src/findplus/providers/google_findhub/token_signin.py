@@ -169,4 +169,8 @@ def sign_in_with_oauth_token(
     account = str(response.get("Email") or clean)
     if not account:
         raise TokenRejectedError(MSG_REJECTED)
-    return save_session(response["Token"], account)
+    saved = save_session(response["Token"], account)
+    from findplus.poller_service import wake_poller
+
+    wake_poller()
+    return saved

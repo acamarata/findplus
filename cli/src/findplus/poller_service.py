@@ -15,6 +15,7 @@ Constraints: A config error (e.g. no devices tracked) resets backoff instead
 from __future__ import annotations
 
 import threading
+import time
 
 from findplus.config import Settings, get_settings
 from findplus.db.session import session_scope
@@ -23,6 +24,16 @@ from findplus.poller_outcomes import CycleOutcome
 from findplus.state import get_tracked_devices
 
 log = get_logger(__name__)
+
+# Set by `wake_poller()` (e.g. right after an unlock or sign-in) so the loop
+# polls now and clears its backoff instead of sleeping out the failures that
+# came from the missing credential.
+_WAKE = threading.Event()
+
+
+def wake_poller() -> None:
+    """Ask the running poller to poll immediately and reset its backoff."""
+    _WAKE.set()
 
 
 class PollerService:
@@ -43,6 +54,19 @@ class PollerService:
             return base
         backoff = base * (2 ** min(self._consecutive_failures, 6))
         return min(backoff, self.settings.poll_max_backoff_minutes * 60.0)
+
+    def _sleep(self, delay: float) -> None:
+        """Wait `delay` seconds, returning early on stop or `wake_poller()`."""
+        end = time.monotonic() + delay
+        while not self._stop.is_set():
+            if _WAKE.is_set():
+                _WAKE.clear()
+                self._consecutive_failures = 0
+                return
+            left = end - time.monotonic()
+            if left <= 0:
+                return
+            self._stop.wait(min(left, 1.0))
 
     def run_forever(self) -> None:
         import os
@@ -86,6 +110,6 @@ class PollerService:
                     consecutive_failures=self._consecutive_failures,
                     next_attempt_in_seconds=round(delay),
                 )
-            self._stop.wait(delay)
+            self._sleep(delay)
 
         log.info("poller_stopped")

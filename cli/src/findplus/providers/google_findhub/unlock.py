@@ -162,6 +162,14 @@ def store_vault_keys(vault_keys: object) -> None:
     except Exception:
         raise SharedKeyParseError(MSG_NO_VAULT_KEY) from None
     _store_shared_key(bytes(key).hex())
+    _wake_poller()
+
+
+def _wake_poller() -> None:
+    """Poll now: the locked-account failures that put the poller in backoff are over."""
+    from findplus.poller_service import wake_poller
+
+    wake_poller()
 
 
 def _run_google_unlock(job_id: str, settings: Any) -> None:
@@ -184,6 +192,7 @@ def _run_google_unlock(job_id: str, settings: Any) -> None:
         safe = redact_text(str(exc)) or "Unknown error"
         _set_progress(job_id, "failed", MSG_FAILED if not safe else safe[:200])
     else:
+        _wake_poller()
         _set_progress(job_id, "done", MSG_DONE)
     finally:
         # Put the blocked create_driver back, on BOTH the module the flow reads

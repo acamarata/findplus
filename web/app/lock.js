@@ -53,6 +53,8 @@ export async function showLock() {
   $("lock-error").textContent = "";
   $("lock-forgot").hidden = true;
   $("lock-pin").value = "";
+  $("lock-pin").type = "password"; // a shown PIN never carries over to the next lock
+  $("lock-show-pin").checked = false;
   await showLockCaveat();
   $("lock-pin").focus();
 }
@@ -279,6 +281,10 @@ export function wireLockControls() {
     if (pin) submitPin(pin);
   });
   $("btn-lock").addEventListener("click", lockNow);
+  // Show PIN: a typo is easier to catch than a retry against the five-try limit.
+  $("lock-show-pin").addEventListener("change", (e) => {
+    $("lock-pin").type = e.target.checked ? "text" : "password";
+  });
 
   // Any interaction postpones the idle auto-lock.
   ["mousemove", "keydown", "click", "scroll", "touchstart"].forEach((evt) => {

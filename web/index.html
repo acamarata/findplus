@@ -69,12 +69,14 @@
              data-i18n-attr="placeholder:common.pin,aria-label:common.pin">
       <button type="submit" class="btn" id="lock-submit" data-i18n="common.unlock">Unlock</button>
     </form>
+    <label class="lock-show"><input type="checkbox" id="lock-show-pin">
+      <span data-i18n="common.showPin">Show PIN</span></label>
     <p id="lock-error" class="lock-error" role="alert"></p>
     <!-- UAT6-N07: the recovery path in words first; the terminal command is
          only the secondary "Advanced" line. Shown after a wrong PIN. -->
     <details id="lock-forgot" class="lock-forgot" hidden>
       <summary data-i18n="common.lockForgotSummary">Forgot your PIN?</summary>
-      <p data-i18n="common.lockForgotBody">If you remember it later, you can change or remove it in Settings, under App lock. A forgotten PIN can only be removed on this computer itself.</p>
+      <p data-i18n="common.lockForgotBody">Find+ cannot recover a forgotten PIN for you. If you remember it later, you can change or remove it in Settings, under App lock. If you cannot, the PIN can only be removed on this computer itself.</p>
       <p class="lock-forgot-advanced" data-i18n="common.lockForgotAdvanced">Advanced: open Terminal and run findplus lock reset, then reload this page.</p>
     </details>
     <!-- honesty.LOCK_NOT_ENCRYPTION, from the PUBLIC /api/lock/requirements.

@@ -1,7 +1,8 @@
 /*
  * Groups tab: card meta lines, member rows with a Track button, picker marks.
  *
- * Purpose    : Kept out of components.css, which is near its line cap.
+ * Purpose    : Kept out of components.css, which is near its line cap. Also holds the
+ *              lock screen's Show PIN toggle.
  * Inputs     : `.fp-card-meta`, `.fp-card-explain` (groups_card_meta.js),
  *              `.fp-member-line` and `.fp-member-track` (groups_members.js),
  *              `.fp-quorum-sentence` (groups_dialog_quorum.js), colour swatches.
@@ -33,3 +34,7 @@
 .fp-color-swatch:focus-visible, .fp-icon-swatch:focus-visible {
   outline: 2px solid var(--accent, #2f6fed); outline-offset: 2px;
 }
+
+/* Lock screen: the Show PIN toggle under the field (kept here, responsive.css is at its cap). */
+.lock-show { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 10px 0 0;
+  font-size: 12.5px; color: var(--muted); cursor: pointer; }

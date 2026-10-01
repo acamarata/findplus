@@ -79,3 +79,5 @@
 .d-seen.is-stale { color: var(--warn); }
 .d-battery { color: var(--muted); font-size: 12.5px; }
 .device-row.is-untracked .d-name { opacity: .8; }
+.device-row[hidden] { display: none; }
+.device-tools { position: sticky; top: 0; z-index: 3; background: var(--panel); padding: 4px 0 8px; }

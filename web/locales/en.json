@@ -158,6 +158,19 @@
     },
     "card": {
       "edit": "Edit {name}"
+    },
+    "lastSeen": "Last seen {age} ago",
+    "neverSeen": "No location yet",
+    "batteryAt": "Battery {n}%",
+    "noMatch": "No tracker matches “{query}”.",
+    "showingCount": "Showing {shown} of {total}",
+    "searchLabel": "Search trackers",
+    "searchPlaceholder": "Search by name or ID",
+    "sortLabel": "Sort trackers",
+    "sort": {
+      "tracked": "Tracked first",
+      "name": "Name A to Z",
+      "seen": "Most recently seen"
     }
   },
   "groups": {

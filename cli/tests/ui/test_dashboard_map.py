@@ -21,9 +21,13 @@ async def test_legend_lists_each_tracker_and_frames_it(page, base_url):
     rows = page.locator(".map-legend button")
     assert await rows.count() == 6
     assert "Busy Tag 3" in await rows.nth(3).inner_text()
-    before = await page.evaluate("() => import('/static/app/state.js').then((m) => m.state.map.getBounds().toBBoxString())")
+    before = await page.evaluate(
+        "() => import('/static/app/state.js').then((m) => m.state.map.getBounds().toBBoxString())"
+    )
     await rows.nth(3).click()
-    after = await page.evaluate("() => import('/static/app/state.js').then((m) => m.state.map.getBounds().toBBoxString())")
+    after = await page.evaluate(
+        "() => import('/static/app/state.js').then((m) => m.state.map.getBounds().toBBoxString())"
+    )
     assert before != after
 
 
@@ -35,7 +39,9 @@ async def test_no_legend_for_a_single_tracker(page, base_url):
 async def test_dense_map_shrinks_middle_markers_until_zoomed_in(page, base_url):
     await _boot(page, base_url)
     assert await page.locator("#map.map--dense").count() == 1
-    await page.evaluate("() => import('/static/app/state.js').then((m) => m.state.map.setZoom(16, { animate: false }))")
+    await page.evaluate(
+        "() => import('/static/app/state.js').then((m) => m.state.map.setZoom(16, { animate: false }))"
+    )
     assert await page.locator("#map.map--dense").count() == 0
 
 

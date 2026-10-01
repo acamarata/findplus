@@ -54,15 +54,24 @@ export function init(mapArg, _deviceListEl) {
   // state.locked is already known here -- skip the fetch rather than fire it
   // and swallow a 401. lock.js's refreshTabsAfterUnlock() calls refreshAll()
   // again once unlocked.
-  if (!state.locked) refreshAll();
+  if (!state.locked) {
+    placesList.showLoading();
+    refreshAll();
+  }
 }
 
 export async function refreshAll() {
   try {
     await loadPlaces();
     await loadPresence();
-  } catch (_) {
-    // Locked or unreachable at boot; the lock screen / next refresh handles it.
+  } catch (err) {
+    // Locked: the lock screen takes over. Anything else gets the list's own
+    // error state with Retry, and no circles left from an earlier good load.
+    if (err.message === "Locked") return;
+    if (placeLayer) placeLayer.clearLayers();
+    placesById = new Map();
+    circlesById.clear();
+    placesList.showError(err);
   }
 }
 

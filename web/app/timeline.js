@@ -132,12 +132,25 @@ function showLoadError(day, err, key) {
   );
 }
 
+/** The pane while a NEW selection loads, so it is never blank (UAT #13). */
+function showPaneLoading(seq) {
+  if (seq !== loadSeq) return;
+  const note = document.createElement("div");
+  note.className = "empty";
+  note.setAttribute("role", "status");
+  note.textContent = t("common.loading");
+  $("tracks").replaceChildren(note);
+}
+
 export async function loadDay(day) {
   const lockGenAtFetch = state.lockGeneration; state.day = day; $("day-picker").value = day;
   const params = new URLSearchParams({ day });
   if (state.deviceFilter) params.set("device_id", state.deviceFilter);
   const key = keyFor(day, state.deviceFilter);
   const seq = ++loadSeq;
+  // Only a selection that is not on screen yet gets the notice, and only when
+  // the answer is slow, so a quick day change does not flash it.
+  const slow = key === loadedKey ? null : setTimeout(() => showPaneLoading(seq), 250);
   try {
     const timeline = await api(`/api/timeline?${params}`);
     if (state.lockGeneration !== lockGenAtFetch) return; // locked mid-fetch: never render it
@@ -154,6 +167,8 @@ export async function loadDay(day) {
   } catch (err) {
     if (state.lockGeneration !== lockGenAtFetch || seq !== loadSeq) return;
     showLoadError(day, err, key);
+  } finally {
+    clearTimeout(slow);
   }
 }
 

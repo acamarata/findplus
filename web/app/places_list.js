@@ -23,7 +23,8 @@
 import { api } from "./api.js";
 import { t } from "./i18n.js";
 import { uniqueLabel } from "./device_label.js";
-import { editPlace, deletePlace, centerOnPlace } from "./places.js";
+import { editPlace, deletePlace, centerOnPlace, refreshAll } from "./places.js";
+import { paneError } from "./pane_error.js";
 
 let listEl = null;
 
@@ -122,6 +123,27 @@ function groupPresenceByPlace(entries) {
 function updateTabHint(placeCount) {
   const hint = document.getElementById("fp-places-tab-hint");
   if (hint) hint.hidden = placeCount > 0;
+}
+
+/** The list while the first fetch is out. The "Use Add place" hint stays hidden:
+ * it says no place exists, which nobody knows yet (UAT #13). */
+export function showLoading() {
+  if (!listEl) return;
+  updateTabHint(1);
+  const note = document.createElement("p");
+  note.className = "fp-empty-state";
+  note.setAttribute("role", "status");
+  note.textContent = t("common.loading");
+  listEl.replaceChildren(note);
+}
+
+/** A failed load: say so, with Retry, rather than the "no places yet" hint. */
+export function showError(err) {
+  if (!listEl) return;
+  updateTabHint(1);
+  listEl.replaceChildren(
+    paneError({ title: t("places.loadFailedTitle"), message: err.message, onRetry: () => { showLoading(); refreshAll(); } })
+  );
 }
 
 export async function refresh() {

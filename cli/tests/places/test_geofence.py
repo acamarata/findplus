@@ -92,8 +92,6 @@ def test_classify_inside_high_confidence() -> None:
 
 
 def test_classify_accuracy_circle_straddling_the_edge_is_uncertain() -> None:
-    # Centre is 80 m out (inside a 100 m radius) but the 30 m accuracy circle
-    # reaches 110 m: it could be on either side, so it decides nothing.
     cls = classify(_place(), _fix(80, 30.0, T0))
     assert cls.side == "indeterminate"
 
@@ -258,8 +256,7 @@ def test_jitter_fixture_one_enter_zero_exit() -> None:
     radius=100 and acc=30, outside requires d > radius + max(acc, 50) = 150,
     so the outside leg alternates at 200 m (120 m only ever landed as
     indeterminate and never exercised the exit-hysteresis branch at all).
-    The inside leg is 60 m: with 30 m accuracy an 80 m fix straddles the
-    100 m edge and is uncertain, so it could not enter at all.
+    The inside leg is 60 m: an 80 m fix with 30 m accuracy straddles the edge.
     """
     place = _place()
     fixes = []

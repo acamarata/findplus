@@ -84,7 +84,8 @@ def test_route_count():
     # +8 for the Chrome helper: POST helper/{begin,unlock-begin,token,unlock,seen}
     # and the GET pages /auth/google/{begin,unlock/begin,success}.
     # +2 for the helper install UX: POST helper/{reveal,open-extensions}.
-    assert len(routes) == 97
+    # +1 for POST /alerts/rules/dry-run (what a rule would have sent).
+    assert len(routes) == 98
 
 
 #: T1 (2026-09-22, PRI rule-7 50-line function cap): pulled out of

@@ -13,6 +13,8 @@
  */
 import {
   HELPER_VERSION,
+  PORT_STORAGE_KEY,
+  acceptBegin,
   isOauthCookieChange,
   successUrl,
   tokenBody,
@@ -32,6 +34,16 @@ async function setPending(pending) {
 }
 async function clearPending() {
   await chrome.storage.session.remove(PENDING_KEY);
+}
+
+/** The daemon port this helper was configured for (default 8647). */
+async function configuredPort() {
+  try {
+    const stored = await chrome.storage.local.get(PORT_STORAGE_KEY);
+    return stored[PORT_STORAGE_KEY];
+  } catch (_err) {
+    return undefined;
+  }
 }
 
 async function postJson(url, body) {
@@ -70,11 +82,18 @@ chrome.cookies.onChanged.addListener(async (change) => {
   }
 });
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   (async () => {
     if (msg && msg.type === "findplus-begin") {
-      await setPending({ mode: msg.mode, state: msg.state, port: msg.port });
-      sendResponse({ ok: true, version: HELPER_VERSION });
+      const verdict = acceptBegin({
+        msg,
+        sender,
+        pending: await getPending(),
+        configuredPort: await configuredPort(),
+        now: Date.now(),
+      });
+      if (verdict.ok) await setPending(verdict.pending);
+      sendResponse({ ok: verdict.ok, version: HELPER_VERSION });
       return;
     }
     if (msg && msg.type === "findplus-unlock-active") {

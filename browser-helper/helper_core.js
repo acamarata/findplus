@@ -12,6 +12,47 @@ export const HELPER_VERSION = "1.1.5";
 export const GOOGLE_COOKIE_DOMAIN = "accounts.google.com";
 export const OAUTH_COOKIE = "oauth_token";
 
+/** The one daemon port the helper talks to unless the person configured another. */
+export const DEFAULT_PORT = "8647";
+export const PORT_STORAGE_KEY = "findplus_port";
+/** How long a pending begin stays valid; matches the daemon's state TTL. */
+export const PENDING_TTL_MS = 600000;
+
+/** A usable TCP port as a string, or the default when `value` is not one. */
+export function normalizePort(value) {
+  const text = String(value === undefined || value === null ? "" : value).trim();
+  if (!/^\d{1,5}$/.test(text)) return DEFAULT_PORT;
+  const n = Number(text);
+  return n >= 1 && n <= 65535 ? String(n) : DEFAULT_PORT;
+}
+
+/**
+ * Decide whether a begin message may become the pending flow.
+ *
+ * Accepted only when it came from a tab (a content script on Find+'s own begin
+ * page), names the port this helper is configured for, carries a state, and
+ * does not clobber a live pending flow that belongs to a different tab.
+ * Returns {ok: true, pending} or {ok: false, reason}.
+ */
+export function acceptBegin({ msg, sender, pending, configuredPort, now }) {
+  const tabId = sender && sender.tab ? sender.tab.id : undefined;
+  if (tabId === undefined) return { ok: false, reason: "no-tab" };
+  if (!msg || !msg.state) return { ok: false, reason: "no-state" };
+  if (msg.mode !== "signin" && msg.mode !== "unlock") return { ok: false, reason: "bad-mode" };
+  if (String(msg.port) !== normalizePort(configuredPort)) return { ok: false, reason: "wrong-port" };
+  const live = pending && now - (pending.at || 0) < PENDING_TTL_MS;
+  if (live && pending.tabId !== tabId) return { ok: false, reason: "other-tab-pending" };
+  return {
+    ok: true,
+    pending: { mode: msg.mode, state: msg.state, port: String(msg.port), tabId, at: now },
+  };
+}
+
+/** True when a pending flow exists and has not outlived its TTL. */
+export function pendingIsLive(pending, now) {
+  return Boolean(pending) && now - (pending.at || 0) < PENDING_TTL_MS;
+}
+
 export function baseUrl(port) {
   return `http://127.0.0.1:${port}`;
 }

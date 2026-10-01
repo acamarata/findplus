@@ -35,3 +35,45 @@ test("shouldForwardVault only when active and the right method", () => {
   assert.equal(core.shouldForwardVault(false, "setVaultSharedKeys"), false);
   assert.equal(core.shouldForwardVault(true, "closeView"), false);
 });
+
+const tab = (id) => ({ tab: { id } });
+const begin = (over = {}) => ({ type: "findplus-begin", mode: "signin", state: "s1", port: "8647", ...over });
+
+test("normalizePort falls back to 8647 for junk", () => {
+  assert.equal(core.normalizePort(undefined), "8647");
+  assert.equal(core.normalizePort("abc"), "8647");
+  assert.equal(core.normalizePort("70000"), "8647");
+  assert.equal(core.normalizePort(" 9000 "), "9000");
+});
+
+test("acceptBegin only takes the configured port from a tab", () => {
+  const ok = core.acceptBegin({ msg: begin(), sender: tab(5), pending: null, configuredPort: undefined, now: 1000 });
+  assert.equal(ok.ok, true);
+  assert.deepEqual(ok.pending, { mode: "signin", state: "s1", port: "8647", tabId: 5, at: 1000 });
+  const wrong = core.acceptBegin({ msg: begin({ port: "9999" }), sender: tab(5), pending: null, configuredPort: "8647", now: 1 });
+  assert.deepEqual(wrong, { ok: false, reason: "wrong-port" });
+  const custom = core.acceptBegin({ msg: begin({ port: "9000" }), sender: tab(5), pending: null, configuredPort: "9000", now: 1 });
+  assert.equal(custom.ok, true);
+  assert.equal(core.acceptBegin({ msg: begin(), sender: {}, pending: null, now: 1 }).reason, "no-tab");
+  assert.equal(core.acceptBegin({ msg: begin({ state: "" }), sender: tab(1), pending: null, now: 1 }).reason, "no-state");
+  assert.equal(core.acceptBegin({ msg: begin({ mode: "x" }), sender: tab(1), pending: null, now: 1 }).reason, "bad-mode");
+});
+
+test("a second begin cannot clobber a live pending flow from another tab", () => {
+  const pending = { mode: "signin", state: "old", port: "8647", tabId: 5, at: 1000 };
+  const other = core.acceptBegin({ msg: begin({ state: "evil" }), sender: tab(9), pending, now: 2000 });
+  assert.deepEqual(other, { ok: false, reason: "other-tab-pending" });
+  const same = core.acceptBegin({ msg: begin({ state: "new" }), sender: tab(5), pending, now: 2000 });
+  assert.equal(same.ok, true);
+  assert.equal(same.pending.state, "new");
+  const expired = core.acceptBegin({ msg: begin({ state: "n" }), sender: tab(9), pending, now: 1000 + core.PENDING_TTL_MS });
+  assert.equal(expired.ok, true);
+});
+
+test("manifest pins the daemon port in matches and host permissions", async () => {
+  const { readFileSync } = await import("node:fs");
+  const m = JSON.parse(readFileSync(new URL("./manifest.json", import.meta.url), "utf8"));
+  const pins = [...m.host_permissions, ...m.content_scripts[0].matches].filter((u) => u.includes("127.0.0.1"));
+  assert.ok(pins.length >= 3);
+  for (const u of pins) assert.match(u, /^http:\/\/127\.0\.0\.1:8647\//);
+});

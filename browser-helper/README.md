@@ -24,7 +24,7 @@ Google" button instead of asking you to copy things by hand.
   single-use token Find+ generated. Find+ exchanges the sign-in token with
   Google immediately and never stores it.
 - **Cannot** reach any other website. Its host permissions are exactly
-  `accounts.google.com` and `127.0.0.1`; there is no server, no analytics and
+  `accounts.google.com` and `127.0.0.1:8647`; there is no server, no analytics and
   no remote code. Read every line here to confirm it.
 
 It does not touch your Google password, which you type on Google's own page.
@@ -34,7 +34,7 @@ It does not touch your Google password, which you type on Google's own page.
 - `cookies` — to read the one `oauth_token` cookie on `accounts.google.com`.
 - `storage` — to remember, in session storage only, that a Find+ sign-in is in
   progress.
-- host access to `https://accounts.google.com/*` and `http://127.0.0.1/*`.
+- host access to `https://accounts.google.com/*` and `http://127.0.0.1:8647/*` (the Find+ port only, not every local port).
 
 ## Install (one time)
 

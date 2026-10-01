@@ -113,6 +113,13 @@ def _auth_routes() -> list[tuple[str, str]]:
     )
 
 
+# The two helper ingest routes carry their own gate (extension origin + a
+# single-use state), because the extension has no dashboard cookie; see
+# `_STATE_GATED` in api/__init__.py and the test below.
+_STATE_GATED_ROUTES = {
+    ("POST", "/api/auth/google/helper/token"),
+    ("POST", "/api/auth/google/helper/unlock"),
+}
 _E6_ROUTES = _auth_routes()
 
 
@@ -125,7 +132,7 @@ def test_the_dynamic_sweep_sees_all_twentyone_routes() -> None:
     assert len(_E6_ROUTES) == 21, _E6_ROUTES
 
 
-@pytest.mark.parametrize("method,path", _E6_ROUTES)
+@pytest.mark.parametrize("method,path", [r for r in _E6_ROUTES if r not in _STATE_GATED_ROUTES])
 def test_every_e6_route_401s_while_locked(locked_client, method: str, path: str) -> None:
     """SessionAuthMiddleware runs before any handler body, so the lock wins over
     `_require_origin_signal` — sent WITH the headers, this is still a 401.
@@ -141,6 +148,16 @@ def test_every_e6_route_401s_while_locked(locked_client, method: str, path: str)
     res = locked_client.request(method, concrete, **kwargs)
     assert res.status_code == 401, f"{method} {path} -> {res.status_code}"
     assert res.json() == {"detail": "Locked. Enter your PIN to continue.", "locked": True}
+
+
+@pytest.mark.parametrize("method,path", sorted(_STATE_GATED_ROUTES))
+def test_helper_ingest_routes_reach_their_own_gate_while_locked(
+    locked_client, method: str, path: str
+) -> None:
+    """No cookie, no extension origin, no state: refused by the handler's own
+    gate (403/422), never by the lock (401) and never accepted (2xx)."""
+    res = locked_client.request(method, path, json={}, headers=SAME_ORIGIN_HEADERS)
+    assert res.status_code in (400, 403, 422), f"{method} {path} -> {res.status_code}"
 
 
 # --------------------------------------------------------------- the secret

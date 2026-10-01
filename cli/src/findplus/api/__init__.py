@@ -91,6 +91,19 @@ _PUBLIC = frozenset(
 )
 
 
+#: Chrome-helper ingest routes. The extension runs on 127.0.0.1 and has no
+#: dashboard cookie, so a locked app would reject its hand-off and the sign-in
+#: would silently time out. They are safe to leave open: each handler requires
+#: the pinned extension origin AND a single-use state minted by an unlocked
+#: dashboard session (helper_state), and neither returns any location data.
+_STATE_GATED = frozenset(
+    {
+        "/api/auth/google/helper/token",
+        "/api/auth/google/helper/unlock",
+    }
+)
+
+
 #: Guards manual polls so the UI cannot be used to hammer Google. Process-wide
 #: (not per-app-instance), matching the pre-split module-level state in the
 #: monolithic api.py; the route handler lives in routes_history.py but reads
@@ -182,7 +195,7 @@ class SessionAuthMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
-        if not path.startswith("/api/") or path in _PUBLIC:
+        if not path.startswith("/api/") or path in _PUBLIC or path in _STATE_GATED:
             return await call_next(request)
 
         try:

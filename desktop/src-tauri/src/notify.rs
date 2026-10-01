@@ -139,99 +139,6 @@ fn write_cursor(app: &tauri::AppHandle, cursor: u64) {
     let _ = std::fs::write(path, body);
 }
 
-fn fetch_deliveries(since: u64) -> (Option<u16>, Vec<DeliveryRow>) {
-    fetch_deliveries_from(&crate::daemon::daemon_base(), since)
-}
-
-fn fetch_deliveries_from(base: &str, since: u64) -> (Option<u16>, Vec<DeliveryRow>) {
-    let client = match reqwest::blocking::Client::builder()
-        .timeout(HTTP_TIMEOUT)
-        .build()
-    {
-        Ok(c) => c,
-        Err(_) => return (None, Vec::new()),
-    };
-    let url = format!("{base}/api/alerts/deliveries?since={since}&channel=native");
-    match client.get(url).send() {
-        Ok(resp) if resp.status().as_u16() == 200 => {
-            // A body that will not parse yields an empty Vec, never a panic.
-            (Some(200), resp.json::<Vec<DeliveryRow>>().unwrap_or_default())
-        }
-        Ok(resp) => (Some(resp.status().as_u16()), Vec::new()),
-        Err(_) => (None, Vec::new()),
-    }
-}
-
-fn ack(id: u64) {
-    ack_at(&crate::daemon::daemon_base(), id);
-}
-
-/// Fire and forget: a failed ack simply re-delivers next cycle, so it must never
-/// propagate.
-fn ack_at(base: &str, id: u64) {
-    let Ok(client) = reqwest::blocking::Client::builder()
-        .timeout(HTTP_TIMEOUT)
-        .build()
-    else {
-        return;
-    };
-    let _ = client
-        .post(format!("{base}/api/alerts/deliveries/{id}/ack"))
-        .send();
-}
-
-fn fetch_locked() -> bool {
-    fetch_locked_from(&crate::daemon::daemon_base())
-}
-
-/// EVERY failure path (unreachable, non-200, unparseable body, key absent) returns
-/// true: fail closed to the generic notification, never open to real content.
-fn fetch_locked_from(base: &str) -> bool {
-    let Ok(client) = reqwest::blocking::Client::builder()
-        .timeout(HTTP_TIMEOUT)
-        .build()
-    else {
-        return true;
-    };
-    let Ok(resp) = client.get(format!("{base}/api/lock/status")).send() else {
-        return true;
-    };
-    if resp.status().as_u16() != 200 {
-        return true;
-    }
-    let Ok(body) = resp.json::<serde_json::Value>() else {
-        return true;
-    };
-    body.get("locked").and_then(|v| v.as_bool()).unwrap_or(true)
-}
-
-fn fetch_native_detail_enabled() -> bool {
-    fetch_native_detail_enabled_from(&crate::daemon::daemon_base())
-}
-
-/// Only called when fetch_locked() is false (locked already forces generic). EVERY
-/// failure path returns false: fail closed to generic.
-fn fetch_native_detail_enabled_from(base: &str) -> bool {
-    let Ok(client) = reqwest::blocking::Client::builder()
-        .timeout(HTTP_TIMEOUT)
-        .build()
-    else {
-        return false;
-    };
-    let Ok(resp) = client.get(format!("{base}/api/settings")).send() else {
-        return false;
-    };
-    if resp.status().as_u16() != 200 {
-        return false;
-    }
-    let Ok(body) = resp.json::<serde_json::Value>() else {
-        return false;
-    };
-    body.get("alerts.native_detail")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false)
-}
-
 /// Show one cycle's rows, ack each of them, and return nothing. A denied OS permission
 /// still acks (Find+ never re-shows the same alert) and emits the tray's existing
 /// "status-update" event rather than inventing a second channel.
@@ -307,6 +214,14 @@ pub fn request_notification_permission(app: tauri::AppHandle) -> Result<String, 
         .map_err(|e| e.to_string())
 }
 
+#[path = "notify_http.rs"]
+mod http;
+use http::{ack, fetch_deliveries, fetch_locked, fetch_native_detail_enabled};
+
 #[cfg(test)]
 #[path = "notify_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "notify_http_tests.rs"]
+mod http_tests;

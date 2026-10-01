@@ -22,14 +22,12 @@
 import { $ } from "./state.js";
 import { api } from "./api.js";
 import { t } from "./i18n.js";
-import { renderChannelPicker, readChannelPicker } from "./components/channel-picker.js";
+import { renderChannelPicker } from "./components/channel-picker.js";
 import { BASE_CHANNELS, availableChannels, connectedChannels, channelLabels, telegramTargets } from "./alerts_rule_channels.js";
 import { fillLoading, fillOptions, populateRuleSelects } from "./alerts_rule_selects.js";
-import {
-  seedTelegramTargetsFields,
-  readTelegramTargetsSelection,
-  updateTelegramTargetsVisibility,
-} from "./alerts_rule_telegram_targets.js";
+import { seedTelegramTargetsFields, updateTelegramTargetsVisibility } from "./alerts_rule_telegram_targets.js";
+import { saveRuleWith } from "./alerts_rule_save.js";
+import { refreshPreview, resetPreview, setPreviewContext } from "./alerts_rule_preview.js";
 
 // Re-exported: alerts_rules.js's own `export { fillOptions, ... } from
 // "./alerts_rule_dialog.js"` re-export list (its rows use it too) stays
@@ -130,6 +128,19 @@ function applyRuleTargetValues(rule) {
   $("fp-rule-group").value = rule.group_id != null ? String(rule.group_id) : "";
 }
 
+/** Everything the dialog shows without a round trip, set before it opens.
+ *  UAT2 U32/N7: the <h2> says which mode this is (aria-labelledby points at
+ *  it). The three selects carry a "Loading…" placeholder until their data
+ *  lands, rather than the dialog hanging shut on a fetch. */
+function resetDialogForOpen(rule, opts) {
+  resetPreview();
+  showIntro(opts);
+  $("fp-add-rule-dialog-title").textContent = t(rule ? "alerts.editRule" : "alerts.newRule");
+  ["fp-rule-place", "fp-rule-device", "fp-rule-group"].forEach((id) => fillLoading($(id)));
+  seedRuleFields(rule);
+  $("fp-rule-error").textContent = "";
+}
+
 /**
  * Open the add/edit-rule dialog, always reset to `rule`'s values (or blank
  * defaults for a new rule) -- never to whatever the dialog last held, so a
@@ -140,17 +151,9 @@ function applyRuleTargetValues(rule) {
  * inputs are disabled while editing; saveRule() below matches by only
  * sending a target on create.
  */
-export async function openRuleDialog(rule = null) {
+export async function openRuleDialog(rule = null, opts = {}) {
   editingRuleId = rule ? rule.id : null;
-  // UAT2 U32/N7: the dialog carries a real <h2> now (aria-labelledby points
-  // at it, alerts.html) -- the title says which mode this is.
-  $("fp-add-rule-dialog-title").textContent = t(rule ? "alerts.editRule" : "alerts.newRule");
-  // Everything the dialog shows without a round trip is set first and the
-  // dialog opens at once; the three selects carry a "Loading…" placeholder
-  // until their data lands, rather than the dialog hanging shut on a fetch.
-  ["fp-rule-place", "fp-rule-device", "fp-rule-group"].forEach((id) => fillLoading($(id)));
-  seedRuleFields(rule);
-  $("fp-rule-error").textContent = "";
+  resetDialogForOpen(rule, opts);
 
   // UAT2 U11: nothing pre-ticked yet -- the real default needs `connected`,
   // resolved below. Editing starts from the rule's own saved channels.
@@ -162,6 +165,7 @@ export async function openRuleDialog(rule = null) {
   const dlg = $("fp-add-rule-dialog");
   setDialogReady(dlg, false);
   dlg.showModal();
+  refreshPreview();
 
   // In parallel, not in series: the channel list is usually already resolved,
   // and it must never add a round-trip to the time the dialog takes to open.
@@ -170,6 +174,8 @@ export async function openRuleDialog(rule = null) {
   ]);
   const available = availableIncludingRulesOwnChannels(rule, rawAvailable);
   applyRuleTargetValues(rule);
+  // After "Add place": the new place is already chosen for them.
+  if (opts.placeId != null) $("fp-rule-place").value = String(opts.placeId);
   lastConnectedChannels = connected;
   // defaultSelectedChannels()/`initialChannels`, never readChannelPicker()
   // off the current DOM (UAT U12): a fresh open always retraces `rule`/the
@@ -185,110 +191,17 @@ export async function openRuleDialog(rule = null) {
   // WP10 (gap-audit P13): seeded after the channel picker's own final
   // render lands -- its own visibility check reads that picker's DOM.
   seedTelegramTargetsFields(rule, tgTargets);
+  setPreviewContext(connected);
   setDialogReady(dlg, true);
 }
 export const openAddRuleDialog = () => openRuleDialog(null);
-/** "" -> null, so an unchosen select is not silently id 0. */
-function numberOrNull(value) {
-  const n = Number(value);
-  return value === "" || Number.isNaN(n) || n === 0 ? null : n;
-}
 
-function buildRulePayload(channels) {
-  const isDevice = $("fp-rule-target-device").checked;
-  const body = {
-    name: $("fp-rule-name").value,
-    // An empty <select> gives "", and Number("") is 0 — a place_id no row has,
-    // so PRAGMA foreign_keys=ON turned the save into a raw 500 in the dialog
-    // (E1 honesty round 3 F8). null is what "nothing chosen" means.
-    place_id: numberOrNull($("fp-rule-place").value),
-    on_enter: $("fp-rule-on-enter").checked,
-    on_exit: $("fp-rule-on-exit").checked,
-    channels,
-    cooldown_minutes: Number($("fp-rule-cooldown").value),
-    // WP10 (gap-audit P13): always resent, full-replace, same posture as
-    // `channels` above -- null ("All chats") or the checked subset.
-    telegram_targets: readTelegramTargetsSelection(),
-  };
-  if (!editingRuleId) {
-    // RuleUpdate has no device_id/group_id field, and the dialog disables
-    // both target inputs while editing to match (UAT U13).
-    body.device_id = (isDevice ? $("fp-rule-device").value : "") || null;
-    body.group_id = isDevice ? null : numberOrNull($("fp-rule-group").value);
-  }
-  return body;
+/** The "place saved, now choose who to tell" lead-in (opts.intro), and the
+ *  Cancel button reading "Skip for now" so it is plain the place stays. */
+function showIntro(opts) {
+  const intro = $("fp-rule-intro");
+  intro.textContent = opts.intro || "";
+  intro.hidden = !opts.intro;
+  $("fp-rule-cancel").textContent = t(opts.intro ? "alerts.ruleSkip" : "common.cancel");
 }
-
-/**
- * Everything that has to be true before saveRule() is worth a round trip.
- *
- * UAT6 N05: Save with nothing filled in used to create a live rule with an
- * empty name, targeting whichever device sorted first (the untracked
- * AirTag), on enter/exit both unset in spirit (on_enter defaults true so
- * that particular field was never the visible symptom, but a rule with
- * neither event ticked is just as dead), and channels the browser happened
- * to preselect. name/target reuse the browser's own required-field message
- * (reportValidity()); events/channels have no single native control to hang
- * a message on, so they get an inline sentence in the dialog's existing
- * error slot instead. Returns false and leaves the dialog open on any
- * failure -- saveRule() aborts there rather than reaching the server.
- */
-function ruleFormIsValid() {
-  const errorEl = $("fp-rule-error");
-  errorEl.textContent = "";
-  if (!$("fp-rule-name").reportValidity()) return false;
-  // required is false on both selects while editing (updateRuleTargetVisibility()
-  // above), so this is a no-op then -- RuleUpdate cannot retarget a rule anyway.
-  const isDevice = $("fp-rule-target-device").checked;
-  const targetEl = isDevice ? $("fp-rule-device") : $("fp-rule-group");
-  if (!targetEl.reportValidity()) return false;
-  if (!$("fp-rule-on-enter").checked && !$("fp-rule-on-exit").checked) {
-    errorEl.textContent = t("alerts.selectAtLeastOneEvent");
-    return false;
-  }
-  return true;
-}
-
-export async function saveRule() {
-  const dlg = $("fp-add-rule-dialog");
-  if (!ruleFormIsValid()) return;
-  const channels = readChannelPicker($("fp-rule-channels"));
-  if (channels.length === 0) {
-    $("fp-rule-error").textContent = t("alerts.selectAtLeastOneChannel");
-    return;
-  }
-  // UAT2 U11: the picker still lets an unconnected channel be ticked (a
-  // fresh install with nothing connected yet must be able to create its
-  // first rule), so a selection that is entirely unconnected channels can
-  // still reach here -- refuse it before the round trip, with the same
-  // reason the server itself now enforces (routes_alerts_rules.py). Skipped
-  // when nothing is ticked at all (the server's own "channels required" 422
-  // already covers that, unrelated to connection status) or when `connected`
-  // is unknown (the fetch failed): the server is the only side that still
-  // knows then.
-  if (
-    channels.length > 0 &&
-    lastConnectedChannels &&
-    !channels.some((id) => id === "native" || lastConnectedChannels.has(id))
-  ) {
-    $("fp-rule-error").textContent = t("alerts.noConnectedChannel");
-    return;
-  }
-  const body = buildRulePayload(channels);
-  const [path, method] = editingRuleId
-    ? [`/api/alerts/rules/${editingRuleId}`, "PUT"]
-    : ["/api/alerts/rules", "POST"];
-  try {
-    await api(path, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    dlg.close();
-    const { loadRules } = await import("./alerts_rules.js");
-    await loadRules();
-  } catch (err) {
-    // api() shows the lock screen for a 401; anything else is shown here.
-    if (err.message !== "Locked") $("fp-rule-error").textContent = err.message;
-  }
-}
+export const saveRule = () => saveRuleWith({ editingRuleId, connected: lastConnectedChannels });

@@ -86,7 +86,8 @@ def test_route_count():
     # +2 for the helper install UX: POST helper/{reveal,open-extensions}.
     # +4 for trips: GET /trips, GET /trips/route and GET/POST /settings/routing.endpoint.
     # +1 for POST /settings/pin/check (verify the PIN before the remove question).
-    assert len(routes) == 102
+    # +1 for POST /alerts/rules/dry-run (what a rule would have sent).
+    assert len(routes) == 103
 
 
 #: T1 (2026-09-22, PRI rule-7 50-line function cap): pulled out of

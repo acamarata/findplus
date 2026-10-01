@@ -25,6 +25,7 @@ import { $ } from "./state.js";
 import { t } from "./i18n.js";
 import { api } from "./api.js";
 import { mappedError } from "./alerts_channel_errors.js";
+import { friendlyErrorText } from "./alerts_delivery_errors.js";
 import { confirmDialog } from "./components/confirm-dialog.js";
 
 /** UAT6 N16: routes_alerts_channels.py's put_webhook() 422 details are raw
@@ -105,6 +106,7 @@ export function renderWebhookSection(webhook) {
   // UAT7 N05: nothing to remove before a URL is ever saved -- same
   // reasoning as Telegram/WhatsApp's own Send test/Clear (alerts_channels.js).
   $("fp-webhook-remove").disabled = !webhookConfigured;
+  $("fp-webhook-test").disabled = !webhookConfigured;
 }
 
 /**
@@ -152,6 +154,26 @@ export async function saveWebhook(reload) {
     await reload();
   } catch (err) {
     if (err.message !== "Locked") statusEl.textContent = mappedError(err, WEBHOOK_VALIDATION_KEYS);
+  }
+}
+
+/** A real test post to the saved webhook, reported in plain words. The secret
+ *  and URL stay on the server; only "sent" or the reason comes back. */
+export async function testWebhook() {
+  const statusEl = $("fp-webhook-status");
+  statusEl.textContent = t("alerts.ruleTest.running");
+  try {
+    const res = await api("/api/alerts/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channel: "webhook" }),
+    });
+    statusEl.textContent =
+      res.status === "sent"
+        ? t("alerts.testSent")
+        : t("alerts.testFailed", { error: friendlyErrorText(res.error || "", "webhook") });
+  } catch (err) {
+    if (err.message !== "Locked") statusEl.textContent = t("alerts.testFailed", { error: err.message });
   }
 }
 

@@ -1207,6 +1207,76 @@ Post Rule
 }
 ```
 
+### POST /api/alerts/rules/dry-run
+Post Dry Run
+
+**Request body:**
+```json
+{
+  "properties": {
+    "place_id": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Place Id"
+    },
+    "device_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Device Id"
+    },
+    "group_id": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Group Id"
+    },
+    "on_enter": {
+      "type": "boolean",
+      "title": "On Enter",
+      "default": true
+    },
+    "on_exit": {
+      "type": "boolean",
+      "title": "On Exit",
+      "default": true
+    },
+    "cooldown_minutes": {
+      "type": "integer",
+      "maximum": 1440.0,
+      "minimum": 0.0,
+      "title": "Cooldown Minutes",
+      "default": 30
+    },
+    "hours": {
+      "type": "integer",
+      "maximum": 72.0,
+      "minimum": 1.0,
+      "title": "Hours",
+      "default": 24
+    }
+  },
+  "type": "object",
+  "title": "DryRunBody"
+}
+```
+
 ### POST /api/alerts/test
 Post Test
 

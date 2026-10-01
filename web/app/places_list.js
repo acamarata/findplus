@@ -21,10 +21,14 @@
 "use strict";
 
 import { api } from "./api.js";
-import { t } from "./i18n.js";
+import { t, plural } from "./i18n.js";
 import { uniqueLabel } from "./device_label.js";
-import { editPlace, deletePlace, centerOnPlace, refreshAll } from "./places.js";
+import { editPlace, deletePlace, centerOnPlace, refreshAll, offerRuleFor } from "./places.js";
 import { paneError } from "./pane_error.js";
+import { activeQuery, applyTools, buildTools, reset as resetTools, toolsVisible } from "./places_list_tools.js";
+
+/** The last fetch, so search/sort re-render without another round trip. */
+let last = null;
 
 let listEl = null;
 
@@ -62,7 +66,28 @@ function onCardClick(event, place) {
   centerOnPlace(place.id);
 }
 
-function renderCard(place, presenceByPlace, devicesById) {
+/** "200 m radius · 41.1000, -80.1000 · 2 alert rules": everything a place is, in one line.
+ * A place with no rule says so, with a button: it messages nobody on its own. */
+function metaText(place, ruleCount) {
+  const parts = [
+    t("places.list.radiusMeta", { radius: place.radius_meters }),
+    t("places.list.coords", { lat: place.latitude.toFixed(4), lon: place.longitude.toFixed(4) }),
+  ];
+  if (ruleCount > 0) parts.push(plural("places.list.rules", ruleCount, { count: ruleCount }));
+  return parts.join(" · ");
+}
+
+function notifyRow(place) {
+  const row = document.createElement("span");
+  row.className = "fp-place-notify";
+  const text = document.createElement("span");
+  text.textContent = t("places.list.notNotifying");
+  row.append(text, cardButton("btn btn-tiny fp-place-notify-btn", t("places.list.setUpAlert"),
+    t("places.list.setUpAlertFor", { name: place.name }), () => offerRuleFor(place.id)));
+  return row;
+}
+
+function renderCard(place, presenceByPlace, devicesById, ruleCount) {
   const card = document.createElement("div");
   card.className = "fp-place-card";
   card.setAttribute("data-place-id", String(place.id));
@@ -78,7 +103,7 @@ function renderCard(place, presenceByPlace, devicesById) {
 
   const meta = document.createElement("span");
   meta.className = "fp-place-card-meta";
-  meta.textContent = t("places.list.radiusMeta", { radius: place.radius_meters });
+  meta.textContent = metaText(place, ruleCount);
 
   const who = document.createElement("span");
   who.className = "fp-place-card-who";
@@ -89,6 +114,7 @@ function renderCard(place, presenceByPlace, devicesById) {
     name,
     meta,
     who,
+    ...(ruleCount === 0 ? [notifyRow(place)] : []),
     // V1: these had no button class at all (fully browser-default); devices.js's
     // own row-edit button is the precedent for this exact "btn btn-tiny" pairing.
     cardButton("fp-card-edit btn btn-tiny", t("common.edit"), t("places.card.edit", { name: place.name }),
@@ -146,22 +172,54 @@ export function showError(err) {
   );
 }
 
+/** place_id -> how many alert rules use it. A failed rules fetch reads as none:
+ * the list must never be blocked by a count. */
+async function ruleCounts() {
+  try {
+    const rules = await api("/api/alerts/rules");
+    const counts = new Map();
+    rules.forEach((r) => counts.set(String(r.place_id), (counts.get(String(r.place_id)) || 0) + 1));
+    return counts;
+  } catch (_) {
+    return new Map();
+  }
+}
+
+/** Draw `last` through the search and sort. */
+function render() {
+  if (!listEl || !last) return;
+  const { places, presenceByPlace, devicesById, counts } = last;
+  updateTabHint(places.length);
+  // U14: places.html's own .fp-tab-hint is the empty state's one message.
+  if (places.length === 0) return clearList();
+  // The toolbar node stays put between renders: moving it would drop focus
+  // from the search box in the middle of a word.
+  const tools = buildTools(render);
+  [...listEl.children].forEach((child) => child !== tools && child.remove());
+  if (!tools.isConnected) listEl.prepend(tools);
+  toolsVisible(places.length);
+  const shown = applyTools(places);
+  shown.forEach((place) =>
+    listEl.appendChild(renderCard(place, presenceByPlace, devicesById, counts.get(String(place.id)) || 0)));
+  if (shown.length === 0) {
+    const none = document.createElement("p");
+    none.className = "fp-empty-state";
+    none.textContent = t("places.tools.noMatch", { query: activeQuery() });
+    listEl.appendChild(none);
+  }
+}
+
 export async function refresh() {
   if (!listEl) return;
-  const [places, devicesResp, presence] = await Promise.all([
+  const [places, devicesResp, presence, counts] = await Promise.all([
     api("/api/places"),
     api("/api/devices"),
     api("/api/places/presence"),
+    ruleCounts(),
   ]);
   const devicesById = new Map(devicesResp.devices.map((d) => [d.device_id, d]));
-  const presenceByPlace = groupPresenceByPlace(presence);
-  updateTabHint(places.length);
-  clearList();
-  // U14: places.html's own .fp-tab-hint ("Use Add place to create a
-  // geofence") sits right above #fp-places-list and already is the empty
-  // state's one message; a second paragraph here duplicated it.
-  if (places.length === 0) return;
-  places.forEach((place) => listEl.appendChild(renderCard(place, presenceByPlace, devicesById)));
+  last = { places, presenceByPlace: groupPresenceByPlace(presence), devicesById, counts };
+  render();
 }
 
 /**
@@ -172,5 +230,7 @@ export async function refresh() {
  * groups_list.js's own purgeCards() exists.
  */
 export function purgeList() {
+  last = null;
+  resetTools();
   clearList();
 }

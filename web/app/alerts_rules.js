@@ -17,6 +17,8 @@ import { $, showAlert } from "./state.js";
 import { api } from "./api.js";
 import { t, plural } from "./i18n.js";
 import { openRuleDialog } from "./alerts_rule_dialog.js";
+import { setRuleCount } from "./alerts_summary.js";
+import { ruleSentence } from "./alerts_rule_sentence.js";
 import { confirmDialog } from "./components/confirm-dialog.js";
 
 export {
@@ -55,6 +57,27 @@ function cell(text, label) {
   td.dataset.label = label;
   return td;
 }
+/** The rule's name, with the rule in plain words under it ("Tell me on Telegram
+ *  when Zaid Bag leaves School."), so the table reads without decoding ticks. */
+function nameCell(rule) {
+  const td = document.createElement("td");
+  td.dataset.label = t("alerts.colName");
+  const name = document.createElement("strong");
+  name.textContent = rule.name;
+  const sentence = document.createElement("span");
+  sentence.className = "fp-rule-row-sentence";
+  sentence.textContent = ruleSentence({
+    channels: rule.channels.map((c) => t("alerts.channels." + c)),
+    who: ruleTargetLabel(rule),
+    isGroup: rule.group_id != null,
+    enter: rule.on_enter,
+    exit: !!rule.on_exit,
+    place: rule.place_name || "",
+  });
+  td.append(name, sentence);
+  return td;
+}
+
 /** UAT U13: enabled/disabled toggle, PUT-ing the single field. Dispatch
  *  already filters on `enabled` server-side (dispatch.py); this is the only
  *  piece that was missing. */
@@ -93,7 +116,7 @@ function enabledToggleCell(rule) {
 function buildRuleRow(rule) {
   const tr = document.createElement("tr");
   tr.append(
-    cell(rule.name, t("alerts.colName")),
+    nameCell(rule),
     cell(rule.place_name || t("common.emptyValue"), t("alerts.colPlace")),
     cell(ruleTargetLabel(rule), t("alerts.colTarget")),
     cell(rule.on_enter ? t("common.yes") : t("common.no"), t("alerts.colOnEnter")),
@@ -127,6 +150,7 @@ export function renderRulesTable(rules) {
   rules.forEach((rule) => tbody.appendChild(buildRuleRow(rule)));
   const empty = $("fp-rules-empty");
   if (empty) empty.hidden = rules.length > 0;
+  setRuleCount(rules.length);
 }
 async function deleteRule(id, name) {
   const confirmed = await confirmDialog({

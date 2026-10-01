@@ -25,6 +25,8 @@
 import { $ } from "./state.js";
 import { api } from "./api.js";
 import { t } from "./i18n.js";
+import { friendlyErrorText } from "./alerts_delivery_errors.js";
+import { applyFilters, buildFilters, clearFilters, resetFilters, showMore } from "./alerts_delivery_filters.js";
 
 /** One formatter for every timestamp this table shows -- see the module
  *  docstring above. Returns null for a missing timestamp so each caller
@@ -138,36 +140,6 @@ function detailsCell(text, label, threshold = 30) {
   return td;
 }
 
-/**
- * UAT6 N17: the Error column used to show whatever the channel's own client
- * library raised verbatim -- "HTTPSConnectionPool(host='api.telegram.org'…
- * NameResolutionError)" -- a Python exception repr, not something a user can
- * act on, and long enough to overflow the 375px pane on its own (no spaces
- * for the browser to wrap on). Each pattern below is a shape the channel
- * clients (requests/httpx under Telegram/webhook/WhatsApp) are actually
- * known to raise; anything unrecognised still gets a short, honest fallback
- * instead of the raw text. The raw text is never gone -- it sits in the
- * cell's `title` (cell()'s own convention) for anyone who needs it.
- */
-const ERROR_PATTERNS = [
-  [/NameResolution|getaddrinfo|Name or service not known|ConnectionError|HTTPSConnectionPool|HTTPConnectionPool|Connection refused|Network is unreachable/i, "alerts.deliveries.errorNetwork"],
-  [/timed? ?out|TimeoutError|ReadTimeout|ConnectTimeout/i, "alerts.deliveries.errorTimeout"],
-  [/\b401\b|\b403\b|Unauthorized|Forbidden|invalid token|bot was blocked/i, "alerts.deliveries.errorAuth"],
-  // UAT7 N06: dispatch_send.py's own skip reason, verbatim ("telegram is not
-  // configured") -- this used to fall through to the generic "Couldn't
-  // deliver to {channel}." below, which reads like an attempted, failed send
-  // rather than a channel dispatch never even tried.
-  [/is not configured/i, "alerts.deliveries.errorNotConnected"],
-];
-
-/** The short catalog sentence for a raw error string, or the generic
- *  fallback when nothing above recognises its shape. */
-function friendlyErrorText(raw, channel) {
-  const channelName = channel ? t("alerts.channels." + channel) : t("common.emptyValue");
-  const match = ERROR_PATTERNS.find(([pattern]) => pattern.test(raw));
-  return t(match ? match[1] : "alerts.deliveries.errorGeneric", { channel: channelName });
-}
-
 /** The Error column: a short, mapped sentence as the visible text, the raw
  *  detail (an exception repr, or the skipped-reason sentence) as the title
  *  for anyone who wants it -- see friendlyErrorText() above. */
@@ -248,15 +220,59 @@ async function fetchTelegramLabelMap() {
   }
 }
 
+/** The last fetch, so a filter or "Show more" redraws without another round trip. */
+let allRows = [];
+let labels = {};
+
+function showEmptyAs(kind) {
+  const empty = $("fp-deliveries-empty");
+  if (!empty) return;
+  empty.hidden = kind === "rows";
+  empty.textContent = t(kind === "filtered" ? "alerts.deliveriesNoMatch" : "alerts.deliveriesEmpty");
+  const clear = $("fp-deliveries-clear");
+  if (clear) clear.hidden = kind !== "filtered";
+}
+
+/** Draw the current filter and page. */
+function drawDeliveries() {
+  const { rows, total, filtered } = applyFilters(allRows);
+  renderDeliveriesTable(rows, labels);
+  showEmptyAs(total > 0 ? "rows" : filtered ? "filtered" : "none");
+  const count = $("fp-deliveries-count");
+  if (count) {
+    count.hidden = total === 0;
+    count.textContent = t("alerts.deliveriesShowing", { shown: rows.length, total });
+  }
+  const more = $("fp-deliveries-more");
+  if (more) more.hidden = rows.length >= total;
+}
+
+export function wireDeliveryControls() {
+  buildFilters($("fp-deliveries-tools"), drawDeliveries);
+  $("fp-deliveries-more").addEventListener("click", () => {
+    showMore();
+    drawDeliveries();
+  });
+  $("fp-deliveries-clear").addEventListener("click", () => {
+    clearFilters();
+    drawDeliveries();
+  });
+}
+
 export async function loadDeliveries() {
   const [deliveries, labelMap] = await Promise.all([
     api("/api/alerts/deliveries"),
     fetchTelegramLabelMap(),
   ]);
-  renderDeliveriesTable(deliveries, labelMap);
+  allRows = deliveries;
+  labels = labelMap;
+  drawDeliveries();
 }
 
 /** lock.js purgeRenderedData() hook: rule and place names must not survive the lock. */
 export function purgeDeliveries() {
+  allRows = [];
+  labels = {};
+  resetFilters();
   renderDeliveriesTable([]);
 }

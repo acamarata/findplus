@@ -6,6 +6,27 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Adding a place now ends with "who should be told, and where": the alert-rule dialog opens with the
+  new place chosen. A place with no rule says "Not notifying anyone yet" in the Places list, with a
+  Set up an alert button.
+- The rule dialog writes the rule in plain words ("Tell me on Telegram when Zaid Bag leaves
+  School."), lists what Save still needs, explains how a group decides, says why a channel is greyed
+  out, can send a real test message to the ticked channels, and shows what the rule would have sent
+  in the last 24 hours (`POST /api/alerts/rules/dry-run`, read-only).
+- Webhook has its own Send a test message now button. The Alerts tab opens with a strip of
+  connected channels and the rule count, Telegram setup lists its four steps, and the delivery log
+  has status and channel filters and pages 15 rows at a time.
+- Places: search and sort, coordinates and rule count on each card, a rule-count line when editing,
+  relative times in Recent arrivals and departures, and a note under the radius that very small
+  places can report late.
+
+### Changed
+- The geofence is accuracy-aware. A fix whose accuracy circle straddles the edge of a place is
+  uncertain and neither enters nor exits. Leaving needs a fix beyond the radius plus the larger of
+  its accuracy and half the radius (at least 50 m), confirmed as many times as the place asks. Find+
+  recommends a radius of at least 100 m.
+
 ## [1.1.5] - 2026-10-01
 
 ### Added

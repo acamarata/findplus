@@ -29,7 +29,7 @@ from findplus.alerts.rule_telegram_targets import (
     validate_rule_telegram_targets,
 )
 from findplus.alerts.store import load_alerts
-from findplus.api import routes_alerts_deliveries
+from findplus.api import routes_alerts_deliveries, routes_alerts_dryrun
 from findplus.db.models import Device, Group, Place
 from findplus.db.models_alerts import AlertRule
 from findplus.db.session import session_scope
@@ -219,4 +219,5 @@ def build_router() -> APIRouter:
     router.add_api_route("/rules/{rule_id}", put_rule, methods=["PUT"])
     router.add_api_route("/rules/{rule_id}", delete_rule, methods=["DELETE"], status_code=204)
     routes_alerts_deliveries.register(router)
+    routes_alerts_dryrun.register(router)
     return router

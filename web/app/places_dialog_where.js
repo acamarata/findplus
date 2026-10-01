@@ -12,7 +12,7 @@
  */
 "use strict";
 
-import { t } from "./i18n.js";
+import { t, plural } from "./i18n.js";
 
 /** Write the where-line for `kind` ("centre", "current" or "picked"). */
 export function showWhere(el, kind, lat, lon) {
@@ -26,4 +26,11 @@ export function showWhere(el, kind, lat, lon) {
 /** Clear the line (the dialog is closed or purged). */
 export function clearWhere(el) {
   if (el) el.textContent = "";
+}
+
+/** Edit dialog: say how many alert rules use this place (0 hides the line). */
+export function showUsage(el, ruleCount) {
+  if (!el) return;
+  el.hidden = !ruleCount;
+  el.textContent = ruleCount ? plural("places.usage", ruleCount, { count: ruleCount }) : "";
 }

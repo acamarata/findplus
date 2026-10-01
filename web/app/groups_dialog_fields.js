@@ -74,9 +74,16 @@ export function quorumRow() {
     select.appendChild(opt);
   }
   const n = field("number", { id: "fp-group-quorum-n", min: "1", max: "20", value: "2", hidden: true });
+  // UAT #11: filled by groups_dialog_quorum.js while the number is out of range
+  // or larger than the ticked members.
+  const warn = fieldHint("");
+  warn.id = "fp-group-quorum-warning";
+  warn.classList.add("modal-rate");
+  warn.setAttribute("role", "status");
+  warn.hidden = true;
   const wrap = document.createElement("div");
-  wrap.append(labeled(t("groups.field.quorum"), select, select.id), n, fieldHint(t("groups.field.quorum_hint")));
-  return { select, n, wrap };
+  wrap.append(labeled(t("groups.field.quorum"), select, select.id), n, fieldHint(t("groups.field.quorum_hint")), warn);
+  return { select, n, warn, wrap };
 }
 
 // UAT3 N24: the slider row itself was given the `.fp-dialog-field` class,

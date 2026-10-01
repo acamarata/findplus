@@ -208,7 +208,7 @@ export function buildDialog({ onSave, onCancel }) {
     title, name, error,
     icon: iconValue, iconBtn: icon.btn, iconHost: icon.host,
     color: colorValue, colorBtn: color.btn, colorHost: color.host,
-    quorum: quorum.select, quorumN: quorum.n,
+    quorum: quorum.select, quorumN: quorum.n, quorumWarn: quorum.warn,
     radius: radius.input, radiusOut: radius.out,
     stale: stale.input, members: members.fieldset, membersLegend: members.legend,
   };

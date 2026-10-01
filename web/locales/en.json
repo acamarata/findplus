@@ -221,7 +221,9 @@
     "verdictUnavailableHint": "Could not load this group's status. Reload the page to try again.",
     "loadFailedTitle": "Could not load your groups",
     "loadFailed": "Could not load groups: {message}",
-    "presenceFailedTitle": "Could not load this group's presence"
+    "presenceFailedTitle": "Could not load this group's presence",
+    "quorumRange": "Use a whole number from {min} to {max}.",
+    "quorumTooHigh": "This group needs {n} members reporting, but only {members} are ticked, so it can never fire. Lower the number or tick more members."
   },
   "icons": {
     "custom": {

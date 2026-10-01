@@ -16,36 +16,33 @@
  *              Find+ has eight steps. Every label comes from the catalog.
  *              This is also the one module that imports api.js/state.js on a
  *              step's behalf: a step file only reads them off its ctx argument.
- *              UAT6 N04: a step's onEnter/onNext/guard failure used to reach
- *              ctx.showAlert(), which writes into #alert inside #app-shell --
- *              hidden for the whole time the wizard is open, so the error was
- *              never seen or announced (applock.js/_device_row.js document the
- *              same #alert trap for their own per-field errors). This chrome
- *              now carries its own role="alert" region for exactly those three
- *              call sites; a step's own inline errors (the Devices list, the
- *              Groups name field) are unaffected and keep using their own
- *              elements. ctx also grows three small hooks a step can use
- *              without reaching into the Wizard instance directly: goToStep
- *              (Done's "go fix it" links, UAT6 N19), completeSetup (a step
- *              that finishes onboarding itself, UAT6 N33) and reportError
- *              (routes a failure from outside guard()/onEnter into this same
- *              region).
+ *              The chrome owns a role="alert" region for step/guard failures
+ *              (#alert lives in the hidden #app-shell, UAT6 N04), and ctx
+ *              carries goToStep, completeSetup, reportError and rerun for steps.
+ *              Moving to a step focuses its heading; typed values survive
+ *              Back/Skip through wizard_drafts.js; a re-run never re-stamps.
  */
 "use strict";
 
 import { api, postJson } from "../api.js";
 import { state, showAlert } from "../state.js";
 import { t } from "../i18n.js";
+import { saveDraft, restoreDraft } from "./wizard_drafts.js";
 
 const LAST_STEP_ROUTE = "/api/settings/onboarding.last_step";
 const COMPLETED_ROUTE = "/api/settings/onboarding.completed_at";
 
 export class Wizard {
-  constructor({ steps, mount, onStep, onDone, initialStep }) {
+  constructor({ steps, mount, onStep, onDone, initialStep, rerun }) {
     this.steps = steps;
     this.mount = mount;
     this.onStep = onStep || null;
     this.onDone = onDone || (() => {});
+    /** Re-running setup from Settings: finishing must not re-stamp the date. */
+    this.rerun = !!rerun;
+    /** What was typed per step, so Back and Skip never lose it. */
+    this.drafts = new Map();
+    this.onNet = () => this.showNet();
     // Built once and handed unchanged to every step call, so each step sees
     // the same `state` reference for the whole wizard session.
     this.ctx = {
@@ -56,6 +53,7 @@ export class Wizard {
       goToStep: (id) => this.goToStep(id),
       completeSetup: () => this.complete(),
       reportError: (message) => this.setError(message),
+      rerun: this.rerun,
     };
     /** True while a Back/Skip/Next/Skip-setup transition is still in flight. */
     this.busy = false;
@@ -73,23 +71,22 @@ export class Wizard {
     this.skipAll.type = "button";
     this.skipAll.id = "fp-wizard-skip-all";
     this.skipAll.className = "fp-wizard-skip";
-    this.skipAll.textContent = t("setup.skip_all");
+    this.skipAll.textContent = t(this.rerun ? "setup.close_rerun" : "setup.skip_all");
     this.skipAll.addEventListener("click", () => this.guard(() => this.complete()));
 
-    this.progress = document.createElement("div");
-    this.progress.className = "fp-wizard-progress";
-    this.progress.setAttribute("aria-live", "polite");
-    this.progressText = document.createElement("span");
-    this.progressText.className = "fp-wizard-progress-text";
-    this.dots = this.steps.map(() => {
-      const dot = document.createElement("span");
-      dot.className = "fp-wizard-dot";
-      return dot;
-    });
-    this.progress.append(this.progressText, ...this.dots);
+    this.buildProgress();
 
     this.stepEl = document.createElement("div");
     this.stepEl.className = "fp-wizard-step";
+
+    // Offline notice: on while the browser reports no connection.
+    this.netEl = document.createElement("div");
+    this.netEl.id = "fp-wizard-offline";
+    this.netEl.className = "fp-wizard-offline";
+    this.netEl.setAttribute("role", "status");
+    window.addEventListener("offline", this.onNet);
+    window.addEventListener("online", this.onNet);
+    this.showNet();
 
     // UAT6 N04: the one place a guard()/onEnter failure is actually seen.
     this.errorEl = document.createElement("p");
@@ -97,6 +94,34 @@ export class Wizard {
     this.errorEl.className = "fp-dialog-error";
     this.errorEl.setAttribute("role", "alert");
 
+    this.buildFooter();
+
+    this.mount.append(
+      this.skipAll, this.progress, this.netEl, this.stepEl, this.errorEl, this.footer
+    );
+  }
+
+  /** The named progress group: "2 of 8" text plus one decorative segment each. */
+  buildProgress() {
+    this.progress = document.createElement("div");
+    this.progress.className = "fp-wizard-progress";
+    // A named group, not a live region: moving focus to the step heading is
+    // what announces a new step, so this never speaks a second time.
+    this.progress.setAttribute("role", "group");
+    this.progressText = document.createElement("span");
+    this.progressText.className = "fp-wizard-progress-text";
+    this.progressText.setAttribute("aria-hidden", "true");
+    this.dots = this.steps.map(() => {
+      const dot = document.createElement("span");
+      dot.className = "fp-wizard-dot";
+      dot.setAttribute("aria-hidden", "true");
+      return dot;
+    });
+    this.progress.append(this.progressText, ...this.dots);
+  }
+
+  /** Back / Skip / Next, wired to the guarded transitions. */
+  buildFooter() {
     this.footer = document.createElement("div");
     this.footer.className = "fp-wizard-footer";
     this.backBtn = this.footerButton("fp-wizard-back", t("setup.back"), "btn btn-secondary", () =>
@@ -109,8 +134,18 @@ export class Wizard {
       this.guard(() => this.next())
     );
     this.footer.append(this.backBtn, this.skipBtn, this.nextBtn);
+  }
 
-    this.mount.append(this.skipAll, this.progress, this.stepEl, this.errorEl, this.footer);
+  /** Offline line on or off, from the browser's own connection state. */
+  showNet() {
+    this.netEl.textContent = navigator.onLine === false ? t("setup.offline") : "";
+  }
+
+  /** Tear down: forget every draft and stop listening for connection changes. */
+  destroy() {
+    this.drafts.clear();
+    window.removeEventListener("offline", this.onNet);
+    window.removeEventListener("online", this.onNet);
   }
 
   /** Show (or clear, with an empty/falsy message) the chrome's own error line. */
@@ -145,12 +180,14 @@ export class Wizard {
     // afterwards so the wizard can be walked end to end on the keyboard.
     const focused = chrome.includes(document.activeElement) ? document.activeElement : null;
     chrome.forEach((btn) => (btn.disabled = true));
+    this.nextBtn.setAttribute("aria-busy", "true");
     Promise.resolve()
       .then(fn)
       .catch((err) => this.setError(err.message))
       .finally(() => {
         this.busy = false;
         chrome.forEach((btn) => (btn.disabled = false));
+        this.nextBtn.removeAttribute("aria-busy");
         if (focused && !focused.hidden && document.activeElement === document.body) {
           focused.focus();
         }
@@ -162,37 +199,51 @@ export class Wizard {
     const step = this.steps[this.index];
     const last = this.index === this.steps.length - 1;
 
-    this.progressText.textContent = t("setup.progress", {
-      n: this.index + 1,
-      total: this.steps.length,
-    });
+    const counts = { n: this.index + 1, total: this.steps.length };
+    this.progressText.textContent = t("setup.progress", counts);
+    this.progress.setAttribute(
+      "aria-label",
+      t("setup.progress_named", { ...counts, name: t(`setup.step_names.${step.id}`) })
+    );
     this.dots.forEach((dot, i) => dot.classList.toggle("filled", i <= this.index));
 
     this.setError("");
     this.stepEl.textContent = "";
     step.render(this.stepEl, this.ctx);
+    restoreDraft(this.drafts, step.id, this.stepEl);
+    this.focusHeading();
 
     this.backBtn.hidden = this.index === 0;
     this.skipBtn.hidden = !step.canSkip;
     this.skipAll.hidden = last;
-    this.nextBtn.textContent = last ? t("setup.done.button") : t("setup.next");
+    this.nextBtn.textContent = last
+      ? t("setup.done.button")
+      : t(step.nextLabel || "setup.next");
 
     if (this.onStep) this.onStep(step, this.index);
     // Fired after the chrome settles so a slow re-fetch cannot leave the
     // footer describing the previous step.
     if (step.onEnter) {
-      Promise.resolve(step.onEnter(this.ctx)).catch((err) => this.setError(err.message));
+      Promise.resolve(step.onEnter(this.ctx))
+        // A step that builds its fields in onEnter (Notifications) gets its
+        // draft back once they exist.
+        .then(() => restoreDraft(this.drafts, step.id, this.stepEl))
+        .catch((err) => this.setError(err.message));
     }
   }
 
+  /** Put keyboard and screen-reader focus on the new step's heading. */
+  focusHeading() {
+    const heading = this.stepEl.querySelector("h2");
+    if (!heading) return;
+    heading.tabIndex = -1;
+    heading.focus({ preventScroll: true });
+  }
+
   /**
-   * Jump straight to a step by id, outside the Back/Skip/Next machinery.
-   *
-   * Used by a step that offers "go fix this" rather than a linear Next (the
-   * Done step's recovery link when nothing ended up signed in or tracked,
-   * UAT6 N19). Deliberately not routed through guard(): that lock exists to
-   * stop a double-click from repeating the SAME transition, which does not
-   * apply to a link a user reads once and follows once.
+   * Jump straight to a step by id (Done's "go fix it" links, UAT6 N19).
+   * Not routed through guard(): that lock stops a double-click repeating one
+   * transition, which does not apply to a link followed once.
    */
   goToStep(id) {
     const index = this.steps.findIndex((s) => s.id === id);
@@ -200,13 +251,7 @@ export class Wizard {
     this.advance(index).catch((err) => this.setError(err.message));
   }
 
-  /**
-   * Move to `toIndex`, recording the resume point BEFORE the new step renders.
-   *
-   * The order matters: a reload that lands between the write and the paint
-   * must come back to the step the user was about to see, not the one they
-   * just left.
-   */
+  /** Move to `toIndex`, recording the resume point BEFORE the new step renders. */
   async advance(toIndex) {
     const target = this.steps[toIndex];
     if (!target) return;
@@ -224,7 +269,9 @@ export class Wizard {
    */
   leaveCurrent() {
     const step = this.steps[this.index];
-    if (step && step.onLeave) step.onLeave(this.ctx);
+    if (!step) return;
+    saveDraft(this.drafts, step.id, this.stepEl);
+    if (step.onLeave) step.onLeave(this.ctx);
   }
 
   /** Next: let the step veto, then advance or finish. */
@@ -241,7 +288,8 @@ export class Wizard {
   /** Stamp onboarding complete and hand control back to the caller. */
   async complete() {
     this.leaveCurrent();
-    await postJson(COMPLETED_ROUTE, { value: new Date().toISOString() });
+    // A re-run from Settings keeps the original "set up on" date.
+    if (!this.rerun) await postJson(COMPLETED_ROUTE, { value: new Date().toISOString() });
     this.onDone();
   }
 }

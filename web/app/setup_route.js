@@ -48,7 +48,7 @@ export async function openSetupRoute() {
   const { mountSetup } = await import("./setup.js");
   const settings = await api("/api/settings");
   if (settings.theme) applyTheme(settings.theme);
-  await mountSetup(resumePoint(settings));
+  await mountSetup(resumePoint(settings), settings["onboarding.completed_at"] !== null);
 }
 
 /**

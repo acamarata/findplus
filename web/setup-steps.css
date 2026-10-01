@@ -1,0 +1,47 @@
+/*
+ * Find+ setup wizard: per-step additions (Round 3).
+ *
+ * Purpose    : Rules for the welcome points, the Devices selected-count and
+ *              no-location notes, the offline line and the Done summary. Split
+ *              from setup.css, which is at the 300-line cap.
+ * Constraints: Loaded right after setup.css. Theme tokens only, nothing
+ *              inline (CSP style-src 'self').
+ */
+
+.fp-wizard-points { margin: 0 0 14px; padding-left: 20px; max-width: 64ch; line-height: 1.55; }
+.fp-wizard-points li { margin: 0 0 4px; }
+.fp-wizard-rerun {
+  padding: 9px 12px; border-left: 3px solid var(--accent); border-radius: 4px;
+  background: var(--panel-2); font-size: 13px;
+}
+#setup-view .fp-wizard-step > h3 {
+  font-size: 15px; font-weight: 650; text-transform: none; letter-spacing: 0;
+  color: var(--text); margin: 20px 0 8px;
+}
+/* The heading takes focus on each new step so a screen reader announces it; it
+   is not a control, so it draws no ring. */
+#setup-view .fp-wizard-step > h2:focus,
+#setup-view .fp-wizard-step > h2:focus-visible { outline: none; }
+
+.fp-wizard-offline:empty { display: none; }
+.fp-wizard-offline {
+  margin: 12px 0 0; padding: 8px 12px; font-size: 13px; border-radius: 8px;
+  border-left: 3px solid var(--warn); background: rgba(231, 181, 63, .10);
+}
+#fp-setup-devices-count { margin: 8px 0 4px; color: var(--muted); }
+#fp-setup-devices-list[aria-busy="true"] { opacity: .7; }
+#fp-setup-done-facts { list-style: none; padding-left: 0; }
+#fp-setup-done-facts li { padding: 6px 0; border-bottom: 1px solid var(--line); }
+#fp-setup-done-facts li:last-child { border-bottom: 0; }
+#fp-setup-pin-already { padding: 9px 12px; border-radius: 8px; background: var(--panel-2); }
+
+@media (max-width: 599px) {
+  #setup-view .fp-wizard-step > h2 { margin-top: 12px; }
+  /* Thumb-sized footer buttons, Next never wrapping under Skip. */
+  .fp-wizard-footer { flex-wrap: wrap; }
+  .fp-wizard-footer .btn, .fp-wizard-footer .btn-secondary { min-height: 44px; }
+  #fp-wizard-next { flex: 1 1 auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #setup-view * { transition: none !important; animation: none !important; }
+}

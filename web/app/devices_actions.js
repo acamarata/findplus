@@ -60,6 +60,12 @@ function startCooldown(btn, ms) {
   }, ms);
 }
 
+/** The Devices dialog's own error line: the page banner sits behind the open dialog. */
+function dialogError(text) {
+  const line = $("device-modal-error");
+  if (line) line.textContent = text;
+}
+
 /** The "N devices polled" sentence with one plain-words line per tracker. */
 function pollSummary(r) {
   const lines = r.results.map(
@@ -138,16 +144,17 @@ export async function refreshFromProviders() {
   const btn = $("btn-refresh-devices");
   btn.disabled = true;
   btn.textContent = t("devices.askingProvidersLabel");
+  dialogError("");
   try {
     const r = await postJson("/api/devices/refresh");
     await loadDevices();
     renderDeviceModal();
     const failed = Object.keys(r.errors || {});
-    let msg = t("devices.refreshFound", { found: r.found, providers: (r.providers || []).length });
-    if (failed.length) msg += t("devices.refreshUnreachable", { names: failed.join(", ") });
-    showAlert(msg, "warn");
+    const msg = t("devices.refreshFound", { found: r.found, providers: (r.providers || []).length });
+    if (failed.length) dialogError(msg + t("devices.refreshUnreachable", { names: failed.join(", ") }));
+    else showAlert(msg, "warn");
   } catch (err) {
-    showAlert(t("devices.refreshFailed", { message: err.message }), "err");
+    dialogError(t("devices.refreshFailed", { message: err.message }));
   } finally {
     btn.disabled = false;
     btn.textContent = t("devices.refreshProvidersLabel");
@@ -157,6 +164,7 @@ export async function refreshFromProviders() {
 /** Save the ticked set and report the request rate it implies. */
 export async function saveTrackedDevices() {
   const ids = [...document.querySelectorAll("#device-list input:checked")].map((i) => i.value);
+  dialogError("");
   try {
     const r = await postJson("/api/devices/track", { device_ids: ids });
     closeDevices();
@@ -173,6 +181,6 @@ export async function saveTrackedDevices() {
     );
     await reload();
   } catch (err) {
-    showAlert(err.message, "err");
+    dialogError(err.message);
   }
 }

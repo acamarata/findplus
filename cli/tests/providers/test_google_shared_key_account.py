@@ -90,3 +90,31 @@ def test_the_flow_carries_on_when_the_account_cannot_be_read(tmp_db) -> None:
         lambda: driver, lambda: False, expected_account="kid@example.com", sleep=lambda _s: None
     )
     assert out is None
+
+
+def test_an_unreadable_account_is_reported_to_the_caller(tmp_db) -> None:
+    """Fail-open stays (Google's page can change), but never silently."""
+    driver = _Driver([json.dumps({"method": "closeView"})])
+    seen: list[bool] = []
+    unlock_flow.run_shared_key_flow(
+        lambda: driver,
+        lambda: False,
+        expected_account="kid@example.com",
+        on_unverified=lambda: seen.append(True),
+        sleep=lambda _s: None,
+    )
+    assert seen == [True]
+
+
+def test_a_verified_account_does_not_call_the_unverified_hook(tmp_db) -> None:
+    driver = _Driver([json.dumps({"method": "closeView"})])
+    driver.execute_script = lambda _s: "Google Account: Kid (kid@example.com)"
+    seen: list[bool] = []
+    unlock_flow.run_shared_key_flow(
+        lambda: driver,
+        lambda: False,
+        expected_account="kid@example.com",
+        on_unverified=lambda: seen.append(True),
+        sleep=lambda _s: None,
+    )
+    assert seen == []

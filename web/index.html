@@ -9,24 +9,15 @@
 <link rel="apple-touch-icon" href="/static/icon.svg">
 <meta name="theme-color" content="#11141a">
 <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
+<!-- Stylesheets split at the 300-line cap (PRI rule 7), in cascade order: base, tabs/badges,
+     dialogs and pickers, settings and sign-in, wizard, places, confirm dialog, alerts, live status,
+     dashboard polish. responsive.css loads last on purpose: its focus ring, screen-reader helper
+     and phone tier override everything above at equal specificity. -->
 <link rel="stylesheet" href="/static/style.css">
-<!-- The tabs/groups/alerts/provider-badge rules split off style.css, which
-     reached the 300-line cap again (PRI rule 7). Same cascade position as
-     the file it split from -- nothing here overrides it. -->
 <link rel="stylesheet" href="/static/style-tabs.css">
-<!-- The dialog, picker, badge and group-card rules. Their own file because
-     style.css had reached its 300-line cap with nowhere left to write. -->
 <link rel="stylesheet" href="/static/components.css">
-<!-- The settings/sign-in, add-rule dialog, table-scroll and places-list rules
-     split off components.css, which reached the 300-line cap again (PRI
-     rule 7). Same cascade position as the file it split from. -->
 <link rel="stylesheet" href="/static/components-panels.css">
-<!-- Settings dialog only (UAT6 N29): a unit-beside-its-input group and a
-     fixed label column, kept out of components-panels.css to avoid pushing
-     it past the 300-line cap. Before responsive.css so the phone tier wins. -->
 <link rel="stylesheet" href="/static/settings.css">
-<!-- The setup wizard and the shared sign-in cards (wizard step 2 and
-     Settings > Sign-in). Before responsive.css so the phone tier still wins. -->
 <link rel="stylesheet" href="/static/setup.css">
 <link rel="stylesheet" href="/static/setup-steps.css">
 <!-- Sign-in cards: action-needed states (revoked, locked). -->
@@ -37,17 +28,10 @@
      arrivals/departures panel): components.css and components-panels.css
      belong to other in-flight fixes this round, so this stays its own file. -->
 <link rel="stylesheet" href="/static/places-events.css">
-<!-- The shared confirm/alert dialog (UAT6-N21): its own file so it needs no
-     shared edit to components.css while WP-D was editing that file too. -->
 <link rel="stylesheet" href="/static/confirm-dialog.css">
-<!-- Alerts tab additions (Telegram target chips, rule-dialog polish): its
-     own file so it needs no shared edit to components.css/components-panels.css
-     while other in-flight fixes this round were editing those files too. -->
 <link rel="stylesheet" href="/static/alerts.css">
-<!-- Live status: the calm "polling" banner, the map's empty-state note. -->
 <link rel="stylesheet" href="/static/live.css">
-<!-- Loaded last on purpose: every rule in it overrides one above at equal
-     specificity (focus ring, screen-reader helper, phone tier). -->
+<link rel="stylesheet" href="/static/dashboard.css">
 <link rel="stylesheet" href="/static/responsive.css">
 </head>
 <body>
@@ -138,6 +122,15 @@
   <div class="card"><span class="label" data-i18n="common.cardPollLabel">Last successful poll</span><strong id="card-poll">—</strong><span class="sub" id="card-poll-status">—</span></div>
   <div class="card"><span class="label" data-i18n="common.cardTodayLabel">Observations today</span><strong id="card-today">—</strong><span class="sub" id="card-total">—</span></div>
 </section>
+<details class="cards-help" id="cards-help">
+  <summary data-i18n="common.cardsHelpSummary">What do these four boxes mean?</summary>
+  <dl>
+    <dt data-i18n="common.cardsHelpObservedTerm">Last observed</dt><dd data-i18n="common.cardsHelpObservedBody"></dd>
+    <dt data-i18n="common.cardsHelpFetchedTerm">Retrieved by this computer</dt><dd data-i18n="common.cardsHelpFetchedBody"></dd>
+    <dt data-i18n="common.cardsHelpPollTerm">Last successful poll</dt><dd data-i18n="common.cardsHelpPollBody"></dd>
+    <dt data-i18n="common.cardsHelpTodayTerm">Observations today</dt><dd data-i18n="common.cardsHelpTodayBody"></dd>
+  </dl>
+</details>
 
 <div id="alert" class="alert hidden" role="status" aria-live="polite"></div>
 

@@ -24,7 +24,7 @@ import { syncMapOverlay } from "./map_empty.js";
 import { syncProviderChrome } from "./provider_chrome.js";
 
 /** The topbar device name: the filtered tracker, or how many are tracked.
- * U30: the title tooltip spells out what "~72/hr" counts. */
+ * The text says how often Find+ asks; the tooltip spells out the request rate. */
 function renderDeviceName(s) {
   const tracked = s.devices.filter((d) => d.is_tracked);
   const el = $("device-name");
@@ -34,7 +34,7 @@ function renderDeviceName(s) {
     return;
   }
   if (!tracked.length) { el.textContent = t("common.noDevicesTracked"); return; }
-  el.textContent = plural("common.devicesTracked", tracked.length, { n: tracked.length, rate: s.requests_per_hour });
+  el.textContent = plural("common.devicesTracked", tracked.length, { n: tracked.length, rate: s.requests_per_hour, interval: s.poll_interval_minutes });
   el.title = t("common.devicesTrackedRateHint", { rate: s.requests_per_hour });
 }
 
@@ -120,7 +120,8 @@ function renderCards(s) {
 
 const signinAction = () => ({ label: t("pollStatus.actionConnect"), run: () => openSignin() });
 const unlockAction = () => ({ label: t("pollStatus.actionUnlock"), run: () => openUnlock() });
-const ACTIONS = { signin: signinAction, unlock: unlockAction };
+const retryAction = () => ({ label: t("pollStatus.actionRetry"), run: () => $("btn-poll").click() });
+const ACTIONS = { signin: signinAction, unlock: unlockAction, retry: retryAction };
 
 /** Nothing tracked: sign in first if nobody is, else pick devices.
  *

@@ -17,6 +17,7 @@ import { renderBadge } from "./components/badge.js";
 import { t } from "./i18n.js";
 import { api } from "./api.js";
 import { syncMapOverlay } from "./map_empty.js";
+import { renderLegend, syncDense, watchTiles } from "./map_extras.js";
 
 // U4 (R-P2-30.2): a US-centred default read as "my child is in Kansas" the
 // first time the map had no data to fit. A neutral world view says nothing
@@ -37,10 +38,13 @@ function fitWorld() {
 
 export function initMap() {
   state.map = L.map("map", { zoomControl: true }).setView(WORLD_VIEW_CENTER, WORLD_VIEW_ZOOM);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  const tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(state.map);
+  watchTiles(tiles, document.querySelector(".map-pane"));
+  state.map.getContainer().setAttribute("aria-label", t("map.label"));
+  state.map.on("zoomend", () => syncDense(state.map, state.markers.size));
   state.layer = L.layerGroup().addTo(state.map);
   // Leaflet only measures its container once. If the pane was hidden, still
   // laying out, or later resized (window drag, tab switch, banner appearing),
@@ -183,7 +187,8 @@ function popupHtml(point, deviceName) {
     `<div>${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}</div>`,
   ];
   if (point.accuracy_meters != null) {
-    rows.push(`<div>Accuracy ~${Math.round(point.accuracy_meters)} m</div>`);
+    const rough = point.accuracy_meters >= 100 ? ` (${esc(t("timeline.roughFix"))})` : "";
+    rows.push(`<div>Accuracy ~${Math.round(point.accuracy_meters)} m${rough}</div>`);
   } else {
     // Apple Find My never reports a metres figure (CF-P2-6): say so plainly
     // instead of just omitting the line, which could read as "exact".
@@ -225,51 +230,68 @@ export function visiblePoints(track) {
   return state.movementOnly ? track.points.filter((p) => p.is_movement) : track.points;
 }
 
-export function renderMap() {
+/**
+ * Draw one tracker's path and numbered markers; returns its legend entry, or
+ * null when it has nothing to show (a movement-only day with no movement).
+ */
+function drawTrack(track) {
+  const points = visiblePoints(track);
+  if (!points.length) return null;
+  const device = deviceForTrack(track);
+  // The path takes the tracker's own colour, the same one its markers and
+  // timeline badge use, so the map and the legend agree.
+  const color = device.color || colorFor(track.device_id);
+  // D-P2-15: a map marker shows the label as well as the icon and colour.
+  // The tooltip, the hover title and the popup are the only text the map
+  // has, so they read the label first, exactly as the device list and the
+  // timeline track head do (UAT U6: the one displayName() helper).
+  const shown = uniqueLabel(device) || track.device_name;
+  const latlngs = points.map((p) => [p.latitude, p.longitude]);
+  if (latlngs.length > 1) {
+    // keyboard: false (U31): Leaflet's default Tab-stop-per-path/marker
+    // behaviour put every point of every track in the Tab order ahead of the
+    // timeline; a keyboard user picks a point from the timeline instead.
+    L.polyline(latlngs, { color, weight: 3, opacity: 0.75, dashArray: "6 5", keyboard: false })
+      .addTo(state.layer)
+      .bindTooltip(`${esc(shown)}: observed path; actual route between detections may differ.`);
+  }
+  points.forEach((point, index) => {
+    const marker = L.marker([point.latitude, point.longitude], {
+      icon: numberedIcon(point, index, points.length, device),
+      title: `${shown} · ${fmtTime(point.observed_at_local)}`,
+      keyboard: false,
+    }).addTo(state.layer);
+    marker.bindPopup(popupHtml(point, shown));
+    marker.on("click", () => selectPoint(point.id, false));
+    state.markers.set(point.id, marker);
+  });
+  return { name: shown, color, latlngs };
+}
+
+export function renderMap({ fit = true } = {}) {
   state.layer.clearLayers();
   state.markers.clear();
-  if (!state.timeline) { syncMapOverlay(); return; }
+  if (!state.timeline) {
+    if (state.legend) { state.legend.remove(); state.legend = null; }
+    syncMapOverlay();
+    return;
+  }
 
   const allLatLngs = [];
+  const legend = [];
 
   // The dashboard's group select narrows both the map and the timeline to
   // one group's members client-side, with no second fetch (UAT U8).
   visibleTracks(state.timeline.tracks).forEach((track) => {
-    const points = visiblePoints(track);
-    if (!points.length) return;
-    const color = colorFor(track.device_id);
-    const device = deviceForTrack(track);
-    // D-P2-15: a map marker shows the label as well as the icon and colour.
-    // The tooltip, the hover title and the popup are the only text the map
-    // has, so they read the label first, exactly as the device list and the
-    // timeline track head do (UAT U6: the one displayName() helper).
-    const shown = uniqueLabel(device) || track.device_name;
-    const latlngs = points.map((p) => [p.latitude, p.longitude]);
-    allLatLngs.push(...latlngs);
-
-    if (latlngs.length > 1) {
-      // keyboard: false (U31) — Leaflet's default Tab-stop-per-path/marker
-      // behaviour put every point of every track in the Tab order ahead of
-      // the timeline; a keyboard user reaches the timeline directly and picks
-      // a point from there instead (selectPoint() below draws its marker).
-      L.polyline(latlngs, { color, weight: 3, opacity: 0.75, dashArray: "6 5", keyboard: false })
-        .addTo(state.layer)
-        .bindTooltip(`${esc(shown)}: observed path; actual route between detections may differ.`);
-    }
-
-    points.forEach((point, index) => {
-      const marker = L.marker([point.latitude, point.longitude], {
-        icon: numberedIcon(point, index, points.length, device),
-        title: `${shown} · ${fmtTime(point.observed_at_local)}`,
-        keyboard: false,
-      }).addTo(state.layer);
-      marker.bindPopup(popupHtml(point, shown));
-      marker.on("click", () => selectPoint(point.id, false));
-      state.markers.set(point.id, marker);
-    });
+    const drawn = drawTrack(track);
+    if (!drawn) return;
+    allLatLngs.push(...drawn.latlngs);
+    legend.push(drawn);
   });
 
-  if (allLatLngs.length) {
+  state.legend = renderLegend(state.map, legend, state.legend);
+  syncDense(state.map, state.markers.size);
+  if (allLatLngs.length && fit) {
     state.map.fitBounds(L.latLngBounds(allLatLngs), { padding: [42, 42], maxZoom: 17 });
   }
   syncMapOverlay();

@@ -59,7 +59,7 @@ function providerNameFor(deviceId) {
  *
  * Returns {message, action}; action is "signin" when signing in is the fix,
  * "unlock" when the account is signed in but its encrypted locations are not
- * unlocked yet, and null when the right move is to wait for the next poll.
+ * unlocked yet, and "retry" (poll again now) for a timeout or an unknown failure.
  */
 export function failedPollNotice(run) {
   const provider = providerNameFor(run.device_id);
@@ -72,11 +72,11 @@ export function failedPollNotice(run) {
     case "provider_unavailable":
       return { message: t("pollStatus.bannerUnavailable", { provider }), action: "signin" };
     case "timeout":
-      return { message: t("pollStatus.bannerTimeout", { provider }), action: null };
+      return { message: t("pollStatus.bannerTimeout", { provider }), action: "retry" };
     case "decrypt_failed":
       return { message: t("pollStatus.bannerCannotRead", { provider }), action: "signin" };
     default:
-      return { message: t("pollStatus.bannerFailed"), action: null };
+      return { message: t("pollStatus.bannerFailed"), action: "retry" };
   }
 }
 

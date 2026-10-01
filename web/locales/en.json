@@ -68,11 +68,11 @@
     "unknownError": "unknown error",
     "unknown": "unknown",
     "devicesTracked": {
-      "one": "1 device tracked · ~{rate}/hr",
-      "other": "{n} devices tracked · ~{rate}/hr"
+      "one": "1 tracker · checked every {interval} min",
+      "other": "{n} trackers · checked every {interval} min"
     },
-    "devicesTrackedRateHint": "About {rate} location fixes per hour, across your tracked devices.",
-    "noDevicesTracked": "no devices tracked",
+    "devicesTrackedRateHint": "Find+ asks about each tracker in turn: about {rate} location requests per hour in all.",
+    "noDevicesTracked": "no trackers chosen yet",
     "pollerActive": "Polling service active (every {interval} min)",
     "pollerStale": "No poll has run for a while. The polling service may be stopped.",
     "pollerFailing": "Polling runs, but the last poll failed.",
@@ -95,7 +95,16 @@
       "other": "Wrong PIN. {n} tries left before Find+ makes you wait."
     },
     "lockWait": "Too many tries. Try again in {seconds} seconds.",
-    "showPin": "Show PIN"
+    "showPin": "Show PIN",
+    "cardsHelpSummary": "What do these four boxes mean?",
+    "cardsHelpObservedTerm": "Last observed",
+    "cardsHelpObservedBody": "When the tracking network last recorded a tracker's location. This is the time of the sighting, not the time Find+ asked.",
+    "cardsHelpFetchedTerm": "Retrieved by this computer",
+    "cardsHelpFetchedBody": "When Find+ on this computer downloaded that location from your account. The gap shows how long the report waited before Find+ saw it.",
+    "cardsHelpPollTerm": "Last successful poll",
+    "cardsHelpPollBody": "The last time Find+ asked your account for locations and got an answer, even if the answer held nothing new.",
+    "cardsHelpTodayTerm": "Observations today",
+    "cardsHelpTodayBody": "Locations recorded today, with the total Find+ keeps on this computer underneath."
   },
   "field": {
     "customColor": "Custom color",
@@ -165,7 +174,22 @@
     },
     "card": {
       "edit": "Edit {name}"
-    }
+    },
+    "lastSeen": "Last seen {age} ago",
+    "neverSeen": "No location yet",
+    "batteryAt": "Battery {n}%",
+    "noMatch": "No tracker matches “{query}”.",
+    "showingCount": "Showing {shown} of {total}",
+    "searchLabel": "Search trackers",
+    "searchPlaceholder": "Search by name or ID",
+    "sortLabel": "Sort trackers",
+    "sort": {
+      "tracked": "Tracked first",
+      "name": "Name A to Z",
+      "seen": "Most recently seen"
+    },
+    "polledMany": "Polled {devices} trackers, {observations} new. {tally}.",
+    "pollTally": "{n} {status}"
   },
   "groups": {
     "tabHint": "Pick a group in the selector above the map to see it.",
@@ -882,7 +906,8 @@
     "actionConnect": "Connect an account",
     "actionChooseDevices": "Choose devices",
     "actionPollNow": "Poll now",
-    "actionUnlock": "Unlock locations"
+    "actionUnlock": "Unlock locations",
+    "actionRetry": "Try again"
   },
   "live": {
     "polling": {
@@ -945,7 +970,12 @@
     "pickBothDates": "Pick both a start and an end date.",
     "rangeStartAfterEnd": "The range start is after its end.",
     "latestSummary": "{device}: last observed by {network} {observed} · retrieved {fetched} · age {age}",
-    "loadFailedTitle": "Could not load this day"
+    "loadFailedTitle": "Could not load this day",
+    "lastAt": "last {time}",
+    "ago": "{age} ago",
+    "roughFix": "rough fix",
+    "expandAll": "Show all",
+    "collapseAll": "Hide all"
   },
   "units": {
     "unknown": "unknown",
@@ -963,6 +993,13 @@
     },
     "meters": "{n} m",
     "miles": "{n} mi"
+  },
+  "map": {
+    "label": "Map of tracker locations",
+    "legendLabel": "Trackers on the map",
+    "legendFrame": "Show {name} on the map",
+    "tilesFailed": "The map background could not load, so you may be offline. Your points and paths are still drawn.",
+    "legendHead": "Trackers ({n})"
   },
   "honesty": {
     "findHub": "This history consists of locations reported through Google's Find Hub network. Your trackers use nearby participating Android devices to report their location. Location updates can therefore be delayed, sparse, or unavailable, and this application should not be treated as real-time emergency or child-safety GPS tracking.",

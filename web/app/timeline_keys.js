@@ -12,13 +12,14 @@
  */
 "use strict";
 
-const rows = (host) => [...host.querySelectorAll(".tl-item")];
+/** Rows inside a folded tracker block are hidden, so they are not keyboard stops. */
+const rows = (host) => [...host.querySelectorAll(".tl-item")].filter((el) => !el.closest("[hidden]"));
 
 /** Make `current` the group's only Tab stop (default: the selected row, else the first). */
 export function syncRoving(host, current) {
   const all = rows(host);
   const stop = current || all.find((el) => el.classList.contains("selected")) || all[0];
-  all.forEach((el) => { el.tabIndex = el === stop ? 0 : -1; });
+  host.querySelectorAll(".tl-item").forEach((el) => { el.tabIndex = el === stop ? 0 : -1; });
 }
 
 function move(host, from, key) {

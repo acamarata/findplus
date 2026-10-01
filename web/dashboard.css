@@ -1,0 +1,89 @@
+/* Dashboard polish (round 3): folding tracker blocks, hour headings, map
+   legend and notes, card help, skeleton rows, the Devices dialog toolbar.
+   Own file because style.css and components.css sit at the 300-line cap.
+   Loaded before responsive.css so the phone tier still wins. */
+
+/* --- tracker blocks that fold ------------------------------------------- */
+.track-head { padding: 0; }
+.track-toggle {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 2px 8px;
+  background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.track-toggle:hover .track-name { text-decoration: underline; }
+.track-chevron {
+  width: 7px; height: 7px; flex: 0 0 auto; margin: 0 4px 2px 2px;
+  border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg); transition: transform .15s;
+}
+.track-block.is-folded .track-chevron { transform: rotate(-45deg); }
+.track-block.is-folded { margin-bottom: 4px; }
+.track-block.is-folded .track-head { border-bottom-color: transparent; }
+.track-foldall { display: flex; gap: 6px; justify-content: flex-end; margin: 0 0 4px; }
+.track-toggle { flex-wrap: wrap; row-gap: 0; }
+.track-name { flex: 1 1 0; min-width: 0; overflow-wrap: anywhere; }
+.track-count { flex-basis: 100%; margin: 0 0 0 40px; font-variant-numeric: tabular-nums; }
+
+/* --- rows ----------------------------------------------------------------- */
+.tl-hour {
+  margin: 10px 0 2px 6px; padding-left: 14px; color: var(--muted);
+  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+}
+.tl-ago { color: var(--muted); font-size: 12px; font-weight: 400; margin-left: 6px; }
+
+/* --- summary cards explain themselves -------------------------------------- */
+.cards-help { margin: -4px 18px 10px; font-size: 12.5px; color: var(--muted); }
+.cards-help summary { cursor: pointer; width: max-content; padding: 2px 0; }
+.cards-help dl { margin: 6px 0 0; display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; }
+.cards-help dt { color: var(--text); font-weight: 600; }
+.cards-help dd { margin: 0; }
+
+/* --- map legend and notes -------------------------------------------------- */
+.map-legend {
+  background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+  padding: 6px 8px; font-size: 12px; max-width: 220px; max-height: 40vh; overflow: auto;
+  box-shadow: 0 1px 5px rgba(0,0,0,.25);
+}
+.map-legend button {
+  display: flex; align-items: center; gap: 6px; width: 100%; background: none; border: 0;
+  color: inherit; font: inherit; padding: 3px 2px; text-align: left; cursor: pointer; border-radius: 4px;
+}
+.map-legend button:hover, .map-legend button[aria-pressed="true"] { background: rgba(79,140,247,.15); }
+.map-legend .lg-head { font-weight: 600; }
+.map-legend .lg-head::after { content: "▾"; margin-left: auto; color: var(--muted); }
+.map-legend .lg-head[aria-expanded="false"]::after { content: "▸"; }
+.map-legend .lg-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+.map-legend .lg-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-note {
+  position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 600;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px;
+  font-size: 12.5px; max-width: 90%; text-align: center; box-shadow: 0 1px 6px rgba(0,0,0,.3);
+}
+/* Many points: small dots for the middle of each path, numbers only when zoomed in. */
+#map.map--dense .marker-num:not(.marker-num--first):not(.marker-num--last) {
+  width: 12px; height: 12px; font-size: 0;
+}
+#map.map--dense .marker-num:not(.marker-num--first):not(.marker-num--last) .marker-num-glyph,
+#map.map--dense .marker-num:not(.marker-num--first):not(.marker-num--last) .marker-num-seq { display: none; }
+
+/* --- loading skeleton ------------------------------------------------------- */
+.skeleton { display: grid; gap: 10px; padding: 8px 2px; }
+.skeleton i {
+  display: block; height: 14px; border-radius: 6px; background: var(--panel-2);
+  animation: fp-pulse 1.3s ease-in-out infinite;
+}
+.skeleton i:nth-child(3n) { width: 60%; }
+.skeleton i:nth-child(3n+1) { height: 22px; width: 80%; }
+@keyframes fp-pulse { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .skeleton i { animation: none; } .track-chevron { transition: none; } }
+
+/* --- Devices dialog toolbar and rows ---------------------------------------- */
+.device-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 10px; }
+.device-tools input[type="search"] { flex: 1 1 180px; min-width: 0; }
+.device-tools .device-count { color: var(--muted); font-size: 12.5px; margin-left: auto; }
+.d-seen { color: var(--muted); font-size: 12.5px; }
+.d-seen.is-stale { color: var(--warn); }
+.d-battery { color: var(--muted); font-size: 12.5px; }
+.device-row.is-untracked .d-name { opacity: .8; }
+.device-row[hidden] { display: none; }
+.device-tools { position: sticky; top: 0; z-index: 3; background: var(--panel); padding: 4px 0 8px; }
+@media (max-width: 599px) { .cards-help { margin-inline: 12px; } }

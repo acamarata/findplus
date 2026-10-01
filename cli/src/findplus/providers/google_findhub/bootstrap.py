@@ -26,6 +26,10 @@ from findplus.config import get_settings
 from findplus.providers.findhub.bootstrap import ensure_gfmt_importable as _resolve_path
 
 _lock = threading.Lock()
+#: Serialises every read and write of secrets.json inside this process. The vendored
+#: set_cached_value reads then truncates and rewrites in place, so an unlocked reader
+#: could see half a file and two writers could drop each other's key.
+_store_lock = threading.RLock()
 _ready = False
 
 
@@ -82,14 +86,24 @@ def ensure_gfmt_importable() -> Path:
         def _set_and_harden(name: str, value: object) -> None:
             # Create the file 0600 BEFORE upstream writes it. Chmod-after left
             # a window in which the tokens sat on disk at the process umask,
-            # which on a shared machine is long enough to copy them.
-            with contextlib.suppress(OSError):
-                _ensure_secrets_file(secrets_path)
-            _original_set(name, value)
-            with contextlib.suppress(OSError):
-                os.chmod(secrets_path, 0o600)
+            # which on a shared machine is long enough to copy them. The path
+            # is resolved per call, like the store itself (_our_secrets_file).
+            path = get_settings().secrets_file
+            with _store_lock:
+                with contextlib.suppress(OSError):
+                    _ensure_secrets_file(path)
+                _original_set(name, value)
+                with contextlib.suppress(OSError):
+                    os.chmod(path, 0o600)
+
+        _original_get = token_cache.get_cached_value
+
+        def _get_locked(name: str) -> object:
+            with _store_lock:
+                return _original_get(name)
 
         token_cache.set_cached_value = _set_and_harden
+        token_cache.get_cached_value = _get_locked
 
         install_vendor_guards()
         with contextlib.suppress(Exception):
@@ -171,7 +185,8 @@ def _read_store() -> dict[str, object] | None:
 
     path = get_settings().secrets_file
     try:
-        data = json.loads(path.read_text())
+        with _store_lock:
+            data = json.loads(path.read_text())
     except (OSError, json.JSONDecodeError):
         return None
     return data if isinstance(data, dict) else None

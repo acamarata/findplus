@@ -201,9 +201,29 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
 
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      # The pinned release binary, no action and no token. Checked against the
+      # checksums file published on the same release.
+      - name: Install gitleaks
+        env:
+          GITLEAKS_VERSION: "8.30.0"
+        run: |
+          set -euo pipefail
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSL -O "${base}/${tarball}" -O "${base}/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          sha256sum --check --ignore-missing "gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          tar -xzf "$tarball" gitleaks
+      - run: ./gitleaks detect --no-banner --redact -c .gitleaks.toml
+
   ci-gate:
     needs: [lint, test, test-windows, browser, a11y, icon-i18n-drift, notify-rust-tests,
-            wheel-smoke, sidecar-smoke, desktop, docs-drift, coverage]
+            wheel-smoke, sidecar-smoke, desktop, docs-drift, coverage, secret-scan]
     if: always()
     runs-on: ubuntu-latest
     steps:

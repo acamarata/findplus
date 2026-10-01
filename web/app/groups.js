@@ -25,7 +25,7 @@ import * as groupsList from "./groups_list.js";
 import { renderMap } from "./map.js";
 import { renderTracks } from "./timeline.js";
 import {
-  drawGroupOverlays, verdictLabel, verdictTitle, ageLabel, hasEverReported, nameList,
+  drawGroupOverlays, verdictLabel, verdictTitle, staleBadgeText, nameList,
 } from "./groups_presence_render.js";
 
 let map = null;
@@ -226,8 +226,7 @@ export function renderPresencePanel(presence) {
     const li = document.createElement("li");
     const badge = document.createElement("span");
     badge.className = "fp-stale-badge";
-    const name = (member && member.name) || key;
-    badge.textContent = hasEverReported(member) ? t("groups.staleBadge", { name, age: ageLabel(member) }) : t("groups.staleBadgeNoFix", { name });
+    badge.textContent = staleBadgeText(member, key);
     li.appendChild(badge);
     staleList.appendChild(li);
   });

@@ -223,7 +223,8 @@
     "loadFailed": "Could not load groups: {message}",
     "presenceFailedTitle": "Could not load this group's presence",
     "quorumRange": "Use a whole number from {min} to {max}.",
-    "quorumTooHigh": "This group needs {n} members reporting, but only {members} are ticked, so it can never fire. Lower the number or tick more members."
+    "quorumTooHigh": "This group needs {n} members reporting, but only {members} are ticked, so it can never fire. Lower the number or tick more members.",
+    "staleBadgeUntracked": "{name}: not tracked, so Find+ is not polling it"
   },
   "icons": {
     "custom": {

@@ -5,11 +5,14 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import sys
 import zipfile
 from pathlib import Path
 
 import pytest
 
+# On Windows `bash` is the WSL launcher (no distro here), not a shell that can run these.
+_NO_BASH = sys.platform == "win32" or shutil.which("bash") is None
 _ROOT = Path(__file__).resolve().parents[2]
 _SCRIPT = _ROOT / "packaging" / "scripts" / "build-chrome-helper.sh"
 _EXPECTED = {
@@ -22,7 +25,7 @@ _EXPECTED = {
 }
 
 
-@pytest.mark.skipif(shutil.which("bash") is None, reason="bash is not installed")
+@pytest.mark.skipif(_NO_BASH, reason="needs a real bash (not available on Windows)")
 def test_build_produces_a_keyless_store_zip() -> None:
     result = subprocess.run(["bash", str(_SCRIPT)], capture_output=True, text=True, timeout=120)
     assert result.returncode == 0, result.stdout + result.stderr
@@ -37,7 +40,10 @@ def test_build_produces_a_keyless_store_zip() -> None:
     assert manifest["version"]
 
 
-@pytest.mark.skipif(shutil.which("shellcheck") is None, reason="shellcheck is not installed")
+@pytest.mark.skipif(
+    _NO_BASH or shutil.which("shellcheck") is None,
+    reason="needs a real bash and shellcheck",
+)
 def test_build_script_is_shellcheck_clean() -> None:
     result = subprocess.run(
         ["shellcheck", str(_SCRIPT)], capture_output=True, text=True, timeout=60
@@ -45,7 +51,7 @@ def test_build_script_is_shellcheck_clean() -> None:
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-@pytest.mark.skipif(shutil.which("bash") is None, reason="bash is not installed")
+@pytest.mark.skipif(_NO_BASH, reason="needs a real bash (not available on Windows)")
 @pytest.mark.parametrize("which", ["core", "pyproject"])
 def test_build_fails_when_the_versions_differ(tmp_path, which) -> None:
     """manifest.json, helper_core.js and cli/pyproject.toml must agree."""

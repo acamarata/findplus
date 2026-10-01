@@ -1,0 +1,6 @@
+# Shell scripts, the Homebrew template and the Chrome helper are read by bash
+# and by regex-based checks: keep Unix line endings even on a Windows checkout.
+*.sh text eol=lf
+*.tmpl text eol=lf
+install.sh text eol=lf
+browser-helper/** text eol=lf

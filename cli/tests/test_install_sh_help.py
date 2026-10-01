@@ -2,8 +2,17 @@
 
 from __future__ import annotations
 
+import shutil
 import subprocess
+import sys
 from pathlib import Path
+
+import pytest
+
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32" or shutil.which("bash") is None,
+    reason="needs a real bash (on Windows `bash` is the WSL launcher)",
+)
 
 INSTALL = Path(__file__).resolve().parents[2] / "install.sh"
 

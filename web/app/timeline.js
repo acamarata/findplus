@@ -8,90 +8,22 @@
  */
 "use strict";
 
-import { $, state, visibleTracks, fmtDateTime, fmtDuration, todayLocal, showAlert } from "./state.js";
+import { $, state, fmtDateTime, fmtDuration, todayLocal, showAlert } from "./state.js";
 import { api, postJson } from "./api.js";
-import { renderMap, deviceForTrack } from "./map.js";
-import { renderBadge } from "./components/badge.js";
+import { renderMap } from "./map.js";
 import { reload } from "./main.js";
 import { providerWording } from "./devices.js";
-import { t, plural } from "./i18n.js";
-import { nothingTrackedEmptyState, emptyDayState } from "./dashboard_empty.js";
+import { t } from "./i18n.js";
 import { confirmDialog } from "./components/confirm-dialog.js";
-import { statsHtml, timelineHtml } from "./timeline_list.js";
+import { expandFor, highlightSelection, renderTracks } from "./track_blocks.js";
 import { paneError } from "./pane_error.js";
-import { uniqueLabel } from "./device_label.js";
-import { syncRoving, wireTimelineKeys } from "./timeline_keys.js";
+import { wireTimelineKeys } from "./timeline_keys.js";
 
-/**
- * The sticky header above one track: badge, name, observation count.
- *
- * The name prefers the device's label, so a track reads the way the user named
- * the tracker rather than the way the provider did.
- */
-function trackHead(track) {
-  const device = deviceForTrack(track);
-  const head = document.createElement("div");
-  head.className = "track-head";
-  const swatch = document.createElement("span");
-  swatch.className = "track-swatch";
-  swatch.appendChild(
-    renderBadge({
-      icon: device.icon,
-      color: device.color,
-      label: device.label,
-      name: device.name,
-      size: 20,
-    })
-  );
-  const name = document.createElement("span");
-  name.className = "track-name";
-  name.textContent = uniqueLabel(device) || track.device_name || track.device_id;
-  const count = document.createElement("span");
-  count.className = "track-count";
-  count.textContent = plural("timeline.observations", track.points.length, {
-    n: track.points.length,
-  });
-  head.append(swatch, name, count);
-  return head;
-}
-
-export function renderTracks() {
-  const host = $("tracks");
-  host.innerHTML = "";
-  // The dashboard's group select narrows the timeline to one group's
-  // members, matching the same filter renderMap() applies (UAT U8).
-  const tracks = state.timeline ? visibleTracks(state.timeline.tracks) : [];
-  if (!tracks.length) {
-    // Nothing tracked at all is a different problem from a quiet day, and it
-    // has a different answer: pick a device, or run setup again.
-    const nothingTracked = !(state.devices || []).some((d) => d.is_tracked);
-    if (nothingTracked) {
-      host.appendChild(nothingTrackedEmptyState());
-    } else {
-      host.appendChild(emptyDayState());
-    }
-    return;
-  }
-
-  tracks.forEach((track) => {
-    const block = document.createElement("section");
-    block.className = "track-block";
-    block.appendChild(trackHead(track));
-    // statsHtml()/timelineHtml() still return markup strings and carry no label
-    // or icon data, so they are appended to the already-built head, not around it.
-    block.insertAdjacentHTML("beforeend", statsHtml(track.stats) + timelineHtml(track));
-    host.appendChild(block);
-  });
-
-  host.querySelectorAll(".tl-item").forEach((el) => {
-    el.addEventListener("click", () => selectPoint(Number(el.dataset.id), true));
-  });
-  highlightSelection();
-  syncRoving(host);
-}
+export { renderTracks };
 
 export function selectPoint(id, panTo) {
   state.selectedId = id;
+  expandFor(id);
   highlightSelection();
   const marker = state.markers.get(id);
   if (marker) {
@@ -100,12 +32,6 @@ export function selectPoint(id, panTo) {
   }
   const li = document.querySelector(`.tl-item[data-id="${id}"]`);
   if (li) li.scrollIntoView({ block: "nearest", behavior: "smooth" });
-}
-
-function highlightSelection() {
-  document.querySelectorAll(".tl-item").forEach((el) => {
-    el.classList.toggle("selected", el.dataset.id === String(state.selectedId));
-  });
 }
 
 /** What a loaded timeline is FOR: the day and the device filter it was fetched with. */
@@ -127,6 +53,7 @@ function showLoadError(day, err, key) {
   state.timeline = null;
   state.selectedId = null;
   loadedKey = null;
+  loadedJson = "";
   renderMap();
   const host = $("tracks");
   host.replaceChildren(
@@ -144,6 +71,37 @@ function showPaneLoading(seq) {
   $("tracks").replaceChildren(note);
 }
 
+/** JSON of the timeline on screen, so an identical refresh redraws nothing. */
+let loadedJson = "";
+
+/**
+ * Put a fetched timeline on screen.
+ *
+ * A refresh of the SAME day and device (the live timer, a poll finishing) is
+ * not a new view: identical data redraws nothing (no flicker, no map jump),
+ * and changed data keeps the selected row, the pane's scroll position and the
+ * map's own zoom and pan. Only a new selection resets those.
+ */
+function applyTimeline(timeline, key) {
+  // Labels, icons and colours are drawn from the device list, so they count too.
+  const looks = (state.devices || []).map((d) => [d.device_id, d.name, d.label, d.icon, d.color]);
+  const json = JSON.stringify([timeline, looks]);
+  const refresh = key === loadedKey && state.timeline && state.markers.size > 0;
+  if (refresh && json === loadedJson) return;
+  const pane = $("tracks").closest(".timeline-pane");
+  const scroll = refresh && pane ? pane.scrollTop : 0;
+  const kept = refresh ? state.selectedId : null;
+  state.timeline = timeline;
+  loadedKey = key;
+  loadedJson = json;
+  state.selectedId = null;
+  if (timeline.path_disclaimer) $("path-disclaimer").textContent = timeline.path_disclaimer;
+  renderMap({ fit: !refresh });
+  if (kept !== null && state.markers.has(kept)) state.selectedId = kept;
+  renderTracks();
+  if (pane) pane.scrollTop = scroll;
+}
+
 export async function loadDay(day) {
   const lockGenAtFetch = state.lockGeneration; state.day = day; $("day-picker").value = day;
   const params = new URLSearchParams({ day });
@@ -158,14 +116,7 @@ export async function loadDay(day) {
     if (state.lockGeneration !== lockGenAtFetch) return; // locked mid-fetch: never render it
     // A newer loadDay() superseded this one while it was in flight.
     if (seq !== loadSeq) return;
-    state.timeline = timeline;
-    loadedKey = key;
-    state.selectedId = null;
-    if (state.timeline.path_disclaimer) {
-      $("path-disclaimer").textContent = state.timeline.path_disclaimer;
-    }
-    renderMap();
-    renderTracks();
+    applyTimeline(timeline, key);
   } catch (err) {
     if (state.lockGeneration !== lockGenAtFetch || seq !== loadSeq) return;
     showLoadError(day, err, key);

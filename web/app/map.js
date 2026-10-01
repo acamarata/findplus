@@ -225,7 +225,7 @@ export function visiblePoints(track) {
   return state.movementOnly ? track.points.filter((p) => p.is_movement) : track.points;
 }
 
-export function renderMap() {
+export function renderMap({ fit = true } = {}) {
   state.layer.clearLayers();
   state.markers.clear();
   if (!state.timeline) { syncMapOverlay(); return; }
@@ -269,7 +269,7 @@ export function renderMap() {
     });
   });
 
-  if (allLatLngs.length) {
+  if (allLatLngs.length && fit) {
     state.map.fitBounds(L.latLngBounds(allLatLngs), { padding: [42, 42], maxZoom: 17 });
   }
   syncMapOverlay();

@@ -10,7 +10,7 @@
  */
 "use strict";
 
-import { fmtTime, fmtDuration, fmtDistance, esc } from "./state.js";
+import { fmtTime, fmtDuration, fmtDistance, esc, todayLocal } from "./state.js";
 import { visiblePoints } from "./map.js";
 import { t } from "./i18n.js";
 
@@ -33,13 +33,33 @@ export function statsHtml(stats) {
     `</div>`;
 }
 
+/** Hour headings appear once a list is long enough to need landmarks. */
+const HOUR_HEADS_OVER = 10;
+/** A fix this loose is called rough, not hidden behind a precise-looking number. */
+const ROUGH_METERS = 100;
+
+const hourLabel = (iso) => new Date(2000, 0, 1, Number(iso.slice(11, 13))).toLocaleTimeString([], { hour: "numeric" });
+
+/** "5 min ago" for today's newest row only; older days read their own clock times. */
+function agoHtml(point, isNewest) {
+  if (!isNewest || String(point.observed_at_local).slice(0, 10) !== todayLocal()) return "";
+  const secs = (Date.now() - Date.parse(point.observed_at)) / 1000;
+  if (!(secs >= 0)) return "";
+  return ` <span class="tl-ago">${esc(t("timeline.ago", { age: fmtDuration(secs) }))}</span>`;
+}
+
 export function timelineHtml(track) {
   const points = visiblePoints(track);
   if (!points.length) {
     return `<div class="empty">${esc(t("timeline.emptyDay"))}</div>`;
   }
   let html = `<ol class="timeline">`;
-  points.forEach((point) => {
+  let hour = "";
+  points.forEach((point, index) => {
+    if (points.length > HOUR_HEADS_OVER && point.observed_at_local.slice(0, 13) !== hour) {
+      hour = point.observed_at_local.slice(0, 13);
+      html += `<li class="tl-hour" aria-hidden="true">${esc(hourLabel(point.observed_at_local))}</li>`;
+    }
     if (point.gap_before && point.seconds_since_previous) {
       const gap = t("timeline.noDetectionsFor", {
         duration: fmtDuration(point.seconds_since_previous).toUpperCase(),
@@ -51,6 +71,7 @@ export function timelineHtml(track) {
     if (dist) meta.push(t("timeline.fromPrevious", { distance: dist }));
     if (point.accuracy_meters != null) {
       meta.push(t("timeline.accuracy", { meters: Math.round(point.accuracy_meters) }));
+      if (point.accuracy_meters >= ROUGH_METERS) meta.push(t("timeline.roughFix"));
     } else {
       // Apple Find My never reports a metres figure (CF-P2-6): say so plainly
       // instead of just omitting the line, which could read as "exact".
@@ -71,7 +92,7 @@ export function timelineHtml(track) {
 
     html +=
       `<li class="tl-item${point.is_movement ? "" : " jitter"}" data-id="${point.id}">` +
-      `<div><span class="tl-seq">${point.sequence}.</span> <span class="tl-time">${fmtTime(point.observed_at_local)}</span></div>` +
+      `<div><span class="tl-seq">${point.sequence}.</span> <span class="tl-time">${fmtTime(point.observed_at_local)}</span>${agoHtml(point, index === points.length - 1)}</div>` +
       coordsLine +
       (meta.length ? `<div class="tl-meta">${esc(meta.join(" · "))}</div>` : "") +
       `</li>`;

@@ -121,3 +121,4 @@
 .fp-steps { margin: 4px 0 10px; padding-left: 20px; font-size: 13px; color: var(--muted); }
 .fp-steps li { margin: 2px 0; }
 .fp-steps[hidden] { display: none; }
+.fp-rule-tools button { white-space: normal; text-align: left; max-width: 100%; }

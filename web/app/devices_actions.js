@@ -60,6 +60,21 @@ function startCooldown(btn, ms) {
   }, ms);
 }
 
+/** The "N devices polled" sentence with one plain-words line per tracker. */
+function pollSummary(r) {
+  const lines = r.results.map(
+    (x) =>
+      // UAT6-N06: plain words, never the raw status code.
+      t("devices.pollResultLine", { device: x.device_name, status: shortStatus(x.status) }) +
+      (x.observations_new ? t("devices.pollResultNew", { n: x.observations_new }) : "")
+  );
+  return t("devices.polled", {
+    devices: r.devices_polled,
+    observations: r.observations_new,
+    lines: lines.join(" · "),
+  });
+}
+
 /** Query every provider once, now, and say what came back.
  *
  * UAT5 N50: a second click within the server's one-per-minute limit used to
@@ -82,33 +97,25 @@ export async function pollNow() {
   // The API reports a poll only when it ends, so say it is under way from
   // here, and let status refreshes mid-request keep saying it.
   state.pollInFlight = true;
+  const gen = state.lockGeneration;
   showAlert(pollingMessage(state.status), "info", { busy: true, hint: t("live.pollingHint") });
   try {
     const r = await postJson("/api/poll-now");
     state.pollInFlight = false;
-    const lines = r.results.map(
-      (x) =>
-        // UAT6-N06: plain words, never the raw status code.
-        t("devices.pollResultLine", { device: x.device_name, status: shortStatus(x.status) }) +
-        (x.observations_new ? t("devices.pollResultNew", { n: x.observations_new }) : "")
-    );
+    // The app locked while the request ran: the answer carries tracker names, and
+    // the purge has already cleared the screen. Write nothing behind the lock.
+    if (state.lockGeneration !== gen) return startCooldown(btn, POLL_COOLDOWN_MS);
     // Reload first: it redraws the banner, and a failure it names (locked,
     // signed out) must keep its action rather than be covered by this summary.
     await reload();
-    if (!state.status || !bannerRun(state.status)) {
-      showAlert(
-        t("devices.polled", {
-          devices: r.devices_polled,
-          observations: r.observations_new,
-          lines: lines.join(" · "),
-        }),
-        "info"
-      );
+    // A lock during reload() has purged the screen again: still write nothing.
+    if (state.lockGeneration === gen && (!state.status || !bannerRun(state.status))) {
+      showAlert(pollSummary(r), "info");
     }
     startCooldown(btn, POLL_COOLDOWN_MS);
   } catch (err) {
     state.pollInFlight = false;
-    showAlert(err.message, "err");
+    if (state.lockGeneration === gen) showAlert(err.message, "err");
     if (err.status === 429) {
       const wait = WAIT_SECONDS.exec(err.message);
       startCooldown(btn, (wait ? Number(wait[1]) : 60) * 1000);

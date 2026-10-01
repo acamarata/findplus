@@ -13,7 +13,7 @@ import { api } from "./api.js";
 import { startIdleTimer } from "./lock.js";
 import { t } from "./i18n.js";
 import { trapFocus } from "./components/dialog-trap.js";
-import { renderPollingSection, wirePollingControls } from "./settings_polling.js";
+import { renderPollingSection, renderPollRate, wirePollingControls } from "./settings_polling.js";
 import { showNewPinError, wirePinActions } from "./settings_pin.js";
 import { markSaved, clearSaved, wireBackup } from "./settings_saved.js";
 
@@ -125,6 +125,7 @@ export async function openSettings() {
       const main = await import("./main.js");
       await main.loadConfig();
     }
+    renderPollRate(); // the status (tracked count) may have landed since the first fill
     const health = await api("/api/health");
     $("settings-about").textContent = t("settings.about", {
       version: health.version,

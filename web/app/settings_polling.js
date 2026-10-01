@@ -25,7 +25,8 @@ const MIN_RETENTION_DAYS = 7;
 /** How many devices Find+ polls: the status count, else the device list's tracked rows. */
 function trackedCount() {
   if (state.status && Number.isInteger(state.status.tracked_count)) return state.status.tracked_count;
-  return (state.devices || []).filter((d) => d.is_tracked).length;
+  const devices = state.devices || [];
+  return devices.length ? devices.filter((d) => d.is_tracked).length : null; // null: not loaded yet
 }
 
 /**
@@ -39,6 +40,7 @@ export function renderPollRate() {
   const n = Number($("setting-poll-interval").value);
   if (!Number.isInteger(n) || n < 5 || n > 1440) { el.textContent = ""; return; }
   const count = trackedCount();
+  if (count === null) { el.textContent = ""; return; }
   if (!count) { el.textContent = t("settings.polling.rateNone"); return; }
   const rate = Math.round((count * 60 * 10) / n) / 10;
   const base = plural("settings.polling.rate", count, { rate, count });

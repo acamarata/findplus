@@ -28,7 +28,7 @@ from findplus.poller_outcomes import (
     NO_GOOGLE_TRAFFIC,
     _log_outcome,
     _record,
-    record_config_error_cycle,
+    _select_targets,
 )
 
 # Re-exported so `from findplus.poller import PollOutcome` and existing
@@ -247,33 +247,6 @@ def poll_once(
         return early
 
     return _run_poll_cycle(targets, settings, stagger, stop_event)
-
-
-def _select_targets(
-    targets: list[tuple[str, str, str]], device_ids: set[str] | None
-) -> tuple[list[tuple[str, str, str]], CycleOutcome | None]:
-    """(targets, early_outcome) -- early_outcome is set when polling must stop
-    now instead: an unknown requested id, or nothing left to poll."""
-    if device_ids:
-        known_ids = {device_id for device_id, _name, _provider in targets}
-        unknown = set(device_ids) - known_ids
-        if unknown:
-            return [], record_config_error_cycle(
-                "UnknownDevice",
-                "Not tracked or does not exist: " + ", ".join(sorted(unknown)),
-                "poll_unknown_device",
-                requested=sorted(unknown),
-            )
-        targets = [t for t in targets if t[0] in device_ids]
-
-    if not targets:
-        return [], record_config_error_cycle(
-            "NoDeviceTracked",
-            "No devices are being tracked. Run `findplus devices --track-all`.",
-            "poll_no_devices_tracked",
-            config_error=True,
-        )
-    return targets, None
 
 
 def _run_poll_cycle(

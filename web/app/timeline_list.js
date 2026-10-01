@@ -48,6 +48,25 @@ function agoHtml(point, isNewest) {
   return ` <span class="tl-ago">${esc(t("timeline.ago", { age: fmtDuration(secs) }))}</span>`;
 }
 
+/** The small grey line under a row: distance, accuracy (honestly), below-threshold. */
+function metaParts(point) {
+    const dist = fmtDistance(point.meters_from_previous);
+    const meta = [];
+    if (dist) meta.push(t("timeline.fromPrevious", { distance: dist }));
+    if (point.accuracy_meters != null) {
+      meta.push(t("timeline.accuracy", { meters: Math.round(point.accuracy_meters) }));
+      if (point.accuracy_meters >= ROUGH_METERS) meta.push(t("timeline.roughFix"));
+    } else {
+      // Apple Find My never reports a metres figure (CF-P2-6): say so plainly
+      // instead of just omitting the line, which could read as "exact".
+      meta.push(t("timeline.accuracyUnknown"));
+    }
+    if (!point.is_movement && point.seconds_since_previous !== null) {
+      meta.push(t("timeline.belowThreshold"));
+    }
+  return meta;
+}
+
 export function timelineHtml(track) {
   const points = visiblePoints(track);
   if (!points.length) {
@@ -66,20 +85,7 @@ export function timelineHtml(track) {
       });
       html += `<li class="tl-gap">${esc(gap)}</li>`;
     }
-    const dist = fmtDistance(point.meters_from_previous);
-    const meta = [];
-    if (dist) meta.push(t("timeline.fromPrevious", { distance: dist }));
-    if (point.accuracy_meters != null) {
-      meta.push(t("timeline.accuracy", { meters: Math.round(point.accuracy_meters) }));
-      if (point.accuracy_meters >= ROUGH_METERS) meta.push(t("timeline.roughFix"));
-    } else {
-      // Apple Find My never reports a metres figure (CF-P2-6): say so plainly
-      // instead of just omitting the line, which could read as "exact".
-      meta.push(t("timeline.accuracyUnknown"));
-    }
-    if (!point.is_movement && point.seconds_since_previous !== null) {
-      meta.push(t("timeline.belowThreshold"));
-    }
+    const meta = metaParts(point);
 
     // Coordinates stay in the title attribute for hover even when a place name
     // is shown in their place (U30b) — the API resolves place_name server-side

@@ -28,7 +28,7 @@ import time
 import uuid
 from typing import Any
 
-from .bootstrap import ensure_gfmt_importable, restore_create_driver_guard
+from .bootstrap import ensure_gfmt_importable, restore_create_driver_guard, stored_account_email
 
 __all__ = [
     "MSG_CANCELLED",
@@ -141,11 +141,20 @@ def _is_cancelled(job_id: str) -> bool:
 
 
 def _store_shared_key(shared_key_hex: str) -> None:
-    """Persist the key 0600 via the vendored, hardened token store. Never logged."""
+    """Persist the key 0600 via the vendored, hardened token store. Never logged.
+
+    The key is tagged with the account Find+ is signed in as, so a key unlocked
+    for another account is never mistaken for this one's (has_shared_key()).
+    """
     ensure_gfmt_importable()
     import Auth.token_cache as token_cache
 
+    account = str(token_cache.get_cached_value("username") or "").lower()
+    previous = token_cache.get_cached_value("shared_key_account")
+    if previous and previous != account:
+        token_cache.set_cached_value("owner_key", "")  # derived from the other account's key
     token_cache.set_cached_value("shared_key", shared_key_hex)
+    token_cache.set_cached_value("shared_key_account", account)
 
 
 def store_vault_keys(vault_keys: object) -> None:
@@ -184,7 +193,9 @@ def _run_google_unlock(job_id: str, settings: Any) -> None:
 
     try:
         shared_key_hex = unlock_flow.run_shared_key_flow(
-            _make_isolated_driver(settings, job_id), lambda: _is_cancelled(job_id)
+            _make_isolated_driver(settings, job_id),
+            lambda: _is_cancelled(job_id),
+            expected_account=stored_account_email(),
         )
         if not shared_key_hex:
             _set_progress(job_id, "failed", MSG_NO_KEY)
@@ -193,6 +204,8 @@ def _run_google_unlock(job_id: str, settings: Any) -> None:
         _store_shared_key(shared_key_hex)
     except unlock_flow.FlowCancelledError:
         return  # cancel_google_unlock() already recorded the outcome
+    except unlock_flow.AccountMismatchError as exc:
+        _set_progress(job_id, "failed", str(exc))
     except unlock_flow.FlowTimeoutError:
         _set_progress(job_id, "failed", MSG_TIMEOUT)
     except Exception as exc:

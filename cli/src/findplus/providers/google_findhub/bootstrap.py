@@ -192,7 +192,12 @@ def has_shared_key() -> bool:
     unlock. Either one means the "Unlock encrypted locations" step is done.
     """
     data = _read_store() or {}
-    return bool(data.get("shared_key")) or bool(data.get("owner_key"))
+    if not (data.get("shared_key") or data.get("owner_key")):
+        return False
+    tag = data.get("shared_key_account")
+    username = str(data.get("username") or "").lower()
+    # A key unlocked while another account was signed in is not this account's.
+    return not (tag and username and tag != username)
 
 
 def needs_shared_key() -> bool:

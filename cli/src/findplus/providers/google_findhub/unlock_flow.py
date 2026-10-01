@@ -21,7 +21,7 @@ from typing import Any
 
 from .bootstrap import ensure_gfmt_importable
 
-__all__ = ["FlowCancelledError", "FlowTimeoutError", "run_shared_key_flow"]
+__all__ = ["AccountMismatchError", "FlowCancelledError", "FlowTimeoutError", "run_shared_key_flow"]
 
 _SIGNIN_SECONDS = 300
 _TOTAL_SECONDS = 900
@@ -45,6 +45,39 @@ class FlowCancelledError(Exception):
 
 class FlowTimeoutError(Exception):
     """The flow ran past its deadline without the page returning a key."""
+
+
+class AccountMismatchError(Exception):
+    """The Find+ Chrome window is signed in as another Google account (message is safe to show)."""
+
+
+_EMAIL_SCRIPT = """
+var e = document.querySelector('a[aria-label*="@"]');
+return e ? e.getAttribute('aria-label') : '';
+"""
+
+
+def _window_account(driver: Any) -> str | None:
+    """Best-effort email of the account the window is signed in as, or None."""
+    import re
+
+    try:
+        label = driver.execute_script(_EMAIL_SCRIPT) or ""
+    except Exception:
+        return None
+    found = re.search(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", str(label))
+    return found.group(0).lower() if found else None
+
+
+def _check_account(driver: Any, expected: str | None) -> None:
+    if not expected:
+        return
+    actual = _window_account(driver)
+    if actual and actual != expected.lower():
+        raise AccountMismatchError(
+            f"The Find+ Chrome window is signed in as {actual}, but Find+ is signed in as "
+            f"{expected}. Sign in to Google with {expected} in that window and try again."
+        )
 
 
 def _wait_for_signin(
@@ -101,6 +134,7 @@ def run_shared_key_flow(
     create_driver: Callable[[], Any],
     is_cancelled: Callable[[], bool],
     *,
+    expected_account: str | None = None,
     sleep: Callable[[float], None] = time.sleep,
 ) -> str | None:
     """Drive the unlock page; raises FlowCancelledError, FlowTimeoutError or a driver error."""
@@ -112,6 +146,7 @@ def run_shared_key_flow(
     try:
         driver.get("https://accounts.google.com/")
         _wait_for_signin(driver, is_cancelled, until, sleep)
+        _check_account(driver, expected_account)
         driver.get(get_security_domain_request_url())
         driver.execute_script(_BRIDGE)
         return _wait_for_key(driver, is_cancelled, until, sleep)

@@ -18,8 +18,14 @@ Google" button instead of asking you to copy things by hand.
 
 - **Reads** the `oauth_token` cookie that `accounts.google.com` sets after you
   sign in, and the encryption vault keys that Google's unlock page produces
-  after your Android screen-lock check. It reads them only while Find+ has
-  started a sign-in or unlock and asked the helper to listen.
+  after your Android screen-lock check. It acts on them only while Find+ has
+  started a sign-in or unlock: Find+'s own begin page tells the helper to
+  listen, and that note expires after 10 minutes, after a failed hand-off, and
+  when the browser closes. Chrome still lets the helper see that the cookie
+  changed at any time; it simply ignores it unless a Find+ flow is pending.
+- **Checks** that it is talking to Find+ before it sends anything: the begin
+  page must be on port 8647, and `http://127.0.0.1:8647/api/health` must answer
+  `app: "findplus"`. Another program on a different port gets nothing.
 - **Sends** them only to Find+ at `http://127.0.0.1` on this computer, with a
   single-use token Find+ generated. Find+ exchanges the sign-in token with
   Google immediately and never stores it.

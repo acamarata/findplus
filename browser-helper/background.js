@@ -14,9 +14,9 @@
 import {
   HELPER_VERSION,
   PORT_STORAGE_KEY,
-  RETRY_DELAY_MS,
   acceptBegin,
-  shouldRetry,
+  deliver,
+  pendingIsLive,
   isOauthCookieChange,
   successUrl,
   tokenBody,
@@ -29,7 +29,12 @@ const PENDING_KEY = "findplus_pending";
 
 async function getPending() {
   const stored = await chrome.storage.session.get(PENDING_KEY);
-  return stored[PENDING_KEY] || null;
+  const pending = stored[PENDING_KEY] || null;
+  if (pending && !pendingIsLive(pending, Date.now())) {
+    await clearPending(); // a flow nobody finished within 10 minutes is dropped
+    return null;
+  }
+  return pending;
 }
 async function setPending(pending) {
   await chrome.storage.session.set({ [PENDING_KEY]: pending });
@@ -48,29 +53,14 @@ async function configuredPort() {
   }
 }
 
-async function postJson(url, body) {
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    return res.status;
-  } catch (_err) {
-    return 0;
-  }
-}
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** POST, retrying a transient failure (Google slow, daemon restarting) a few
- *  times. Resolves to the final HTTP status, 0 meaning "could not reach Find+". */
-async function postWithRetry(url, body) {
-  let attempt = 1;
-  for (;;) {
-    const status = await postJson(url, body);
-    if (!shouldRetry(status, attempt)) return status;
-    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * attempt));
-    attempt += 1;
-  }
+/** Hand one body to Find+ (after confirming the port is Find+), retrying a
+ *  transient failure. Resolves to the final HTTP status; 0 means nothing was
+ *  delivered. */
+async function send(port, url, body) {
+  const result = await deliver({ fetchImpl: fetch, port, url, body, sleep });
+  return result.status;
 }
 
 async function moveTabToSuccess(port) {
@@ -89,14 +79,15 @@ chrome.cookies.onChanged.addListener(async (change) => {
   if (!isOauthCookieChange(change)) return;
   const pending = await getPending();
   if (!pending || pending.mode !== "signin") return;
-  const status = await postWithRetry(
+  const status = await send(
+    pending.port,
     tokenEndpoint(pending.port),
     tokenBody(pending.state, change.cookie.value)
   );
-  // A refusal (4xx) is final: the daemon shows the reason on the Find+ card, and
-  // the person starts again there. Only a 2xx moves the tab to the success page.
+  // Whatever happened, this flow is over: the daemon shows any reason on the
+  // Find+ card and the person starts again there. Only a 2xx moves the tab.
+  await clearPending();
   if (status >= 200 && status < 300) await moveTabToSuccess(pending.port);
-  if (status !== 0 && status < 500) await clearPending();
 });
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -122,12 +113,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg && msg.type === "findplus-vault") {
       const pending = await getPending();
       if (pending && pending.mode === "unlock") {
-        const status = await postWithRetry(
+        const status = await send(
+          pending.port,
           unlockEndpoint(pending.port),
           unlockBody(pending.state, msg.vaultKeys)
         );
+        await clearPending();
         if (status >= 200 && status < 300) await moveTabToSuccess(pending.port);
-        if (status !== 0 && status < 500) await clearPending();
       }
       sendResponse({ ok: true });
       return;

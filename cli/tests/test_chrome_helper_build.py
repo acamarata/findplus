@@ -43,3 +43,29 @@ def test_build_script_is_shellcheck_clean() -> None:
         ["shellcheck", str(_SCRIPT)], capture_output=True, text=True, timeout=60
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash is not installed")
+@pytest.mark.parametrize("which", ["core", "pyproject"])
+def test_build_fails_when_the_versions_differ(tmp_path, which) -> None:
+    """manifest.json, helper_core.js and cli/pyproject.toml must agree."""
+    (tmp_path / "packaging" / "scripts").mkdir(parents=True)
+    shutil.copy(_SCRIPT, tmp_path / "packaging" / "scripts" / _SCRIPT.name)
+    shutil.copytree(_ROOT / "browser-helper", tmp_path / "browser-helper")
+    (tmp_path / "cli").mkdir()
+    shutil.copy(_ROOT / "cli" / "pyproject.toml", tmp_path / "cli" / "pyproject.toml")
+    target = (
+        tmp_path / "browser-helper" / "helper_core.js"
+        if which == "core"
+        else tmp_path / "cli" / "pyproject.toml"
+    )
+    target.write_text(target.read_text().replace("1.1.5", "9.9.9", 1))
+    result = subprocess.run(
+        ["bash", str(tmp_path / "packaging" / "scripts" / _SCRIPT.name)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert result.returncode != 0
+    assert "version mismatch" in result.stderr
+    assert not (tmp_path / "dist").exists()

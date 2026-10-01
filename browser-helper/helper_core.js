@@ -40,17 +40,17 @@ export function acceptBegin({ msg, sender, pending, configuredPort, now }) {
   if (!msg || !msg.state) return { ok: false, reason: "no-state" };
   if (msg.mode !== "signin" && msg.mode !== "unlock") return { ok: false, reason: "bad-mode" };
   if (String(msg.port) !== normalizePort(configuredPort)) return { ok: false, reason: "wrong-port" };
-  const live = pending && now - (pending.at || 0) < PENDING_TTL_MS;
+  const live = pending && now - (pending.ts || 0) < PENDING_TTL_MS;
   if (live && pending.tabId !== tabId) return { ok: false, reason: "other-tab-pending" };
   return {
     ok: true,
-    pending: { mode: msg.mode, state: msg.state, port: String(msg.port), tabId, at: now },
+    pending: { mode: msg.mode, state: msg.state, port: String(msg.port), tabId, ts: now },
   };
 }
 
 /** True when a pending flow exists and has not outlived its TTL. */
 export function pendingIsLive(pending, now) {
-  return Boolean(pending) && now - (pending.at || 0) < PENDING_TTL_MS;
+  return Boolean(pending) && now - (pending.ts || 0) < PENDING_TTL_MS;
 }
 
 /** Only a transient failure (network error, status 0, or a 5xx) is worth another
@@ -60,6 +60,47 @@ export function shouldRetry(status, attempt, max = 3) {
 }
 
 export const RETRY_DELAY_MS = 2000;
+
+export function healthUrl(port) {
+  return `${baseUrl(port)}/api/health`;
+}
+
+/** True only for the daemon's own health answer ({app: "findplus"}). */
+export function isFindplusHealth(body) {
+  return Boolean(body) && typeof body === "object" && body.app === "findplus";
+}
+
+/**
+ * Deliver one body to Find+ and report the final HTTP status.
+ *
+ * First asks the port whether it is really Find+ (GET /api/health must answer
+ * app "findplus"); if not, nothing is sent and the status is 0. A transient
+ * failure is retried a few times. `fetchImpl` and `sleep` are injected so the
+ * tests run this exact logic without a network.
+ */
+export async function deliver({ fetchImpl, port, url, body, sleep }) {
+  try {
+    const res = await fetchImpl(healthUrl(port));
+    if (!res.ok || !isFindplusHealth(await res.json())) return { status: 0, reason: "not-findplus" };
+  } catch (_err) {
+    return { status: 0, reason: "unreachable" };
+  }
+  for (let attempt = 1; ; attempt += 1) {
+    let status = 0;
+    try {
+      const res = await fetchImpl(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      status = res.status;
+    } catch (_err) {
+      status = 0;
+    }
+    if (!shouldRetry(status, attempt)) return { status, reason: status === 0 ? "unreachable" : "done" };
+    await sleep(RETRY_DELAY_MS * attempt);
+  }
+}
 
 export function baseUrl(port) {
   return `http://127.0.0.1:${port}`;

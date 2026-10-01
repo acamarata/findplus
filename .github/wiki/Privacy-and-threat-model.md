@@ -42,6 +42,7 @@ trademarks.
 | Account access (your Google or Apple account is compromised) | Find+ stores tokens locally; revoking the app's access on the provider side stops further polling. |
 | Someone on your network | Find+ binds to `127.0.0.1` only, refused elsewhere unless `FINDPLUS_ALLOW_PUBLIC_BIND=1` is set. |
 | A malicious web page in your browser (DNS rebinding, cross-site requests) | The API validates the request's Host/Origin against the expected loopback address *and port* and rejects anything else, so a page from another origin cannot reach it even by resolving a hostname to 127.0.0.1, and cannot bypass the check by naming a different port. |
+| The Chrome helper extension, or something posing as it | The helper acts only on a sign-in or unlock Find+ started (single-use state, 10-minute limit, dropped after a failed hand-off), only toward `127.0.0.1:8647`, and only after that port answers as Find+. The daemon accepts its posts only from the pinned extension origin with that unused state. See [[Chrome-helper-privacy]]. |
 
 ## Local API surface
 

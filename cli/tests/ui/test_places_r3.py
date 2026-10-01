@@ -20,8 +20,15 @@ async def _add_place(page, base_url, name, radius=100, lat=40.0, lon=-74.0):
     res = await page.request.post(
         base_url + "/api/places",
         data=json.dumps(
-            {"name": name, "latitude": lat, "longitude": lon, "radius_meters": radius,
-             "color": "#e7663f", "enter_confirmations": 1, "exit_confirmations": 1}
+            {
+                "name": name,
+                "latitude": lat,
+                "longitude": lon,
+                "radius_meters": radius,
+                "color": "#e7663f",
+                "enter_confirmations": 1,
+                "exit_confirmations": 1,
+            }
         ),
         headers=JSON,
     )
@@ -44,16 +51,27 @@ async def _open_places(page, base_url):
 def _row(minutes_ago):
     at = (datetime.now(UTC) - timedelta(minutes=minutes_ago)).isoformat()
     return {
-        "id": 1, "place_id": 1, "place_name": "Home", "device_id": "TAG-HOME",
-        "device_name": "Ali's Keys", "event_type": "EXIT", "observed_at": at,
-        "fetched_at": at, "lag_minutes": 0, "confidence": "high",
-        "distance_meters": 10, "accuracy_meters": 10, "notified_at": None,
+        "id": 1,
+        "place_id": 1,
+        "place_name": "Home",
+        "device_id": "TAG-HOME",
+        "device_name": "Ali's Keys",
+        "event_type": "EXIT",
+        "observed_at": at,
+        "fetched_at": at,
+        "lag_minutes": 0,
+        "confidence": "high",
+        "distance_meters": 10,
+        "accuracy_meters": 10,
+        "notified_at": None,
     }
 
 
 async def test_events_show_relative_time_with_exact_time_on_hover(page, base_url):
     async def places(route):
-        await route.fulfill(status=200, content_type="application/json", body=json.dumps([_row(12)]))
+        await route.fulfill(
+            status=200, content_type="application/json", body=json.dumps([_row(12)])
+        )
 
     async def groups(route):
         await route.fulfill(status=200, content_type="application/json", body="[]")
@@ -81,7 +99,10 @@ async def test_events_load_failure_shows_an_error_with_retry(page, base_url):
             await route.fulfill(status=200, content_type="application/json", body="[]")
 
     await page.route("**/api/places/events*", places)
-    await page.route("**/api/groups/events*", lambda r: r.fulfill(status=200, body="[]", content_type="application/json"))
+    await page.route(
+        "**/api/groups/events*",
+        lambda r: r.fulfill(status=200, body="[]", content_type="application/json"),
+    )
     await page.goto(base_url + "/")
     await page.click('button[data-tab="places"]')
     err = page.locator("#fp-places-events-list [data-pane-error]")
@@ -111,7 +132,10 @@ async def test_list_search_and_sort(page, base_url):
         assert await page.evaluate("document.activeElement.id") == "fp-places-search"
         await page.fill("#fp-places-search", "nothing like this")
         assert await names.count() == 0
-        assert "nothing like this" in await page.locator("#fp-places-list .fp-empty-state").inner_text()
+        assert (
+            "nothing like this"
+            in await page.locator("#fp-places-list .fp-empty-state").inner_text()
+        )
     finally:
         await _drop_places(page, base_url, ids)
 
@@ -120,7 +144,7 @@ async def test_card_shows_coordinates_and_rule_count(page, base_url):
     pid = await _add_place(page, base_url, "Facts Place", radius=120, lat=40.5, lon=-74.25)
     try:
         await _open_places(page, base_url)
-        meta = page.locator('[data-place-id="%d"] .fp-place-card-meta' % pid)
+        meta = page.locator(f'[data-place-id="{pid}"] .fp-place-card-meta')
         text = await meta.inner_text()
         assert "120 m radius" in text and "40.5000, -74.2500" in text
         assert "no alert rules" in text
@@ -137,15 +161,16 @@ async def test_edit_dialog_says_how_many_rules_use_the_place(page, base_url):
     pid = await _add_place(page, base_url, "Rule Place")
     rule = await page.request.post(
         base_url + "/api/alerts/rules",
-        data=json.dumps({"name": "R3 usage", "device_id": "TAG-HOME", "place_id": pid,
-                         "channels": ["webhook"]}),
+        data=json.dumps(
+            {"name": "R3 usage", "device_id": "TAG-HOME", "place_id": pid, "channels": ["webhook"]}
+        ),
         headers=JSON,
     )
     assert rule.ok, await rule.text()
     rid = (await rule.json())["id"]
     try:
         await _open_places(page, base_url)
-        card = page.locator('[data-place-id="%d"]' % pid)
+        card = page.locator(f'[data-place-id="{pid}"]')
         assert "1 alert rule" in await card.locator(".fp-place-card-meta").inner_text()
         await card.locator(".fp-card-edit").click()
         usage = page.locator("#fp-place-usage")
@@ -166,5 +191,7 @@ async def test_radius_hint_is_attached_to_the_slider(page, base_url):
     await _open_places(page, base_url)
     await page.click("#fp-add-place-btn")
     await page.wait_for_selector("#fp-place-dialog[open]")
-    assert await page.get_attribute("#fp-place-radius", "aria-describedby") == "fp-place-radius-hint"
+    assert (
+        await page.get_attribute("#fp-place-radius", "aria-describedby") == "fp-place-radius-hint"
+    )
     assert "Find Hub" in await page.locator("#fp-place-radius-hint").inner_text()

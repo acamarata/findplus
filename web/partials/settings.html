@@ -162,13 +162,19 @@
         <label class="setting-row">
           <span data-i18n="settings.currentPin">Current PIN</span>
           <input type="password" id="current-pin" autocomplete="current-password"
+                 aria-describedby="setting-change-pin-error"
                  placeholder="required to change or remove"
                  data-i18n-attr="placeholder:settings.currentPinPlaceholder">
         </label>
         <label class="setting-row">
           <span data-i18n="settings.newPinOptional">New PIN (optional)</span>
-          <input type="password" id="change-pin" autocomplete="new-password">
+          <input type="password" id="change-pin" autocomplete="new-password"
+                 aria-describedby="setting-change-pin-error">
         </label>
+        <!-- UAT #4: a wrong current PIN used to render only in #settings-message,
+             cut off at the top of the scrolled dialog. It shows here, between
+             the fields and the buttons that caused it. -->
+        <p id="setting-change-pin-error" class="fp-dialog-error hidden" role="alert"></p>
         <div class="setting-actions">
           <button class="btn" id="btn-change-pin" data-i18n="settings.changePin">Change PIN</button>
           <button class="btn btn-danger" id="btn-remove-pin" data-i18n="settings.removePin">Remove PIN</button>

@@ -100,6 +100,9 @@ _STATE_GATED = frozenset(
     {
         "/api/auth/google/helper/token",
         "/api/auth/google/helper/unlock",
+        # The begin page (also cookie-less, in the user's own Chrome) reports the
+        # helper is installed. It only sets a "helper detected" hint.
+        "/api/auth/google/helper/seen",
     }
 )
 

@@ -119,6 +119,7 @@ def _auth_routes() -> list[tuple[str, str]]:
 _STATE_GATED_ROUTES = {
     ("POST", "/api/auth/google/helper/token"),
     ("POST", "/api/auth/google/helper/unlock"),
+    ("POST", "/api/auth/google/helper/seen"),
 }
 _E6_ROUTES = _auth_routes()
 
@@ -150,7 +151,9 @@ def test_every_e6_route_401s_while_locked(locked_client, method: str, path: str)
     assert res.json() == {"detail": "Locked. Enter your PIN to continue.", "locked": True}
 
 
-@pytest.mark.parametrize("method,path", sorted(_STATE_GATED_ROUTES))
+@pytest.mark.parametrize(
+    "method,path", sorted(r for r in _STATE_GATED_ROUTES if not r[1].endswith("/seen"))
+)
 def test_helper_ingest_routes_reach_their_own_gate_while_locked(
     locked_client, method: str, path: str
 ) -> None:
@@ -158,6 +161,15 @@ def test_helper_ingest_routes_reach_their_own_gate_while_locked(
     gate (403/422), never by the lock (401) and never accepted (2xx)."""
     res = locked_client.request(method, path, json={}, headers=SAME_ORIGIN_HEADERS)
     assert res.status_code in (400, 403, 422), f"{method} {path} -> {res.status_code}"
+
+
+def test_helper_seen_is_reachable_while_locked(locked_client) -> None:
+    """The begin page has no dashboard cookie; under the app lock it must still be
+    able to say "helper detected" (it only sets a hint)."""
+    res = locked_client.post(
+        "/api/auth/google/helper/seen", json={"state": ""}, headers=SAME_ORIGIN_HEADERS
+    )
+    assert res.status_code == 200
 
 
 # --------------------------------------------------------------- the secret

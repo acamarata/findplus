@@ -25,7 +25,7 @@
  */
 "use strict";
 
-import { t } from "../i18n.js";
+import { plural, t } from "../i18n.js";
 import { deviceRow } from "./_device_row.js";
 import { confirmDialog } from "../components/confirm-dialog.js";
 import { anyProviderSignedIn } from "../poll_status.js";
@@ -39,17 +39,41 @@ let listFailed = false;
  * UAT7-N10, there is nothing to tick and nothing to confirm, unlike a list
  * that loaded with every row deliberately unticked. */
 let isEmptyList = false;
+/** True when the last refresh found no provider signed in. */
+let signedOut = false;
+
+/** "2 of 3 selected", kept current as boxes are ticked (polite, not alerting). */
+function updateCount() {
+  const boxes = [...els.list.querySelectorAll("[data-track]")];
+  els.count.hidden = boxes.length === 0;
+  const n = boxes.filter((b) => b.checked).length;
+  els.count.textContent = plural("setup.devices.selected", n, { n, total: boxes.length });
+}
+
+/** The empty list: one message when nothing is connected, one when it is. */
+function emptyState(ctx) {
+  const empty = document.createElement("p");
+  empty.className = "fp-tab-hint";
+  empty.textContent = t(signedOut ? "setup.devices.empty_signed_out" : "setup.devices.empty");
+  els.list.append(empty);
+  if (!signedOut) return;
+  const back = document.createElement("button");
+  back.type = "button";
+  back.className = "btn btn-secondary";
+  back.textContent = t("setup.devices.go_signin");
+  back.addEventListener("click", () => ctx.goToStep("signin"));
+  els.list.append(back);
+}
 
 function renderRows(ctx, devices) {
   els.list.textContent = "";
+  els.list.removeAttribute("aria-busy");
   // UAT7-N10: an orphan "Track" column header sat above the empty state with
   // nothing underneath it to be a column header for.
   els.header.hidden = devices.length === 0;
   if (!devices.length) {
-    const empty = document.createElement("p");
-    empty.className = "fp-tab-hint";
-    empty.textContent = t("setup.devices.empty");
-    els.list.append(empty);
+    emptyState(ctx);
+    updateCount();
     return;
   }
   // UAT U15: on a fresh account nothing is tracked yet, so every row's own
@@ -61,6 +85,7 @@ function renderRows(ctx, devices) {
   devices.forEach((device) =>
     els.list.append(deviceRow(ctx, device, reload, noneTrackedYet))
   );
+  updateCount();
 }
 
 /** UAT6-N07: the server's 409 for "no provider signed in" reads "Run
@@ -98,8 +123,16 @@ function buildRefreshButton(ctx) {
  * must never hide devices Find+ already knows about, and a list-load failure
  * must never be read as "nothing to track" by onNext.
  */
-async function refresh(ctx) {
+async function refresh(ctx, quiet = false) {
   els.error.textContent = "";
+  // Loading state: the list says what it is doing, and tells assistive tech.
+  els.list.setAttribute("aria-busy", "true");
+  if (!els.list.children.length) {
+    const wait = document.createElement("p");
+    wait.className = "fp-tab-hint";
+    wait.textContent = t("setup.devices.loading");
+    els.list.append(wait);
+  }
   let refreshError = null;
   // UAT7-N10: refresh() used to POST /api/devices/refresh unconditionally,
   // which always 409s with no provider signed in and logged a console error
@@ -107,7 +140,8 @@ async function refresh(ctx) {
   // answer (routes_devices.py's own 409 reason, without the doomed round
   // trip); `null` (locked, or the lookup itself failed) keeps the old
   // behaviour rather than guessing.
-  if ((await anyProviderSignedIn()) === false) {
+  signedOut = (await anyProviderSignedIn()) === false;
+  if (signedOut) {
     refreshError = { status: 409, message: t("setup.devices.refresh_no_provider") };
   } else {
     try {
@@ -122,12 +156,31 @@ async function refresh(ctx) {
     listFailed = false;
     isEmptyList = ctx.state.devices.length === 0;
     renderRows(ctx, ctx.state.devices);
-    if (refreshError) els.error.textContent = refreshErrorText(refreshError);
+    // Arriving signed out with nothing listed is already explained by the empty state; only an
+    // explicit Refresh click repeats the reason as an error.
+    if (refreshError && !(quiet && signedOut && isEmptyList)) els.error.textContent = refreshErrorText(refreshError);
   } catch (err) {
     listFailed = true;
     els.list.textContent = "";
+    els.list.removeAttribute("aria-busy");
+    updateCount();
     els.error.textContent = t("setup.devices.load_failed");
   }
+}
+
+/** No-location explanation plus the stale-presence honesty sentence. */
+function notes(ctx) {
+  const wrap = document.createElement("div");
+  const none = document.createElement("p");
+  none.className = "fp-wizard-footnote";
+  none.textContent = t("setup.devices.no_location");
+  const stale = document.createElement("p");
+  stale.className = "fp-wizard-footnote";
+  // The dashboard will show these devices as stale when they are; say so
+  // here, where the user is choosing which ones to watch.
+  stale.textContent = (ctx.state.config && ctx.state.config.notices.presence_stale) || "";
+  wrap.append(none, stale);
+  return wrap;
 }
 
 export default {
@@ -137,16 +190,15 @@ export default {
     container.textContent = "";
     listFailed = false;
     isEmptyList = false;
+    signedOut = false;
     const heading = document.createElement("h2");
     heading.textContent = t("setup.devices.title");
+    const lead = document.createElement("p");
+    lead.className = "fp-wizard-lead";
+    lead.textContent = t("setup.devices.lead");
 
-    // UAT U15: the row checkboxes had no visible or accessible column
-    // header; each row's own checkbox also carries an aria-label
-    // ("Track {name}", _device_row.js) so a screen reader announces the
-    // same word even without this text sitting directly above it.
-    // UAT7-N10: hidden until refresh() knows whether there is anything to
-    // be a column header for -- renderRows() shows it once devices.length
-    // is known, rather than sitting over the empty state on first paint.
+    // UAT U15 / UAT7-N10: the column header (also each checkbox's aria-label)
+    // stays hidden until refresh() knows there is a list to head.
     const listHeader = document.createElement("p");
     listHeader.className = "fp-field-hint";
     listHeader.textContent = t("setup.devices.track");
@@ -154,30 +206,26 @@ export default {
 
     const list = document.createElement("div");
     list.id = "fp-setup-devices-list";
+    list.addEventListener("change", updateCount);
+
+    const count = document.createElement("p");
+    count.className = "fp-wizard-summary";
+    count.id = "fp-setup-devices-count";
+    count.setAttribute("aria-live", "polite");
+    count.hidden = true;
 
     const error = document.createElement("p");
     error.className = "fp-dialog-error";
     error.id = "fp-setup-devices-error";
-    // N45: a failed refresh went to ctx.showAlert -> #alert inside #app-shell,
-    // hidden for the whole time the wizard is open (applock.js documents the
-    // same trap). role="alert" announces this line the way a screen reader
-    // announces applock's own field error.
+    // N45: #alert is hidden behind the wizard, so this line announces itself.
     error.setAttribute("role", "alert");
-    // Placed right after the error line (not before, as it used to sit) so a
-    // failure's retry sits next to the words explaining why one is needed.
-    const refreshBtn = buildRefreshButton(ctx);
-
-    const note = document.createElement("p");
-    note.className = "fp-wizard-footnote";
-    // The dashboard will show these devices as stale when they are; say so
-    // here, where the user is choosing which ones to watch.
-    note.textContent = (ctx.state.config && ctx.state.config.notices.presence_stale) || "";
-
-    els = { list, error, header: listHeader };
-    container.append(heading, listHeader, list, error, refreshBtn, note);
+    els = { list, error, header: listHeader, count };
+    container.append(
+      heading, lead, listHeader, list, count, error, buildRefreshButton(ctx), notes(ctx)
+    );
   },
   async onEnter(ctx) {
-    await refresh(ctx);
+    await refresh(ctx, true);
   },
   async onNext(ctx) {
     // UAT6-N03: the list never loaded -- there is nothing honest to post.

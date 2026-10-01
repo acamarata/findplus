@@ -16,10 +16,19 @@ import { t } from "../i18n.js";
 export default {
   id: "welcome",
   canSkip: false,
+  nextLabel: "setup.welcome.start",
   render(container, ctx) {
     container.textContent = "";
     const heading = document.createElement("h2");
     heading.textContent = t("setup.welcome.title");
+    // Purpose first: what Find+ does for the reader, in three short points.
+    const points = document.createElement("ul");
+    points.className = "fp-wizard-points";
+    [1, 2, 3].forEach((n) => {
+      const li = document.createElement("li");
+      li.textContent = t(`setup.welcome.point_${n}`);
+      points.append(li);
+    });
     const body = document.createElement("p");
     body.textContent = t("setup.welcome.body");
     const note = document.createElement("p");
@@ -27,6 +36,13 @@ export default {
     // Sourced from /api/config.notices, never re-keyed into the catalog, so
     // there is exactly one place this sentence can drift from honesty.py.
     note.textContent = (ctx.state.config && ctx.state.config.notices.not_affiliated) || "";
-    container.append(heading, body, note);
+    container.append(heading, points, body);
+    if (ctx.rerun) {
+      const again = document.createElement("p");
+      again.className = "fp-wizard-rerun";
+      again.textContent = t("setup.welcome.rerun");
+      container.append(again);
+    }
+    container.append(note);
   },
 };

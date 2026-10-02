@@ -294,7 +294,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers.setdefault("Content-Security-Policy", CONTENT_SECURITY_POLICY)
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
-        # Revalidate the page and scripts on every load: a stale index.html beside new scripts broke 1.2.0.
+        # Revalidate page and scripts each load: a stale index.html broke 1.2.0.
         if request.url.path == "/" or request.url.path.startswith("/static/"):
             response.headers.setdefault("Cache-Control", "no-cache")
         return response

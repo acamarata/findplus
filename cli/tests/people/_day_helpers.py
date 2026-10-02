@@ -1,7 +1,7 @@
 """Builders for the daily-summary scenarios (spec § 11, package C).
 
 Purpose : Named synthetic days on top of the people scenario world
-          (Home, School, Grandma's; Zaid with a bag, bike and two shoes), plus
+          (Home, School, Grandma's; Sam with a bag, bike and two shoes), plus
           a one-call `summary()` that runs the real loader and algorithm.
 Inputs  : The tmp_db-backed `session` fixture.
 Outputs : n/a (test-only builders, never imported by cli/src).

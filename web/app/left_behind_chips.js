@@ -1,5 +1,5 @@
 /*
- * "Zaid's bag looks left at School since 3:00 PM": the dashboard's left-behind notices.
+ * "Sam's bag looks left at School since 3:00 PM": the dashboard's left-behind notices.
  *
  * Purpose    : Show a tracker that has stayed put while the rest of its person
  *              moved on, in words that admit they are a guess ("looks left"), with

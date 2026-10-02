@@ -1,7 +1,7 @@
 /*
  * The rule dialog's plain-words sentence, and the group explainer.
  *
- * Purpose    : "Tell me on Telegram when Zaid Bag leaves School." says what a
+ * Purpose    : "Tell me on Telegram when Sam Bag leaves School." says what a
  *              rule does far better than a row of ticks. Pure functions so the
  *              dialog, the rules table and the tests all read the same sentence.
  * Inputs     : ruleSentence({ channels, who, enter, exit, place, isGroup }):
@@ -32,7 +32,7 @@ function eventsText(enter, exit) {
   return t("alerts.sentence.noEvent");
 }
 
-/** "Tell me on Telegram and Webhook when Zaid Bag leaves School." */
+/** "Tell me on Telegram and Webhook when Sam Bag leaves School." */
 export function ruleSentence({ channels, who, enter, exit, place, isGroup }) {
   const vars = {
     who: who || t(isGroup ? "alerts.sentence.aGroup" : "alerts.sentence.aTracker"),

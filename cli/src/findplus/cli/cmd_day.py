@@ -1,6 +1,6 @@
 """CLI: `findplus day <name>` and `findplus people digest` (spec § 7.2).
 
-Purpose    : The command-line twin of GET /api/people/{id}/day: "Sumayah's day"
+Purpose    : The command-line twin of GET /api/people/{id}/day: "Robin's day"
              in plain words, optionally sent to Telegram now; and the switch for
              the evening summary (`people.digest`).
 Inputs     : A person's name (or numeric id), --date, --days, --json, --send;

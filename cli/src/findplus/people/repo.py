@@ -108,7 +108,7 @@ def convert_group(
     session: Session, group_id: int, kind: str = "person", member_ids: list[str] | None = None,
     roles: dict | None = None,
 ) -> Group:  # fmt: skip
-    """Turn a set into a person/pet ("Turn group Zaid into a person"); rules stay."""
+    """Turn a set into a person/pet ("Turn group Sam into a person"); rules stay."""
     if kind not in PERSON_KINDS:
         raise ValueError("kind must be person or pet")
     update_group(session, group_id, kind=kind)

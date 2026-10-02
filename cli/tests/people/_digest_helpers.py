@@ -49,7 +49,7 @@ def connect_telegram(chats=("42",)) -> None:
     )
 
 
-def seed_school_day(names=("Zaid",)) -> list[int]:
+def seed_school_day(names=("Sam",)) -> list[int]:
     """Home/School places and one person with a full school day on 2026-09-21 (UTC)."""
     with session_scope() as s:
         seed_places(s)

@@ -1,7 +1,7 @@
 /*
  * "We found people in your trackers": the suggestions panel and its dashboard banner.
  *
- * Purpose    : Offer to group a person's trackers ("Zaid Bag", "Zaid Bike", ...)
+ * Purpose    : Offer to group a person's trackers ("Sam Bag", "Sam Bike", ...)
  *              under one name, with every guess previewed and nothing applied
  *              until Accept. Used on the Groups tab, in the setup wizard's
  *              Groups step, and as a one-line banner on the dashboard.

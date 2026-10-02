@@ -1,6 +1,6 @@
 """Plain-text rendering of a day summary for Telegram, the CLI and MCP (spec § 7.2).
 
-Purpose    : "Sumayah's day, Mon Sep 21" then one "- time what (tracker)" line per
+Purpose    : "Robin's day, Mon Sep 21" then one "- time what (tracker)" line per
              entry, a footer for sightings left out, and the latency and
              approximate-times sentences ONCE at the end.
 Inputs     : The dict from people/day_load.day_payload (or the same JSON).

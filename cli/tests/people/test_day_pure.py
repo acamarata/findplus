@@ -22,8 +22,8 @@ DAY = date(2026, 9, 21)
 HOME = PlaceIn(1, "Home", "home", 41.1, -80.64, 150)
 SCHOOL = PlaceIn(2, "School", "school", 41.127, -80.64, 150)
 TRACKERS = (
-    TrackerIn("zr", "Zaid Shoes", "shoes", "shoes", 1.0),
-    TrackerIn("zb", "Zaid Bag", "bag", "bag", 0.5),
+    TrackerIn("zr", "Sam Shoes", "shoes", "shoes", 1.0),
+    TrackerIn("zb", "Sam Bag", "bag", "bag", 0.5),
 )
 _n = iter(range(1, 10_000))
 
@@ -46,7 +46,7 @@ def every(place: PlaceIn, a: datetime, b: datetime, minutes: int = 10) -> list[F
 
 def day_input(fixes: dict, **kw) -> DayInput:
     base = dict(
-        name="Zaid", day=DAY, tz=UTC_TZ, now=t(6, 0, day=1), stale_after_minutes=90,
+        name="Sam", day=DAY, tz=UTC_TZ, now=t(6, 0, day=1), stale_after_minutes=90,
         trackers=TRACKERS, fixes={k: tuple(v) for k, v in fixes.items()}, suspect_count=0,
         events=(), episodes=(), places=(HOME, SCHOOL),
     )  # fmt: skip

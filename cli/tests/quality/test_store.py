@@ -102,7 +102,7 @@ def test_siblings_come_from_person_groups_only(session) -> None:
     for d in ("shoes", "bag", "watch", "other"):
         upsert_device(session, d, d)
     create_group(session, name="Set", member_ids=["shoes", "bag", "other"])
-    person = create_group(session, name="Zaid", member_ids=["shoes", "bag", "watch"])
+    person = create_group(session, name="Sam", member_ids=["shoes", "bag", "watch"])
     session.execute(update(Group).where(Group.id == person.id).values(kind="person"))
     assert store.sibling_ids(session, "bag") == ["shoes", "watch"]
     assert store.sibling_ids(session, "other") == []
@@ -111,7 +111,7 @@ def test_siblings_come_from_person_groups_only(session) -> None:
 def test_sibling_disagree_through_the_database(session) -> None:
     for d in ("shoes", "bag", "watch"):
         upsert_device(session, d, d)
-    person = create_group(session, name="Zaid", member_ids=["shoes", "bag", "watch"])
+    person = create_group(session, name="Sam", member_ids=["shoes", "bag", "watch"])
     session.execute(update(Group).where(Group.id == person.id).values(kind="person"))
     _ingest(session, "shoes", [(100, 3000), (104, 3000)])
     _ingest(session, "watch", [(101, 3000), (105, 3000)])

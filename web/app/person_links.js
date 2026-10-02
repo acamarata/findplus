@@ -1,15 +1,15 @@
 /*
  * Person names that open the Person page, wherever a name is printed.
  *
- * Purpose    : Click "Zaid" on a group card, an alert rule sentence, a delivery
+ * Purpose    : Click "Sam" on a group card, an alert rule sentence, a delivery
  *              row or an arrivals line and land on `#/person/<id>`. One small
  *              module knows who the people are (GET /api/people, cached) and
  *              turns a name inside a piece of text into a real link.
  * Inputs     : The people list; a DOM node whose text may name a person.
  * Outputs    : linkPeople(node), personLink(name, id), personFor(id),
  *              refreshPeopleCache(), purgePeopleCache().
- * Constraints: Only whole-word names link, and "Zaid" inside a tracker name such
- *              as "Zaid Bag" never does (that is a tracker, not the person). Text
+ * Constraints: Only whole-word names link, and "Sam" inside a tracker name such
+ *              as "Sam Bag" never does (that is a tracker, not the person). Text
  *              is split into text nodes and anchors, never parsed as markup.
  *              Nodes marked `data-person-links` are linked again when the list
  *              arrives late. Nothing here survives a lock (purgePeopleCache).
@@ -45,7 +45,7 @@ function rebuild(list) {
   pattern = names.length ? new RegExp(`(?<![\\p{L}\\p{N}])(${names.map(escapeRe).join("|")})(?![\\p{L}\\p{N}])`, "gu") : null;
 }
 
-/** True when `text` at `index` is really a longer tracker name ("Zaid Bag"). */
+/** True when `text` at `index` is really a longer tracker name ("Sam Bag"). */
 function isTrackerName(text, index, person) {
   return person.trackers.some((tr) => tr.name.length > person.name.length && tr.name.startsWith(person.name) && text.startsWith(tr.name, index));
 }

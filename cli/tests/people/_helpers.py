@@ -1,7 +1,7 @@
 """Builders for the people scenarios (specs/people-and-presence.md § 11).
 
 Purpose    : A small synthetic world: Home, School and Grandma's, a person
-             "Zaid" with a bag, a bike and two pairs of shoes, and a timeline
+             "Sam" with a bag, a bike and two pairs of shoes, and a timeline
              builder that ingests every tracker's fixes in time order through
              the real ingest -> geofence -> person hook chain.
 Inputs     : The tmp_db-backed `session` fixture (cli/tests/conftest.py).
@@ -28,11 +28,11 @@ DAY0 = datetime(2026, 9, 21, 0, 0, tzinfo=UTC)
 HOME = (41.100000, -80.640000)
 SCHOOL = (41.127000, -80.640000)  # ~3.0 km north
 GRANDMA = (41.100000, -80.580000)  # ~5.0 km east
-ZAID = {
-    "zb": "Zaid Bag",
-    "zk": "Zaid Bike",
-    "zr": "Zaid Shoes Red",
-    "zw": "Zaid Shoes White",
+SAM = {
+    "zb": "Sam Bag",
+    "zk": "Sam Bike",
+    "zr": "Sam Shoes Red",
+    "zw": "Sam Shoes White",
 }
 
 
@@ -55,8 +55,8 @@ def seed_places(session) -> dict[str, Place]:
     return out
 
 
-def seed_person(session, name: str = "Zaid", trackers: dict[str, str] | None = None, kind="person"):
-    trackers = trackers or ZAID
+def seed_person(session, name: str = "Sam", trackers: dict[str, str] | None = None, kind="person"):
+    trackers = trackers or SAM
     for device_id, label in trackers.items():
         upsert_device(session, device_id, label, provider="test-fake", now=DAY0 - timedelta(days=1))
     group = repo.create_person(session, name=name, kind=kind, member_ids=list(trackers))
@@ -113,7 +113,7 @@ class Timeline:
 def raw(device_id: str, lat: float, lon: float, when: datetime, acc: float = 30.0):
     return RawObservation(
         device_id=device_id,
-        device_name=ZAID.get(device_id, device_id),
+        device_name=SAM.get(device_id, device_id),
         latitude_e7=round(lat * 1e7),
         longitude_e7=round(lon * 1e7),
         observed_at=when,

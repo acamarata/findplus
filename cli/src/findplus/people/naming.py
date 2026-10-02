@@ -1,6 +1,6 @@
 """Read a tracker's name: whose it is and what it is (specs/people-and-presence.md § 2).
 
-Purpose : "Zaid Shoes Red" -> owner "Zaid", role shoes, confidence high. The
+Purpose : "Sam Shoes Red" -> owner "Sam", role shoes, confidence high. The
           suggestion builder (people/suggestions.py) clusters trackers by the
           owner token this returns; nothing is ever grouped without a click.
 Inputs  : One display name (label, else provider name), never the id tail.
@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from findplus.people.roles import BRAND_ROLE_WORDS, ROLE_WORDS
 
 _SPLIT_RE = re.compile(r"[\s_\-.()/,]+")
-#: "Zaid's" -> "Zaid", "James'" -> "James".
+#: "Sam's" -> "Sam", "James'" -> "James".
 _APOSTROPHES = "'\u2019"
 _POSSESSIVE_RE = re.compile(f"(?:[{_APOSTROPHES}]s|[{_APOSTROPHES}])$", re.IGNORECASE)
 _DIGITS_RE = re.compile(r"^\d+$")
@@ -48,7 +48,7 @@ BRANDS = _words(
 #: Names commonly given to pets, plus words that say "animal". Only a guess:
 #: the preview still asks "person or pet?" for every one-token name.
 PET_WORDS = _words(
-    "dog cat puppy kitten kitty pet meong miaw meow shadow luna bella max charlie milo "
+    "dog cat puppy kitten kitty pet whiskers miaw meow shadow luna bella max charlie milo "
     "simba oreo coco mochi nala leo loki oliver tiger smokey ginger pepper buddy rocky "
     "daisy molly bailey toby zeus whiskers snowy felix garfield bruno"
 )

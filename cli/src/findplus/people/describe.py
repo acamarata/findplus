@@ -1,4 +1,4 @@
-"""The "where is Zaid now" sentence for a PersonFix (spec § 3 step 5).
+"""The "where is Sam now" sentence for a PersonFix (spec § 3 step 5).
 
 Purpose : Turn the engine's answer into plain words that never overstate it:
           "Likely at School, seen 12 min ago (shoes, bike)." / "Not sure: ..."
@@ -18,7 +18,7 @@ from findplus.people.infer import InferParams, PersonFix, PlaceRef, locate
 
 
 def labels_for(trackers, owner: str | None = None) -> dict[str, str]:
-    """device_id -> 'shoes' / 'Zaid Shoes Red' (people/messages.short_labels)."""
+    """device_id -> 'shoes' / 'Sam Shoes Red' (people/messages.short_labels)."""
     return m.short_labels([(t.device_id, t.role, t.name) for t in trackers], owner)
 
 

@@ -4,7 +4,7 @@ A short, plain-words account of one person's day, built from the sightings of th
 belong to them. Ask for it by name, pick a date, or have it sent to Telegram each evening.
 
 ```
-Zaid's day, Mon Sep 21
+Sam's day, Mon Sep 21
 
 - Overnight at Home (shoes and bag)
 - 7:40 AM left Home (shoes)
@@ -48,10 +48,10 @@ distances are approximate straight lines, not the road driven.
 ## In the terminal
 
 ```
-findplus day Zaid                        # today
-findplus day Zaid --date 2026-09-21      # one day
-findplus day Zaid --days 3 --json        # three days, as a list
-findplus day Zaid --send                 # also send it to Telegram now
+findplus day Sam                        # today
+findplus day Sam --date 2026-09-21      # one day
+findplus day Sam --days 3 --json        # three days, as a list
+findplus day Sam --send                 # also send it to Telegram now
 ```
 
 A name can be a unique start ("Za") or the person's id. `--timezone` takes an IANA zone; the
@@ -67,10 +67,10 @@ Off until you turn it on. Setting `people.digest`:
 | `time` | "20:00" | Local time, 24-hour. |
 | `people` | [] | Person ids. Empty means every person and pet. |
 | `channel` | "auto" | Telegram, the only channel that carries it today. |
-| `always_send` | false | Also send "No sightings for Zaid on this day." |
+| `always_send` | false | Also send "No sightings for Sam on this day." |
 
 ```
-findplus people digest --on --time 19:30 --person Zaid --person Amirah
+findplus people digest --on --time 19:30 --person Sam --person Jamie
 findplus people digest --all-people
 findplus people digest --off
 ```

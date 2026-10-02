@@ -31,19 +31,21 @@ def _suggestion(key: str, name: str, members: list[dict], **extra) -> dict:
 
 
 def payload() -> dict:
-    zaid = [
-        member("z1", "Zaid Bag", "bag"),
-        member("z2", "Zaid Bike", "bike"),
-        member("z3", "Zaid Shoes Red", "shoes"),
-        member("z4", "Zaid Shoes White", "shoes"),
+    sam = [
+        member("z1", "Sam Bag", "bag"),
+        member("z2", "Sam Bike", "bike"),
+        member("z3", "Sam Shoes Red", "shoes"),
+        member("z4", "Sam Shoes White", "shoes"),
     ]
-    meong = _suggestion("create:meong", "Meong", [member("m1", "Meong", "collar")], kind="pet")
-    meong.update(ask_kind=True, confidence="medium", question="Is Meong a person or a pet?")
+    whiskers = _suggestion(
+        "create:whiskers", "Whiskers", [member("m1", "Whiskers", "collar")], kind="pet"
+    )
+    whiskers.update(ask_kind=True, confidence="medium", question="Is Whiskers a person or a pet?")
     rose = _suggestion("create:rose", "Rose", [member("r1", "Rose Bag", "bag")])
     rose.update(confidence="low", flags=["owner_is_colour"])
     pixel = {"device_id": "p1", "name": "Pixel 11 Pro", "role": "phone", "confidence": None}
     return {
-        "suggestions": [_suggestion("create:zaid", "Zaid", zaid), meong, rose],
+        "suggestions": [_suggestion("create:sam", "Sam", sam), whiskers, rose],
         "unassigned": [{**pixel, "question": "Whose is this?"}],
         "new_device_ids": [],
         "dismissed_count": 0,
@@ -62,7 +64,7 @@ async def serve(page, body: dict | None = None, accept_reply: dict | None = None
     async def accept(route):
         posts.append(json.loads(route.request.post_data))
         await route.fulfill(
-            json=accept_reply or {"people": [{"id": 5, "name": "Zaid"}], "dismissed": []}
+            json=accept_reply or {"people": [{"id": 5, "name": "Sam"}], "dismissed": []}
         )
 
     await page.route("**/api/people/suggestions", suggestions)

@@ -75,9 +75,9 @@ async def test_text_linker_rules(trips_page, trips_server):
     people = [
         {
             "id": 7,
-            "name": "Zaid",
+            "name": "Sam",
             "kind": "person",
-            "trackers": [{"device_id": "x", "name": "Zaid Bag"}],
+            "trackers": [{"device_id": "x", "name": "Sam Bag"}],
         }
     ]
 
@@ -90,15 +90,15 @@ async def test_text_linker_rules(trips_page, trips_server):
         """async () => {
           const m = await import('/static/app/person_links.js');
           await m.refreshPeopleCache();
-          const cases = ['Zaid arrived at School', "Zaid's bag looks left", 'Zaid Bag left Home', 'Zaidan left', 'Seen by Zaid Bag, Zaid left'];
+          const cases = ['Sam arrived at School', "Sam's bag looks left", 'Sam Bag left Home', 'Samuel left', 'Seen by Sam Bag, Sam left'];
           return cases.map((c) => { const d = document.createElement('div'); d.textContent = c; m.linkPeople(d); return [c, d.querySelectorAll('a.person-link').length, d.textContent]; });
         }"""
     )
     got = {c: n for c, n, _ in out}
-    assert got["Zaid arrived at School"] == 1 and got["Zaid's bag looks left"] == 1
-    assert got["Zaid Bag left Home"] == 0, "a tracker named Zaid Bag is not the person"
-    assert got["Zaidan left"] == 0, "whole words only"
-    assert got["Seen by Zaid Bag, Zaid left"] == 1, "only the person is linked, not the tracker"
+    assert got["Sam arrived at School"] == 1 and got["Sam's bag looks left"] == 1
+    assert got["Sam Bag left Home"] == 0, "a tracker named Sam Bag is not the person"
+    assert got["Samuel left"] == 0, "whole words only"
+    assert got["Seen by Sam Bag, Sam left"] == 1, "only the person is linked, not the tracker"
     assert all(text == c for c, _, text in out), "the text itself never changes"
 
 

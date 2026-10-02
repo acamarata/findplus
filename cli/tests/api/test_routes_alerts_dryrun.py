@@ -18,7 +18,7 @@ LAT = 41.1
 def _obs(device_id: str, lat: float, minutes_ago: int) -> RawObservation:
     return RawObservation(
         device_id=device_id,
-        device_name="Zaid Bag",
+        device_name="Sam Bag",
         latitude_e7=round(lat * 1e7),
         longitude_e7=round(-80.1 * 1e7),
         observed_at=datetime.now(UTC) - timedelta(minutes=minutes_ago),
@@ -33,7 +33,7 @@ def client(tmp_db):
     from findplus.api import create_app
 
     with session_scope() as s:
-        upsert_device(s, "bag", "Zaid Bag")
+        upsert_device(s, "bag", "Sam Bag")
         upsert_device(s, "other", "Other Tag")
     with session_scope() as s:
         create_place(
@@ -66,8 +66,8 @@ def test_lists_the_arrival_and_the_departure_in_order(client: TestClient) -> Non
     assert res.status_code == 200
     data = res.json()
     assert [r["text"] for r in data["rows"]] == [
-        "Zaid Bag arrived at School",
-        "Zaid Bag left School",
+        "Sam Bag arrived at School",
+        "Sam Bag left School",
     ]
     assert data["would_send"] == 2 and data["held_back"] == 0
     assert data["window_hours"] == 24

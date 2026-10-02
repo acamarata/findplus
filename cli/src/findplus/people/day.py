@@ -1,6 +1,6 @@
 """The daily summary algorithm: one person, one local day, plain-words lines (spec § 7.1).
 
-Purpose    : "Sumayah's day": when she left Home, arrived at School, left again
+Purpose    : "Robin's day": when she left Home, arrived at School, left again
              and got home, plus unnamed stops of 15+ minutes, long gaps with no
              sightings, things left behind, and where she is now (today only).
 Inputs     : A DayInput (rows already loaded; see people/day_load.py).

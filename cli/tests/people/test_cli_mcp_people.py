@@ -19,8 +19,8 @@ from tests.mcp.test_server import StubClient
 def _seed():
     with session_scope() as s:
         for device_id, name in (
-            ("zb", "Zaid Bag"),
-            ("zr", "Zaid Shoes Red"),
+            ("zb", "Sam Bag"),
+            ("zr", "Sam Shoes Red"),
             ("p", "Pixel 11 Pro"),
         ):
             upsert_device(s, device_id, name, provider="test-fake")
@@ -37,11 +37,11 @@ def test_cli_suggest_accept_list_and_set_role(tmp_db):
     key = preview["suggestions"][0]["key"]
     assert preview["unassigned"][0]["name"] == "Pixel 11 Pro"
     text = runner.invoke(main, ["people", "suggest"]).output
-    assert 'Person "Zaid": bag, shoes' in text and "Pixel 11 Pro: Whose is this?" in text
+    assert 'Person "Sam": bag, shoes' in text and "Pixel 11 Pro: Whose is this?" in text
     done = runner.invoke(main, ["people", "accept", "--key", key])
-    assert done.exit_code == 0 and "Saved person Zaid" in done.output
+    assert done.exit_code == 0 and "Saved person Sam" in done.output
     listed = json.loads(runner.invoke(main, ["people", "list", "--json"]).output)
-    assert listed[0]["name"] == "Zaid" and listed[0]["now"]["text"] == "No recent sightings."
+    assert listed[0]["name"] == "Sam" and listed[0]["now"]["text"] == "No recent sightings."
     role = runner.invoke(main, ["people", "set-role", "zb", "jacket", "--weight", "0.3"])
     assert role.exit_code == 0 and "role jacket, weight 0.3" in role.output
     bad = runner.invoke(main, ["people", "set-role", "zb", "rocket"])
@@ -57,7 +57,7 @@ def test_mcp_people_tools_carry_the_caveats():
     client = StubClient(
         {
             ("GET", "/api/config"): {"notices": {"find_hub": "NOTICE"}},
-            ("GET", "/api/people"): [{"id": 1, "name": "Zaid", "trackers": []}],
+            ("GET", "/api/people"): [{"id": 1, "name": "Sam", "trackers": []}],
             ("GET", "/api/people/1/now"): {"confidence": "likely", "text": "Likely at School"},
         }
     )

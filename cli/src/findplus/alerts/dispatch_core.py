@@ -138,7 +138,7 @@ def in_cooldown(
     1.0 never retries a delivery on its own (see Delivery.status).
 
     An all-people rule covers many people, so its key also carries the
-    group: Zaid arriving must not cool down Sumayah's arrival. A left-behind
+    group: Sam arriving must not cool down Robin's arrival. A left-behind
     episode alerts once by construction and never cools down.
     """
     if rule.cooldown_minutes == 0 or isinstance(event, LeftBehindEvent):

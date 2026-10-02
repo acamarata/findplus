@@ -37,14 +37,14 @@ def test_owner_example_shoes_leave_bag_stays_at_school(session):
 
 def test_the_person_leaving_school_says_the_bag_stayed(session):
     seed_places(session)
-    zaid = seed_person(session)
+    sam = seed_person(session)
     _bag_stays_at_school(Timeline()).ingest(session)
     from findplus.db.models import GroupPlaceEvent
 
     exit_school = (
-        session.query(GroupPlaceEvent).filter_by(group_id=zaid.id, place_id=2, event_type="EXIT")
+        session.query(GroupPlaceEvent).filter_by(group_id=sam.id, place_id=2, event_type="EXIT")
     ).one()
-    assert exit_school.note == "Zaid's bag stayed at School."
+    assert exit_school.note == "Sam's bag stayed at School."
     assert exit_school.lead_device_id == "zr"
 
 
@@ -77,13 +77,13 @@ def test_sibling_carries_the_bag_gives_no_person_exit(session):
     """Only the bag moves: 0.5 x 2 = 1.0 against the parked shoes, shoes and bike;
     `unsure` never moves person state and never opens an episode."""
     seed_places(session)
-    zaid = seed_person(session)
+    sam = seed_person(session)
     tl = Timeline()
     overnight(tl, ["zr", "zb", "zk", "zw"], end=at(9, 0))
     tl.walk(["zb"], HOME, SCHOOL, at(9, 0), at(9, 30))
     tl.stay(["zr", "zk", "zw"], HOME, at(9, 5), at(9, 30), every=5)
     tl.ingest(session)
-    assert person_events(session, zaid.id) == []
+    assert person_events(session, sam.id) == []
     assert session.query(LeftBehind).filter(LeftBehind.state == "left_behind").count() == 0
 
 
@@ -91,10 +91,10 @@ def test_dismiss_silences_that_tracker_at_that_place_for_the_day(session):
     from findplus.people.left_behind import dismiss
 
     places = seed_places(session)
-    zaid = seed_person(session)
+    sam = seed_person(session)
     _bag_stays_at_school(Timeline()).ingest(session)
     row = _school_episodes(session, places["School"].id)[0]
-    dismiss(session, zaid.id, row.id, now=at(18, 5))
+    dismiss(session, sam.id, row.id, now=at(18, 5))
     Timeline().stay(["zb"], SCHOOL, at(18, 20), at(19, 0)).stay(
         ["zr"], HOME, at(18, 20), at(19, 0)
     ).ingest(session)

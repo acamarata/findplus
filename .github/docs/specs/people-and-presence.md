@@ -7,9 +7,9 @@ inference; [Guessing] = assumption to verify.
 
 | # | Ask | Answer in this spec |
 |---|---|---|
-| 1 | Group "Zaid Bag/Bike/Shoes Red/Shoes White" by name | §2 naming suggestions, always previewed, never silent |
+| 1 | Group "Sam Bag/Bike/Shoes Red/Shoes White" by name | §2 naming suggestions, always previewed, never silent |
 | 2 | Track the person, not one tracker | §3 inference: movement beats stillness, carry weights break ties |
-| 3 | New places notify arrive and leave, Telegram, "Zaid arrived at Grandma's" | §5 person events + default rule per place + one-click backfill |
+| 3 | New places notify arrive and leave, Telegram, "Sam arrived at Grandma's" | §5 person events + default rule per place + one-click backfill |
 | 4 | 4:17 here, 4:18 far away, 4:19 back: bad fix | §6 quality flags; today's filter misses this case (see §6.1) |
 | 5 | Best durable format? | §9 SQLite in WAL is right; add backups, checks, restore, full export |
 | 6 | "There 13:00 until 17:00", travel vs stay, Home is special | §7 day summary over the existing trips engine |
@@ -17,7 +17,7 @@ inference; [Guessing] = assumption to verify.
 | 8 | Per-person day summary in app and Telegram | §7 API/CLI/MCP/digest, §8 Person page |
 
 Pushback up front:
-- "Zaid has **just** left Home" overstates: alerts are often 10 to 40 minutes late (`honesty.ALERTS_LATENCY`).
+- "Sam has **just** left Home" overstates: alerts are often 10 to 40 minutes late (`honesty.ALERTS_LATENCY`).
   "Just" only when the sighting is under 10 minutes old at send time; otherwise the time (§5.4, Q2).
 - Inferring one person from several trackers strains invariant 5 ("never merged across devices"). It holds only
   if the map keeps one line per tracker and every summary line names its tracker. This spec does both (Q1).
@@ -100,36 +100,36 @@ New ORM classes go in `db/models_people.py`: `db/models.py` is 287 lines [Certai
 Input: every visible device's display name (`labels.display_name`: label, else provider name).
 
 1. Normalise: NFKC, casefold, strip diacritics for matching only; split on whitespace, `_ - . ( ) /`; turn
-   possessives into the bare token (`Zaid's` -> `zaid`); keep original casing for display.
+   possessives into the bare token (`Sam's` -> `sam`); keep original casing for display.
 2. Classify tokens: role vocabulary (`pixel iphone galaxy phone mobile` -> phone; `watch fitbit` -> watch;
    `shoe shoes sneaker sneakers trainers boots` -> shoes; `bag backpack schoolbag satchel purse` -> bag;
    `key keys keyring` -> keys; `wallet`; `bike bicycle scooter`; `car van`; `jacket coat`; `ipad tablet tab`;
    `laptop macbook`; `suitcase luggage`; `collar` -> collar), modifiers (colours, `pro max plus ultra mini`,
    digits, `8a`-style model codes, ordinals), and candidate owner tokens (everything else, length >= 2).
-3. Owner token: the first candidate token; a parenthetical `Bag (Zaid)` or trailing `Bag Zaid` also counts.
+3. Owner token: the first candidate token; a parenthetical `Bag (Sam)` or trailing `Bag Sam` also counts.
 4. Cluster by exact owner token (after normalisation). No fuzzy matching: `Ali` and `Alia` stay apart.
-5. Suggestion confidence: **high** owner token + role word ("Zaid Bag"); **medium** owner token only
-   ("Zaid 2"); **low** the owner token is also a colour or brand ("Rose Bag", "Red Keys"), flagged in the preview.
-6. Roles: the role word sets `devices.role` in the preview ("Zaid Shoes Red" -> shoes).
+5. Suggestion confidence: **high** owner token + role word ("Sam Bag"); **medium** owner token only
+   ("Sam 2"); **low** the owner token is also a colour or brand ("Rose Bag", "Red Keys"), flagged in the preview.
+6. Roles: the role word sets `devices.role` in the preview ("Sam Shoes Red" -> shoes).
 
 Worked cases:
 
 | names | suggestion |
 |---|---|
-| Zaid Bag, Zaid Bike, Zaid Shoes Red, Zaid Shoes White | Person "Zaid": bag, bike, shoes, shoes (high) |
+| Sam Bag, Sam Bike, Sam Shoes Red, Sam Shoes White | Person "Sam": bag, bike, shoes, shoes (high) |
 | Ali Pixel 8a, Ali Keys | Person "Ali": phone, keys (high) |
-| Meong; Shadow | One token, no role word: "Is Meong a person or a pet?" (pet -> collar 1.0) |
+| Whiskers; Shadow | One token, no role word: "Is Whiskers a person or a pet?" (pet -> collar 1.0) |
 | Pixel 11 Pro | No owner token: listed under "Whose is this?" with a person picker; role phone |
 | Ali Pixel 8a twice | Both join Ali; `device_labels.unique_names` keeps them apart in text [Certain] |
 
 Collisions: a same-named group (case-insensitive, like `groups/repo._name_taken` [Certain]) becomes "Turn group
-Zaid into a person". A device already in a person is never moved. Dismissals persist in setting `people.dismissed`.
+Sam into a person". A device already in a person is never moved. Dismissals persist in setting `people.dismissed`.
 
 Re-run: a new device row (`upsert_device` [Certain]) marks suggestions dirty; the dashboard then shows
-"New tracker Zaid Helmet looks like Zaid's. Add it?" Nothing is grouped without a click.
+"New tracker Sam Helmet looks like Sam's. Add it?" Nothing is grouped without a click.
 `GET /api/people/suggestions` is a pure preview; `POST /api/people/suggestions/accept` takes the edited body.
 
-## 3. Person location inference ("where is Zaid now")
+## 3. Person location inference ("where is Sam now")
 
 Pure function `people/infer.py: infer(members, now, params) -> PersonFix`. Inputs per member: last two
 non-suspect fixes, role weight, place_states. No DB, no clock, tz-aware `now` (same contract as presence.py).
@@ -141,7 +141,7 @@ non-suspect fixes, role weight, place_states. No DB, no clock, tz-aware `now` (s
    - `f_motion`: 2.0 "carried" when two consecutive non-suspect fixes in the last 6 h are more than
      `max(150 m, 2 x accuracy)` apart; 0.4 "parked" when it has not moved for 6 h; 1.0 when there are too few
      fixes to tell. **Trackers do not move on their own; a moved tracker was carried. A parked one proves little.**
-   - Worked: Zaid leaves at 7:40. Shoes Red carried 0.8 x 2 = 1.6; bag, bike, Shoes White parked at Home
+   - Worked: Sam leaves at 7:40. Shoes Red carried 0.8 x 2 = 1.6; bag, bike, Shoes White parked at Home
      (0.5 + 0.4 + 0.8) x 0.4 = 0.68. B/R = 2.35, so `likely` away from Home. At School by noon the shoes still
      count as carried (moved within 6 h), so the answer stays `likely` at School.
    - `f_acc`: 1.0 at <= 100 m, 0.7 at <= 300 m, 0.4 beyond (missing accuracy = 100 m, as presence.py does).
@@ -175,8 +175,8 @@ fixes. Hysteresis: one contrary fix resets `apart_pending`, never a confirmed ro
 
 Alert once per episode. Setting `people.left_behind_alerts` (Q4): on at non-home places and unnamed spots, off at
 `home` (a bike in the garage is normal). Sent on the channels of the rules that cover that person; logged in
-`alert_deliveries` with `event_kind='left_behind'`. Text: "Zaid's bag looks left at School. Last seen there at
-3:02 PM; Zaid's shoes were seen near Home at 3:40 PM."
+`alert_deliveries` with `event_kind='left_behind'`. Text: "Sam's bag looks left at School. Last seen there at
+3:02 PM; Sam's shoes were seen near Home at 3:40 PM."
 
 Clear when the tracker moves (`carried`), the person's best cluster returns within the anchor radius (`rejoined`), the
 tracker goes stale (`stale`, shown as "no recent sighting", never "still left behind"), or the owner taps
@@ -184,7 +184,7 @@ tracker goes stale (`stale`, shown as "no recent sighting", never "still left be
 
 False positives handled by construction: everyone asleep at Home or all at School: one cluster, no episode. Second pair of shoes: stays home, where
 alerts are off; chip only. Sibling carries the bag: the bag moves, heavier trackers stay, so it is "moved without
-Zaid" (chip, no alert). Phone battery dies: it goes stale and drops out; what still reports places the person.
+Sam" (chip, no alert). Phone battery dies: it goes stale and drops out; what still reports places the person.
 
 ## 5. Person events (arrived / left)
 
@@ -227,12 +227,12 @@ the chosen channel named. Backfill: the Alerts tab shows "3 places have no arriv
 
 ### 5.4 Message templates (`people/messages.py`, through `web/locales/en.json` keys `people.msg.*`)
 ```
-Zaid arrived at Grandma's at 4:12 PM          (or "Zaid just arrived at Grandma's" when < 10 min old)
-Seen by Zaid Shoes Red · reported 4:31 PM · 19 min late
-Zaid's bag stayed at Home.                    (only when a tracker is apart)
+Sam arrived at Grandma's at 4:12 PM          (or "Sam just arrived at Grandma's" when < 10 min old)
+Seen by Sam Shoes Red · reported 4:31 PM · 19 min late
+Sam's bag stayed at Home.                    (only when a tracker is apart)
 <honesty.ALERTS_LATENCY, verbatim, never truncated>
 ```
-"Zaid left Home at 7:40 AM" for EXIT. Times are local with the zone abbreviation, built by the existing
+"Sam left Home at 7:40 AM" for EXIT. Times are local with the zone abbreviation, built by the existing
 `dispatch_core._fmt_local_time` [Certain]. Probably-level events add "(probably; only the bag reported)".
 `render_message` gets a `basis == 'person'` branch in a new `alerts/render_person.py` (dispatch_core is 290
 lines [Certain]).
@@ -319,7 +319,7 @@ hash-routed like `#places` in `main.js` [Certain].
   map and story on its moment.
 - Map: one line per tracker (never merged), stays sized by dwell, suspect fixes faint. Day story: reuse
   `trips_view.js` lanes, lead tracker first.
-- Trackers: role icon, name, weight, chip `carried` / `left at School` / `moved without Zaid` /
+- Trackers: role icon, name, weight, chip `carried` / `left at School` / `moved without Sam` /
   `no recent sighting`; tap to edit role or weight. Actions: Send today's summary, Notify me, Edit, Full map.
 - States: loading, empty day, partial, error, locked (purge like `purgeStory()`), offline; 375/768/1280,
   light/dark, reduced motion, keyboard.
@@ -359,7 +359,7 @@ SQLCipher (FileVault covers disk theft, as `LOCK_NOT_ENCRYPTION` says), cloud sy
 ## 10. Owner's live-instance setup plan (runs from their data, invents nothing)
 
 1. Back up first (`findplus db backup`, new). Nothing touches the live DB before that.
-2. Preview §2 over the real names. Expected from the request: Zaid (4), Ali (2), Sumayah, Meong and Shadow as
+2. Preview §2 over the real names. Expected from the request: Sam (4), Ali (2), Robin, Whiskers and Shadow as
    person-or-pet questions, "Pixel 11 Pro" under "Whose is this?". The owner accepts or edits.
 3. Home: if a place named Home exists, set `kind=home`. If none, suggest the densest overnight dwell cluster
    (00:00 to 05:00 local, last 14 days, non-suspect fixes of the owner's phone-role trackers) with radius
@@ -370,7 +370,7 @@ SQLCipher (FileVault covers disk theft, as `LOCK_NOT_ENCRYPTION` says), cloud sy
    8:10 AM to 3:00 PM on weekdays. Name it?" Kind guessed from the pattern (weekday daytime -> school/work).
 5. Default rules: for every place the owner names or confirms, the §5.3 rule; Telegram is chosen automatically if
    it is the only connected channel. Existing places get the backfill banner.
-6. Digest off; the Person page offers "Send Zaid's day to Telegram at 8 PM" as a one-tap opt-in.
+6. Digest off; the Person page offers "Send Sam's day to Telegram at 8 PM" as a one-tap opt-in.
 7. Dry run: replay the last 7 days into scratch state and show the messages it would have sent, with a daily
    count (`alerts/dryrun.py` pattern [Certain]). The owner reads them, then turns alerts on.
 
@@ -378,11 +378,11 @@ SQLCipher (FileVault covers disk theft, as `LOCK_NOT_ENCRYPTION` says), cloud sy
 
 | name | proves |
 |---|---|
-| `zaid_school_day` | 4 trackers home overnight, shoes+bag leave 7:40, arrive school 8:10, leave 15:00, home 15:33: exactly 4 person events, summary has those 4 lines |
+| `sam_school_day` | 4 trackers home overnight, shoes+bag leave 7:40, arrive school 8:10, leave 15:00, home 15:33: exactly 4 person events, summary has those 4 lines |
 | `bag_left_at_school` | bag stays at school, shoes go home: one `left_behind` at 15:20, one alert, cleared next morning when the bag moves |
 | `sleeping_household` | all trackers still at Home 22:00 to 07:00: zero events, zero left-behind |
 | `second_pair_of_shoes` | white shoes stay home daily: no alert (home default off), chip only |
-| `sibling_carries_bag` | bag moves alone: no person EXIT, chip "moved without Zaid" |
+| `sibling_carries_bag` | bag moves alone: no person EXIT, chip "moved without Sam" |
 | `phone_dies` | phone stale at 11:00: still placed by watch; text names the stale phone |
 | `four_trackers_one_arrival` | all 4 cross Grandma's within 3 min: one `group_place_events` row, one Telegram message |
 | `owner_teleport_417` | V1: no ENTER/EXIT, no trip, flagged faint, summary footer counts 1 |
@@ -416,10 +416,10 @@ person raises "which event wins?". For: eight existing features come free, and e
 conversion. Mitigation: `kind` checks live in two places only (`groups/events.py` skip, `people/` engine); the
 trigger keeps one person per tracker. Verdict: group with kind. Revisit if persons gain fields groups never need.
 
-**Wrong inference hurts.** "Zaid left" when only the bag moved is the worst failure. Motion needs two fixes. A
-sibling carrying the bag (0.5 x 2 = 1.0) against Zaid's parked shoes, shoes and bike (0.8) gives B/R 1.25, so
-`unsure`, and `unsure` never fires. A sibling wearing Zaid's shoes WOULD produce a false "Zaid left"; nothing in
-this data can tell. Every message names its tracker ("Seen by Zaid Bag") and spells out "probably".
+**Wrong inference hurts.** "Sam left" when only the bag moved is the worst failure. Motion needs two fixes. A
+sibling carrying the bag (0.5 x 2 = 1.0) against Sam's parked shoes, shoes and bike (0.8) gives B/R 1.25, so
+`unsure`, and `unsure` never fires. A sibling wearing Sam's shoes WOULD produce a false "Sam left"; nothing in
+this data can tell. Every message names its tracker ("Seen by Sam Bag") and spells out "probably".
 
 **Weights are made up.** They are. The override and the dry-run replay (§10.7) are the answer.
 
@@ -447,4 +447,4 @@ crossing, settle time, Home left-behind off, presets (Q3), and the dry-run shows
 5. Quiet hours (hold or drop night alerts)? Default: none in this release.
 6. Daily Telegram digest: off until turned on per person, 20:00 local? Default: yes.
 7. `synchronous=FULL` and daily automatic backups (7 daily, 4 weekly) in `~/.findplus/backups`? Default: yes.
-8. Pets (Meong, Shadow) as persons of kind `pet` with the same alerts? Default: yes, alerts off by default.
+8. Pets (Whiskers, Shadow) as persons of kind `pet` with the same alerts? Default: yes, alerts off by default.

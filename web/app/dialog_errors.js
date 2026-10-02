@@ -32,7 +32,7 @@ const QUOTED_NAME = /'([^']*)'/;
 /** `catalogKey` gets `{name}` substituted; e.g. "groups.error.duplicate_name".
  * `typedName`, when the caller has it, wins over the quoted text: Python's repr
  * switches to double quotes for a name with an apostrophe and the pattern
- * below then reads "s and Zaid" out of "Ali's and Zaid's". */
+ * below then reads "s and Sam" out of "Ali's and Sam's". */
 export function duplicateNameMessage(err, catalogKey, typedName) {
   if (err.status !== 409) return null;
   if (typedName) return t(catalogKey, { name: typedName });

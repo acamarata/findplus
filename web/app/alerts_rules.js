@@ -60,7 +60,7 @@ function cell(text, label) {
   return td;
 }
 /** The rule's name, with the rule in plain words under it ("Tell me on Telegram
- *  when Zaid Bag leaves School."), so the table reads without decoding ticks. */
+ *  when Sam Bag leaves School."), so the table reads without decoding ticks. */
 function nameCell(rule) {
   const td = document.createElement("td");
   td.dataset.label = t("alerts.colName");

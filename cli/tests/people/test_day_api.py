@@ -26,7 +26,7 @@ def test_day_shape_and_lines(client):
         "person", "date", "timezone", "now", "heading", "lines", "left_behind", "suspect_count",
         "suspect_text", "gaps", "trackers", "lead_device_id", "empty", "label",
     }  # fmt: skip
-    assert body["person"] == {"id": pid, "name": "Zaid"} and body["date"] == "2026-09-21"
+    assert body["person"] == {"id": pid, "name": "Sam"} and body["date"] == "2026-09-21"
     assert body["timezone"] == "UTC" and body["now"] is None  # a past day has no "now"
     assert [x["text"] for x in body["lines"]] == LINES
     assert body["label"] == honesty.TRIPS_APPROXIMATE
@@ -77,7 +77,7 @@ def test_send_posts_a_clean_list_with_the_notices_once(client, monkeypatch):
     text = fake.sent[0][0]
     assert text == body["text"]
     head, *rest = text.split("\n")
-    assert head == "Zaid's day, Mon Sep 21" and rest[0] == ""
+    assert head == "Sam's day, Mon Sep 21" and rest[0] == ""
     assert rest[1].startswith("- Overnight at Home (") and rest[1].endswith(" more)")
     assert any(x.startswith("- 7:40 AM left Home (") for x in rest)
     assert text.count(honesty.ALERTS_LATENCY) == 1 and text.count(honesty.TRIPS_APPROXIMATE) == 1
@@ -110,4 +110,4 @@ def test_day_routes_401_while_locked_and_leak_nothing(locked_client):
     ):
         resp = getattr(locked_client, method)(path)
         assert resp.status_code == 401, (path, resp.status_code)
-        assert "Zaid" not in resp.text and "people.digest" not in resp.text
+        assert "Sam" not in resp.text and "people.digest" not in resp.text

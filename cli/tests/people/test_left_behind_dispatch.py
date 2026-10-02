@@ -19,7 +19,7 @@ def _rule(rid, channels, group_id=None, all_people=False, enabled=True):
 
 
 def _event(group_id=1):
-    return LeftBehindEvent(7, group_id, "Zaid", "zb", "Zaid Bag", "bag", 2, "School", at(15), None)
+    return LeftBehindEvent(7, group_id, "Sam", "zb", "Sam Bag", "bag", 2, "School", at(15), None)
 
 
 def test_each_channel_is_used_once_under_the_lowest_rule():
@@ -47,8 +47,8 @@ def test_retry_and_the_delivery_log_render_the_same_left_behind_text(session, pi
     text, body = batch_delivery_text_bodies(session, [("left_behind", row.id)])[
         ("left_behind", row.id)
     ]
-    assert text.startswith("Zaid's bag looks left at School.")
-    assert "Zaid was last seen near Home" in body
+    assert text.startswith("Sam's bag looks left at School.")
+    assert "Sam was last seen near Home" in body
     assert left_behind_by_ids(session, []) == {}
     assert group_events_by_ids(session, []) == {}
     assert _load_event(session, "left_behind", 999) is None

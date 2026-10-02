@@ -133,8 +133,8 @@ final class ModelTests: XCTestCase {
     // read `name` raw even when the tag had a label.
     func testDisplayNamePrefersTheLabel() {
         var d = device(ageMinutes: 0)
-        d.label = "Omar's backpack"
-        XCTAssertEqual(d.displayName, "Omar's backpack")
+        d.label = "Noor's backpack"
+        XCTAssertEqual(d.displayName, "Noor's backpack")
     }
 
     func testDisplayNameFallsBackToNameWithNoLabel() {
@@ -185,11 +185,11 @@ final class ModelTests: XCTestCase {
         {"device_id":"d1","name":"Pebblebee Clip","provider":"google-find-hub",
          "last_observed_at":"2026-01-01T00:00:00Z","age_minutes":0,
          "latitude":0,"longitude":0,"place":null,"group":null,
-         "label":"Omar's backpack"}
+         "label":"Noor's backpack"}
         """
         let device = try JSONDecoder().decode(WidgetDevice.self, from: Data(json.utf8))
-        XCTAssertEqual(device.label, "Omar's backpack")
-        XCTAssertEqual(device.displayName, "Omar's backpack")
+        XCTAssertEqual(device.label, "Noor's backpack")
+        XCTAssertEqual(device.displayName, "Noor's backpack")
     }
 
     /// R-P2-23: a 1.0.x/1.1-pre daemon never sent `label` at all.

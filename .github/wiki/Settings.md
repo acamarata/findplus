@@ -75,7 +75,7 @@ day to send; **Send now** sends today. The message is words only, with no coordi
 the chat you chose, so anyone who reads that chat reads it. Turning the last person off turns the
 summary off.
 
-The left-behind switch controls whether "Zaid's bag looks left at School" becomes an alert. It
+The left-behind switch controls whether "Sam's bag looks left at School" becomes an alert. It
 never fires at a Home place.
 
 The backup line shows the time of the newest backup and how many are kept. **Back up now** takes a

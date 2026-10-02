@@ -10,7 +10,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - Adding a place now ends with "who should be told, and where": the alert-rule dialog opens with the
   new place chosen. A place with no rule says "Not notifying anyone yet" in the Places list, with a
   Set up an alert button.
-- The rule dialog writes the rule in plain words ("Tell me on Telegram when Zaid Bag leaves
+- The rule dialog writes the rule in plain words ("Tell me on Telegram when Sam Bag leaves
   School."), lists what Save still needs, explains how a group decides, says why a channel is greyed
   out, can send a real test message to the ticked channels, and shows what the rule would have sent
   in the last 24 hours (`POST /api/alerts/rules/dry-run`, read-only).
@@ -46,15 +46,15 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - `findplus export --format jsonl` and `findplus import FILE`: a full-fidelity, human-readable
   export of devices, observations, places, groups (with kinds and members) and alert rules.
 
-- People and pets. Find+ suggests people from tracker names ("Zaid Bag", "Zaid Bike", "Zaid Shoes
-  Red" become Zaid), always as a preview you accept, edit or dismiss; one-word names ask "person or
+- People and pets. Find+ suggests people from tracker names ("Sam Bag", "Sam Bike", "Sam Shoes
+  Red" become Sam), always as a preview you accept, edit or dismiss; one-word names ask "person or
   pet?" and nameless trackers ask "Whose is this?". `GET /api/people/suggestions`,
   `findplus people suggest|accept|list|set-role`, and MCP tools to match.
 - Where a person probably is, from the trackers that are actually carried, in plain words: likely,
   probably, not sure, or no recent sightings (`GET /api/people/{id}/now`).
-- One alert per person crossing, naming the tracker that saw it: "Zaid just arrived at Grandma's"
+- One alert per person crossing, naming the tracker that saw it: "Sam just arrived at Grandma's"
   only when the sighting is under 10 minutes old, otherwise the time.
-- Left-behind trackers: "Zaid's bag looks left at School", once per episode, never at Home.
+- Left-behind trackers: "Sam's bag looks left at School", once per episode, never at Home.
 - Every new place gets an arrive and leave rule for everyone on your connected channel;
   `POST /api/places/notify-defaults` adds it to existing places, with a dry run first.
 - Places have a kind (home, school, work, family, shop, other), guessed from the name.
@@ -62,7 +62,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
   alert rule sentence, the delivery log or the arrivals list. It shows where they probably are now,
   a day bar (arrows, date picker, Today, left and right keys), the day summary with each line
   focusing the map and the day story, one map line and one lane per tracker (best sighting first),
-  each tracker's role, weight and chip (carried, left at School, moved without Zaid, no recent
+  each tracker's role, weight and chip (carried, left at School, moved without Sam, no recent
   sighting), Send today's summary, Notify me, Edit person and Full map. Loading, empty day,
   partial, error with Retry, offline and locked are all handled; a lock leaves no name or place.
 - "We found people in your trackers": a panel on the Groups tab, a dashboard banner and the wizard's
@@ -76,11 +76,11 @@ Versioning: [Semantic Versioning](https://semver.org/).
   `GET /api/alerts/rules` carries `all_people`.
 - Sightings that look wrong are drawn faintly in a dashed ring with the reason on hover, behind a
   "Show sightings that look wrong" box (on by default), and add nothing to a day's distance.
-- The dashboard says "Zaid's bag looks left at School since 3:00 PM", admits it is a guess, and has
+- The dashboard says "Sam's bag looks left at School since 3:00 PM", admits it is a guess, and has
   "I know". Settings gains the daily summary (on/off, time, channel, per person, Send now), the
   left-behind switch, and a backup line with Back up now (`GET /api/settings/backup`,
   `POST /api/settings/backup/now`).
-- A daily summary for each person ("Zaid's day"): when they left Home, arrived at School, left
+- A daily summary for each person ("Sam's day"): when they left Home, arrived at School, left
   again and got home, stops of 15 minutes or more away from saved places, long gaps with no
   sightings, trackers left behind, and where they are now. Every line names the tracker that backs
   it, a time reads "around" when the sightings that bound it are over 10 minutes apart, and "still

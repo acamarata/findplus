@@ -1,4 +1,4 @@
-"""people/infer.py and people/describe.py: the pure "where is Zaid now" engine (spec § 3)."""
+"""people/infer.py and people/describe.py: the pure "where is Sam now" engine (spec § 3)."""
 
 from __future__ import annotations
 
@@ -82,7 +82,7 @@ def test_sibling_carrying_the_bag_is_unsure_and_names_both_sides():
     assert "School" in text and "Home" in text
 
 
-def test_known_limit_a_sibling_wearing_zaids_shoes_reads_as_zaid():
+def test_known_limit_a_sibling_wearing_sams_shoes_reads_as_sam():
     """Spec § 13: nothing in this data can tell; the alert names its tracker instead."""
     fix = infer(
         [
@@ -112,7 +112,7 @@ def test_stale_data_never_claims_certainty():
     fix = infer(members, PLACES, NOW)
     assert fix.confidence == "unknown"
     assert fix.lat is None and fix.relation == "near"
-    trackers = [Tracker("bag", "Zaid Bag", "bag", "name", None, 0.5)]
+    trackers = [Tracker("bag", "Sam Bag", "bag", "name", None, 0.5)]
     text = now_text(fix, trackers, PLACES, NOW)
     assert text.startswith("No recent sightings. Last seen near Home at ")
     assert "Likely" not in text and " is at " not in text
@@ -133,7 +133,7 @@ def test_unnamed_spot_is_measured_from_home():
     far = (41.20, -80.64)  # ~11 km north of Home
     fix = infer([member("w", "watch", 1.0, carried(HOME, far))], PLACES, NOW)
     assert fix.relation == "spot" and fix.reference_place == "Home"
-    trackers = [Tracker("w", "Zaid Watch", "watch", "name", None, 1.0)]
+    trackers = [Tracker("w", "Sam Watch", "watch", "name", None, 1.0)]
     assert "an unnamed spot, 11.1 km from Home" in now_text(fix, trackers, PLACES, NOW)
 
 

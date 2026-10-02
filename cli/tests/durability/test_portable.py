@@ -91,7 +91,7 @@ def test_kinds_roles_members_and_rule_fields_survive(session) -> None:
     shoes = session.get(m.Device, "d-shoes")
     assert (shoes.role, shoes.carry_weight, shoes.label) == ("shoes", 0.9, "Red shoes")
     kinds = {g.name: g.kind for g in session.scalars(select(m.Group))}
-    assert kinds == {"Zaid": "person", "Family": "set"}
+    assert kinds == {"Sam": "person", "Family": "set"}
     members = {
         g.name: sorted(
             d
@@ -101,7 +101,7 @@ def test_kinds_roles_members_and_rule_fields_survive(session) -> None:
         )
         for g in session.scalars(select(m.Group))
     }
-    assert members == {"Zaid": ["d-bag", "d-shoes"], "Family": ["d-phone", "d-shoes"]}
+    assert members == {"Sam": ["d-bag", "d-shoes"], "Family": ["d-phone", "d-shoes"]}
     assert {p.name: p.kind for p in session.scalars(select(m.Place))} == {
         "Home": "home",
         "School": "school",

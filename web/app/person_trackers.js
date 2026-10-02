@@ -12,7 +12,7 @@
  *              on Save.
  * Constraints: createElement/textContent only. A chip says what was seen, never
  *              more: "Left at School" appears only for a confirmed or pending
- *              left-behind episode, "Moved without Zaid" only when the tracker
+ *              left-behind episode, "Moved without Sam" only when the tracker
  *              moved and the rest of the person's trackers disagree.
  */
 "use strict";

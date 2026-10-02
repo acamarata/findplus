@@ -56,7 +56,7 @@ def test_not_due_before_the_set_time_then_sent_once(world):
     assert [(o.status, o.target) for o in out] == [("sent", "42")]
     assert len(fake.sent) == 1 and runs() == [("2026-09-21", "42", "sent")]
     text = fake.sent[0][0]
-    assert text.startswith("Zaid's day, Mon Sep 21") and "- 7:40 AM left Home" in text
+    assert text.startswith("Sam's day, Mon Sep 21") and "- 7:40 AM left Home" in text
     assert text.count(honesty.ALERTS_LATENCY) == 1
     for minute in (1, 2, 30):  # later ticks the same evening never resend
         assert sched.tick(at(20, minute)) == []
@@ -142,7 +142,7 @@ def test_always_send_says_nothing_was_tracked(world):
     turn_on(always_send=True)
     fake = FakeChannel()
     make(fake).tick(at(20, 0, day=3))
-    assert len(fake.sent) == 1 and "No sightings for Zaid on this day." in fake.sent[0][0]
+    assert len(fake.sent) == 1 and "No sightings for Sam on this day." in fake.sent[0][0]
 
 
 def test_no_connected_chat_holds_quietly(tmp_db):
@@ -157,13 +157,13 @@ def test_only_the_chosen_people_get_a_summary(world):
     with session_scope() as s:
         from ._helpers import seed_person
 
-        other = seed_person(s, "Amirah", {"am": "Amirah"})
+        other = seed_person(s, "Jamie", {"am": "Jamie"})
         other_id = other.id
     turn_on(people=[other_id])
     fake = FakeChannel()
     out = make(fake).tick(at(20, 0))
     assert [(o.person_id, o.status) for o in out] == [(other_id, "skipped")]
-    assert fake.sent == []  # Amirah had nothing tracked; Zaid was not chosen
+    assert fake.sent == []  # Jamie had nothing tracked; Sam was not chosen
 
 
 def test_a_crash_mid_send_is_never_resent(world):

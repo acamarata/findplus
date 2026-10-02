@@ -69,9 +69,9 @@ def test_cli_shows_and_changes_the_digest(tmp_db):
     assert shown.exit_code == 0 and shown.output.strip() == (
         "Evening summary: off, 20:00, for everyone, via auto."
     )
-    out = run(main, ["people", "digest", "--on", "--time", "19:30", "--person", "zaid"])
+    out = run(main, ["people", "digest", "--on", "--time", "19:30", "--person", "sam"])
     assert out.exit_code == 0, out.output
-    assert out.output.strip() == "Evening summary: on, 19:30, for Zaid, via auto."
+    assert out.output.strip() == "Evening summary: on, 19:30, for Sam, via auto."
     data = json.loads(run(main, ["people", "digest", "--json", "--always-send"]).output)
     assert data == {
         **DEFAULT,

@@ -41,9 +41,9 @@ def _school_day_local(day: date) -> Timeline:
 )
 def test_dst_day_runs_by_local_midnight(session, day, hours):
     seed_places(session)
-    zaid = seed_person(session)
+    sam = seed_person(session)
     _school_day_local(day).ingest(session)
-    payload = day_payload(session, zaid, day, NY, local(date.fromordinal(day.toordinal() + 2), 6))
+    payload = day_payload(session, sam, day, NY, local(date.fromordinal(day.toordinal() + 2), 6))
     assert texts(payload)[1:] == [
         "7:40 AM left Home",
         "8:10 AM arrived at School",
@@ -67,26 +67,26 @@ def test_dst_day_runs_by_local_midnight(session, day, hours):
 def test_dst_day_leaves_the_next_days_first_sightings_out(session):
     day = date(2026, 3, 8)
     seed_places(session)
-    zaid = seed_person(session)
+    sam = seed_person(session)
     _school_day_local(day).ingest(session)
     Timeline().stay(
         ALL, HOME, local(date(2026, 3, 9), 0, 5), local(date(2026, 3, 9), 0, 40), every=5
     ).ingest(session)
-    payload = day_payload(session, zaid, day, NY, local(date(2026, 3, 10), 6))
+    payload = day_payload(session, sam, day, NY, local(date(2026, 3, 10), 6))
     zr = next(t for t in payload["trackers"] if t["device_id"] == "zr")
     assert zr["last_at"] == "2026-03-09T03:43:00Z"  # 23:43 EDT, not the 00:40 EDT that follows
-    nxt = day_payload(session, zaid, date(2026, 3, 9), NY, local(date(2026, 3, 10), 6))
+    nxt = day_payload(session, sam, date(2026, 3, 9), NY, local(date(2026, 3, 10), 6))
     assert texts(nxt)[0] == "Overnight at Home"
 
 
 def test_a_teleport_sighting_is_left_out_and_counted(session):
     far = (HOME[0] + 3.75, HOME[1])  # about 417 km away, for one sighting
     seed_places(session)
-    zaid = seed_person(session)
+    sam = seed_person(session)
     tl = Timeline().stay(ALL, HOME, at(0, 0), at(9, 0), every=10)
     tl.add("zr", far, at(8, 5)).ingest(session)
     recompute(session, now=at(12, 0))
-    payload = summary(session, zaid)
+    payload = summary(session, sam)
     assert payload["suspect_count"] == 1
     assert payload["suspect_text"] == "1 sighting looked wrong and was left out."
     assert texts(payload) == ["Overnight at Home", "Seen at Home through 9:00 AM"]
@@ -98,9 +98,9 @@ def test_a_teleport_sighting_is_left_out_and_counted(session):
 
 def test_no_suspect_sightings_means_no_footer_sentence(session):
     seed_places(session)
-    zaid = seed_person(session)
+    sam = seed_person(session)
     Timeline().stay(ALL, HOME, at(0, 0), at(9, 0), every=10).ingest(session)
     recompute(session, now=at(12, 0))
-    payload = summary(session, zaid)
+    payload = summary(session, sam)
     assert payload["suspect_count"] == 0 and payload["suspect_text"] is None
     assert DAY0.date() == date(2026, 9, 21)

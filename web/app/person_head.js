@@ -2,7 +2,7 @@
  * The Person page header: avatar, name, the "where now" sentence, how sure it
  * is, and how long ago anything was seen.
  *
- * Purpose    : Answer "where is Zaid?" in plain words, never as a fact: the
+ * Purpose    : Answer "where is Sam?" in plain words, never as a fact: the
  *              sentence is the server's own (likely, probably, not sure, no
  *              recent sighting), and the chip repeats how sure it is.
  * Inputs     : The person (GET /api/people/{id}) and their now answer

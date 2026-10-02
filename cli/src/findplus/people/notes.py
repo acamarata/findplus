@@ -1,6 +1,6 @@
 """The evidence sentence stored on a person event (group_place_events.note).
 
-Purpose : "Zaid's bag stayed at Home." and "(probably; only the bag
+Purpose : "Sam's bag stayed at Home." and "(probably; only the bag
           reported)", spec § 5.4. Written once, when the event is recorded, so
           the alert, the delivery log and the day summary read the same words.
 Inputs  : The person group, the place, the PersonFix that decided it, the

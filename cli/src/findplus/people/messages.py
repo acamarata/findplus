@@ -82,7 +82,7 @@ def join_words(words: list[str]) -> str:
 def short_labels(members: list[tuple[str, str | None, str]], owner: str | None = None) -> dict:
     """device_id -> 'shoes' when the role is unique in the person, else the tracker name.
 
-    `members` is (device_id, role, display_name). "Zaid Shoes Red" and "Zaid
+    `members` is (device_id, role, display_name). "Sam Shoes Red" and "Sam
     Shoes White" are both shoes, so they keep their names, minus a leading
     owner name when `owner` is given ("Shoes Red"): the sentence must still
     say which tracker it rests on (spec Q1).

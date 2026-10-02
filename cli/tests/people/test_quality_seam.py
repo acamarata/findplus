@@ -31,7 +31,7 @@ def test_without_the_quality_package_nothing_is_suspect(session, monkeypatch):
 def test_suspect_jump_never_moves_the_person(session, monkeypatch):
     """The owner's 4:17/4:18/4:19 case: one far sighting flagged suspect is skipped."""
     seed_places(session)
-    zaid = seed_person(session)
+    sam = seed_person(session)
     tl = Timeline()
     overnight(tl, ["zr", "zb", "zk", "zw"], end=at(16, 15))
     tl.ingest(session)
@@ -66,4 +66,4 @@ def test_suspect_jump_never_moves_the_person(session, monkeypatch):
     ingest_and_flag(session)
     assert len(flagged) == 2
     Timeline().add("zr", HOME, at(16, 21)).add("zb", HOME, at(16, 21)).ingest(session)
-    assert person_events(session, zaid.id) == []
+    assert person_events(session, sam.id) == []

@@ -1,6 +1,6 @@
 # People and presence
 
-A person (or a pet) is a group of trackers that belong to one someone: Zaid's bag, bike and two
+A person (or a pet) is a group of trackers that belong to one someone: Sam's bag, bike and two
 pairs of shoes. Find+ works out where the person probably is from the trackers that are actually
 being carried, sends one alert when the person arrives or leaves a place, and notices when a
 tracker was left behind.
@@ -11,15 +11,15 @@ Find+ reads your tracker names and suggests people. Nothing is grouped until you
 
 | Names | Suggestion |
 |---|---|
-| Zaid Bag, Zaid Bike, Zaid Shoes Red, Zaid Shoes White | Person "Zaid": bag, bike, shoes, shoes |
+| Sam Bag, Sam Bike, Sam Shoes Red, Sam Shoes White | Person "Sam": bag, bike, shoes, shoes |
 | Ali Pixel 8a, Ali Keys | Person "Ali": phone, keys |
-| Meong | "Is Meong a person or a pet?" (suggested as a pet) |
+| Whiskers | "Is Whiskers a person or a pet?" (suggested as a pet) |
 | Pixel 11 Pro | No owner in the name: listed under "Whose is this?" |
 | Rose Bag | Suggested, but flagged: Rose is also a colour |
 
 Owner names match exactly, so "Ali" and "Alia" stay apart. A tracker already in a person is never
-moved. A group with the same name is offered as "Turn group Zaid into a person". When a new tracker
-appears ("Zaid Helmet"), Find+ asks whether to add it. A dismissed suggestion stays dismissed.
+moved. A group with the same name is offered as "Turn group Sam into a person". When a new tracker
+appears ("Sam Helmet"), Find+ asks whether to add it. A dismissed suggestion stays dismissed.
 
 From the terminal:
 
@@ -71,14 +71,14 @@ trackers and no point is invented.
 When the person crosses a place, Find+ sends one message, however many of their trackers crossed:
 
 ```
-Zaid just arrived at Grandma's
-Seen by Zaid Shoes Red · reported Sep 26, 4:31 PM EDT · 2 min late
+Sam just arrived at Grandma's
+Seen by Sam Shoes Red · reported Sep 26, 4:31 PM EDT · 2 min late
 Alerts inherit the network's delay. An arrival or departure may be reported minutes to hours late.
 ```
 
 "Just" is used only when the sighting is under 10 minutes old when the message is sent; otherwise
-the message gives the time ("Zaid left Home at Sep 26, 7:40 AM EDT"). When a tracker stays behind,
-the message says so ("Zaid's bag stayed at Home."), and a weaker answer says "(probably; only the
+the message gives the time ("Sam left Home at Sep 26, 7:40 AM EDT"). When a tracker stays behind,
+the message says so ("Sam's bag stayed at Home."), and a weaker answer says "(probably; only the
 bag reported)". A person who flips back across the same place waits 10 minutes before the opposite
 event, and a late, older report never rewrites what already happened.
 
@@ -94,10 +94,10 @@ trackers at the same place, so one crossing is one message.
 
 ## Left behind
 
-If Zaid's shoes go home while his bag stays at School for 20 minutes and two more sightings, Find+
-sends once: "Zaid's bag looks left at School. Last seen there at 3:02 PM." It does not alert at a
+If Sam's shoes go home while his bag stays at School for 20 minutes and two more sightings, Find+
+sends once: "Sam's bag looks left at School. Last seen there at 3:02 PM." It does not alert at a
 Home place (a bike in the garage is normal), and you can turn left-behind alerts off entirely
-(`PUT /api/people/settings`). The episode ends when the bag moves, when Zaid comes back for it, or
+(`PUT /api/people/settings`). The episode ends when the bag moves, when Sam comes back for it, or
 when the bag stops reporting (shown as "no recent sighting", never "still left behind"). "I know"
 silences that tracker at that place for the rest of the day.
 
@@ -116,7 +116,7 @@ list. The address is `#/person/<id>?date=YYYY-MM-DD`, so the Back button steps t
   wrong are drawn faintly in a dashed ring; the "Show sightings that look wrong" box turns them off.
 - The day story reuses the dashboard's lanes (best sighting first) and the list of stays and trips.
 - Each tracker shows its role, its weight and what it did that day (carried, left at School, moved
-  without Zaid, no recent sighting). Edit changes the role or the weight.
+  without Sam, no recent sighting). Edit changes the role or the weight.
 - Send today's summary posts the day to your Telegram chat and says where it went, or why it did
   not. Notify me opens a rule for this person. Edit person opens the group editor. Full map shows
   the group on the dashboard map.
@@ -129,16 +129,16 @@ that still need an answer or are low confidence) and Check again.
 
 ## The day in plain words
 
-Click a person to see their day, or ask for it: `findplus day Zaid`, `GET /api/people/{id}/day`,
+Click a person to see their day, or ask for it: `findplus day Sam`, `GET /api/people/{id}/day`,
 or the MCP tool `get_person_day`. It reads like "7:40 AM left Home / 8:10 AM arrived at School /
 3:00 PM left School / At Home from 3:33 PM". Details, the Telegram evening summary and the wording
 rules are on [Daily summary](Daily-summary).
 
 ## Known limits
 
-- A sibling wearing Zaid's shoes looks exactly like Zaid. Every message names the tracker it rests
+- A sibling wearing Sam's shoes looks exactly like Sam. Every message names the tracker it rests
   on, so you can tell.
-- A bag moving on its own (someone else carried it) is "not sure", not "Zaid left".
+- A bag moving on its own (someone else carried it) is "not sure", not "Sam left".
 - Alerts are only as fresh as the network's sightings.
 
 ---

@@ -51,15 +51,15 @@ def _to_grandmas(session, stagger=1):
 def test_four_trackers_crossing_grandmas_send_one_message(session, pinned_tz):
     pinned_tz("UTC")
     places = seed_places(session)
-    zaid = seed_person(session)
+    sam = seed_person(session)
     _default_rules(session, places)
     _to_grandmas(session)
-    rows = session.query(GroupPlaceEvent).filter_by(group_id=zaid.id, place_id=3).all()
+    rows = session.query(GroupPlaceEvent).filter_by(group_id=sam.id, place_id=3).all()
     assert len(rows) == 1
     sent = _run_dispatch(session, now=at(9, 44))
     arrivals = [t for t in sent if "Grandma's" in t.splitlines()[0]]
     assert len(arrivals) == 1
-    assert arrivals[0].startswith("Zaid just arrived at Grandma's")
+    assert arrivals[0].startswith("Sam just arrived at Grandma's")
     assert arrivals[0].endswith(ALERTS_LATENCY)
 
 
@@ -71,7 +71,7 @@ def test_late_report_says_the_time_not_just(session, pinned_tz):
     _to_grandmas(session)
     sent = _run_dispatch(session, now=at(11, 0))
     first = next(t for t in sent if "Grandma's" in t.splitlines()[0]).splitlines()
-    assert first[0].startswith("Zaid arrived at Grandma's at Sep 21, 9:")
+    assert first[0].startswith("Sam arrived at Grandma's at Sep 21, 9:")
     assert first[1].startswith("Seen by ") and "min late" in first[1]
     assert "just" not in first[0]
 
@@ -82,9 +82,9 @@ def test_leaving_home_says_has_just_left_and_names_what_stayed(session, pinned_t
     seed_person(session)
     _default_rules(session, places)
     _bag_stays_at_school(Timeline()).ingest(session)
-    exits = [t for t in _run_dispatch(session, now=at(18, 30)) if t.startswith("Zaid left School")]
+    exits = [t for t in _run_dispatch(session, now=at(18, 30)) if t.startswith("Sam left School")]
     assert len(exits) == 1
-    assert "Zaid's bag stayed at School." in exits[0]
+    assert "Sam's bag stayed at School." in exits[0]
 
 
 def test_left_behind_alerts_once_away_from_home(session, pinned_tz):
@@ -96,7 +96,7 @@ def test_left_behind_alerts_once_away_from_home(session, pinned_tz):
     sent = _run_dispatch(session, now=at(18, 30))
     left = [t for t in sent if "looks left at" in t]
     assert len(left) == 1, sent
-    assert left[0].startswith("Zaid's bag looks left at School. Last seen there at Sep 21, ")
+    assert left[0].startswith("Sam's bag looks left at School. Last seen there at Sep 21, ")
     assert left[0].endswith(ALERTS_LATENCY)
     assert "White" not in "".join(left)  # the shoes at Home never alert
     assert session.query(AlertDelivery).filter_by(event_kind="left_behind").count() == 1
@@ -128,15 +128,15 @@ def test_all_people_rule_suppresses_the_device_rules_of_that_persons_trackers(se
     session.commit()
     _to_grandmas(session)
     sent = _run_dispatch(session, now=at(9, 50))
-    assert not any(t.startswith("Zaid Shoes Red") for t in sent)
+    assert not any(t.startswith("Sam Shoes Red") for t in sent)
 
 
 def test_all_people_cooldown_is_per_person(session, pinned_tz):
-    """Zaid arriving must not cool down Amirah's arrival under the same rule."""
+    """Sam arriving must not cool down Jamie's arrival under the same rule."""
     pinned_tz("UTC")
     places = seed_places(session)
     seed_person(session)
-    seed_person(session, "Amirah", {"am": "Amirah"})
+    seed_person(session, "Jamie", {"am": "Jamie"})
     rule = build_rule(places["Grandma's"], ["telegram"], True)
     rule.cooldown_minutes = 60
     session.add(rule)
@@ -148,7 +148,7 @@ def test_all_people_cooldown_is_per_person(session, pinned_tz):
     tl.ingest(session)
     sent = _run_dispatch(session, now=at(9, 50))
     firsts = sorted(t.splitlines()[0].split(" ")[0] for t in sent)
-    assert firsts == ["Amirah", "Zaid"]
+    assert firsts == ["Jamie", "Sam"]
 
 
 def test_retry_renders_the_same_person_text(session, pinned_tz):

@@ -1,15 +1,15 @@
 """People suggestions from tracker names: always a preview, never silent (spec § 2).
 
-Purpose : "Zaid Bag", "Zaid Bike", "Zaid Shoes Red" and "Zaid Shoes White"
-          become one suggested Person "Zaid" with roles; one-word names ask
+Purpose : "Sam Bag", "Sam Bike", "Sam Shoes Red" and "Sam Shoes White"
+          become one suggested Person "Sam" with roles; one-word names ask
           "person or pet?"; a name with no owner ("Pixel 11 Pro") is listed
           under "Whose is this?". Nothing is grouped until the owner accepts.
 Inputs  : The visible trackers (tracked, or with a sighting), existing groups,
           settings people.dismissed and people.known_devices.
 Outputs : build() -> the preview dict; accept() -> the people it created.
 Constraints: A tracker already in a person is never moved. A same-named set
-          becomes "Turn group Zaid into a person"; a same-named person gets
-          "New tracker ... looks like Zaid's. Add it?". A dismissed suggestion
+          becomes "Turn group Sam into a person"; a same-named person gets
+          "New tracker ... looks like Sam's. Add it?". A dismissed suggestion
           stays dismissed until its tracker set changes.
 """
 

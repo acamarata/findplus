@@ -1,6 +1,6 @@
 """Alert text for a person crossing or a left-behind tracker (spec § 5.4).
 
-Purpose : "Zaid just arrived at Grandma's" / "Zaid left Home at Sep 26, 7:40 AM
+Purpose : "Sam just arrived at Grandma's" / "Sam left Home at Sep 26, 7:40 AM
           EDT", then which tracker saw it and how late, then the evidence
           sentence, then honesty.ALERTS_LATENCY verbatim.
 Inputs  : A GroupEvent with basis='person', or a LeftBehindEvent; `now`, the
@@ -34,7 +34,7 @@ def headline(event: GroupEvent, now: datetime.datetime) -> str:
 
 
 def evidence_line(tracker: str | None, observed, fetched) -> str:
-    """'Seen by Zaid Shoes Red · reported Sep 26, 4:31 PM EDT · 19 min late'."""
+    """'Seen by Sam Shoes Red · reported Sep 26, 4:31 PM EDT · 19 min late'."""
     observed = as_utc(observed)
     fetched = as_utc(fetched)
     if fetched is None:

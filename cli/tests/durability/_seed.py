@@ -19,7 +19,7 @@ START = datetime(2026, 9, 18, 8, 0, tzinfo=UTC)
 
 def seed_everything(session, observations: int = 12) -> None:
     """Devices with roles, places with kinds, a person and a set group, rules, sightings."""
-    for did, name in (("d-shoes", "Zaid Shoes"), ("d-bag", "Zaid Bag"), ("d-phone", "Ali Phone")):
+    for did, name in (("d-shoes", "Sam Shoes"), ("d-bag", "Sam Bag"), ("d-phone", "Ali Phone")):
         upsert_device(session, did, name, now=START)
     session.execute(
         update(Device)
@@ -37,7 +37,7 @@ def seed_everything(session, observations: int = 12) -> None:
 
     session.execute(update(Place).where(Place.id == home.id).values(kind="home"))
     session.execute(update(Place).where(Place.id == school.id).values(kind="school"))
-    person = create_group(session, name="Zaid", member_ids=["d-shoes", "d-bag"])
+    person = create_group(session, name="Sam", member_ids=["d-shoes", "d-bag"])
     session.execute(update(Group).where(Group.id == person.id).values(kind="person"))
     family = create_group(session, name="Family", member_ids=["d-shoes", "d-phone"], quorum="all")
     _rules(session, home.id, person.id, family.id)
@@ -46,7 +46,7 @@ def seed_everything(session, observations: int = 12) -> None:
         [
             make_observation(
                 device_id="d-shoes",
-                device_name="Zaid Shoes",
+                device_name="Sam Shoes",
                 lat=41.0 + i * 0.0001,
                 lon=-80.0,
                 observed_at=START + timedelta(minutes=10 * i),

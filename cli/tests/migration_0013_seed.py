@@ -31,7 +31,7 @@ OLD_TABLES = (
     "alert_deliveries",
 )
 NEW_TABLES = ("person_place_states", "left_behind", "observation_quality", "digest_runs")
-_DEVICES = (("d1", "Zaid Shoes Red"), ("d2", "Zaid Bag"), ("d3", "Ali Phone"))
+_DEVICES = (("d1", "Sam Shoes Red"), ("d2", "Sam Bag"), ("d3", "Ali Phone"))
 _DELIVERIES = (
     (1, "device", 1, "telegram", "111", "sent"),
     (1, "device", 1, "telegram", "-100222", "retrying"),
@@ -113,7 +113,7 @@ def _seed_groups(conn: sa.Connection) -> None:
     _run(
         conn,
         "INSERT INTO groups (id, name, created_at) VALUES (:id, :name, :now)",
-        [{"id": 1, "name": "Zaid"}, {"id": 2, "name": "Family"}],
+        [{"id": 1, "name": "Sam"}, {"id": 2, "name": "Family"}],
     )
     _run(
         conn,

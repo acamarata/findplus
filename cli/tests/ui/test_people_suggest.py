@@ -23,13 +23,13 @@ async def test_cards_preview_each_guess_and_apply_nothing(trips_page, trips_serv
     await _open_groups(trips_page, trips_server)
     p = trips_page
     titles = await p.locator(".ps-title").all_inner_texts()
-    assert titles[0] == "Zaid (4 trackers: Zaid Bag, Zaid Bike, Zaid Shoes Red, Zaid Shoes White)"
-    zaid = p.locator(".ps-card", has_text="Zaid (4 trackers")
+    assert titles[0] == "Sam (4 trackers: Sam Bag, Sam Bike, Sam Shoes Red, Sam Shoes White)"
+    sam = p.locator(".ps-card", has_text="Sam (4 trackers")
     for name in ("Accept", "Edit members", "Not a person", "It's a pet"):
-        assert await zaid.get_by_role("button", name=name, exact=True).count() == 1
-    meong = p.locator(".ps-card", has_text="Meong")
-    assert "Is Meong a person or a pet?" in await meong.inner_text()
-    assert await meong.get_by_role("button", name="Accept", exact=True).count() == 0
+        assert await sam.get_by_role("button", name=name, exact=True).count() == 1
+    whiskers = p.locator(".ps-card", has_text="Whiskers")
+    assert "Is Whiskers a person or a pet?" in await whiskers.inner_text()
+    assert await whiskers.get_by_role("button", name="Accept", exact=True).count() == 0
     assert "colour or brand" in await p.locator(".ps-card", has_text="Rose").inner_text()
     assert "Whose is this?" in await p.inner_text(".ps-whose")
     assert posts == [], "a guess is never applied without a click"
@@ -39,12 +39,12 @@ async def test_accept_posts_the_exact_guess(trips_page, trips_server):
     _, posts = await serve(trips_page)
     await _open_groups(trips_page, trips_server)
     await (
-        trips_page.locator(".ps-card", has_text="Zaid (4 trackers")
+        trips_page.locator(".ps-card", has_text="Sam (4 trackers")
         .get_by_role("button", name="Accept", exact=True)
         .click()
     )
     await trips_page.get_by_text("Added 1 person.").wait_for()
-    assert posts[0]["accept"][0]["name"] == "Zaid" and posts[0]["accept"][0]["kind"] == "person"
+    assert posts[0]["accept"][0]["name"] == "Sam" and posts[0]["accept"][0]["kind"] == "person"
     assert [m["device_id"] for m in posts[0]["accept"][0]["members"]] == ["z1", "z2", "z3", "z4"]
     assert posts[0]["dismiss"] == []
     assert trips_page.fp_errors == []
@@ -54,12 +54,12 @@ async def test_person_or_pet_question_decides_the_kind(trips_page, trips_server)
     _, posts = await serve(trips_page)
     await _open_groups(trips_page, trips_server)
     await (
-        trips_page.locator(".ps-card", has_text="Meong")
+        trips_page.locator(".ps-card", has_text="Whiskers")
         .get_by_role("button", name="It's a pet")
         .click()
     )
     await trips_page.get_by_text("Added 1 person.").wait_for()
-    assert posts[0]["accept"][0]["kind"] == "pet" and posts[0]["accept"][0]["name"] == "Meong"
+    assert posts[0]["accept"][0]["kind"] == "pet" and posts[0]["accept"][0]["name"] == "Whiskers"
 
 
 async def test_not_a_person_dismisses_by_key(trips_page, trips_server):
@@ -91,17 +91,17 @@ async def test_accept_all_skips_what_still_needs_an_answer(trips_page, trips_ser
     btn = trips_page.get_by_role("button", name="Accept all (2)")
     await btn.click()
     await trips_page.get_by_text("Added 1 person.").wait_for()
-    assert [a["name"] for a in posts[0]["accept"]] == ["Zaid", "Ali"], (
-        "Meong (asks) and Rose (low confidence) are left"
+    assert [a["name"] for a in posts[0]["accept"]] == ["Sam", "Ali"], (
+        "Whiskers (asks) and Rose (low confidence) are left"
     )
 
 
 async def test_edit_members_changes_name_and_trackers_before_accepting(trips_page, trips_server):
     _, posts = await serve(trips_page)
     await _open_groups(trips_page, trips_server)
-    card = trips_page.locator(".ps-card", has_text="Zaid (4 trackers")
+    card = trips_page.locator(".ps-card", has_text="Sam (4 trackers")
     await card.get_by_role("button", name="Edit members").click()
-    await card.get_by_label("Zaid Bike").uncheck()
+    await card.get_by_label("Sam Bike").uncheck()
     await card.get_by_label("Name").fill("Zed")
     await card.get_by_role("button", name="Save and accept").click()
     await trips_page.get_by_text("Added 1 person.").wait_for()

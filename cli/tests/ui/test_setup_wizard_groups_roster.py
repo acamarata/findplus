@@ -104,7 +104,7 @@ async def test_select_all_and_several_adds_in_a_row(page, base_url, ui_db, ui_en
 async def test_duplicate_name_error_quotes_what_was_typed(page, base_url, ui_db, ui_env):
     with roster17(ui_db, ui_env, tracked=10):
         await _open_step(page, base_url)
-        name = "T17 Ali's and Zaid's"
+        name = "T17 Ali's and Sam's"
         await page.fill("#fp-setup-group-name", name)
         await page.locator(f"{MEMBERS} input:not([disabled])").first.check()
         await page.click("#fp-setup-group-add")

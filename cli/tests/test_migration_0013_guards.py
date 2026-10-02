@@ -77,10 +77,10 @@ def test_triggers_exist_at_head(head) -> None:
 
 def test_a_second_person_for_one_tracker_is_rejected(head) -> None:
     _cfg, _url, engine = head
-    _exec(engine, "UPDATE groups SET kind = 'person' WHERE id = 1")  # Zaid: d1, d2
+    _exec(engine, "UPDATE groups SET kind = 'person' WHERE id = 1")  # Sam: d1, d2
     _add_person(engine, 3, "Ali")
     _rejected(engine, "INSERT INTO device_group (device_id, group_id) VALUES ('d1', 3)")
-    _add_person(engine, 4, "Meong", kind="pet")
+    _add_person(engine, 4, "Whiskers", kind="pet")
     _rejected(engine, "INSERT INTO device_group (device_id, group_id) VALUES ('d2', 4)")
     _exec(engine, "INSERT INTO device_group (device_id, group_id) VALUES ('d3', 3)")
 

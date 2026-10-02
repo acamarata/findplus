@@ -1,10 +1,10 @@
 /*
  * One "We found a person" card: who Find+ thinks it is, and what you can say.
  *
- * Purpose    : Show a suggestion in plain words ("Zaid (4 trackers: Bag, Bike,
+ * Purpose    : Show a suggestion in plain words ("Sam (4 trackers: Bag, Bike,
  *              Shoes Red, Shoes White)") with the answers a person actually
  *              needs: Accept, Edit members, Not a person, It's a pet. A single
- *              word with no role word ("Meong") asks "person or pet?" first.
+ *              word with no role word ("Whiskers") asks "person or pet?" first.
  * Inputs     : One suggestion from GET /api/people/suggestions, the trackers
  *              that could join it, and callbacks `onAccept(body)`/`onDismiss(key)`.
  * Outputs    : A <li class="ps-card">. It never calls the API itself.

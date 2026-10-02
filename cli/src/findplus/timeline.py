@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 
 from findplus.db.models import LocationObservation
 from findplus.geo import haversine_meters, is_meaningful_movement, meters_to_miles
+from findplus.quality.annotate import annotate_points
 from findplus.timeline_models import DayStats, DayTimeline, TimelinePoint
 
 __all__ = [
@@ -218,6 +219,7 @@ def day_timeline(
         movement_threshold_meters=movement_threshold_meters,
         gap_threshold_minutes=gap_threshold_minutes,
     )
+    annotate_points(session, points)
     return DayTimeline(
         device_id=device_id,
         device_name=device_name or (observations[0].device_name if observations else None),

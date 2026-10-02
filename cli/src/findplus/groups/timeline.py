@@ -47,6 +47,7 @@ def list_group_timeline(
         ).all()
         points = [
             {
+                "id": o.id,
                 "lat": o.latitude_e7 / 1e7,
                 "lon": o.longitude_e7 / 1e7,
                 # Aware UTC already carries "+00:00"; a trailing "Z" makes it unparseable.

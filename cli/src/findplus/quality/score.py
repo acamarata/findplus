@@ -84,7 +84,8 @@ def _unconfirmed_jump(prev: Fix | None, fix: Fix, nxt: Fix | None, now: datetime
     if nxt is None:
         # Too old to ever be confirmed: give it the benefit of the doubt.
         return now is None or (now - fix.t).total_seconds() <= r.JUMP_WINDOW_S
-    return r.is_corroborating(fix, nxt)
+    # A next fix too late to vouch for it cannot confirm or deny: benefit of the doubt.
+    return r.seconds(fix, nxt) <= r.RESCUE_OWN_WINDOW_S and r.is_corroborating(fix, nxt)
 
 
 def _soft_and_context(

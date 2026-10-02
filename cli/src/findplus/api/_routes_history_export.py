@@ -29,6 +29,7 @@ from findplus.device_labels import unique_names
 from findplus.exporters import MEDIA_TYPES, export
 from findplus.group_export import GroupNotFoundError, export_group
 from findplus.logging_setup import get_logger
+from findplus.quality.annotate import attach_to_rows
 from findplus.timeline import day_bounds_utc, fetch_observations, local_zone
 
 from ._helpers import _resolve_range
@@ -88,6 +89,7 @@ def export_history(
     with session_scope() as session:
         start_utc, end_utc, label = _resolve_range(day, start, end, zone)
         rows = fetch_observations(session, device_id, start_utc, end_utc)
+        attach_to_rows(session, rows)
         shown = unique_names(session)
         name = "Find+ history"
         stem = label

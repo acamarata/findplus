@@ -1169,6 +1169,22 @@
     "tilesFailed": "The map background could not load, so you may be offline. Your points and paths are still drawn.",
     "legendHead": "Trackers ({n})"
   },
+  "quality": {
+    "reason": {
+      "aba_teleport": "This sighting looks wrong: it jumps far away and back within minutes. Left out of stays, trips and alerts.",
+      "impossible_speed": "This sighting looks wrong: it implies a speed no tracker travels. Left out of stays, trips and alerts.",
+      "edge_stray": "This sighting looks wrong: it is far from the sightings around it. Left out of stays, trips and alerts.",
+      "jump_unconfirmed": "This sighting jumped far, fast, and nothing has confirmed it yet. It is held back until the next sighting arrives.",
+      "sibling_disagree": "This sighting looks wrong: the person's other trackers agree on a place far from here. Left out of stays, trips and alerts.",
+      "low_accuracy": "The network could only place this sighting within a wide area.",
+      "clock_skew": "The time on this sighting is later than when it was received."
+    },
+    "showSuspect": "Show sightings that look wrong"
+  },
+  "database": {
+    "damaged": "Find+ found damage in its history database, so it is read-only for now. Nothing has been deleted.",
+    "restoreHint": "To restore a backup, run findplus db backups in Terminal, then findplus db restore with the file you pick."
+  },
   "honesty": {
     "findHub": "This history consists of locations reported through Google's Find Hub network. Your trackers use nearby participating Android devices to report their location. Location updates can therefore be delayed, sparse, or unavailable, and this application should not be treated as real-time emergency or child-safety GPS tracking.",
     "apple": "Apple Find My locations come from nearby Apple devices and can be delayed, sparse or unavailable. Find+ can only query accessories whose keys you hold; genuine AirTags require extracting pairing keys, which most users cannot do.",

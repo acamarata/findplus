@@ -19,22 +19,18 @@ from xml.sax.saxutils import escape
 from findplus.csv_safety import csv_safe as _csv_safe
 from findplus.db.models import LocationObservation
 from findplus.geo import haversine_meters
+from findplus.quality.annotate import EXPORT_FIELDS, export_fields
 
-#: Names both networks, never just Google: Find+ exports Apple Find My
-#: observations from the same table, and a file that blames one network for
-#: rows that came from the other is not honest about where its data came from.
+#: Names both networks: a file must not blame one network for the other's rows.
 DISCLAIMER = (
     "Observed locations reported via the Find Hub and Find My networks. "
     "Straight lines between points are not the route actually travelled."
 )
 
-#: The CSV carries the disclaimer as a leading comment line, so the warning
-#: travels with the file the way it already does in JSON, GPX and KML.
-#: `csv_table()` strips it back off for any caller that re-parses the output.
+#: The CSV carries the disclaimer as a leading comment; `csv_table()` strips it.
 CSV_COMMENT = f"# {DISCLAIMER}"
 
-#: Invariant 7 (PROMPT.md section 2): any distance reads as approximate. The
-#: same sentence the timeline stats carry (`timeline_models.DayStats`).
+#: Invariant 7: any distance reads as approximate (same sentence as the timeline stats).
 DISTANCE_LABEL = "Approximate distance between observed locations"
 
 #: Second CSV comment line, naming the column that carries the distance.
@@ -68,10 +64,9 @@ CSV_COLUMNS = [
     "is_own_report",
     "battery_level",
     "times_returned",
-    # "approx_" is not decoration: PROMPT.md §2 invariant 7 requires the
-    # distance to read as approximate everywhere, exports included. It is the
-    # straight-line gap between two observed fixes, not distance travelled.
+    # "approx_": invariant 7, a straight-line gap between fixes, not distance travelled.
     "approx_meters_from_previous",
+    *EXPORT_FIELDS,
 ]
 
 
@@ -98,6 +93,11 @@ def _with_deltas(
         out.append((obs, meters))
         prev = obs
     return out
+
+
+def _csv_quality(obs: LocationObservation) -> dict[str, object]:
+    f = export_fields(obs)
+    return {"suspect": int(f["suspect"]), "suspect_reason": _csv_safe(f["suspect_reason"] or "")}
 
 
 def to_csv(
@@ -128,6 +128,7 @@ def to_csv(
                 "battery_level": "" if obs.battery_level is None else obs.battery_level,
                 "times_returned": obs.times_returned,
                 "approx_meters_from_previous": "" if meters is None else f"{meters:.1f}",
+                **_csv_quality(obs),
             }
         )
     return buf.getvalue()
@@ -162,6 +163,7 @@ def to_json(
                 "battery_level": obs.battery_level,
                 "times_returned": obs.times_returned,
                 "meters_from_previous": meters,
+                **export_fields(obs),
             }
             for obs, meters in _with_deltas(observations)
         ],

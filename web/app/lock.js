@@ -19,6 +19,8 @@ import { WORLD_VIEW_CENTER, WORLD_VIEW_ZOOM } from "./map.js";
 import { purgeMapOverlay } from "./map_empty.js";
 import { stopLiveRefresh } from "./live_refresh.js";
 import { unlockErrorText } from "./lock_errors.js";
+import { purgeStory } from "./trips_view.js";
+import { purgeMapPanes } from "./trips_map.js";
 
 /**
  * Show the lock screen.
@@ -96,6 +98,7 @@ export async function purgeRenderedData() {
   state.pollInFlight = false;
   stopLiveRefresh();
   purgeMapOverlay();
+  purgeStory(); // the day story: its list, strip, lanes, map layers and cached trips
   // Both footer sentences are device-derived: leaving either up behind the
   // lock screen would tell a passer-by which networks this person tracks on.
   for (const id of ["apple-notice", "findhub-notice"]) {
@@ -130,6 +133,7 @@ export async function purgeRenderedData() {
   });
 
   await purgeTabModules();
+  purgeMapPanes(); // Leaflet leaves removed tooltips and popups (place and tracker names) in their panes
 }
 
 /**

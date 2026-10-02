@@ -22,6 +22,7 @@ import { nothingTrackedEmptyState, emptyDayState } from "./dashboard_empty.js";
 import { statsHtml, timelineHtml } from "./timeline_list.js";
 import { uniqueLabel } from "./device_label.js";
 import { syncRoving } from "./timeline_keys.js";
+import { renderStoryPane } from "./trips_view.js";
 
 /** More trackers than this and only the first block starts open. */
 export const FOLD_OVER = 3;
@@ -138,6 +139,8 @@ export function highlightSelection() {
 export function renderTracks() {
   const host = $("tracks");
   host.innerHTML = "";
+  // The day story (trips_view.js) takes the pane over when it is the chosen view.
+  if (renderStoryPane()) return;
   // The dashboard's group select narrows the timeline to one group's members,
   // matching the same filter renderMap() applies (UAT U8).
   const tracks = state.timeline ? visibleTracks(state.timeline.tracks) : [];

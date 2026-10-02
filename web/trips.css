@@ -1,0 +1,86 @@
+/* Day story: the Day story / Every sighting switch, the story list, the hour
+   strip, the family lanes, the "Draw likely roads" line and the map's arrows.
+   Own file because style.css and dashboard.css sit near the 300-line cap.
+   Loaded before responsive.css so the phone tier still wins. */
+
+/* --- the switch ------------------------------------------------------------ */
+.view-switch { display: flex; margin: 10px 0 4px; }
+.view-switch .btn { border-radius: 0; padding: 6px 12px; }
+.view-switch .btn:first-child { border-radius: 7px 0 0 7px; }
+.view-switch .btn:last-child { border-radius: 0 7px 7px 0; margin-left: -1px; }
+.view-switch .btn[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* --- the story -------------------------------------------------------------- */
+.story-h { margin: 12px 0 6px; font-size: 15px; font-weight: 650; text-transform: none; letter-spacing: 0; color: var(--text); }
+.story-sub { margin: 14px 0 6px; }
+.story-pick { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 12px; color: var(--muted); }
+.story-pick select { flex: 1 1 auto; min-width: 0; max-width: 100%; }
+.story-summary { margin: 0 0 8px; color: var(--muted); font-size: 13px; }
+.story-stray, .story-fold { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+.story-inside { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); }
+.story-honesty { margin: 12px 0 0; font-style: italic; }
+.story > .skeleton { animation: story-in .2s ease .25s backwards; }
+@keyframes story-in { from { opacity: 0; } }
+
+/* the hour strip */
+.strip { margin: 6px 0 10px; }
+.strip-bar { display: block; width: 100%; height: 20px; background: var(--panel-2); border-radius: 4px; }
+.strip-bar rect { cursor: pointer; }
+.strip-bar rect.is-picked { stroke: var(--text); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.strip-ticks { display: flex; justify-content: space-between; margin-top: 2px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* the list */
+.story-list { list-style: none; margin: 0; padding: 0; }
+.story-item {
+  display: grid; grid-template-columns: 14px 1fr; column-gap: 10px; width: 100%; text-align: left;
+  background: none; color: inherit; font: inherit; cursor: pointer;
+  border: 1px solid transparent; border-radius: 8px; padding: 8px 10px;
+}
+.story-item:hover { background: rgba(79,140,247,.07); }
+.story-item.is-picked { background: rgba(79,140,247,.15); border-color: var(--accent); }
+.story-item:focus-visible, .lane-name:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.story-dot { grid-row: 1 / span 4; align-self: start; margin-top: 4px; width: 12px; height: 12px; border-radius: 50%; }
+.story-dot--trip { width: 6px; height: 12px; margin-left: 3px; border-radius: 3px; }
+.story-title { font-weight: 600; font-size: 14px; }
+.story-row--trip .story-title { font-weight: 550; }
+.story-when { font-size: 13px; font-variant-numeric: tabular-nums; }
+.story-meta, .story-quiet { color: var(--muted); font-size: 12px; }
+.story-quiet { font-style: italic; }
+.story-row--trip { margin-left: 12px; }
+.story-gap {
+  margin: 4px 0 4px 18px; padding: 6px 12px; border-left: 2px dashed var(--gap);
+  color: var(--gap); font-size: 12px; font-weight: 550; background: rgba(231,181,63,.07);
+}
+
+/* --- family lanes ------------------------------------------------------------ */
+.lane-list { list-style: none; margin: 0; padding: 0; }
+.lane { display: grid; grid-template-columns: 78px 1fr; align-items: center; gap: 8px; margin: 4px 0; }
+.lane-name {
+  background: none; border: 0; color: var(--text); font: inherit; font-size: 13px; text-align: left; padding: 2px 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;
+}
+.lane-name[aria-pressed="true"] { font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.lane-note { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.lane-scale { margin-left: 86px; }
+.lane-legend { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 8px 0 0; padding: 0; font-size: 11.5px; color: var(--muted); }
+.lane-legend li { display: inline-flex; align-items: center; gap: 5px; }
+.lane-chip { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+/* --- "Draw likely roads" in the filter bar ---------------------------------------- */
+.roads-note { flex: 1 1 100%; margin: 0; font-size: 12px; color: var(--muted); max-width: 900px; }
+.roads-note a { color: inherit; font-weight: 600; text-decoration: underline; }
+
+/* --- on the map -------------------------------------------------------------------- */
+.story-arrow { background: none; border: 0; pointer-events: none; }
+.story-arrow svg { display: block; filter: drop-shadow(0 0 1px rgba(0,0,0,.45)); }
+.leaflet-tooltip.story-label { background: var(--panel); color: var(--text); border: 1px solid var(--line); font-size: 12px; font-weight: 600; padding: 2px 6px; }
+.leaflet-tooltip-top.story-label::before { border-top-color: var(--line); }
+.route-note { top: auto; bottom: 30px; }
+
+@media (prefers-reduced-motion: reduce) { .story > .skeleton { animation: none; } }
+@media (max-width: 599px) {
+  .lane { grid-template-columns: 64px 1fr; }
+  .lane-scale { margin-left: 72px; }
+  .story-item { padding: 10px; }
+  .story-item, .lane-name, .view-switch .btn { min-height: 44px; }
+}

@@ -39,6 +39,8 @@ from playwright.async_api import async_playwright
 from ._alerts_helpers import open_alerts_tab as open_alerts_tab
 from ._offline_tiles import stub_osm_tiles
 from ._seed_script import SEED_SCRIPT as _SEED_SCRIPT
+from ._trips_server import trips_page as trips_page  # fixtures for the day-story tests
+from ._trips_server import trips_server as trips_server
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 

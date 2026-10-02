@@ -181,3 +181,28 @@ def test_run_scheduled_backs_up_once_per_day(session, tmp_db) -> None:
     assert backup.run_scheduled(settings, now=NOW + timedelta(hours=2)) is None
     assert backup.run_scheduled(settings, now=NOW + timedelta(hours=25)) is not None
     assert backup.run_scheduled(settings, now=NOW + timedelta(hours=2), force=True) is not None
+
+
+def test_a_chosen_folder_is_never_chmodded(tmp_db, monkeypatch, tmp_path) -> None:
+    """Only the findplus-backups subfolder is made private; the owner's folder is left alone."""
+    import stat
+
+    from findplus.config import get_settings, reset_settings_cache
+
+    chosen = tmp_path / "Documents"
+    chosen.mkdir(mode=0o755)
+    chosen.chmod(0o755)
+    monkeypatch.setenv("FINDPLUS_BACKUP_DIR", str(chosen))
+    reset_settings_cache()
+    directory = get_settings().effective_backup_dir
+    assert directory == chosen / "findplus-backups"
+    backup.create_backup(Path(tmp_db), directory)
+    assert stat.S_IMODE(chosen.stat().st_mode) == 0o755
+    assert stat.S_IMODE(directory.stat().st_mode) == 0o700
+
+
+def test_an_unusable_folder_is_a_backup_error(tmp_path) -> None:
+    blocker = tmp_path / "file"
+    blocker.write_text("x")
+    with pytest.raises(backup.BackupError):
+        backup.prepare_dir(blocker / "sub")

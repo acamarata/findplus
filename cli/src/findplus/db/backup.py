@@ -49,10 +49,17 @@ class BackupInfo:
 
 
 def prepare_dir(directory: Path) -> Path:
-    """Create the backup directory at 0700 (and tighten it if it already exists)."""
-    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
-    if os.name != "nt":
-        directory.chmod(0o700)
+    """Create the backup directory at 0700 (and tighten it if it already exists).
+
+    `Settings.effective_backup_dir` is always a Find+ owned folder, so a folder the
+    owner chose (Documents, an external disk) never has its permissions changed.
+    """
+    try:
+        directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        if os.name != "nt":
+            directory.chmod(0o700)
+    except OSError as exc:
+        raise BackupError(f"The backup folder {directory} cannot be used: {exc}") from exc
     return directory
 
 

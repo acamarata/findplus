@@ -43,6 +43,10 @@ DB_FILE_SUFFIXES = ("", "-wal", "-shm")
 PRIVATE_UMASK = 0o077
 
 
+#: Folder Find+ creates inside a user-chosen backup directory.
+BACKUP_SUBDIR = "findplus-backups"
+
+
 class Settings(BaseSettings):
     """Runtime settings. Every field is overridable via env var of the same name."""
 
@@ -168,8 +172,13 @@ class Settings(BaseSettings):
 
     @property
     def effective_backup_dir(self) -> Path:
-        """Backups directory: `backup_dir` when set, else `<state dir>/backups`."""
-        return self.backup_dir or self.state_dir / "backups"
+        """Where backups live: `<state dir>/backups`, or a `findplus-backups` folder inside
+        the chosen `backup_dir`, so Find+ only ever changes permissions on its own folder."""
+        if self.backup_dir is None:
+            return self.state_dir / "backups"
+        if self.backup_dir.name == BACKUP_SUBDIR:
+            return self.backup_dir
+        return self.backup_dir / BACKUP_SUBDIR
 
     @property
     def secrets_file(self) -> Path:

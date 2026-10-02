@@ -26,9 +26,10 @@ _KEYS = {
 
 
 def backup_fields(settings: Settings) -> dict[str, Any]:
-    """The three wire keys; `backup.directory` is the directory in force."""
+    """The three wire keys; `backup.directory` is the folder the owner chose
+    (backups go in a `findplus-backups` folder inside it)."""
     return {
-        "backup.directory": str(settings.effective_backup_dir),
+        "backup.directory": str(settings.backup_dir or settings.effective_backup_dir),
         "backup.keep_daily": settings.backup_keep_daily,
         "backup.keep_weekly": settings.backup_keep_weekly,
     }

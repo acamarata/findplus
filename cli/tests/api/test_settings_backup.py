@@ -24,7 +24,7 @@ def test_patch_changes_and_persists_the_keys(client, tmp_path) -> None:
     assert res.json()["backup.directory"] == target
     assert res.json()["backup.keep_daily"] == 10 and res.json()["backup.keep_weekly"] == 0
     settings = get_settings()
-    assert settings.effective_backup_dir == tmp_path / "elsewhere"
+    assert settings.effective_backup_dir == tmp_path / "elsewhere" / "findplus-backups"
     assert settings.backup_keep_daily == 10
 
 

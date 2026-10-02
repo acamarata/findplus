@@ -28,6 +28,8 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     from findplus.config import Settings
 
 
+#: Folder Find+ creates inside a user-chosen backup directory.
+BACKUP_SUBDIR = "findplus-backups"
 _FORBIDDEN = ("\r", "\n", "\x00", "=")
 
 
@@ -35,6 +37,14 @@ def check_plain_value(value: str) -> None:
     """Raise ValueError for a value that could add or change another config.env line."""
     if any(ch in value for ch in _FORBIDDEN):
         raise ValueError("A setting value cannot contain a line break, an equals sign or a null.")
+
+
+def backup_directory(chosen: Path | None, state_dir: Path) -> Path:
+    """`<state dir>/backups`, or a `findplus-backups` folder inside the chosen path, so
+    Find+ only ever changes permissions on a folder it made."""
+    if chosen is None:
+        return state_dir / "backups"
+    return chosen if chosen.name == BACKUP_SUBDIR else chosen / BACKUP_SUBDIR
 
 
 def validate_config_key(key: str, value: str) -> None:

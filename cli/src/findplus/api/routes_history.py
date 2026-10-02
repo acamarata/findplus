@@ -28,6 +28,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import desc, select
 
+from findplus.db.integrity import current_health
 from findplus.db.models import Device, Group, LocationObservation, PollRun
 from findplus.db.session import session_scope
 from findplus.groups.repo import list_group_timeline
@@ -249,14 +250,9 @@ def _register_poll_now_route(router: APIRouter, *, check_poll_cooldown) -> None:
     @router.post("/poll-now")
     def poll_now() -> dict[str, Any]:
         """Trigger one immediate Find Hub query. Rate-limited to protect the account."""
-        from findplus.db.integrity import current_health
-
         if not current_health().ok:  # read-only: a poll would fetch fixes it cannot save
-            raise HTTPException(
-                status_code=409,
-                detail="The history database looks damaged, so Find+ is read-only and will not "
-                "poll. Restore a backup (findplus db restore) and start Find+ again.",
-            )
+            detail = "Find+ is read-only (its history database looks damaged), so it will not poll."
+            raise HTTPException(status_code=409, detail=detail + " Run findplus db restore.")
         wait = check_poll_cooldown()
         if wait > 0:
             raise HTTPException(

@@ -19,7 +19,7 @@ from pydantic import Field, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from findplus.config_bind import is_public_bind
-from findplus.config_keys import unprefixed_config_env
+from findplus.config_keys import backup_directory, unprefixed_config_env
 from findplus.config_keys import validate_config_key as validate_config_key
 from findplus.config_keys import write_config_key as write_config_key
 from findplus.providers.findhub.bootstrap import resolve_vendor_path
@@ -41,10 +41,6 @@ DB_FILE_SUFFIXES = ("", "-wal", "-shm")
 
 #: umask every findplus entry point installs: new files 0600, new dirs 0700.
 PRIVATE_UMASK = 0o077
-
-
-#: Folder Find+ creates inside a user-chosen backup directory.
-BACKUP_SUBDIR = "findplus-backups"
 
 
 class Settings(BaseSettings):
@@ -155,8 +151,7 @@ class Settings(BaseSettings):
     @field_validator("backup_dir")
     @classmethod
     def _expand_backup_dir(cls, v: Path | None) -> Path | None:
-        # `~/x` passes validation, so expand it here: under launchd a bare `~` is relative.
-        return v.expanduser() if v is not None else v
+        return v.expanduser() if v is not None else v  # `~/x` is legal; launchd has no ~
 
     @field_validator("host")
     @classmethod
@@ -178,13 +173,8 @@ class Settings(BaseSettings):
 
     @property
     def effective_backup_dir(self) -> Path:
-        """Where backups live: `<state dir>/backups`, or a `findplus-backups` folder inside
-        the chosen `backup_dir`, so Find+ only ever changes permissions on its own folder."""
-        if self.backup_dir is None:
-            return self.state_dir / "backups"
-        if self.backup_dir.name == BACKUP_SUBDIR:
-            return self.backup_dir
-        return self.backup_dir / BACKUP_SUBDIR
+        """Where backups live (a `findplus-backups` folder inside a chosen `backup_dir`)."""
+        return backup_directory(self.backup_dir, self.state_dir)
 
     @property
     def secrets_file(self) -> Path:

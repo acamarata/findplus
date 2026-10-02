@@ -6,6 +6,13 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-02
+
+### Changed
+- New icon. The app icon is a light-blue "F+" on a black-to-navy square, and the menu-bar glyph is a
+  single ligature: the middle bar of the "F" runs on to the right and becomes the crossbar of the "+".
+  The old tall "+" beside the "F" read as a cross. `packaging/scripts/gen-app-icons.py` draws all sizes.
+
 ## [1.2.0] - 2026-10-02
 
 ### Added

@@ -17,16 +17,17 @@ import re
 from findplus.db.models_people import PLACE_KINDS
 
 _WORDS = {
+    # Family first: "Grandma's House" is Grandma's, not a home.
+    "family": (
+        "grandma", "grandpa", "granny", "grandad", "granddad", "nana", "nan", "papa",
+        "aunt", "auntie", "uncle", "cousin", "nanny", "jaddah", "jaddi",
+    ),
     "home": ("home", "house", "flat", "apartment"),
     "school": (
         "school", "academy", "college", "university", "uni", "kindergarten", "nursery",
         "preschool", "madrasa", "madrassa", "daycare",
     ),
     "work": ("work", "office", "job", "workplace"),
-    "family": (
-        "grandma", "grandpa", "granny", "grandad", "granddad", "nana", "nan", "papa",
-        "aunt", "auntie", "uncle", "cousin", "nanny", "jaddah", "jaddi",
-    ),
     "shop": ("shop", "store", "market", "supermarket", "mall", "grocery"),
 }  # fmt: skip
 

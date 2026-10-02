@@ -1,6 +1,5 @@
 """The "We found people in your trackers" panel: preview, answers, accept all, hide, re-check."""
 
-
 from __future__ import annotations
 
 import pytest

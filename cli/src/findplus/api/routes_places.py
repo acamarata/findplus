@@ -47,6 +47,8 @@ class PlaceCreate(BaseModel):
     kind: str | None = None
     #: Add the default "arrivals and departures for everyone" rule (spec § 5.3).
     notify: bool = True
+    #: Send that rule to these connected channels instead of the automatic choice.
+    notify_channels: list[str] | None = None
 
 
 class PlaceUpdate(BaseModel):
@@ -123,7 +125,7 @@ def post_place(body: PlaceCreate) -> dict[str, Any]:
                 exit_confirmations=body.exit_confirmations,
                 kind=body.kind or guess_place_kind(body.name),
             )
-            rule = add_default_rule(s, p) if body.notify else None
+            rule = add_default_rule(s, p, channels=body.notify_channels) if body.notify else None
         except ValueError as exc:
             s.rollback()
             raise _map_value_error(exc) from exc

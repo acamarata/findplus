@@ -755,6 +755,20 @@ Post Place
       "type": "boolean",
       "title": "Notify",
       "default": true
+    },
+    "notify_channels": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Notify Channels"
     }
   },
   "type": "object",

@@ -116,6 +116,8 @@ def _rule_to_dict(
         "place_name": place_name,
         "group_id": r.group_id,
         "group_name": group_name,
+        #: True for the default "anyone arrives or leaves" rule (no tracker or group target).
+        "all_people": r.all_people,
         "device_id": r.device_id,
         "device_name": device_name,
         "on_enter": r.on_enter,

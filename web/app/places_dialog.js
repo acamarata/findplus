@@ -21,7 +21,6 @@
  */
 "use strict";
 
-import { api } from "./api.js";
 import { t } from "./i18n.js";
 import { createColorPicker } from "./components/color-picker.js";
 import { createPlaceLocator } from "./components/place_locator.js";
@@ -29,6 +28,9 @@ import { startMapPick } from "./components/place_map_pick.js";
 import { duplicateNameMessage, placeValidationMessage } from "./dialog_errors.js";
 import { buildDialog, updateRadiusWarning, wireRadius } from "./places_dialog_dom.js";
 import { showWhere, clearWhere, showUsage } from "./places_dialog_where.js";
+import { submitPlace } from "./places_dialog_save.js";
+import { guessKind, syncKindHint } from "./places_kind.js";
+import { fillNotify } from "./places_notify.js";
 
 // N26: a same-default-blue place after another already existed made a new
 // one hard to tell apart on the map circles' colour alone; showAddDialog()
@@ -79,6 +81,11 @@ function ensureDialog() {
   });
 
   wireRadius(f, updatePreviewCircle);
+  f.name.addEventListener("input", () => {
+    if (dlg.dataset.mode !== "add" || f.kind.select.dataset.touched) return;
+    f.kind.select.value = guessKind(f.name.value);
+    syncKindHint(f.kind);
+  });
   dlg.addEventListener("close", removePreviewCircle);
 
   return dlg;
@@ -164,6 +171,16 @@ function removePreviewCircle() {
   }
 }
 
+/** The kind (the saved one, or a guess that follows the name until the owner picks) and the alert box. */
+function fillKindAndNotify(mode, place) {
+  const kind = fields.kind;
+  kind.select.value = place ? place.kind || "other" : "other";
+  delete kind.select.dataset.touched;
+  syncKindHint(kind);
+  fields.notify.wrap.hidden = mode === "edit";
+  if (mode === "add") fillNotify(fields.notify);
+}
+
 function fillDialog(mode, id, place, latlng, existingCount, ruleCount = 0) {
   const dlg = ensureDialog();
   dlg.dataset.mode = mode;
@@ -183,6 +200,7 @@ function fillDialog(mode, id, place, latlng, existingCount, ruleCount = 0) {
   colorPicker.setValue(color);
   fields.enter.value = place ? String(place.enter_confirmations) : DEFAULT_ENTER_CONFIRMATIONS;
   fields.exit.value = place ? String(place.exit_confirmations) : DEFAULT_EXIT_CONFIRMATIONS;
+  fillKindAndNotify(mode, place);
   fields.error.textContent = "";
   showWhere(fields.where, mode === "edit" ? "current" : "centre", latlng.lat, latlng.lng);
   showUsage(fields.usage, mode === "edit" ? ruleCount : 0);
@@ -216,27 +234,9 @@ async function onSave() {
     form.reportValidity();
     return;
   }
-  const body = {
-    name: fields.name.value,
-    latitude: Number(fields.lat.value),
-    longitude: Number(fields.lon.value),
-    radius_meters: Number(fields.radius.value),
-    color: fields.color.value,
-    enter_confirmations: Number(fields.enter.value),
-    exit_confirmations: Number(fields.exit.value),
-    // The dialog runs its own "who should be told" step after saving, so it
-    // asks the API not to add the default everyone rule (1.1.6). The Person
-    // page work replaces this with a "Notify me" checkbox.
-    notify: false,
-  };
-  const opts = { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
   try {
-    const editing = dlg.dataset.mode === "edit";
-    const saved = editing
-      ? await api(`/api/places/${dlg.dataset.editId}`, { ...opts, method: "PUT" })
-      : await api("/api/places", { ...opts, method: "POST" });
+    const { saved, editing } = await submitPlace(dlg, fields);
     dlg.close();
-    // A new place also gets the "who should be told" step (places.js).
     if (onSaved) await onSaved(saved, editing ? "edit" : "add");
   } catch (err) {
     // api() shows the lock screen for a 401; N16 maps a remaining 422 (a

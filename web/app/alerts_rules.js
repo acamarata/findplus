@@ -34,6 +34,7 @@ export async function loadRules() {
   renderRulesTable(await api("/api/alerts/rules"));
 }
 function ruleTargetLabel(rule) {
+  if (rule.all_people) return t("alerts.everyone");
   if (rule.group_id) return rule.group_name || t("alerts.groupFallback", { id: rule.group_id });
   return rule.device_name || rule.device_id || t("common.emptyValue");
 }
@@ -69,7 +70,7 @@ function nameCell(rule) {
   sentence.className = "fp-rule-row-sentence";
   sentence.textContent = ruleSentence({
     channels: rule.channels.map((c) => t("alerts.channels." + c)),
-    who: ruleTargetLabel(rule),
+    who: rule.all_people ? t("alerts.anyone") : ruleTargetLabel(rule),
     isGroup: rule.group_id != null,
     enter: rule.on_enter,
     exit: !!rule.on_exit,

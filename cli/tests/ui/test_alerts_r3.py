@@ -252,41 +252,6 @@ async def test_delivery_log_filters_and_pages(page, base_url):
     assert await body.count() == 15
 
 
-async def test_adding_a_place_ends_with_the_rule_step(page, base_url):
-    await _connect_webhook(page, base_url)
-    created = None
-    try:
-        await page.goto(base_url + "/")
-        await page.wait_for_selector("#map.leaflet-container")
-        await page.click('button[data-tab="places"]')
-        await page.click("#fp-add-place-btn")
-        await page.fill("#fp-place-name", "R3 Flow Place")
-        await page.click("#fp-place-dialog footer .btn")
-        await page.wait_for_selector('#fp-add-rule-dialog[data-fp-ready="true"]')
-        intro = await page.locator("#fp-rule-intro").inner_text()
-        assert "R3 Flow Place is saved" in intro
-        assert await page.locator("#fp-rule-place option:checked").inner_text() == "R3 Flow Place"
-        assert "R3 Flow Place" in await page.locator("#fp-rule-sentence").inner_text()
-        assert await page.locator("#fp-rule-cancel").inner_text() == "Skip for now"
-        await page.click("#fp-rule-cancel")
-        card = page.locator("#fp-places-list .fp-place-card", has_text="R3 Flow Place")
-        await card.wait_for()
-        assert "Not notifying anyone yet" in await card.inner_text()
-        # the card's own button opens the same step
-        await card.get_by_role("button", name="Set up an alert").click()
-        await page.wait_for_selector('#fp-add-rule-dialog[data-fp-ready="true"]')
-        assert await page.locator("#fp-rule-place option:checked").inner_text() == "R3 Flow Place"
-        await page.click("#fp-rule-cancel")
-    finally:
-        places = await (await page.request.get(base_url + "/api/places")).json()
-        for p in places:
-            if p["name"] == "R3 Flow Place":
-                created = p["id"]
-        if created:
-            await page.request.delete(f"{base_url}/api/places/{created}")
-        await _disconnect_all(page, base_url)
-
-
 async def test_telegram_steps_show_until_a_bot_is_connected(page, base_url):
     await _disconnect_all(page, base_url)
     await open_alerts_tab(page, base_url)

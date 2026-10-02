@@ -95,3 +95,29 @@ def test_backfill_previews_then_adds_one_rule_per_uncovered_place(client):
     with session_scope() as s:
         assert s.query(AlertRule).count() == 3
     assert client.post("/api/places/notify-defaults?dry_run=1").json()["count"] == 0
+
+
+def test_owner_picked_channel_wins_over_the_automatic_choice(session):
+    cfg = _cfg(telegram=_TG, webhook=_WEB)
+    assert choose_channels(session, cfg, ["webhook"]) == (["webhook"], True, None)
+    assert choose_channels(session, cfg, ["webhook", "telegram"]) == (
+        ["telegram", "webhook"],
+        True,
+        None,
+    )
+
+
+def test_picking_a_channel_that_is_not_connected_is_refused(session):
+    with pytest.raises(ValueError, match="channel not connected: whatsapp"):
+        choose_channels(session, _cfg(telegram=_TG), ["whatsapp"])
+
+
+def test_place_api_uses_the_picked_channel_and_rolls_back_on_a_bad_one(client):
+    cfg = _cfg(telegram=_TG, webhook=_WEB)
+    with patch("findplus.alerts.store.load_alerts", return_value=cfg):
+        ok = _place(client, "Pick Place", notify_channels=["webhook"])
+        bad = _place(client, "Bad Pick Place", notify_channels=["whatsapp"])
+    assert ok.status_code == 201 and ok.json()["notify_rule"]["channels"] == ["webhook"]
+    assert bad.status_code == 422
+    names = [p["name"] for p in client.get("/api/places").json()]
+    assert "Bad Pick Place" not in names, "a refused channel must not leave a half-made place"

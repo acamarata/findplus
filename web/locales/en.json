@@ -413,12 +413,56 @@
       },
       "noMatch": "No place matches \"{query}\"."
     },
-    "radiusHint": "The circle on the map shows this size. Find Hub locations can be off by tens of metres, so a very small place may report late.",
+    "radiusHint": "The circle on the map shows this size. Recommended: {min} m or more. Find Hub locations can be off by tens of metres, so a very small place may report late.",
     "usage": {
       "one": "1 alert rule uses this place. Changes apply to it right away.",
       "other": "{count} alert rules use this place. Changes apply to them right away."
     },
-    "radiusSmall": "Under {min} m is smaller than Find Hub locations can reliably tell apart. A tracker here may report late, and alerts for this place may be missed."
+    "radiusSmall": "Under {min} m is smaller than Find Hub locations can reliably tell apart. A tracker here may report late, and alerts for this place may be missed.",
+    "kind": {
+      "label": "Kind of place",
+      "home": "Home",
+      "school": "School",
+      "work": "Work",
+      "family": "Family",
+      "shop": "Shop",
+      "other": "Other",
+      "hint": "Find+ guessed this from the name. Change it if it is wrong.",
+      "homeHint": "At Home, a bag or bike left behind is normal, so left-behind alerts stay off here and the day summary starts with \"Overnight at Home\"."
+    },
+    "notify": {
+      "label": "Tell me when anyone arrives or leaves",
+      "sentTo": "Sent to {channel}.",
+      "pick": "Send to",
+      "all": "Every connected channel",
+      "none": "Connect Telegram, WhatsApp or a webhook in the Alerts tab to get these. You can add the alert later with Notify me.",
+      "native": "Shown as a notification on this computer.",
+      "unknown": "Find+ picks the channel for you.",
+      "on": "Alerts are on for {place}: {channels}.",
+      "onPlain": "Alerts are on for {place}.",
+      "customise": "Customise",
+      "customiseIntro": "Anyone arriving at or leaving {place} already sends a message. Change where it goes or when."
+    },
+    "backfill": {
+      "text": {
+        "one": "1 place has no arrival alerts.",
+        "other": "{n} places have no arrival alerts."
+      },
+      "button": "Notify me",
+      "title": {
+        "one": "Add arrival and departure alerts to 1 place?",
+        "other": "Add arrival and departure alerts to {n} places?"
+      },
+      "line": "{place}: {channels}",
+      "off": "Nothing is connected yet, so these alerts are saved switched off. Connect a channel in the Alerts tab.",
+      "confirm": "Add alerts",
+      "done": {
+        "one": "Added alerts to 1 place.",
+        "other": "Added alerts to {n} places."
+      },
+      "failed": "Could not add alerts: {message}",
+      "previewFailed": "Could not check which places need alerts: {message}"
+    }
   },
   "alerts": {
     "telegramHeading": "Telegram",
@@ -646,7 +690,9 @@
       "two": "Paste the token below and press Connect.",
       "three": "Within two minutes, send your new bot any message. Find+ then connects to that chat.",
       "four": "To also tell other people or groups, add the bot to them and use Find chat IDs."
-    }
+    },
+    "everyone": "Everyone",
+    "anyone": "anyone"
   },
   "settings": {
     "title": "Settings",

@@ -37,13 +37,24 @@ def native_registered(session: Session) -> bool:
     return session.scalar(stmt.limit(1)) is not None
 
 
-def choose_channels(session: Session, channels_cfg=None) -> tuple[list[str], bool, str | None]:
-    """(channels, enabled, hint) for a new default rule."""
+def choose_channels(
+    session: Session, channels_cfg=None, wanted: list[str] | None = None
+) -> tuple[list[str], bool, str | None]:
+    """(channels, enabled, hint) for a new default rule.
+
+    `wanted` is the owner's own pick (the place dialog's channel select): every entry must
+    be a connected external channel, else ValueError (the API answers 422).
+    """
     if channels_cfg is None:
         from findplus.alerts.store import load_alerts
 
         channels_cfg = load_alerts()
     configured = [c for c in _EXTERNAL if getattr(channels_cfg, c, None)]
+    if wanted:
+        unknown = [c for c in wanted if c not in configured]
+        if unknown:
+            raise ValueError(f"channel not connected: {', '.join(unknown)}")
+        return [c for c in _EXTERNAL if c in wanted], True, None
     if len(configured) == 1:
         return configured, True, None
     if configured:
@@ -91,9 +102,11 @@ def rule_preview(rule: AlertRule, place: Place, hint: str | None) -> dict:
     }
 
 
-def add_default_rule(session: Session, place: Place, channels_cfg=None) -> dict:
+def add_default_rule(
+    session: Session, place: Place, channels_cfg=None, channels: list[str] | None = None
+) -> dict:
     """Create the place's default rule in the caller's transaction; its preview."""
-    channels, enabled, hint = choose_channels(session, channels_cfg)
+    channels, enabled, hint = choose_channels(session, channels_cfg, channels)
     rule = build_rule(place, channels, enabled)
     session.add(rule)
     session.flush()

@@ -17,6 +17,8 @@
 "use strict";
 
 import { t } from "./i18n.js";
+import { buildKindField } from "./places_kind.js";
+import { buildNotifyField } from "./places_notify.js";
 
 function button(text, onClick, className) {
   const btn = document.createElement("button");
@@ -110,7 +112,7 @@ function radiusRow(f) {
   const hint = document.createElement("p");
   hint.className = "fp-field-hint";
   hint.id = "fp-place-radius-hint";
-  hint.textContent = t("places.radiusHint");
+  hint.textContent = t("places.radiusHint", { min: RECOMMENDED_MIN_RADIUS });
   f.radius.setAttribute("aria-describedby", hint.id);
   wrap.append(label, f.radius, f.radiusNumber);
   const group = document.createElement("div");
@@ -157,7 +159,7 @@ export function wireRadius(f, onPreview) {
 /** Assemble the <dialog>/<form> around the built fields, leaving the locator
  * section and the colour picker as empty mount points for the caller. */
 export function buildDialog({ onSave, onCancel }) {
-  const f = buildPlaceFields();
+  const f = { ...buildPlaceFields(), kind: buildKindField(), notify: buildNotifyField() };
   const colorGroup = pickerGroup(t("places.colorLabel"));
   const locatorHost = document.createElement("div");
 
@@ -171,6 +173,7 @@ export function buildDialog({ onSave, onCancel }) {
   form.append(
     f.title,
     labeled(t("places.nameLabel"), f.name, f.name.id),
+    f.kind.wrap,
     f.lat,
     f.lon,
     f.color,
@@ -181,6 +184,7 @@ export function buildDialog({ onSave, onCancel }) {
     colorGroup,
     labeled(t("places.enterConfirmations"), f.enter, f.enter.id),
     labeled(t("places.exitConfirmations"), f.exit, f.exit.id),
+    f.notify.wrap,
   );
 
   const footer = document.createElement("footer");

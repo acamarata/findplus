@@ -123,3 +123,12 @@
 .people-banner { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 8px 18px 0; padding: 8px 12px; border: 1px solid var(--accent); border-radius: 10px; background: var(--panel); font-size: 13px; }
 .people-banner[hidden] { display: none; }
 .person-status:empty { display: none; }
+
+/* place dialog: kind and the alert box; the backfill banner */
+.fp-notify { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
+.fp-notify-label { display: flex; align-items: center; gap: 8px; font-weight: 550; }
+.fp-notify-line { margin: 0 0 0 26px; }
+.fp-backfill { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 8px 18px; padding: 8px 12px; border: 1px solid var(--accent); border-radius: 10px; background: var(--panel); font-size: 13px; }
+.fp-backfill[hidden] { display: none; }
+.fp-notify[hidden] { display: none; }
+.fp-dialog-field[hidden] { display: none; }

@@ -160,6 +160,7 @@ export async function loadPeopleSettings() {
     el("h3", "", t("person.settings.heading")),
     el("h4", "ps-sub", t("person.settings.digestTitle")),
     el("p", "modal-note", t("person.settings.digestNote")),
+    el("p", "modal-note", t("person.settings.digestLocked")),
     digestControls(),
     el("h4", "ps-sub", t("person.settings.leftTitle")),
     await leftBehindControls(),

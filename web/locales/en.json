@@ -1495,6 +1495,7 @@
       "heading": "People: daily summary and alerts",
       "digestTitle": "Daily summary",
       "digestNote": "Sends one message a day about where each person has been, in words only, with no coordinates. It goes to Telegram. Anyone who can read that chat can read it. It is off until you turn it on.",
+      "digestLocked": "Summaries are sent even while Find+ is locked, like Telegram alerts. The lock protects what is shown on this computer.",
       "digestOn": "Send a daily summary",
       "digestTime": "Send at",
       "digestChannel": "Send to",

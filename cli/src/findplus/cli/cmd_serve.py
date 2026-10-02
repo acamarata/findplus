@@ -197,17 +197,17 @@ def _start_uvicorn(
     return server, server_thread
 
 
-def _start_workers(settings, no_poller: bool, sessions) -> list[tuple[Any, threading.Thread]]:
+def _start_workers(settings, no_poller: bool) -> list[tuple[Any, threading.Thread]]:
     """The background workers: poller (unless off), retention, and the evening summary."""
     from findplus.poller import PollerService
-    from findplus.service.digest import DigestScheduler, make_lock_probe
+    from findplus.service.digest import DigestScheduler
     from findplus.service.retention import RetentionScheduler
 
     workers = []
     if not no_poller:
         workers.append(_start_worker(PollerService(settings), "poller"))
     workers.append(_start_worker(RetentionScheduler(settings.state_dir), "retention"))
-    digest = DigestScheduler(settings.state_dir, is_locked=make_lock_probe(sessions))
+    digest = DigestScheduler(settings.state_dir)
     workers.append(_start_worker(digest, "digest"))
     return workers
 
@@ -225,7 +225,7 @@ def _run_server(
     from findplus.security import SessionStore
 
     workers: list[tuple[Any, threading.Thread]] = []
-    sessions = SessionStore()  # shared with the digest, which holds while the app is locked
+    sessions = SessionStore()
     server = None
     server_thread = None
     exit_code = 1
@@ -235,7 +235,7 @@ def _run_server(
         )
 
         if current_health().ok:  # a damaged database is served read-only: nothing writes
-            workers += _start_workers(settings, no_poller, sessions)
+            workers += _start_workers(settings, no_poller)
 
         server, server_thread = _start_uvicorn(bind_host, bind_port, settings, sessions)
 

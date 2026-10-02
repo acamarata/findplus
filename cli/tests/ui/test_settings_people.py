@@ -59,6 +59,8 @@ async def test_digest_is_off_by_default_and_says_where_it_goes(trips_page, trips
     assert not await p.is_checked("#person-digest-on")
     text = await p.inner_text("#fp-settings-people")
     assert "no coordinates" in text and "off until you turn it on" in text
+    assert "Summaries are sent even while Find+ is locked, like Telegram alerts." in text
+    assert "The lock protects what is shown on this computer." in text
     assert "Alerts inherit the network's delay." in text
     assert "A tag with no recent fix is stale" in text
 

@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from ._person_helpers import ensure_person
+from ._person_helpers import ensure_person, errors_of
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 OFF = {"enabled": False, "time": "20:00", "people": [], "channel": "auto", "always_send": False}
@@ -40,6 +40,7 @@ async def _until(check, seconds: float = 5.0):
 
 
 async def _open_settings(page, server):
+    page.fp_errors = errors_of(page)
     await page.goto(server["base"] + "/")
     await page.wait_for_selector("#app-shell[data-fp-ready]")
     await page.click("#btn-settings")
@@ -131,6 +132,7 @@ async def test_backup_line_and_back_up_now(trips_page, trips_server):
     line = await p.inner_text("#person-backup-line")
     assert "(manual)" in line and "2 kept" in line
     assert "never your sign-ins or tokens" in await p.inner_text("#fp-settings-people")
+    assert p.fp_errors == []
 
 
 async def test_no_backup_yet_says_so(trips_page, trips_server):

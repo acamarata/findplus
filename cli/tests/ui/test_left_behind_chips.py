@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pytest
 
-from ._person_helpers import ensure_person
+from ._person_helpers import ensure_person, errors_of
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -46,6 +46,7 @@ async def _serve(page, pid, episodes, dismissed=None, fail=False):
 
 
 async def _open(page, server):
+    page.fp_errors = errors_of(page)
     await page.goto(server["base"] + "/")
     await page.wait_for_selector("#app-shell[data-fp-ready]")
 
@@ -73,6 +74,7 @@ async def test_i_know_dismisses_and_hides_the_box(trips_page, trips_server):
     await trips_page.get_by_role("button", name="I know").click()
     await trips_page.wait_for_selector("#fp-left-behind", state="hidden")
     assert dismissed == ["1"]
+    assert trips_page.fp_errors == []
 
 
 async def test_a_refused_dismiss_keeps_the_row_and_says_why(trips_page, trips_server):

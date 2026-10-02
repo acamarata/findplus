@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import pytest
 
+from ._person_helpers import errors_of
 from ._suggest_helpers import payload, serve
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
 async def _open_groups(page, server):
+    page.fp_errors = errors_of(page)
     await page.goto(server["base"] + "/")
     await page.wait_for_selector("#app-shell[data-fp-ready]")
     await page.click('button[data-tab="groups"]')
@@ -45,6 +47,7 @@ async def test_accept_posts_the_exact_guess(trips_page, trips_server):
     assert posts[0]["accept"][0]["name"] == "Zaid" and posts[0]["accept"][0]["kind"] == "person"
     assert [m["device_id"] for m in posts[0]["accept"][0]["members"]] == ["z1", "z2", "z3", "z4"]
     assert posts[0]["dismiss"] == []
+    assert trips_page.fp_errors == []
 
 
 async def test_person_or_pet_question_decides_the_kind(trips_page, trips_server):

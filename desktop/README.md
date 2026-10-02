@@ -64,6 +64,26 @@ xcodebuild -project desktop/widget/FindPlusWidget.xcodeproj -scheme FindPlusWidg
 
 Embed via `packaging/scripts/embed-widget.sh`.
 
+## In-app sign-in window (1.2)
+
+`src/signin_*.rs` open Google's sign-in in a window Find+ controls (spec:
+`.github/docs/specs/in-app-login.md`). The window uses a throwaway cookie store,
+has no Tauri capability, and only loads Google sign-in hosts over https.
+`src/attention.rs` drives the tray's "Sign in again" item and the one banner per
+lost sign-in.
+
+Debug builds can drive the real window against a local fake site (no Google,
+no Chrome; a small window opens for a few seconds per case):
+
+```
+cd desktop/src-tauri
+FINDPLUS_SIGNIN_E2E=1 cargo test --test signin_e2e
+FINDPLUS_SIGNIN_SELFTEST=ok cargo run     # also: unlock, reject, cancel
+```
+
+Release builds contain no fake site and cannot be pointed away from Google.
+The older owner-run probe stays behind the `login-probe` feature (`PROBE.md`).
+
 ## DMG size budget
 
 ≤ 120 MB.

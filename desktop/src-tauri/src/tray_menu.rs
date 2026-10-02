@@ -9,6 +9,7 @@
 use tauri::menu::{IconMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::AppHandle;
 
+use crate::attention::{Attention, Need};
 use crate::daemon;
 use crate::status::{DotState, Status};
 
@@ -24,7 +25,8 @@ fn entry(app: &AppHandle, id: &str, text: String, enabled: bool) -> tauri::Resul
     )?))
 }
 
-/// Build the menu in the order specs/desktop-app.md pins: dot line
+/// Build the menu in the order specs/desktop-app.md pins, under the
+/// in-app-login attention items when a provider lost its sign-in: dot line
 /// (disabled) · Restart daemon (only when Down after a crash) · latest
 /// (hidden when Locked/Down) · tracked count (disabled) · Poll Now · Lock ·
 /// Open Dashboard or Sign in (when Chrome is missing) · Settings… ·
@@ -35,6 +37,7 @@ pub fn build_menu_items(
     chrome_missing: bool,
 ) -> tauri::Result<Menu<tauri::Wry>> {
     let mut items: Vec<Item> = Vec::new();
+    items.extend(attention_items(app, &crate::attention::current())?);
     items.extend(status_items(app, status)?);
     items.extend(action_items(app, status, chrome_missing)?);
     items.push(Box::new(PredefinedMenuItem::separator(app)?));
@@ -44,6 +47,32 @@ pub fn build_menu_items(
     let refs: Vec<&dyn tauri::menu::IsMenuItem<tauri::Wry>> =
         items.iter().map(|i| i.as_ref()).collect();
     Menu::with_items(app, &refs)
+}
+
+/// Pure: the top items for providers that lost their sign-in (spec §6):
+/// (menu id, label). Empty while every provider is healthy.
+pub fn attention_entries(a: &Attention) -> Vec<(&'static str, &'static str)> {
+    let mut out = Vec::new();
+    match a.google {
+        Some(Need::Signin) => out.push(("attn_google_signin", "Sign in to Google again…")),
+        Some(Need::Unlock) => out.push(("attn_google_unlock", "Unlock Google locations…")),
+        None => {}
+    }
+    if a.apple.is_some() {
+        out.push(("attn_apple_signin", "Sign in to Apple again…"));
+    }
+    out
+}
+
+fn attention_items(app: &AppHandle, a: &Attention) -> tauri::Result<Vec<Item>> {
+    let mut items = Vec::new();
+    for (id, label) in attention_entries(a) {
+        items.push(entry(app, id, label.to_string(), true)?);
+    }
+    if !items.is_empty() {
+        items.push(Box::new(PredefinedMenuItem::separator(app)?));
+    }
+    Ok(items)
 }
 
 /// The read-only block: dot line, the crash-only Restart item, the latest
@@ -108,4 +137,19 @@ fn action_items(
     }
     items.push(entry(app, "settings", "Settings…".into(), true)?);
     Ok(items)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn attention_items_follow_the_daemon() {
+        assert!(attention_entries(&Attention::default()).is_empty());
+        let a = Attention { google: Some(Need::Signin), apple: Some(Need::Signin) };
+        let ids: Vec<_> = attention_entries(&a).into_iter().map(|e| e.0).collect();
+        assert_eq!(ids, vec!["attn_google_signin", "attn_apple_signin"]);
+        let a = Attention { google: Some(Need::Unlock), apple: None };
+        assert_eq!(attention_entries(&a), vec![("attn_google_unlock", "Unlock Google locations…")]);
+    }
 }

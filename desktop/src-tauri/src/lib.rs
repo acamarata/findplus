@@ -2,15 +2,16 @@
 //!
 //! Purpose    : Wire the single-instance, notification, shell and dialog
 //!              plugins, start the daemon supervisor, status poller, native
-//!              alert poller and tray on setup, and route findplus:// opens.
+//!              alert poller and tray on setup, route findplus:// opens, and
+//!              expose `open_signin_window` (in-app login, main window only).
 //! Constraints: Cargo.toml declares `[lib] name = "findplus_lib"`, so the
 //!              whole tauri::Builder chain lives here; main.rs stays the
 //!              two-line `findplus_lib::run()` shim.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let probe = probe_mode();
+    let special = probe_mode() || selftest_case().is_some();
     let mut builder = tauri::Builder::<tauri::Wry>::default();
-    if !probe {
+    if !special {
         builder = builder.plugin(tauri_plugin_single_instance::init(on_second_instance));
     }
     builder
@@ -18,9 +19,10 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
-            notify::request_notification_permission
+            notify::request_notification_permission,
+            signin_window::open_signin_window
         ])
-        .setup(move |app| if probe { setup_probe(app) } else { on_setup(app) })
+        .setup(move |app| if special { setup_special(app) } else { on_setup(app) })
         .build(tauri::generate_context!())
         .expect("error building Find+")
         .run(on_run_event);
@@ -34,15 +36,25 @@ fn probe_mode() -> bool {
     false
 }
 
-/// Probe launch: no tray, daemon or splash, just the gate-probe window.
-fn setup_probe(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    #[cfg(feature = "login-probe")]
-    {
-        #[cfg(target_os = "macos")]
-        app.set_activation_policy(tauri::ActivationPolicy::Regular);
-        probe_login::start(app.handle());
+/// The sign-in self-test case (debug builds only; tests/signin_e2e.rs).
+fn selftest_case() -> Option<String> {
+    #[cfg(debug_assertions)]
+    return signin_selftest::requested();
+    #[cfg(not(debug_assertions))]
+    None
+}
+
+/// Probe or self-test launch: no tray, daemon or splash, just one window.
+fn setup_special(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(target_os = "macos")]
+    app.set_activation_policy(tauri::ActivationPolicy::Regular);
+    #[cfg(debug_assertions)]
+    if let Some(case) = selftest_case() {
+        signin_selftest::start(app.handle(), &case);
+        return Ok(());
     }
-    #[cfg(not(feature = "login-probe"))]
+    #[cfg(feature = "login-probe")]
+    probe_login::start(app.handle());
     let _ = app;
     Ok(())
 }
@@ -96,6 +108,7 @@ fn on_run_event(app_handle: &tauri::AppHandle, event: tauri::RunEvent) {
     }
 }
 
+mod attention;
 mod daemon;
 mod first_launch;
 mod notify;
@@ -105,6 +118,16 @@ mod probe_fake;
 mod probe_login;
 #[cfg(any(feature = "login-probe", test))]
 mod probe_logic;
+#[cfg(debug_assertions)]
+mod signin_fake;
+mod signin_http;
+mod signin_logic;
+mod signin_machine;
+mod signin_script;
+#[cfg(debug_assertions)]
+mod signin_selftest;
+mod signin_session;
+mod signin_window;
 mod status;
 mod tray;
 mod urlscheme;

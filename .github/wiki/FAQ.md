@@ -53,6 +53,17 @@ Quit the Find+ app, then `findplus stop`, `findplus db backups` to list copies, 
 file, keeps the database it replaces, and refuses while Find+ runs. Backups are unencrypted
 copies. See [[Backup-and-restore]].
 
+**How does Google sign-in work in the app?**
+You click Connect, a Find+ window shows Google's own sign-in page, and it closes by
+itself when you are in. The window keeps nothing, and Find+ never saves your password or
+the sign-in cookie. If Google refuses the window ("This browser or app may not be
+secure"), use the Chrome helper or paste one cookie value. See [[Sign-in]].
+
+**Find+ says it needs me to sign in again. Why?**
+Google or Apple ended the sign-in on their side, often after a password change. The menu
+bar item, one notification and the dashboard's **Sign in again** button all start the same
+sign-in. Your trackers and history are kept.
+
 **Is my daily summary sent anywhere?**
 Only if you turn on the evening digest or press Send. It goes to the chat you pick on Telegram
 and names people, places and times. See [[Privacy-and-threat-model]].

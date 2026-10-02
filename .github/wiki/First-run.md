@@ -65,6 +65,7 @@ findplus auth
 findplus start
 ```
 
+In the app and the dashboard, **Connect** opens the Find+ sign-in window for Google and a sheet for Apple. In a terminal,
 `findplus auth` opens Chrome to sign in with your Google account;
 `findplus auth --token` uses your own Chrome instead and asks you to paste the
 token it shows you ([Sign in](Sign-in)). `--provider apple-find-my` runs an

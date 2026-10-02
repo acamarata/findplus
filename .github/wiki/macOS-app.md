@@ -25,9 +25,23 @@ applies), the most recent fix (hidden while locked or down), the tracked
 device count, Poll Now, Lock, Open Dashboard, Settings, Open App and Quit
 Find+. "Start at login" is in the Settings window, not the menu.
 
+When Google or Apple ends a sign-in, the icon dims and the top item of the menu
+becomes "Sign in to Google again...", "Unlock Google locations..." or "Sign in to
+Apple again...". Click it to start that sign-in. You also get one notification,
+"Find+ needs you", per loss, if you allowed notifications.
+
 Opening Find+.app again from Applications or Spotlight while it is already
 running brings the dashboard forward instead of doing nothing; the first
 launch after installing still shows the setup wizard, same as before.
+
+## Signing in
+
+The app signs in to Google in a small Find+ window that shows Google's own page
+and closes by itself when you are in; the same window takes the unlock step. It
+keeps nothing and is separate from your browsers. Apple opens a sheet in the
+dashboard. The separate Find+ Chrome window older versions used is hidden in
+1.2. Details: [Sign in](Sign-in). If Google refuses the window, the card falls
+back to the Chrome helper or a pasted cookie.
 
 ## Widget
 

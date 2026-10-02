@@ -6,8 +6,9 @@ Open the dialog from the **Settings** button in the toolbar, or go straight to
 ## Sign in
 
 The first section of the dialog shows each provider, the account you are signed
-in as, and what is still missing. Signing in here runs the same flow
-`findplus auth` runs in the terminal. See [Sign in](Sign-in).
+in as, and what is still missing. **Connect** opens Google's sign-in in a Find+ window that closes itself, or Apple's
+in one sheet. A sign-in that has stopped working shows a **Sign in again** button
+here. See [Sign in](Sign-in).
 
 ## Polling interval
 

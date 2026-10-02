@@ -2,63 +2,106 @@
 
 Find+ needs an account on at least one tracking network before it has anything
 to poll. You can sign in from the dashboard, from the setup wizard, or from the
-terminal. All three write the same credentials to `~/.findplus/`.
+terminal. All three write the same credentials to `~/.findplus/`. You can
+connect Google, Apple, or both, in any order.
 
 ## Google
 
 Open **Settings**. Sign-in is the first section of the dialog, and the setup
-wizard shows the same card. The Google card leads with one button, **Sign in
-with Google**, which uses the Find+ helper for Chrome. Two fallbacks sit under
-**Other ways to sign in**, for when you cannot or would rather not install the
-helper.
+wizard shows the same card. In the Find+ app, the card has one button.
 
-### Sign in with Google (the helper)
+### In the Find+ app: the sign-in window
 
-Click **Sign in with Google**. Find+ opens a page on 127.0.0.1 in your own
-Chrome, which the Find+ helper redirects to Google's sign-in. You sign in
-normally, land on a small "Signed in. You can close this tab." page, and Find+
-continues on its own: the card shows your account and, if needed, the unlock
-step appears.
+1. Click **Connect**. A small window titled "Find+ sign-in: Google" opens. It
+   shows Google's own sign-in page, and the title names the page you are on so
+   you can check where you type your password.
+2. Sign in as you normally would, including any 2-step prompt. The card behind
+   it says "Finish signing in in the Find+ window."
+3. When Google accepts you, the window closes by itself. The card says
+   **Connected as** your account.
 
-This needs the **Find+ helper for Chrome**, a small open-source extension. The
-first time, add it once:
+If you would rather stop, click **Cancel** on the card, or close the window
+(Command+W). Nothing changes and the card says "Cancelled. Nothing changed."
+A window left open for 10 minutes closes on its own. If it is slow, the card
+adds a hint after a few minutes, but the window stays open; some 2-step checks
+take a while.
 
-1. In the sign-in card, open **First time? Add the Find+ helper to Chrome**.
-   Find+ copies the helper to `~/.findplus/chrome-helper/<version>` and shows
-   that path with a Copy button. It opens nothing for you.
+You type your password only on Google's page. Find+ never sees it and has no
+field for it. The window keeps nothing: it is a throwaway browser store, wiped
+when the window closes, and it is separate from Safari, Chrome and every other
+app.
+
+This window is the main route in the app. In a normal browser tab (the
+dashboard at http://127.0.0.1:8647 opened from Safari, say), the card cannot
+open a window, so it uses the Chrome helper below instead.
+
+### Unlock encrypted locations, in the same window
+
+Google encrypts your Find Hub locations end to end. After you sign in, Find+
+needs to unlock that encryption once before it can read any tracker. If it is
+needed, the same window carries on to Google's unlock page and the card says
+"One more step: enter your Android phone's screen lock in the same window."
+Enter your phone's PIN, pattern or password there. That is what proves to
+Google you are allowed the key. When the key is stored, the window closes and
+the card shows **Connected as** your account with a **Locations unlocked**
+chip. If you cancel at this step, you stay signed in and the card shows
+**Locations locked** with an **Unlock encrypted locations** button to try again.
+
+Find+ stores the key (`shared_key`) in `~/.findplus/secrets.json` at mode 0600
+and never logs it. From a terminal, `findplus auth --unlock` does the same
+with a Chrome window of its own.
+
+If a poll ever reports that locations are locked again (for example after the
+end-to-end data is reset on your account), the card and the menu bar ask you to
+unlock once more.
+
+### If the window is blocked
+
+Google's policy is against sign-in inside apps, so it can refuse at any time:
+
+> Find+ can sign you in to Google in a window of its own. Google's policy is
+> against sign-in inside apps, so it can refuse at any time; if it does, sign
+> in with your own Chrome instead.
+
+If the window shows "This browser or app may not be secure", or Google says it
+could not sign you in, Find+ notices, closes the window and says so on the
+card: "Google would not let Find+ sign you in inside the app. Use your Chrome
+instead." It remembers that for 7 days, and in that time the card leads with
+your Chrome. You have two ways to go on, and neither needs the window.
+
+**The Chrome helper.** The Find+ helper is a small open-source extension for
+your own Chrome. Add it once:
+
+1. On the card, open **More ways to sign in** and choose **Show the steps**
+   under the helper. The card shows a folder path and a Copy button. Find+
+   copies the helper into that folder (`~/.findplus/chrome-helper/<version>`)
+   and opens nothing for you.
 2. In Chrome, type `chrome://extensions` in the address bar and press Return.
 3. Turn on **Developer mode** (top right), click **Load unpacked**, and choose
-   that folder.
+   the folder from step 1.
+4. Come back to Find+ and click **Sign in with Google**. A tab opens in your
+   Chrome, you sign in on Google's page, and a small "Signed in. You can close
+   this tab." page appears. Find+ continues on its own, including the unlock
+   step.
 
-Why an extension: Google releases the Find Hub sign-in token and the encryption
-keys only to a browser page, and Chrome no longer lets an outside program drive
-your everyday profile. The helper, inside your own Chrome, passes just those
-values to Find+ on 127.0.0.1. It talks to nothing else, has no analytics and no
-remote code, and never sees your password. Its source is in
+Why an extension: Google releases the Find Hub sign-in token and the
+encryption keys only to a browser page, and Chrome no longer lets an outside
+program drive your everyday profile. The helper, inside your own Chrome, passes
+just those values to Find+ on 127.0.0.1. It talks to nothing else, has no
+analytics and no remote code, and never sees your password. Its source is in
 [`browser-helper/`](https://github.com/acamarata/findplus/tree/main/browser-helper),
 and its privacy policy is
-[here](https://github.com/acamarata/findplus/wiki/Chrome-helper-privacy). Once
-it is published on the Chrome Web Store you will be able to add it with one
-click instead.
+[here](https://github.com/acamarata/findplus/wiki/Chrome-helper-privacy).
 
-### Fallbacks: other ways to sign in
-
-The helper is the main route. Under **Other ways to sign in** the card keeps two
-fallback paths that need no extension:
-"Sign in with your Chrome" (you copy one cookie value by hand) and "Or let Find+
-open its own Chrome window" (Find+ drives a separate Chrome window). Both are
-described below.
-
-### Fallback: sign in with your Chrome
-
-This is the manual route. Prefer the helper above. Click **Sign in with your Chrome**. Find+ opens Google's own sign-in page,
+**Pasting the cookie.** This needs no extension. Under **More ways to sign
+in**, click **Sign in with your Chrome**. Find+ opens Google's own sign-in page,
 `https://accounts.google.com/EmbeddedSetup`, as a normal tab of your Google
 Chrome, and the card says where it opened it. Without Google Chrome, the page
 opens in your default browser instead and the card says that; the steps below
-are written for Chrome. The card then shows the same steps:
+are written for Chrome. Then:
 
-1. Sign in to your Google account in that Chrome tab, including any 2-step
-   prompt. The page may look blank or keep spinning after you sign in. That is
+1. Sign in to your Google account in that tab, including any 2-step prompt.
+   The page may look blank or keep spinning after you sign in. That is
    expected.
 2. Open Chrome's developer tools: Option+Command+I on a Mac, Ctrl+Shift+I on
    Windows or Linux.
@@ -67,68 +110,76 @@ are written for Chrome. The card then shows the same steps:
 4. Click the `oauth_token` row and copy its Value. It starts with `oauth2_4/`.
 5. Paste it into the card with your Google email, then click **Connect**.
 
-Find+ checks the token with Google, saves the session and shows "Signed in as"
-with your account. If Google refuses the token, the card says so in plain
+Find+ checks the token with Google, saves the session and shows "Connected
+as" with your account. If Google refuses the token, the card says so in plain
 words: "Google did not accept that token. It expires within minutes: sign in
 again in Chrome and copy a fresh one." If Google cannot be reached, it says
-that instead.
+that instead. The token expires within minutes, so copy it right after you
+sign in. From a terminal, `findplus auth --token` does the same.
 
-Why a copy step at all: Chrome 136 and later ignore the switches another
-program needs to drive your everyday Chrome profile, so Find+ cannot automate
-the browser you actually use. And Google issues the Find Hub token only to a
-browser, as the `oauth_token` cookie that page sets after you sign in. So you
-copy that one value across, once.
+You can try the window again at any time with **Try the Find+ window again**.
 
-What happens to the token: Find+ exchanges it with Google right away for the
-long-lived session Find Hub needs, then forgets it. It is never written to
-disk, never logged and never sent back to the browser. The token field is
-cleared the moment you click Connect. The token expires within minutes, so
-copy it right after you sign in.
+### What Find+ stores, and what it never stores
 
-### Fallback: let Find+ open its own Chrome window
+| Stored | Where | Notes |
+|---|---|---|
+| Google session tokens and your account address | `~/.findplus/secrets.json` (0600, in a 0700 folder) | Never in the database, a backup, git or a log. |
+| The encryption key (`shared_key`) | `~/.findplus/secrets.json` | Same file. |
+| A note that Google blocked the window | `~/.findplus/native-signin.json` | A time and a reason, for 7 days. No token. |
 
-Also a fallback. The smaller button under the steps, **Or let Find+ open its own Chrome
-window**, runs the older automatic flow. Find+ opens a separate Chrome window
-on Google's sign-in page, waits for you to sign in there and picks the token
-up itself. The card reports each stage as it runs: opening Chrome, waiting for
-you to finish in the Chrome window, saving the session, then the account it
-captured.
+Never stored: your Google password (you type it on Google's page), the
+`oauth_token` cookie (exchanged with Google at once and dropped; never written
+to disk, never logged), and anything the sign-in window held. The window's
+cookies, history and cache are wiped when it closes, and Find+ does not copy
+them anywhere. The logs name the host and path of a page the window was on, and
+nothing after the path.
 
-If that sign-in cannot start or does not finish, the card says why in plain
-words and offers **Try again**. That covers an error from the Find+ service, a
-service Find+ cannot reach, a sign-in that expired or ran past 5 minutes, and a
-failure Chrome reported. A **Cancel** button appears the moment you click it,
-while Find+ is opening Chrome and while it is waiting for you to finish signing
-in, so you are never stuck waiting out the 5-minute timeout to back out.
+Find+ in its default setup never opens a separate Chrome window for sign-in.
+Older versions (1.1 and earlier) did, with a profile at
+`~/.findplus/chrome-profile`. That folder can still be on your disk; see
+[Uninstall](Uninstall#older-versions-left-a-chrome-profile) to remove it.
 
-That window runs in a profile directory of its own,
-`~/.findplus/chrome-profile`. The directory holds the cookies and history of
-this sign-in only. Your personal Chrome profile is not read, not written, and
-not closed. It is a separate profile, not a sandbox: the browser still reaches
-the network the way any browser does.
+### When a sign-in stops working
 
-### Unlock encrypted locations
+Google or Apple can end a sign-in on their side: a password change, a revoked
+session, or an expiry. Find+ then cannot get new locations. It tells you once,
+in three places:
 
-Google encrypts your Find Hub locations end to end. After you sign in, Find+
-still needs to unlock that encryption once before it can read any tracker, and
-the card shows an **Unlock encrypted locations** step until you do. It needs
-your Android phone's screen lock (PIN, pattern or password): that is what
-proves to Google you are allowed the key.
+- **Menu bar.** The icon dims and the top item of the menu changes to "Sign in
+  to Google again...", "Unlock Google locations..." or "Sign in to Apple
+  again...". Click it to go straight to that sign-in.
+- **One banner.** A system notification reads "Find+ needs you". It appears
+  once per loss, not on every poll, and only if you allowed notifications.
+- **The dashboard.** A banner with one button, **Sign in again** (or **Unlock
+  locations**), opens Settings and starts that sign-in.
 
-Click **Unlock encrypted locations**. Find+ opens a Chrome window of its own
-and Google asks for your phone's screen lock in it. Enter it there. Find+ never
-asks you to paste anything into a console, and it does not touch your everyday
-Chrome. When the key is stored the step disappears and the next poll can
-decrypt. A **Cancel** button backs out while it waits, and a failure is shown
-with the step still there to try again.
+Clicking any of them starts the same flow as the first time. When it finishes,
+the banner and the menu item clear. Your trackers, places, groups and history
+are kept throughout.
 
-Find+ stores the key (`shared_key`) in `~/.findplus/secrets.json` at mode 0600
-and never logs it. From a terminal, `findplus auth --unlock` does the same:
-it opens the window, waits for the screen lock, and stores the key.
+### Revoke Find+'s access from your Google account
 
-If a poll ever reports that locations are locked again (for example after the
-end-to-end data is reset on your account), the same step reappears; unlock once
-more.
+Disconnecting in Find+ removes Find+'s own copy of your credentials. To also
+end the session on Google's side, open your Google account's security page,
+https://myaccount.google.com/security, and find **Your connections to third-party
+apps and services** (or **Your devices**, depending on the account). Find the
+Find+ sign-in, which usually appears as an Android device, and remove it. Find+
+then shows the "sign in again" prompt described above. Changing your Google
+password does the same.
+
+### Troubleshooting
+
+| What you see | What to do |
+|---|---|
+| The window never opens | Click **Connect** again. If the card says it could not open the window, use **Use your Chrome**. |
+| "This browser or app may not be secure" | Google refused the window. Use the Chrome helper or the pasted cookie above. |
+| A blank page after you sign in | Wait a few seconds. If the card still waits, close the window and click **Connect** again. |
+| The window closed but the card says "Cancelled" | Command+W or Cancel was pressed. Start again. |
+| "Locations locked" after signing in | Click **Unlock encrypted locations** and enter your Android screen lock in the window. |
+| A banner keeps coming back | The sign-in is still lost. Click **Sign in again** and finish the window. |
+| Nothing in the app reacts to the banner | Open **Settings**, then Sign-in, and click **Connect**. |
+
+More in [Troubleshooting](Troubleshooting).
 
 ### Both ways
 
@@ -137,19 +188,9 @@ does not use either company's sign-in service. The sign-in panel says so once,
 under the cards: "Find+ is not affiliated with Apple or Google. Find Hub and
 Find My are their trademarks."
 
-A sign-in that fails or is cancelled part-way never shows as signed in: the
-card counts you as signed in only once Find+ holds a Google session and the
+A sign-in that fails or is cancelled part-way never shows as connected: the
+card counts you as connected only once Find+ holds a Google session and the
 account it belongs to.
-
-If Chrome is not installed, the separate-window button is disabled and the
-card says:
-
-> Google Chrome was not found on this machine. Google sign-in drives Chrome
-> directly and cannot run without it.
-
-A **Download Google Chrome** link sits right under it. The notice does not
-also print the raw URL, so there is one way to get Chrome, not two. Once
-Chrome is installed, click **Check again**.
 
 What a Find Hub account gives you:
 
@@ -161,13 +202,27 @@ What a Find Hub account gives you:
 
 ## Apple
 
-The Apple card takes your Apple ID and password; click **Connect Apple Find
-My**. If Apple wants a second factor, the form is replaced by a code field.
-Apple shows the code on one of your trusted Apple devices, or, when the account
-has no trusted device, texts it to your phone and the card says so. Enter it
-and click **Verify code**. A wrong code is named as such and the code field
-stays; **Try again** starts over with a fresh form. `findplus auth --provider
-apple-find-my` lists every method Apple offers and lets you pick one.
+Click **Connect** on the Apple card. A sheet opens asking for your Apple ID and
+password. Find+ uses the password once and never stores it.
+
+If Apple wants a second factor, the sheet turns into a code field, and it says
+which kind of code to expect:
+
+- **Trusted device.** Apple shows a 6-digit code on one of your iPhones, iPads
+  or Macs. Enter it.
+- **Text message.** If no trusted device is available, or you click **Use a text
+  message instead**, Apple texts the code to your phone and the sheet says so.
+
+Enter the code and the sheet checks it. A wrong code is named as such and the
+field stays; **Start over** begins with a fresh form. **Cancel** (or Escape)
+closes the sheet and nothing changes. When Apple accepts, the card says
+**Connected as** your Apple ID. `findplus auth --provider apple-find-my` lists
+every method Apple offers and lets you pick one.
+
+Setting up both: connect Google and Apple one after the other, in either order.
+The wizard's sign-in step shows the two cards side by side (stacked on a narrow
+window) and lets you continue once one is connected. You can add the other
+later in Settings.
 
 A pip install without the Apple extra cannot sign in to Apple at all. The card
 then says so and names the fix, `pip install 'findplus[apple]'`, instead of
@@ -183,8 +238,9 @@ request leaves.
 `~/.findplus/apple-account.json` (mode 0600) holds your Apple ID and the
 session tokens Apple issued. Because the password is not saved, Find+ cannot
 quietly sign in again when Apple expires those tokens. Polls of your Apple
-accessories then report that sign-in is needed, and you sign in again the same
-way.
+accessories then report that sign-in is needed, and the menu bar, a banner and
+the dashboard ask you to sign in again, as described under [When a sign-in
+stops working](#when-a-sign-in-stops-working).
 
 ### Anisette
 
@@ -227,7 +283,7 @@ over the API at `POST /api/apple/accessories`.
 
 ## Sign out
 
-Once a card shows "Signed in as ...", a **Disconnect** button appears next to
+Once a card shows "Connected as ...", a **Disconnect** button appears next to
 it, on both the dashboard's Settings > Sign-in and the setup wizard. Clicking
 it opens an inline confirm row (never a native browser popup) that says what
 disconnecting does and does not do, then a second click carries it out.
@@ -235,7 +291,7 @@ disconnecting does and does not do, then a second click carries it out.
 Disconnecting **Google** removes Find+'s own copy of your Google credentials
 (`~/.findplus/secrets.json`): the AAS/ADM tokens, FCM credentials and the
 end-to-end owner key. Your Google account itself is untouched; nothing is
-revoked on Google's side.
+revoked on Google's side; see [Revoke Find+'s access](#revoke-finds-access-from-your-google-account).
 
 Disconnecting **Apple** removes the saved session (`~/.findplus/apple-account.json`).
 Any accessory keys you registered (AirTags, other Find My trackers) are kept:
@@ -271,6 +327,14 @@ every other data route does. Starting a sign-in also requires the request to
 carry an `Origin` or `Sec-Fetch-Site` header, which browsers and the macOS app
 always send.
 
+The in-app window talks to the daemon over seven routes under
+`/api/auth/google/native/` (`begin`, `token`, `unlock`, `event`, `classify`,
+`progress`, `cancel`). `begin`, `progress` and `cancel` need the same header
+and sit behind the app lock; the four routes the window itself calls must come
+from `http://127.0.0.1:<port>` with a Find+ client header and a live sign-in
+started by `begin`, and are refused otherwise. See the
+[API reference](API-reference).
+
 The two routes behind "Sign in with your Chrome" are `POST
 /api/auth/google/open` (opens the page, answers which browser got it) and
 `POST /api/auth/google/token` with `{"email", "oauth_token"}`. Both carry the
@@ -298,7 +362,7 @@ for your email and the token (typed hidden). For a script, set
 goes on the command line, so it stays out of your shell history. `findplus
 auth` without `--token` is the terminal's automatic flow and behaves the same
 as it always has. `findplus auth --unlock` runs the unlock step (above) from a
-terminal: it opens Find+'s own Chrome window for your Android screen lock and
+terminal: it opens a Chrome window of its own for your Android screen lock and
 stores the encryption key. `findplus auth --status` prints which providers you are signed in to, as
 which account, and what is still missing; `--json` prints the same object the
 dashboard reads from `GET /api/auth/status`. `--sign-out` removes that

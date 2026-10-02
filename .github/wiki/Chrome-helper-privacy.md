@@ -4,6 +4,10 @@ This policy covers the "Find+ helper" Chrome extension, part of the open-source
 Find+ project (https://github.com/acamarata/findplus). It is the privacy policy
 referenced by the extension's Chrome Web Store listing.
 
+In Find+ 1.2 the helper is a fallback: the Find+ app signs in to Google in its
+own window first, and uses the helper only when Google refuses that window or
+when you use the dashboard in a browser tab. You only need it in those cases.
+
 ## What the helper is for
 
 The helper connects your Google Find Hub account to a Find+ installation running

@@ -5,8 +5,9 @@ distinct sighting under a common schema, regardless of source.
 
 ## Google Find Hub
 
-Uses the vendored GoogleFindMyTools client. `findplus auth` opens Chrome for
-an interactive Google sign-in (undetected-chromedriver, so Google sees a
+Uses the vendored GoogleFindMyTools client. In the Find+ app, **Connect** signs in
+inside a Find+ window ([Sign in](Sign-in)). From a terminal, `findplus auth` opens
+Chrome for an interactive Google sign-in (undetected-chromedriver, so Google sees a
 normal browser sign-in, not an API client). Find+ then stores a long-lived
 Android token and the end-to-end-encryption owner key needed to decrypt tag
 locations, and polls on your configured interval.

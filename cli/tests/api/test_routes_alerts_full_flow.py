@@ -19,7 +19,9 @@ from findplus.config import get_settings
 from findplus.db.models import Device, LocationObservation, Place, PlaceEvent
 from findplus.db.session import session_scope
 
-NOW = datetime.datetime(2026, 9, 20, 12, 0, 0, tzinfo=datetime.UTC)
+#: After the rule the API creates (stamped with the real clock): a rule never
+#: sends a crossing from before it existed (uat116 #1).
+NOW = datetime.datetime.now(datetime.UTC).replace(microsecond=0) + datetime.timedelta(hours=1)
 
 
 @pytest.fixture

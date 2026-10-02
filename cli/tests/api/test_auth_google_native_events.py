@@ -9,6 +9,8 @@ Purpose    : opened/waiting/closed/failed/blocked move the card's phase; a
 
 from __future__ import annotations
 
+import sys
+
 import pytest
 
 from findplus.providers.google_findhub import helper_state as hs
@@ -188,6 +190,7 @@ def test_a_block_is_forgotten_after_seven_days(auth_client, monkeypatch, tmp_pat
     assert native_progress.blocked_at() is None
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX file modes are not honoured on Windows")
 def test_block_memory_file_is_private(tmp_db) -> None:
     native_progress.remember_block("stuck")
     path = native_progress._path()

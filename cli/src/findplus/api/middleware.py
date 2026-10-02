@@ -21,12 +21,9 @@ Constraints:
     - The Tauri shell loads http://127.0.0.1:8647/ in an external webview, so
       its requests are same-origin; the splash window's tauri:// origin is
       allowed explicitly.
-    - The Referer fallback (blind cap B3) exists for a route like
-      POST /api/apple/accessories that is deliberately not behind
-      _require_origin_signal (routes_auth.py) so headerless CLI/MCP requests
-      still work: an old-style cross-site <form> POST can omit both Origin
-      and Sec-Fetch-Site while still carrying a Referer, and this is the one
-      place that shape is checked, for every mutating /api/ route at once.
+    - The Referer fallback (blind cap B3) covers routes like POST /api/apple/accessories that are
+      deliberately not behind _require_origin_signal: an old-style cross-site <form> POST can omit
+      Origin and Sec-Fetch-Site yet carry a Referer, and this is the one place that is checked.
 """
 
 from __future__ import annotations
@@ -297,11 +294,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers.setdefault("Content-Security-Policy", CONTENT_SECURITY_POLICY)
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
-        # The page and its scripts must be revalidated on every load: after an
-        # app update a webview that kept the old index.html next to new scripts
-        # crashed the dashboard ("toggle-suspect" is null, 1.2.0). no-cache still
-        # lets the browser reuse a file the server says is unchanged (ETag).
-        path = request.url.path
-        if path == "/" or path.startswith("/static/"):
+        # Revalidate the page and scripts on every load: a stale index.html beside new scripts broke 1.2.0.
+        if request.url.path == "/" or request.url.path.startswith("/static/"):
             response.headers.setdefault("Cache-Control", "no-cache")
         return response

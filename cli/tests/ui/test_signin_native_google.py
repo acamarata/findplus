@@ -73,8 +73,7 @@ async def test_connect_hands_begin_to_the_window_and_ends_connected(page, base_u
             },
         }
     ]
-    assert fake.begins[0]["body"] == {"mode": "signin", "if_idle": True}
-    assert fake.begins[0]["origin"] == base_url
+    assert fake.begins[0] == {"body": {"mode": "signin", "if_idle": True}, "origin": base_url}
     assert await page.locator("#fp-auth-google-native-show").is_visible()
     note = await page.locator("#fp-auth-google-native-note").inner_text()
     assert "title" in note  # the window-title note

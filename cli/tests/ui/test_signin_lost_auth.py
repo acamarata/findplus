@@ -80,7 +80,7 @@ async def test_unlock_banner_opens_the_window_in_unlock_mode(page, base_url):
     await page.click(ACTION)
     await wait_text(page, "#fp-auth-google-native-text", "Enter your Android phone's screen lock")
     assert (await invokes(page))[0]["mode"] == "unlock"
-    assert fake.begins[0]["body"] == {"mode": "unlock"}
+    assert fake.begins[0]["body"] == {"mode": "unlock", "if_idle": True}
     assert await page.locator("#fp-auth-google-locked").is_visible()
 
 

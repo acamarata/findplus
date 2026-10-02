@@ -30,9 +30,11 @@ impl Session {
             return false;
         }
         self.ticks_since_poll = 0;
-        self.daemon
-            .progress_phase()
-            .is_some_and(|p| signin_close::daemon_says_stop(self.phase, self.mode, &p))
+        let mine = self.begin.flow.clone();
+        self.daemon.progress().is_some_and(|(phase, flow)| {
+            let same_flow = mine.is_none() || flow.is_none() || flow == mine;
+            signin_close::daemon_says_stop(self.phase, self.mode, &phase, same_flow)
+        })
     }
 
     pub(super) fn post_token(&mut self) -> Input {
@@ -59,6 +61,9 @@ impl Session {
                     Input::TokenRetryLater
                 }
                 TokenRetry::Fail => {
+                    if e.code == "google_unreachable" {
+                        self.reason = Some(e.code);
+                    }
                     self.message = Some(e.message);
                     Input::TokenRejected
                 }

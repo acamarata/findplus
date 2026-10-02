@@ -40,6 +40,9 @@ impl Mode {
 
 /// The failed reason for an unlock-only window that could not read the account.
 pub const ACCOUNT_UNKNOWN: &str = "account_unknown";
+/// Failed reasons the shell itself knows (native_messages.FAILED_REASONS);
+/// any other error is reported as "other".
+const SHELL_FAILED_REASONS: &[&str] = &[ACCOUNT_UNKNOWN, "google_unreachable"];
 /// The card's words for it (the daemon's native_messages.MSG_ACCOUNT_UNKNOWN).
 pub const MSG_ACCOUNT_UNKNOWN: &str = "Find+ could not tell which Google account the window is signed in to, so it saved nothing. Try again.";
 
@@ -100,7 +103,11 @@ impl Outcome {
             Outcome::BlockedEmbedded => ("blocked", Some(reason.unwrap_or("other"))),
             Outcome::Error => (
                 "failed",
-                Some(reason.filter(|r| *r == ACCOUNT_UNKNOWN).unwrap_or("other")),
+                Some(
+                    reason
+                        .filter(|r| SHELL_FAILED_REASONS.contains(r))
+                        .unwrap_or("other"),
+                ),
             ),
         }
     }

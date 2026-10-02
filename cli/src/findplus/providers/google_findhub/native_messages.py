@@ -16,6 +16,8 @@ MSG_IDLE = ""
 MSG_CONNECTING = "Opening the sign-in window..."
 MSG_WAITING = "Finish signing in in the Find+ window."
 MSG_FINISHING = "Checking with Google..."
+MSG_GOOGLE_SLOW = "Google is slow to answer. Trying again..."
+MSG_GOOGLE_UNREACHABLE = "Couldn't reach Google. Check your internet connection and try again."
 MSG_NEEDS_UNLOCK = "One more step: enter your Android phone's screen lock in the same window."
 MSG_UNLOCK_WAITING = "Unlock your locations in the Find+ window."
 MSG_SIGNED_IN = "Connected as {account}."
@@ -29,6 +31,7 @@ MSG_OUTSIDE_GOOGLE = (
 )
 MSG_STUCK = "The sign-in window stopped moving. Use your Chrome instead, or try again."
 
+MSG_WINDOW_OPEN = "The Find+ sign-in window is already open."
 MSG_STATE_GONE = "This sign-in expired or was already used. Start it again from Find+."
 MSG_NOT_SIGNED_IN = "Sign in to Google first, then unlock your locations."
 MSG_UNLOCK_UNAVAILABLE = "Find+ could not prepare the unlock page. Try again in a moment."
@@ -53,6 +56,7 @@ FAILED_REASONS: dict[str, str] = {
     "cookie_read_failed": MSG_WINDOW_FAILED,
     "bridge_bad": MSG_WINDOW_FAILED,
     "account_unknown": MSG_ACCOUNT_UNKNOWN,
+    "google_unreachable": MSG_GOOGLE_UNREACHABLE,
     "other": MSG_WINDOW_FAILED,
 }
 

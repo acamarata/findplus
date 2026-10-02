@@ -129,6 +129,7 @@ mod signin_hosts;
 mod signin_http;
 mod signin_logic;
 mod signin_page;
+mod signin_queue;
 mod signin_machine;
 mod signin_script;
 #[cfg(debug_assertions)]

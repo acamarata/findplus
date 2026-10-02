@@ -9,7 +9,8 @@
  *              the 12a shell report.
  * Inputs     : window.__findplus_native (set only by the app's init script)
  *              and window.__TAURI__ (withGlobalTauri).
- * Outputs    : hasNativeWindow(), openSigninWindow(), listenNative().
+ * Outputs    : hasNativeWindow(), openSigninWindow(), closeSigninWindow(),
+ *              listenNative().
  * Constraints: Feature-detects every piece: a plain browser tab, an older app
  *              without the command, or a bridge without `event.listen` all
  *              fall back to the browser flows. Nothing here ever opens a
@@ -42,6 +43,15 @@ export function openSigninWindow(provider, mode, begin) {
   const args = { provider, mode };
   if (begin) args.begin = begin;
   return bridge.core.invoke("open_signin_window", args);
+}
+
+/** Ask the shell to close its Google window (best effort; never throws). */
+export function closeSigninWindow() {
+  const bridge = tauri();
+  if (!bridge) return;
+  Promise.resolve()
+    .then(() => bridge.core.invoke("close_signin_window", { provider: "google" }))
+    .catch(() => {});
 }
 
 /**

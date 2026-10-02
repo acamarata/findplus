@@ -44,6 +44,8 @@ pub struct ApiError {
 pub struct Begin {
     pub state: String,
     pub unlock_url: Option<String>,
+    /// The daemon's flow id (contract §3.8), when it sent one.
+    pub flow: Option<String>,
 }
 
 /// What `token` returns.
@@ -149,10 +151,10 @@ impl Daemon {
 }
 
 impl Daemon {
-    /// The daemon's sign-in `phase` (GET .../progress), or None when it does
-    /// not answer (down, or 401 while locked). A short timeout: the session
-    /// thread asks every few seconds.
-    pub fn progress_phase(&self) -> Option<String> {
+    /// The daemon's sign-in `phase` and `flow` (GET .../progress), or None
+    /// when it does not answer (down, or 401 while locked). A short timeout:
+    /// the session thread asks every few seconds.
+    pub fn progress(&self) -> Option<(String, Option<String>)> {
         let client = reqwest::blocking::Client::builder()
             .timeout(Duration::from_secs(3))
             .build()
@@ -167,13 +169,22 @@ impl Daemon {
         if !resp.status().is_success() {
             return None;
         }
-        parse_phase(&resp.json().ok()?)
+        let v: Value = resp.json().ok()?;
+        Some((parse_phase(&v)?, flow_of(&v)))
     }
 }
 
 /// Pure: `phase` from a progress reply.
 pub fn parse_phase(v: &Value) -> Option<String> {
     v.get("phase").and_then(Value::as_str).map(String::from)
+}
+
+/// Pure: `flow` from a begin or progress reply: a short word, else None.
+pub fn flow_of(v: &Value) -> Option<String> {
+    v.get("flow")
+        .and_then(Value::as_str)
+        .filter(|f| !f.is_empty() && f.len() <= 64 && f.bytes().all(|b| b.is_ascii_alphanumeric()))
+        .map(String::from)
 }
 
 /// Pure: an unlock URL Find+ will navigate to: Google's own unlock page (or
@@ -200,6 +211,7 @@ pub fn parse_begin(v: &Value, hosts: &Hosts) -> Option<Begin> {
     Some(Begin {
         state: state.to_string(),
         unlock_url,
+        flow: flow_of(v),
     })
 }
 

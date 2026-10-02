@@ -12,7 +12,7 @@ use serde_json::Value;
 use tauri::AppHandle;
 
 use crate::signin_http::{parse_begin, Begin, Daemon};
-use crate::signin_logic::Hosts;
+use crate::signin_logic::{self as logic, Hosts};
 use crate::signin_machine::{result_payload, Mode, Outcome};
 use crate::signin_session::Session;
 use crate::signin_window as window;
@@ -21,16 +21,19 @@ const MSG_BAD_BEGIN: &str = "Find+ could not start the sign-in. Try again.";
 
 /// Run one sign-in session to its end. Never panics on a daemon or window error.
 pub fn run(app: &AppHandle, mode: Mode, handed: Option<Value>) {
+    let handed_flow = handed.as_ref().and_then(crate::signin_http::flow_of);
+    crate::signin_queue::set_flow(handed_flow);
     window::progress(app, mode, "starting", false);
     let base = crate::daemon::daemon_base();
     let daemon = Daemon {
         cookie: window::session_cookie(app, &base),
         base,
     };
-    let hosts = window::hosts();
+    let hosts = hosts();
     let Some(begin) = obtain_begin(app, mode, &daemon, &hosts, handed) else {
         return;
     };
+    crate::signin_queue::set_flow(begin.flow.clone());
     if crate::signin_close::take_request() {
         // Cancelled on the card before the window existed: open nothing.
         daemon.event(&begin.state, "closed", None);
@@ -76,5 +79,30 @@ fn obtain_begin(
             }
             None
         }
+    }
+}
+
+/// The debug-only fake server origin, from FINDPLUS_SIGNIN_TEST_BASE. A
+/// release build has no way to point the window anywhere but Google.
+pub fn hosts() -> Hosts {
+    #[cfg(debug_assertions)]
+    if let Ok(base) = std::env::var("FINDPLUS_SIGNIN_TEST_BASE") {
+        let origin = logic::origin_of(&base);
+        if origin.starts_with("http://127.0.0.1:") {
+            return Hosts {
+                test_origin: Some(origin),
+            };
+        }
+    }
+    Hosts::default()
+}
+
+/// The first page for this mode.
+pub fn start_url(mode: Mode, hosts: &Hosts) -> String {
+    match (&hosts.test_origin, mode) {
+        (Some(t), Mode::Signin) => format!("{t}/EmbeddedSetup"),
+        (Some(t), Mode::Unlock) => format!("{t}/"),
+        (None, Mode::Signin) => logic::GOOGLE_SIGNIN_START.to_string(),
+        (None, Mode::Unlock) => logic::GOOGLE_UNLOCK_START.to_string(),
     }
 }

@@ -179,6 +179,14 @@ def drop_states_of(kinds: frozenset[str]) -> None:
                 _inflight.discard(state)
 
 
+def has_states_of(kinds: frozenset[str]) -> bool:
+    """True while any unexpired state of these kinds exists."""
+    now = time.monotonic()
+    with _lock:
+        _sweep(now)
+        return any(kind in kinds for kind, _expiry in _states.values())
+
+
 def record_outcome(kind: str, ok: bool, message: str = "") -> None:
     """Remember how the latest helper hand-off ended, for the dashboard card.
 

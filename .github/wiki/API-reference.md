@@ -2266,6 +2266,10 @@ Start an in-app sign-in (or unlock): a single-use state and the window's setting
     "mode": {
       "title": "Mode",
       "default": "signin"
+    },
+    "if_idle": {
+      "title": "If Idle",
+      "default": false
     }
   },
   "type": "object",

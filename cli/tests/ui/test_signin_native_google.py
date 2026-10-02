@@ -69,10 +69,11 @@ async def test_connect_hands_begin_to_the_window_and_ends_connected(page, base_u
                 "mode": "signin",
                 "window": {"timeout_seconds": 600},
                 "generation": 1,
+                "flow": "flow1",
             },
         }
     ]
-    assert fake.begins[0]["body"] == {"mode": "signin"}
+    assert fake.begins[0]["body"] == {"mode": "signin", "if_idle": True}
     assert fake.begins[0]["origin"] == base_url
     assert await page.locator("#fp-auth-google-native-show").is_visible()
     note = await page.locator("#fp-auth-google-native-note").inner_text()
@@ -168,7 +169,7 @@ async def test_progress_alone_drives_the_card_without_an_event_api(page, base_ur
     await page.click("#fp-auth-google-unlock-btn")
     await wait_text(page, TEXT, "A Find+ window opened. Enter your Android phone's screen lock")
     assert (await invokes(page))[-1]["mode"] == "unlock"
-    assert fake.begins[-1]["body"] == {"mode": "unlock"}
+    assert fake.begins[-1]["body"] == {"mode": "unlock", "if_idle": True}
 
 
 async def test_a_window_that_cannot_open_is_an_error_with_a_way_out(page, base_url):

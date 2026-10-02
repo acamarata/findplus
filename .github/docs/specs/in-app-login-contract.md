@@ -44,8 +44,12 @@ from Rust and fall back to showing the card on 401.
 
 ### 3.1 begin
 
-`POST /api/auth/google/native/begin` body `{"mode": "signin" | "unlock"}` (default `signin`).
-A new begin drops any older native state (one window at a time).
+`POST /api/auth/google/native/begin` body `{"mode": "signin" | "unlock", "if_idle": true | false}`
+(defaults `signin`, `false`). A new begin drops any older native state (one window at a time).
+The card always sends `if_idle: true`: while a window is still working (a live phase, §3.8) the
+daemon answers 409 `window_open` with `{"detail", "code", "flow", "mode"}` instead of replacing
+it, and the card follows that window (it calls `open_signin_window` without a begin, which only
+brings the window forward). The shell's own begin (tray, deep link) never sends `if_idle`.
 
 200:
 ```json
@@ -67,10 +71,13 @@ A new begin drops any older native state (one window at a time).
   },
   "allowed_hosts": ["accounts.google.com", "accounts.youtube.com", "myaccount.google.com",
                     "ssl.gstatic.com", "www.google.com"],
-  "allowed_host_pattern": "^accounts\\.google\\.(?:[a-z]{2,3}|co\\.[a-z]{2}|com\\.[a-z]{2})$",
-  "generation": 3
+  "allowed_host_pattern": "^(?:<label>\\.)*(?:google\\.com|gstatic\\.com|googleapis\\.com|googleusercontent\\.com|recaptcha\\.net|google\\.(?:[a-z]{2}|co\\.[a-z]{2}|com\\.[a-z]{2}))$",
+  "generation": 3,
+  "flow": "3f9a1c0b7d2e"
 }
 ```
+- `flow`: 12 hex characters naming this sign-in. Progress (§3.6) and the shell's `signin-progress`
+  / `signin-result` events carry it; the card ignores news from any other flow (§3.8).
 - `mode: "unlock"`: `start_url` is `https://accounts.google.com/`; wait until a page on
   `unlock_after_host` (`myaccount.google.com`) loads, then navigate to `unlock_url`.
 - `mode: "signin"`: `unlock_after_host` is null; after a token answer with `needs_unlock: true`,
@@ -78,8 +85,13 @@ A new begin drops any older native state (one window at a time).
 - `unlock_url` is built by the vendored `get_security_domain_request_url()` and is single-session;
   it may be `null` in signin mode if the vendor could not build it (then close after sign-in; the
   card offers the other unlock paths).
+- `allowed_hosts` / `allowed_host_pattern`: Google's sign-in pages and the frames they embed
+  (`*.google.com`, `[sub.]google.<cc>`, `.co.<cc>`, `.com.<cc>`, `gstatic.com`, `googleapis.com`,
+  `googleusercontent.com`, `recaptcha.net`, plus `accounts.youtube.com`). The shell keeps its own
+  copy (`signin_hosts.rs`); look-alikes, IP literals, a port or a `user@` part never pass.
 - Errors: 403 `bad_client` (no Origin), 409 `not_signed_in` (unlock mode, nobody signed in),
-  422 `bad_mode`, 503 `unlock_unavailable` (unlock mode only), 401 locked.
+  409 `window_open` (`if_idle` and a window still working), 422 `bad_mode`, 503
+  `unlock_unavailable` (unlock mode only), 401 locked.
 
 ### 3.2 token
 
@@ -89,13 +101,13 @@ A new begin drops any older native state (one window at a time).
 - `needs_unlock: true`: the SAME state is now kind `native_unlock` with a fresh 10-minute TTL.
   Navigate to `unlock_url`; post `unlock` with that state.
 
-| Status | code | Meaning | Shell action |
-|---|---|---|---|
-| 403 | `bad_client` / `state_invalid` | headers wrong / state unknown, expired, used, cancelled | wipe, close |
-| 400 | `token_rejected` | Google issued nothing | state kept: may retry with a fresh cookie read, else `event failed` |
-| 422 | `token_malformed` | not an `oauth2_4/` value | state kept: keep polling |
-| 502 | `google_unreachable` | network or Google timeout (60 s) | state kept: retry once |
-| 500 | `signin_failed` | anything else | state kept |
+| Status | code | Meaning | Shell action | Progress phase |
+|---|---|---|---|---|
+| 403 | `bad_client` / `state_invalid` | headers wrong / state unknown, expired, used, cancelled | wipe, close | unchanged |
+| 400 | `token_rejected` | Google issued nothing | `event failed` | `error` |
+| 422 | `token_malformed` | not an `oauth2_4/` value | state kept: keep polling | `waiting` (never `error`) |
+| 502 | `google_unreachable` | network or Google timeout (60 s) | state kept: retry once, then `event failed` reason `google_unreachable` | `finishing`, "Google is slow to answer. Trying again..." (never `error`) |
+| 500 | `signin_failed` | anything else | `event failed` | `error` |
 
 A second concurrent post with the same state is `state_invalid` (one exchange at a time).
 
@@ -105,8 +117,13 @@ A second concurrent post with the same state is `state_invalid` (one exchange at
 `vault_keys` is what the page passed to `window.mm.setVaultSharedKeys`. `account_hint` is the email the
 bridge read from `myaccount.google.com`, if any (compared case-insensitively with the signed-in account).
 200: `{"result": "unlocked", "account": "you@gmail.com"}`; the state is burned. Wipe, close.
-Errors: 400 `keys_rejected` (no usable key in them), 409 `account_mismatch`, 409 `not_signed_in`,
-500 `unlock_failed`, 403 as above. 400/409/500 keep the state.
+Unlock-only mode (`begin` with `mode: "unlock"`) REQUIRES `account_hint`: without it the daemon
+cannot know whose keys these are, so it answers 409 `account_unknown` and stores nothing (the
+shell already stops before the unlock page when the account page shows no address, and reports
+`event failed` reason `account_unknown`). After a sign-in in the same window the account is known
+from the token answer, so no hint is needed.
+Errors: 400 `keys_rejected` (no usable key in them), 409 `account_mismatch`, 409 `account_unknown`,
+409 `not_signed_in`, 500 `unlock_failed`, 403 as above. 400/409/500 keep the state and set `error`.
 
 ### 3.4 event
 
@@ -119,9 +136,14 @@ Errors: 400 `keys_rejected` (no usable key in them), 409 `account_mismatch`, 409
 | `closed` | `cancelled`; but after a finished sign-in that still needed the unlock: `success` with `unlocked: false` (attention then says `unlock`) | dropped |
 | `failed` | `error` with the reason's words | dropped |
 
-`reason` for `blocked`: `rejected_page`, `disallowed_useragent`, `outside_google`, `stuck`, `other`.
-`reason` for `failed`: `load_failed`, `timeout`, `cookie_read_failed`, `bridge_bad`, `other`.
-Unknown reasons become `other`. 200: `{"phase", "message", "fallback"}`. 422 `bad_event`; 403 as above.
+`reason` for `blocked`: `rejected_page`, `disallowed_useragent`, `outside_google`, `other`. (`stuck`
+is still accepted from an older shell, but the 1.2 shell never sends it: a window with no
+activity for 3 minutes only adds a note on the card, `signin-progress` with `stuck: true`, and keeps
+going, so a slow 2-step approval never burns the 7-day memory.) `outside_google` is sent only for
+a top-level move off Google: a refused non-Google frame is logged, never reported (§3.5).
+`reason` for `failed`: `load_failed`, `timeout`, `cookie_read_failed`, `bridge_bad`,
+`account_unknown`, `google_unreachable`, `other`. Unknown reasons become `other`; `other` after a
+refusal the daemon already explained (wrong account, unusable keys) keeps the daemon's words. 200: `{"phase", "message", "fallback"}`. 422 `bad_event`; 403 as above.
 Post `opened` once the window shows, `closed` on Cmd+W or close, `failed`/`blocked` before wiping.
 
 ### 3.5 classify
@@ -142,7 +164,8 @@ Call it on every main-frame page load (and for a navigation the allow-list cance
 `GET .../progress` 200:
 ```json
 {"phase": "waiting", "message": "Finish signing in in the Find+ window.", "mode": "signin",
- "account": null, "unlocked": false, "reason": null, "updated_at": "2026-10-02T09:00:00+00:00",
+ "account": null, "unlocked": false, "reason": null, "flow": "3f9a1c0b7d2e",
+ "updated_at": "2026-10-02T09:00:00+00:00",
  "blocked_at": null, "start_with": "window", "fallback": null, "generation": 3}
 ```
 Phases (spec §7): `idle`, `connecting` (after begin), `waiting`, `finishing` (token or keys being
@@ -160,7 +183,38 @@ every finished Google sign-in (helper or window). The same object is `google_nat
 (same exception as `closed` after a finished sign-in).
 200 `{"phase", "message", "fallback"}`. Idempotent. The caller closes the window (Tauri command);
 a later token post from that window gets 403 `state_invalid`. A token exchange already running when
-cancel arrives still finishes (the card shows no Cancel during `finishing`).
+cancel arrives still finishes: if Google signed the person in, the phase becomes `success` (with
+`unlocked: false` when the unlock is still needed), because that is the truth; the state is never
+re-kinded and the window closes. The card shows no Cancel during `finishing`.
+
+### 3.8 Who owns the session state
+
+The daemon's progress record (§3.6) is the ONLY truth. The shell reports what its window saw
+(token, unlock, event, classify); the card reflects the progress (it polls, and uses the shell's
+events only to be quick). Every write after a slow exchange is checked against the flow it
+belongs to, so an older window can never paint over a newer sign-in.
+
+| From | Trigger (who) | To | Notes |
+|---|---|---|---|
+| any | `begin` (card or shell) | `connecting` | new `flow`; older native states dropped. Card's `if_idle` begin while live: 409 `window_open`, no change |
+| `connecting` | `event opened` / `waiting` (shell) | `waiting` (signin) / `needs_unlock` (unlock) | |
+| `waiting` | `token` post (shell) | `finishing` | |
+| `finishing` | token 200, no unlock needed | `success` (`unlocked: true`) | state burned |
+| `finishing` | token 200, unlock needed | `needs_unlock` | same state, re-kinded, fresh 10 min |
+| `finishing` | token 422 | `waiting` | shell keeps reading |
+| `finishing` | token 502 | `finishing` ("slow") | shell retries once |
+| `finishing` | token 400 / 500, unlock 400 / 409 / 500 | `error` | shell ends the window (`event failed`) |
+| `needs_unlock` | `unlock` 200 | `success` (`unlocked: true`) | |
+| live | `event blocked` / classify blocked | `blocked_embedded` | 7-day memory |
+| live | `event failed` | `error` | |
+| live | `event closed` / `cancel` (card) | `cancelled`; `success` (`unlocked: false`) from `needs_unlock` after a sign-in | |
+| `cancelled` | token 200 that was already running | `success` | the sign-in really happened |
+| live | the window's state is gone (app quit or crashed; 10-minute TTL) | `idle`; `success` (`unlocked: false`) from `needs_unlock` | applied on the next read |
+
+Live phases: `connecting`, `waiting`, `finishing`, `needs_unlock`. The shell closes its window when
+the daemon says `cancelled` or `idle`, or names another flow, while the person is on a Google
+page; an exchange in flight always finishes. A begin the card hands over while a window is still
+closing is held by the shell and opened right after (`open_signin_window` answers `queued`).
 
 ## 4. Lost sign-in: `attention`
 

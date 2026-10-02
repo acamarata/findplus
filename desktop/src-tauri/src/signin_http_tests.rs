@@ -13,7 +13,8 @@ fn begin_reply_parses_and_rejects_empty_state() {
         b,
         Begin {
             state: "s1".into(),
-            unlock_url: Some(url.into())
+            unlock_url: Some(url.into()),
+            flow: None,
         }
     );
     assert!(parse_begin(&json!({"state": ""}), &none()).is_none());
@@ -100,4 +101,20 @@ fn the_progress_phase_is_read_plainly() {
     );
     assert_eq!(parse_phase(&json!({"phase": 3})), None);
     assert_eq!(parse_phase(&Value::Null), None);
+}
+
+#[test]
+fn the_flow_id_is_a_short_word_or_nothing() {
+    let b = parse_begin(&json!({"state": "s", "flow": "a1b2c3d4e5f6"}), &none()).unwrap();
+    assert_eq!(b.flow.as_deref(), Some("a1b2c3d4e5f6"));
+    for bad in [
+        json!(""),
+        json!("a b"),
+        json!("x".repeat(65)),
+        json!(7),
+        json!("<s>"),
+    ] {
+        assert_eq!(flow_of(&json!({ "flow": bad })), None, "{bad}");
+    }
+    assert_eq!(flow_of(&json!({"phase": "waiting"})), None);
 }

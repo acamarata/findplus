@@ -27,6 +27,7 @@ use crate::attention::{Need, Provider};
 use crate::signin_http::SESSION_COOKIE;
 use crate::signin_logic::{self as logic, Bridge, CookieFacts, Hosts, Nav};
 use crate::signin_machine::Mode;
+use crate::signin_queue::{self as queue, OpenPlan};
 use crate::signin_script::{self as script, ScriptOrigins};
 
 pub const LABEL: &str = "signin-google";
@@ -73,22 +74,36 @@ pub fn open_signin_window(
     }
 }
 
-/// Open (or focus) the Google sign-in window. Returns "opened" or "already_open".
-/// `begin` is the card's own begin reply (contract §2), or None to mint one here.
+/// Open (or focus) the Google sign-in window: "opened", "already_open" or
+/// "queued". `begin` is the card's own begin reply (contract §2), or None to
+/// mint one here. A begin handed over while a window still runs is held and
+/// opened right after it (signin_queue.rs), never dropped.
 pub fn open(app: &AppHandle, mode: Mode, begin: Option<serde_json::Value>) -> &'static str {
-    if let Some(win) = app.get_webview_window(LABEL) {
-        let _ = win.show();
-        let _ = win.set_focus();
-        return "already_open";
-    }
-    if ACTIVE.swap(true, Ordering::SeqCst) {
-        return "already_open";
+    let win = app.get_webview_window(LABEL);
+    let busy = win.is_some() || ACTIVE.swap(true, Ordering::SeqCst);
+    match queue::plan(busy, begin.is_some()) {
+        OpenPlan::Start => {}
+        plan => {
+            if let Some(w) = win {
+                let _ = w.show();
+                let _ = w.set_focus();
+            }
+            if let (OpenPlan::FocusAndHold, Some(b)) = (plan, begin) {
+                queue::hold(mode, b);
+                return "queued";
+            }
+            return "already_open";
+        }
     }
     // A close asked for before this session is not for it.
     crate::signin_close::clear();
     let app = app.clone();
     std::thread::spawn(move || {
-        crate::signin_start::run(&app, mode, begin);
+        let mut next = Some((mode, begin));
+        while let Some((mode, begin)) = next.take() {
+            crate::signin_start::run(&app, mode, begin);
+            next = queue::take().map(|(m, b)| (m, Some(b)));
+        }
         ACTIVE.store(false, Ordering::SeqCst);
         crate::attention::refresh_soon(&app);
     });
@@ -115,6 +130,7 @@ pub fn open_apple_sheet(app: &AppHandle) {
 /// (signin_events.rs). The debug self-test has no dashboard: it hears the
 /// event directly (`listen_any`).
 pub fn emit(app: &AppHandle, event: &str, payload: serde_json::Value) {
+    let payload = queue::with_flow(payload);
     if SELFTEST.load(Ordering::SeqCst) {
         let _ = app.emit_to("main", event, payload);
         return;
@@ -131,31 +147,6 @@ pub fn is_active() -> bool {
 pub fn focus_main(app: &AppHandle) {
     if !SELFTEST.load(Ordering::SeqCst) {
         crate::windows::open_main(app);
-    }
-}
-
-/// The debug-only fake server origin, from FINDPLUS_SIGNIN_TEST_BASE. A
-/// release build has no way to point the window anywhere but Google.
-pub fn hosts() -> Hosts {
-    #[cfg(debug_assertions)]
-    if let Ok(base) = std::env::var("FINDPLUS_SIGNIN_TEST_BASE") {
-        let origin = logic::origin_of(&base);
-        if origin.starts_with("http://127.0.0.1:") {
-            return Hosts {
-                test_origin: Some(origin),
-            };
-        }
-    }
-    Hosts::default()
-}
-
-/// The first page for this mode.
-pub fn start_url(mode: Mode, hosts: &Hosts) -> String {
-    match (&hosts.test_origin, mode) {
-        (Some(t), Mode::Signin) => format!("{t}/EmbeddedSetup"),
-        (Some(t), Mode::Unlock) => format!("{t}/"),
-        (None, Mode::Signin) => logic::GOOGLE_SIGNIN_START.to_string(),
-        (None, Mode::Unlock) => logic::GOOGLE_UNLOCK_START.to_string(),
     }
 }
 
@@ -178,7 +169,7 @@ pub fn build(
     hosts: &Hosts,
     tx: Sender<Msg>,
 ) -> Result<WebviewWindow, String> {
-    let url: tauri::Url = start_url(mode, hosts)
+    let url: tauri::Url = crate::signin_start::start_url(mode, hosts)
         .parse()
         .map_err(|_| "bad start URL".to_string())?;
     let (nav_tx, load_tx, title_tx) = (tx.clone(), tx.clone(), tx.clone());

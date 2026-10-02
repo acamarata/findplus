@@ -8,9 +8,9 @@ Purpose    : The desktop shell opens a window of its own on Google's sign-in
              exchange every other path uses), stores the keys (store_vault_keys,
              which tags them with the signed-in account), tracks the card's phase
              (native_progress.py) and turns every failure into plain words.
+             Window reports and the card's Cancel live in native_window.py.
 Inputs     : begin(mode); submit_token(state, token); submit_unlock(state, keys,
-             account_hint); record_event(state, event, reason);
-             classify_report(state, host, path, title_class); cancel().
+             account_hint).
 Outputs    : JSON-ready dicts; NativeFlowError(status, code, message) on refusal.
 Constraints: No HTTP here (api/_routes_auth_google_native.py maps it). The token
              and the keys are passed straight through and never stored, logged or
@@ -19,6 +19,7 @@ Constraints: No HTTP here (api/_routes_auth_google_native.py maps it). The token
 
 from __future__ import annotations
 
+import secrets
 from typing import Any
 
 from . import helper_state as hs
@@ -31,8 +32,7 @@ from .bootstrap import (
     needs_shared_key,
     stored_account_email,
 )
-from .native_classify import ALLOWED_HOST_PATTERN, ALLOWED_HOSTS, ReportError, classify
-from .native_classify import clean_report as _clean_report
+from .native_classify import ALLOWED_HOST_PATTERN, ALLOWED_HOSTS
 from .open_signin import EMBEDDED_SETUP_URL
 from .token_signin import (
     GoogleUnreachableError,
@@ -45,7 +45,9 @@ from .unlock import SharedKeyParseError, store_vault_keys
 ACCOUNT_HOME_URL = "https://accounts.google.com/"
 SIGNED_IN_HOST = "myaccount.google.com"
 MODES = {"signin": hs.KIND_NATIVE_SIGNIN, "unlock": hs.KIND_NATIVE_UNLOCK}
-EVENTS = frozenset({"opened", "waiting", "blocked", "closed", "failed"})
+#: Each live native state's flow id: progress writes after a slow exchange only
+#: land while their flow is still the current one (contract §3.8).
+_flows: dict[str, str] = {}
 #: Unlock states that this same window just signed in with: the account is known.
 #: Any other unlock state (unlock-only mode) needs the window's account hint.
 _after_signin: set[str] = set()
@@ -69,9 +71,10 @@ WINDOW = {
 class NativeFlowError(Exception):
     """A refused step. `message` is plain words; `code` is for the shell."""
 
-    def __init__(self, status: int, code: str, message: str) -> None:
+    def __init__(self, status: int, code: str, message: str, **extra: Any) -> None:
         super().__init__(message)
         self.status, self.code, self.message = status, code, message
+        self.extra = extra
 
 
 def unlock_url() -> str:
@@ -91,18 +94,41 @@ def _unlock_url_or_none(mode: str) -> str | None:
         return None  # sign-in still works; the card offers the other unlock paths
 
 
-def begin(mode: object) -> dict[str, Any]:
+def forget_flow_state(state: str) -> None:
+    """A state was dropped (closed, blocked, failed): forget what we kept for it."""
+    _flows.pop(state, None)
+    _after_signin.discard(state)
+
+
+def _refuse_if_open(if_idle: object) -> None:
+    """The card asks with `if_idle`: a window that is still working is followed, not
+    replaced (replacing it would kill its state mid sign-in, r12 #3)."""
+    snap = progress.snapshot()  # expires a phase whose window state is gone
+    if if_idle is True and snap["phase"] in progress.LIVE:
+        raise NativeFlowError(
+            409, "window_open", m.MSG_WINDOW_OPEN, flow=snap["flow"], mode=snap["mode"]
+        )
+
+
+def begin(mode: object, if_idle: object = False) -> dict[str, Any]:
     """Mint the state for one window (replacing any older one) and describe the window."""
     if not isinstance(mode, str) or mode not in MODES:
         raise NativeFlowError(422, "bad_mode", 'mode must be "signin" or "unlock".')
+    _refuse_if_open(if_idle)
     if mode == "unlock" and not has_google_session():
         raise NativeFlowError(409, "not_signed_in", m.MSG_NOT_SIGNED_IN)
     url = _unlock_url_or_none(str(mode))
     hs.drop_states_of(hs.NATIVE_KINDS)
+    _flows.clear()
     _after_signin.clear()
     state = hs.create_state(MODES[str(mode)])
-    progress.set_phase("connecting", m.MSG_CONNECTING, mode=mode, account=None, unlocked=False)
+    flow = secrets.token_hex(6)
+    _flows[state] = flow
+    progress.set_phase(
+        "connecting", m.MSG_CONNECTING, mode=mode, account=None, unlocked=False, flow=flow
+    )
     return {
+        "flow": flow,
         "state": state,
         "mode": mode,
         "start_url": EMBEDDED_SETUP_URL if mode == "signin" else ACCOUNT_HOME_URL,
@@ -122,163 +148,94 @@ def _claim(kind: str, state: object) -> str:
     return state
 
 
-def _fail(state: str, status: int, code: str, message: str) -> NativeFlowError:
+#: Refusals the shell retries itself (contract §3.2): the window is still
+#: working, so the card keeps following it instead of showing an error.
+_RETRY_PHASE = {
+    "token_malformed": ("waiting", m.MSG_WAITING),
+    "google_unreachable": ("finishing", m.MSG_GOOGLE_SLOW),
+}
+
+
+def _fail(state: str, flow: str, status: int, code: str, message: str) -> NativeFlowError:
     """Keep the state for a retry, show the reason on the card, build the error."""
     hs.end_exchange(state, ok=False)
-    progress.set_phase("error", message, reason=code)
+    if code in _RETRY_PHASE:
+        phase, words = _RETRY_PHASE[code]
+        progress.set_phase_for(flow, phase, words)
+    else:
+        progress.set_phase_for(flow, "error", message, reason=code)
     return NativeFlowError(status, code, message)
 
 
-def _exchange(state: str, oauth_token: object) -> str:
+def _exchange(state: str, flow: str, oauth_token: object) -> str:
     try:
         # Empty email on purpose: Google's answer supplies it (vendored flow).
         return sign_in_with_oauth_token("", oauth_token, require_email=False)
     except InvalidInputError:
-        raise _fail(state, 422, "token_malformed", m.MSG_WINDOW_FAILED) from None
+        raise _fail(state, flow, 422, "token_malformed", m.MSG_WINDOW_FAILED) from None
     except TokenRejectedError:
-        raise _fail(state, 400, "token_rejected", m.MSG_REJECTED) from None
+        raise _fail(state, flow, 400, "token_rejected", m.MSG_REJECTED) from None
     except GoogleUnreachableError as exc:
-        raise _fail(state, 502, "google_unreachable", str(exc)) from None
+        raise _fail(state, flow, 502, "google_unreachable", str(exc)) from None
     except Exception:
-        raise _fail(state, 500, "signin_failed", m.MSG_HANDOFF_FAILED) from None
+        raise _fail(state, flow, 500, "signin_failed", m.MSG_HANDOFF_FAILED) from None
+
+
+def _signed_in(flow: str, account: str, unlocked: bool) -> None:
+    words = m.MSG_SIGNED_IN.format(account=account)
+    progress.set_phase_for(flow, "success", words, account=account, unlocked=unlocked)
 
 
 def submit_token(state: object, oauth_token: object) -> dict[str, Any]:
-    """Exchange the window's token; say whether the unlock step comes next."""
+    """Exchange the window's token; say whether the unlock step comes next.
+
+    Cancelled (or replaced by a new begin) while Google answered: the sign-in
+    still happened, so the card says so (only for its own flow) and nothing is
+    re-kinded. A newer flow's progress is never touched (r12 #4).
+    """
     claimed = _claim(hs.KIND_NATIVE_SIGNIN, state)
-    progress.set_phase("finishing", m.MSG_FINISHING, mode="signin")
-    account = _exchange(claimed, oauth_token)
+    flow = _flows.get(claimed, "")
+    progress.set_phase_for(flow, "finishing", m.MSG_FINISHING, mode="signin")
+    account = _exchange(claimed, flow, oauth_token)
     hs.bump_signin_generation()
     progress.forget_block()
     needs_unlock = needs_shared_key()
-    if needs_unlock:
+    if hs.state_kind(claimed) is None:
+        _signed_in(flow, account, unlocked=not needs_unlock)
+    elif needs_unlock:
         hs.rekind_state(claimed, hs.KIND_NATIVE_UNLOCK)
         _after_signin.add(claimed)
-        progress.set_phase("needs_unlock", m.MSG_NEEDS_UNLOCK, account=account)
+        progress.set_phase_for(flow, "needs_unlock", m.MSG_NEEDS_UNLOCK, account=account)
     else:
+        _signed_in(flow, account, unlocked=True)
         hs.end_exchange(claimed, ok=True)
-        progress.set_phase(
-            "success", m.MSG_SIGNED_IN.format(account=account), account=account, unlocked=True
-        )
     return {"result": "signed_in", "account": account, "needs_unlock": needs_unlock}
 
 
 def submit_unlock(state: object, vault_keys: object, account_hint: object = None) -> dict:
     """Store the unlock page's vault keys for the signed-in account."""
     claimed = _claim(hs.KIND_NATIVE_UNLOCK, state)
+    flow = _flows.get(claimed, "")
     expected = stored_account_email()
     if not expected:
-        raise _fail(claimed, 409, "not_signed_in", m.MSG_NOT_SIGNED_IN)
+        raise _fail(claimed, flow, 409, "not_signed_in", m.MSG_NOT_SIGNED_IN)
     hint = account_hint.strip().lower() if isinstance(account_hint, str) else ""
     if not hint and claimed not in _after_signin:
         # Unlock-only: the keys must never be tagged with a guessed account.
-        raise _fail(claimed, 409, "account_unknown", m.MSG_ACCOUNT_UNKNOWN)
+        raise _fail(claimed, flow, 409, "account_unknown", m.MSG_ACCOUNT_UNKNOWN)
     if hint and hint != expected.lower():
         message = m.MSG_ACCOUNT_MISMATCH.format(account=expected)
-        raise _fail(claimed, 409, "account_mismatch", message)
-    progress.set_phase("finishing", m.MSG_FINISHING, account=expected)
+        raise _fail(claimed, flow, 409, "account_mismatch", message)
+    progress.set_phase_for(flow, "finishing", m.MSG_FINISHING, account=expected)
     try:
         store_vault_keys(vault_keys)
     except SharedKeyParseError as exc:
-        raise _fail(claimed, 400, "keys_rejected", str(exc)) from None
+        raise _fail(claimed, flow, 400, "keys_rejected", str(exc)) from None
     except Exception:
-        raise _fail(claimed, 500, "unlock_failed", m.MSG_HANDOFF_FAILED) from None
-    hs.end_exchange(claimed, ok=True)
-    _after_signin.discard(claimed)
+        raise _fail(claimed, flow, 500, "unlock_failed", m.MSG_HANDOFF_FAILED) from None
     progress.forget_block()
-    unlocked = has_shared_key()
-    progress.set_phase(
-        "success", m.MSG_UNLOCKED.format(account=expected), account=expected, unlocked=unlocked
-    )
+    words = m.MSG_UNLOCKED.format(account=expected)
+    progress.set_phase_for(flow, "success", words, account=expected, unlocked=has_shared_key())
+    hs.end_exchange(claimed, ok=True)
+    forget_flow_state(claimed)
     return {"result": "unlocked", "account": expected}
-
-
-def _require_live(state: object) -> tuple[str, str]:
-    kind = hs.state_kind(state if isinstance(state, str) else None)
-    if kind not in hs.NATIVE_KINDS:
-        raise NativeFlowError(403, "state_invalid", m.MSG_STATE_GONE)
-    return str(state), str(kind)
-
-
-def _block(state: str, reason: str) -> None:
-    hs.drop_state(state)
-    progress.remember_block(reason)
-    progress.set_phase("blocked_embedded", m.BLOCKED_REASONS[reason], reason=reason)
-
-
-def _waiting(kind: str) -> None:
-    if kind == hs.KIND_NATIVE_SIGNIN:
-        progress.set_phase("waiting", m.MSG_WAITING)
-        return
-    after_signin = progress.snapshot().get("mode") == "signin"
-    progress.set_phase("needs_unlock", m.MSG_NEEDS_UNLOCK if after_signin else m.MSG_UNLOCK_WAITING)
-
-
-def _word(reason: object, known: dict[str, str]) -> str:
-    """A reason the daemon knows, else "other" (any JSON value is safe here)."""
-    return reason if isinstance(reason, str) and reason in known else "other"
-
-
-def _stop() -> None:
-    """Closing or cancelling the window is a cancel, except after a finished sign-in: that stays
-    signed in, with the locations still locked (attention then says "unlock")."""
-    snap = progress.snapshot()
-    if snap["phase"] in progress.TERMINAL:
-        return
-    if snap["phase"] == "needs_unlock" and snap.get("account"):
-        account = snap["account"]
-        progress.set_phase("success", m.MSG_SIGNED_IN.format(account=account), unlocked=False)
-        return
-    progress.set_phase("cancelled", m.MSG_CANCELLED)
-
-
-def record_event(state: object, event: object, reason: object = None) -> dict[str, Any]:
-    """What the shell saw: the window opened, is waiting, was blocked, closed or failed."""
-    live, kind = _require_live(state)
-    if not isinstance(event, str) or event not in EVENTS:
-        raise NativeFlowError(422, "bad_event", "event is not one of the known events.")
-    if event in ("opened", "waiting"):
-        _waiting(kind)
-    elif event == "blocked":
-        _block(live, _word(reason, m.BLOCKED_REASONS))
-    elif event == "closed":
-        hs.drop_state(live)
-        _stop()
-    else:  # failed
-        hs.drop_state(live)
-        word = _word(reason, m.FAILED_REASONS)
-        if word != "other" or progress.current_phase() != "error":
-            # A refusal the daemon already explained (wrong account, ...) keeps its words.
-            progress.set_phase("error", m.FAILED_REASONS[word], reason=word)
-    return _brief()
-
-
-def classify_report(state: object, host: object, path: object, title_class: object) -> dict:
-    """Blocked or not, from a host, a path and a title class. A block closes the flow."""
-    live, _kind = _require_live(state)
-    try:
-        clean_host, clean_path, title = _clean_report(host, path, title_class)
-    except ReportError as exc:
-        raise NativeFlowError(422, "bad_report", str(exc)) from None
-    verdict = classify(clean_host, clean_path, title)
-    if verdict.blocked:
-        _block(live, str(verdict.reason))
-    snap = progress.snapshot()
-    return {
-        "blocked": verdict.blocked,
-        "reason": verdict.reason,
-        "action": "close" if verdict.blocked else "continue",
-        "fallback": snap["fallback"] if verdict.blocked else None,
-    }
-
-
-def cancel() -> dict[str, Any]:
-    """Drop every in-app state; the card says Cancelled. Safe to call twice."""
-    hs.drop_states_of(hs.NATIVE_KINDS)
-    _stop()
-    return _brief()
-
-
-def _brief() -> dict[str, Any]:
-    snap = progress.snapshot()
-    return {"phase": snap["phase"], "message": snap["message"], "fallback": snap["fallback"]}

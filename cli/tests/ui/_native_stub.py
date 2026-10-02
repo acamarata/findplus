@@ -135,6 +135,9 @@ class FakeNativeDaemon:
         self.begins: list[dict] = []
         self.cancels = 0
         self.begin_status = 200
+        #: The 409 window_open answer's body (flow, mode) when begin_status is 409.
+        self.open_window: dict = {}
+        self.flow = "flow1"
 
     async def install(self) -> None:
         await self.page.route("**/api/auth/google/native/begin", self._begin)
@@ -148,16 +151,21 @@ class FakeNativeDaemon:
     async def _begin(self, route) -> None:
         body = json.loads(route.request.post_data or "{}")
         self.begins.append({"body": body, "origin": route.request.headers.get("origin")})
+        if self.begin_status == 409:
+            detail = {"detail": "The Find+ sign-in window is already open.", "code": "window_open"}
+            await route.fulfill(status=409, json={**detail, **self.open_window})
+            return
         if self.begin_status != 200:
             await route.fulfill(status=self.begin_status, json={"detail": "Locked", "code": "x"})
             return
-        self.set_phase("connecting", mode=body.get("mode", "signin"))
+        self.set_phase("connecting", mode=body.get("mode", "signin"), flow=self.flow)
         await route.fulfill(
             json={
                 "state": "fake-state",
                 "mode": body.get("mode", "signin"),
                 "window": {"timeout_seconds": 600},
                 "generation": 1,
+                "flow": self.flow,
             }
         )
 

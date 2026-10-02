@@ -5,11 +5,15 @@ Purpose    : One process-wide record of the in-app sign-in window's phase
              needs_unlock, success, blocked_embedded, error, cancelled. Also
              remembers a block for 7 days (spec §3.4) so the card starts at the
              Chrome helper meanwhile, and works out the fallback ladder hint.
-Inputs     : `set_phase()` from native_flow.py; `snapshot()` for readers.
+Inputs     : `set_phase()` / `set_phase_for()` from native_flow.py and
+             native_window.py; `snapshot()` for readers.
 Outputs    : `snapshot()` -> the progress dict GET /api/auth/google/native/progress
              serves and /api/auth/status embeds.
 Constraints: Never stores a token, a key or a state. The block memory is a tiny
              JSON file in the state dir (0600), holding a time and a reason word.
+             This record is the one truth (contract §3.8): a live phase with no
+             live window state left (the app quit or crashed; states last 10
+             minutes) is expired by `snapshot()`, never shown forever.
 """
 
 from __future__ import annotations
@@ -38,6 +42,7 @@ PHASES = (
 )
 #: Phases after which the window is gone and nothing more will happen.
 TERMINAL = frozenset({"idle", "success", "blocked_embedded", "error", "cancelled"})
+LIVE = frozenset(PHASES) - TERMINAL
 BLOCK_MEMORY = timedelta(days=7)
 _FILE = "native-signin.json"
 
@@ -57,19 +62,39 @@ def _blank() -> dict[str, Any]:
         "account": None,
         "unlocked": False,
         "reason": None,
+        "flow": None,
         "updated_at": _now().isoformat(),
     }
 
 
+def _write(phase: str, message: str, fields: dict[str, Any]) -> None:
+    """Under the lock: one transition."""
+    if not _progress:
+        _progress.update(_blank())
+    _progress.update(fields, phase=phase, message=message, updated_at=_now().isoformat())
+    _progress["reason"] = fields.get("reason")
+
+
 def set_phase(phase: str, message: str, **fields: Any) -> None:
-    """Record a transition. `fields` may set mode, account, unlocked and reason."""
+    """Record a transition. `fields` may set mode, account, unlocked, reason and flow."""
     if phase not in PHASES:
         raise ValueError(f"unknown phase {phase!r}")
     with _lock:
-        if not _progress:
-            _progress.update(_blank())
-        _progress.update(fields, phase=phase, message=message, updated_at=_now().isoformat())
-        _progress["reason"] = fields.get("reason")
+        _write(phase, message, fields)
+
+
+def set_phase_for(flow: str, phase: str, message: str, **fields: Any) -> bool:
+    """Record a transition only while `flow` is still the current flow.
+
+    A slow token exchange from an older window must never paint over a newer
+    sign-in (r12 #4). Returns True when it was written."""
+    if phase not in PHASES:
+        raise ValueError(f"unknown phase {phase!r}")
+    with _lock:
+        if not flow or _progress.get("flow") != flow:
+            return False
+        _write(phase, message, fields)
+        return True
 
 
 def current_phase() -> str:
@@ -150,10 +175,31 @@ def fallback_hint(phase: str, blocked: datetime | None) -> str | None:
     return "use_helper"
 
 
+def _expire_stale() -> None:
+    """A live phase whose window state is gone: the window can no longer report.
+
+    After a finished sign-in that waited on the unlock it stays signed in
+    (locked); anything else goes back to idle."""
+    from . import helper_state
+
+    with _lock:
+        phase, account = _progress.get("phase"), _progress.get("account")
+        if phase not in LIVE or helper_state.has_states_of(helper_state.NATIVE_KINDS):
+            return
+        if phase == "needs_unlock" and account:
+            words = m.MSG_SIGNED_IN.format(account=account)
+            _write("success", words, {"account": account, "unlocked": False})
+            return
+        flow = _progress.get("flow")
+        _progress.clear()
+        _progress.update(_blank(), flow=flow)
+
+
 def snapshot() -> dict[str, Any]:
     """The progress dict every reader gets. Never raises."""
     from . import helper_state
 
+    _expire_stale()
     with _lock:
         data = dict(_progress) if _progress else _blank()
     blocked = blocked_at()

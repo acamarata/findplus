@@ -37,19 +37,20 @@ pub fn take_request() -> bool {
 
 /// Pure: does the daemon's progress mean this window should close?
 ///
-/// Only while the person is on a Google page (waiting or unlock); a token or
-/// key exchange in flight finishes on its own. "cancelled" is the card's
-/// Cancel (or any other cancel). "success" while the unlock page is showing
-/// after a sign-in is the same Cancel: the daemon keeps the sign-in and marks
-/// the locations locked (native_flow._stop), so the window has nothing left
-/// to do. "error" is never a stop: a malformed cookie sets it while the
-/// window keeps waiting for a good one.
-pub fn daemon_says_stop(phase: Phase, mode: Mode, daemon_phase: &str) -> bool {
+/// The daemon's progress is the one truth (contract §3.8). Only while the
+/// person is on a Google page (waiting or unlock); a token or key exchange in
+/// flight finishes on its own. "cancelled" is the card's Cancel (or any other
+/// cancel). "idle", or a different flow, means the daemon no longer knows
+/// this window's state (it restarted, or a newer sign-in replaced it): the
+/// window can never finish. "success" while the unlock page is showing after
+/// a sign-in is the same Cancel: the daemon keeps the sign-in and marks the
+/// locations locked, so the window has nothing left to do. "error" is never
+/// a stop on its own.
+pub fn daemon_says_stop(phase: Phase, mode: Mode, daemon_phase: &str, same_flow: bool) -> bool {
+    let gone = !same_flow || daemon_phase == "cancelled" || daemon_phase == "idle";
     match phase {
-        Phase::Waiting => daemon_phase == "cancelled",
-        Phase::Unlocking => {
-            daemon_phase == "cancelled" || (mode == Mode::Signin && daemon_phase == "success")
-        }
+        Phase::Waiting => gone,
+        Phase::Unlocking => gone || (mode == Mode::Signin && daemon_phase == "success"),
         _ => false,
     }
 }

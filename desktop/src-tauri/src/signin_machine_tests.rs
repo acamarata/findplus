@@ -179,6 +179,10 @@ fn wire_strings_are_the_contract() {
         O::Error.daemon_event(Some("account_unknown")),
         ("failed", Some("account_unknown"))
     );
+    assert_eq!(
+        O::Error.daemon_event(Some("google_unreachable")),
+        ("failed", Some("google_unreachable"))
+    );
     assert_eq!(P::Unlocking.wire(), "unlock");
     assert_eq!(Mode::parse(None), Some(Mode::Signin));
     assert_eq!(Mode::parse(Some("unlock")), Some(Mode::Unlock));

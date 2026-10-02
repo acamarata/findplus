@@ -15,14 +15,18 @@
  * Constraints: Never sees a token or a key (the shell posts those). A 401 on
  *              begin means the lock screen is up: stop quietly. A generation
  *              counter drops answers that land after Cancel, a lock or a new
- *              start. Specs: in-app-login.md §2.1, §3.4, §7; the contract file.
+ *              start; the daemon's flow id drops news from another window
+ *              (google_native_flow_id.js). The daemon's progress is the truth
+ *              (contract §3.8): a window still working is followed, never
+ *              replaced. Specs: in-app-login.md §2.1, §3.4, §7; the contract.
  */
 "use strict";
 
 import { t } from "../i18n.js";
 import { describeError } from "./job_poller.js";
-import { listenNative, openSigninWindow } from "./native_bridge.js";
+import { closeSigninWindow, listenNative, openSigninWindow } from "./native_bridge.js";
 import { isLive, paintNative } from "./google_native_view.js";
+import { beginBody, isWindowOpen, sameFlow } from "./google_native_flow_id.js";
 
 const ROUTE = "/api/auth/google/native";
 /** The shell's progress phases, in the card's words. */
@@ -47,6 +51,7 @@ export class GoogleNativeFlow {
     this.restMessage = "";
     this.startWith = "window";
     this.signedIn = false;
+    this.flow = null;
     this.wire();
     this.ready = Promise.all([
       listenNative("signin-progress", (p) => this.onEvent(p)),
@@ -90,16 +95,19 @@ export class GoogleNativeFlow {
     this.mode = mode;
     this.restMessage = "";
     const mine = ++this.generation;
+    this.flow = null;
     this.paint({ phase: "connecting" });
     let begin;
     try {
-      begin = await this.deps.postJson(`${ROUTE}/begin`, { mode });
+      begin = await this.deps.postJson(`${ROUTE}/begin`, beginBody(mode));
     } catch (err) {
       if (mine !== this.generation) return;
       if (err.status === 401) return this.toRest();
+      if (isWindowOpen(err)) return this.adopt(mine, err.body);
       return this.fail((err.body && err.body.detail) || describeError(err));
     }
     if (mine !== this.generation) return;
+    this.flow = (begin && begin.flow) || null;
     try {
       await openSigninWindow("google", mode, begin);
     } catch (_err) {
@@ -113,6 +121,15 @@ export class GoogleNativeFlow {
     }
     const limit = (begin && begin.window && begin.window.timeout_seconds) || DEFAULT_LIMIT_S - 60;
     this.watch(mine, limit + 60);
+  }
+
+  /** A window is still working (409 window_open): follow it and bring it forward. */
+  adopt(mine, body) {
+    this.flow = body.flow || null;
+    if (body.mode === "unlock") this.mode = "unlock";
+    this.paint({ phase: "waiting", message: t(this.waitingKey("waiting")) });
+    this.show();
+    this.watch(mine, DEFAULT_LIMIT_S);
   }
 
   waitingKey(kind) {
@@ -146,7 +163,7 @@ export class GoogleNativeFlow {
 
   /** One progress answer (contract §3.6). */
   apply(p) {
-    if (!p || !isLive(this.phase)) return;
+    if (!p || !isLive(this.phase) || !sameFlow(this.flow, p.flow)) return;
     switch (p.phase) {
       case "success": return this.finish();
       case "blocked_embedded": return this.blocked(p.message, p.fallback);
@@ -171,17 +188,25 @@ export class GoogleNativeFlow {
     if (!p || p.provider !== "google") return;
     if (!isLive(this.phase)) {
       this.mode = p.mode === "unlock" ? "unlock" : "signin";
+      this.flow = p.flow || null;
       this.restMessage = "";
       this.paint({ phase: "connecting" });
       this.watch(++this.generation, DEFAULT_LIMIT_S);
+    } else if (!sameFlow(this.flow, p.flow)) {
+      return;
     }
     const phase = EVENT_PHASE[p.phase];
     if (phase) this.step(phase, p.stuck ? "signin.native.stuck" : undefined);
   }
 
-  /** signin-result from the shell: the window is gone. */
+  /**
+   * signin-result from the shell: the window is gone. Its own flow's success
+   * still lands after an error was shown (a retried token that went through).
+   */
   async onResult(r) {
-    if (!r || r.provider !== "google" || !isLive(this.phase)) return;
+    if (!r || r.provider !== "google" || !sameFlow(this.flow, r.flow)) return;
+    const late = this.phase === "error" && r.outcome === "success" && !!this.flow;
+    if (!isLive(this.phase) && !late) return;
     if (r.outcome === "success") return this.finish();
     if (r.outcome === "cancelled") return this.cancelled();
     if (r.outcome === "timeout") return this.fail(t("signin.native.timeout"));
@@ -236,7 +261,7 @@ export class GoogleNativeFlow {
     } catch (_err) {
       // Best effort: the state may already be gone.
     }
-    closeWindowQuietly();
+    closeSigninWindow();
   }
 
   /** "Prefer your Chrome?": stop the window, start the helper. */
@@ -269,13 +294,4 @@ export class GoogleNativeFlow {
     this.phase = "idle";
     this.paint({ phase: "idle", message: "" });
   }
-}
-
-/** The shell may offer `close_signin_window`; an older one does not. */
-function closeWindowQuietly() {
-  const bridge = window.__TAURI__;
-  if (!bridge || !bridge.core || typeof bridge.core.invoke !== "function") return;
-  Promise.resolve()
-    .then(() => bridge.core.invoke("close_signin_window", { provider: "google" }))
-    .catch(() => {});
 }

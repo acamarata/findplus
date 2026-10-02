@@ -153,11 +153,15 @@ def test_a_helper_state_cannot_drive_the_window_routes(auth_client, monkeypatch)
 
 
 @pytest.mark.parametrize(
-    "error,status,code",
-    [("rejected", 400, "token_rejected"), ("unreachable", 502, "google_unreachable")],
+    "error,status,code,phase",
+    [
+        ("rejected", 400, "token_rejected", "error"),
+        # The shell retries a 502 itself: the card keeps following the window.
+        ("unreachable", 502, "google_unreachable", "finishing"),
+    ],
 )
 def test_refusals_are_plain_words_and_never_the_token(
-    auth_client, monkeypatch, caplog, error, status, code
+    auth_client, monkeypatch, caplog, error, status, code, phase
 ) -> None:
     fake_google(monkeypatch, token_error=error)
     caplog.set_level(logging.DEBUG)
@@ -169,7 +173,7 @@ def test_refusals_are_plain_words_and_never_the_token(
     assert "token" not in res.json()["detail"].lower() and "cookie" not in res.json()["detail"]
     assert SECRET not in res.text and SECRET not in caplog.text
     assert hs.state_kind(state) == hs.KIND_NATIVE_SIGNIN  # kept for a retry
-    assert auth_client.get(f"{BASE}/progress").json()["phase"] == "error"
+    assert auth_client.get(f"{BASE}/progress").json()["phase"] == phase
 
 
 def test_a_badly_typed_token_never_gets_a_422_echo(auth_client, monkeypatch) -> None:

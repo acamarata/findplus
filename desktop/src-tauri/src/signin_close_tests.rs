@@ -22,16 +22,26 @@ fn a_request_is_taken_once_and_a_new_session_forgets_an_old_one() {
 #[test]
 fn the_daemon_cancel_closes_a_waiting_or_unlocking_window() {
     for mode in [Mode::Signin, Mode::Unlock] {
-        assert!(daemon_says_stop(Phase::Waiting, mode, "cancelled"));
-        assert!(daemon_says_stop(Phase::Unlocking, mode, "cancelled"));
+        assert!(daemon_says_stop(Phase::Waiting, mode, "cancelled", true));
+        assert!(daemon_says_stop(Phase::Unlocking, mode, "cancelled", true));
     }
 }
 
 #[test]
 fn signed_in_but_unlock_cancelled_closes_the_unlock_page() {
-    assert!(daemon_says_stop(Phase::Unlocking, Mode::Signin, "success"));
+    assert!(daemon_says_stop(
+        Phase::Unlocking,
+        Mode::Signin,
+        "success",
+        true
+    ));
     // Unlock-only mode: "success" can only come from this window's own keys.
-    assert!(!daemon_says_stop(Phase::Unlocking, Mode::Unlock, "success"));
+    assert!(!daemon_says_stop(
+        Phase::Unlocking,
+        Mode::Unlock,
+        "success",
+        true
+    ));
 }
 
 #[test]
@@ -42,20 +52,49 @@ fn ordinary_progress_never_closes_the_window() {
         "needs_unlock",
         "finishing",
         "error",
-        "idle",
         "",
     ] {
-        assert!(!daemon_says_stop(Phase::Waiting, Mode::Signin, p), "{p}");
-        assert!(!daemon_says_stop(Phase::Unlocking, Mode::Signin, p), "{p}");
+        assert!(
+            !daemon_says_stop(Phase::Waiting, Mode::Signin, p, true),
+            "{p}"
+        );
+        assert!(
+            !daemon_says_stop(Phase::Unlocking, Mode::Signin, p, true),
+            "{p}"
+        );
     }
     // A malformed cookie sets "error" while the window keeps waiting.
-    assert!(!daemon_says_stop(Phase::Waiting, Mode::Signin, "error"));
+    assert!(!daemon_says_stop(
+        Phase::Waiting,
+        Mode::Signin,
+        "error",
+        true
+    ));
+}
+
+#[test]
+fn a_forgotten_or_replaced_flow_closes_the_window() {
+    // r12 #3/#4: the daemon restarted (idle) or a newer sign-in replaced this
+    // window's state (another flow): the window can never finish.
+    for mode in [Mode::Signin, Mode::Unlock] {
+        assert!(daemon_says_stop(Phase::Waiting, mode, "idle", true));
+        assert!(daemon_says_stop(Phase::Unlocking, mode, "idle", true));
+        assert!(daemon_says_stop(Phase::Waiting, mode, "connecting", false));
+        assert!(daemon_says_stop(Phase::Unlocking, mode, "waiting", false));
+    }
+    // Even then an exchange in flight finishes on its own.
+    assert!(!daemon_says_stop(
+        Phase::Finishing,
+        Mode::Signin,
+        "idle",
+        false
+    ));
 }
 
 #[test]
 fn an_exchange_in_flight_is_never_interrupted() {
     for p in [Phase::Finishing, Phase::Storing, Phase::Done] {
-        assert!(!daemon_says_stop(p, Mode::Signin, "cancelled"));
+        assert!(!daemon_says_stop(p, Mode::Signin, "cancelled", true));
     }
 }
 

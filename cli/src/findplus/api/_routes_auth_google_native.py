@@ -4,7 +4,8 @@ Purpose    : The desktop shell (or the dashboard card, which then hands the
              answer to the shell) begins a flow; the shell posts the token, the
              unlock keys, window events and blocked-page reports back over
              loopback; the card polls progress and may cancel. The logic lives in
-             providers/google_findhub/native_flow.py; this maps it to HTTP.
+             providers/google_findhub/native_flow.py (begin, token, unlock) and
+             native_window.py (events, classify, cancel); this maps it to HTTP.
 Inputs     : JSON bodies; the Origin and X-FindPlus-Client headers.
 Outputs    : JSON; refusals are `{"detail": <plain words>, "code": <word>}`.
 Constraints: begin and cancel carry routes_auth's Origin/Sec-Fetch-Site guard and
@@ -24,7 +25,7 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from findplus.providers.google_findhub import native_flow, native_progress
+from findplus.providers.google_findhub import native_flow, native_progress, native_window
 from findplus.providers.google_findhub.native_flow import NativeFlowError
 
 #: The header the shell sends on every ingest post, with exactly this value.
@@ -40,6 +41,8 @@ NATIVE_INGEST_PATHS = frozenset(
 
 class BeginBody(BaseModel):
     mode: Any = "signin"
+    #: The card sends true: a window still working is followed (409 window_open).
+    if_idle: Any = False
 
 
 class TokenBody(BaseModel):
@@ -67,7 +70,8 @@ class ClassifyBody(BaseModel):
 
 
 def _refusal(exc: NativeFlowError) -> JSONResponse:
-    return JSONResponse(status_code=exc.status, content={"detail": exc.message, "code": exc.code})
+    content = {**exc.extra, "detail": exc.message, "code": exc.code}
+    return JSONResponse(status_code=exc.status, content=content)
 
 
 def shell_origin(request: Request) -> str:
@@ -93,7 +97,7 @@ def native_begin(body: BeginBody, request: Request) -> Any:
         # OriginGuardMiddleware has already refused any other one.
         return _refusal(NativeFlowError(403, "bad_client", "Missing Origin."))
     try:
-        return native_flow.begin(body.mode)
+        return native_flow.begin(body.mode, body.if_idle)
     except NativeFlowError as exc:
         return _refusal(exc)
 
@@ -120,7 +124,7 @@ def native_event(body: EventBody, request: Request) -> Any:
     """The window opened, is waiting, was blocked, closed or failed."""
     try:
         _require_shell(request)
-        return native_flow.record_event(body.state, body.event, body.reason)
+        return native_window.record_event(body.state, body.event, body.reason)
     except NativeFlowError as exc:
         return _refusal(exc)
 
@@ -129,7 +133,7 @@ def native_classify(body: ClassifyBody, request: Request) -> Any:
     """Did Google block the window? The shell sends a host, a path and a title class only."""
     try:
         _require_shell(request)
-        return native_flow.classify_report(body.state, body.host, body.path, body.title_class)
+        return native_window.classify_report(body.state, body.host, body.path, body.title_class)
     except NativeFlowError as exc:
         return _refusal(exc)
 
@@ -144,7 +148,7 @@ def native_cancel(request: Request) -> dict[str, Any]:
     from findplus.api.routes_auth import _require_origin_signal
 
     _require_origin_signal(request)
-    return native_flow.cancel()
+    return native_window.cancel()
 
 
 def register(router) -> None:

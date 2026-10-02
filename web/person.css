@@ -159,7 +159,7 @@ input[type=time] {
 #fp-person-dialog .pe-kind { display: flex; gap: 16px; }
 .pe-row { margin: 6px 0; }
 .pe-extra { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 4px 24px; }
-.pe-extra .pe-weight { width: 7em; }
+.pe-extra .pe-weight { width: 10em; }
 
 /* The Person page scrolls inside its pane: a soft shadow at the top or bottom edge says there is more. */
 .person-view .timeline-pane {

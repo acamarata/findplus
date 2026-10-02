@@ -247,8 +247,9 @@ export async function submitPin(pin) {
     await hideLockAndRestore();
   } catch (e) {
     err.textContent = await unlockErrorText(e);
-    // The recovery hint appears once a PIN has been refused, not before.
-    if (e.status === 401) $("lock-forgot").hidden = false;
+    // The recovery hint appears once a PIN has been refused (401) or the lock
+    // has shut the door for a while (429): that person needs it most.
+    if (e.status === 401 || e.status === 429) $("lock-forgot").hidden = false;
     $("lock-pin").value = "";
     $("lock-pin").focus();
   } finally {

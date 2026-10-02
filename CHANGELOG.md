@@ -92,6 +92,13 @@ Versioning: [Semantic Versioning](https://semver.org/).
   relative times in Recent arrivals and departures, and a note under the radius that very small
   places can report late.
 
+- The evening summary goes out as one family message per chat ("Everyone's day"), each person
+  under their name, with the honesty sentences once (`people.digest.combined`, default on;
+  `findplus people digest --one-each` for one message per person).
+- Past days fill in on their own: accepting or adding people, saving or moving a place, and the
+  first start on an older database replay history in the background, as `findplus db
+  rebuild-derived` does, without sending anything. `GET /api/people/replay` reports progress.
+
 ### Changed
 - The database now syncs every commit to disk (`synchronous=FULL`, WAL kept) so a power cut cannot
   lose the last sightings.
@@ -113,6 +120,21 @@ Versioning: [Semantic Versioning](https://semver.org/).
   contrast, a phone layout, arrow keys on the story rows and a map named for the person.
 - Telegram messages now carry people's names, place names and times, and the daily summary does too.
   The app lock does not stop alerts or summaries going out. See the Privacy page.
+
+- Alerts only send news. Turning alerts on no longer floods a chat with history: an event goes
+  out at most 30 minutes after Find+ first fetched it (`alerts.max_age_minutes`) and 2 hours after
+  it happened, never from before its rule existed, and a chat gets at most 5 messages a minute
+  with the rest summed up in one. The Notify me preview says history is not sent.
+- Left-behind alerts follow the "Tell me when a tracker looks left behind" setting anywhere,
+  including spots with no saved place, on the channels of any rule that covers the person. An
+  episode no rule can carry waits instead of being marked sent.
+- The lock sentence now says what it holds: desktop notifications on this computer. Telegram,
+  WhatsApp and webhook alerts and daily summaries are still sent.
+- Person alerts read "Sam left Home at 7:31 AM" on the same day; the date and zone stay for
+  older events. A departure and an arrival at the same moment go out in that order.
+- The day summary says "Still at School, nothing new from 8:10 to 11:05 AM." instead of "No
+  sightings" while the person is at one place, and a sighting held for a second one is "waiting
+  to confirm", never "looked wrong" ("Probably at School (waiting to confirm)").
 
 ### Fixed
 - `findplus db restore` now works over a damaged database (the case it exists for): the damaged
@@ -137,7 +159,11 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - A held fix is released on every poll cycle, not only after an ingest, and a tracker that
   disagrees with its siblings is held too. Cleared fixes reach the geofence and rescore their
   siblings.
-- Left-behind alerts confirm on the person's own sightings and respect a rule's place.
+- Left-behind alerts confirm on the person's own sightings, and a bag that reports only every
+  hour or two is still confirmed (a quiet tag is no news, not "carried").
+- A person carried by several trackers now leaves Home before arriving at School, at the real
+  crossing time, instead of being "inside" both and leaving 20 minutes late.
+- A Telegram chat with no @username is named by its first name, not "private".
 - Map tooltips show tracker, place and reason text as plain text, never as markup. The content
   security policy forbids form posts, base tags and plugins. MCP tools quote path segments, and
   `add_place` through MCP takes a `notify` flag. The daily summary sends while Find+ is locked,

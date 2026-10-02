@@ -104,9 +104,31 @@ pub fn decide_navigation(url: &str, scheme: &str, host: &str, hosts: &Hosts) -> 
     Nav::Block(host.to_string())
 }
 
-/// Pure: decode `https://findplus-bridge.invalid/<kind>#<base64url>`.
+/// This process's bridge key: 128 random bits from the OS (the std hasher
+/// keys), made once. Only the main frame's init script holds it, so a frame
+/// from another origin (the allow-list includes Google's user-content hosts)
+/// cannot forge a bridge message: no key, no message.
+pub fn bridge_key() -> &'static str {
+    static KEY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    KEY.get_or_init(|| {
+        use std::hash::{BuildHasher, Hasher};
+        let part = || {
+            let mut h = std::collections::hash_map::RandomState::new().build_hasher();
+            h.write_u128(std::time::UNIX_EPOCH.elapsed().map_or(0, |d| d.as_nanos()));
+            h.finish()
+        };
+        format!("{:016x}{:016x}", part(), part())
+    })
+}
+
+/// Pure: decode `https://findplus-bridge.invalid/<key>/<kind>#<base64url>`.
+/// A message without this process's key is `Bad` (never acted on).
 pub fn decode_bridge(url: &str) -> Bridge {
-    let Some(rest) = url.strip_prefix("https://findplus-bridge.invalid/") else {
+    let Some(rest) = url
+        .strip_prefix("https://findplus-bridge.invalid/")
+        .and_then(|r| r.strip_prefix(bridge_key()))
+        .and_then(|r| r.strip_prefix('/'))
+    else {
         return Bridge::Bad;
     };
     let (kind, frag) = rest.split_once('#').unwrap_or((rest, ""));

@@ -29,7 +29,7 @@ pub const GOOGLE_ORIGINS: ScriptOrigins<'static> = ScriptOrigins {
 const TEMPLATE: &str = r#"(function () {
   if (window.top !== window) { return; }
   var UNLOCK = __UNLOCK__, ACCOUNT = __ACCOUNT__, ACCOUNT_PATH = __ACCOUNT_PATH__;
-  var BRIDGE = 'https://findplus-bridge.invalid/';
+  var BRIDGE = 'https://findplus-bridge.invalid/' + __KEY__ + '/';
   var AVATAR = 'a[href*="/SignOutOptions"][aria-label*="@"]';
   function enc(s) {
     var b = new TextEncoder().encode(s), bin = '';
@@ -81,6 +81,7 @@ pub fn init_script(o: &ScriptOrigins) -> String {
         .replace("__UNLOCK__", &js_string(o.unlock))
         .replace("__ACCOUNT_PATH__", &js_string(o.account_path))
         .replace("__ACCOUNT__", &js_string(o.account))
+        .replace("__KEY__", &js_string(crate::signin_logic::bridge_key()))
 }
 
 #[cfg(test)]
@@ -104,6 +105,16 @@ mod tests {
         }
         assert!(s.contains("window.mm = {"));
         assert!(s.contains("https://findplus-bridge.invalid/"));
+    }
+
+    #[test]
+    fn the_script_carries_this_process_bridge_key() {
+        let s = init_script(&GOOGLE_ORIGINS);
+        let key = crate::signin_logic::bridge_key();
+        assert_eq!(key.len(), 32);
+        assert!(s.contains(&format!("\"{key}\"")) && !s.contains("__KEY__"));
+        // The key is only reachable in the main frame: sub-frames return first.
+        assert!(s.find("window.top !== window") < s.find(key));
     }
 
     #[test]

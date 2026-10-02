@@ -105,6 +105,11 @@ fn the_test_origin_is_an_exact_match() {
     assert_ne!(nav("http://localhost:5555/", &h), Nav::Allow);
 }
 
+/// The bridge prefix with this process's key.
+fn bk() -> String {
+    format!("https://findplus-bridge.invalid/{}/", bridge_key())
+}
+
 fn b64(s: &str) -> String {
     // Test-side encoder, the same alphabet the init script uses.
     const A: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
@@ -124,36 +129,29 @@ fn b64(s: &str) -> String {
 #[test]
 fn bridge_decodes_vault_account_close_cancel() {
     let v = r#"[{"k":"finder_hw"}]"#;
-    let url = format!("https://findplus-bridge.invalid/vault#{}", b64(v));
+    let url = format!("{}vault#{}", bk(), b64(v));
     assert_eq!(nav(&url, &none()), Nav::Bridge(Bridge::Vault(v.into())));
-    let url = format!("https://findplus-bridge.invalid/account#{}", b64("a@b.com"));
+    let url = format!("{}account#{}", bk(), b64("a@b.com"));
     assert_eq!(decode_bridge(&url), Bridge::Account("a@b.com".into()));
-    assert_eq!(
-        decode_bridge("https://findplus-bridge.invalid/close"),
-        Bridge::Close
-    );
-    assert_eq!(
-        decode_bridge("https://findplus-bridge.invalid/cancel"),
-        Bridge::Cancel
-    );
+    assert_eq!(decode_bridge(&format!("{}close", bk())), Bridge::Close);
+    assert_eq!(decode_bridge(&format!("{}cancel", bk())), Bridge::Cancel);
 }
 
 #[test]
 fn bridge_refuses_bad_input() {
     let bad = [
-        "https://findplus-bridge.invalid/vault#%%%".to_string(),
-        "https://findplus-bridge.invalid/vault#A".to_string(),
-        "https://findplus-bridge.invalid/vault#".to_string(),
-        "https://findplus-bridge.invalid/other#abcd".to_string(),
-        format!(
-            "https://findplus-bridge.invalid/account#{}",
-            b64("no-at-sign")
-        ),
-        format!(
-            "https://findplus-bridge.invalid/vault#{}",
-            "A".repeat(BRIDGE_MAX_BYTES + 4)
-        ),
+        format!("{}vault#%%%", bk()),
+        format!("{}vault#A", bk()),
+        format!("{}vault#", bk()),
+        format!("{}other#abcd", bk()),
+        format!("{}account#{}", bk(), b64("no-at-sign")),
+        format!("{}vault#{}", bk(), "A".repeat(BRIDGE_MAX_BYTES + 4)),
         "https://evil.invalid/vault#abcd".to_string(),
+        // No key, a wrong key, or the key without its slash: forged (r12 #2).
+        "https://findplus-bridge.invalid/vault#abcd".to_string(),
+        "https://findplus-bridge.invalid/close".to_string(),
+        format!("https://findplus-bridge.invalid/{}/close", "0".repeat(32)),
+        format!("https://findplus-bridge.invalid/{}close", bridge_key()),
     ];
     for url in bad {
         assert_eq!(decode_bridge(&url), Bridge::Bad, "{url}");

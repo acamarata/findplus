@@ -174,6 +174,7 @@ class Place(Base):
     exit_confirmations: Mapped[int] = mapped_column(Integer, nullable=False, default=2)
     #: home | school | work | family | shop | other (0013, API-validated).
     kind: Mapped[str] = mapped_column(String(8), nullable=False, default="other")
+    kind_guessed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)  # to confirm
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
 

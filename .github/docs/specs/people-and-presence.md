@@ -58,7 +58,10 @@ Per-tracker override 0.0 to 1.0 (0 = never used to place the person).
 
 `places.kind`: `home | school | work | family | shop | other` (default `other`); several homes allowed. Home
 stays fold into one line, left-behind alerts are off at homes (§4), the summary opens "Overnight at Home". The
-dialog guesses kind from the name ("Grandma's" -> family) for the owner to confirm.
+dialog guesses kind from the name ("Grandma's" -> family) for the owner to confirm. `places.kind_guessed` marks a
+guess the owner has not confirmed: set when the API guessed (no `kind` in the body) and by 0013 for every
+existing place whose name suggests a kind (an upgraded "Home" becomes `home`). The places list shows "Kind: Home,
+guessed from the name." with a one-tap confirm; any PUT with `kind` clears it (review r116 #8).
 
 ### 1.4 Migration `0013_people_and_quality`
 
@@ -67,7 +70,8 @@ Order inside one revision; `upgrade_to_head` already wraps it in `fk_disabled` [
 ```
 groups               + kind TEXT NOT NULL DEFAULT 'set'        -- API-validated (no CHECK: no parent-table rebuild)
 devices              + role TEXT NULL, + carry_weight REAL NULL
-places               + kind TEXT NOT NULL DEFAULT 'other'
+places               + kind TEXT NOT NULL DEFAULT 'other', + kind_guessed BOOLEAN NOT NULL DEFAULT 0
+                       data step: kind = guess(name), kind_guessed = 1 where the name suggests one
 group_place_events   + basis TEXT NOT NULL DEFAULT 'quorum'    -- 'quorum' | 'person'
                      + note TEXT NULL                          -- person events store their sentence
                      + lead_device_id TEXT NULL                -- tracker whose crossing decided it

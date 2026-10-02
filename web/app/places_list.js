@@ -25,6 +25,7 @@ import { t, plural } from "./i18n.js";
 import { uniqueLabel } from "./device_label.js";
 import { editPlace, deletePlace, centerOnPlace, refreshAll, offerRuleFor } from "./places.js";
 import { paneError } from "./pane_error.js";
+import { showAlert } from "./state.js";
 import { activeQuery, applyTools, buildTools, reset as resetTools, toolsVisible } from "./places_list_tools.js";
 
 /** The last fetch, so search/sort re-render without another round trip. */
@@ -87,6 +88,33 @@ function notifyRow(place) {
   return row;
 }
 
+/** A kind Find+ guessed from the name (an upgraded place, or one added
+ * without picking): say so, with a one-tap confirm. Edit changes it. */
+function kindRow(place) {
+  const row = document.createElement("span");
+  row.className = "fp-place-kind-guess";
+  const kind = t(`places.kind.${place.kind}`);
+  const text = document.createElement("span");
+  text.textContent = t("places.list.kindGuess", { kind });
+  row.append(text, cardButton("btn btn-tiny fp-place-kind-confirm", t("places.list.kindConfirm"),
+    t("places.list.kindConfirmFor", { name: place.name, kind }), () => confirmKind(place)));
+  return row;
+}
+
+async function confirmKind(place) {
+  try {
+    await api(`/api/places/${place.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: place.kind }),
+    });
+  } catch (err) {
+    showAlert(t("places.list.kindConfirmFailed", { message: err.message || String(err) }), "err");
+    return;
+  }
+  await refreshAll();
+}
+
 function renderCard(place, presenceByPlace, devicesById, ruleCount) {
   const card = document.createElement("div");
   card.className = "fp-place-card";
@@ -114,6 +142,7 @@ function renderCard(place, presenceByPlace, devicesById, ruleCount) {
     name,
     meta,
     who,
+    ...(place.kind_guessed ? [kindRow(place)] : []),
     ...(ruleCount === 0 ? [notifyRow(place)] : []),
     // V1: these had no button class at all (fully browser-default); devices.js's
     // own row-edit button is the precedent for this exact "btn btn-tiny" pairing.

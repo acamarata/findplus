@@ -73,6 +73,7 @@ def _place_to_dict(p: Place) -> dict[str, Any]:
         "enter_confirmations": p.enter_confirmations,
         "exit_confirmations": p.exit_confirmations,
         "kind": p.kind,
+        "kind_guessed": bool(p.kind_guessed),
         "created_at": p.created_at.isoformat(),
         "updated_at": p.updated_at.isoformat(),
         "devices_inside": getattr(p, "_devices_inside", []),
@@ -124,6 +125,7 @@ def post_place(body: PlaceCreate) -> dict[str, Any]:
                 enter_confirmations=body.enter_confirmations,
                 exit_confirmations=body.exit_confirmations,
                 kind=body.kind or guess_place_kind(body.name),
+                kind_guessed=body.kind is None,
             )
             rule = add_default_rule(s, p, channels=body.notify_channels) if body.notify else None
         except ValueError as exc:

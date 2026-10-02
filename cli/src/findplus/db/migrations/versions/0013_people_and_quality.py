@@ -8,7 +8,8 @@ Schema only; the engines that read and write these columns live in people/
 and quality/.
 
 1. Plain column adds, no rebuild: groups.kind ('set' | 'person' | 'pet'),
-   devices.role + carry_weight, places.kind, and group_place_events.basis,
+   devices.role + carry_weight, places.kind (+ kind_guessed, filled from the
+   name for existing places), and group_place_events.basis,
    note, lead_device_id. Values are validated in the API layer, not by a
    CHECK, so `groups`, `devices` and `places` (all parents of ON DELETE
    CASCADE children) are never rebuilt.
@@ -118,6 +119,9 @@ def _add_plain_columns() -> None:
     op.add_column("devices", sa.Column("carry_weight", sa.Float(), nullable=True))
     op.add_column("places", sa.Column("kind", sa.String(8), nullable=False, server_default="other"))
     op.add_column(
+        "places", sa.Column("kind_guessed", sa.Boolean(), nullable=False, server_default=sa.false())
+    )
+    op.add_column(
         "group_place_events",
         sa.Column("basis", sa.String(8), nullable=False, server_default="quorum"),
     )
@@ -205,9 +209,27 @@ def _create_quality_and_digest_tables() -> None:
     )
 
 
+def _guess_place_kinds() -> None:
+    """Existing places get the kind their name suggests ("Home" -> home), flagged
+    kind_guessed so the places list asks the owner to confirm it. Without this
+    an upgraded Home stays 'other': left-behind alerts on there, no "Overnight
+    at Home" (review r116 #8). Same rule as a new place: places/kinds.py."""
+    from findplus.places.kinds import guess_place_kind
+
+    conn = op.get_bind()
+    for pid, name in conn.execute(sa.text("SELECT id, name FROM places WHERE kind = 'other'")):
+        kind = guess_place_kind(name)
+        if kind != "other":
+            conn.execute(
+                sa.text("UPDATE places SET kind = :k, kind_guessed = 1 WHERE id = :i"),
+                {"k": kind, "i": pid},
+            )
+
+
 def upgrade() -> None:
     _require_fk_off()
     _add_plain_columns()
+    _guess_place_kinds()
     _rebuild_alert_tables()
     _create_person_tables()
     _create_quality_and_digest_tables()
@@ -251,6 +273,7 @@ def downgrade() -> None:
         ("group_place_events", "lead_device_id"),
         ("group_place_events", "note"),
         ("group_place_events", "basis"),
+        ("places", "kind_guessed"),
         ("places", "kind"),
         ("devices", "carry_weight"),
         ("devices", "role"),

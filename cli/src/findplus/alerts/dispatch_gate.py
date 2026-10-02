@@ -135,7 +135,7 @@ def send_summaries(burst: Burst, channels_cfg) -> None:
     from findplus.people.messages import t
 
     for (channel, target), count in burst.held.items():
-        text = t("msg.burstMore", count=count)
+        text = t("msg.burstOne") if count == 1 else t("msg.burstMore", count=count)
         try:
             ok = _send_text(channel, target, text, channels_cfg)
         except Exception as exc:  # a summary failure must never crash dispatch

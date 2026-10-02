@@ -1254,6 +1254,7 @@
       "leftBehind": "{name}'s {what} looks left at {place}. Last seen there at {time}.",
       "leftBehindPerson": "{name} was last seen near {place} at {time} ({tracker}).",
       "unnamedSpot": "an unnamed spot",
+      "burstOne": "1 more arrival or departure happened earlier: open Find+ to see it.",
       "burstMore": "{count} more arrivals and departures happened earlier: open Find+ to see them."
     },
     "now": {

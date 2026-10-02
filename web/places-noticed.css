@@ -1,0 +1,24 @@
+/* "We noticed these places": cards with a mini map (Places tab and wizard). */
+.pn-panel { margin: 10px 0 14px; }
+.pn-heading { margin: 0 0 2px; font-size: 14px; font-weight: 650; text-transform: none; letter-spacing: 0; color: var(--text); }
+.pn-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.pn-card { display: flex; gap: 10px; border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--panel-2); }
+.pn-map { flex: 0 0 120px; height: 96px; border-radius: 6px; overflow: hidden; background: var(--panel); border: 1px solid var(--line); }
+.pn-text { flex: 1 1 auto; min-width: 0; }
+.pn-title { margin: 0 0 2px; font-size: 14px; font-weight: 650; text-transform: none; letter-spacing: 0; color: var(--text); }
+.pn-line { margin: 0 0 2px; font-size: 13px; }
+.pn-facts { color: var(--muted); font-size: 12.5px; }
+.pn-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.pn-form { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); display: flex; flex-direction: column; gap: 6px; }
+.pn-status { margin: 0; font-size: 13px; color: var(--err); }
+.pn-status:empty { display: none; }
+.pn-saved { margin: 0 0 8px; font-size: 13px; color: var(--ok); }
+.pn-empty { margin: 8px 0; }
+@media (max-width: 480px) {
+  .pn-card { flex-direction: column; }
+  .pn-map { flex-basis: auto; width: 100%; height: 120px; }
+}
+.marker-count .marker-num-glyph { display: flex; align-items: center; justify-content: center; background: #3b82f6; color: #fff; font: 600 13px/1 system-ui, sans-serif; }
+.pn-form .fp-dialog-field { flex-direction: column; align-items: stretch; gap: 3px; margin: 0; }
+.pn-form .fp-dialog-field > label { flex: 0 0 auto; }
+.pn-form input[type="text"], .pn-form select { width: 100%; box-sizing: border-box; background: var(--panel); color: var(--text); border: 1px solid var(--line-strong); border-radius: 7px; padding: 6px 9px; font-size: 13px; }

@@ -22,6 +22,7 @@
  *              scope, not this file's, and out of this ticket's file list).
  */
 "use strict";
+import { markForLinks } from "./person_links.js";
 import { $ } from "./state.js";
 import { api } from "./api.js";
 import { t } from "./i18n.js";
@@ -181,7 +182,7 @@ function buildDeliveryRow(delivery, labelMap) {
     // UAT7 N06: genuinely empty (never the "—" placeholder) when there is no
     // kind -- see cellOrEmpty()'s own docstring.
     cellOrEmpty(delivery.event_kind ? t("alerts.kinds." + delivery.event_kind) : "", t("alerts.colKind")),
-    detailsCell(delivery.text, t("alerts.deliveries.text")),
+    markForLinks(detailsCell(delivery.text, t("alerts.deliveries.text"))),
     detailsCell(delivery.body, t("alerts.deliveries.body")),
     cell(sentText(delivery), t("alerts.colSent")),
     cell(statusText(delivery), t("alerts.colStatus")),

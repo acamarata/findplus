@@ -50,6 +50,10 @@ Alert rule definitions and label configurations are deliberately not exposed ove
 | `get_trips` | Stays, trips and no-sighting gaps for one device and day (approximate) |
 | `get_place_events` | Place ENTER/EXIT event log |
 | `get_group_presence` | Group presence verdict |
+| `list_people` | People and pets with where each likely is now |
+| `where_is` | Where one person (name or id) likely is now, how sure, how old |
+| `get_person_day` | One person's local day in plain words: left, arrived, stops, gaps, left behind |
+| `get_people_suggestions` | Preview people suggested from tracker names (saves nothing) |
 | `export` | Export history as CSV, JSON, GPX or KML (capped at 5 MB) |
 | `unlock` | Unlock the app with a PIN |
 
@@ -58,10 +62,12 @@ Alert rule definitions and label configurations are deliberately not exposed ove
 | Tool | Description |
 |---|---|
 | `poll_now` | Trigger an immediate poll |
-| `add_place` | Create a new place |
+| `add_place` | Create a new place. Pass `notify: true` to also create an arrive/leave alert rule; the default is false |
 | `remove_place` | Delete a place |
 | `add_group` | Create a group |
 | `set_group_members` | Replace a group's member list |
+| `accept_people_suggestions` | Create people from suggestions (as you edit them) and dismiss others; nothing is applied without this call |
+| `set_tracker_role` | Set what a tracker is attached to (bag, shoes, phone) and its carry weight |
 | `lock` | Lock the app |
 
 Never exposed, on any tool: PIN set/change/reset, history deletion, alert channel credentials.

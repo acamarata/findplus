@@ -3,8 +3,8 @@
 Purpose : Split out of dispatch.py (PRI rule 7's 300-line cap, pushed over by
           multi-target Telegram dispatch) -- this half owns only "what needs
           notifying"; dispatch.py owns matching, sending and recording.
-Inputs  : place_events/group_place_events rows with notified_at IS NULL.
-Outputs : DeviceEvent/GroupEvent dataclasses (dispatch_core.py).
+Inputs  : place_events/group_place_events/left_behind rows not yet notified.
+Outputs : DeviceEvent/GroupEvent/LeftBehindEvent dataclasses (dispatch_types.py).
 Constraints: No caller-visible change -- dispatch.py re-exports
           load_pending_events so every existing `from findplus.alerts.
           dispatch import load_pending_events` call site is unchanged.
@@ -12,8 +12,8 @@ Constraints: No caller-visible change -- dispatch.py re-exports
 
 from __future__ import annotations
 
-from findplus.alerts.dispatch_core import DeviceEvent, GroupEvent, as_utc
-from findplus.groups.quorum import group_event_note, stale_note_for_count
+from findplus.alerts.dispatch_core import DeviceEvent, GroupEvent, LeftBehindEvent, as_utc
+from findplus.alerts.group_event_rows import pending_group_events
 
 #: COALESCE(d.label, d.name): an alert names the tracker by its label (UAT U7).
 _DEVICE_EVENTS_SQL = """SELECT pe.id, pe.place_id, p.name AS place_name, pe.device_id,
@@ -23,23 +23,42 @@ FROM place_events pe JOIN places p ON p.id = pe.place_id
 JOIN devices d ON d.device_id = pe.device_id
 WHERE pe.notified_at IS NULL ORDER BY pe.observed_at ASC"""
 
-_GROUP_EVENTS_SQL = """SELECT gpe.id, gpe.group_id, g.name AS group_name, gpe.place_id,
-       p.name AS place_name, gpe.event_type, gpe.observed_at, gpe.confidence,
-       gpe.members_crossed, gpe.members_considered, gpe.members_stale
-FROM group_place_events gpe JOIN groups g ON g.id = gpe.group_id
-JOIN places p ON p.id = gpe.place_id
-WHERE gpe.notified_at IS NULL ORDER BY gpe.observed_at ASC"""
+_MEMBERSHIP_SQL = """SELECT dg.group_id, g.kind FROM device_group dg
+JOIN groups g ON g.id = dg.group_id WHERE dg.device_id = :device_id"""
+
+#: Person groups of this tracker with their own event for the same place and
+#: type within PERSON_EVENT_WINDOW minutes of the device crossing.
+_PERSON_EVENT_SQL = """SELECT DISTINCT gpe.group_id FROM group_place_events gpe
+JOIN device_group dg ON dg.group_id = gpe.group_id
+WHERE dg.device_id = :device_id AND gpe.basis = 'person' AND gpe.place_id = :place_id
+  AND gpe.event_type = :event_type AND gpe.observed_at BETWEEN :lo AND :hi"""
+PERSON_EVENT_WINDOW = 30
 
 
-def load_pending_events(session) -> list[DeviceEvent | GroupEvent]:
-    """Un-notified place_events/group_place_events rows, converted to dataclasses.
+def load_pending_events(session) -> list[DeviceEvent | GroupEvent | LeftBehindEvent]:
+    """Un-notified place_events, group_place_events and left-behind episodes.
 
-    notified_at IS NULL is the hand-off from the ingest-time geofence and
-    group-quorum hooks. A GroupEvent's `note` is rebuilt from the stored counts
-    (group_place_events has no note column) so the alert states how many tags
-    actually crossed and how many were silent.
+    notified_at IS NULL is the hand-off from the ingest-time geofence, group
+    and person hooks. A quorum GroupEvent's `note` is rebuilt from the stored
+    counts; a person event carries its own (alerts/group_event_rows.py).
     """
-    return [*_load_device_events(session), *_load_group_events(session)]
+    from findplus.alerts.dispatch_left_behind import pending_left_behind
+
+    events = [
+        *_load_device_events(session),
+        *pending_group_events(session),
+        *pending_left_behind(session),
+    ]
+    return sorted(events, key=_story_order)
+
+
+#: At the same instant a departure reads before an arrival: "left Home", then
+#: "arrived at Grandma's" (uat116 #14).
+_TYPE_ORDER = {"EXIT": 0, "ENTER": 1}
+
+
+def _story_order(event) -> tuple:
+    return (as_utc(event.observed_at), _TYPE_ORDER.get(event.event_type, 2))
 
 
 def _load_device_events(session) -> list[DeviceEvent]:
@@ -47,13 +66,7 @@ def _load_device_events(session) -> list[DeviceEvent]:
 
     events: list[DeviceEvent] = []
     for row in session.execute(text(_DEVICE_EVENTS_SQL)).all():
-        group_ids = [
-            r[0]
-            for r in session.execute(
-                text("SELECT group_id FROM device_group WHERE device_id = :device_id"),
-                {"device_id": row.device_id},
-            ).all()
-        ]
+        memberships = session.execute(text(_MEMBERSHIP_SQL), {"device_id": row.device_id}).all()
         events.append(
             DeviceEvent(
                 place_event_id=row.id,
@@ -65,37 +78,22 @@ def _load_device_events(session) -> list[DeviceEvent]:
                 observed_at=as_utc(row.observed_at),
                 fetched_at=as_utc(row.fetched_at),
                 confidence=row.confidence,
-                group_ids=group_ids,
+                group_ids=[m.group_id for m in memberships],
+                person_group_ids=[m.group_id for m in memberships if m.kind in ("person", "pet")],
+                person_event_group_ids=_person_event_groups(session, row),
+                pet_group_ids=[m.group_id for m in memberships if m.kind == "pet"],
             )
         )
     return events
 
 
-def _load_group_events(session) -> list[GroupEvent]:
+def _person_event_groups(session, row) -> list[int]:
+    from datetime import UTC, timedelta
+
     from sqlalchemy import text
 
-    events: list[GroupEvent] = []
-    for row in session.execute(text(_GROUP_EVENTS_SQL)).all():
-        events.append(
-            GroupEvent(
-                group_place_event_id=row.id,
-                group_id=row.group_id,
-                group_name=row.group_name,
-                place_id=row.place_id,
-                place_name=row.place_name,
-                event_type=row.event_type,
-                observed_at=as_utc(row.observed_at),
-                confidence=row.confidence,
-                note=group_event_note(
-                    crossed=row.members_crossed,
-                    considered=row.members_considered,
-                    event_type=row.event_type,
-                    place=row.place_name,
-                    stale_note=stale_note_for_count(row.members_stale),
-                ),
-                members_crossed=row.members_crossed,
-                members_considered=row.members_considered,
-                members_stale=row.members_stale,
-            )
-        )
-    return events
+    at = as_utc(row.observed_at).astimezone(UTC).replace(tzinfo=None)
+    window = timedelta(minutes=PERSON_EVENT_WINDOW)
+    params = {"device_id": row.device_id, "place_id": row.place_id,
+              "event_type": row.event_type, "lo": at - window, "hi": at + window}  # fmt: skip
+    return [r.group_id for r in session.execute(text(_PERSON_EVENT_SQL), params).all()]

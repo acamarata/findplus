@@ -87,7 +87,14 @@ def test_route_count():
     # +4 for trips: GET /trips, GET /trips/route and GET/POST /settings/routing.endpoint.
     # +1 for POST /settings/pin/check (verify the PIN before the remove question).
     # +1 for POST /alerts/rules/dry-run (what a rule would have sent).
-    assert len(routes) == 103
+    # +15 for people (1.1.6): /people CRUD + members + now (7), suggestions,
+    # accept, settings GET/PUT, trackers role, left-behind list/dismiss (7),
+    # and POST /places/notify-defaults (1).
+    # +2 for the Settings backup line: GET /settings/backup, POST /settings/backup/now.
+    # +2 for the daily summary (1.1.6): GET /people/{id}/day and POST /people/{id}/day/send.
+    # +2 for places we noticed: GET /places/suggestions and POST /places/suggestions/dismiss.
+    # +1 for GET /people/replay ("Updating past days...", uat116 #4).
+    assert len(routes) == 125
 
 
 #: T1 (2026-09-22, PRI rule-7 50-line function cap): pulled out of
@@ -175,6 +182,22 @@ _EXPECTED_PATHS = {
     "/api/alerts/rules/{rule_id}",
     "/api/alerts/deliveries",
     "/api/alerts/deliveries/{delivery_id}/ack",
+    "/api/places/notify-defaults",
+    "/api/places/suggestions",
+    "/api/places/suggestions/dismiss",
+    "/api/people",
+    "/api/people/{group_id}",
+    "/api/people/{group_id}/members",
+    "/api/people/{group_id}/now",
+    "/api/people/{group_id}/day",
+    "/api/people/{group_id}/day/send",
+    "/api/people/{group_id}/left-behind",
+    "/api/people/{group_id}/left-behind/{episode_id}/dismiss",
+    "/api/people/replay",
+    "/api/people/suggestions",
+    "/api/people/suggestions/accept",
+    "/api/people/settings",
+    "/api/people/trackers/{device_id}",
 }
 
 

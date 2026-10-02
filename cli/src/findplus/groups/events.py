@@ -271,7 +271,14 @@ def evaluate_group_events(
     )
     if not group_ids:
         return []
-    groups = list(session.scalars(select(Group).where(Group.id.in_(group_ids))).all())
+    # Person and pet groups get person events instead (people/events.py,
+    # specs/people-and-presence.md § 1.1): a quorum row here would be a
+    # second message for the same crossing.
+    groups = list(
+        session.scalars(select(Group).where(Group.id.in_(group_ids), Group.kind == "set")).all()
+    )
+    if not groups:
+        return []
 
     candidates = [
         _build_candidate(session, g, place_event, now, presence_window, group_window)

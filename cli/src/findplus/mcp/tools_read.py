@@ -22,7 +22,7 @@ from mcp.server.mcpserver import MCPServer
 
 from findplus import honesty
 from findplus.mcp import errors
-from findplus.mcp.client import UNREACHABLE, DaemonClient
+from findplus.mcp.client import UNREACHABLE, DaemonClient, seg
 
 
 def _params(**kwargs: object) -> dict[str, object]:
@@ -113,7 +113,7 @@ async def _place_events_raw(
 async def _group_presence_raw(
     client: DaemonClient, group_id: int, window_minutes: int
 ) -> dict | list:
-    return await client.get(f"/api/groups/{group_id}/presence", {"window": window_minutes})
+    return await client.get(f"/api/groups/{seg(group_id)}/presence", {"window": window_minutes})
 
 
 async def _export_data(

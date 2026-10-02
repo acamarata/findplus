@@ -44,6 +44,7 @@ from . import (
     routes_history,
     routes_icons,
     routes_lock,
+    routes_people,
     routes_places,
     routes_places_search,
     routes_providers,
@@ -222,6 +223,7 @@ def _register_routers(app: FastAPI, *, settings, sessions, sync_idle_timeout) ->
     app.include_router(routes_places.build_router())
     app.include_router(routes_places_search.build_router())
     app.include_router(routes_groups.build_router())
+    app.include_router(routes_people.build_router())
     app.include_router(routes_alerts_channels.build_router())
     app.include_router(routes_alerts_rules.build_router())
     app.include_router(

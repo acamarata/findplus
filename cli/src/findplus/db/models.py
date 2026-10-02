@@ -58,6 +58,9 @@ class Device(Base):
     icon: Mapped[str] = mapped_column(String(32), nullable=False, default="letter")
     #: Set from labels.palette_color_for on creation; the default is a safety net.
     color: Mapped[str] = mapped_column(String(16), nullable=False, default="#888888")
+    #: Tracker role and carry weight (0013); NULL = guessed / role default (models_people).
+    role: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    carry_weight: Mapped[float | None] = mapped_column(Float, nullable=True)
     first_seen_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
     last_seen_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
 
@@ -169,6 +172,9 @@ class Place(Base):
     color: Mapped[str] = mapped_column(String(16), nullable=False, default="#2f80ed")
     enter_confirmations: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     exit_confirmations: Mapped[int] = mapped_column(Integer, nullable=False, default=2)
+    #: home | school | work | family | shop | other (0013, API-validated).
+    kind: Mapped[str] = mapped_column(String(8), nullable=False, default="other")
+    kind_guessed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)  # to confirm
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
 
@@ -239,6 +245,8 @@ class Group(Base):
     quorum: Mapped[str] = mapped_column(String(16), nullable=False, default="majority")
     cluster_radius_meters: Mapped[int] = mapped_column(Integer, nullable=False, default=150)
     stale_after_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=90)
+    #: set | person | pet (0013); a trigger keeps a tracker in one person/pet.
+    kind: Mapped[str] = mapped_column(String(8), nullable=False, default="set")
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
 
 
@@ -285,3 +293,7 @@ class GroupPlaceEvent(Base):
     members_stale: Mapped[int] = mapped_column(Integer, nullable=False)
     confidence: Mapped[str | None] = mapped_column(String(6), nullable=True)
     notified_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    #: quorum | person (0013); person rows carry their sentence and lead tracker.
+    basis: Mapped[str] = mapped_column(String(8), nullable=False, default="quorum")
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    lead_device_id: Mapped[str | None] = mapped_column(String(128), nullable=True)

@@ -17,6 +17,7 @@ from fastapi import HTTPException
 from sqlalchemy import desc, func, select
 
 from findplus.db.models import LocationObservation, PollRun
+from findplus.quality.annotate import suspect_fields
 from findplus.timeline import day_bounds_utc, observation_count_between
 
 # Re-exported so the routers keep their single `from ._helpers import ...`
@@ -79,11 +80,18 @@ def _device_summary(session, device, zone, now, settings) -> dict[str, Any]:
         "device_id": device.device_id,
         "name": device.name,
         "is_tracked": device.is_tracked,
-        "latest_observation": _serialize_latest(latest, zone, now, device.label),
+        "latest_observation": _serialize_latest(
+            latest, zone, now, device.label, _quality_of(session, latest)
+        ),
         "observations_today": today,
         "observations_total": int(total or 0),
         "last_poll": _serialize_run(last_run, zone),
     }
+
+
+def _quality_of(session, obs) -> tuple[bool, str | None] | None:
+    """(suspect, reason) for one observation row, or None when there is no row."""
+    return suspect_fields(session, [obs.id])[obs.id] if obs is not None else None
 
 
 def _newest(summaries: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -124,7 +132,9 @@ def _resolve_range(day, start, end, zone) -> tuple[datetime, datetime, str]:
     )
 
 
-def _serialize_latest(obs, zone, now, device_label: str | None = None) -> dict[str, Any] | None:
+def _serialize_latest(
+    obs, zone, now, device_label: str | None = None, quality: tuple | None = None
+) -> dict[str, Any] | None:
     """`device_label`, when given, wins over the observation's own stored
     name -- the "Last observed" card shows the tracker's label the same way
     every other surface does (UAT U6), while `obs.device_name` (the raw
@@ -132,7 +142,10 @@ def _serialize_latest(obs, zone, now, device_label: str | None = None) -> dict[s
     if obs is None:
         return None
     age = (now - obs.observed_at).total_seconds()
+    suspect, reason = quality or (False, None)
     return {
+        "suspect": suspect,
+        "suspect_reason": reason,
         "id": obs.id,
         "device_id": obs.device_id,
         "device_name": device_label or obs.device_name,

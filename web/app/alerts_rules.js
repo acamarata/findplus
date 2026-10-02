@@ -13,6 +13,7 @@
  *              module has no top-level side effects of its own.
  */
 "use strict";
+import { markForLinks } from "./person_links.js";
 import { $, showAlert } from "./state.js";
 import { api } from "./api.js";
 import { t, plural } from "./i18n.js";
@@ -33,6 +34,7 @@ export async function loadRules() {
   renderRulesTable(await api("/api/alerts/rules"));
 }
 function ruleTargetLabel(rule) {
+  if (rule.all_people) return t("alerts.everyone");
   if (rule.group_id) return rule.group_name || t("alerts.groupFallback", { id: rule.group_id });
   return rule.device_name || rule.device_id || t("common.emptyValue");
 }
@@ -68,13 +70,13 @@ function nameCell(rule) {
   sentence.className = "fp-rule-row-sentence";
   sentence.textContent = ruleSentence({
     channels: rule.channels.map((c) => t("alerts.channels." + c)),
-    who: ruleTargetLabel(rule),
+    who: rule.all_people ? t("alerts.anyone") : ruleTargetLabel(rule),
     isGroup: rule.group_id != null,
     enter: rule.on_enter,
     exit: !!rule.on_exit,
     place: rule.place_name || "",
   });
-  td.append(name, sentence);
+  td.append(name, markForLinks(sentence));
   return td;
 }
 
@@ -118,7 +120,7 @@ function buildRuleRow(rule) {
   tr.append(
     nameCell(rule),
     cell(rule.place_name || t("common.emptyValue"), t("alerts.colPlace")),
-    cell(ruleTargetLabel(rule), t("alerts.colTarget")),
+    markForLinks(cell(ruleTargetLabel(rule), t("alerts.colTarget"))),
     cell(rule.on_enter ? t("common.yes") : t("common.no"), t("alerts.colOnEnter")),
     cell(rule.on_exit ? t("common.yes") : t("common.no"), t("alerts.colOnExit")),
     cell(

@@ -27,6 +27,7 @@ _MARKER_ELEMENTS = {
     "places": 'id="fp-add-place-btn"',
     "groups": 'id="fp-group-legend"',
     "alerts": 'id="fp-telegram-section"',
+    "person": 'id="person-datebar"',
     "settings": 'id="setting-theme"',
 }
 

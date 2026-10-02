@@ -130,6 +130,7 @@ def test_doctor_cmd_json_all_pass(monkeypatch: pytest.MonkeyPatch, tmp_db) -> No
     monkeypatch.setattr(doctor_module, "check_state_dir_perms", lambda sd: ok)
     monkeypatch.setattr(doctor_module, "check_sensitive_file_perms", lambda sd: ok)
     monkeypatch.setattr(doctor_module, "check_db_head", lambda: ok)
+    monkeypatch.setattr(doctor_module, "db_checks", lambda settings: [ok, ok])
     monkeypatch.setattr(doctor_module, "check_providers", lambda: ok)
     monkeypatch.setattr(doctor_module, "check_units", lambda: ok)
     monkeypatch.setattr(doctor_module, "check_port", lambda sd, port: ok)
@@ -141,7 +142,7 @@ def test_doctor_cmd_json_all_pass(monkeypatch: pytest.MonkeyPatch, tmp_db) -> No
     result = CliRunner().invoke(doctor_cmd, ["--json"])
     assert result.exit_code == 0, result.output
     data = json.loads(result.output)
-    assert len(data) == 11
+    assert len(data) == 13  # eleven original checks plus db_integrity and db_backups
 
 
 # ------------------------------------------------------------------------- l

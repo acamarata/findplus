@@ -27,6 +27,7 @@ import { t } from "./i18n.js";
 import { labelMap, visibleDevices } from "./device_label.js";
 import { absoluteTime, relativeTime } from "./rel_time.js";
 import { paneError } from "./pane_error.js";
+import { markForLinks } from "./person_links.js";
 
 const PAGE_SIZE = 20;
 const POLL_MS = 45000; // matches main.js's own status-refresh cadence
@@ -119,6 +120,7 @@ function renderRow(entry) {
   const text = document.createElement("span");
   text.className = "fp-events-text";
   text.textContent = entry.text;
+  markForLinks(text);
   // Relative first ("12 minutes ago"); the exact time is the hover title and
   // the machine-readable datetime, so nothing is lost.
   const time = document.createElement("time");

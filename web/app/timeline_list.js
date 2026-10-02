@@ -13,6 +13,7 @@
 import { fmtTime, fmtDuration, fmtDistance, esc, todayLocal } from "./state.js";
 import { visiblePoints } from "./map.js";
 import { t } from "./i18n.js";
+import { metersFromTrusted } from "./timeline_distance.js";
 
 const PIN_ICON = `<svg class="tl-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#lucide-map-pin"></use></svg>`;
 
@@ -49,8 +50,8 @@ function agoHtml(point, isNewest) {
 }
 
 /** The small grey line under a row: distance, accuracy (honestly), below-threshold. */
-function metaParts(point) {
-    const dist = fmtDistance(point.meters_from_previous);
+function metaParts(point, track) {
+    const dist = fmtDistance(metersFromTrusted(track.points, point));
     const meta = [];
     if (dist) meta.push(t("timeline.fromPrevious", { distance: dist }));
     if (point.accuracy_meters != null) {
@@ -85,7 +86,7 @@ export function timelineHtml(track) {
       });
       html += `<li class="tl-gap">${esc(gap)}</li>`;
     }
-    const meta = metaParts(point);
+    const meta = metaParts(point, track);
 
     // Coordinates stay in the title attribute for hover even when a place name
     // is shown in their place (U30b) — the API resolves place_name server-side
@@ -97,10 +98,11 @@ export function timelineHtml(track) {
       : `<div class="tl-coords">${PIN_ICON}${esc(coordsTitle)}</div>`;
 
     html +=
-      `<li class="tl-item${point.is_movement ? "" : " jitter"}" data-id="${point.id}">` +
+      `<li class="tl-item${point.is_movement ? "" : " jitter"}${point.suspect ? " is-suspect" : ""}" data-id="${point.id}">` +
       `<div><span class="tl-seq">${point.sequence}.</span> <span class="tl-time">${fmtTime(point.observed_at_local)}</span>${agoHtml(point, index === points.length - 1)}</div>` +
       coordsLine +
       (meta.length ? `<div class="tl-meta">${esc(meta.join(" · "))}</div>` : "") +
+      (point.suspect ? `<div class="tl-suspect">${esc(point.suspect_reason || t("person.map.suspectTip"))}</div>` : "") +
       `</li>`;
   });
   return html + `</ol>`;

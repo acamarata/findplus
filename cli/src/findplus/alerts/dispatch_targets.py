@@ -23,7 +23,7 @@ import datetime
 
 from sqlalchemy.exc import IntegrityError
 
-from findplus.alerts.dispatch_core import Delivery, DeviceEvent, Rule
+from findplus.alerts.dispatch_core import Delivery, Rule, event_key
 
 
 def _already_delivered(
@@ -99,15 +99,13 @@ def _channel_targets(channel: str, channels_cfg, rule: Rule) -> tuple[list[str],
 
 
 def _deliver_skip(
-    session, rule: Rule, channel: str, event, now: datetime.datetime, reason: str
+    session, rule: Rule, channel: str, event, now: datetime.datetime, reason: str, target: str = ""
 ) -> Delivery | None:
     """Record a "skipped" row with no send attempt at all -- WP10's explicit
     "no Telegram chats selected" case (_channel_targets returning no
     targets). Mirrors _deliver_one's own dedup-then-insert-then-commit shape
     but never touches a channel API: there is nothing configured to call."""
-    kind = "device" if isinstance(event, DeviceEvent) else "group"
-    eid = event.place_event_id if isinstance(event, DeviceEvent) else event.group_place_event_id
-    target = ""
+    kind, eid = event_key(event)
     if _already_delivered(session, rule.id, kind, eid, channel, target):
         return None
     _insert_delivery_row(session, rule, kind, eid, channel, target, now, "skipped", reason, 1, None)
@@ -124,4 +122,5 @@ def _deliver_skip(
         channel=channel,
         status="skipped",
         place_id=event.place_id,
+        group_id=getattr(event, "group_id", None),
     )

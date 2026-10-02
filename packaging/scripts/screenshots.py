@@ -49,6 +49,7 @@ def redirect_env(root: Path) -> dict:
     os.environ.update(
         FINDPLUS_DATABASE_PATH=str(root / "demo.sqlite"),
         FINDPLUS_STATE_DIR=str(root / "state"),
+        FINDPLUS_NO_LAUNCH="1",  # never open Finder, Chrome or a browser on this machine
     )
     return dict(os.environ)
 

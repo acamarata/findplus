@@ -23,6 +23,7 @@ def _run(monkeypatch: pytest.MonkeyPatch, status: str) -> float:
         lambda device_id, name, provider, settings: PollOutcome(status, device_id, name),
     )
     monkeypatch.setattr(poller, "_process_alert_retries", lambda settings: None)
+    monkeypatch.setattr(poller, "_release_held_fixes", lambda settings: None)
     start = time.monotonic()
     cycle = poller._run_poll_cycle(TARGETS, settings=None, stagger=1.0, stop_event=None)
     assert len(cycle.outcomes) == len(TARGETS)

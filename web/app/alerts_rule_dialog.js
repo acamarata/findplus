@@ -119,6 +119,14 @@ function availableIncludingRulesOwnChannels(rule, rawAvailable) {
     : rawAvailable;
 }
 
+/** "Notify me" on a Person page: the rule is about that person (a group), not a tracker. */
+function selectGroupTarget(id) {
+  $("fp-rule-target-group").checked = true;
+  $("fp-rule-target-device").checked = false;
+  updateRuleTargetVisibility();
+  $("fp-rule-group").value = String(id);
+}
+
 /** The three selects' own values once `rule`'s data has landed -- pulled out
  *  of openRuleDialog() for the same 50-line-cap reason as the function above. */
 function applyRuleTargetValues(rule) {
@@ -176,6 +184,7 @@ export async function openRuleDialog(rule = null, opts = {}) {
   applyRuleTargetValues(rule);
   // After "Add place": the new place is already chosen for them.
   if (opts.placeId != null) $("fp-rule-place").value = String(opts.placeId);
+  if (opts.groupId != null) selectGroupTarget(opts.groupId);
   lastConnectedChannels = connected;
   // defaultSelectedChannels()/`initialChannels`, never readChannelPicker()
   // off the current DOM (UAT U12): a fresh open always retraces `rule`/the

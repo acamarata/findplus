@@ -24,14 +24,18 @@ from . import (
     cmd_apple,
     cmd_config,
     cmd_db,
+    cmd_db_ops,
     cmd_devices,
     cmd_diagnostics,
     cmd_history,
     cmd_service,
     cmd_setup,
+    places_suggest,  # noqa: F401  (registers `places suggest`)
 )
 from .alerts import alerts_cmd
+from .cmd_day import day_cmd, digest_cmd
 from .cmd_mcp import mcp
+from .cmd_people import people_cmd
 from .cmd_poll import poll_now
 from .cmd_selfcheck import selfcheck
 from .cmd_trips import trips_cmd
@@ -53,6 +57,8 @@ def main() -> None:
     os.umask(PRIVATE_UMASK)
 
 
+people_cmd.add_command(digest_cmd)
+main.add_command(day_cmd)
 main.add_command(cmd_service.auth)
 main.add_command(cmd_service.serve)
 main.add_command(cmd_service.start)
@@ -79,6 +85,7 @@ main.add_command(poll_now)
 
 main.add_command(cmd_history.export)
 main.add_command(cmd_history.prune)
+main.add_command(cmd_db_ops.db_import, name="import")
 
 main.add_command(cmd_config.config_cmd)
 main.add_command(cmd_db.db_cmd)
@@ -90,6 +97,7 @@ main.add_command(cmd_apple.apple_group, name="apple")
 main.add_command(trips_cmd)
 main.add_command(places_cmd)
 main.add_command(groups_cmd)
+main.add_command(people_cmd)
 main.add_command(alerts_cmd)
 main.add_command(version_cmd)
 main.add_command(selfcheck)

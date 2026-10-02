@@ -33,6 +33,7 @@ async def _create_place(page, base_url, name, lon_offset):
         data=json.dumps(
             {
                 "name": name,
+                "notify": False,
                 "latitude": HOME_LAT,
                 "longitude": HOME_LON + lon_offset,
                 "radius_meters": 60,

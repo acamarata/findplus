@@ -65,6 +65,7 @@ async function refreshData(gen) {
   await loadDay(state.day || todayLocal());
   if (state.lockGeneration !== gen) return false;
   if (!state.markers.size) await setDefaultView().catch(() => {});
+  import("./left_behind_chips.js").then((m) => m.refreshLeftBehind()).catch(() => {});
   return true;
 }
 

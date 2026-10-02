@@ -199,15 +199,87 @@ Remove KEY from config.env.
 
 **Usage:** `findplus config unset [OPTIONS]`
 
+## findplus day
+A person's day in plain words: when they left, arrived and where they are.
+
+**Usage:** `findplus day [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --date |  | Local date, YYYY-MM-DD (default today). |
+| --days | 1 | Consecutive days. |
+| --timezone |  | IANA zone (default this computer's). |
+| --json |  | Output JSON. |
+| --send |  | Also send it to the connected Telegram chat. |
+
+## findplus db backup
+Make a verified copy of the database now (kept until you delete it).
+
+**Usage:** `findplus db backup [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --json |  | Print the result as JSON. |
+
+## findplus db backups
+List the backups on disk, newest first.
+
+**Usage:** `findplus db backups [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --json |  | Print the list as JSON. |
+
+## findplus db check
+Check the database for damage (quick, integrity and foreign-key checks).
+
+**Usage:** `findplus db check [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --json |  | Print the result as JSON. |
+
 ## findplus db current
 Print the current Alembic revision of the database.
 
 **Usage:** `findplus db current [OPTIONS]`
 
+## findplus db import
+Load a full export (`findplus export --format jsonl`) into an empty database.
+
+**Usage:** `findplus db import [OPTIONS]`
+
 ## findplus db path
 Print the absolute path to the SQLite database file.
 
 **Usage:** `findplus db path [OPTIONS]`
+
+## findplus db rebuild-derived
+Rebuild place, group and person state from the sightings (run it after an import).
+
+**Usage:** `findplus db rebuild-derived [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --force |  | Run even if Find+ looks like it is running. |
+
+## findplus db recompute-quality
+Re-score every sighting for 'looks wrong' flags (raw data is never changed).
+
+**Usage:** `findplus db recompute-quality [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --since |  | Only sightings from this local date, YYYY-MM-DD. |
+
+## findplus db restore
+Replace the database with a backup. Your current one is kept aside, not deleted.
+
+**Usage:** `findplus db restore [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --force |  | Restore even if Find+ looks like it is running. |
 
 ## findplus db upgrade
 Run Alembic migrations to head. Safe to run repeatedly (idempotent).
@@ -259,13 +331,13 @@ Diagnose the installation; with --repair, fix what can be fixed.
 | --json |  | Print machine-readable JSON. |
 
 ## findplus export
-Export history to CSV, JSON, GPX or KML.
+Export history to CSV, JSON, GPX or KML; --format jsonl exports the whole database.
 
 **Usage:** `findplus export [OPTIONS]`
 
 | option | default | help |
 |---|---|---|
-| --format | csv |  |
+| --format | csv | jsonl exports everything (devices, places, groups, rules) for `findplus import`. |
 | --day |  | Single local day, YYYY-MM-DD. |
 | --start |  | Range start, YYYY-MM-DD. |
 | --end |  | Range end, YYYY-MM-DD. |
@@ -351,6 +423,11 @@ Delete a group and its membership rows.
 |---|---|---|
 | --yes |  | Confirm removal. |
 
+## findplus import
+Load a full export (`findplus export --format jsonl`) into an empty database.
+
+**Usage:** `findplus import [OPTIONS]`
+
 ## findplus install-service
 Start the background service: auth check, then discover-and-track, then
 
@@ -395,6 +472,62 @@ Start the Find+ MCP server (stdio transport).
 Open the dashboard in the default browser.
 
 **Usage:** `findplus open [OPTIONS]`
+
+## findplus people accept
+Create the suggested people (by --key or --all), or dismiss suggestions.
+
+**Usage:** `findplus people accept [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --key |  | A suggestion key from `people suggest`. |
+| --all |  | Accept every suggestion as shown. |
+| --dismiss |  | A suggestion key to dismiss. |
+| --kind |  | Override the kind. |
+| --json |  | Output JSON. |
+
+## findplus people digest
+Show or change the evening summary (off until you turn it on).
+
+**Usage:** `findplus people digest [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --on |  | Switch the evening summary. |
+| --time |  | HH:MM, 24-hour (default 20:00). |
+| --person |  | Name or id; repeat for several. |
+| --all-people |  | Send for every person and pet. |
+| --channel |  |  |
+| --always-send |  | Also send on a day with nothing tracked. |
+| --combined |  | One message for everyone (default), or one message per person. |
+| --json |  | Output JSON. |
+
+## findplus people list
+Every person and pet, its trackers and where it likely is now.
+
+**Usage:** `findplus people list [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --json |  | Output JSON. |
+
+## findplus people set-role
+Set a tracker's role (phone, bag, shoes...) and optionally its carry weight.
+
+**Usage:** `findplus people set-role [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --weight |  | Carry weight 0 to 1 (default: role's). |
+
+## findplus people suggest
+Preview people suggested from tracker names. Nothing is saved.
+
+**Usage:** `findplus people suggest [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --json |  | Output JSON. |
 
 ## findplus pin reset
 Delete the PIN and turn the app lock off.
@@ -465,6 +598,18 @@ Delete a place. Requires --yes.
 | option | default | help |
 |---|---|---|
 | --yes |  | Confirm removal. |
+
+## findplus places suggest
+List places Find+ noticed from long stays (nothing is saved).
+
+**Usage:** `findplus places suggest [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --days | 30 |  |
+| --timezone |  | IANA zone; default is this computer's. |
+| --date |  | Last local day to look at (YYYY-MM-DD). |
+| --json |  | Output JSON. |
 
 ## findplus poll-now
 Run a single Find Hub poll immediately.

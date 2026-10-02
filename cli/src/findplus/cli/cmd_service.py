@@ -26,6 +26,7 @@ import click
 import httpx
 
 from findplus.config import get_settings
+from findplus.launch_guard import launching_disabled
 
 from ._fmt import (
     _interactive,
@@ -141,7 +142,7 @@ def start(yes: bool, no_open: bool, program_override: str | None, no_track_all: 
         return
 
     click.echo(f"Dashboard: {settings.base_url}")
-    if not no_open:
+    if not no_open and not launching_disabled():
         webbrowser.open(settings.base_url)
 
 
@@ -290,4 +291,5 @@ def open() -> None:
     """Open the dashboard in the default browser."""
     url = get_settings().base_url
     click.echo(f"Opening {url}")
-    webbrowser.open(url)
+    if not launching_disabled():
+        webbrowser.open(url)

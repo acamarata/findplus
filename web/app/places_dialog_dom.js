@@ -17,6 +17,8 @@
 "use strict";
 
 import { t } from "./i18n.js";
+import { buildKindField } from "./places_kind.js";
+import { buildNotifyField } from "./places_notify.js";
 
 function button(text, onClick, className) {
   const btn = document.createElement("button");
@@ -65,7 +67,7 @@ function buildPlaceFields() {
   const lat = field("hidden", { id: "fp-place-lat" });
   const lon = field("hidden", { id: "fp-place-lon" });
   const radius = field("range", {
-    id: "fp-place-radius", min: "50", max: "5000", step: "10", value: "200",
+    id: "fp-place-radius", min: "50", max: "500", step: "10", value: "100",
   });
   const color = field("hidden", { id: "fp-place-color" });
   // UAT7 N01: the initial attribute value, before fillDialog() (places_dialog.js)
@@ -78,7 +80,7 @@ function buildPlaceFields() {
   // (places_dialog.js) covers both. It shares the row's one visible <label>
   // (radiusRow, below), so it needs its own accessible name.
   const radiusNumber = field("number", {
-    id: "fp-place-radius-number", min: "50", max: "5000", step: "10", value: radius.value,
+    id: "fp-place-radius-number", min: "50", max: "5000", step: "1", value: "100",
   });
   radiusNumber.setAttribute("aria-label", t("places.radiusLabel"));
   const error = document.createElement("p");
@@ -110,7 +112,7 @@ function radiusRow(f) {
   const hint = document.createElement("p");
   hint.className = "fp-field-hint";
   hint.id = "fp-place-radius-hint";
-  hint.textContent = t("places.radiusHint");
+  hint.textContent = t("places.radiusHint", { min: RECOMMENDED_MIN_RADIUS });
   f.radius.setAttribute("aria-describedby", hint.id);
   wrap.append(label, f.radius, f.radiusNumber);
   const group = document.createElement("div");
@@ -124,17 +126,30 @@ export const RECOMMENDED_MIN_RADIUS = 100;
 
 /** Show the "too small" reason while the radius is under the recommended minimum. */
 export function updateRadiusWarning(f) {
-  const small = Number(f.radius.value) < RECOMMENDED_MIN_RADIUS;
+  const small = radiusOf(f) < RECOMMENDED_MIN_RADIUS;
   f.radiusWarn.hidden = !small;
   f.radiusWarn.textContent = small ? t("places.radiusSmall", { min: RECOMMENDED_MIN_RADIUS }) : "";
 }
 
+/** The radius in metres: the number box is the truth (the slider stops at 500 m, the box at 5000 m). */
+export function radiusOf(f) {
+  return Number(f.radiusNumber.value);
+}
+
+/** Set both radius inputs; the slider clamps itself to its own 50-500 m range. */
+export function setRadius(f, metres) {
+  f.radiusNumber.value = String(metres);
+  f.radius.value = String(metres);
+}
+
 /**
- * UAT7-N12: the slider and the number box stay in sync both ways. Setting a
- * range input's `.value` clamps it to its own min/max for free, so the slider
- * is always valid; the number box is only clamped back on `change` (blur or
- * Enter) so a value mid-typed (e.g. "5" on the way to "500") is not fought
- * keystroke by keystroke. `onPreview` redraws the live circle on the map.
+ * UAT7-N12: the slider and the number box stay in sync both ways. The slider
+ * covers the sizes that matter (50 to 500 m, step 10: UAT 11 found a 50 to 5000
+ * m track left every sensible value pinned at the far left); bigger places are
+ * typed in the box, which allows up to 5000 m. Setting a range input's `.value`
+ * clamps it for free. The box is only tidied on `change` (blur or Enter) so a
+ * value mid-typed (e.g. "5" on the way to "500") is not fought keystroke by
+ * keystroke. `onPreview` redraws the live circle on the map.
  */
 export function wireRadius(f, onPreview) {
   const changed = () => {
@@ -150,14 +165,16 @@ export function wireRadius(f, onPreview) {
     changed();
   });
   f.radiusNumber.addEventListener("change", () => {
-    f.radiusNumber.value = f.radius.value;
+    const wanted = Math.round(radiusOf(f));
+    setRadius(f, Number.isFinite(wanted) && wanted > 0 ? Math.min(5000, Math.max(50, wanted)) : f.radius.value);
+    changed();
   });
 }
 
 /** Assemble the <dialog>/<form> around the built fields, leaving the locator
  * section and the colour picker as empty mount points for the caller. */
 export function buildDialog({ onSave, onCancel }) {
-  const f = buildPlaceFields();
+  const f = { ...buildPlaceFields(), kind: buildKindField(), notify: buildNotifyField() };
   const colorGroup = pickerGroup(t("places.colorLabel"));
   const locatorHost = document.createElement("div");
 
@@ -168,20 +185,25 @@ export function buildDialog({ onSave, onCancel }) {
 
   const form = document.createElement("form");
   form.method = "dialog";
-  form.append(
-    f.title,
-    labeled(t("places.nameLabel"), f.name, f.name.id),
-    f.lat,
-    f.lon,
-    f.color,
-    locatorHost,
-    f.where,
+  // Two columns on a wide screen (who and where on the left, size and alerts on the right),
+  // one on a phone. The footer stays in view whatever the height (UAT 21).
+  const left = document.createElement("div");
+  left.className = "fp-place-col";
+  left.append(labeled(t("places.nameLabel"), f.name, f.name.id), f.kind.wrap, f.lat, f.lon, f.color, locatorHost, f.where);
+  const right = document.createElement("div");
+  right.className = "fp-place-col";
+  right.append(
     radiusRow(f),
     f.usage,
     colorGroup,
     labeled(t("places.enterConfirmations"), f.enter, f.enter.id),
     labeled(t("places.exitConfirmations"), f.exit, f.exit.id),
+    f.notify.wrap,
   );
+  const cols = document.createElement("div");
+  cols.className = "fp-place-cols";
+  cols.append(left, right);
+  form.append(f.title, cols);
 
   const footer = document.createElement("footer");
   footer.append(

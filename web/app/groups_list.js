@@ -20,11 +20,14 @@ import { api } from "./api.js";
 import { uniqueLabel } from "./device_label.js";
 import { t, plural } from "./i18n.js";
 import { renderBadge } from "./components/badge.js";
+import { markForLinks } from "./person_links.js";
 import { showAddDialog, openEditDialog } from "./groups_dialog.js";
 import { loadGroups, selectGroupById, clearGroup, isGroupSelected } from "./groups.js";
 import { verdictLabel, verdictTitle } from "./groups_presence_render.js";
 import { confirmDialog, alertDialog } from "./components/confirm-dialog.js";
 import { metaLine, explainSlot, fillExplanation } from "./groups_card_meta.js";
+import { fillWhereNow, isPerson, personMeta } from "./groups_person_card.js";
+import { openPersonEditor } from "./person_editor.js";
 
 /** Avatars shown before the grid collapses the rest into a "+N" chip. */
 const MAX_AVATARS = 6;
@@ -116,7 +119,7 @@ function memberAvatars(group, devicesById) {
 
 /** Card body (not a button) selects the group and brings its tab forward. */
 function onCardClick(event, group) {
-  if (event.target.closest("button")) return;
+  if (event.target.closest("button, a")) return;
   selectGroupById(group.id);
   const tab = document.querySelector('button.fp-tab[data-tab="groups"]');
   // Reuses main.js's own tab handler rather than reimplementing switchTab.
@@ -140,16 +143,16 @@ function renderCard(group, devicesById) {
   actions.className = "fp-card-actions";
   actions.append(
     cardButton("fp-card-edit btn-tiny btn-secondary", t("common.edit"), t("groups.card.edit", { name: group.name }),
-      () => openEditDialog(group.id, group)),
+      () => (isPerson(group) ? openPersonEditor(group.id, loadGroups) : openEditDialog(group.id, group))),
     cardButton("fp-card-delete btn-tiny btn-secondary", t("common.delete"), t("groups.card.delete", { name: group.name }),
       () => onDelete(group)),
   );
   card.append(
     icon,
-    span("fp-card-name", group.name),
+    markForLinks(span("fp-card-name", group.name)),
     memberAvatars(group, devicesById),
-    metaLine(group, devicesById),
-    span("fp-card-verdict"),
+    isPerson(group) ? personMeta(group) : metaLine(group, devicesById),
+    ...(isPerson(group) ? [] : [span("fp-card-verdict")]),
     actions,
     explainSlot(),
   );
@@ -237,7 +240,8 @@ export async function loadCards() {
   groups.forEach((group) => {
     const card = renderCard(group, devicesById);
     listEl.appendChild(card);
-    fetchVerdict(card, group.id).catch(() => showVerdictUnavailable(card));
+    if (isPerson(group)) fillWhereNow(card, group);
+    else fetchVerdict(card, group.id).catch(() => showVerdictUnavailable(card));
   });
 }
 

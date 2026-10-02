@@ -35,6 +35,9 @@ class TimelinePoint:
     miles_from_previous: float | None
     is_movement: bool
     gap_before: bool
+    #: Quality verdict (quality.annotate): a suspect sighting is left out of stays and trips.
+    suspect: bool = False
+    suspect_reason: str | None = None
 
 
 @dataclass(slots=True)

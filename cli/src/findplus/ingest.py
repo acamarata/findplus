@@ -25,8 +25,10 @@ from findplus.db.models import Device, LocationObservation, PlaceEvent
 from findplus.groups.events import evaluate_group_events as _group_events_evaluate
 from findplus.labels import palette_color_for
 from findplus.logging_setup import get_logger
+from findplus.people.events import run_person_hook as _person_events_evaluate
 from findplus.places.events import evaluate as _geofence_evaluate
 from findplus.providers.google_findhub.types import RawObservation
+from findplus.quality.ingest_hook import plan_geofence_feed, release_due
 
 log = get_logger(__name__)
 
@@ -98,8 +100,17 @@ def ingest_observations(
     `fetched_at` is when THIS COMPUTER retrieved the batch, which is unrelated to
     `observed_at` — when Find Hub says the tag was actually seen. `settings`
     defaults to `get_settings()`; callers that already hold a Settings instance
-    (poller.py) can pass it through instead of re-loading it here.
+    (poller.py) can pass it through instead of re-loading it here. A batch
+    waits while past days are being replayed (people/replay.py): a newer live
+    sighting would otherwise close the backfill guard on the replayed ones.
     """
+    from findplus.people.replay import INGEST_LOCK
+
+    with INGEST_LOCK:
+        return _ingest_batch(session, observations, fetched_at, settings)
+
+
+def _ingest_batch(session, observations, fetched_at, settings) -> IngestResult:
     fetched_at = fetched_at or datetime.now(UTC)
     settings = settings or get_settings()
     if not observations:
@@ -125,7 +136,7 @@ def ingest_observations(
 
     session.flush()
 
-    _run_post_ingest_hooks(session, new_rows, settings)
+    _run_post_ingest_hooks(session, new_rows, settings, now=fetched_at)
 
     result = IngestResult(received=len(observations), inserted=inserted, duplicates=duplicates)
     log.info(
@@ -188,7 +199,10 @@ def _ingest_one(
 
 
 def _run_post_ingest_hooks(
-    session: Session, new_rows: list[LocationObservation], settings: object
+    session: Session,
+    new_rows: list[LocationObservation],
+    settings: object,
+    now: datetime | None = None,
 ) -> None:
     """Run the per-observation hooks, never letting one lose the batch.
 
@@ -200,36 +214,69 @@ def _run_post_ingest_hooks(
     skip the rest of the batch. The group-quorum hook runs in its own SAVEPOINT,
     after geofence's, so it can only see place_events geofence actually
     committed -- and a failure in it never rolls back the geofence hook's work.
-    """
-    for lo in sorted(new_rows, key=lambda o: o.observed_at):
-        try:
-            # SAVEPOINT: a DB-level failure inside the hook rolls back only the
-            # hook's own writes, so the session stays usable and the
-            # observations still commit.
-            with session.begin_nested():
-                _geofence_evaluate(
-                    session,
-                    lo,
-                    default_accuracy=settings.geofence_default_accuracy_meters,
-                )
-        except Exception:
-            log.exception(
-                "post_ingest_hook_failed",
-                hook="geofence",
-                device=lo.device_id,
-                observation_id=lo.id,
-            )
 
-        try:
-            with session.begin_nested():
-                _run_group_events_hook(session, lo, settings)
-        except Exception:
-            log.exception(
-                "post_ingest_hook_failed",
-                hook="group_events",
-                device=lo.device_id,
-                observation_id=lo.id,
-            )
+    Quality scoring decides which fixes the hooks may see: a suspect fix is
+    left out, and an unconfirmed jump is held until the next poll (one poll of
+    delay, see quality/ingest_hook.py).
+    """
+    _feed_hooks(session, _quality_feed(session, new_rows, now), settings)
+
+
+def release_held_fixes(
+    session: Session, settings: object | None = None, now: datetime | None = None
+) -> int:
+    """Feed the hooks every held fix whose hold has run out; returns how many.
+
+    The poller calls this once per cycle, so a tracker that goes quiet right
+    after a far fix still gets its ENTER, stamped with the fix's own time.
+    """
+    try:
+        with session.begin_nested():
+            rows = release_due(session, now)
+    except Exception:
+        log.exception("post_ingest_hook_failed", hook="quality_release")
+        return 0
+    _feed_hooks(session, rows, settings or get_settings())
+    return len(rows)
+
+
+def _feed_hooks(session: Session, rows: list[LocationObservation], settings: object) -> None:
+    """Run geofence, group and person hooks over `rows`, in the order given."""
+    for lo in rows:
+        # Order matters: group and person hooks read what geofence just wrote.
+        # Person events and left-behind: specs/people-and-presence.md § 5.1.
+        hooks = (
+            ("geofence", _run_geofence_hook),
+            ("group_events", _run_group_events_hook),
+            ("person_events", _person_events_evaluate),
+        )
+        for name, hook in hooks:
+            try:
+                # SAVEPOINT: a DB-level failure inside the hook rolls back only
+                # the hook's own writes, so the session stays usable and the
+                # observations still commit.
+                with session.begin_nested():
+                    hook(session, lo, settings)
+            except Exception:
+                log.exception(
+                    "post_ingest_hook_failed", hook=name, device=lo.device_id, observation_id=lo.id
+                )
+
+
+def _run_geofence_hook(session: Session, lo: LocationObservation, settings: object) -> None:
+    _geofence_evaluate(session, lo, default_accuracy=settings.geofence_default_accuracy_meters)
+
+
+def _quality_feed(
+    session: Session, new_rows: list[LocationObservation], now: datetime | None
+) -> list[LocationObservation]:
+    """The observations the hooks may evaluate; every fix when scoring itself fails."""
+    try:
+        with session.begin_nested():
+            return plan_geofence_feed(session, new_rows, now)
+    except Exception:
+        log.exception("post_ingest_hook_failed", hook="quality")
+        return sorted(new_rows, key=lambda o: o.observed_at)
 
 
 def _run_group_events_hook(session: Session, lo: LocationObservation, settings: object) -> None:

@@ -15,23 +15,9 @@ from datetime import UTC, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
-#: Accuracy assumed when a fix reports none. Crowd-sourced fixes are rarely better.
-DEFAULT_ACCURACY_M = 50.0
+from findplus.quality.fix import DEFAULT_ACCURACY_M, Fix
 
-
-@dataclass(frozen=True, slots=True)
-class Fix:
-    """One sighting. `accuracy_m` is the radius the network reported, if any."""
-
-    id: int
-    t: datetime
-    lat: float
-    lon: float
-    accuracy_m: float | None = None
-
-    @property
-    def acc(self) -> float:
-        return self.accuracy_m if self.accuracy_m else DEFAULT_ACCURACY_M
+__all__ = ["DEFAULT_ACCURACY_M", "Fix", "Gap", "Stay", "TripLeg", "iso_local", "iso_utc"]
 
 
 @dataclass(frozen=True, slots=True)

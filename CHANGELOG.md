@@ -6,7 +6,78 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.6] - 2026-10-02
+
 ### Added
+- Sightings that look wrong are caught and left out of stays, trips and alerts: a tracker that
+  jumps 2.5 km and straight back, an impossible speed, a stray at the edge of a day, or one tracker
+  disagreeing with the rest of its person. Raw history is never changed. Scores live in a derived
+  table, with `findplus db recompute-quality [--since DATE]`. `GET /api/latest`, the timeline and
+  every export carry `suspect` and `suspect_reason`; `/api/trips` lists these under `outliers` with
+  `reasons`. A lone far sighting is held from place alerts for one poll (12 minutes at most),
+  and the alert keeps the sighting's own time. Spikes are caught at Find Hub's real 2 to 10
+  minute cadence, not only one minute apart.
+- Database backups: a verified online copy once a day (and at startup when the newest is a day
+  old), kept 7 daily and 4 weekly in `~/.findplus/backups` (0700, files 0600, no sign-in tokens or keys;
+  the app-lock PIN hash is in the copy).
+  `findplus db backup`, `db backups`, `db check`, and a safe `db restore <file>` (checks the file,
+  refuses while running, takes a pre-restore backup, keeps the replaced file). Backup folder and
+  counts are settings (`backup.directory`, `backup.keep_daily`, `backup.keep_weekly`).
+- `findplus doctor` checks database integrity and backups. A damaged database at startup makes the
+  daemon read-only with a restore banner; the file is never deleted.
+- `findplus export --format jsonl` and `findplus import FILE`: a full-fidelity, human-readable
+  export of devices, observations, places, groups (with kinds and members) and alert rules.
+- People and pets. Find+ suggests people from tracker names ("Sam Bag", "Sam Bike", "Sam Shoes
+  Red" become Sam), always as a preview you accept, edit or dismiss; one-word names ask "person or
+  pet?" and nameless trackers ask "Whose is this?". `GET /api/people/suggestions`,
+  `findplus people suggest|accept|list|set-role`, and MCP tools to match.
+- Where a person probably is, from the trackers that are actually carried, in plain words: likely,
+  probably, not sure, or no recent sightings (`GET /api/people/{id}/now`). A tracker counts as
+  carried for 45 minutes after it last moved. Trackers that never moved cannot move a person: when
+  the carried one goes quiet, the person stays where they were and it reads "no recent sighting".
+- One alert per person crossing, naming the tracker that saw it: "Sam just arrived at Grandma's"
+  only when the sighting is under 10 minutes old, otherwise the time.
+- Left-behind trackers: "Sam's bag looks left at School", once per episode (even when the bag goes
+  quiet and reports again), never at Home, only on rules for any place or that place.
+- Every new place gets an arrive and leave rule for everyone on your connected channel;
+  `POST /api/places/notify-defaults` adds it to existing places, with a dry run first.
+- Places have a kind (home, school, work, family, shop, other), guessed from the name. Places you
+  already have get the guess on upgrade, shown in the Places list with a one-tap confirm.
+- One message per person crossing even when several rules match it. A person's rule replaces a
+  tracker's own alert only when the person really had that crossing. Pets are off by default on
+  the everyone rules; a rule naming the pet still alerts.
+- A Person page (`#/person/<id>?date=YYYY-MM-DD`): click a person's name on a group card, in an
+  alert rule sentence, the delivery log or the arrivals list. It shows where they probably are now,
+  a day bar (arrows, date picker, Today, left and right keys), the day summary with each line
+  focusing the map and the day story, one map line and one lane per tracker (best sighting first),
+  each tracker's role, weight and chip (carried, left at School, moved without Sam, no recent
+  sighting), Send today's summary, Notify me, Edit person and Full map. Loading, empty day,
+  partial, error with Retry, offline and locked are all handled; a lock leaves no name or place.
+- "We found people in your trackers": a panel on the Groups tab, a dashboard banner and the wizard's
+  Groups step offer each guess as a card (Accept, Edit members, Not a person, It's a pet), ask
+  "person or pet?" and "Whose is this?", and have Accept all and Check again. Nothing is applied
+  without a click.
+- The place dialog has a kind (guessed, with a Home hint), a "Tell me when anyone arrives or leaves"
+  box (on by default; the channel is picked for you when one is connected, a select when several,
+  off with a reason when none), and no second dialog after Save. Places saved earlier get a
+  "Notify me" banner that previews before it writes. `POST /api/places` takes `notify_channels`;
+  `GET /api/alerts/rules` carries `all_people`.
+- Sightings that look wrong are drawn faintly in a dashed ring with the reason on hover, behind a
+  "Show sightings that look wrong" box (on by default), and add nothing to a day's distance.
+- The dashboard says "Sam's bag looks left at School since 3:00 PM", admits it is a guess, and has
+  "I know". Settings gains the daily summary (on/off, time, channel, per person, Send now), the
+  left-behind switch, and a backup line with Back up now (`GET /api/settings/backup`,
+  `POST /api/settings/backup/now`).
+- A daily summary for each person ("Sam's day"): when they left Home, arrived at School, left
+  again and got home, stops of 15 minutes or more away from saved places, long gaps with no
+  sightings, trackers left behind, and where they are now. Every line names the tracker that backs
+  it, a time reads "around" when the sightings that bound it are over 10 minutes apart, and "still
+  at" is only said on fresh data. `GET /api/people/{id}/day`, `findplus day <name>`, and the MCP
+  tools `get_person_day` and `where_is`.
+- Send it to Telegram: `POST /api/people/{id}/day/send`, `findplus day <name> --send`, or an
+  evening summary (setting `people.digest`, off by default, 20:00, `findplus people digest`). Each
+  person's day goes once per chat per day, never twice after a restart, and is held while the app
+  lock is on. A day with nothing tracked sends nothing unless you choose "always send".
 - Adding a place now ends with "who should be told, and where": the alert-rule dialog opens with the
   new place chosen. A place with no rule says "Not notifying anyone yet" in the Places list, with a
   Set up an alert button.
@@ -20,12 +91,99 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - Places: search and sort, coordinates and rule count on each card, a rule-count line when editing,
   relative times in Recent arrivals and departures, and a note under the radius that very small
   places can report late.
+- Places we noticed: Find+ looks at stays of 45 minutes or more over the last 30 days and suggests
+  likely places, never named for you ("Home?" for the spot with the most nights, "School or work?"
+  for weekday daytime stops, "Regular stop" otherwise). Spots inside a saved place, or marked "Not
+  a place", are left out. `GET /api/places/suggestions`, `POST /api/places/suggestions/dismiss` and
+  `findplus places suggest`. The Places tab and the setup Places step show them as cards with a
+  small map, **Name it** (name, kind, arrive-and-leave box ticked) and **Not a place**; with too
+  little history the step says so.
+
+- The evening summary goes out as one family message per chat ("Everyone's day"), each person
+  under their name, with the honesty sentences once (`people.digest.combined`, default on;
+  `findplus people digest --one-each` for one message per person).
+- Past days fill in on their own: accepting or adding people, saving or moving a place, and the
+  first start on an older database replay history in the background, as `findplus db
+  rebuild-derived` does, without sending anything. `GET /api/people/replay` reports progress.
 
 ### Changed
+- The database now syncs every commit to disk (`synchronous=FULL`, WAL kept) so a power cut cannot
+  lose the last sightings.
+- A tracker belongs to at most one person; adding it to a second one is refused with 409.
+- `findplus export --format jsonl` now also carries your settings (not the app lock), alert
+  deliveries and digest runs, so cooldowns and daily summaries do not repeat after an import. The
+  new `findplus db rebuild-derived` replays every sighting into place, group and person state and
+  marks the rebuilt events as already sent. `findplus import` and `findplus db import` are the same
+  command; the docs use `findplus import`.
+- A chosen backup folder gets a `findplus-backups` folder inside it; only that folder is made
+  private. Manual and pre-restore backups keep the newest 10 and 5.
 - The geofence is accuracy-aware. A fix whose accuracy circle straddles the edge of a place is
   uncertain and neither enters nor exits. Leaving needs a fix beyond the radius plus the larger of
   its accuracy and half the radius (at least 50 m), confirmed as many times as the place asks. Find+
   recommends a radius of at least 100 m.
+- The people engine ingest hook no longer scans every sighting, so a large database stays quick.
+- A person enters a place only when their own trusted sighting is inside it.
+- The wizard's Places step shows each place's kind and alert state. The Person page has better
+  contrast, a phone layout, arrow keys on the story rows and a map named for the person.
+- Telegram messages now carry people's names, place names and times, and the daily summary does too.
+  The app lock does not stop alerts or summaries going out. See the Privacy page.
+
+- Alerts only send news. Turning alerts on no longer floods a chat with history: an event goes
+  out at most 30 minutes after Find+ first fetched it (`alerts.max_age_minutes`) and 2 hours after
+  it happened, never from before its rule existed, and a chat gets at most 5 messages a minute
+  with the rest summed up in one. The Notify me preview says history is not sent.
+- Left-behind alerts follow the "Tell me when a tracker looks left behind" setting anywhere,
+  including spots with no saved place, on the channels of any rule that covers the person. An
+  episode no rule can carry waits instead of being marked sent.
+- The lock sentence now says what it holds: desktop notifications on this computer. Telegram,
+  WhatsApp and webhook alerts and daily summaries are still sent.
+- Person alerts read "Sam left Home at 7:31 AM" on the same day; the date and zone stay for
+  older events. A departure and an arrival at the same moment go out in that order.
+- The day summary says "Still at School, nothing new from 8:10 to 11:05 AM." instead of "No
+  sightings" while the person is at one place, and a sighting held for a second one is "waiting
+  to confirm", never "looked wrong" ("Probably at School (waiting to confirm)").
+
+### Known limitations
+- Database restore and the permission tests for the backup folder run on macOS and Linux only. On Windows a SQLite file that is open cannot be replaced, so `db restore` is not yet supported there.
+
+### Fixed
+- Place dialog: a new place starts at 100 m (was 200 m), the radius slider covers 50 to 500 m with a
+  number box for larger places (the box is what is saved), the "guessed from the name" note waits
+  for a name, "Tell me when anyone arrives or leaves" stays ticked with nothing connected (the rule
+  is saved switched off, and the line says so), and the dialog fits 720 px tall with Save always in
+  view. A click inside an existing place no longer blocks picking a spot on the map. In setup,
+  sixteen trackers at one address show one numbered pin instead of a stack.
+- `findplus db restore` now works over a damaged database (the case it exists for): the damaged
+  file is kept whole as `.replaced-<time>` with its `-wal` and `-shm`, and a failed backup prints
+  plain words instead of a traceback. Restore also refuses a file with a missing table, keeps every
+  replaced file even when two restores share a second, stops if the old log cannot be folded in,
+  and `serve` holds a lock file so a starting or wedged daemon is noticed too.
+- A config value with a line break, `=` or null can no longer add other keys to `config.env` (it
+  could slip past the 7-day retention and 5-minute poll rules). Hand-edited bad values are ignored.
+- CLI write commands (`poll-now`, `prune`, `db recompute-quality`, `import`, `db rebuild-derived`)
+  check the database first and refuse on a damaged file; the other commands only read it.
+- `findplus db recompute-quality` commits in chunks, so it no longer locks out the poller.
+- `~` in `backup.directory` is expanded; a stray file name or dangling link in the backup folder no
+  longer breaks listing, scheduled backups, Settings or `doctor`; a backup stamped in the future no
+  longer stops automatic backups. A repeated sighting in an import file gives a plain message.
+- "Poll now" is refused with a clear message while the database is read-only.
+- Repeating a lock call keeps the lock screen's error, and the forgot-PIN help also shows after a
+  lockout.
+- A tracker that keeps reporting the same place is no longer marked suspect or left behind.
+- A person's carried state settles 45 minutes after the last move, a single stray fix no longer
+  skips the two-exit confirmation, and a fast-clock reporter cannot freeze a person's state.
+- A held fix is released on every poll cycle, not only after an ingest, and a tracker that
+  disagrees with its siblings is held too. Cleared fixes reach the geofence and rescore their
+  siblings.
+- Left-behind alerts confirm on the person's own sightings, and a bag that reports only every
+  hour or two is still confirmed (a quiet tag is no news, not "carried").
+- A person carried by several trackers now leaves Home before arriving at School, at the real
+  crossing time, instead of being "inside" both and leaving 20 minutes late.
+- A Telegram chat with no @username is named by its first name, not "private".
+- Map tooltips show tracker, place and reason text as plain text, never as markup. The content
+  security policy forbids form posts, base tags and plugins. MCP tools quote path segments, and
+  `add_place` through MCP takes a `notify` flag. The daily summary sends while Find+ is locked,
+  like alerts, and a lock forgets hidden people suggestions.
 
 ## [1.1.5] - 2026-10-01
 
@@ -409,5 +567,5 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - CLI export to CSV, JSON, GPX, and KML with group support (one track per member).
 - `findplus doctor` with --repair flag; `findplus version --check` against GitHub releases.
 
-[Unreleased]: https://github.com/acamarata/findplus/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/acamarata/findplus/compare/v1.1.5...HEAD
 [1.0.0]: https://github.com/acamarata/findplus/releases/tag/v1.0.0

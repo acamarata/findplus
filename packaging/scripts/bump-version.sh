@@ -3,11 +3,12 @@
 #
 # Purpose    : Update the version string in cli/pyproject.toml and add/refresh
 #              its matching CHANGELOG.md header, and install.sh's default
-#              VERSION_PIN (the bytes the README's curl-pipe one-liner runs).
+#              VERSION_PIN (the bytes the README's curl-pipe one-liner runs), and the
+#              pipx wheel examples in README.md and .github/wiki/Install.md.
 # Inputs     : $1 = new version, X.Y.Z. FINDPLUS_YES=1 skips the confirmation
 #              prompt (same convention as install.sh), so the script can run
 #              unattended; without it an interactive confirmation is required.
-# Outputs    : cli/pyproject.toml, CHANGELOG.md, install.sh updated in place. The desktop
+# Outputs    : cli/pyproject.toml, CHANGELOG.md, install.sh, README.md, Install.md updated in place. The desktop
 #              app picks the version up automatically: desktop/src-tauri/
 #              build.rs writes its semver form into tauri.conf.json.
 # Constraints: refuses on a dirty git working tree; never git-commits or tags
@@ -35,7 +36,7 @@ fi
 
 OLD_VER=$(grep -m1 '^version = ' cli/pyproject.toml | sed 's/version = "\(.*\)"/\1/')
 
-echo "Bumping $OLD_VER -> $NEW_VER in:  cli/pyproject.toml  CHANGELOG.md  install.sh  browser-helper/{manifest.json,helper_core.js}"
+echo "Bumping $OLD_VER -> $NEW_VER in:  cli/pyproject.toml  CHANGELOG.md  install.sh  README.md  Install.md  browser-helper/{manifest.json,helper_core.js}"
 if [ "${FINDPLUS_YES:-0}" = 1 ]; then
   echo "FINDPLUS_YES=1; continuing without a prompt."
 else
@@ -60,6 +61,15 @@ sed -i.bak "s/^export const HELPER_VERSION = \"$OLD_VER\"/export const HELPER_VE
 # after pyproject said 1.0.0. cli/tests/test_install_sh_version.py asserts the
 # two agree, so forgetting this line fails the suite rather than the user.
 sed -i.bak "s|^VERSION_PIN=.*|VERSION_PIN=\"\${FINDPLUS_VERSION:-$NEW_VER}\"|" install.sh && rm install.sh.bak
+
+# The pipx examples in the README and the Install page name a release and its wheel.
+# cli/tests/service/test_docs_version_examples.py asserts they match pyproject.
+for doc in README.md .github/wiki/Install.md; do
+  sed -E -i.bak \
+    -e "s|\(for example, v[0-9]+\.[0-9]+\.[0-9]+\)|(for example, v$NEW_VER)|" \
+    -e "s|releases/download/v[0-9]+\.[0-9]+\.[0-9]+/findplus-[0-9]+\.[0-9]+\.[0-9]+-py3|releases/download/v$NEW_VER/findplus-$NEW_VER-py3|" \
+    "$doc" && rm "$doc.bak"
+done
 
 # Idempotent: E14-T9 may already have written the "## [<ver>]" header before
 # this script runs (E15-T6); if so, only refresh the date. Keeps [Unreleased]

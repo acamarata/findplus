@@ -25,7 +25,37 @@ Yes, using groups. A group of devices reports a combined presence verdict
 
 **How do I uninstall?**
 `findplus uninstall --yes` removes the service and watchdog unit files.
-Remove `~/.findplus/` by hand if you also want to delete your history.
+Remove `~/.findplus/` by hand if you also want to delete your history; that includes
+`~/.findplus/backups/`.
+
+**Why did Find+ say Sam left School?**
+A person is placed by the trackers they actually carry. Find+ said it because a tracker of Sam's
+that was moving reported a sighting outside School's circle, and the next one confirmed it. Open
+Sam's page from the alert: it shows the tracker, the time and how sure Find+ is. Alerts inherit
+Find Hub's delay, so the message can be late. If a one-off bad sighting caused it, the sighting
+is greyed out and the alert is held back or never sent.
+
+**What is a left-behind alert?**
+"Sam's bag looks left at School" means the tracker on the bag has stayed put at a place while
+Sam's other trackers moved away. It is a guess, sent once per episode, never for Home, and only
+on rules for any place or that place. Tap "I know" on the dashboard to clear it.
+
+**Why is a sighting greyed out?**
+Find+ scored it as unlikely: it jumped far and came straight back, needed an impossible speed,
+or disagreed with the person's other trackers. It is drawn faintly with a dashed ring and the
+reason on hover. It stays in your history and exports, but not in stays, trips, distance or
+alerts. The "Show sightings that look wrong" box hides or shows them. See
+[[Trips-and-routes]].
+
+**How do I restore a backup?**
+Quit the Find+ app, then `findplus stop`, `findplus db backups` to list copies, and
+`findplus db restore ~/.findplus/backups/<file>.sqlite`, then `findplus start`. Restore checks the
+file, keeps the database it replaces, and refuses while Find+ runs. Backups are unencrypted
+copies. See [[Backup-and-restore]].
+
+**Is my daily summary sent anywhere?**
+Only if you turn on the evening digest or press Send. It goes to the chat you pick on Telegram
+and names people, places and times. See [[Privacy-and-threat-model]].
 
 **What is the MCP server?**
 An [MCP](https://modelcontextprotocol.io) endpoint (`findplus mcp`) that

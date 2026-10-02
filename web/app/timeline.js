@@ -17,6 +17,7 @@ import { t } from "./i18n.js";
 import { confirmDialog } from "./components/confirm-dialog.js";
 import { expandFor, highlightSelection, renderTracks } from "./track_blocks.js";
 import { paneError } from "./pane_error.js";
+import { syncSuspectToggle, wireSuspectToggle } from "./suspect_controls.js";
 import { wireTimelineKeys } from "./timeline_keys.js";
 import { hideStory, wireStory } from "./trips_view.js";
 
@@ -97,6 +98,7 @@ function applyTimeline(timeline, key) {
   const scroll = refresh && pane ? pane.scrollTop : 0;
   const kept = refresh ? state.selectedId : null;
   state.timeline = timeline;
+  syncSuspectToggle();
   loadedKey = key;
   loadedJson = json;
   state.selectedId = null;
@@ -157,6 +159,7 @@ function startExport() {
 export function wireTimelineControls() {
   wireTimelineKeys($("tracks"), (id) => selectPoint(id, true));
   wireStory();
+  wireSuspectToggle();
   $("day-picker").addEventListener("change", (e) => loadDay(e.target.value));
   $("btn-today").addEventListener("click", () => loadDay(todayLocal()));
   $("btn-prev-day").addEventListener("click", () => shiftDay(-1));

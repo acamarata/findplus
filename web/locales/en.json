@@ -248,6 +248,10 @@
       "untracked": {
         "one": "1 member is not tracked, so Find+ never checks it.",
         "other": "{count} members are not tracked, so Find+ never checks them."
+      },
+      "trackers": {
+        "one": "1 tracker",
+        "other": "{count} trackers"
       }
     },
     "confirm": {
@@ -390,7 +394,11 @@
       "noRules": "no alert rules",
       "notNotifying": "Not notifying anyone yet",
       "setUpAlert": "Set up an alert",
-      "setUpAlertFor": "Set up an alert for {name}"
+      "setUpAlertFor": "Set up an alert for {name}",
+      "kindGuess": "Kind: {kind}, guessed from the name.",
+      "kindConfirm": "That's right",
+      "kindConfirmFor": "Confirm that {name} is {kind}",
+      "kindConfirmFailed": "Could not save the kind: {message}"
     },
     "card": {
       "edit": "Edit {name}",
@@ -413,12 +421,93 @@
       },
       "noMatch": "No place matches \"{query}\"."
     },
-    "radiusHint": "The circle on the map shows this size. Find Hub locations can be off by tens of metres, so a very small place may report late.",
+    "radiusHint": "The circle on the map shows this size. Recommended: {min} m or more. Find Hub locations can be off by tens of metres, so a very small place may report late.",
     "usage": {
       "one": "1 alert rule uses this place. Changes apply to it right away.",
       "other": "{count} alert rules use this place. Changes apply to them right away."
     },
-    "radiusSmall": "Under {min} m is smaller than Find Hub locations can reliably tell apart. A tracker here may report late, and alerts for this place may be missed."
+    "radiusSmall": "Under {min} m is smaller than Find Hub locations can reliably tell apart. A tracker here may report late, and alerts for this place may be missed.",
+    "kind": {
+      "label": "Kind of place",
+      "home": "Home",
+      "school": "School",
+      "work": "Work",
+      "family": "Family",
+      "shop": "Shop",
+      "other": "Other",
+      "hint": "Find+ guessed this from the name. Change it if it is wrong.",
+      "homeHint": "At Home, a bag or bike left behind is normal, so left-behind alerts stay off here and the day summary starts with \"Overnight at Home\"."
+    },
+    "notify": {
+      "label": "Tell me when anyone arrives or leaves",
+      "sentTo": "Sent to {channel}.",
+      "pick": "Send to",
+      "all": "Every connected channel",
+      "none": "Nothing is connected yet. The alert is saved but stays off until you connect Telegram, WhatsApp or a webhook in the Alerts tab.",
+      "native": "Shown as a notification on this computer.",
+      "unknown": "Find+ picks the channel for you.",
+      "on": "Alerts are on for {place}: {channels}.",
+      "onPlain": "Alerts are on for {place}.",
+      "customise": "Customise",
+      "customiseIntro": "Anyone arriving at or leaving {place} already sends a message. Change where it goes or when.",
+      "noneWizard": "Nothing is connected yet. The alert is saved but stays off until you connect Telegram on the Notifications step.",
+      "savedOff": "Saved an alert for {place}, switched off until a channel is connected."
+    },
+    "backfill": {
+      "text": {
+        "one": "1 place has no arrival alerts.",
+        "other": "{n} places have no arrival alerts."
+      },
+      "button": "Notify me",
+      "title": {
+        "one": "Add arrival and departure alerts to 1 place?",
+        "other": "Add arrival and departure alerts to {n} places?"
+      },
+      "line": "{place}: {channels}",
+      "off": "Nothing is connected yet, so these alerts are saved switched off. Connect a channel in the Alerts tab.",
+      "confirm": "Add alerts",
+      "done": {
+        "one": "Added alerts to 1 place.",
+        "other": "Added alerts to {n} places."
+      },
+      "failed": "Could not add alerts: {message}",
+      "previewFailed": "Could not check which places need alerts: {message}"
+    },
+    "noticed": {
+      "heading": "We noticed these places",
+      "lead": "These are spots where a tracker stayed a while. Find+ only guesses what they are. Nothing is saved until you name one.",
+      "guess": {
+        "home": "Home?",
+        "school_or_work": "School or work?",
+        "regular": "Regular stop"
+      },
+      "visits": {
+        "one": "1 visit",
+        "other": "{count} visits"
+      },
+      "onDays": {
+        "one": "on 1 day",
+        "other": "on {count} days"
+      },
+      "usually": "usually {from} to {to} {days}",
+      "days": {
+        "weekdays": "on weekdays",
+        "weekends": "on weekends",
+        "every_day": "on most days"
+      },
+      "nights": {
+        "one": "1 night there",
+        "other": "{count} nights there"
+      },
+      "seenBy": "Seen by {names}",
+      "nameIt": "Name it",
+      "notAPlace": "Not a place",
+      "save": "Save place",
+      "saved": "Saved {name}.",
+      "failed": "Could not save: {message}",
+      "mapLabel": "Map of this spot, {lat}, {lon}",
+      "notEnough": "Find+ needs a few days of sightings to suggest places."
+    }
   },
   "alerts": {
     "telegramHeading": "Telegram",
@@ -646,7 +735,9 @@
       "two": "Paste the token below and press Connect.",
       "three": "Within two minutes, send your new bot any message. Find+ then connects to that chat.",
       "four": "To also tell other people or groups, add the bot to them and use Find chat IDs."
-    }
+    },
+    "everyone": "Everyone",
+    "anyone": "anyone"
   },
   "settings": {
     "title": "Settings",
@@ -761,7 +852,15 @@
       "where_title": "Where to find things",
       "where_native": "The F+ icon in your menu bar shows Find+'s status. Choose Open Dashboard to see the map.",
       "where_web": "Open Find+ any time at {url}.",
-      "where_settings": "Settings (under More on a phone) holds sign-in, polling, app lock and Run setup again."
+      "where_settings": "Settings (under More on a phone) holds sign-in, polling, app lock and Run setup again.",
+      "peopleCount": {
+        "one": "1 person",
+        "other": "{n} people"
+      },
+      "groupsCount": {
+        "one": "1 group",
+        "other": "{n} groups"
+      }
     },
     "welcome": {
       "title": "See where your trackers are, privately",
@@ -802,18 +901,21 @@
       "go_signin": "Back to sign-in"
     },
     "groups": {
-      "title": "Groups (optional)",
+      "title": "People and groups",
       "lead": "Combine devices into a group to see them together on the map and set alerts for the whole group.",
       "name_placeholder": "Group name",
       "add": "Add",
       "no_devices": "No tracked devices to add yet. Go back to Devices to track one first.",
-      "skip_hint": "Most people skip this. You can make groups any time from the Groups tab."
+      "skip_hint": "Most people skip this. You can make groups any time from the Groups tab.",
+      "groups_title": "Groups (optional)"
     },
     "places": {
       "title": "Places (optional)",
       "add": "Add a place",
       "lead": "A place is a circle on the map, such as Home or Work. Find+ records when a tracker arrives or leaves, and alert rules can use it.",
-      "empty": "No places yet. Add one now, or later from the Places tab."
+      "empty": "No places yet. Add one now, or later from the Places tab.",
+      "alertsOn": "arrival alerts on",
+      "alertsOff": "no alerts yet"
     },
     "notifications": {
       "title": "Notifications (optional)",
@@ -822,7 +924,7 @@
       "whatsapp": "WhatsApp",
       "native": "Notifications",
       "connect": "Connect",
-      "configure_later": "Configure from the Alerts tab after finishing setup.",
+      "configure_later": "A webhook sends each alert to a web address you choose. You set it up in the Alerts tab, which opens when you finish.",
       "enable": "Enable notifications",
       "permission_granted": "Notifications are on.",
       "permission_denied": "Notifications are off. You can turn them on in your system settings.",
@@ -861,7 +963,7 @@
       "welcome": "Welcome",
       "signin": "Connect your trackers",
       "devices": "Choose devices",
-      "groups": "Groups",
+      "groups": "People and groups",
       "places": "Places",
       "notifications": "Notifications",
       "applock": "App lock",
@@ -1169,6 +1271,353 @@
     "tilesFailed": "The map background could not load, so you may be offline. Your points and paths are still drawn.",
     "legendHead": "Trackers ({n})"
   },
+  "quality": {
+    "reason": {
+      "aba_teleport": "This sighting looks wrong: it jumps far away and back within minutes. Left out of stays, trips and alerts.",
+      "impossible_speed": "This sighting looks wrong: it implies a speed no tracker travels. Left out of stays, trips and alerts.",
+      "edge_stray": "This sighting looks wrong: it is far from the sightings around it. Left out of stays, trips and alerts.",
+      "jump_unconfirmed": "This sighting is far from the one before. It is waiting for a second sighting to confirm it, and is left out until then.",
+      "sibling_disagree": "This sighting looks wrong: the person's other trackers agree on a place far from here, and this tracker has not backed it up. Left out of stays, trips and alerts.",
+      "low_accuracy": "The network could only place this sighting within a wide area.",
+      "clock_skew": "The time on this sighting is later than when it was received."
+    },
+    "showSuspect": "Show sightings that look wrong"
+  },
+  "database": {
+    "damaged": "Find+ found damage in its history database, so it is read-only for now. Nothing has been deleted.",
+    "restoreHint": "To restore a backup, run findplus db backups in Terminal, then findplus db restore with the file you pick."
+  },
+  "people": {
+    "msg": {
+      "arrivedJust": "{name} just arrived at {place}",
+      "arrivedAt": "{name} arrived at {place} at {time}",
+      "leftJust": "{name} has just left {place}",
+      "leftAt": "{name} left {place} at {time}",
+      "seenBy": "Seen by {tracker} · reported {reported} · {lag}",
+      "lagMinutes": "{minutes} min late",
+      "lagUnknown": "lag unknown",
+      "reportedUnknown": "unknown",
+      "stayed": "{name}'s {what} stayed at {place}.",
+      "probably": "(probably)",
+      "probablyOnly": "(probably; only the {what} reported)",
+      "leftBehind": "{name}'s {what} looks left at {place}. Last seen there at {time}.",
+      "leftBehindPerson": "{name} was last seen near {place} at {time} ({tracker}).",
+      "unnamedSpot": "an unnamed spot",
+      "burstOne": "1 more arrival or departure happened earlier: open Find+ to see it.",
+      "burstMore": "{count} more arrivals and departures happened earlier: open Find+ to see them."
+    },
+    "now": {
+      "likelyAt": "Likely at {place}, seen {age} ago ({trackers}).",
+      "likelyNear": "Likely near {place}, seen {age} ago ({trackers}).",
+      "probablyAt": "Probably at {place}, seen {age} ago ({trackers}).",
+      "probablyNear": "Probably near {place}, seen {age} ago ({trackers}).",
+      "unsure": "Not sure: {parts}.",
+      "part": "{trackers} near {place}",
+      "unknown": "No recent sightings. Last seen near {place} at {time}.",
+      "unknownNever": "No recent sightings.",
+      "stale": "No recent sighting from {trackers}.",
+      "unnamedSpotFrom": "an unnamed spot, {distance} from {place}",
+      "unnamedSpot": "an unnamed spot",
+      "ageMinutes": "{minutes} min",
+      "ageHours": "{hours} h {minutes} min",
+      "km": "{km} km",
+      "m": "{m} m"
+    },
+    "suggest": {
+      "previewPerson": "Person \"{name}\": {roles}",
+      "previewPet": "Pet \"{name}\": {roles}",
+      "previewConvert": "Turn group {name} into a person: {roles}",
+      "previewAdd": "New tracker {trackers} looks like {name}'s. Add it?",
+      "askKind": "Is {name} a person or a pet?",
+      "whose": "Whose is this?",
+      "lowConfidence": "{name} is also a colour or brand name. Check this one.",
+      "convertBlocked": "{trackers} already belongs to another person."
+    },
+    "notify": {
+      "ruleName": "Arrivals and departures at {place}",
+      "connectTelegram": "Connect Telegram to get these.",
+      "onlyNew": "Only new arrivals and departures will be sent. History is not sent."
+    },
+    "role": {
+      "phone": "phone",
+      "watch": "watch",
+      "collar": "collar",
+      "wallet": "wallet",
+      "keys": "keys",
+      "shoes": "shoes",
+      "bag": "bag",
+      "jacket": "jacket",
+      "bike": "bike",
+      "scooter": "scooter",
+      "tablet": "tablet",
+      "laptop": "laptop",
+      "car": "car",
+      "luggage": "luggage",
+      "other": "tracker"
+    },
+    "day": {
+      "heading": "{name}'s day",
+      "headingDate": "{name}'s day, {date}",
+      "familyHeading": "Everyone's day, {date}",
+      "overnight": "Overnight at {place}",
+      "noSightingsUntil": "No sightings until {time}",
+      "left": "{time} left {place}",
+      "arrived": "{time} arrived at {place}",
+      "atFrom": "At {place} from {time}",
+      "stay": "{range} at {where}",
+      "gap": "No sightings {range}.",
+      "gapAt": "Still at {place}, nothing new from {range}.",
+      "stayedBehind": "{what} stayed at {place} from {time}.",
+      "stayedBehindUntil": "{what} stayed at {place} from {time} until {until}.",
+      "stillAt": "Still at {place} (seen {time})",
+      "lastSeenNear": "Last seen near {place} at {time}; nothing since",
+      "lastSeenAt": "Last seen at {where} at {time}",
+      "nothingSince": "; nothing since",
+      "seenThrough": "Seen at {place} through {time}",
+      "approx": "around {time}",
+      "via": "{text} ({via})",
+      "andMore": "{names} and {n} more",
+      "suspectOne": "1 sighting looked wrong and was left out.",
+      "suspectMany": "{n} sightings looked wrong and were left out.",
+      "heldOne": "1 sighting is waiting for a second sighting to confirm it.",
+      "heldMany": "{n} sightings are waiting for a second sighting to confirm them.",
+      "pendingAt": "Probably at {place} (waiting to confirm)",
+      "pendingSpot": "an unnamed spot",
+      "empty": "No sightings for {name} on this day.",
+      "range": "{start} to {end}",
+      "digestOff": "The daily summary is off.",
+      "noChannel": "Connect Telegram to send the daily summary."
+    },
+    "panel": {
+      "title": "We found people in your trackers",
+      "lead": "Find+ guessed these from your tracker names. Nothing is grouped until you say yes.",
+      "hide": "Not now",
+      "show": "Show suggestions ({n})",
+      "empty": "No new people found in your trackers.",
+      "loading": "Looking at your tracker names",
+      "recheck": "Check again",
+      "rechecking": "Checking",
+      "errorTitle": "Could not look for people",
+      "cardTitle": {
+        "one": "{name} (1 tracker: {names})",
+        "other": "{name} ({n} trackers: {names})"
+      },
+      "accept": "Accept",
+      "acceptAdd": "Add it",
+      "editMembers": "Edit members",
+      "notPerson": "Not a person",
+      "itsPet": "It's a pet",
+      "itsPerson": "It's a person",
+      "neither": "Neither",
+      "askKind": "Is {name} a person or a pet?",
+      "acceptAll": "Accept all ({n})",
+      "acceptAllSkipped": {
+        "one": "1 more needs your answer first.",
+        "other": "{n} more need your answer first."
+      },
+      "accepted": {
+        "one": "Created 1 person.",
+        "other": "Created {n} people."
+      },
+      "dismissed": "Got it. Find+ will not suggest that again.",
+      "failed": "Could not save: {message}",
+      "lowConfidence": "Check this one: the name is also a colour or brand.",
+      "editName": "Name",
+      "editKind": "This is a",
+      "editTrackers": "Trackers",
+      "editSave": "Save and accept",
+      "editCancel": "Cancel",
+      "editNone": "Pick at least one tracker.",
+      "whoseTitle": "Whose is this?",
+      "whoseLead": "These trackers do not look like they belong to anyone yet.",
+      "whosePick": "Whose is {tracker}?",
+      "whoseChoose": "Choose a person",
+      "whoseNew": "A new person",
+      "whoseNewName": "New person's name",
+      "whoseAdd": "Add",
+      "wizardLead": "Find+ can group a person's trackers for you, so one name shows where they are.",
+      "banner": {
+        "one": "Find+ found 1 person in your trackers.",
+        "other": "Find+ found {n} people in your trackers."
+      },
+      "review": "Review"
+    },
+    "replay": {
+      "running": "Updating past days...",
+      "progress": "Updating past days... {done} of {total}",
+      "done": "Past days are up to date."
+    }
+  },
+  "person": {
+    "summary": {
+      "via": "Seen by {via}",
+      "showWrong": "Show",
+      "title": "{name}'s day",
+      "hint": "Select a line to see it on the map and in the day story.",
+      "noLines": "No summary lines came back for this day.",
+      "unavailable": "The day summary is not available right now. The map and day story below still work.",
+      "wrong": {
+        "one": "1 sighting looked wrong and was left out.",
+        "other": "{n} sightings looked wrong and were left out."
+      }
+    },
+    "act": {
+      "partial": {
+        "one": "1 chat did not accept it.",
+        "other": "{n} chats did not accept it."
+      },
+      "send": "Send today's summary",
+      "sendDay": "Send this day's summary",
+      "sending": "Sending",
+      "sent": "Sent to {channels}.",
+      "sentPlain": "Sent.",
+      "failed": "Could not send: {message}",
+      "notifyMe": "Notify me",
+      "edit": "Edit person",
+      "fullMap": "Full map",
+      "group": "Actions",
+      "notifyIntro": "Choose a place and where to be told when {name} arrives or leaves."
+    },
+    "trackers": {
+      "fixes": {
+        "one": "1 sighting",
+        "other": "{n} sightings"
+      },
+      "title": "Trackers",
+      "none": "No trackers yet. Use Edit to add some.",
+      "weight": "weight {weight}",
+      "noWeight": "default weight",
+      "lead": "Best sighting",
+      "edit": "Edit {tracker}",
+      "role": "Role",
+      "weightLabel": "How much to trust it",
+      "weightHelp": "1 means it nearly always travels with {name}. 0 means it is never used to place {name}.",
+      "save": "Save",
+      "saved": "Saved {tracker}.",
+      "saveFailed": "Could not save {tracker}: {message}",
+      "cancel": "Cancel",
+      "roleAuto": "Guess from the name"
+    },
+    "leftBehind": {
+      "seeDay": "See {name}'s day",
+      "knowIt": "I know",
+      "row": "{name}'s {tracker} looks left at {place} since {time}.",
+      "rowSpot": "{name}'s {tracker} looks left behind since {time}.",
+      "uncertain": "Find+ cannot be sure. A tracker can sit still because it was parked on purpose.",
+      "dismissFailed": "Could not save that: {message}"
+    },
+    "back": "Back to dashboard",
+    "pageLabel": "Person page",
+    "loading": "Loading {name}'s day",
+    "conf": {
+      "likely": "Likely",
+      "probably": "Probably",
+      "unsure": "Not sure",
+      "unknown": "No recent sighting"
+    },
+    "seenAgo": "Seen {age} ago",
+    "neverSeen": "No sighting yet",
+    "kind": {
+      "person": "Person",
+      "pet": "Pet"
+    },
+    "date": {
+      "group": "Choose a day",
+      "prev": "Previous day",
+      "next": "Next day",
+      "today": "Today",
+      "pick": "Day",
+      "hint": "Arrow keys change the day."
+    },
+    "map": {
+      "label": "Map of {name}'s day, one line per tracker",
+      "legend": "Each line is one tracker. Lines are never joined into one path.",
+      "suspectTip": "This sighting looks wrong. Left out of stays, trips and alerts.",
+      "stay": "{place}, {range}"
+    },
+    "story": {
+      "title": "Day story for {name}",
+      "pick": "Whose tracker?"
+    },
+    "chip": {
+      "carried": "Carried",
+      "leftAt": "Left at {place}",
+      "leftSpot": "Left behind",
+      "movedWithout": "Moved without {name}",
+      "stale": "No recent sighting",
+      "pending": "Maybe left behind"
+    },
+    "state": {
+      "emptyToday": "No sightings yet today",
+      "emptyDay": "No sightings on this day",
+      "emptyLead": "None of {name}'s trackers reported anything. Try another day.",
+      "partial": "Some of {name}'s trackers could not be loaded: {names}. What you see is incomplete.",
+      "errorTitle": "Could not load {name}'s day",
+      "notFoundTitle": "This person is not here any more",
+      "notFoundLead": "It may have been deleted or turned back into a group.",
+      "noNow": "Where they are right now could not be loaded."
+    },
+    "link": "Open {name}'s page",
+    "settings": {
+      "heading": "People: daily summary and alerts",
+      "digestTitle": "Daily summary",
+      "digestNote": "Sends one message a day about where each person has been, in words only, with no coordinates. It goes to Telegram. Anyone who can read that chat can read it. It is off until you turn it on.",
+      "digestLocked": "Summaries are sent even while Find+ is locked, like Telegram alerts. The lock protects what is shown on this computer.",
+      "digestOn": "Send a daily summary",
+      "digestTime": "Send at",
+      "digestChannel": "Send to",
+      "channelAuto": "Telegram (automatic)",
+      "channelTelegram": "Telegram",
+      "digestPeople": "Whose day",
+      "noPeople": "No people yet. Group a person's trackers in the Groups tab first.",
+      "sendNow": "Send now",
+      "sendNowFor": "Send {name}'s day now",
+      "digestFailed": "Could not save the summary settings: {message}",
+      "digestNobody": "Pick at least one person, or the summary stays off.",
+      "leftTitle": "Left-behind alerts",
+      "leftOn": "Tell me when a tracker looks left behind",
+      "leftNote": "Only away from Home, and only once for each time. \"I know\" quiets one for the rest of the day. A tracker can sit still on purpose, so these are guesses.",
+      "leftFailed": "Could not save the left-behind setting: {message}",
+      "backupTitle": "Database backup",
+      "backupLast": "Last backup {when} ({kind}). {count} kept.",
+      "backupNone": "No backup yet. Find+ takes one a day while it runs.",
+      "backupKind": {
+        "auto": "automatic",
+        "manual": "manual",
+        "prerestore": "before a restore"
+      },
+      "backupNow": "Back up now",
+      "backupDone": "Backup saved.",
+      "backupFailed": "Could not back up: {message}",
+      "backupLoadFailed": "Could not read the backup status: {message}",
+      "backupNote": "A backup holds your history, places and groups, never your sign-ins or tokens."
+    },
+    "edit": {
+      "title": "Edit {name}",
+      "kind": "This is a",
+      "role": "Role",
+      "members": "Trackers",
+      "membersHint": "Tick the trackers that travel with this one. Say what each one is, and how much to trust it.",
+      "belongsTo": "With {name}",
+      "noDevices": "No tracked devices yet.",
+      "needOne": "Pick at least one tracker."
+    },
+    "notify": {
+      "title": "Tell me when {name} arrives or leaves?",
+      "lead": "Find+ will add an arrival and departure alert to each place that has none. It covers {name} and everyone else.",
+      "already": "Alerts are already on. You will hear when {name} arrives or leaves a place.",
+      "noPlaces": "Add a place first, such as Home or School. Then Find+ can tell you when {name} gets there.",
+      "done": {
+        "one": "Added alerts to 1 place. You will hear when {name} arrives or leaves.",
+        "other": "Added alerts to {n} places. You will hear when {name} arrives or leaves."
+      },
+      "failed": "Could not turn on alerts: {message}"
+    },
+    "head": {
+      "onDate": "On {date}",
+      "onDateLast": "On {date}: {last}"
+    }
+  },
   "honesty": {
     "findHub": "This history consists of locations reported through Google's Find Hub network. Your trackers use nearby participating Android devices to report their location. Location updates can therefore be delayed, sparse, or unavailable, and this application should not be treated as real-time emergency or child-safety GPS tracking.",
     "apple": "Apple Find My locations come from nearby Apple devices and can be delayed, sparse or unavailable. Find+ can only query accessories whose keys you hold; genuine AirTags require extracting pairing keys, which most users cannot do.",
@@ -1177,7 +1626,7 @@
     "lockNotEncryption": "The app lock stops casual browsing. It does not encrypt the database; anyone with access to this user account or the disk can read it. Use FileVault.",
     "whatsappRelay": "WhatsApp alerts are relayed through CallMeBot, a third-party free service. Your alert text transits CallMeBot's servers before reaching WhatsApp. Delivery is best-effort with no guarantee. Find+ is not affiliated with WhatsApp, Meta or CallMeBot.",
     "whatsappSetup": "To connect WhatsApp: add +34 623 91 22 04 to your phone's contacts, then send it the message \"I allow callmebot to send me messages\" from your own WhatsApp. CallMeBot replies with an API key within about two minutes. Paste it below.",
-    "alertsLocked": "Notifications are held while Find+ is locked. Unlock to see what you missed.",
+    "alertsLocked": "Desktop notifications on this computer are held while Find+ is locked; unlock to see what you missed. Telegram, WhatsApp and webhook alerts and daily summaries are still sent.",
     "nativeGeneric": "By default, macOS notifications show a generic \"Find+ alert\" instead of who or where, because notification banners can appear on a locked screen. Turn on notification details in Settings to show the person and place. Anyone who can see the screen then sees the same thing.",
     "notAffiliated": "Find+ is not affiliated with Apple or Google. Find Hub and Find My are their trademarks.",
     "chromeRequired": "Google Chrome was not found on this machine. Google sign-in drives Chrome directly and cannot run without it. Install it from https://www.google.com/chrome/ and try again.",

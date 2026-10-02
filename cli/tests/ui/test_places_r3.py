@@ -22,6 +22,7 @@ async def _add_place(page, base_url, name, radius=100, lat=40.0, lon=-74.0):
         data=json.dumps(
             {
                 "name": name,
+                "notify": False,
                 "latitude": lat,
                 "longitude": lon,
                 "radius_meters": radius,

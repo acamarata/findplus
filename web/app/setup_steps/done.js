@@ -71,6 +71,16 @@ function whereList() {
   return list;
 }
 
+/** "8 people, 1 group." People and pets are not groups; say each plainly. */
+function peopleAndGroups(all) {
+  const people = all.filter((g) => g.kind === "person" || g.kind === "pet").length;
+  const groups = all.length - people;
+  if (!people) return plural("setup.done.groups", groups, { n: groups });
+  const parts = [plural("setup.done.peopleCount", people, { n: people })];
+  if (groups) parts.push(plural("setup.done.groupsCount", groups, { n: groups }));
+  return `${parts.join(", ")}.`;
+}
+
 /** What Find+ is doing right now, from the server's own numbers. */
 function paintFacts(accounts, tracked, extras) {
   const [settings, groups, places, lock] = extras.map((r) => (r.status === "fulfilled" ? r.value : null));
@@ -81,7 +91,7 @@ function paintFacts(accounts, tracked, extras) {
   const minutes = settings && settings["poll.interval_minutes"];
   if (!tracked) els.facts.append(item(t("setup.done.not_polling")));
   else if (minutes) els.facts.append(item(t("setup.done.polling", { n: minutes })));
-  if (groups) els.facts.append(item(plural("setup.done.groups", groups.length, { n: groups.length })));
+  if (groups) els.facts.append(item(peopleAndGroups(groups)));
   if (places) els.facts.append(item(plural("setup.done.places", places.length, { n: places.length })));
   if (lock) els.facts.append(item(t(lock.lock_configured ? "setup.done.lock_on" : "setup.done.lock_off")));
 }

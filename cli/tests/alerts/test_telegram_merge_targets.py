@@ -110,3 +110,23 @@ def test_first_ever_connect_still_creates_a_single_target(tmp_db: str) -> None:
     creds = save_mock.call_args.kwargs["telegram"]
     assert creds.chat_ids == ("42",)
     assert creds.chat_labels == ("private",)
+
+
+def test_a_person_with_no_username_is_labelled_by_first_name(tmp_db: str) -> None:
+    """uat116 #15: "Connected to private." told the owner nothing."""
+    update = {"update_id": 1, "message": {"chat": {"id": 4242, "type": "private",
+                                                   "first_name": "Parent"}}}  # fmt: skip
+    save_mock = MagicMock()
+    with (
+        patch("findplus.alerts.channels.telegram.save_channel", save_mock),
+        patch("findplus.alerts.channels.telegram.httpx.Client") as mock_client,
+    ):
+        instance = mock_client.return_value.__enter__.return_value
+        instance.get.side_effect = [
+            _response(200, {"result": {"username": "testbot"}}),
+            _response(200, {"result": [update]}),
+        ]
+        instance.post.return_value = _response(200)
+        telegram_setup(TOKEN, wait_seconds=120, poll=2)
+    creds = save_mock.call_args.kwargs["telegram"]
+    assert creds.chat_labels == ("Parent",) and creds.chat_title == "Parent"

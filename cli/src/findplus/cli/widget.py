@@ -21,6 +21,7 @@ import subprocess
 import click
 
 from findplus.db.session import session_scope
+from findplus.launch_guard import launching_disabled
 from findplus.state import set_setting
 
 from ._fmt import _prep
@@ -48,6 +49,9 @@ def show_map(state: str) -> None:
 @widget.command("refresh")
 def refresh() -> None:
     """Ask the Find+ app to reload the widget's WidgetKit timelines."""
+    if launching_disabled():
+        click.echo("widget refresh skipped (launching is disabled)")
+        return
     result = subprocess.run(["open", "findplus://refresh-widget"], capture_output=True)
     if result.returncode != 0:
         click.echo("app not installed")

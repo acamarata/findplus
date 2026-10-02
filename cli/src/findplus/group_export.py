@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 from findplus.db.models import Device, DeviceGroup, Group, LocationObservation
 from findplus.device_labels import unique_names
 from findplus.exporters import CSV_COMMENT, csv_table, to_csv, to_json
+from findplus.quality.annotate import attach_to_rows
 from findplus.timeline import fetch_observations
 
 
@@ -69,7 +70,10 @@ def member_observations(
     session: Session, member_ids: list[str], start_utc: datetime, end_utc: datetime
 ) -> list[tuple[str, list[LocationObservation]]]:
     """`(device_id, observations)` per member, in member order — never merged."""
-    return [(did, fetch_observations(session, did, start_utc, end_utc)) for did in member_ids]
+    blocks = [(did, fetch_observations(session, did, start_utc, end_utc)) for did in member_ids]
+    for _, rows in blocks:
+        attach_to_rows(session, rows)
+    return blocks
 
 
 def _labels_for(session: Session, member_ids: list[str]) -> dict[str, str]:

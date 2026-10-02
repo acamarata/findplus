@@ -73,8 +73,37 @@ def _export_body(fmt: str, device_id, group_id, start_utc, end_utc, tz, label: s
         return body, len(rows)
 
 
+def _export_jsonl(output: Path | None, ranged: bool) -> None:
+    """The full-fidelity export: always the whole database, never a slice."""
+    from findplus.db.portable import export_lines
+
+    if ranged:
+        raise click.UsageError(
+            "--format jsonl exports everything; drop the range and device options."
+        )
+    with session_scope() as session:
+        lines = export_lines(session)
+        if output is None:
+            for line in lines:
+                click.echo(line)
+            return
+        count = 0
+        with output.open("w", encoding="utf-8") as fh:
+            for line in lines:
+                fh.write(line + "\n")
+                count += 1
+    output.chmod(0o600)
+    click.secho(f"Wrote {count - 1} record(s) to {output}", fg="green")
+
+
 @click.command()
-@click.option("--format", "fmt", type=click.Choice(["csv", "json", "gpx", "kml"]), default="csv")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["csv", "json", "gpx", "kml", "jsonl"]),
+    default="csv",
+    help="jsonl exports everything (devices, places, groups, rules) for `findplus import`.",
+)
 @click.option("--day", default=None, help="Single local day, YYYY-MM-DD.")
 @click.option("--start", default=None, help="Range start, YYYY-MM-DD.")
 @click.option("--end", default=None, help="Range end, YYYY-MM-DD.")
@@ -98,8 +127,10 @@ def export(
     group_id: str | None,
     output: Path | None,
 ) -> None:
-    """Export history to CSV, JSON, GPX or KML."""
+    """Export history to CSV, JSON, GPX or KML; --format jsonl exports the whole database."""
     _prep()
+    if fmt == "jsonl":
+        return _export_jsonl(output, any([day, start, end, device_id, group_id]))
     from findplus.timeline import local_zone
 
     tz = local_zone()
@@ -118,7 +149,7 @@ def export(
 @click.option("--yes", is_flag=True, help="Actually delete. Without this it is a dry run.")
 def prune(before: str, yes: bool) -> None:
     """Delete history before a date. Dry run unless --yes is given."""
-    _prep()
+    _prep(writes=True)
     from sqlalchemy import func
     from sqlalchemy import select as sa_select
 

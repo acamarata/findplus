@@ -33,6 +33,7 @@ def test_windows_and_linux_launch_the_found_binary(monkeypatch, platform) -> Non
     assert open_signin.chrome_argv(CHROME, URL) == [CHROME, URL]
 
 
+@pytest.mark.usefixtures("launch_allowed")
 def test_macos_runs_open_and_waits_for_it(monkeypatch) -> None:
     runs: list[list[str]] = []
     monkeypatch.setattr(open_signin.sys, "platform", "darwin")
@@ -42,6 +43,7 @@ def test_macos_runs_open_and_waits_for_it(monkeypatch) -> None:
     assert runs == [["open", "-a", "Google Chrome", URL]]
 
 
+@pytest.mark.usefixtures("launch_allowed")
 def test_linux_detaches_the_browser(monkeypatch) -> None:
     spawned: list[tuple] = []
     monkeypatch.setattr(open_signin.sys, "platform", "linux")
@@ -53,6 +55,7 @@ def test_linux_detaches_the_browser(monkeypatch) -> None:
     assert "shell" not in kwargs
 
 
+@pytest.mark.usefixtures("launch_allowed")
 def test_a_failed_launch_reports_false(monkeypatch) -> None:
     def fail(argv, **kwargs):
         raise subprocess.CalledProcessError(1, argv)
@@ -68,6 +71,7 @@ def test_chrome_is_used_when_found(monkeypatch, no_real_browser) -> None:
     assert no_real_browser == [URL]
 
 
+@pytest.mark.usefixtures("launch_allowed")
 def test_without_chrome_the_default_browser_opens_the_page(monkeypatch) -> None:
     opened: list[str] = []
     monkeypatch.setattr(open_signin, "find_google_chrome", lambda: None)
@@ -83,6 +87,7 @@ def test_a_chrome_that_fails_to_open_falls_back_to_the_default(monkeypatch) -> N
     assert open_signin.open_sign_in_page() == "default"
 
 
+@pytest.mark.usefixtures("launch_allowed")
 def test_nothing_opening_is_a_plain_error(monkeypatch) -> None:
     monkeypatch.setattr(open_signin, "find_google_chrome", lambda: None)
     monkeypatch.setattr(open_signin.webbrowser, "open", lambda url: False)

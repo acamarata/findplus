@@ -25,12 +25,15 @@ from findplus.alerts.dispatch_core import (
     Rule,
     as_utc,
     classify_new_delivery,
+    event_key,
     in_cooldown,
     match,
     render_message,
     suppressed_by_group,
 )
 from findplus.alerts.dispatch_events import load_pending_events
+from findplus.alerts.dispatch_gate import Burst, fresh_events, predates, send_summaries
+from findplus.alerts.dispatch_left_behind import settled
 from findplus.alerts.dispatch_send import _status_for
 from findplus.alerts.dispatch_targets import (
     _already_delivered,
@@ -38,6 +41,9 @@ from findplus.alerts.dispatch_targets import (
     _deliver_skip,
     _insert_delivery_row,
 )
+
+#: The delivery-log reason for a send held back by the per-chat burst limit.
+BURST_REASON = "too many at once: summed up in one message"
 
 __all__ = [
     "Delivery",
@@ -74,22 +80,29 @@ def _load_rules(session) -> list[Rule]:
             enabled=r.enabled,
             also_notify_members=r.also_notify_members,
             telegram_targets=parse_rule_telegram_targets(r.telegram_targets),
+            all_people=r.all_people,
+            created_at=r.created_at,
         )
         for r in rows
     ]
 
 
-def _delivery_place_ids(session, rows) -> dict[tuple[str, int], int | None]:
-    """Derived place_id per (event_kind, event_id): alert_deliveries has no place_id column."""
+def _delivery_place_ids(session, rows) -> dict[tuple[str, int], tuple[int | None, int | None]]:
+    """Derived (place_id, group_id) per (event_kind, event_id): the delivery row
+    stores neither, and cooldown keys on the place (and, for an all-people
+    rule, the person). place_events.group_id is vestigial and always NULL."""
     from findplus.db.models import GroupPlaceEvent, PlaceEvent
+    from findplus.db.models_people import LeftBehind
 
-    out: dict[tuple[str, int], int | None] = {}
-    for kind, model in (("device", PlaceEvent), ("group", GroupPlaceEvent)):
+    out: dict[tuple[str, int], tuple[int | None, int | None]] = {}
+    models = (("device", PlaceEvent), ("group", GroupPlaceEvent), ("left_behind", LeftBehind))
+    for kind, model in models:
         ids = {d.event_id for d in rows if d.event_kind == kind}
         if not ids:
             continue
-        for event_id, place_id in session.query(model.id, model.place_id).filter(model.id.in_(ids)):
-            out[(kind, event_id)] = place_id
+        query = session.query(model.id, model.place_id, model.group_id)
+        for event_id, place_id, group_id in query.filter(model.id.in_(ids)):
+            out[(kind, event_id)] = (place_id, group_id)
     return out
 
 
@@ -107,7 +120,8 @@ def _load_recent_deliveries(session, now: datetime.datetime) -> list[Delivery]:
             sent_at=d.sent_at,
             channel=d.channel,
             status=d.status,
-            place_id=place_ids.get((d.event_kind, d.event_id)),
+            place_id=place_ids.get((d.event_kind, d.event_id), (None, None))[0],
+            group_id=place_ids.get((d.event_kind, d.event_id), (None, None))[1],
         )
         for d in rows
     ]
@@ -132,8 +146,7 @@ def _deliver_one(
     """Send one (rule, channel, target, event) tuple and record it. None if
     already delivered. A failure on one target never touches another --
     each target is its own row, its own retry ladder (alerts/retry.py)."""
-    kind = "device" if isinstance(event, DeviceEvent) else "group"
-    eid = event.place_event_id if isinstance(event, DeviceEvent) else event.group_place_event_id
+    kind, eid = event_key(event)
     if _already_delivered(session, rule.id, kind, eid, channel, target):
         return None
 
@@ -162,6 +175,7 @@ def _deliver_one(
         channel=channel,
         status=status,
         place_id=event.place_id,
+        group_id=getattr(event, "group_id", None),
     )
 
 
@@ -171,22 +185,66 @@ def _mark_notified(session, events: list, now: datetime.datetime) -> None:
     # text() bypasses the UtcDateTime bind hook: normalise here so SQLite
     # never stores an offset string the reader re-reads as UTC.
     now = now.astimezone(datetime.UTC).replace(tzinfo=None)
+    tables = {"device": "place_events", "group": "group_place_events", "left_behind": "left_behind"}
     for event in events:
-        if isinstance(event, DeviceEvent):
-            session.execute(
-                text("UPDATE place_events SET notified_at = :n WHERE id = :i"),
-                {"n": now, "i": event.place_event_id},
-            )
-        else:
-            session.execute(
-                text("UPDATE group_place_events SET notified_at = :n WHERE id = :i"),
-                {"n": now, "i": event.group_place_event_id},
-            )
+        kind, eid = event_key(event)
+        session.execute(
+            text(f"UPDATE {tables[kind]} SET notified_at = :n WHERE id = :i"), {"n": now, "i": eid}
+        )
     session.commit()
 
 
+def _send_to_targets(session, rule, channel, event, targets, ctx, sent_to) -> None:
+    """One delivery per target, unless this chat already heard of this crossing
+    or has hit the burst limit (then a skipped row, summed up later)."""
+    channels_cfg, now, deliveries, burst = ctx
+    for target in targets:
+        if sent_to is not None:
+            if (channel, target) in sent_to:
+                continue
+            sent_to.add((channel, target))
+        if burst.full(channel, target):
+            burst.hold(channel, target)
+            delivered = _deliver_skip(session, rule, channel, event, now, BURST_REASON, target)
+        else:
+            delivered = _deliver_one(session, rule, channel, event, channels_cfg, now, target)
+            if delivered is not None and delivered.status != "skipped":
+                burst.note_sent(channel, target)
+        if delivered is not None:
+            deliveries.append(delivered)
+
+
+def _dispatch_event(session, event, rules: list[Rule], ctx) -> None:
+    deliveries, now = ctx[2], ctx[1]
+    # One crossing, one message per chat: a person's own rule and the
+    # place's all-people rule both match the same group event (r116 #7).
+    sent_to: set[tuple[str, str]] | None = set() if isinstance(event, GroupEvent) else None
+    for rule in match(rules, event):
+        if predates(rule, event):
+            continue  # a rule never sends what happened before it existed (uat116 #1)
+        if isinstance(event, DeviceEvent) and suppressed_by_group(rule, event, rules):
+            continue
+        for channel in rule.channels:
+            if in_cooldown(rule, channel, event, deliveries, now):
+                continue
+            # Cooldown stays per (rule, channel, place) -- not per target.
+            targets, skip_reason = _channel_targets(channel, ctx[0], rule)
+            if skip_reason is not None:
+                delivered = _deliver_skip(session, rule, channel, event, now, skip_reason)
+                if delivered is not None:
+                    deliveries.append(delivered)
+                continue
+            _send_to_targets(session, rule, channel, event, targets, ctx, sent_to)
+
+
 def process(events: list, session, settings, now: datetime.datetime | None = None) -> None:
-    """Match, suppress, cool down, send, record. The sole DB/network entry point."""
+    """Gate, match, suppress, cool down, send, record. The sole DB/network entry point.
+
+    Every event passed in is stamped notified at the end, sent or not: an
+    event too old to be news (alerts/dispatch_gate.py) is logged and never
+    comes back to flood a chat later. A left-behind episode no rule could
+    carry is the exception: it stays pending (dispatch_left_behind.settled).
+    """
     if not getattr(settings, "alerts_enabled", True) or not events:
         return
 
@@ -194,31 +252,10 @@ def process(events: list, session, settings, now: datetime.datetime | None = Non
 
     now = now or datetime.datetime.now(datetime.UTC)
     rules = _load_rules(session)
-    deliveries = _load_recent_deliveries(session, now)
-    channels_cfg = load_alerts()
-
-    for event in events:
-        for rule in match(rules, event):
-            if isinstance(event, DeviceEvent) and suppressed_by_group(rule, event, rules):
-                continue
-            for channel in rule.channels:
-                if in_cooldown(rule, channel, event, deliveries, now):
-                    continue
-                # Cooldown stays per (rule, channel, place) -- not per target --
-                # same as before multi-target telegram existed: it answers "did
-                # this rule already notify over this channel recently", not
-                # "did this exact person already hear about it".
-                targets, skip_reason = _channel_targets(channel, channels_cfg, rule)
-                if skip_reason is not None:
-                    delivered = _deliver_skip(session, rule, channel, event, now, skip_reason)
-                    if delivered is not None:
-                        deliveries.append(delivered)
-                    continue
-                for target in targets:
-                    delivered = _deliver_one(
-                        session, rule, channel, event, channels_cfg, now, target
-                    )
-                    if delivered is not None:
-                        deliveries.append(delivered)
-
-    _mark_notified(session, events, now)
+    burst = Burst(session, now)
+    ctx = (load_alerts(), now, _load_recent_deliveries(session, now), burst)
+    fresh = fresh_events(session, events, now)
+    for event in fresh:
+        _dispatch_event(session, event, rules, ctx)
+    send_summaries(burst, ctx[0])
+    _mark_notified(session, settled(session, events, fresh), now)

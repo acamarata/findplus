@@ -117,6 +117,7 @@ export async function loadGroups() {
     return;
   }
   updateEmptyStateHint();
+  document.dispatchEvent(new CustomEvent("fp:groups-loaded", { detail: JSON.stringify(groups) }));
   // init() fires loadGroups() without awaiting it, so a fast click (or a
   // test) can reach the tab before main.js's `await import("./groups.js")`
   // has actually finished running this module's own init -- the Add/Edit

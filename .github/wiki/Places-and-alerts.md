@@ -11,6 +11,40 @@ The Places tab's side panel lists every saved place -- its color, its radius, an
 tracked devices are inside it right now -- with Edit and Delete on each row and a click
 anywhere else on the row to centre the map on that place.
 
+### The Add place dialog
+
+A new place starts at 100 m, the recommended minimum. The slider covers 50 to 500 m; the number box
+next to it takes anything up to 5000 m and is the value that is saved. The "Find+ guessed this from
+the name" note appears only after you type a name it recognises. The dialog is two columns on a
+wide screen and one on a phone, and Save stays in view at any height. While you pick a spot on the
+map, a click inside an existing place still places the pin.
+
+### Kind, and the arrive-and-leave box
+
+A place has a kind: Home, School, Work, Family, Shop or Other. Find+ guesses it from the name
+("Grandma's House" is Family) and follows the name until you pick one yourself. At Home, left-behind
+alerts stay off and the day summary starts with "Overnight at Home".
+
+New places have a **Tell me when anyone arrives or leaves** box, on by default. With one channel
+connected it is chosen for you; with several you pick one or all; with none the box stays on and says
+the alert is saved but off until you connect a channel. Saving makes the rule and shows one line (with **Customise**), with no second dialog. Places
+saved before this show a "N places have no arrival alerts" banner; **Notify me** previews the rules
+it would add before it writes anything.
+
+### Places we noticed
+
+After a few days of sightings, Find+ can suggest places from where trackers stayed 45 minutes or
+more in the last 30 days (`GET /api/places/suggestions`, `findplus places suggest`). Each
+suggestion shows how many visits and nights it has, when people are usually there, and a question
+mark guess: "Home?" for the spot with the most nights, "School or work?" for weekday daytime stops,
+"Regular stop" otherwise. Find+ never invents a name or a coordinate: the position comes from your
+data and you choose the name. **Name it** saves a place with the arrive-and-leave box ticked. **Not
+a place** hides that spot for good (`POST /api/places/suggestions/dismiss`). Spots inside a saved
+place are not suggested, and sightings flagged as wrong never count. With fewer than three days of
+history the list is empty and the app says so. The Places tab and the setup wizard's Places step
+show each suggestion as a card with a small map. In the wizard, trackers that sit in one spot share
+a single numbered pin on the map instead of a stack.
+
 ## Alert rules
 
 An alert rule ties a place, a device or group, and one or more notification channels
@@ -211,7 +245,8 @@ can appear on a locked screen. Turn on notification details in Settings to name
 the person and the place instead. See [Settings](Settings) for the exact
 wording and what it costs you.
 
-Notifications are held while Find+ is locked. Unlock to see what you missed.
+Desktop notifications on this computer are held while Find+ is locked; unlock to see what you
+missed. Telegram, WhatsApp and webhook alerts and daily summaries are still sent.
 
 ## Signing in from the dashboard
 

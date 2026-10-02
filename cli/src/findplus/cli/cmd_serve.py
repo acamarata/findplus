@@ -56,9 +56,11 @@ def _check_exclusive(state_dir: Path) -> tuple[bool, str]:
     connection, or a foreign service on that port) is ignored: serve proceeds
     normally and will overwrite it.
     """
+    from findplus.db.runlock import is_held
+
     daemon_json = state_dir / "daemon.json"
     if not daemon_json.exists():
-        return (False, "")
+        return (is_held(state_dir), "")
     try:
         data = json.loads(daemon_json.read_text())
         port = int(data["port"])
@@ -71,7 +73,27 @@ def _check_exclusive(state_dir: Path) -> tuple[bool, str]:
             return (True, f"{url}/")
     except Exception:
         pass  # stale daemon.json or unreachable daemon
-    return (False, "")
+    return (is_held(state_dir), "")
+
+
+def _prep_or_read_only(settings) -> None:
+    """Quick-check the database, then upgrade it; a damaged file is left alone.
+
+    On a failed check the daemon serves read-only with a restore banner: no
+    migration, no polling, no pruning, no backups. The file is never deleted.
+    """
+    from findplus.db.integrity import startup_check
+    from findplus.logging_setup import configure_logging
+
+    exists = settings.database_path.exists()
+    health = startup_check(settings.database_path) if exists else None
+    if health is None or health.ok:
+        _prep(to_file=True)
+        return
+    configure_logging(settings, to_file=True)
+    settings.ensure_dirs()
+    click.secho("The database file looks damaged, so Find+ is read-only.", fg="red")
+    click.echo("Restore a backup with: findplus db restore <file>   (findplus db backups)")
 
 
 def _make_signal_handler(stop_event: threading.Event) -> Callable[[int, object], None]:
@@ -151,7 +173,9 @@ def _print_banner(bind_host: str, bind_port: int, settings, no_poller: bool) -> 
     click.echo(f"Polling   : {cadence}")
 
 
-def _start_uvicorn(bind_host: str, bind_port: int, settings) -> tuple[Any, threading.Thread]:
+def _start_uvicorn(
+    bind_host: str, bind_port: int, settings, sessions=None
+) -> tuple[Any, threading.Thread]:
     """Build and launch the API server on a daemon thread; signal handling off.
 
     install_signal_handlers is disabled because serve() installs its own
@@ -162,7 +186,7 @@ def _start_uvicorn(bind_host: str, bind_port: int, settings) -> tuple[Any, threa
     from findplus.api import create_app
 
     config = uvicorn.Config(
-        create_app(bound_host=bind_host, bound_port=bind_port),
+        create_app(sessions, bound_host=bind_host, bound_port=bind_port),
         host=bind_host,
         port=bind_port,
         log_level=settings.log_level.lower(),
@@ -175,6 +199,23 @@ def _start_uvicorn(bind_host: str, bind_port: int, settings) -> tuple[Any, threa
     return server, server_thread
 
 
+def _start_workers(settings, no_poller: bool) -> list[tuple[Any, threading.Thread]]:
+    """The background workers: poller (unless off), retention, and the evening summary."""
+    from findplus.people import replay
+    from findplus.poller import PollerService
+    from findplus.service.digest import DigestScheduler
+    from findplus.service.retention import RetentionScheduler
+
+    workers = []
+    if not no_poller:
+        workers.append(_start_worker(PollerService(settings), "poller"))
+    workers.append(_start_worker(RetentionScheduler(settings.state_dir), "retention"))
+    digest = DigestScheduler(settings.state_dir)
+    workers.append(_start_worker(digest, "digest"))
+    replay.on_start()  # a database from before 1.1.6: fill in past days once, in the background
+    return workers
+
+
 def _run_server(
     settings, bind_host: str, bind_port: int, no_poller: bool, stop_event: threading.Event
 ) -> int:
@@ -184,10 +225,11 @@ def _run_server(
     poller off still asked for history past the window to go.
     """
     from findplus import service
-    from findplus.poller import PollerService
-    from findplus.service.retention import RetentionScheduler
+    from findplus.db.integrity import current_health
+    from findplus.security import SessionStore
 
     workers: list[tuple[Any, threading.Thread]] = []
+    sessions = SessionStore()
     server = None
     server_thread = None
     exit_code = 1
@@ -196,11 +238,10 @@ def _run_server(
             pid=os.getpid(), port=bind_port, host=bind_host, version=__version__, argv=sys.argv
         )
 
-        if not no_poller:
-            workers.append(_start_worker(PollerService(settings), "poller"))
-        workers.append(_start_worker(RetentionScheduler(settings.state_dir), "retention"))
+        if current_health().ok:  # a damaged database is served read-only: nothing writes
+            workers += _start_workers(settings, no_poller)
 
-        server, server_thread = _start_uvicorn(bind_host, bind_port, settings)
+        server, server_thread = _start_uvicorn(bind_host, bind_port, settings, sessions)
 
         exit_code = _wait_for_stop(stop_event, server_thread)
         if exit_code:
@@ -228,16 +269,23 @@ def serve(foreground: bool, no_poller: bool, host: str | None, port: int | None)
     # Set again here, not only in the click group: the packaged daemon and the
     # LaunchAgent/systemd unit can invoke this command directly.
     os.umask(PRIVATE_UMASK)
-    _prep(to_file=True)
 
     settings = get_settings()
     bind_host, bind_port = _bind_or_exit(host, port)
     _refuse_if_already_running(settings.state_dir)
+    from findplus.db.runlock import acquire
+
+    daemon_lock = acquire(settings.state_dir)  # held until this process exits
+    if daemon_lock is None:
+        click.echo("Find+ is already running (its lock file is held).")
+        sys.exit(3)
+    _prep_or_read_only(settings)
 
     stop_event = threading.Event()
     _install_signal_handlers(stop_event)
     _print_banner(bind_host, bind_port, settings, no_poller)
 
     exit_code = _run_server(settings, bind_host, bind_port, no_poller, stop_event)
+    daemon_lock.close()
     if exit_code:
         sys.exit(exit_code)

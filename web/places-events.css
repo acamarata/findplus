@@ -177,9 +177,15 @@
 
 /* --- Places list: a place that messages nobody says so -------------------- */
 .fp-place-card {
-  grid-template-areas: "dot name edit del" ". meta meta meta" ". who who who" ". notify notify notify";
+  grid-template-areas: "dot name edit del" ". meta meta meta" ". who who who" ". kind kind kind"
+    ". notify notify notify";
 }
 .fp-place-card > .fp-place-notify { grid-area: notify; }
+.fp-place-card > .fp-place-kind-guess { grid-area: kind; }
+.fp-place-kind-guess {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+  font-size: 12px; color: var(--muted);
+}
 .fp-place-notify {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
   font-size: 12px; font-weight: 600; color: var(--text);

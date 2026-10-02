@@ -48,6 +48,8 @@ class GroupCreate(BaseModel):
     cluster_radius_meters: int = 150
     stale_after_minutes: int = 90
     member_ids: list[str] = []
+    #: set | person | pet (0013). A tracker belongs to at most one person/pet.
+    kind: str = "set"
 
 
 class GroupUpdate(BaseModel):
@@ -57,6 +59,7 @@ class GroupUpdate(BaseModel):
     quorum: str | None = None
     cluster_radius_meters: int | None = None
     stale_after_minutes: int | None = None
+    kind: str | None = None
 
 
 class MembersBody(BaseModel):
@@ -72,6 +75,7 @@ def _group_to_dict(g: Group) -> dict[str, Any]:
         "quorum": g.quorum,
         "cluster_radius_meters": g.cluster_radius_meters,
         "stale_after_minutes": g.stale_after_minutes,
+        "kind": g.kind,
         "members": getattr(g, "_members", []),
     }
 
@@ -88,7 +92,8 @@ def _map_value_error(exc: ValueError) -> HTTPException:
     text = str(exc)
     if "not found" in text:
         return HTTPException(status_code=404, detail=text)
-    code = 409 if "already exists" in text else 422
+    # "already belongs to": the one-person-per-tracker rule (groups/membership.py).
+    code = 409 if "already exists" in text or "already belongs to" in text else 422
     return HTTPException(status_code=code, detail=text)
 
 
@@ -109,6 +114,7 @@ def post_group(body: GroupCreate) -> dict[str, Any]:
                 cluster_radius_meters=body.cluster_radius_meters,
                 stale_after_minutes=body.stale_after_minutes,
                 member_ids=body.member_ids,
+                kind=body.kind,
             )
         except ValueError as exc:
             s.rollback()

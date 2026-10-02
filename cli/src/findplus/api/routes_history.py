@@ -28,15 +28,17 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import desc, select
 
+from findplus.db.integrity import current_health
 from findplus.db.models import Device, Group, LocationObservation, PollRun
 from findplus.db.session import session_scope
 from findplus.groups.repo import list_group_timeline
 from findplus.logging_setup import get_logger
 from findplus.places.geofence import PlaceSpec, classify_point
 from findplus.places.repo import list_places
+from findplus.quality.annotate import annotate_dicts
 from findplus.timeline import day_bounds_utc, days_with_data, local_zone, multi_day_timeline
 
-from ._helpers import _parse_day, _serialize_latest, _serialize_run
+from ._helpers import _parse_day, _quality_of, _serialize_latest, _serialize_run
 
 log = get_logger(__name__)
 
@@ -74,7 +76,10 @@ def _group_timeline(group_id: int, target, zone) -> list[dict[str, Any]]:
     with session_scope() as session:
         if session.get(Group, group_id) is None:
             raise HTTPException(status_code=404, detail=f"group {group_id} not found")
-        return list_group_timeline(session, group_id, start_utc, end_utc)
+        tracks = list_group_timeline(session, group_id, start_utc, end_utc)
+        for track in tracks:
+            annotate_dicts(session, track["points"])
+        return tracks
 
 
 def _named_payload(tracks, names: dict[str, str]) -> list[dict[str, Any]]:
@@ -228,7 +233,8 @@ def latest(
         if obs is None:
             raise HTTPException(status_code=404, detail="No observations recorded yet.")
         device = session.get(Device, obs.device_id)
-        return _serialize_latest(obs, zone, now, device.label if device else None) or {}
+        label = device.label if device else None
+        return _serialize_latest(obs, zone, now, label, _quality_of(session, obs)) or {}
 
 
 def poll_runs(limit: int = Query(default=25, ge=1, le=200)) -> dict[str, Any]:
@@ -244,6 +250,9 @@ def _register_poll_now_route(router: APIRouter, *, check_poll_cooldown) -> None:
     @router.post("/poll-now")
     def poll_now() -> dict[str, Any]:
         """Trigger one immediate Find Hub query. Rate-limited to protect the account."""
+        if not current_health().ok:  # read-only: a poll would fetch fixes it cannot save
+            detail = "Find+ is read-only (its history database looks damaged), so it will not poll."
+            raise HTTPException(status_code=409, detail=detail + " Run findplus db restore.")
         wait = check_poll_cooldown()
         if wait > 0:
             raise HTTPException(

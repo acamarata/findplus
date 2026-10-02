@@ -22,7 +22,7 @@ from datetime import UTC, datetime
 
 from findplus.config import Settings, get_settings
 from findplus.db.session import session_scope
-from findplus.ingest import ingest_observations
+from findplus.ingest import ingest_observations, release_held_fixes
 from findplus.logging_setup import get_logger
 from findplus.poller_outcomes import (
     NO_GOOGLE_TRAFFIC,
@@ -160,6 +160,18 @@ def _process_alert_retries(settings: Settings) -> None:
         log.exception("alert_retry_cycle_failed")
 
 
+def _release_held_fixes(settings: Settings) -> None:
+    """Once per cycle: feed fixes whose quality hold ran out, then send their alerts."""
+    try:
+        with session_scope() as session:
+            released = release_held_fixes(session, settings=settings)
+    except Exception:
+        log.exception("quality_release_failed")
+        return
+    if released:
+        _dispatch_alerts(settings, "held sightings")
+
+
 def _dispatch_alerts(settings: Settings, device_name: str) -> None:
     # Alert dispatch runs in its own session, after the ingest transaction has
     # already committed (dispatch.process() reads place_events/group_place_events
@@ -268,6 +280,7 @@ def _run_poll_cycle(
             (stop_event or threading.Event()).wait(stagger)
         cycle.outcomes.append(poll_device(device_id, device_name, provider_name, settings))
 
+    _release_held_fixes(settings)
     _process_alert_retries(settings)
     log.info(
         "poll_cycle_complete",

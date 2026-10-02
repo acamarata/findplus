@@ -15,7 +15,10 @@ def test_the_helper_ships_and_is_found_in_the_dev_tree() -> None:
     available, reason = bh.helper_available()
     assert available is True, reason
     assert (bh.packaged_helper_dir() / "manifest.json").is_file()
-    assert bh.helper_version() == "1.1.5"
+    assert (
+        bh.helper_version()
+        == json.loads((bh.packaged_helper_dir() / "manifest.json").read_text())["version"]
+    )
 
 
 def _fake_source(tmp_path):
@@ -45,6 +48,7 @@ def test_install_makes_a_private_parent(tmp_db, tmp_path, monkeypatch) -> None:
     assert stat.S_IMODE(os.stat(dest.parent).st_mode) == 0o700
 
 
+@pytest.mark.usefixtures("launch_allowed")
 def test_reveal_opens_the_file_manager(tmp_db, tmp_path, monkeypatch) -> None:
     from findplus.config import get_settings
 
@@ -64,6 +68,7 @@ def test_install_without_files_raises(tmp_db, tmp_path, monkeypatch) -> None:
         bh.install_helper(get_settings())
 
 
+@pytest.mark.usefixtures("launch_allowed")
 def test_open_chrome_extensions_on_macos(monkeypatch) -> None:
     calls = []
     monkeypatch.setattr(bh.sys, "platform", "darwin")
@@ -72,6 +77,7 @@ def test_open_chrome_extensions_on_macos(monkeypatch) -> None:
     assert calls == [["open", "-a", "Google Chrome", "chrome://extensions"]]
 
 
+@pytest.mark.usefixtures("launch_allowed")
 def test_open_chrome_extensions_without_chrome_returns_false(monkeypatch) -> None:
     monkeypatch.setattr(bh.sys, "platform", "linux")
     monkeypatch.setattr(

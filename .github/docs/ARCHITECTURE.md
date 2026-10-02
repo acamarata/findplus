@@ -193,6 +193,45 @@ non-stale members; `quorum='all'` never fires while any member is stale. API: `r
 (CRUD, membership, presence, events) plus a `group_id` filter on `GET /api/timeline` returning
 one track per member, never merged. CLI: `findplus groups`.
 
+### People and observation quality (migration 0013)
+
+Schema for the people-and-presence design (`.github/docs/specs/people-and-presence.md` § 1.4).
+A person is a group: `groups.kind` is `set` (every existing group, quorum events as before),
+`person` or `pet`. Triggers (`trg_one_person_per_device`, `_move`, `_kind`) keep a tracker in at
+most one person/pet group; sets never conflict. Plain column adds, no rebuild: `devices.role`,
+`devices.carry_weight` (NULL = guessed / role default), `places.kind` (`home school work family
+shop other`, default `other`), and `group_place_events.basis` (`quorum` | `person`), `note`,
+`lead_device_id`. Values are API-validated (`db/models_people.py` holds the vocabularies), so no
+cascade parent is rebuilt. `alert_rules` gains `all_people` with the CHECK "all people and no
+group/device, or exactly one of group/device"; `alert_deliveries.event_kind` admits
+`left_behind`. Both are batch rebuilds under `fk_disabled`, with the delivery log stashed around
+the `alert_rules` rebuild as 0008 does; the revision refuses to run with foreign keys enforced.
+New tables: `person_place_states` (PK group, place), `left_behind` (episodes, place SET NULL),
+`observation_quality` (derived flags per observation, recomputable; raw rows never change) and
+`digest_runs` (UNIQUE group, local date, channel, target). Every parent link cascades. Downgrade
+is lossy: new tables, kinds, roles, all-people rules and left-behind deliveries go.
+
+### Observation quality and durability (1.1.6)
+
+`quality/rules.py` holds the pure rules (aba_teleport, impossible_speed, edge_stray,
+jump_unconfirmed, sibling_disagree, low_accuracy, clock_skew) with every threshold a named constant;
+`quality/score.py` combines them into a score in [0, 1] (suspect below 0.5) and rescues a suspect fix
+that a neighbour within `max(200 m, accuracy)` vouches for; `quality/store.py` writes
+`observation_quality` with `algo_version`; `quality/api.py` (`suspect_ids`, `is_suspect`) is the read
+interface other packages import. `trips/outliers.py` is a wrapper: a stored verdict wins over the
+pure rules. Ingest rescores the tracker's own fixes two hours either side of each new fix, its
+person-group siblings' fixes 30 minutes either side, and every fix still held
+(`quality/ingest_hook.py`), writing only changed verdicts. A `jump_unconfirmed` or
+`sibling_disagree` fix is held out of the geofence until the tracker's next fix decides; any fix
+whose stored verdict flips from suspect to clean is fed to the geofence then, in observed order.
+The poller ends each cycle with `ingest.release_held_fixes`, which releases holds older than 12
+minutes even when no new fix arrives.
+
+Durability: `db/backup.py` (online backup API, verify, rotate), `db/restore.py`, `db/integrity.py`
+(`quick_check` at start, full checks for `db check` and doctor), `db/portable.py` and
+`db/portable_import.py` (JSONL). Every connection runs `synchronous=FULL` with WAL; after a failed
+startup check new connections are `query_only` and no worker starts.
+
 ## Timestamps and timezones
 
 All timestamps are stored as **naive UTC** through a `UtcDateTime` `TypeDecorator`

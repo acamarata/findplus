@@ -20,6 +20,8 @@ import { syncMapOverlay } from "./map_empty.js";
 import { renderLegend, syncDense, watchTiles } from "./map_extras.js";
 import { popupHtml } from "./map_popup.js";
 import { storyMapRender } from "./trips_view.js";
+import { showSuspect } from "./suspect_pref.js";
+import { countIcon, groupNearby } from "./map_pins.js";
 
 // U4 (R-P2-30.2): a US-centred default read as "my child is in Kansas" the
 // first time the map had no data to fit. A neutral world view says nothing
@@ -117,13 +119,22 @@ async function _trackedDeviceFixes() {
  * to show only the place circles places.js (the tab module) draws on its own
  * layer. A no-op once the dashboard HAS booted (state.timeline set):
  * renderMap() already drew the real tracks by then, on the wizard's re-run
- * path, and this must never overwrite them.
+ * path, and this must never overwrite them. The wizard's Places step passes
+ * `force`: one pin per spot (trackers that sit together share one numbered
+ * pin) reads better there than every sighting of every tracker; it calls
+ * renderMap() on the way out to put the real tracks back.
  */
-export async function renderTrackedDeviceMarkers() {
-  if (!state.map || state.timeline) return;
+export async function renderTrackedDeviceMarkers({ force = false } = {}) {
+  if (!state.map || (state.timeline && !force)) return;
   state.layer.clearLayers();
   const entries = await _trackedDeviceLatest();
-  entries.forEach(({ device, fix }) => {
+  groupNearby(entries).forEach((group) => {
+    if (group.items.length > 1) {
+      const names = group.items.map(({ device }) => displayName(device) || device.name).join(", ");
+      L.marker([group.lat, group.lon], { icon: countIcon(group.items.length), title: names, keyboard: false }).addTo(state.layer);
+      return;
+    }
+    const { device, fix } = group.items[0];
     const shown = displayName(device) || device.name;
     const icon = L.divIcon({
       className: "",
@@ -152,6 +163,7 @@ export async function renderTrackedDeviceMarkers() {
 function numberedIcon(point, index, total, device) {
   const classes = ["marker-num"];
   if (!point.is_movement) classes.push("jitter");
+  if (point.suspect) classes.push("marker-num--suspect");
   // The ring colour used to be a per-marker inline style="border-color:…",
   // which CSP's default `style-src 'self'` (no unsafe-inline) silently drops
   // -- every marker rendered with a plain white ring and the console filled
@@ -199,7 +211,8 @@ export function deviceForTrack(track) {
 }
 
 export function visiblePoints(track) {
-  return state.movementOnly ? track.points.filter((p) => p.is_movement) : track.points;
+  const shown = showSuspect() ? track.points : track.points.filter((p) => !p.suspect);
+  return state.movementOnly ? shown.filter((p) => p.is_movement) : shown;
 }
 
 /**
@@ -218,7 +231,8 @@ function drawTrack(track) {
   // has, so they read the label first, exactly as the device list and the
   // timeline track head do (UAT U6: the one displayName() helper).
   const shown = uniqueLabel(device) || track.device_name;
-  const latlngs = points.map((p) => [p.latitude, p.longitude]);
+  // A sighting that looks wrong never joins the path; it is drawn faintly (see numberedIcon).
+  const latlngs = points.filter((p) => !p.suspect).map((p) => [p.latitude, p.longitude]);
   if (latlngs.length > 1) {
     // keyboard: false (U31): Leaflet's default Tab-stop-per-path/marker
     // behaviour put every point of every track in the Tab order ahead of the
@@ -230,7 +244,7 @@ function drawTrack(track) {
   points.forEach((point, index) => {
     const marker = L.marker([point.latitude, point.longitude], {
       icon: numberedIcon(point, index, points.length, device),
-      title: `${shown} · ${fmtTime(point.observed_at_local)}`,
+      title: `${shown} · ${fmtTime(point.observed_at_local)}${point.suspect ? ` · ${point.suspect_reason}` : ""}`,
       keyboard: false,
     }).addTo(state.layer);
     marker.bindPopup(popupHtml(point, shown));
@@ -241,6 +255,8 @@ function drawTrack(track) {
 }
 
 export function renderMap({ fit = true } = {}) {
+  // The Person page owns the map while it is open (person_route.js).
+  if (state.personView) return;
   state.layer.clearLayers();
   state.markers.clear();
   if (!state.timeline) {

@@ -8,9 +8,8 @@ Constraints:
       storage, so DST transitions produce correct 23h/25h days.
     - Movement filtering annotates; it never deletes -- every raw observation
       returns with an `is_movement` flag alongside.
-    - The point/stats/day dataclasses live in timeline_models.py (PRI rule-7
-      300-line split) and are re-exported below, so every existing
-      `from findplus.timeline import TimelinePoint` caller is unchanged.
+    - The point/stats/day dataclasses live in timeline_models.py (300-line split)
+      and are re-exported below, so `from findplus.timeline import TimelinePoint` still works.
 """
 
 from __future__ import annotations
@@ -25,6 +24,8 @@ from sqlalchemy.orm import Session
 
 from findplus.db.models import LocationObservation
 from findplus.geo import haversine_meters, is_meaningful_movement, meters_to_miles
+from findplus.quality.annotate import annotate_points
+from findplus.timeline_distance import trusted_distance
 from findplus.timeline_models import DayStats, DayTimeline, TimelinePoint
 
 __all__ = [
@@ -169,7 +170,7 @@ def compute_stats(points: list[TimelinePoint]) -> DayStats:
             longest_gap_end=None,
         )
 
-    total_m = sum(p.meters_from_previous or 0.0 for p in points)
+    total_m = trusted_distance(points)
     longest_gap = 0.0
     gap_start = gap_end = None
     for prev, cur in pairwise(points):
@@ -218,6 +219,7 @@ def day_timeline(
         movement_threshold_meters=movement_threshold_meters,
         gap_threshold_minutes=gap_threshold_minutes,
     )
+    annotate_points(session, points)
     return DayTimeline(
         device_id=device_id,
         device_name=device_name or (observations[0].device_name if observations else None),

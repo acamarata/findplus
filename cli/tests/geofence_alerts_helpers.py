@@ -177,7 +177,7 @@ def setup_home_rules(session, base: datetime) -> tuple[AlertRule, AlertRule]:
         cooldown_minutes=30,
         enabled=True,
         also_notify_members=False,
-        created_at=base,
+        created_at=base - timedelta(hours=1),  # the rule predates the fixes it fires on
     )
     arrives = AlertRule(
         name="arrives-home",
@@ -189,7 +189,7 @@ def setup_home_rules(session, base: datetime) -> tuple[AlertRule, AlertRule]:
         cooldown_minutes=15,
         enabled=True,
         also_notify_members=False,
-        created_at=base,
+        created_at=base - timedelta(hours=1),  # the rule predates the fixes it fires on
     )
     session.add_all([leaves, arrives])
     session.commit()

@@ -27,10 +27,10 @@ broken by an OS upgrade or a removed Python, re-running rebuilds it.
 
 Find+ is not published to PyPI. Install the wheel from the latest release
 instead. Download the `findplus-<version>-py3-none-any.whl` from the
-[Releases](https://github.com/acamarata/findplus/releases) page (for example, v1.1.5):
+[Releases](https://github.com/acamarata/findplus/releases) page (for example, v1.1.6):
 
 ```bash
-pipx install https://github.com/acamarata/findplus/releases/download/v1.1.5/findplus-1.1.5-py3-none-any.whl
+pipx install https://github.com/acamarata/findplus/releases/download/v1.1.6/findplus-1.1.6-py3-none-any.whl
 ```
 
 Or install from the latest release directly:
@@ -70,9 +70,23 @@ for what it reads.
 
 ## Updating the macOS app
 
+Run this while Find+ is open; it quits the app, swaps it and starts it again. Your history,
+settings and `~/.findplus/backups/` are not touched.
+
+```bash
+curl -fsSL https://github.com/acamarata/findplus/releases/latest/download/update-app.sh | bash
+```
+
 `update-app.sh` checks the dmg against the sha256 published on the same release.
 That detects a corrupted download only. It does not authenticate the release, so
 it is no protection against a release that was itself tampered with.
+
+## Where your data goes
+
+Everything lives in `~/.findplus/`: the database, secrets, logs and a daily backup folder,
+`~/.findplus/backups/`. Backups are unencrypted copies of the database (with the app-lock PIN hash,
+never sign-in tokens). Upgrading never touches them. See [Backup and
+restore](Backup-and-restore).
 
 ## Post-install
 

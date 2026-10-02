@@ -18,11 +18,21 @@ See [Privacy and threat model](Privacy-and-threat-model).
 - [Sign in](Sign-in): connect Google or Apple from the dashboard.
 - [Devices and groups](Devices-and-groups): track trackers, form groups.
 - [Places and alerts](Places-and-alerts): geofences and notifications.
+- [People and presence](People-and-presence): people from tracker names, arrivals, left-behind trackers.
+- [Daily summary](Daily-summary): "Sam's day" in plain words, by name, by date, or on Telegram each evening.
 - [Trips and routes](Trips-and-routes): stays, trips and gaps for one device and day.
-- [Settings](Settings): poll interval, history retention, app lock, notifications.
+- [Settings](Settings): poll interval, history retention, backups, app lock, notifications.
+- [Backup and restore](Backup-and-restore): automatic backups, restore, damage checks, full export and import.
 - [CLI reference](CLI-reference)
 - [API reference](API-reference)
 - [MCP](MCP): connect Find+ to Claude Desktop or Claude Code.
+- [macOS app](macOS-app): menu-bar app, widgets, updating.
+- [App lock](App-lock): the PIN, what it guards and what it does not.
+- [Providers](Providers): the Google and Apple sources.
+- [Troubleshooting](Troubleshooting) and [FAQ](FAQ).
+- [Uninstall](Uninstall): remove the service, the app and your data.
+- [Chrome helper privacy](Chrome-helper-privacy): what the sign-in extension reads.
+- [Contributing](Contributing) and [Desktop manual tests](Desktop-manual-tests).
 - [Packaging and release](Packaging-and-release): how a release is built, signed and published.
 - Fresh-machine rehearsal: `.github/docs/REHEARSAL.md` in the repo records the install, reinstall and uninstall run that was verified before release.
 - First-run screenshots: `.github/docs/screenshots/setup/` in the repo (16 shots, 1280px and 375px, from the scripted wizard rehearsal).

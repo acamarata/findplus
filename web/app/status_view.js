@@ -145,6 +145,11 @@ async function nothingTrackedBanner() {
 /** The banner, in priority order: a poll under way, a failed poll, nothing
  * tracked, a stopped service, then why the last poll found nothing new. */
 async function renderStatusAlert(s) {
+  if (s.database && s.database.ok === false) {
+    // Damaged at startup: the daemon is read-only. Say so before anything else.
+    showAlert(t("database.damaged"), "err", { hint: t("database.restoreHint") });
+    return;
+  }
   const waiting = awaitingActive(s);
   const failed = bannerRun(s);
   if (state.pollInFlight || waiting) {

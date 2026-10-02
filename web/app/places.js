@@ -27,12 +27,15 @@ import { t, plural } from "./i18n.js";
 import { initDialog, openEditDialog, purgeDialog, showAddDialog } from "./places_dialog.js";
 import * as placesList from "./places_list.js";
 import * as placesEvents from "./places_events.js";
+import { mountNoticed } from "./places_noticed.js";
+import { initBackfill, purgeBackfill, refreshBackfill, refreshRules } from "./places_backfill.js";
 import { confirmDialog } from "./components/confirm-dialog.js";
 
 let map = null;
 let placeLayer = null;
 let placesById = new Map();
 let circlesById = new Map();
+let noticed = null;
 
 export function init(mapArg, _deviceListEl) {
   map = mapArg;
@@ -40,6 +43,9 @@ export function init(mapArg, _deviceListEl) {
   initDialog(map, { onSaved: onPlaceSaved });
   placesList.init(document.getElementById("fp-places-list"));
   placesEvents.init(document.getElementById("fp-places-events"));
+  initBackfill(document.getElementById("fp-places-backfill"), refreshAll);
+  const noticedHost = document.getElementById("fp-places-noticed");
+  if (noticedHost) noticed = mountNoticed(noticedHost, { onSaved: (place) => onPlaceSaved(place, "add") });
   const addBtn = document.getElementById("fp-add-place-btn");
   // UAT U4/U10: used to arm a mouse-only crosshair mode; opening the dialog
   // straight at the map's current centre needs no map click at all, so a
@@ -64,7 +70,30 @@ export function init(mapArg, _deviceListEl) {
  * "who should be told, and where", with the place already chosen. */
 async function onPlaceSaved(place, mode) {
   await loadPlaces();
-  if (mode === "add" && place) await offerRule(place);
+  import("./people_replay.js").then((m) => m.watchReplay()).catch(() => {});
+  if (mode === "add" && place) announceDefaultRule(place);
+}
+
+/** The place dialog's "Tell me when anyone arrives or leaves" box made the rule already:
+ * say so in one line, with a way to change it. No second dialog opens by itself. */
+function announceDefaultRule(place) {
+  const rule = place.notify_rule;
+  if (!rule) return;
+  refreshRules();
+  const channels = rule.channels.map((c) => t(`alerts.channels.${c}`)).join(", ");
+  const text = rule.enabled === false
+    ? `${t("places.notify.savedOff", { place: place.name })} ${rule.hint || ""}`.trim()
+    : rule.hint
+      ? `${t("places.notify.onPlain", { place: place.name })} ${rule.hint}`
+      : t("places.notify.on", { place: place.name, channels });
+  showAlert(text, "info", { action: { label: t("places.notify.customise"), run: () => customiseRule(place, rule.id) } });
+}
+
+/** "Customise": the rule dialog on the rule that was just made. */
+async function customiseRule(place, ruleId) {
+  const { openRuleDialog } = await import("./alerts_rule_dialog.js");
+  const rule = (await api("/api/alerts/rules")).find((r) => r.id === ruleId);
+  if (rule) await openRuleDialog(rule, { intro: t("places.notify.customiseIntro", { place: place.name }) });
 }
 
 /** The rule dialog for `place`; also the list card's "Set up an alert" button. */
@@ -102,6 +131,8 @@ export function purge() {
   purgeDialog();
   placesList.purgeList();
   placesEvents.purge();
+  purgeBackfill();
+  if (noticed) noticed.purge();
   placesById = new Map();
   circlesById.clear();
   document.querySelectorAll(".fp-presence-chip").forEach((chip) => chip.remove());
@@ -132,11 +163,14 @@ export async function loadPlaces() {
   // independent GET /api/devices + /api/places/presence for the "who is
   // here now" column, so it stays correct even when only presence changed.
   await placesList.refresh();
+  refreshBackfill();
   // P19/WP9: an add/edit/delete (this function's every caller) is also a
   // good moment to catch up the arrivals/departures panel; its own timer
   // (places_events.js) covers "refresh after a poll" for the gap between
   // these without this module needing to know when a poll happened.
   await placesEvents.refresh();
+  // Slow on a long history, and the tab is useful without it: never awaited.
+  if (noticed) noticed.refresh();
 }
 
 /** Pans to a place and reopens its map popup — the list row's click-to-centre

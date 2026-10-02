@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from findplus.db.models import Device, DeviceGroup, Place, PlaceEvent, PlaceState
 from findplus.device_labels import unique_names
+from findplus.places.kinds import validate_place_kind
 from findplus.places.staleness import _is_stale, _last_fix_by_device, _stale_before
 
 
@@ -81,7 +82,10 @@ def create_place(
     color: str = "#2f80ed",
     enter_confirmations: int = 1,
     exit_confirmations: int = 2,
+    kind: str = "other",
+    kind_guessed: bool = False,
 ) -> Place:
+    validate_place_kind(kind)
     _validate_place_fields(
         name=name,
         latitude_e7=latitude_e7,
@@ -101,6 +105,8 @@ def create_place(
         color=color,
         enter_confirmations=enter_confirmations,
         exit_confirmations=exit_confirmations,
+        kind=kind,
+        kind_guessed=kind_guessed,
         created_at=now,
         updated_at=now,
     )
@@ -120,10 +126,13 @@ def update_place(
     color: str | None = None,
     enter_confirmations: int | None = None,
     exit_confirmations: int | None = None,
+    kind: str | None = None,
 ) -> Place:
     place = session.get(Place, place_id)
     if place is None:
         raise ValueError(f"place {place_id} not found")
+    if validate_place_kind(kind) is not None:
+        place.kind, place.kind_guessed = kind, False  # the owner chose or confirmed it
     _validate_place_fields(
         name=name,
         latitude_e7=latitude_e7,

@@ -37,6 +37,16 @@ its setting every cycle, so a change needs no restart. It is a different thing
 from `findplus prune`, which is a manual one-shot you run yourself against a
 date you choose.
 
+## Backups
+
+Find+ backs up its database once a day. **Backup folder**, **Daily backups kept**
+(1 to 60, default 7) and **Weekly backups kept** (0 to 52, default 4) are the
+`backup.directory`, `backup.keep_daily` and `backup.keep_weekly` keys of
+`GET/PATCH /api/settings`, and `backup_dir`, `backup_keep_daily` and
+`backup_keep_weekly` in `findplus config set`. They take effect on the next
+backup. A folder must be a full path. Send `null` for `backup.directory` to go
+back to `~/.findplus/backups`. See [Backup and restore](Backup-and-restore).
+
 ## Notification detail
 
 **Show who and where in notifications** appears only in the macOS app, and is
@@ -57,6 +67,20 @@ Theme is dark, light, or follow the system. **Start Find+ at login** installs or
 removes the user-level service. The app lock takes a PIN of at least six
 characters and can lock after an idle period. See [App lock](App-lock) for what
 it does and does not protect.
+
+## People: daily summary, left-behind alerts, backup
+
+The daily summary is off until you turn it on. Pick the time, the channel (Telegram), and whose
+day to send; **Send now** sends today. The message is words only, with no coordinates, and goes to
+the chat you chose, so anyone who reads that chat reads it. Turning the last person off turns the
+summary off.
+
+The left-behind switch controls whether "Sam's bag looks left at School" becomes an alert. It
+never fires at a Home place.
+
+The backup line shows the time of the newest backup and how many are kept. **Back up now** takes a
+verified copy of the database (not your sign-ins or tokens). See [Backup and
+restore](Backup-and-restore).
 
 ## Delete history
 

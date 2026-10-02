@@ -16,25 +16,30 @@ from typing import Any
 
 from mcp.server.mcpserver import MCPServer
 
-from findplus.mcp.client import DaemonClient
+from findplus.mcp.client import DaemonClient, seg
 from findplus.mcp.tools_read import _params, _with_notice
 
 
-def register_write_tools(mcp: MCPServer, client: DaemonClient) -> None:
+def _register_place_tools(mcp: MCPServer) -> None:
     def _c() -> DaemonClient:
         return mcp._daemon_client
 
     @mcp.tool(structured_output=True)
-    async def poll_now() -> dict[str, Any]:
-        """Ask the daemon to poll every tracked device now."""
-        return await _with_notice(await _c().post("/api/poll-now"), _c())
-
-    @mcp.tool(structured_output=True)
     async def add_place(
-        name: str, latitude: float, longitude: float, radius_meters: float, color: str | None = None
+        name: str,
+        latitude: float,
+        longitude: float,
+        radius_meters: float,
+        color: str | None = None,
+        notify: bool = False,
     ) -> dict[str, Any]:
-        """Create a place: a named circle that devices enter and leave."""
+        """Create a place: a named circle that devices enter and leave.
+
+        `notify` defaults to false: no alert rule is created, so nothing is sent to
+        Telegram. Pass notify=true to also create the default arrive/leave rule.
+        """
         body = _params(
+            notify=notify,
             name=name,
             latitude=latitude,
             longitude=longitude,
@@ -46,7 +51,19 @@ def register_write_tools(mcp: MCPServer, client: DaemonClient) -> None:
     @mcp.tool(structured_output=True)
     async def remove_place(place_id: int) -> dict[str, Any]:
         """Delete a place and stop its events."""
-        return await _with_notice(await _c().delete(f"/api/places/{place_id}"), _c())
+        return await _with_notice(await _c().delete(f"/api/places/{seg(place_id)}"), _c())
+
+
+def register_write_tools(mcp: MCPServer, client: DaemonClient) -> None:
+    _register_place_tools(mcp)
+
+    def _c() -> DaemonClient:
+        return mcp._daemon_client
+
+    @mcp.tool(structured_output=True)
+    async def poll_now() -> dict[str, Any]:
+        """Ask the daemon to poll every tracked device now."""
+        return await _with_notice(await _c().post("/api/poll-now"), _c())
 
     @mcp.tool(structured_output=True)
     async def add_group(
@@ -60,7 +77,9 @@ def register_write_tools(mcp: MCPServer, client: DaemonClient) -> None:
     async def set_group_members(group_id: int, member_ids: list[str]) -> dict[str, Any]:
         """Replace a group's member list with the given device ids."""
         body = {"member_ids": member_ids}
-        return await _with_notice(await _c().put(f"/api/groups/{group_id}/members", body), _c())
+        return await _with_notice(
+            await _c().put(f"/api/groups/{seg(group_id)}/members", body), _c()
+        )
 
     @mcp.tool(structured_output=True)
     async def lock() -> dict[str, Any]:

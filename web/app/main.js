@@ -26,6 +26,8 @@ import { wireTabsKeyboard } from "./components/tabs_a11y.js";
 import { openSetupRoute, closeSetupRoute, checkOnboarding } from "./setup_route.js";
 import { loadIconSprite } from "./icon_sprite.js";
 import { startLiveRefresh } from "./live_refresh.js";
+import { personRoute } from "./person_hash.js";
+import { refreshPeopleCache } from "./person_links.js";
 
 // The status chrome (device name, service dot, cards, banner) lives in
 // status_view.js; re-exported so existing `main.js` importers keep working.
@@ -70,6 +72,14 @@ export async function applyHashRoute({ closeOthers = true } = {}) {
   // Anything that is not #/setup leaves the wizard: the route must not be
   // enterable-but-not-leavable (CR-C-E11 F2).
   await closeSetupRoute();
+  // The Person page (`#/person/<id>?date=...`) borrows the side pane and the map;
+  // any other hash gives them back first.
+  const person = personRoute(hash);
+  if (person) {
+    import("./person_route.js").then((m) => m.showPerson(person)).catch(reportRouteFailure);
+    return;
+  }
+  if (state.personView) await import("./person_route.js").then((m) => m.hidePerson());
   if (hash === "#settings") await openSettings();
   else if (hash === "#devices") await openDevices();
   // The Places widget's tap target (findplus://places -> windows::open_places
@@ -83,6 +93,10 @@ export async function applyHashRoute({ closeOthers = true } = {}) {
     switchTab("alerts");
     $("fp-webhook-section")?.scrollIntoView({ block: "start" });
   } else if (closeOthers) closeModals();
+}
+
+function reportRouteFailure(err) {
+  showAlert(t("common.apiUnreachable", { message: err.message }), "err");
 }
 
 /**
@@ -169,6 +183,9 @@ export async function bootDashboard(resume) {
   if (resume) window.scrollTo(0, resume.scrollY);
 
   startIdleTimer();
+  refreshPeopleCache();
+  import("./people_suggest.js").then((m) => { m.mountBanner($("fp-people-banner")); m.mountSuggestions($("fp-people-suggest")); }).catch(() => {});
+  import("./left_behind_chips.js").then((m) => { m.mountLeftBehind($("fp-left-behind")); m.refreshLeftBehind(); }).catch(() => {});
   await applyHashRoute({ closeOthers: false });
   if (stale()) return;
 

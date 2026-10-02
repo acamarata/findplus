@@ -1,4 +1,4 @@
-"""ORM models for the alert_rules / alert_deliveries tables (migration 0005).
+"""ORM models for the alert_rules / alert_deliveries tables (migration 0005, reshaped by 0013).
 
 Purpose : Map the existing alert_rules and alert_deliveries tables (created by
           migration 0005_groups_alerts, P1-E5-W5-S1-T1) onto SQLAlchemy models.
@@ -25,8 +25,12 @@ class AlertRule(Base):
     __tablename__ = "alert_rules"
     __table_args__ = (
         CheckConstraint("cooldown_minutes BETWEEN 0 AND 1440", name="ck_alert_rules_cooldown"),
+        #: Migration 0013: an all-people rule names no group or device; any
+        #: other rule names exactly one of them.
         CheckConstraint(
-            "(group_id IS NULL) <> (device_id IS NULL)", name="ck_alert_rules_xor_target"
+            "(all_people = 1 AND group_id IS NULL AND device_id IS NULL) OR "
+            "(all_people = 0 AND ((group_id IS NULL) <> (device_id IS NULL)))",
+            name="ck_alert_rules_target",
         ),
     )
 
@@ -56,6 +60,8 @@ class AlertRule(Base):
     #: split or joined here -- `""` is a distinct, meaningful value ("the
     #: owner picked no chat"), not the same as NULL ("every chat").
     telegram_targets: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    #: Matches every person/pet group's events (migration 0013, spec § 5.2).
+    all_people: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
 
 
@@ -64,7 +70,9 @@ class AlertDelivery(Base):
 
     __tablename__ = "alert_deliveries"
     __table_args__ = (
-        CheckConstraint("event_kind IN ('device','group')", name="ck_alert_deliveries_kind"),
+        CheckConstraint(
+            "event_kind IN ('device','group','left_behind')", name="ck_alert_deliveries_kind"
+        ),
         CheckConstraint(
             "status IN ('sent','failed','skipped','queued','delivered','retrying')",
             name="ck_alert_deliveries_status",
@@ -83,7 +91,8 @@ class AlertDelivery(Base):
     rule_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("alert_rules.id", ondelete="CASCADE"), nullable=False
     )
-    event_kind: Mapped[str | None] = mapped_column(String(6), nullable=True)
+    #: device | group | left_behind (left_behind.id; migration 0013).
+    event_kind: Mapped[str | None] = mapped_column(String(16), nullable=True)
     event_id: Mapped[int] = mapped_column(Integer, nullable=False)
     sent_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
     #: 16, not 0005's 8: 'delivered' (migration 0008) is nine characters. SQLite

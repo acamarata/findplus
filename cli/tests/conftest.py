@@ -15,11 +15,14 @@ from findplus.ingest import ingest_observations, upsert_device
 from tests._autouse_isolation import (  # noqa: F401 (autouse guards)
     _clear_poller_flag_files,
     _isolate_bind_env_vars,
+    _replay_on_this_thread,
 )
 from tests._no_browser_launch import no_real_browser  # noqa: F401 (autouse guard)
 
 # Point every setting at a throwaway location BEFORE findplus.config is imported.
 os.environ.setdefault("FINDPLUS_STATE_DIR", "/tmp/findplus-tests-state")
+# Fixture servers started as subprocesses inherit this: nothing may open a real program.
+os.environ.setdefault("FINDPLUS_NO_LAUNCH", "1")
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
@@ -113,9 +116,11 @@ def _block_non_loopback_sockets(monkeypatch: pytest.MonkeyPatch) -> None:
 def tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
     """A migrated, empty SQLite database scoped to one test."""
     from findplus.config import get_settings, reset_settings_cache
+    from findplus.db.integrity import reset_health
     from findplus.db.migrate import upgrade_to_head
     from findplus.db.session import get_engine, get_sessionmaker
 
+    reset_health()  # a test that fakes a damaged startup must not leak into the next
     db_path = tmp_path / "test.sqlite"
     monkeypatch.setenv("FINDPLUS_DATABASE_PATH", str(db_path))
     monkeypatch.setenv("FINDPLUS_STATE_DIR", str(tmp_path / "state"))
@@ -266,3 +271,15 @@ def locked_client(client: TestClient):
         yield client
     finally:
         client.post("/api/lock/unlock", json={"pin": pin})
+
+
+@pytest.fixture
+def launch_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """For tests that mock the launch call itself and assert on its arguments.
+
+    Switches the launch guard (findplus.launch_guard) off for THIS test only; the
+    test must patch subprocess/webbrowser, or it would open a real program.
+    """
+    from findplus import launch_guard
+
+    monkeypatch.setattr(launch_guard, "_allow_for_mocked_test", True)

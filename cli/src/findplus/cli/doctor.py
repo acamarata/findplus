@@ -1,9 +1,9 @@
 """`findplus doctor [--repair] [--json]`: self-service installation diagnostics.
 
-Purpose    : Eleven independent checks (python, state-dir/file permissions, DB
-             schema head, provider auth, service units, port health, Chrome,
-             alerts.json validity, legacy pre-rename database, optional desktop
-             app) with permission and migration repair via --repair.
+Purpose    : Thirteen independent checks (python, state-dir/file permissions, DB
+             schema head, DB integrity and backups (doctor_db.py), provider auth,
+             service units, port health, Chrome, alerts.json validity, legacy
+             database, optional desktop app), with repair via --repair.
 Inputs     : Settings (state dir, port); nothing here mutates unless --repair.
 Outputs    : A DoctorCheck per check, printed as text or --json; exit 1 if any
              check still fails after an optional repair pass.
@@ -25,6 +25,7 @@ import httpx
 
 from findplus.config import get_settings
 
+from .doctor_db import check_db_backups, db_checks, repair_backup_perms
 from .doctor_perms import (
     DoctorCheck,
     check_sensitive_file_perms,
@@ -66,14 +67,7 @@ def check_db_head() -> DoctorCheck:
 
 
 def check_providers() -> DoctorCheck:
-    """One line per registered provider: not configured / not signed-in / signed-in.
-
-    Goes through the `findplus.providers` registry instead of grepping
-    secrets.json for a Google-specific `token`/`session` key (that check was
-    blind to Apple Find My, which stores nothing under either name — CF23,
-    E9 review carry-forward #23). Never raises: a provider whose is_available()
-    or is_authenticated() throws is reported as an error line, not a 500.
-    """
+    """One line per registered provider, via the registry; never raises (errors become a line)."""
     from findplus import honesty
     from findplus.providers.base import available_providers, get_provider
 
@@ -243,12 +237,14 @@ def repair_db_head() -> None:
 
 
 _REPAIRS: dict[str, object] = {
+    "db_backups": repair_backup_perms,
     "state_dir_perms": lambda settings: repair_state_dir_perms(settings.state_dir),
     "sensitive_file_perms": lambda settings: repair_sensitive_file_perms(settings.state_dir),
     "db_head": lambda settings: repair_db_head(),
 }
 
 _RERUN: dict[str, object] = {
+    "db_backups": check_db_backups,
     "state_dir_perms": lambda settings: check_state_dir_perms(settings.state_dir),
     "sensitive_file_perms": lambda settings: check_sensitive_file_perms(settings.state_dir),
     "db_head": lambda settings: check_db_head(),
@@ -267,6 +263,7 @@ def doctor_cmd(repair: bool, json_flag: bool) -> None:
         check_state_dir_perms(settings.state_dir),
         check_sensitive_file_perms(settings.state_dir),
         check_db_head(),
+        *db_checks(settings),
         check_providers(),
         check_units(),
         check_port(settings.state_dir, settings.port),

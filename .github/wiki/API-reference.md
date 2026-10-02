@@ -94,6 +94,9 @@ Read Settings
 ### GET /api/settings/app.start_at_login
 Get Start At Login
 
+### GET /api/settings/backup
+Get Backup Status
+
 ### GET /api/settings/onboarding.completed_at
 Get Onboarding Completed At
 
@@ -223,6 +226,9 @@ Toggle the desktop app's LaunchAgent through findplus.service.
   "title": "Body_set_start_at_login_api_settings_app_start_at_login_post"
 }
 ```
+
+### POST /api/settings/backup/now
+Post Backup Now
 
 ### POST /api/settings/onboarding.completed_at
 Stamp or clear the onboarding completion time (specs/onboarding.md § 2).
@@ -702,6 +708,14 @@ Get Search
 |---|---|---|---|
 | q | query | False | string |
 
+### GET /api/places/suggestions
+Get Suggestions
+
+| name | in | required | type |
+|---|---|---|---|
+| timezone | query | False | string |
+| date | query | False | string |
+
 ### POST /api/places
 Post Place
 
@@ -739,6 +753,36 @@ Post Place
       "type": "integer",
       "title": "Exit Confirmations",
       "default": 2
+    },
+    "kind": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Kind"
+    },
+    "notify": {
+      "type": "boolean",
+      "title": "Notify",
+      "default": true
+    },
+    "notify_channels": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Notify Channels"
     }
   },
   "type": "object",
@@ -749,6 +793,66 @@ Post Place
     "radius_meters"
   ],
   "title": "PlaceCreate"
+}
+```
+
+### POST /api/places/notify-defaults
+Post Notify Defaults
+
+| name | in | required | type |
+|---|---|---|---|
+| dry_run | query | False | boolean |
+
+**Request body:**
+```json
+{
+  "properties": {
+    "place_ids": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Place Ids"
+    }
+  },
+  "type": "object",
+  "title": "Body_post_notify_defaults_api_places_notify_defaults_post"
+}
+```
+
+### POST /api/places/suggestions/dismiss
+Post Dismiss
+
+**Request body:**
+```json
+{
+  "properties": {
+    "latitude": {
+      "type": "number",
+      "maximum": 90.0,
+      "minimum": -90.0,
+      "title": "Latitude"
+    },
+    "longitude": {
+      "type": "number",
+      "maximum": 180.0,
+      "minimum": -180.0,
+      "title": "Longitude"
+    }
+  },
+  "type": "object",
+  "required": [
+    "latitude",
+    "longitude"
+  ],
+  "title": "Dismiss"
 }
 ```
 
@@ -839,6 +943,17 @@ Put Place
         }
       ],
       "title": "Exit Confirmations"
+    },
+    "kind": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Kind"
     }
   },
   "type": "object",
@@ -919,6 +1034,11 @@ Post Group
       "type": "array",
       "title": "Member Ids",
       "default": []
+    },
+    "kind": {
+      "type": "string",
+      "title": "Kind",
+      "default": "set"
     }
   },
   "type": "object",
@@ -1005,6 +1125,17 @@ Put Group
         }
       ],
       "title": "Stale After Minutes"
+    },
+    "kind": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Kind"
     }
   },
   "type": "object",
@@ -1013,6 +1144,358 @@ Put Group
 ```
 
 ### PUT /api/groups/{group_id}/members
+Put Members
+
+| name | in | required | type |
+|---|---|---|---|
+| group_id | path | True | integer |
+
+**Request body:**
+```json
+{
+  "properties": {
+    "member_ids": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "title": "Member Ids"
+    }
+  },
+  "type": "object",
+  "required": [
+    "member_ids"
+  ],
+  "title": "MembersBody"
+}
+```
+
+## people
+### DELETE /api/people/{group_id}
+Del Person
+
+| name | in | required | type |
+|---|---|---|---|
+| group_id | path | True | integer |
+
+### GET /api/people
+Get People
+
+### GET /api/people/replay
+{state: idle|running|done|failed, done, total}: "Updating past days...".
+
+### GET /api/people/settings
+Get Settings
+
+### GET /api/people/suggestions
+Get Suggestions
+
+### GET /api/people/{group_id}
+Get Person
+
+| name | in | required | type |
+|---|---|---|---|
+| group_id | path | True | integer |
+
+### GET /api/people/{group_id}/day
+One person's day: lines with the trackers behind each, gaps, left-behind, a footer.
+
+| name | in | required | type |
+|---|---|---|---|
+| group_id | path | True | integer |
+| date | query | False | string |
+| timezone | query | False | string |
+
+### GET /api/people/{group_id}/left-behind
+Open episodes plus those cleared in the last 24 hours.
+
+| name | in | required | type |
+|---|---|---|---|
+| group_id | path | True | integer |
+
+### GET /api/people/{group_id}/now
+Get Now
+
+| name | in | required | type |
+|---|---|---|---|
+| group_id | path | True | integer |
+
+### PATCH /api/people/{group_id}
+Patch Person
+
+| name | in | required | type |
+|---|---|---|---|
+| group_id | path | True | integer |
+
+**Request body:**
+```json
+{
+  "properties": {
+    "name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Name"
+    },
+    "kind": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Kind"
+    },
+    "color": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Color"
+    },
+    "icon": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Icon"
+    },
+    "cluster_radius_meters": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Cluster Radius Meters"
+    },
+    "stale_after_minutes": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Stale After Minutes"
+    }
+  },
+  "type": "object",
+  "title": "PersonUpdate"
+}
+```
+
+### POST /api/people
+Post Person
+
+**Request body:**
+```json
+{
+  "properties": {
+    "name": {
+      "type": "string",
+      "title": "Name"
+    },
+    "kind": {
+      "type": "string",
+      "title": "Kind",
+      "default": "person"
+    },
+    "member_ids": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "title": "Member Ids",
+      "default": []
+    },
+    "roles": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "type": "object",
+      "title": "Roles",
+      "default": {}
+    },
+    "color": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Color"
+    },
+    "icon": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Icon"
+    }
+  },
+  "type": "object",
+  "required": [
+    "name"
+  ],
+  "title": "PersonCreate"
+}
+```
+
+### POST /api/people/suggestions/accept
+Post Accept
+
+**Request body:**
+```json
+{
+  "properties": {
+    "accept": {
+      "items": {
+        "$ref": "#/components/schemas/AcceptItem"
+      },
+      "type": "array",
+      "title": "Accept",
+      "default": []
+    },
+    "dismiss": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "title": "Dismiss",
+      "default": []
+    }
+  },
+  "type": "object",
+  "title": "AcceptBody"
+}
+```
+
+### POST /api/people/{group_id}/day/send
+Send that day's summary to the connected Telegram chat now.
+
+| name | in | required | type |
+|---|---|---|---|
+| group_id | path | True | integer |
+
+**Request body:**
+```json
+{
+  "anyOf": [
+    {
+      "$ref": "#/components/schemas/DaySendBody"
+    },
+    {
+      "type": "null"
+    }
+  ],
+  "title": "Body"
+}
+```
+
+### POST /api/people/{group_id}/left-behind/{episode_id}/dismiss
+Post Dismiss
+
+| name | in | required | type |
+|---|---|---|---|
+| group_id | path | True | integer |
+| episode_id | path | True | integer |
+
+### PUT /api/people/settings
+Put Settings
+
+**Request body:**
+```json
+{
+  "properties": {
+    "left_behind_alerts": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Left Behind Alerts"
+    }
+  },
+  "type": "object",
+  "title": "PeopleSettings"
+}
+```
+
+### PUT /api/people/trackers/{device_id}
+Put Tracker
+
+| name | in | required | type |
+|---|---|---|---|
+| device_id | path | True | string |
+
+**Request body:**
+```json
+{
+  "properties": {
+    "role": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Role"
+    },
+    "carry_weight": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Carry Weight"
+    }
+  },
+  "type": "object",
+  "title": "TrackerBody"
+}
+```
+
+### PUT /api/people/{group_id}/members
 Put Members
 
 | name | in | required | type |

@@ -119,6 +119,7 @@ export async function openSettings() {
   clearSaved();
   try {
     await loadSettings();
+    import("./settings_people.js").then((m) => m.loadPeopleSettings()).catch(() => {});
     const req = await api("/api/lock/requirements");
     $("lock-caveat").textContent = req.caveat;
     if (!state.config) {

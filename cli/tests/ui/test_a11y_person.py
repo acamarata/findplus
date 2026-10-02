@@ -1,4 +1,4 @@
-"""axe-core scan of the people surfaces: person page, suggestions, notices, settings, place dialog."""
+"""axe-core scan of the people surfaces: person page, suggestions, notices, settings."""
 
 from __future__ import annotations
 

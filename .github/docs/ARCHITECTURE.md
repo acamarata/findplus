@@ -193,6 +193,24 @@ non-stale members; `quorum='all'` never fires while any member is stale. API: `r
 (CRUD, membership, presence, events) plus a `group_id` filter on `GET /api/timeline` returning
 one track per member, never merged. CLI: `findplus groups`.
 
+### People and observation quality (migration 0013)
+
+Schema for the people-and-presence design (`.github/docs/specs/people-and-presence.md` § 1.4).
+A person is a group: `groups.kind` is `set` (every existing group, quorum events as before),
+`person` or `pet`. Triggers (`trg_one_person_per_device`, `_move`, `_kind`) keep a tracker in at
+most one person/pet group; sets never conflict. Plain column adds, no rebuild: `devices.role`,
+`devices.carry_weight` (NULL = guessed / role default), `places.kind` (`home school work family
+shop other`, default `other`), and `group_place_events.basis` (`quorum` | `person`), `note`,
+`lead_device_id`. Values are API-validated (`db/models_people.py` holds the vocabularies), so no
+cascade parent is rebuilt. `alert_rules` gains `all_people` with the CHECK "all people and no
+group/device, or exactly one of group/device"; `alert_deliveries.event_kind` admits
+`left_behind`. Both are batch rebuilds under `fk_disabled`, with the delivery log stashed around
+the `alert_rules` rebuild as 0008 does; the revision refuses to run with foreign keys enforced.
+New tables: `person_place_states` (PK group, place), `left_behind` (episodes, place SET NULL),
+`observation_quality` (derived flags per observation, recomputable; raw rows never change) and
+`digest_runs` (UNIQUE group, local date, channel, target). Every parent link cascades. Downgrade
+is lossy: new tables, kinds, roles, all-people rules and left-behind deliveries go.
+
 ## Timestamps and timezones
 
 All timestamps are stored as **naive UTC** through a `UtcDateTime` `TypeDecorator`

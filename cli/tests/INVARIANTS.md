@@ -20,6 +20,16 @@ A failing test in the Tests column is a regression, not a flaky test.
 | I11 | The app lock is enforced server-side (401 on every data endpoint) and `purgeRenderedData()` destroys coordinates already in the DOM. | Server-side: `api/test_lock_api_guards.py::test_locked_api_refuses_every_gated_endpoint`, `api/test_lock_api_guards.py::test_locked_export_returns_no_coordinates`, `api/test_auth_route_security.py::test_every_e6_route_401s_while_locked` (the seven sign-in routes, discovered from the live route table). DOM purge: `ui/boot/test_boot_lock.py::test_no_location_data_is_in_the_dom_while_locked`, `ui/boot/test_boot_controls.py::test_manual_lock_returns_to_the_lock_screen` |
 | I12 | Never fabricate a location. A failed poll records status and stores nothing. | `test_poller.py::test_empty_response_records_no_location_and_invents_nothing` |
 
+## Schema guards
+
+| Guard | Tests |
+|---|---|
+| A migration never loses rows through ON DELETE CASCADE during a table rebuild. | `test_migration_cascade_guard.py` (0007/0008), `test_migration_0013.py::test_upgrade_reaches_0013_with_zero_row_loss`, `test_migration_0013.py::test_rules_and_delivery_log_survive_byte_for_byte`, `test_migration_0013.py::test_foreign_key_and_integrity_checks_are_clean`, `test_migration_0013_guards.py::test_revision_refuses_to_rebuild_with_foreign_keys_enforced` |
+| Cascades still fire after a rebuild. | `test_migration_0013.py::test_rule_delete_still_cascades_to_its_deliveries`, `test_migration_0013.py::test_group_place_and_device_cascades_reach_the_rebuilt_rules`, `test_migration_0013.py::test_new_tables_cascade_from_their_parents` |
+| A tracker belongs to at most one person or pet (0013 triggers). | `test_migration_0013_guards.py::test_a_second_person_for_one_tracker_is_rejected`, `test_migration_0013_guards.py::test_moving_a_membership_into_a_second_person_is_rejected`, `test_migration_0013_guards.py::test_turning_a_set_into_a_person_is_rejected_on_overlap`, `test_migration_0013_guards.py::test_triggers_exist_at_head` |
+| Quality flags live beside observations; raw rows never change (I8). | `test_migration_0013.py::test_new_tables_cascade_from_their_parents` |
+| Downgrade then upgrade keeps every row; re-running at head is a no-op. | `test_migration_0013_guards.py::test_downgrade_then_upgrade_round_trips`, `test_migration_0013_guards.py::test_findplus_db_upgrade_is_idempotent_at_head` |
+
 ## Honesty Sentences
 
 | Sentence key | Required text (verbatim from specs/honesty.md) | Enforced by |

@@ -100,6 +100,9 @@ class DayInput:
     episodes: tuple[EpisodeIn, ...]
     places: tuple[PlaceIn, ...]
     now_fix: NowIn | None = None
+    #: The day's sightings held until a second one confirms them (quality's
+    #: jump_unconfirmed), oldest first: not wrong, not yet counted (uat116 #12).
+    held: tuple[Fix, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -151,6 +154,9 @@ class Line:
 class GapOut:
     start: datetime
     end: datetime
+    #: The saved place seen at both ends, if the same: "Still at School,
+    #: nothing new", never "No sightings", which reads as vanished (uat116 #8).
+    place_name: str | None = None
 
     @property
     def minutes(self) -> int:

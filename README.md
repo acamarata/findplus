@@ -243,8 +243,9 @@ see if sign-in cannot find Chrome, not a general statement.
 > your own WhatsApp. CallMeBot replies with an API key within about
 > two minutes. Paste it below.
 >
-> Notifications are held while Find+ is locked. Unlock to see what you
-> missed.
+> Desktop notifications on this computer are held while Find+ is locked;
+> unlock to see what you missed. Telegram, WhatsApp and webhook alerts
+> and daily summaries are still sent.
 >
 > By default, macOS notifications show a generic "Find+ alert" instead
 > of who or where, because notification banners can appear on a locked

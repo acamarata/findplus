@@ -197,7 +197,7 @@ def test_a_long_gap_away_from_home_is_named(session):
     tl.stay(["zr"], SCHOOL, at(13, 0), at(14, 0), every=20)
     tl.ingest(session)
     payload = summary(session, sam)
-    assert "No sightings 11:00 AM to 1:00 PM." in texts(payload)
+    assert "Still at School, nothing new from 11:00 AM to 1:00 PM." in texts(payload)
     assert payload["gaps"][0]["minutes"] == 120
 
 

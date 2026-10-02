@@ -107,12 +107,16 @@ Places list shows it as a guess with a one-tap "That's right".
 
 ## Left behind
 
-If Sam's shoes go home while his bag stays at School for 20 minutes and two more sightings, Find+
-sends once: "Sam's bag looks left at School. Last seen there at 3:02 PM." Only Sam's own sightings
-count, never the bike in the garage, and a bag that goes quiet and reports again is the same
-episode. A rule for one place carries left-behind alerts for that place only. It does not alert at a
-Home place (a bike in the garage is normal), and you can turn left-behind alerts off entirely
-(`PUT /api/people/settings`). The episode ends when the bag moves, when Sam comes back for it, or
+If Sam's shoes go home while his bag stays at School for 20 minutes, and Sam is seen away from it
+twice (or once after the bag's last report), Find+ sends once: "Sam's bag looks left at School.
+Last seen there at 3:02 PM." Only Sam's own sightings count, never the bike in the garage. A quiet
+tag (Find Hub tags that sit still report about every one to two hours) is not taken as carried:
+the episode waits for news. A bag that goes quiet and reports again is the same episode.
+Left-behind alerts follow one setting, "Tell me when a tracker looks left behind", and work
+anywhere, including a spot with no saved place; they use the channels of any rule that covers the
+person, whatever its place. With no such rule the episode waits, unsent, until one exists. It does
+not alert at a Home place (a bike in the garage is normal), pets only alert through a rule naming
+them, and you can turn left-behind alerts off entirely (`PUT /api/people/settings`). The episode ends when the bag moves, when Sam comes back for it, or
 when the bag stops reporting (shown as "no recent sighting", never "still left behind"). "I know"
 silences that tracker at that place for the rest of the day.
 

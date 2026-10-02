@@ -128,3 +128,29 @@ def test_dismissed_suggestion_stays_dismissed(session):
     suggestions.accept(session, [], [key])
     preview = suggestions.build(session)
     assert preview["suggestions"] == [] and preview["dismissed_count"] == 1
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Tag 4F2A",
+        "Unknown device",
+        "Moto Tag",
+        "Unknown",
+        "Tracker 0A1B2C",
+        "Device 12",
+        "deadbeef",
+    ],
+)
+def test_placeholder_names_have_no_owner(name):
+    r = read_name("d", name)
+    assert r.owner_key is None and r.confidence is None
+
+
+def test_placeholders_go_to_whose_is_this_not_to_suggestions(session):
+    _seed(session, ["Sam Bag", "Sam Bike", "Tag 4F2A", "Unknown device", "Moto Tag"])
+    preview = suggestions.build(session)
+    assert [s["name"] for s in preview["suggestions"]] == ["Sam"]
+    assert sorted(u["name"] for u in preview["unassigned"]) == [
+        "Moto Tag", "Tag 4F2A", "Unknown device",
+    ]  # fmt: skip

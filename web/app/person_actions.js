@@ -3,8 +3,8 @@
  * Full map.
  *
  * Purpose    : The four things a person does from this page. Sending says what
- *              happened in words (sent to where, or why it failed); the other
- *              three open the dialog or view that already owns the job.
+ *              happened in words (sent to where, or why it failed); Notify me is one tap
+ *              (person_notify.js); Edit opens the person editor, not a group's.
  * Inputs     : The person, the day on screen, and `setStatus(text, kind)` which
  *              writes the page's live status line.
  * Outputs    : Fills #person-actions; POST /api/people/{id}/day/send.
@@ -16,7 +16,7 @@
 "use strict";
 
 import { $, todayLocal } from "./state.js";
-import { api } from "./api.js";
+import { notifyMe } from "./person_notify.js";
 import { plural, t } from "./i18n.js";
 import { sendDay, sendResult } from "./person_api.js";
 
@@ -49,15 +49,10 @@ async function send(btn, person, date, setStatus) {
   }
 }
 
-async function notifyMe(person) {
-  const { openRuleDialog } = await import("./alerts_rule_dialog.js");
-  await openRuleDialog(null, { groupId: person.id, intro: t("person.act.notifyIntro", { name: person.name }) });
-}
-
 async function editPerson(person) {
-  const groups = await api("/api/groups");
-  const group = groups.find((g) => g.id === person.id);
-  if (group) (await import("./groups_dialog.js")).openEditDialog(group.id, group);
+  const { openPersonEditor } = await import("./person_editor.js");
+  const { reload } = await import("./person_page.js");
+  await openPersonEditor(person.id, reload);
 }
 
 async function fullMap(person) {
@@ -73,7 +68,7 @@ export function renderActions(person, date, setStatus) {
   send_.id = "person-send";
   $("person-actions").replaceChildren(
     send_,
-    button(t("person.act.notifyMe"), "btn-secondary", () => notifyMe(person)),
+    button(t("person.act.notifyMe"), "btn-secondary", () => notifyMe(person, setStatus)),
     button(t("person.act.edit"), "btn-secondary", () => editPerson(person)),
     button(t("person.act.fullMap"), "btn-secondary", () => fullMap(person)),
   );

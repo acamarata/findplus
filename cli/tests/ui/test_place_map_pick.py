@@ -198,8 +198,10 @@ async def test_radius_number_input_stays_in_sync_with_the_slider(page, base_url)
     )
     assert await number.input_value() == "500"
 
+    # The slider covers 50 to 500 m; a bigger place is typed, and the box stays the truth.
     await number.fill("750")
-    assert await slider.input_value() == "750"
+    assert await slider.input_value() == "500"
+    assert await number.input_value() == "750"
 
 
 async def test_pick_on_map_radius_handle_resizes_the_circle(page, base_url):

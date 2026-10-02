@@ -108,23 +108,38 @@ async def test_tracker_editor_is_keyboard_reachable_and_cancels(trips_page, trip
     assert await p.evaluate("document.activeElement.classList.contains('person-tracker-edit')")
 
 
-async def test_notify_me_opens_the_rule_dialog_for_this_person(trips_page, trips_server, pid):
+async def test_notify_me_is_one_tap_with_a_preview(trips_page, trips_server, pid):
+    """No name or device prompts: a preview of what is added, one confirm, then a sentence."""
     await open_person(trips_page, trips_server, pid)
     p = trips_page
     await p.get_by_role("button", name="Notify me").click()
-    await p.wait_for_selector("#fp-add-rule-dialog[open]")
-    await p.wait_for_function("document.querySelector('#fp-rule-group').value !== ''")
-    assert await p.locator("#fp-rule-target-group").is_checked()
-    assert "Sam" in await p.inner_text("#fp-rule-group option:checked")
+    await p.wait_for_selector("dialog[open]")
+    assert await p.locator("#fp-add-rule-dialog[open]").count() == 0
+    text = await p.inner_text("dialog[open]")
+    assert "Tell me when Sam arrives or leaves?" in text and "Home" in text
+    await p.get_by_role("button", name="Add alerts").click()
+    await p.wait_for_function(
+        "document.querySelector('#person-status').textContent.startsWith('Added alerts to')"
+    )
+    # A second tap has nothing left to add and says so, with no dialog.
+    await p.get_by_role("button", name="Notify me").click()
+    await p.get_by_text("Alerts are already on.").wait_for()
+    assert await p.locator("dialog[open]").count() == 0
 
 
-async def test_edit_person_opens_the_group_dialog_and_full_map_selects_the_group(
+async def test_edit_person_opens_the_person_editor_not_the_group_dialog(
     trips_page, trips_server, pid
 ):
     await open_person(trips_page, trips_server, pid)
     p = trips_page
     await p.get_by_role("button", name="Edit person").click()
-    await p.wait_for_selector("dialog[open] #fp-group-name, dialog[open] input[type=text]")
+    await p.wait_for_selector("#fp-person-dialog[open]")
+    assert await p.locator("#fp-group-dialog[open]").count() == 0
+    text = await p.inner_text("#fp-person-dialog")
+    for gone in ("Alert when", "Cluster radius", "Stale after"):
+        assert gone not in text
+    assert await p.input_value("#fp-person-name") == "Sam"
+    assert await p.locator("#fp-person-dialog input[name=pe-kind]").count() == 2
     await p.keyboard.press("Escape")
     await p.get_by_role("button", name="Full map").click()
     await p.wait_for_selector("#tab-dashboard", state="visible")

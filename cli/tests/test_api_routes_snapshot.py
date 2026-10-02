@@ -96,7 +96,9 @@ def test_route_count():
     # unlock,event,classify,cancel} (POST) and /progress (GET).
     # +3 for the Apple sheet (1.2.0): GET /auth/apple/status, POST cancel and text.
     # +1 for POST /auth/google/helper/folder (1.2.0: the path as text, opens nothing).
-    assert len(routes) == 133
+    # +2 for places we noticed: GET /places/suggestions and POST /places/suggestions/dismiss.
+    # +1 for GET /people/replay ("Updating past days...", uat116 #4).
+    assert len(routes) == 136
 
 
 #: T1 (2026-09-22, PRI rule-7 50-line function cap): pulled out of
@@ -196,6 +198,8 @@ _EXPECTED_PATHS = {
     "/api/alerts/deliveries",
     "/api/alerts/deliveries/{delivery_id}/ack",
     "/api/places/notify-defaults",
+    "/api/places/suggestions",
+    "/api/places/suggestions/dismiss",
     "/api/people",
     "/api/people/{group_id}",
     "/api/people/{group_id}/members",
@@ -204,6 +208,7 @@ _EXPECTED_PATHS = {
     "/api/people/{group_id}/day/send",
     "/api/people/{group_id}/left-behind",
     "/api/people/{group_id}/left-behind/{episode_id}/dismiss",
+    "/api/people/replay",
     "/api/people/suggestions",
     "/api/people/suggestions/accept",
     "/api/people/settings",

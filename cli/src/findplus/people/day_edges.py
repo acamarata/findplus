@@ -122,11 +122,28 @@ def is_today(ctx: Ctx) -> bool:
     return ctx.start <= ctx.inp.now < ctx.end
 
 
+def held_line(ctx: Ctx) -> Line | None:
+    """ "Probably at School (waiting to confirm)": a newer sighting is held for a
+    second one, so "Still at Home" would be stale news (uat116 #12)."""
+    now = ctx.inp.now_fix
+    held = ctx.inp.held[-1] if ctx.inp.held else None
+    if held is None or (now is not None and now.observed_at and held.t <= now.observed_at):
+        return None
+    place = ctx.place_at(held)
+    name = place.name if place else day_t("pendingSpot")
+    return Line("pending", held.t, day_t("pendingAt", place=name), time=clock(held.t, ctx.tz),
+                confidence="low", place_id=place.id if place else None,
+                place_name=place.name if place else None)  # fmt: skip
+
+
 def last_line(ctx: Ctx, has_home_fold: bool) -> Line | None:
     """Where the person is now (today only), or where the day's sightings ended."""
     now = ctx.inp.now_fix
     if not is_today(ctx) or now is None or now.observed_at is None or now.observed_at < ctx.start:
         return None
+    pending = held_line(ctx)
+    if pending is not None:
+        return pending
     seen = clock(now.observed_at, ctx.tz)
     age = ctx.inp.now - now.observed_at
     fresh = age <= timedelta(minutes=ctx.inp.stale_after_minutes) and now.confidence in (

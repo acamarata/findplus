@@ -20,7 +20,7 @@ from pydantic import BaseModel
 
 from findplus.db.session import session_scope
 from findplus.groups.repo import delete_group, set_members, update_group
-from findplus.people import repo
+from findplus.people import replay, repo
 
 from . import routes_people_day, routes_people_extra
 from ._people_http import map_value_error
@@ -62,7 +62,9 @@ def post_person(body: PersonCreate) -> dict[str, Any]:
                                roles=body.roles, color=body.color, icon=body.icon)
         )  # fmt: skip
 
-    return _run(create)
+    out = _run(create)
+    replay.request("people")  # fill in past days for this person (uat116 #4)
+    return out
 
 
 def _person_view(s, group_id: int) -> dict[str, Any]:

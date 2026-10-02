@@ -106,3 +106,14 @@ def test_remove(tmp_db: str) -> None:
 def test_events_empty(tmp_db: str) -> None:
     result = CliRunner().invoke(main, ["places", "events"])
     assert result.exit_code == 0
+
+
+def test_suggest_with_no_history_explains(tmp_db: str) -> None:
+    result = CliRunner().invoke(main, ["places", "suggest"])
+    assert result.exit_code == 0
+    assert "needs a few days of sightings" in result.output
+
+
+def test_suggest_json_is_a_candidate_list(tmp_db: str) -> None:
+    result = CliRunner().invoke(main, ["places", "suggest", "--json"])
+    assert result.exit_code == 0 and json.loads(result.output) == []

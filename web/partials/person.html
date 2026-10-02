@@ -2,16 +2,16 @@
            panel; every region below is filled by person_*.js. The map is the
            dashboard's own shared map. -->
       <section id="person-page" class="person" aria-label="Person page" data-i18n-attr="aria-label:person.pageLabel">
-        <a class="person-back" id="person-back" href="#" data-i18n="person.back">Back to dashboard</a>
+        <a class="person-back" id="person-back" href="#" aria-describedby="person-name" data-i18n="person.back">Back to dashboard</a>
         <header class="person-head" id="person-head"></header>
+        <div id="person-status" class="person-status" role="status" aria-live="polite"></div>
+        <div id="person-actions" class="person-actions" role="group" aria-label="Actions" data-i18n-attr="aria-label:person.act.group"></div>
         <div class="person-datebar" id="person-datebar" role="group" aria-label="Choose a day" data-i18n-attr="aria-label:person.date.group">
           <button type="button" class="btn btn-tiny" id="person-prev" aria-label="Previous day" data-i18n-attr="aria-label:person.date.prev">&#8249;</button>
           <input type="date" id="person-date" aria-label="Day" data-i18n-attr="aria-label:person.date.pick">
           <button type="button" class="btn btn-tiny" id="person-next" aria-label="Next day" data-i18n-attr="aria-label:person.date.next">&#8250;</button>
           <button type="button" class="btn btn-tiny" id="person-today" data-i18n="person.date.today">Today</button>
         </div>
-        <p class="person-hint" data-i18n="person.date.hint">Arrow keys change the day.</p>
-        <div id="person-status" class="person-status" role="status" aria-live="polite"></div>
-        <div id="person-actions" class="person-actions" role="group" aria-label="Actions" data-i18n-attr="aria-label:person.act.group"></div>
+        <p class="person-hint person-keys-hint" data-i18n="person.date.hint">Arrow keys change the day.</p>
         <div id="person-body" class="person-body"></div>
       </section>

@@ -86,21 +86,21 @@ async def test_js_guess_matches_the_server_guess(page, base_url):
     assert got == [guess_place_kind(n) for n in names]
 
 
-async def test_box_is_ticked_by_default_and_disabled_with_a_reason_when_nothing_is_connected(
+async def test_box_stays_ticked_and_says_the_alert_is_off_when_nothing_is_connected(
     page, base_url, ui_env
 ):
     with channels(ui_env):
         sent = await _capture_post(page)
         await open_add_dialog(page, base_url)
         box = page.locator("#fp-place-notify")
-        assert await box.is_disabled() and not await box.is_checked()
-        assert "Connect Telegram, WhatsApp or a webhook" in await page.inner_text(
-            "#fp-place-notify-line"
+        assert await box.is_checked() and not await box.is_disabled()
+        assert "saved but stays off until you connect Telegram, WhatsApp or a webhook" in (
+            await page.inner_text("#fp-place-notify-line")
         )
         await page.fill("#fp-place-name", "Notify None")
         await page.get_by_role("button", name="Save", exact=True).click()
         await page.wait_for_function("() => !document.getElementById('fp-place-dialog').open")
-        assert sent[0]["notify"] is False
+        assert sent[0]["notify"] is True
         assert await page.locator("#fp-add-rule-dialog[open]").count() == 0, (
             "no second dialog by itself"
         )

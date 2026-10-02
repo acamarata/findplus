@@ -59,6 +59,7 @@ async function apply(accept, dismiss = []) {
     const n = out.people.length;
     message = n ? { text: plural("people.panel.accepted", n, { n }), kind: "ok" } : { text: t("people.panel.dismissed"), kind: "ok" };
     await refreshPeopleCache();
+    if (n) import("./people_replay.js").then((r) => r.watchReplay()).catch(() => {});
     import("./groups.js").then((m) => m.loadGroups()).catch(() => {});
     hosts.forEach((h) => h.onChange && h.onChange());
   } catch (err) {
@@ -106,7 +107,7 @@ function footer() {
 function recheckButton() {
   const b = el("button", "btn-secondary btn-tiny ps-recheck", t("people.panel.recheck"));
   b.type = "button";
-  b.addEventListener("click", async () => { b.disabled = true; b.textContent = t("people.panel.rechecking"); await load(); });
+  b.addEventListener("click", async () => { message = { text: "", kind: "" }; b.disabled = true; b.textContent = t("people.panel.rechecking"); await load(); });
   return b;
 }
 
@@ -121,11 +122,16 @@ function fill(host, wizard) {
   const hidden = !wizard && count() > 0 && readHidden() === sigOf();
   if (count() === 0 || hidden) {
     section.classList.add("ps-compact");
+    const said = message.text && !hidden;
     if (hidden) {
       const show = el("button", "btn-secondary btn-tiny", t("people.panel.show", { n: data.suggestions.length || data.unassigned.length }));
       show.type = "button"; show.addEventListener("click", () => { writeHidden(null); render(); });
       section.appendChild(show);
-    } else section.appendChild(el("p", "person-hint", t("people.panel.empty")));
+    } else {
+      const note = el("p", "person-hint", said ? message.text : t("people.panel.empty"));
+      if (said) note.setAttribute("role", "status");
+      section.appendChild(note);
+    }
     section.appendChild(recheckButton());
     host.replaceChildren(section);
     return;

@@ -35,9 +35,20 @@ export function guessKind(name) {
   return "other";
 }
 
-/** The hint under the select: why Home matters, or that the kind was a guess. */
-export function syncKindHint(field) {
-  field.hint.textContent = t(field.select.value === "home" ? "places.kind.homeHint" : "places.kind.hint");
+/**
+ * The hint under the select: why Home matters, or that the kind was guessed.
+ * "Guessed from the name" is only said once a name was typed and the guess found a kind
+ * (UAT 11: it used to show on an empty dialog, before there was a name to guess from).
+ */
+export function syncKindHint(field, guessed = false) {
+  const home = field.select.value === "home";
+  field.hint.textContent = home ? t("places.kind.homeHint") : guessed ? t("places.kind.hint") : "";
+  field.hint.hidden = !field.hint.textContent;
+}
+
+/** True when `name` is typed and the guess picked a real kind, so the note is honest. */
+export function guessedFrom(name) {
+  return String(name || "").trim() !== "" && guessKind(name) !== "other";
 }
 
 /** `{wrap, select, hint}`; `select.dataset.touched` becomes "1" once the owner picks. */
@@ -64,5 +75,6 @@ export function buildKindField() {
   wrap.append(row, hint);
   const field = { wrap, select, hint };
   select.addEventListener("change", () => { select.dataset.touched = "1"; syncKindHint(field); });
+  field.hint.hidden = true;
   return field;
 }

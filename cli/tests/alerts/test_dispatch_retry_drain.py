@@ -33,9 +33,11 @@ def test_retry_drain_is_bounded_per_cycle(rule_row, session, settings_enabled):
         # observed_at must be distinct: location_observations is unique on
         # (device_id, observed_at, lat, lon).
         _seed_pending_place_event(session, place_id=1, observed_at=NOW + timedelta(seconds=i))
+    # The per-chat burst limit (uat116 #1) is not what this test is about.
     with (
         patch("findplus.alerts.store.load_alerts", return_value=_telegram_configured()),
         patch("findplus.alerts.channels.telegram.send", return_value=_timeout()),
+        patch("findplus.alerts.dispatch_gate.BURST_LIMIT", 10_000),
     ):
         process(load_pending_events(session), session, settings_enabled, now=NOW)
 

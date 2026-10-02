@@ -30,6 +30,7 @@ from . import (
     cmd_history,
     cmd_service,
     cmd_setup,
+    places_suggest,  # noqa: F401  (registers `places suggest`)
 )
 from .alerts import alerts_cmd
 from .cmd_day import day_cmd, digest_cmd

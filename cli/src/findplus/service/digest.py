@@ -16,7 +16,8 @@ Constraints: Sends while the app is locked, like alerts do: the lock protects
              failed send is retried once on the next tick, then recorded as
              failed. A crash mid-send is never resent: the claim row stays.
              Statuses: sending, sent, skipped, retry, failed. `sent_at` is the
-             time of the last attempt.
+             time of the last attempt. By default the whole family goes in one
+             message per chat (service/digest_combined.py).
 """
 
 from __future__ import annotations
@@ -135,6 +136,10 @@ class DigestScheduler:
     def _run_people(self, prefs, creds, day, tz, now) -> list[Outcome]:
         with session_scope() as s:
             ids = [(g.id, g.name) for g in _people(s, prefs)]
+        if prefs.get("combined", True):
+            from findplus.service.digest_combined import run_combined
+
+            return run_combined(self, [i for i, _ in ids], prefs, creds, day, tz, now)
         out: list[Outcome] = []
         for group_id, _name in ids:
             out += self._one_person(group_id, prefs, creds, day, tz, now)

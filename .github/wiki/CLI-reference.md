@@ -499,6 +499,7 @@ Show or change the evening summary (off until you turn it on).
 | --all-people |  | Send for every person and pet. |
 | --channel |  |  |
 | --always-send |  | Also send on a day with nothing tracked. |
+| --combined |  | One message for everyone (default), or one message per person. |
 | --json |  | Output JSON. |
 
 ## findplus people list
@@ -597,6 +598,18 @@ Delete a place. Requires --yes.
 | option | default | help |
 |---|---|---|
 | --yes |  | Confirm removal. |
+
+## findplus places suggest
+List places Find+ noticed from long stays (nothing is saved).
+
+**Usage:** `findplus places suggest [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --days | 30 |  |
+| --timezone |  | IANA zone; default is this computer's. |
+| --date |  | Last local day to look at (YYYY-MM-DD). |
+| --json |  | Output JSON. |
 
 ## findplus poll-now
 Run a single Find Hub poll immediately.

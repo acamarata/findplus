@@ -151,3 +151,29 @@ input[type=time] {
 .person-line-text { display: block; }
 .person-line-via { display: block; margin-top: 1px; color: var(--muted); font-size: 12px; }
 .ps-head .btn-secondary { white-space: nowrap; flex: 0 0 auto; }
+
+/* The person editor (person_editor.js): a person's name, kind, icon, colour and trackers. */
+#fp-person-dialog { max-width: 460px; max-height: calc(100vh - 32px); overflow-y: auto; }
+#fp-person-dialog fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 10px 0; padding: 6px 10px; }
+#fp-person-dialog legend { color: var(--muted); font-size: 13px; padding: 0 4px; }
+#fp-person-dialog .pe-kind { display: flex; gap: 16px; }
+.pe-row { margin: 6px 0; }
+.pe-extra { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 4px 24px; }
+.pe-extra .pe-weight { width: 10em; }
+
+/* The Person page scrolls inside its pane: a soft shadow at the top or bottom edge says there is more. */
+.person-view .timeline-pane {
+  background:
+    linear-gradient(var(--panel) 30%, transparent) top / 100% 28px no-repeat local,
+    linear-gradient(transparent, var(--panel) 70%) bottom / 100% 28px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, rgba(0, 0, 0, .28), transparent) top / 100% 10px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, .28), transparent) bottom / 100% 10px no-repeat scroll,
+    var(--panel);
+}
+/* Arrow keys need a keyboard: on a touch screen the hint is noise. */
+@media (hover: none), (pointer: coarse) { .person-keys-hint { display: none; } }
+
+/* "Updating past days..." (people_replay.js): a small status pill, never over the controls. */
+.fp-replay { position: fixed; left: 16px; bottom: 16px; z-index: 40; margin: 0; max-width: calc(100vw - 32px);
+  padding: 8px 12px; border-radius: 999px; background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--line-strong); font-size: 13px; box-shadow: 0 6px 18px rgba(0, 0, 0, .3); }

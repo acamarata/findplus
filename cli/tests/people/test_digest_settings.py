@@ -17,7 +17,14 @@ from findplus.state import set_setting
 
 from ._digest_helpers import seed_school_day
 
-DEFAULT = {"enabled": False, "time": "20:00", "people": [], "channel": "auto", "always_send": False}
+DEFAULT = {
+    "enabled": False,
+    "time": "20:00",
+    "people": [],
+    "channel": "auto",
+    "always_send": False,
+    "combined": True,
+}
 
 
 def test_default_is_off(client):

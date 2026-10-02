@@ -13,12 +13,14 @@
    under two ids while both held uncommitted hunks here; this is the merge the
    comment there asked the epic landing last to do (T0 relay, 2026-09-20). */
 #fp-group-dialog,
+#fp-person-dialog,
 #fp-device-dialog,
 #fp-place-dialog {
   background: var(--panel); color: var(--text); border: 1px solid var(--line);
   border-radius: 12px; padding: 18px 20px; min-width: 320px; max-width: 420px;
 }
 #fp-group-dialog::backdrop,
+#fp-person-dialog::backdrop,
 #fp-device-dialog::backdrop,
 #fp-place-dialog::backdrop { background: rgba(5,8,13,.72); }
 /* UAT2 N11: style.css's global `h2` rule uppercases every h2 including this
@@ -28,6 +30,7 @@
    they looked disabled. Every dialog title is a --text heading now, the same
    as the Devices and Settings modals (style.css .modal-head h2). */
 #fp-group-dialog h2,
+#fp-person-dialog h2,
 #fp-device-dialog h2,
 #fp-place-dialog h2,
 #fp-add-rule-dialog h2 {
@@ -37,6 +40,7 @@
 /* UAT6-N24: the action row sits right like the wizard's footer, primary last
    (rightmost). Every dialog builds [Save][Cancel], so row-reverse does it. */
 #fp-group-dialog footer,
+#fp-person-dialog footer,
 #fp-device-dialog footer,
 #fp-place-dialog footer,
 #fp-add-rule-dialog footer {
@@ -50,6 +54,9 @@
    UAT U3: #fp-place-dialog had NO rule here at all (a browser-default white
    strip across the dark map) -- folded into the same selector list. */
 #fp-group-dialog input[type="text"],
+#fp-person-dialog input[type="text"],
+#fp-person-dialog input[type="number"],
+#fp-person-dialog select,
 #fp-group-dialog input[type="number"],
 #fp-group-dialog select,
 #fp-device-dialog input[type="text"],

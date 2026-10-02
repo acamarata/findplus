@@ -58,3 +58,12 @@ def _isolate_bind_env_vars() -> None:
             os.environ.pop("FINDPLUS_HOST", None)
         else:
             os.environ["FINDPLUS_HOST"] = before_host
+
+
+@pytest.fixture(autouse=True)
+def _replay_on_this_thread(monkeypatch) -> None:
+    """Saving a place or accepting people replays past days (people/replay.py).
+    In tests it runs on the calling thread, so no replay outlives its test
+    database or races the assertions that follow."""
+    monkeypatch.setenv("FINDPLUS_REPLAY_SYNC", "1")
+    yield

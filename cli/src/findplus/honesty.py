@@ -55,7 +55,10 @@ WHATSAPP_SETUP = (
     "replies with an API key within about two minutes. Paste it below."
 )
 
-ALERTS_LOCKED = "Notifications are held while Find+ is locked. Unlock to see what you missed."
+ALERTS_LOCKED = (
+    "Desktop notifications on this computer are held while Find+ is locked; unlock to see "
+    "what you missed. Telegram, WhatsApp and webhook alerts and daily summaries are still sent."
+)
 
 NATIVE_GENERIC = (
     'By default, macOS notifications show a generic "Find+ alert" instead of who or '

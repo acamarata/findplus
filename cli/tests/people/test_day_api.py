@@ -24,7 +24,7 @@ def test_day_shape_and_lines(client):
     body = resp.json()
     assert set(body) == {
         "person", "date", "timezone", "now", "heading", "lines", "left_behind", "suspect_count",
-        "suspect_text", "gaps", "trackers", "lead_device_id", "empty", "label",
+        "suspect_text", "held_count", "gaps", "trackers", "lead_device_id", "empty", "label",
     }  # fmt: skip
     assert body["person"] == {"id": pid, "name": "Sam"} and body["date"] == "2026-09-21"
     assert body["timezone"] == "UTC" and body["now"] is None  # a past day has no "now"

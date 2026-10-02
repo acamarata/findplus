@@ -39,6 +39,8 @@ def t(key: str, **values: object) -> str:
             raise KeyError(f"people.{key} is missing from web/locales/en.json")
         node = node[part]
     text = str(node)
+    if str(values.get("name", "")).endswith("s"):
+        text = text.replace("{name}'s", "{name}'")  # "Whiskers' day", not "Whiskers's"
     for name, value in values.items():
         text = text.replace("{" + name + "}", str(value))
     return text
@@ -49,12 +51,20 @@ def role_word(role: str | None) -> str:
     return t(f"role.{role or 'other'}")
 
 
-def fmt_time(value: datetime.datetime) -> str:
-    """ "Sep 26, 4:12 PM EDT" in the machine's zone, the delivery log's format."""
+def fmt_time(value: datetime.datetime, now: datetime.datetime | None = None) -> str:
+    """ "Sep 26, 4:12 PM EDT" in the machine's zone, the delivery log's format.
+
+    With `now` (the send instant) and the same local day: just "4:12 PM". A
+    message read the same day needs no date or zone (uat116 #14).
+    """
     from findplus.alerts import dispatch_core
 
-    aware = dispatch_core.as_utc(value)
-    return dispatch_core._fmt_local_time(aware.astimezone(dispatch_core.local_zone()))
+    zone = dispatch_core.local_zone()
+    local = dispatch_core.as_utc(value).astimezone(zone)
+    if now is not None and dispatch_core.as_utc(now).astimezone(zone).date() == local.date():
+        hour = local.hour % 12 or 12
+        return f"{hour}:{local.minute:02d} {'AM' if local.hour < 12 else 'PM'}"
+    return dispatch_core._fmt_local_time(local)
 
 
 def fmt_age(minutes: int) -> str:

@@ -248,6 +248,10 @@
       "untracked": {
         "one": "1 member is not tracked, so Find+ never checks it.",
         "other": "{count} members are not tracked, so Find+ never checks them."
+      },
+      "trackers": {
+        "one": "1 tracker",
+        "other": "{count} trackers"
       }
     },
     "confirm": {
@@ -439,14 +443,15 @@
       "sentTo": "Sent to {channel}.",
       "pick": "Send to",
       "all": "Every connected channel",
-      "none": "Connect Telegram, WhatsApp or a webhook in the Alerts tab to get these. You can add the alert later with Notify me.",
+      "none": "Nothing is connected yet. The alert is saved but stays off until you connect Telegram, WhatsApp or a webhook in the Alerts tab.",
       "native": "Shown as a notification on this computer.",
       "unknown": "Find+ picks the channel for you.",
       "on": "Alerts are on for {place}: {channels}.",
       "onPlain": "Alerts are on for {place}.",
       "customise": "Customise",
       "customiseIntro": "Anyone arriving at or leaving {place} already sends a message. Change where it goes or when.",
-      "noneWizard": "Nothing is connected yet. Connect Telegram on the Notifications step, then press Notify me on the Places tab to add these alerts."
+      "noneWizard": "Nothing is connected yet. The alert is saved but stays off until you connect Telegram on the Notifications step.",
+      "savedOff": "Saved an alert for {place}, switched off until a channel is connected."
     },
     "backfill": {
       "text": {
@@ -467,6 +472,41 @@
       },
       "failed": "Could not add alerts: {message}",
       "previewFailed": "Could not check which places need alerts: {message}"
+    },
+    "noticed": {
+      "heading": "We noticed these places",
+      "lead": "These are spots where a tracker stayed a while. Find+ only guesses what they are. Nothing is saved until you name one.",
+      "guess": {
+        "home": "Home?",
+        "school_or_work": "School or work?",
+        "regular": "Regular stop"
+      },
+      "visits": {
+        "one": "1 visit",
+        "other": "{count} visits"
+      },
+      "onDays": {
+        "one": "on 1 day",
+        "other": "on {count} days"
+      },
+      "usually": "usually {from} to {to} {days}",
+      "days": {
+        "weekdays": "on weekdays",
+        "weekends": "on weekends",
+        "every_day": "on most days"
+      },
+      "nights": {
+        "one": "1 night there",
+        "other": "{count} nights there"
+      },
+      "seenBy": "Seen by {names}",
+      "nameIt": "Name it",
+      "notAPlace": "Not a place",
+      "save": "Save place",
+      "saved": "Saved {name}.",
+      "failed": "Could not save: {message}",
+      "mapLabel": "Map of this spot, {lat}, {lon}",
+      "notEnough": "Find+ needs a few days of sightings to suggest places."
     }
   },
   "alerts": {
@@ -812,7 +852,15 @@
       "where_title": "Where to find things",
       "where_native": "The F+ icon in your menu bar shows Find+'s status. Choose Open Dashboard to see the map.",
       "where_web": "Open Find+ any time at {url}.",
-      "where_settings": "Settings (under More on a phone) holds sign-in, polling, app lock and Run setup again."
+      "where_settings": "Settings (under More on a phone) holds sign-in, polling, app lock and Run setup again.",
+      "peopleCount": {
+        "one": "1 person",
+        "other": "{n} people"
+      },
+      "groupsCount": {
+        "one": "1 group",
+        "other": "{n} groups"
+      }
     },
     "welcome": {
       "title": "See where your trackers are, privately",
@@ -854,12 +902,13 @@
       "go_signin": "Back to sign-in"
     },
     "groups": {
-      "title": "Groups (optional)",
+      "title": "People and groups",
       "lead": "Combine devices into a group to see them together on the map and set alerts for the whole group.",
       "name_placeholder": "Group name",
       "add": "Add",
       "no_devices": "No tracked devices to add yet. Go back to Devices to track one first.",
-      "skip_hint": "Most people skip this. You can make groups any time from the Groups tab."
+      "skip_hint": "Most people skip this. You can make groups any time from the Groups tab.",
+      "groups_title": "Groups (optional)"
     },
     "places": {
       "title": "Places (optional)",
@@ -876,7 +925,7 @@
       "whatsapp": "WhatsApp",
       "native": "Notifications",
       "connect": "Connect",
-      "configure_later": "Configure from the Alerts tab after finishing setup.",
+      "configure_later": "A webhook sends each alert to a web address you choose. You set it up in the Alerts tab, which opens when you finish.",
       "enable": "Enable notifications",
       "permission_granted": "Notifications are on.",
       "permission_denied": "Notifications are off. You can turn them on in your system settings.",
@@ -915,7 +964,7 @@
       "welcome": "Welcome",
       "signin": "Connect your accounts",
       "devices": "Choose devices",
-      "groups": "Groups",
+      "groups": "People and groups",
       "places": "Places",
       "notifications": "Notifications",
       "applock": "App lock",
@@ -1286,7 +1335,7 @@
       "aba_teleport": "This sighting looks wrong: it jumps far away and back within minutes. Left out of stays, trips and alerts.",
       "impossible_speed": "This sighting looks wrong: it implies a speed no tracker travels. Left out of stays, trips and alerts.",
       "edge_stray": "This sighting looks wrong: it is far from the sightings around it. Left out of stays, trips and alerts.",
-      "jump_unconfirmed": "This sighting jumped far and nothing has confirmed it yet. It is held back until the next sighting arrives.",
+      "jump_unconfirmed": "This sighting is far from the one before. It is waiting for a second sighting to confirm it, and is left out until then.",
       "sibling_disagree": "This sighting looks wrong: the person's other trackers agree on a place far from here, and this tracker has not backed it up. Left out of stays, trips and alerts.",
       "low_accuracy": "The network could only place this sighting within a wide area.",
       "clock_skew": "The time on this sighting is later than when it was received."
@@ -1312,7 +1361,9 @@
       "probablyOnly": "(probably; only the {what} reported)",
       "leftBehind": "{name}'s {what} looks left at {place}. Last seen there at {time}.",
       "leftBehindPerson": "{name} was last seen near {place} at {time} ({tracker}).",
-      "unnamedSpot": "an unnamed spot"
+      "unnamedSpot": "an unnamed spot",
+      "burstOne": "1 more arrival or departure happened earlier: open Find+ to see it.",
+      "burstMore": "{count} more arrivals and departures happened earlier: open Find+ to see them."
     },
     "now": {
       "likelyAt": "Likely at {place}, seen {age} ago ({trackers}).",
@@ -1343,7 +1394,8 @@
     },
     "notify": {
       "ruleName": "Arrivals and departures at {place}",
-      "connectTelegram": "Connect Telegram to get these."
+      "connectTelegram": "Connect Telegram to get these.",
+      "onlyNew": "Only new arrivals and departures will be sent. History is not sent."
     },
     "role": {
       "phone": "phone",
@@ -1365,6 +1417,7 @@
     "day": {
       "heading": "{name}'s day",
       "headingDate": "{name}'s day, {date}",
+      "familyHeading": "Everyone's day, {date}",
       "overnight": "Overnight at {place}",
       "noSightingsUntil": "No sightings until {time}",
       "left": "{time} left {place}",
@@ -1372,6 +1425,7 @@
       "atFrom": "At {place} from {time}",
       "stay": "{range} at {where}",
       "gap": "No sightings {range}.",
+      "gapAt": "Still at {place}, nothing new from {range}.",
       "stayedBehind": "{what} stayed at {place} from {time}.",
       "stayedBehindUntil": "{what} stayed at {place} from {time} until {until}.",
       "stillAt": "Still at {place} (seen {time})",
@@ -1384,6 +1438,10 @@
       "andMore": "{names} and {n} more",
       "suspectOne": "1 sighting looked wrong and was left out.",
       "suspectMany": "{n} sightings looked wrong and were left out.",
+      "heldOne": "1 sighting is waiting for a second sighting to confirm it.",
+      "heldMany": "{n} sightings are waiting for a second sighting to confirm them.",
+      "pendingAt": "Probably at {place} (waiting to confirm)",
+      "pendingSpot": "an unnamed spot",
       "empty": "No sightings for {name} on this day.",
       "range": "{start} to {end}",
       "digestOff": "The daily summary is off.",
@@ -1417,8 +1475,8 @@
         "other": "{n} more need your answer first."
       },
       "accepted": {
-        "one": "Added 1 person.",
-        "other": "Added {n} people."
+        "one": "Created 1 person.",
+        "other": "Created {n} people."
       },
       "dismissed": "Got it. Find+ will not suggest that again.",
       "failed": "Could not save: {message}",
@@ -1442,6 +1500,11 @@
         "other": "Find+ found {n} people in your trackers."
       },
       "review": "Review"
+    },
+    "replay": {
+      "running": "Updating past days...",
+      "progress": "Updating past days... {done} of {total}",
+      "done": "Past days are up to date."
     }
   },
   "person": {
@@ -1587,6 +1650,31 @@
       "backupFailed": "Could not back up: {message}",
       "backupLoadFailed": "Could not read the backup status: {message}",
       "backupNote": "A backup holds your history, places and groups, never your sign-ins or tokens."
+    },
+    "edit": {
+      "title": "Edit {name}",
+      "kind": "This is a",
+      "role": "Role",
+      "members": "Trackers",
+      "membersHint": "Tick the trackers that travel with this one. Say what each one is, and how much to trust it.",
+      "belongsTo": "With {name}",
+      "noDevices": "No tracked devices yet.",
+      "needOne": "Pick at least one tracker."
+    },
+    "notify": {
+      "title": "Tell me when {name} arrives or leaves?",
+      "lead": "Find+ will add an arrival and departure alert to each place that has none. It covers {name} and everyone else.",
+      "already": "Alerts are already on. You will hear when {name} arrives or leaves a place.",
+      "noPlaces": "Add a place first, such as Home or School. Then Find+ can tell you when {name} gets there.",
+      "done": {
+        "one": "Added alerts to 1 place. You will hear when {name} arrives or leaves.",
+        "other": "Added alerts to {n} places. You will hear when {name} arrives or leaves."
+      },
+      "failed": "Could not turn on alerts: {message}"
+    },
+    "head": {
+      "onDate": "On {date}",
+      "onDateLast": "On {date}: {last}"
     }
   },
   "honesty": {
@@ -1597,7 +1685,7 @@
     "lockNotEncryption": "The app lock stops casual browsing. It does not encrypt the database; anyone with access to this user account or the disk can read it. Use FileVault.",
     "whatsappRelay": "WhatsApp alerts are relayed through CallMeBot, a third-party free service. Your alert text transits CallMeBot's servers before reaching WhatsApp. Delivery is best-effort with no guarantee. Find+ is not affiliated with WhatsApp, Meta or CallMeBot.",
     "whatsappSetup": "To connect WhatsApp: add +34 623 91 22 04 to your phone's contacts, then send it the message \"I allow callmebot to send me messages\" from your own WhatsApp. CallMeBot replies with an API key within about two minutes. Paste it below.",
-    "alertsLocked": "Notifications are held while Find+ is locked. Unlock to see what you missed.",
+    "alertsLocked": "Desktop notifications on this computer are held while Find+ is locked; unlock to see what you missed. Telegram, WhatsApp and webhook alerts and daily summaries are still sent.",
     "nativeGeneric": "By default, macOS notifications show a generic \"Find+ alert\" instead of who or where, because notification banners can appear on a locked screen. Turn on notification details in Settings to show the person and place. Anyone who can see the screen then sees the same thing.",
     "notAffiliated": "Find+ is not affiliated with Apple or Google. Find Hub and Find My are their trademarks.",
     "chromeRequired": "Google Chrome was not found on this machine. Google sign-in drives Chrome directly and cannot run without it. Install it from https://www.google.com/chrome/ and try again.",

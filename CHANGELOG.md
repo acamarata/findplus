@@ -27,6 +27,25 @@ Versioning: [Semantic Versioning](https://semver.org/).
   its accuracy and half the radius (at least 50 m), confirmed as many times as the place asks. Find+
   recommends a radius of at least 100 m.
 
+## [1.1.6] - Unreleased
+
+### Added
+- People and pets. Find+ suggests people from tracker names ("Zaid Bag", "Zaid Bike", "Zaid Shoes
+  Red" become Zaid), always as a preview you accept, edit or dismiss; one-word names ask "person or
+  pet?" and nameless trackers ask "Whose is this?". `GET /api/people/suggestions`,
+  `findplus people suggest|accept|list|set-role`, and MCP tools to match.
+- Where a person probably is, from the trackers that are actually carried, in plain words: likely,
+  probably, not sure, or no recent sightings (`GET /api/people/{id}/now`).
+- One alert per person crossing, naming the tracker that saw it: "Zaid just arrived at Grandma's"
+  only when the sighting is under 10 minutes old, otherwise the time.
+- Left-behind trackers: "Zaid's bag looks left at School", once per episode, never at Home.
+- Every new place gets an arrive and leave rule for everyone on your connected channel;
+  `POST /api/places/notify-defaults` adds it to existing places, with a dry run first.
+- Places have a kind (home, school, work, family, shop, other), guessed from the name.
+
+### Changed
+- A tracker belongs to at most one person; adding it to a second one is refused with 409.
+
 ## [1.1.5] - 2026-10-01
 
 ### Added

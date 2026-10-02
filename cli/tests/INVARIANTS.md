@@ -11,7 +11,7 @@ A failing test in the Tests column is a regression, not a flaky test.
 | I2 | `observed_at` ≠ `fetched_at`. Timelines use `observed_at`; the UI shows both plus the lag. | `test_timestamps.py::test_observed_and_fetched_are_independent` |
 | I3 | Coordinates stored as integer 1e-7 degrees. | `test_timestamps.py::test_coordinates_round_trip_at_full_precision` |
 | I4 | All timestamps stored naive-UTC via a `UtcDateTime` TypeDecorator that raises on naive input. Day boundaries are local midnight to next local midnight (23 h / 25 h on DST days, tested). | `test_timestamps.py::test_naive_datetimes_are_rejected`, `test_timeline.py::test_spring_forward_day_is_23_hours`, `test_timeline.py::test_fall_back_day_is_25_hours` |
-| I5 | Timelines are never merged across devices. | `test_multi_device_api.py::test_tracks_are_never_merged_across_devices` |
+| I5 | Timelines are never merged across devices. A person summary may cite several trackers but its position is one tracker's own fix. | `test_multi_device_api.py::test_tracks_are_never_merged_across_devices`, `people/test_infer.py::test_lat_lon_are_the_lead_trackers_own_fix_never_an_average` |
 | I6 | No interpolation, ever. A detection gap is drawn as a gap. | `test_timeline.py::test_no_interpolation_across_a_gap` |
 | I7 | Distance is labelled "Approximate distance between observed locations" everywhere, including exports. | `test_api.py::test_timeline_stats_label_distance_as_approximate` (timeline stats), `test_exports.py::test_every_export_that_carries_a_distance_labels_it_approximate` (CSV, JSON, KML), `test_exports.py::test_csv_distance_column_says_it_is_approximate` |
 | I8 | Movement filtering annotates, never deletes (`is_movement` at read time). | `test_timeline.py::test_jitter_below_threshold_is_flagged_but_retained` |
@@ -29,6 +29,18 @@ A failing test in the Tests column is a regression, not a flaky test.
 | A tracker belongs to at most one person or pet (0013 triggers). | `test_migration_0013_guards.py::test_a_second_person_for_one_tracker_is_rejected`, `test_migration_0013_guards.py::test_moving_a_membership_into_a_second_person_is_rejected`, `test_migration_0013_guards.py::test_turning_a_set_into_a_person_is_rejected_on_overlap`, `test_migration_0013_guards.py::test_triggers_exist_at_head` |
 | Quality flags live beside observations; raw rows never change (I8). | `test_migration_0013.py::test_new_tables_cascade_from_their_parents` |
 | Downgrade then upgrade keeps every row; re-running at head is a no-op. | `test_migration_0013_guards.py::test_downgrade_then_upgrade_round_trips`, `test_migration_0013_guards.py::test_findplus_db_upgrade_is_idempotent_at_head` |
+
+## People guards (1.1.6)
+
+| Guard | Tests |
+|---|---|
+| A stale tracker is never placed; stale data never claims certainty. | `people/test_infer.py::test_stale_data_never_claims_certainty`, `people/test_infer.py::test_phone_dies_watch_still_places_the_person_and_the_text_names_the_phone` |
+| Nothing is grouped without a click; a tracker in a person is never moved. | `people/test_naming.py::test_preview_writes_nothing`, `people/test_naming.py::test_a_tracker_already_in_a_person_is_never_moved` |
+| One person crossing is one event and one message. | `people/test_dispatch_people.py::test_four_trackers_crossing_grandmas_send_one_message`, `people/test_dispatch_people.py::test_all_people_rule_suppresses_the_device_rules_of_that_persons_trackers` |
+| "Just" only under 10 minutes; every person alert ends with alerts_latency verbatim. | `people/test_dispatch_people.py::test_late_report_says_the_time_not_just`, `people/test_dispatch_people.py::test_four_trackers_crossing_grandmas_send_one_message` |
+| `unsure` and suspect sightings never move a person; late reports never rewrite state. | `people/test_scenarios_left_behind.py::test_sibling_carries_the_bag_gives_no_person_exit`, `people/test_quality_seam.py::test_suspect_jump_never_moves_the_person`, `people/test_scenarios_day.py::test_a_late_older_report_never_moves_person_state` |
+| Left-behind alerts once, never at Home. | `people/test_dispatch_people.py::test_left_behind_alerts_once_away_from_home` |
+| Every people route 401s while locked. | `people/test_people_api.py::test_every_people_route_401s_while_locked` |
 
 ## Honesty Sentences
 

@@ -31,6 +31,7 @@ TAG_ORDER = [
     "history",
     "places",
     "groups",
+    "people",
     "alerts",
     "providers",
     "auth",

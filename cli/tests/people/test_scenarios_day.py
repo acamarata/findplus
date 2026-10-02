@@ -106,3 +106,18 @@ def test_a_late_older_report_never_moves_person_state(session):
     Timeline().add("zr", GRANDMA, at(3, 0)).add("zb", GRANDMA, at(3, 1)).ingest(session)
     assert person_events(session, zaid.id) == before
     assert session.get(PersonPlaceState, (zaid.id, 1)).state == "inside"
+
+
+def test_two_people_arriving_together_get_one_event_each(session):
+    seed_places(session)
+    zaid = seed_person(session)
+    amirah = seed_person(session, "Amirah", {"am": "Amirah"})
+    tl = Timeline()
+    overnight(tl, ["zr", "zb", "zk", "zw", "am"], end=at(9, 0))
+    tl.walk(["zr", "zb", "zk", "zw", "am"], HOME, GRANDMA, at(9, 0), at(9, 40))
+    tl.ingest(session)
+    for person in (zaid, amirah):
+        assert [(t, p) for t, p, _ in person_events(session, person.id)] == [
+            ("EXIT", "Home"),
+            ("ENTER", "Grandma's"),
+        ]

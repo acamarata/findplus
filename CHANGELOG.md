@@ -6,7 +6,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [1.1.6] - Unreleased
+## [1.1.6] - 2026-10-02
 
 ### Added
 - Sightings that look wrong are caught and left out of stays, trips and alerts: a tracker that

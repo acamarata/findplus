@@ -34,3 +34,26 @@ def test_the_control_life_is_almost_never_flagged() -> None:
     fixes, _ = stream(SEED, ROWS)
     flagged = _suspects(fixes)
     assert len(flagged) / ROWS < 0.005, f"false flags {len(flagged) / ROWS:.3%}"
+
+
+def _scan_voucher(fix, i, ordered, times, trusted, sib_index):
+    """The first rescue's linear scan, kept as the reference for the bisect one."""
+    from findplus.quality import rules as r
+
+    for j, other in enumerate(ordered):
+        near = r.seconds(fix, other) <= r.RESCUE_OWN_WINDOW_S
+        if j != i and trusted[j] and near and r.is_corroborating(fix, other):
+            return other, True
+    return None, False
+
+
+def test_rescue_by_bisect_matches_a_full_scan(monkeypatch) -> None:
+    """Review #7: the voucher bisects instead of scanning; the verdicts are identical."""
+    from findplus.quality import score
+
+    fixes, _ = stream(7, 4_000, 400)
+    later = fixes[-1].t + timedelta(days=1)
+    fast = score_series(fixes, now=later)
+    monkeypatch.setattr(score, "_voucher", _scan_voucher)
+    assert score_series(fixes, now=later) == fast
+    assert any(s.corroborated_by for s in fast.values())

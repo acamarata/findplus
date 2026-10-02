@@ -14,6 +14,7 @@ Constraints: A score is the product of the reason factors (own reports x 1.1,
 
 from __future__ import annotations
 
+from bisect import bisect_left, bisect_right
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -126,16 +127,22 @@ def _voucher(
     fix: Fix,
     i: int,
     ordered: Sequence[Fix],
+    times: Sequence[float],
     trusted: Sequence[bool],
     sib_index: Sequence[tuple[list[float], list[Fix]]],
 ) -> tuple[Fix | None, bool]:
-    """(voucher, is_own_tracker) for a suspect fix, or (None, False)."""
-    for j, other in enumerate(ordered):
-        near_in_time = r.seconds(fix, other) <= r.RESCUE_OWN_WINDOW_S
-        if j != i and trusted[j] and near_in_time and r.is_corroborating(fix, other):
-            return other, True
-    for times, fixes in sib_index:
-        other = r.nearest_in_time(times, fixes, fix)
+    """(voucher, is_own_tracker) for a suspect fix, or (None, False).
+
+    Own fixes are found by bisecting `times` (the timestamps of `ordered`), so
+    rescue costs O(log n) per suspect, not a scan of the whole series.
+    """
+    lo = bisect_left(times, times[i] - r.RESCUE_OWN_WINDOW_S)
+    hi = bisect_right(times, times[i] + r.RESCUE_OWN_WINDOW_S)
+    for j in range(lo, hi):
+        if j != i and trusted[j] and r.is_corroborating(fix, ordered[j]):
+            return ordered[j], True
+    for sib_times, fixes in sib_index:
+        other = r.nearest_in_time(sib_times, fixes, fix)
         near_in_time = other and r.seconds(fix, other) <= r.RESCUE_SIBLING_WINDOW_S
         if near_in_time and r.is_corroborating(fix, other):
             return other, False
@@ -167,10 +174,11 @@ def score_series(
 def _rescue(ordered, reasons, trusted, sib_index, result: dict[int, Scored]) -> None:
     """Rescue suspect fixes a trusted neighbour vouches for (mutates `result`)."""
     index = {f.id: i for i, f in enumerate(ordered)}
+    times = [f.t.timestamp() for f in ordered]
     for i, fix in enumerate(ordered):
         if trusted[i]:
             continue
-        voucher, own = _voucher(fix, i, ordered, trusted, sib_index)
+        voucher, own = _voucher(fix, i, ordered, times, trusted, sib_index)
         if voucher is None:
             continue
         old = result[fix.id]

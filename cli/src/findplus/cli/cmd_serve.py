@@ -171,7 +171,9 @@ def _print_banner(bind_host: str, bind_port: int, settings, no_poller: bool) -> 
     click.echo(f"Polling   : {cadence}")
 
 
-def _start_uvicorn(bind_host: str, bind_port: int, settings) -> tuple[Any, threading.Thread]:
+def _start_uvicorn(
+    bind_host: str, bind_port: int, settings, sessions=None
+) -> tuple[Any, threading.Thread]:
     """Build and launch the API server on a daemon thread; signal handling off.
 
     install_signal_handlers is disabled because serve() installs its own
@@ -182,7 +184,7 @@ def _start_uvicorn(bind_host: str, bind_port: int, settings) -> tuple[Any, threa
     from findplus.api import create_app
 
     config = uvicorn.Config(
-        create_app(bound_host=bind_host, bound_port=bind_port),
+        create_app(sessions, bound_host=bind_host, bound_port=bind_port),
         host=bind_host,
         port=bind_port,
         log_level=settings.log_level.lower(),
@@ -195,6 +197,21 @@ def _start_uvicorn(bind_host: str, bind_port: int, settings) -> tuple[Any, threa
     return server, server_thread
 
 
+def _start_workers(settings, no_poller: bool, sessions) -> list[tuple[Any, threading.Thread]]:
+    """The background workers: poller (unless off), retention, and the evening summary."""
+    from findplus.poller import PollerService
+    from findplus.service.digest import DigestScheduler, make_lock_probe
+    from findplus.service.retention import RetentionScheduler
+
+    workers = []
+    if not no_poller:
+        workers.append(_start_worker(PollerService(settings), "poller"))
+    workers.append(_start_worker(RetentionScheduler(settings.state_dir), "retention"))
+    digest = DigestScheduler(settings.state_dir, is_locked=make_lock_probe(sessions))
+    workers.append(_start_worker(digest, "digest"))
+    return workers
+
+
 def _run_server(
     settings, bind_host: str, bind_port: int, no_poller: bool, stop_event: threading.Event
 ) -> int:
@@ -205,10 +222,10 @@ def _run_server(
     """
     from findplus import service
     from findplus.db.integrity import current_health
-    from findplus.poller import PollerService
-    from findplus.service.retention import RetentionScheduler
+    from findplus.security import SessionStore
 
     workers: list[tuple[Any, threading.Thread]] = []
+    sessions = SessionStore()  # shared with the digest, which holds while the app is locked
     server = None
     server_thread = None
     exit_code = 1
@@ -218,11 +235,9 @@ def _run_server(
         )
 
         if current_health().ok:  # a damaged database is served read-only: nothing writes
-            if not no_poller:
-                workers.append(_start_worker(PollerService(settings), "poller"))
-            workers.append(_start_worker(RetentionScheduler(settings.state_dir), "retention"))
+            workers += _start_workers(settings, no_poller, sessions)
 
-        server, server_thread = _start_uvicorn(bind_host, bind_port, settings)
+        server, server_thread = _start_uvicorn(bind_host, bind_port, settings, sessions)
 
         exit_code = _wait_for_stop(stop_event, server_thread)
         if exit_code:

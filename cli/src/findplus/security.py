@@ -164,6 +164,17 @@ class SessionStore:
         with self._lock:
             return len(self._sessions)
 
+    def any_valid(self) -> bool:
+        """True when some unlock session is live (idle expiry applied, nothing refreshed)."""
+        now = time.monotonic()
+        with self._lock:
+            for token, session in list(self._sessions.items()):
+                if self.idle_timeout_seconds and (
+                    now - session.last_seen_at > self.idle_timeout_seconds
+                ):
+                    del self._sessions[token]
+            return bool(self._sessions)
+
     # ------------------------------------------------------------ throttling
     def _current_lockout_seconds(self) -> float:
         """60s for the first lockout, doubling per consecutive one, capped at an hour."""

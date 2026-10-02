@@ -182,7 +182,8 @@ States per (person, tracker): `with_person -> apart_pending -> left_behind -> cl
 - the tracker is not stale.
 
 Confirm `left_behind` after `apart_minutes` (default 20) with the above true across at least two newer person
-fixes. Hysteresis: one contrary fix resets `apart_pending`, never a confirmed row.
+fixes: non-suspect sightings of the trackers that place the person now (best cluster, not parked), never the bike
+and spare shoes reporting from the garage. Hysteresis: one contrary fix resets `apart_pending`, never a confirmed row.
 
 Alert once per episode. A confirmed episode cleared as `stale` resumes, with its `notified_at` kept, when the
 tracker reports again from the same spot, so a bag that goes quiet and comes back never re-alerts. Setting `people.left_behind_alerts` (Q4): on at non-home places and unnamed spots, off at

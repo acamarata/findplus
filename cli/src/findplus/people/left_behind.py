@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 from findplus.db.models import LocationObservation, PlaceState
 from findplus.db.models_people import LeftBehind
 from findplus.geo import haversine_meters
+from findplus.people import _quality
 from findplus.people.infer import MemberScore, PersonFix, PlaceRef
 from findplus.places.geofence import exit_margin
 
@@ -87,15 +88,25 @@ def _anchor_place(session: Session, device_id: str, places: list[PlaceRef]) -> P
     return min(hits, key=lambda p: (p.radius_meters, p.name)) if hits else None
 
 
-def _newer_sightings(session: Session, group_trackers: list[str], device_id: str, since) -> int:
-    others = [d for d in group_trackers if d != device_id]
-    if not others:
+def _newer_sightings(session: Session, fix: PersonFix, device_id: str, since) -> int:
+    """Newer sightings OF THE PERSON: non-suspect fixes of the trackers that
+    place them now (the best cluster), skipping parked ones. A bike and spare
+    shoes reporting from the garage are not sightings of the person (r116 #11)."""
+    motion = {m.device_id: m.motion for m in fix.members}
+    carriers = [d for d in fix.supporters if d != device_id and motion.get(d) != "parked"]
+    if not carriers:
         return 0
-    return session.scalar(
-        select(func.count(LocationObservation.id)).where(
-            LocationObservation.device_id.in_(others), LocationObservation.observed_at > since
+    ids = session.scalars(
+        select(LocationObservation.id).where(
+            LocationObservation.device_id.in_(carriers), LocationObservation.observed_at > since
         )
-    )
+    ).all()
+    if not ids:
+        return 0
+    newest = session.scalar(select(func.max(LocationObservation.observed_at)).where(
+        LocationObservation.id.in_(ids)))  # fmt: skip
+    suspect = _quality.suspect_ids(session, carriers, since, newest)
+    return sum(1 for i in ids if i not in suspect)
 
 
 def _dismissed_today(session: Session, group_id: int, device_id: str, place_id, as_of) -> bool:
@@ -156,7 +167,7 @@ def _open(session: Session, group_id: int, device_id: str, score, place, as_of) 
 
 def _advance(session, row, score, fix, ctx) -> None:
     """Move one open episode: confirm, clear, drop or keep."""
-    trackers, weights, place, as_of = ctx
+    _, weights, place, as_of = ctx
     threshold = apart_threshold(place)
     reason = clear_reason(row, score, fix, threshold)
     if row.state == "apart_pending":
@@ -164,7 +175,7 @@ def _advance(session, row, score, fix, ctx) -> None:
             session.delete(row)  # one contrary sighting resets a pending episode
             return
         old_enough = as_of - row.started_observed_at >= timedelta(minutes=APART_MINUTES)
-        seen = _newer_sightings(session, trackers, row.device_id, row.started_observed_at)
+        seen = _newer_sightings(session, fix, row.device_id, row.started_observed_at)
         if old_enough and seen >= CONFIRM_SIGHTINGS and is_apart(score, fix, weights, threshold):
             row.state, row.confirmed_at = "left_behind", as_of
         return

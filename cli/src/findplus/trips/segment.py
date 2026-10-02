@@ -17,7 +17,7 @@ from itertools import pairwise
 from findplus.geo import haversine_meters
 from findplus.trips.clusters import build_clusters
 from findplus.trips.models import Fix, Gap, Stay, TripLeg
-from findplus.trips.outliers import MAX_SPEED_MPS, drop_outliers
+from findplus.trips.outliers import MAX_SPEED_MPS, Verdicts, classify_outliers
 from findplus.trips.stays import (
     Block,
     PlaceLookup,
@@ -44,6 +44,8 @@ class Segmentation:
     trips: list[TripLeg] = field(default_factory=list)
     gaps: list[Gap] = field(default_factory=list)
     dropped: list[Fix] = field(default_factory=list)
+    #: Reason codes (quality.rules) for each dropped fix id.
+    reasons: dict[int, tuple[str, ...]] = field(default_factory=dict)
     fix_count: int = 0
 
 
@@ -119,15 +121,21 @@ def _find_gaps(fixes: list[Fix], stays: list[Stay], trips: list[TripLeg], gap_mi
 
 
 def segment(
-    fixes: list[Fix], params: SegmentParams | None = None, lookup: PlaceLookup | None = None
+    fixes: list[Fix],
+    params: SegmentParams | None = None,
+    lookup: PlaceLookup | None = None,
+    verdicts: Verdicts | None = None,
 ) -> Segmentation:
-    """Stays, trips and gaps for one device's fixes. Empty input gives an empty result."""
+    """Stays, trips and gaps for one device's fixes. Empty input gives an empty result.
+
+    `verdicts` are the stored quality verdicts; without them the pure rules decide.
+    """
     p = params or SegmentParams()
     ordered = sorted(fixes, key=lambda f: (f.t, f.id))
     result = Segmentation(fix_count=len(ordered))
     if not ordered:
         return result
-    kept, result.dropped = drop_outliers(ordered, p.max_speed_mps)
+    kept, result.dropped, result.reasons = classify_outliers(ordered, p.max_speed_mps, verdicts)
     clusters = build_clusters(kept, p.min_radius_m, p.accuracy_factor)
     leading, blocks = split_blocks(clusters, p.dwell_min)
     attach_places(blocks, lookup)

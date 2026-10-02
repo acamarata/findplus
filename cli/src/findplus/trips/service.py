@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from findplus import honesty
 from findplus.places.geofence import PlaceSpec, classify_point
 from findplus.places.repo import list_places
+from findplus.quality.store import verdicts_for
 from findplus.timeline import day_bounds_utc, fetch_observations
 from findplus.trips.models import Fix, iso_local, iso_utc
 from findplus.trips.segment import Segmentation, SegmentParams, segment
@@ -74,7 +75,8 @@ def segmentation_for(
 ) -> tuple[Segmentation, list[Fix]]:
     """Run `segment` on the stored fixes for the range; also return the fixes."""
     fixes, _, _ = load_fixes(session, device_id, start_day, max(1, min(days, MAX_DAYS)), tz)
-    return segment(fixes, params, place_lookup(session)), fixes
+    verdicts = verdicts_for(session, [f.id for f in fixes])
+    return segment(fixes, params, place_lookup(session), verdicts), fixes
 
 
 def trips_payload(
@@ -100,7 +102,7 @@ def trips_payload(
         "stays": [stay_dict(s, tz) for s in seg.stays],
         "trips": [trip_dict(t, stay_by_id, tz) for t in seg.trips],
         "gaps": [gap_dict(g, tz) for g in seg.gaps],
-        "outliers": [fix_dict(f, tz) for f in seg.dropped],
+        "outliers": [fix_dict(f, tz, seg.reasons.get(f.id, ())) for f in seg.dropped],
         "fix_count": seg.fix_count,
         "first_fix_at": iso_utc(ordered[0].t) if ordered else None,
         "last_fix_at": iso_utc(ordered[-1].t) if ordered else None,

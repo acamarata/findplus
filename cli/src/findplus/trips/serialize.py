@@ -12,6 +12,7 @@ from __future__ import annotations
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from findplus.quality.text import reason_text
 from findplus.trips.models import Fix, Gap, Stay, TripLeg, iso_local, iso_utc
 
 
@@ -24,8 +25,11 @@ def _times(prefix_start, prefix_end, start, end, tz) -> dict[str, Any]:
     }
 
 
-def fix_dict(fix: Fix, tz: ZoneInfo | None = None) -> dict[str, Any]:
-    return {
+def fix_dict(
+    fix: Fix, tz: ZoneInfo | None = None, reasons: tuple[str, ...] | None = None
+) -> dict[str, Any]:
+    """One fix. `reasons` (quality codes) is added only for left-out fixes."""
+    out: dict[str, Any] = {
         "observation_id": fix.id,
         "at": iso_utc(fix.t),
         "local": iso_local(fix.t, tz),
@@ -33,6 +37,10 @@ def fix_dict(fix: Fix, tz: ZoneInfo | None = None) -> dict[str, Any]:
         "longitude": fix.lon,
         "accuracy_meters": fix.accuracy_m,
     }
+    if reasons is not None:
+        out["reasons"] = list(reasons)
+        out["suspect_reason"] = reason_text(reasons)
+    return out
 
 
 def stay_dict(stay: Stay, tz: ZoneInfo | None = None) -> dict[str, Any]:

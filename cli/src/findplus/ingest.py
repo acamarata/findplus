@@ -27,6 +27,7 @@ from findplus.labels import palette_color_for
 from findplus.logging_setup import get_logger
 from findplus.places.events import evaluate as _geofence_evaluate
 from findplus.providers.google_findhub.types import RawObservation
+from findplus.quality.ingest_hook import plan_geofence_feed
 
 log = get_logger(__name__)
 
@@ -125,7 +126,7 @@ def ingest_observations(
 
     session.flush()
 
-    _run_post_ingest_hooks(session, new_rows, settings)
+    _run_post_ingest_hooks(session, new_rows, settings, now=fetched_at)
 
     result = IngestResult(received=len(observations), inserted=inserted, duplicates=duplicates)
     log.info(
@@ -188,7 +189,10 @@ def _ingest_one(
 
 
 def _run_post_ingest_hooks(
-    session: Session, new_rows: list[LocationObservation], settings: object
+    session: Session,
+    new_rows: list[LocationObservation],
+    settings: object,
+    now: datetime | None = None,
 ) -> None:
     """Run the per-observation hooks, never letting one lose the batch.
 
@@ -200,8 +204,12 @@ def _run_post_ingest_hooks(
     skip the rest of the batch. The group-quorum hook runs in its own SAVEPOINT,
     after geofence's, so it can only see place_events geofence actually
     committed -- and a failure in it never rolls back the geofence hook's work.
+
+    Quality scoring decides which fixes the hooks may see: a suspect fix is
+    left out, and an unconfirmed jump is held until the next poll (one poll of
+    delay, see quality/ingest_hook.py).
     """
-    for lo in sorted(new_rows, key=lambda o: o.observed_at):
+    for lo in _quality_feed(session, new_rows, now):
         try:
             # SAVEPOINT: a DB-level failure inside the hook rolls back only the
             # hook's own writes, so the session stays usable and the
@@ -230,6 +238,18 @@ def _run_post_ingest_hooks(
                 device=lo.device_id,
                 observation_id=lo.id,
             )
+
+
+def _quality_feed(
+    session: Session, new_rows: list[LocationObservation], now: datetime | None
+) -> list[LocationObservation]:
+    """The observations the hooks may evaluate; every fix when scoring itself fails."""
+    try:
+        with session.begin_nested():
+            return plan_geofence_feed(session, new_rows, now)
+    except Exception:
+        log.exception("post_ingest_hook_failed", hook="quality")
+        return sorted(new_rows, key=lambda o: o.observed_at)
 
 
 def _run_group_events_hook(session: Session, lo: LocationObservation, settings: object) -> None:

@@ -27,8 +27,18 @@ def test_status_returns_a_list_with_google_and_needs_field(auth_client: TestClie
     providers = res.json()["providers"]
     assert providers
     for row in providers:
-        assert set(row) == {"id", "signed_in", "account", "method", "last_checked", "needs"}
+        assert set(row) == {
+            "id",
+            "signed_in",
+            "account",
+            "method",
+            "last_checked",
+            "needs",
+            "attention",
+            "deep_link",
+        }
         assert isinstance(row["needs"], list)
+        assert row["attention"] in ("reauth", "unlock", "none")
     assert "google-find-hub" in {row["id"] for row in providers}
 
 

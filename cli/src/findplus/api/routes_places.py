@@ -19,8 +19,10 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel
 
+from findplus.alerts.default_rules import add_default_rule
 from findplus.db.models import Place, PlaceEvent
 from findplus.db.session import session_scope
+from findplus.places.kinds import guess_place_kind
 from findplus.places.repo import (
     create_place,
     current_presence,
@@ -29,6 +31,8 @@ from findplus.places.repo import (
     list_places,
     update_place,
 )
+
+from . import routes_places_notify
 
 
 class PlaceCreate(BaseModel):
@@ -39,6 +43,10 @@ class PlaceCreate(BaseModel):
     color: str = "#2f80ed"
     enter_confirmations: int = 1
     exit_confirmations: int = 2
+    #: home | school | work | family | shop | other; omitted = guessed from the name.
+    kind: str | None = None
+    #: Add the default "arrivals and departures for everyone" rule (spec § 5.3).
+    notify: bool = True
 
 
 class PlaceUpdate(BaseModel):
@@ -49,6 +57,7 @@ class PlaceUpdate(BaseModel):
     color: str | None = None
     enter_confirmations: int | None = None
     exit_confirmations: int | None = None
+    kind: str | None = None
 
 
 def _place_to_dict(p: Place) -> dict[str, Any]:
@@ -61,6 +70,7 @@ def _place_to_dict(p: Place) -> dict[str, Any]:
         "color": p.color,
         "enter_confirmations": p.enter_confirmations,
         "exit_confirmations": p.exit_confirmations,
+        "kind": p.kind,
         "created_at": p.created_at.isoformat(),
         "updated_at": p.updated_at.isoformat(),
         "devices_inside": getattr(p, "_devices_inside", []),
@@ -111,12 +121,14 @@ def post_place(body: PlaceCreate) -> dict[str, Any]:
                 color=body.color,
                 enter_confirmations=body.enter_confirmations,
                 exit_confirmations=body.exit_confirmations,
+                kind=body.kind or guess_place_kind(body.name),
             )
+            rule = add_default_rule(s, p) if body.notify else None
         except ValueError as exc:
             s.rollback()
             raise _map_value_error(exc) from exc
         s.commit()
-        return _place_to_dict(p)
+        return {**_place_to_dict(p), "notify_rule": rule}
 
 
 def put_place(place_id: int, body: PlaceUpdate) -> dict[str, Any]:
@@ -178,6 +190,7 @@ def get_presence(device_id: str | None = None) -> list[dict[str, Any]]:
 
 def build_router() -> APIRouter:
     router = APIRouter(prefix="/api/places", tags=["places"])
+    routes_places_notify.register(router)
     router.add_api_route("", get_places, methods=["GET"])
     router.add_api_route("", post_place, methods=["POST"], status_code=201)
     router.add_api_route("/{place_id}", put_place, methods=["PUT"])

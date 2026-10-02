@@ -66,6 +66,8 @@ Alert rule definitions and label configurations are deliberately not exposed ove
 | `remove_place` | Delete a place |
 | `add_group` | Create a group |
 | `set_group_members` | Replace a group's member list |
+| `accept_people_suggestions` | Create people from suggestions (as you edit them) and dismiss others; nothing is applied without this call |
+| `set_tracker_role` | Set what a tracker is attached to (bag, shoes, phone) and its carry weight |
 | `lock` | Lock the app |
 
 Never exposed, on any tool: PIN set/change/reset, history deletion, alert channel credentials.

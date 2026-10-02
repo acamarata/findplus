@@ -7,6 +7,20 @@ is no cloud sync and no telemetry. Secrets (`secrets.json`, `alerts.json`,
 `apple-account.json`) are written at file mode `0600` inside a `0700`
 directory, and never appear in the database or logs.
 
+Three things are easy to miss:
+
+- **Telegram messages carry names.** An alert or daily summary sent to Telegram names the person,
+  the place and the time ("Sam arrived at School at 8:12 AM"), and a summary lists a whole day of
+  stops. That text goes to Telegram's servers. Send nothing to Telegram if you do not want that.
+  A WhatsApp or webhook channel carries the same text to its own service.
+- **Backups are unencrypted copies.** Find+ keeps daily copies of the database in
+  `~/.findplus/backups/` (or the folder you chose). Each one holds your full location history and
+  the app-lock PIN hash and salt. They never hold sign-in tokens or keys. Treat them like the
+  database: use FileVault, and remove the folder if you remove the data. See
+  [[Backup-and-restore]].
+- **The app lock does not stop alerts or summaries.** While Find+ is locked it keeps polling and
+  still sends alerts and the daily summary. The lock only guards the dashboard, CLI and API.
+
 ## The six notices, verbatim
 
 > This history consists of locations reported through Google's Find Hub
@@ -38,7 +52,8 @@ trademarks.
 | Threat | Mitigation |
 |---|---|
 | Physical access to this machine while unlocked | Enable the app lock; auto-locks on idle and reboot. |
-| Disk access (stolen drive, another OS booted from it) | Use FileVault. The app lock does not protect data at rest. |
+| Disk access (stolen drive, another OS booted from it) | Use FileVault. The app lock does not protect data at rest, and `backups/` holds unencrypted copies of the database, so it is covered by the same advice. |
+| Someone who can read your Telegram chat | Messages name people, places and times. Use a private chat and a bot only you control. |
 | Account access (your Google or Apple account is compromised) | Find+ stores tokens locally; revoking the app's access on the provider side stops further polling. |
 | Someone on your network | Find+ binds to `127.0.0.1` only, refused elsewhere unless `FINDPLUS_ALLOW_PUBLIC_BIND=1` is set. |
 | A malicious web page in your browser (DNS rebinding, cross-site requests) | The API validates the request's Host/Origin against the expected loopback address *and port* and rejects anything else, so a page from another origin cannot reach it even by resolving a hostname to 127.0.0.1, and cannot bypass the check by naming a different port. |

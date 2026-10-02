@@ -7,7 +7,10 @@ curl -fsSL https://raw.githubusercontent.com/acamarata/findplus/main/install.sh 
 That unloads the service and the watchdog, then removes the venv under
 `~/.local/share/findplus/` and the `findplus` symlink in `~/.local/bin/`.
 Your history stays: the state directory `~/.findplus/` is left untouched, so
-delete it yourself if you want the database and settings gone too.
+delete it yourself if you want the database and settings gone too. That includes
+`~/.findplus/backups/`, which holds unencrypted copies of your history (and the app-lock PIN
+hash). Removing only the database file leaves those copies behind; to remove them all, run
+`rm -r ~/.findplus/backups` (or the `findplus-backups` folder inside the backup folder you chose).
 
 ## Removing the service by hand
 

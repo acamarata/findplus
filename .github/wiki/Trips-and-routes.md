@@ -41,6 +41,10 @@ seen.
   sighting at the far end (a missed exit and a U-turn) is flagged too, unless a second
   sighting or another of the person's trackers was there.
 
+On the dashboard and the Person page a flagged sighting is drawn faintly in a dashed ring with the
+reason on hover (a "Show sightings that look wrong" box hides them), and it adds nothing to a day's
+distance. Why one is greyed out: see the [FAQ](FAQ). Re-score after an upgrade with `findplus db recompute-quality`.
+
 ## Ask for it
 
 ```

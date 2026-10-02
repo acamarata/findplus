@@ -6,27 +6,6 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Added
-- Adding a place now ends with "who should be told, and where": the alert-rule dialog opens with the
-  new place chosen. A place with no rule says "Not notifying anyone yet" in the Places list, with a
-  Set up an alert button.
-- The rule dialog writes the rule in plain words ("Tell me on Telegram when Sam Bag leaves
-  School."), lists what Save still needs, explains how a group decides, says why a channel is greyed
-  out, can send a real test message to the ticked channels, and shows what the rule would have sent
-  in the last 24 hours (`POST /api/alerts/rules/dry-run`, read-only).
-- Webhook has its own Send a test message now button. The Alerts tab opens with a strip of
-  connected channels and the rule count, Telegram setup lists its four steps, and the delivery log
-  has status and channel filters and pages 15 rows at a time.
-- Places: search and sort, coordinates and rule count on each card, a rule-count line when editing,
-  relative times in Recent arrivals and departures, and a note under the radius that very small
-  places can report late.
-
-### Changed
-- The geofence is accuracy-aware. A fix whose accuracy circle straddles the edge of a place is
-  uncertain and neither enters nor exits. Leaving needs a fix beyond the radius plus the larger of
-  its accuracy and half the radius (at least 50 m), confirmed as many times as the place asks. Find+
-  recommends a radius of at least 100 m.
-
 ## [1.1.6] - Unreleased
 
 ### Added
@@ -48,7 +27,6 @@ Versioning: [Semantic Versioning](https://semver.org/).
   daemon read-only with a restore banner; the file is never deleted.
 - `findplus export --format jsonl` and `findplus import FILE`: a full-fidelity, human-readable
   export of devices, observations, places, groups (with kinds and members) and alert rules.
-
 - People and pets. Find+ suggests people from tracker names ("Sam Bag", "Sam Bike", "Sam Shoes
   Red" become Sam), always as a preview you accept, edit or dismiss; one-word names ask "person or
   pet?" and nameless trackers ask "Whose is this?". `GET /api/people/suggestions`,
@@ -100,6 +78,19 @@ Versioning: [Semantic Versioning](https://semver.org/).
   evening summary (setting `people.digest`, off by default, 20:00, `findplus people digest`). Each
   person's day goes once per chat per day, never twice after a restart, and is held while the app
   lock is on. A day with nothing tracked sends nothing unless you choose "always send".
+- Adding a place now ends with "who should be told, and where": the alert-rule dialog opens with the
+  new place chosen. A place with no rule says "Not notifying anyone yet" in the Places list, with a
+  Set up an alert button.
+- The rule dialog writes the rule in plain words ("Tell me on Telegram when Sam Bag leaves
+  School."), lists what Save still needs, explains how a group decides, says why a channel is greyed
+  out, can send a real test message to the ticked channels, and shows what the rule would have sent
+  in the last 24 hours (`POST /api/alerts/rules/dry-run`, read-only).
+- Webhook has its own Send a test message now button. The Alerts tab opens with a strip of
+  connected channels and the rule count, Telegram setup lists its four steps, and the delivery log
+  has status and channel filters and pages 15 rows at a time.
+- Places: search and sort, coordinates and rule count on each card, a rule-count line when editing,
+  relative times in Recent arrivals and departures, and a note under the radius that very small
+  places can report late.
 
 ### Changed
 - The database now syncs every commit to disk (`synchronous=FULL`, WAL kept) so a power cut cannot
@@ -112,6 +103,16 @@ Versioning: [Semantic Versioning](https://semver.org/).
   command; the docs use `findplus import`.
 - A chosen backup folder gets a `findplus-backups` folder inside it; only that folder is made
   private. Manual and pre-restore backups keep the newest 10 and 5.
+- The geofence is accuracy-aware. A fix whose accuracy circle straddles the edge of a place is
+  uncertain and neither enters nor exits. Leaving needs a fix beyond the radius plus the larger of
+  its accuracy and half the radius (at least 50 m), confirmed as many times as the place asks. Find+
+  recommends a radius of at least 100 m.
+- The people engine ingest hook no longer scans every sighting, so a large database stays quick.
+- A person enters a place only when their own trusted sighting is inside it.
+- The wizard's Places step shows each place's kind and alert state. The Person page has better
+  contrast, a phone layout, arrow keys on the story rows and a map named for the person.
+- Telegram messages now carry people's names, place names and times, and the daily summary does too.
+  The app lock does not stop alerts or summaries going out. See the Privacy page.
 
 ### Fixed
 - `findplus db restore` now works over a damaged database (the case it exists for): the damaged
@@ -128,6 +129,19 @@ Versioning: [Semantic Versioning](https://semver.org/).
   longer breaks listing, scheduled backups, Settings or `doctor`; a backup stamped in the future no
   longer stops automatic backups. A repeated sighting in an import file gives a plain message.
 - "Poll now" is refused with a clear message while the database is read-only.
+- Repeating a lock call keeps the lock screen's error, and the forgot-PIN help also shows after a
+  lockout.
+- A tracker that keeps reporting the same place is no longer marked suspect or left behind.
+- A person's carried state settles 45 minutes after the last move, a single stray fix no longer
+  skips the two-exit confirmation, and a fast-clock reporter cannot freeze a person's state.
+- A held fix is released on every poll cycle, not only after an ingest, and a tracker that
+  disagrees with its siblings is held too. Cleared fixes reach the geofence and rescore their
+  siblings.
+- Left-behind alerts confirm on the person's own sightings and respect a rule's place.
+- Map tooltips show tracker, place and reason text as plain text, never as markup. The content
+  security policy forbids form posts, base tags and plugins. MCP tools quote path segments, and
+  `add_place` through MCP takes a `notify` flag. The daily summary sends while Find+ is locked,
+  like alerts, and a lock forgets hidden people suggestions.
 
 ## [1.1.5] - 2026-10-01
 
@@ -511,5 +525,5 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - CLI export to CSV, JSON, GPX, and KML with group support (one track per member).
 - `findplus doctor` with --repair flag; `findplus version --check` against GitHub releases.
 
-[Unreleased]: https://github.com/acamarata/findplus/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/acamarata/findplus/compare/v1.1.5...HEAD
 [1.0.0]: https://github.com/acamarata/findplus/releases/tag/v1.0.0

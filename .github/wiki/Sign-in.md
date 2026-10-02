@@ -260,6 +260,10 @@ same `Origin`/`Sec-Fetch-Site` header the sign-in routes do).
 
 ## Security
 
+Sign-in tokens live only in `~/.findplus/secrets.json` and `apple-account.json`. They are never
+copied into the daily database backups in `~/.findplus/backups/`, so a restore leaves
+your sign-in as it is. See [Backup and restore](Backup-and-restore).
+
 Every sign-in route is loopback-only, like the rest of the API, and sits behind
 the app lock: while Find+ is locked, `/api/auth/*` returns `401` the same way
 every other data route does. Starting a sign-in also requires the request to

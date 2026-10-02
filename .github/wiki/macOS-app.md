@@ -77,6 +77,13 @@ downloaded. Homebrew users run `brew upgrade findplus`.
 The sha256 check catches a corrupted download. It does not authenticate the release, so it
 is not protection against a release that was itself tampered with.
 
+## Backups and restore
+
+The app shares the daemon's daily backup in `~/.findplus/backups/` (see
+[Backup and restore](Backup-and-restore)). Restoring needs the daemon stopped: quit Find+ from the
+menu bar first, then run `findplus db restore <file>` and open the app again. Backups are
+unencrypted copies of the database.
+
 ## Gatekeeper
 
 Find+ is distributed outside the Mac App Store. Release builds are signed

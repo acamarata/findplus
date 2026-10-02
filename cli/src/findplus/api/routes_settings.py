@@ -31,6 +31,7 @@ from findplus.security import SessionStore, hash_pin, reject_padded_pin, verify_
 from findplus.state import set_setting
 
 from ._settings_backup import write_backup_fields
+from ._settings_backup_routes import register_backup_routes
 from ._settings_fields import (
     _RETENTION_KEY,
     _raw_patch_body,
@@ -271,4 +272,5 @@ def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeo
     _register_remove_pin_route(router, sessions=sessions)
     _register_check_pin_route(router)
     register_key_routes(router)
+    register_backup_routes(router)
     return router

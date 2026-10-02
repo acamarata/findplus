@@ -17,7 +17,7 @@
  */
 "use strict";
 
-import { t } from "./i18n.js";
+import { plural, t } from "./i18n.js";
 import { renderBadge } from "./components/badge.js";
 import { saveTracker } from "./person_api.js";
 import { showAlert } from "./state.js";
@@ -61,11 +61,11 @@ function roleIcon(tracker, ctx) {
   return wrap;
 }
 
-function metaText(tracker) {
+function metaText(tracker, fixes) {
   const role = t(`people.role.${ROLES.includes(tracker.role) ? tracker.role : "other"}`);
   const weight = tracker.carry_weight == null && tracker.weight == null ? t("person.trackers.noWeight")
     : t("person.trackers.weight", { weight: Number(tracker.carry_weight ?? tracker.weight).toFixed(2).replace(/\.?0+$/, "") });
-  return `${role} · ${weight}`;
+  return [role, weight, fixes == null ? "" : plural("person.trackers.fixes", fixes, { n: fixes })].filter(Boolean).join(" · ");
 }
 
 /** The inline editor: role, weight, Save, Cancel. */
@@ -124,7 +124,7 @@ function row(tracker, ctx) {
   const main = el("div", "person-tracker-main");
   const text = el("div", "person-tracker-text");
   const name = el("span", "person-tracker-name", ctx.nameOf(tracker.device_id));
-  text.append(name, el("span", "person-tracker-meta", metaText(tracker)));
+  text.append(name, el("span", "person-tracker-meta", metaText(tracker, ctx.fixes && ctx.fixes.get(tracker.device_id))));
   if (tracker.device_id === ctx.leadId) text.insertBefore(el("span", "person-chip person-chip--lead", t("person.trackers.lead")), name.nextSibling);
   const chips = el("span", "person-chips");
   chipsFor(tracker, ctx).forEach((c) => chips.appendChild(el("span", `person-chip person-chip--${c.cls}`, c.text)));

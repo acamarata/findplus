@@ -32,36 +32,51 @@ def ensure_person(server: dict, name: str = "Sam") -> int:
     return resp.json()["id"]
 
 
+def _line(
+    date: str, i: int, hhmm: str, kind: str, text: str, via: str, evidence: list[str]
+) -> dict:
+    return {
+        "id": f"d{i}",
+        "kind": kind,
+        "at": f"{date}T{hhmm}:00Z",
+        "at_local": f"{date}T{hhmm}:00+00:00",
+        "end": None,
+        "time": hhmm,
+        "text": text,
+        "via": via,
+        "evidence": evidence,
+        "confidence": "high",
+        "approximate": False,
+    }
+
+
 def day_body(date: str, pid: int = 1) -> dict:
-    """A day summary in the spec 7.2 shape, for the seeded school day."""
-
-    def line(i, hhmm, text, ev=("TAG-SON",)):
-        return {
-            "id": f"d{i}",
-            "kind": "line",
-            "at": f"{date}T{hhmm}:00+00:00",
-            "local": f"{date}T{hhmm}:00",
-            "text": text,
-            "evidence": list(ev),
-            "confidence": "high",
-        }
-
+    """A day summary in package C's shape (spec 7.2), for the seeded school day."""
+    son, both = ["TAG-SON"], ["TAG-SON", "TAG-MOM"]
+    lines = [
+        _line(date, 0, "00:00", "overnight", "Overnight at Home", "shoes and bag", both),
+        _line(date, 1, "07:40", "left", "7:40 AM left Home", "shoes", son),
+        _line(date, 2, "08:10", "arrived", "8:10 AM arrived at School", "shoes", son),
+        _line(date, 3, "15:00", "left", "3:00 PM left School", "shoes", son),
+        _line(date, 4, "15:40", "at_home_from", "At Home from 3:40 PM", "shoes", son),
+    ]
     return {
         "person": {"id": pid, "name": "Sam"},
         "date": date,
         "timezone": "UTC",
         "now": None,
-        "lines": [
-            line(0, "00:00", "Overnight at Home", ("TAG-SON", "TAG-MOM")),
-            line(1, "07:40", "7:40 AM left Home"),
-            line(2, "08:10", "8:10 AM arrived at School"),
-            line(3, "15:00", "3:00 PM left School"),
-            line(4, "15:40", "3:40 PM arrived at Home"),
-        ],
+        "heading": "Sam's day",
+        "lines": lines,
         "left_behind": [],
         "suspect_count": 1,
+        "suspect_text": "1 sighting looked wrong and was left out.",
         "gaps": [],
-        "trackers": [],
+        "trackers": [
+            {"device_id": "TAG-SON", "name": "Sam", "role": "shoes", "label": None, "fixes": 53},
+            {"device_id": "TAG-MOM", "name": "Mia", "role": "bag", "label": None, "fixes": 19},
+        ],
+        "lead_device_id": "TAG-SON",
+        "empty": False,
         "label": HONESTY_TRIPS,
     }
 

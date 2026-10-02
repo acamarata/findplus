@@ -1389,7 +1389,9 @@
       "wrong": {
         "one": "1 sighting looked wrong and was left out.",
         "other": "{n} sightings looked wrong and were left out."
-      }
+      },
+      "via": "Seen by {via}",
+      "showWrong": "Show"
     },
     "map": {
       "label": "Map of {name}'s day, one line per tracker",
@@ -1423,7 +1425,11 @@
       "saved": "Saved {tracker}.",
       "saveFailed": "Could not save {tracker}: {message}",
       "cancel": "Cancel",
-      "roleAuto": "Guess from the name"
+      "roleAuto": "Guess from the name",
+      "fixes": {
+        "one": "1 sighting",
+        "other": "{n} sightings"
+      }
     },
     "chip": {
       "carried": "Carried",
@@ -1446,7 +1452,11 @@
       "edit": "Edit person",
       "fullMap": "Full map",
       "group": "Actions",
-      "notifyIntro": "Choose a place and where to be told when {name} arrives or leaves."
+      "notifyIntro": "Choose a place and where to be told when {name} arrives or leaves.",
+      "partial": {
+        "one": "1 chat did not accept it.",
+        "other": "{n} chats did not accept it."
+      }
     },
     "state": {
       "emptyToday": "No sightings yet today",
@@ -1466,9 +1476,43 @@
       "row": "{name}'s {tracker} looks left at {place} since {time}.",
       "rowSpot": "{name}'s {tracker} looks left behind since {time}.",
       "uncertain": "Find+ cannot be sure. A tracker can sit still because it was parked on purpose.",
-      "dismissFailed": "Could not save that: {message}"
+      "dismissFailed": "Could not save that: {message}",
+      "seeDay": "See {name}'s day"
     },
-    "link": "Open {name}'s page"
+    "link": "Open {name}'s page",
+    "settings": {
+      "heading": "People: daily summary and alerts",
+      "digestTitle": "Daily summary",
+      "digestNote": "Sends one message a day about where each person has been, in words only, with no coordinates. It goes to Telegram. Anyone who can read that chat can read it. It is off until you turn it on.",
+      "digestOn": "Send a daily summary",
+      "digestTime": "Send at",
+      "digestChannel": "Send to",
+      "channelAuto": "Telegram (automatic)",
+      "channelTelegram": "Telegram",
+      "digestPeople": "Whose day",
+      "noPeople": "No people yet. Group a person's trackers in the Groups tab first.",
+      "sendNow": "Send now",
+      "sendNowFor": "Send {name}'s day now",
+      "digestFailed": "Could not save the summary settings: {message}",
+      "digestNobody": "Pick at least one person, or the summary stays off.",
+      "leftTitle": "Left-behind alerts",
+      "leftOn": "Tell me when a tracker looks left behind",
+      "leftNote": "Only away from Home, and only once for each time. \"I know\" quiets one for the rest of the day. A tracker can sit still on purpose, so these are guesses.",
+      "leftFailed": "Could not save the left-behind setting: {message}",
+      "backupTitle": "Database backup",
+      "backupLast": "Last backup {when} ({kind}). {count} kept.",
+      "backupNone": "No backup yet. Find+ takes one a day while it runs.",
+      "backupKind": {
+        "auto": "automatic",
+        "manual": "manual",
+        "prerestore": "before a restore"
+      },
+      "backupNow": "Back up now",
+      "backupDone": "Backup saved.",
+      "backupFailed": "Could not back up: {message}",
+      "backupLoadFailed": "Could not read the backup status: {message}",
+      "backupNote": "A backup holds your history, places and groups, never your sign-ins or tokens."
+    }
   },
   "honesty": {
     "findHub": "This history consists of locations reported through Google's Find Hub network. Your trackers use nearby participating Android devices to report their location. Location updates can therefore be delayed, sparse, or unavailable, and this application should not be treated as real-time emergency or child-safety GPS tracking.",

@@ -17,7 +17,7 @@
 
 import { $, todayLocal } from "./state.js";
 import { api } from "./api.js";
-import { t } from "./i18n.js";
+import { plural, t } from "./i18n.js";
 import { sendDay, sendResult } from "./person_api.js";
 
 function button(label, cls, onClick) {
@@ -38,7 +38,8 @@ async function send(btn, person, date, setStatus) {
     const result = sendResult(await sendDay(person.id, date));
     if (result.ok) {
       const where = result.channels.map((c) => t(`alerts.channels.${c}`));
-      setStatus(where.length ? t("person.act.sent", { channels: where.join(", ") }) : t("person.act.sentPlain"), "ok");
+      const base = where.length ? t("person.act.sent", { channels: where.join(", ") }) : t("person.act.sentPlain");
+      setStatus(result.partial ? `${base} ${plural("person.act.partial", result.partial, { n: result.partial })}` : base, "ok");
     } else setStatus(t("person.act.failed", { message: result.message }), "err");
   } catch (err) {
     if (err.message !== "Locked") setStatus(t("person.act.failed", { message: err.message }), "err");

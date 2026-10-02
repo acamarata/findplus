@@ -33,9 +33,11 @@ import { storyCard } from "./person_story.js";
 import { trackersCard } from "./person_trackers.js";
 import { drawPerson, frameBounds, highlight } from "./person_map.js";
 import { focusMoment } from "./person_focus.js";
-import { showSuspect, suspectToggle } from "./suspect_pref.js";
+import { setShowSuspect, showSuspect, suspectToggle } from "./suspect_pref.js";
 import { honestyFooter } from "./person_notes.js";
 import { purgePeopleCache } from "./person_links.js";
+import { purge as purgeSuggestions } from "./people_suggest.js";
+import { purgeLeftBehind } from "./left_behind_chips.js";
 
 const page = fresh();
 let layers = null;
@@ -140,6 +142,16 @@ function onLine(line) {
   else if (hit.point) { highlight(ensureLayers().mark, hit.point, 40); state.map.setView(hit.point, Math.max(state.map.getZoom(), 16)); }
 }
 
+/** The summary's "(show)": switch the faint sightings on and frame them. */
+function showWrong() {
+  setShowSuspect(true);
+  const box = $("person-suspect");
+  if (box) box.checked = true;
+  drawMap(false);
+  const wrong = page.tracks.flatMap((tr) => tr.points.filter((p) => p.suspect));
+  if (wrong.length) frameBounds(L.latLngBounds(wrong.map((p) => [p.lat !== undefined ? p.lat : p.latitude, p.lon !== undefined ? p.lon : p.longitude])));
+}
+
 function failedNames() {
   return [...page.failed].map(nameOf);
 }
@@ -147,7 +159,7 @@ function failedNames() {
 function renderBody() {
   const nodes = [];
   if (page.failed.size || page.notes.length) nodes.push(partialNote(page.person.name, [...failedNames(), ...page.notes]));
-  nodes.push(summaryCard(page.person.name, page.day, onLine));
+  nodes.push(summaryCard(page.person.name, page.day, onLine, showWrong));
   if (!hasPoints()) nodes.push(emptyDayNode(page.person.name, page.date));
   else {
     const toggle = document.createElement("div");
@@ -155,7 +167,7 @@ function renderBody() {
     toggle.append(suspectToggle("person-suspect", () => drawMap(false)), mapNote());
     nodes.push(toggle, storyCard(storyCtx()));
   }
-  nodes.push(trackersCard({ ...storyCtx(), now: page.now, episodes: page.episodes, name: page.person.name, devices: state.devices, leadId: page.now && page.now.lead_device_id, onChanged: () => reload() }), honestyFooter());
+  nodes.push(trackersCard({ ...storyCtx(), now: page.now, episodes: page.episodes, fixes: new Map(((page.day && page.day.trackers) || []).map((x) => [x.device_id, x.fixes])), name: page.person.name, devices: state.devices, leadId: page.now && page.now.lead_device_id, onChanged: () => reload() }), honestyFooter());
   setBody(...nodes);
   markList($("person-body"), page.selectedId);
 }
@@ -220,11 +232,14 @@ export function reload() {
 
 export const currentId = () => page.id;
 
-/** Lock purge: nothing about a person, a day or a place may survive. */
+/** Lock purge (also called for the suggestions panel and left-behind notices): nothing about a person, a day or a place may survive. */
 export function purge() {
   const gen = page.seq + 1;
   Object.assign(page, fresh(), { seq: gen });
   purgePeopleCache();
+  purgeSuggestions();
+  purgeLeftBehind();
+  import("./settings_people.js").then((m) => m.purgePeopleSettings()).catch(() => {});
   clearHead();
   clearActions();
   setStatus("", "");

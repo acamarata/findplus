@@ -185,6 +185,7 @@ export async function bootDashboard(resume) {
   startIdleTimer();
   refreshPeopleCache();
   import("./people_suggest.js").then((m) => { m.mountBanner($("fp-people-banner")); m.mountSuggestions($("fp-people-suggest")); }).catch(() => {});
+  import("./left_behind_chips.js").then((m) => { m.mountLeftBehind($("fp-left-behind")); m.refreshLeftBehind(); }).catch(() => {});
   await applyHashRoute({ closeOthers: false });
   if (stale()) return;
 

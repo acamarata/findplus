@@ -29,6 +29,9 @@ async def test_page_draws_every_part(trips_page, trips_server, pid):
     assert await p.locator(".person-conf").count() == 1
     assert await p.input_value("#person-date") == day
     assert await p.locator(".person-line-btn").count() == 5
+    assert await p.inner_text(".person-summary h3") == "Sam's day"
+    assert "Seen by shoes and bag" in await p.locator(".person-line-btn").first.inner_text()
+    assert "53 sightings" in await p.locator(".person-tracker", has_text="Sam").first.inner_text()
     assert await p.locator(".lane").count() == 2, "one lane per tracker"
     assert await p.locator(".person-tracker").count() == 2
     body = await p.inner_text("#person-body")
@@ -94,6 +97,16 @@ async def test_summary_line_focuses_map_and_story(trips_page, trips_server, pid)
     )
     title = await p.locator(".story-item.is-picked .story-title").inner_text()
     assert title == "School"
+
+
+async def test_wrong_sightings_sentence_has_a_show_button(trips_page, trips_server, pid):
+    await open_person(trips_page, trips_server, pid)
+    p = trips_page
+    note = p.locator(".person-suspect-note")
+    assert "1 sighting looked wrong and was left out." in await note.inner_text()
+    await p.uncheck("#person-suspect")
+    await note.get_by_role("button", name="Show").click()
+    assert await p.is_checked("#person-suspect"), "Show switches the faint sightings back on"
 
 
 async def test_story_row_selects_and_hash_is_a_route(trips_page, trips_server, pid):

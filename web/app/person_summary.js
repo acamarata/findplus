@@ -4,8 +4,8 @@
  *
  * Purpose    : Tell the day as a short list. Each line is a button: selecting it
  *              moves the map and the day story to that moment.
- * Inputs     : normalizeDay() output (person_api.js), the person's name and a
- *              callback `onFocus(line)`.
+ * Inputs     : normalizeDay() output (person_api.js), the person's name and
+ *              callbacks `onFocus(line)` and `onShowSuspect()`.
  * Outputs    : One <section class="person-card">.
  * Constraints: textContent only. The server wrote the sentences (including
  *              "around" and "No sightings" wording); this file never rewrites a
@@ -23,8 +23,16 @@ function lineButton(line, onFocus) {
   btn.type = "button";
   btn.className = "person-line-btn";
   btn.dataset.lineId = String(line.id);
-  btn.textContent = line.text;
-  if (line.evidence.length) btn.title = t("person.summary.evidence", { trackers: line.evidence.join(", ") });
+  const text = document.createElement("span");
+  text.className = "person-line-text";
+  text.textContent = line.text;
+  btn.appendChild(text);
+  if (line.via) {
+    const via = document.createElement("span");
+    via.className = "person-line-via";
+    via.textContent = t("person.summary.via", { via: line.via });
+    btn.appendChild(via);
+  }
   btn.addEventListener("click", () => onFocus(line));
   li.appendChild(btn);
   return li;
@@ -37,14 +45,14 @@ function note(cls, text) {
   return p;
 }
 
-function card(name) {
+function card(title) {
   const section = document.createElement("section");
   section.className = "person-card person-summary";
   section.setAttribute("aria-labelledby", "person-summary-title");
   const h = document.createElement("h3");
   h.id = "person-summary-title";
   h.className = "person-card-title";
-  h.textContent = t("person.summary.title", { name });
+  h.textContent = title;
   section.appendChild(h);
   return section;
 }
@@ -59,9 +67,21 @@ export function markLine(root, id) {
   });
 }
 
+/** "2 sightings looked wrong and were left out (show)": the server's sentence plus a Show button. */
+function suspectNote(day, onShow) {
+  const p = note("person-note person-suspect-note", day.suspectText || plural("person.summary.wrong", day.suspectCount, { n: day.suspectCount }));
+  const show = document.createElement("button");
+  show.type = "button";
+  show.className = "btn btn-tiny person-suspect-show";
+  show.textContent = t("person.summary.showWrong");
+  show.addEventListener("click", onShow);
+  p.append(" ", show);
+  return p;
+}
+
 /** The summary card. `day` is null when the summary failed to load. */
-export function summaryCard(name, day, onFocus) {
-  const section = card(name);
+export function summaryCard(name, day, onFocus, onShowSuspect) {
+  const section = card((day && day.heading) || t("person.summary.title", { name }));
   if (!day) {
     section.appendChild(note("person-note", t("person.summary.unavailable")));
     return section;
@@ -74,9 +94,7 @@ export function summaryCard(name, day, onFocus) {
     day.lines.forEach((line) => list.appendChild(lineButton(line, onFocus)));
     section.append(note("person-hint", t("person.summary.hint")), list);
   }
-  if (day.suspectCount) {
-    section.appendChild(note("person-note", plural("person.summary.wrong", day.suspectCount, { n: day.suspectCount })));
-  }
+  if (day.suspectCount) section.appendChild(suspectNote(day, onShowSuspect));
   section.appendChild(note("notice small person-honesty", day.label || t("honesty.tripsApproximate")));
   return section;
 }

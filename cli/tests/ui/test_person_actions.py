@@ -30,7 +30,17 @@ async def _send_route(page, reply, seen):
 
 async def test_send_reports_where_it_went_and_posts_once(trips_page, trips_server, pid):
     seen: list = []
-    await _send_route(trips_page, {"json": {"sent": True, "channels": ["telegram"]}}, seen)
+    await _send_route(
+        trips_page,
+        {
+            "json": {
+                "sent": True,
+                "channel": "telegram",
+                "targets": [{"target": "42", "ok": True, "error": None}],
+            }
+        },
+        seen,
+    )
     day = await open_person(trips_page, trips_server, pid)
     p = trips_page
     assert "Send this day's summary" in await p.inner_text("#person-send")
@@ -41,9 +51,18 @@ async def test_send_reports_where_it_went_and_posts_once(trips_page, trips_serve
     assert await p.is_enabled("#person-send")
 
 
+async def test_send_with_one_chat_refusing_says_so(trips_page, trips_server, pid):
+    targets = [{"target": "1", "ok": True}, {"target": "2", "ok": False, "error": "kicked"}]
+    reply = {"json": {"sent": True, "channel": "telegram", "targets": targets}}
+    await _send_route(trips_page, reply, [])
+    await open_person(trips_page, trips_server, pid)
+    await trips_page.click("#person-send")
+    await trips_page.get_by_text("Sent to Telegram. 1 chat did not accept it.").wait_for()
+
+
 async def test_send_failure_says_why(trips_page, trips_server, pid):
     await _send_route(
-        trips_page, {"status": 502, "json": {"detail": "Telegram is not connected"}}, []
+        trips_page, {"status": 409, "json": {"detail": "Telegram is not connected"}}, []
     )
     await open_person(trips_page, trips_server, pid)
     await trips_page.click("#person-send")

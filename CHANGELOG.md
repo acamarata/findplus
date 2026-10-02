@@ -8,10 +8,17 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [1.2.1] - 2026-10-02
 
+### Added
+- Updates keep your data: before an update installs, Find+ takes a verified backup of the database.
+
 ### Changed
-- New icon. The app icon is a light-blue "F+" on a black-to-navy square, and the menu-bar glyph is a
-  single ligature: the middle bar of the "F" runs on to the right and becomes the crossbar of the "+".
-  The old tall "+" beside the "F" read as a cross. `packaging/scripts/gen-app-icons.py` draws all sizes.
+- New icon. The app icon is a light-blue "F+" on a black-to-navy square, and the menu bar shows the
+  same "F" and "+" glyphs. `packaging/scripts/gen-app-icons.py` draws every size from one description.
+
+### Fixed
+- The dashboard showed "Could not reach the local API: null is not an object" after an update when the
+  window kept an old copy of the page. The page and its scripts are now revalidated on every load, and
+  the sighting filter box no longer assumes it exists.
 
 ## [1.2.0] - 2026-10-02
 

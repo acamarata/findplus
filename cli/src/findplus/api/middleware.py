@@ -297,4 +297,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers.setdefault("Content-Security-Policy", CONTENT_SECURITY_POLICY)
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        # The page and its scripts must be revalidated on every load: after an
+        # app update a webview that kept the old index.html next to new scripts
+        # crashed the dashboard ("toggle-suspect" is null, 1.2.0). no-cache still
+        # lets the browser reuse a file the server says is unchanged (ETag).
+        path = request.url.path
+        if path == "/" or path.startswith("/static/"):
+            response.headers.setdefault("Cache-Control", "no-cache")
         return response

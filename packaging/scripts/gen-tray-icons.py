@@ -39,22 +39,21 @@ DIM_ALPHA = 97
 Grid = list[list[bool]]
 
 
-#: Glyph rectangles (x0, y0, x1, y1 inclusive) on the 22px grid, shared with gen-app-icons.py.
-#: The middle bar of the "F" runs on to the right and becomes the horizontal bar of the "+".
+#: Glyph rectangles (x0, y0, x1, y1 inclusive) on the 22px grid, shared with gen-app-icons.py
+#: so the menu bar, the app icon and the web icon draw the same "F" and "+".
 GLYPH_RECTS = (
     (2, 4, 4, 17),  # F stem
     (2, 4, 10, 6),  # F top bar
-    (2, 9, 20, 11),  # F middle bar, continuing into the plus
-    (15, 5, 17, 15),  # plus, vertical stroke (centred on the bar)
+    (2, 9, 8, 11),  # F middle bar
+    (15, 4, 17, 17),  # plus, vertical stroke
+    (12, 9, 20, 11),  # plus, horizontal stroke
 )
 
 
 def f_plus_mask() -> Grid:
     """A 22x22 boolean grid: True where the glyph is drawn.
 
-    One ligature, not two letters side by side: the F's middle bar carries on
-    to the right and is also the "+" crossbar. The old tall "+" next to the
-    "F" read as a Christian cross in the menu bar (owner, 2026-10-02).
+    An "F" and a "+" side by side, 3px strokes, vertically centred.
     """
     grid = [[False] * 22 for _ in range(22)]
     for x0, y0, x1, y1 in GLYPH_RECTS:

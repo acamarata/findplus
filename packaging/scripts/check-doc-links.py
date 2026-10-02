@@ -39,7 +39,11 @@ def check_file(path: Path) -> list[str]:
             continue
         file_part, _, frag = target.partition("#")
         dest = path if not file_part else (path.parent / file_part)
-        if file_part and not dest.exists() and (path.parent / (file_part + ".md")).exists():
+        if (
+            file_part
+            and not dest.exists()
+            and (path.parent / (file_part + ".md")).exists()
+        ):
             dest = path.parent / (file_part + ".md")
         if not dest.exists():
             problems.append(f"{path.relative_to(ROOT)}: missing file {target}")
@@ -48,7 +52,9 @@ def check_file(path: Path) -> list[str]:
     if path.parent == WIKI:
         for name in WIKI_LINK.findall(text):
             if not (WIKI / f"{name.strip()}.md").exists():
-                problems.append(f"{path.relative_to(ROOT)}: missing wiki page [[{name}]]")
+                problems.append(
+                    f"{path.relative_to(ROOT)}: missing wiki page [[{name}]]"
+                )
     return problems
 
 

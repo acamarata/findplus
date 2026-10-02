@@ -19,13 +19,18 @@ import { setShowSuspect, showSuspect } from "./suspect_pref.js";
 /** Show the box only when the loaded day holds a sighting that looks wrong. */
 export function syncSuspectToggle() {
   const tracks = (state.timeline && state.timeline.tracks) || [];
-  $("suspect-group").hidden = !tracks.some((tr) => tr.points.some((p) => p.suspect));
-  $("toggle-suspect").checked = showSuspect();
+  const group = $("suspect-group");
+  const box = $("toggle-suspect");
+  if (!group || !box) return; // an old cached page without the box must not break the dashboard
+  group.hidden = !tracks.some((tr) => tr.points.some((p) => p.suspect));
+  box.checked = showSuspect();
 }
 
 /** Wire the box once. */
 export function wireSuspectToggle() {
-  $("toggle-suspect").addEventListener("change", (e) => {
+  const box = $("toggle-suspect");
+  if (!box) return;
+  box.addEventListener("change", (e) => {
     setShowSuspect(e.target.checked);
     renderMap({ fit: false });
     renderTracks();

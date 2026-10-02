@@ -3,6 +3,7 @@
   <rect width="1024" height="1024" rx="230" fill="url(#g)"/>
   <rect x="170" y="260" width="108" height="504" fill="#8ecbff"/>
   <rect x="170" y="260" width="324" height="108" fill="#8ecbff"/>
-  <rect x="170" y="440" width="684" height="108" fill="#8ecbff"/>
-  <rect x="638" y="296" width="108" height="396" fill="#8ecbff"/>
+  <rect x="170" y="440" width="252" height="108" fill="#8ecbff"/>
+  <rect x="638" y="260" width="108" height="504" fill="#8ecbff"/>
+  <rect x="530" y="440" width="324" height="108" fill="#8ecbff"/>
 </svg>

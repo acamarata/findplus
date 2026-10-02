@@ -28,7 +28,7 @@ from findplus.logging_setup import get_logger
 from findplus.people.events import run_person_hook as _person_events_evaluate
 from findplus.places.events import evaluate as _geofence_evaluate
 from findplus.providers.google_findhub.types import RawObservation
-from findplus.quality.ingest_hook import plan_geofence_feed
+from findplus.quality.ingest_hook import plan_geofence_feed, release_due
 
 log = get_logger(__name__)
 
@@ -210,7 +210,30 @@ def _run_post_ingest_hooks(
     left out, and an unconfirmed jump is held until the next poll (one poll of
     delay, see quality/ingest_hook.py).
     """
-    for lo in _quality_feed(session, new_rows, now):
+    _feed_hooks(session, _quality_feed(session, new_rows, now), settings)
+
+
+def release_held_fixes(
+    session: Session, settings: object | None = None, now: datetime | None = None
+) -> int:
+    """Feed the hooks every held fix whose hold has run out; returns how many.
+
+    The poller calls this once per cycle, so a tracker that goes quiet right
+    after a far fix still gets its ENTER, stamped with the fix's own time.
+    """
+    try:
+        with session.begin_nested():
+            rows = release_due(session, now)
+    except Exception:
+        log.exception("post_ingest_hook_failed", hook="quality_release")
+        return 0
+    _feed_hooks(session, rows, settings or get_settings())
+    return len(rows)
+
+
+def _feed_hooks(session: Session, rows: list[LocationObservation], settings: object) -> None:
+    """Run geofence, group and person hooks over `rows`, in the order given."""
+    for lo in rows:
         # Order matters: group and person hooks read what geofence just wrote.
         # Person events and left-behind: specs/people-and-presence.md § 5.1.
         hooks = (

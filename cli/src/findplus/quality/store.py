@@ -110,6 +110,44 @@ def write_scores(session: Session, scored: Iterable[Scored], *, now: datetime | 
     return len(items)
 
 
+def _differs(row: ObservationQuality, s: Scored) -> bool:
+    return (
+        row.score != s.score
+        or bool(row.suspect) != s.suspect
+        or row.reasons != ",".join(s.reasons)
+        or row.corroborated_by != s.corroborated_by
+        or row.algo_version != ALGO_VERSION
+    )
+
+
+def write_changes(
+    session: Session, scored: Iterable[Scored], *, now: datetime | None = None
+) -> set[int]:
+    """Upsert only verdicts that are new or changed; return ids that went suspect -> clean.
+
+    The ingest hook feeds those ids to the geofence: a fix it once held back
+    has just been cleared. Unchanged rows keep their `computed_at`.
+    """
+    items = list(scored)
+    released: set[int] = set()
+    changed: list[Scored] = []
+    for i in range(0, len(items), 500):
+        chunk = items[i : i + 500]
+        ids = [s.observation_id for s in chunk]
+        rows = session.scalars(
+            select(ObservationQuality).where(ObservationQuality.observation_id.in_(ids))
+        )
+        existing = {row.observation_id: row for row in rows}
+        for s in chunk:
+            row = existing.get(s.observation_id)
+            if row is not None and row.suspect and not s.suspect:
+                released.add(s.observation_id)
+            if row is None or _differs(row, s):
+                changed.append(s)
+    write_scores(session, changed, now=now)
+    return released
+
+
 def score_context(
     session: Session,
     device_id: str,

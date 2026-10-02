@@ -98,8 +98,13 @@ Import refuses a database that already has data. Use a fresh state directory
 Find+ stays on SQLite in WAL mode: one file, transactional, no server, right for
 one person's location history. Since 1.1.6 every commit is synced to disk
 (`PRAGMA synchronous=FULL`) rather than only at checkpoints, because a sighting
-cannot always be fetched again. The cost is one extra disk sync per commit. A
-poll makes a few commits, so it is not measurable at this volume.
+cannot always be fetched again. The cost is one extra
+disk sync per commit. Measured on a Mac SSD, 1,000 single-row commits took 0.04
+seconds with FULL and 0.01 seconds with NORMAL, and a poll makes a few commits,
+so the cost does not show. One honest limit: macOS syncs to the drive, not
+necessarily through the drive's own write cache, unless SQLite's `fullfsync` is
+on. Find+ does not turn that on, so a power cut can still lose the last moments
+on some drives. Backups are the answer to that, not the pragma.
 
 The app lock stops casual browsing; it does not encrypt this file or its
 backups. Use FileVault. See [App lock](App-lock).

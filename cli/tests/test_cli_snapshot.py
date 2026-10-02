@@ -31,6 +31,7 @@ EXPECTED_COMMANDS = {
     "doctor",
     "export",
     "groups",
+    "import",
     "install-service",
     "install-watchdog",
     "lock",

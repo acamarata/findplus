@@ -103,7 +103,7 @@ def _soft_and_context(
         if not found and _unconfirmed_jump(prev, fix, nxt, now):
             found.append(r.JUMP_UNCONFIRMED)
         near = [c for t, f in sib_index if (c := r.nearest_in_time(t, f, fix))]
-        if sib_index and r.sibling_disagree(fix, ordered[:i], near):
+        if sib_index and r.sibling_disagree(fix, ordered[max(0, i - 2) : i], near):
             found.append(r.SIBLING_DISAGREE)
         if r.low_accuracy(fix):
             found.append(r.LOW_ACCURACY)

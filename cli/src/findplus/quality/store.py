@@ -84,21 +84,30 @@ def load_siblings(
 def write_scores(session: Session, scored: Iterable[Scored], *, now: datetime | None = None) -> int:
     """Upsert verdict rows (stamped with the current algo version); returns the count."""
     stamp = now or datetime.now(UTC)
-    n = 0
-    for s in scored:
-        row = session.get(ObservationQuality, s.observation_id)
-        if row is None:
-            row = ObservationQuality(observation_id=s.observation_id)
-            session.add(row)
-        row.score = s.score
-        row.suspect = s.suspect
-        row.reasons = ",".join(s.reasons)
-        row.corroborated_by = s.corroborated_by
-        row.algo_version = ALGO_VERSION
-        row.computed_at = stamp
-        n += 1
+    items = list(scored)
+    for i in range(0, len(items), 500):
+        chunk = items[i : i + 500]
+        existing = {
+            row.observation_id: row
+            for row in session.scalars(
+                select(ObservationQuality).where(
+                    ObservationQuality.observation_id.in_([s.observation_id for s in chunk])
+                )
+            )
+        }
+        for s in chunk:
+            row = existing.get(s.observation_id)
+            if row is None:
+                row = ObservationQuality(observation_id=s.observation_id)
+                session.add(row)
+            row.score = s.score
+            row.suspect = s.suspect
+            row.reasons = ",".join(s.reasons)
+            row.corroborated_by = s.corroborated_by
+            row.algo_version = ALGO_VERSION
+            row.computed_at = stamp
     session.flush()
-    return n
+    return len(items)
 
 
 def score_context(

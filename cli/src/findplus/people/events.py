@@ -9,9 +9,11 @@ Inputs  : The just-inserted LocationObservation; Settings (unused today, kept
           for the hook signature ingest.py shares).
 Outputs : The GroupPlaceEvent rows inserted (also evaluates left-behind).
 Constraints: Never commits; ingest.py runs this in its own SAVEPOINT. Suspect
-          sightings are skipped. An observation at or before a state's
+          sightings are skipped. An observation before a state's
           since_observed_at never moves it (late reports cannot rewrite the
-          past). `unsure` never moves state. First evaluation seeds silently.
+          past); one at the same instant may (carried trackers report
+          together, uat116 #2). `unsure` never moves state. First evaluation
+          seeds silently. An arrival closes every place it cannot overlap.
 """
 
 from __future__ import annotations
@@ -160,14 +162,20 @@ def _member_event_ids(session, fix: PersonFix, place_id: int, event_type: str, a
     )
 
 
-def _write_event(session, group, place, fix, trackers, states, event_type, as_of, since=None):
+def _write_event(
+    session, group, place, fix, trackers, states, event_type, as_of, since=None, latest=None
+):
     """Insert the one person row for this crossing, unless one already covers it.
 
     The row's time and lead are the first sighting on the new side and the
     tracker seen there (people/crossing.py), never the confirming sighting.
+    `latest` caps the time: a place closed by an arrival elsewhere was left
+    no later than that arrival (people/events_close.py).
     """
     target = "inside" if event_type == "ENTER" else "outside"
     lead, when = crossing(session, fix, place, target, since, as_of) or (fix.lead_device_id, as_of)
+    if latest is not None and when > latest:
+        when = latest
     if _existing_group_event(session, group.id, place.id, event_type, when, SETTLE_MINUTES):
         return None
     ids = _member_event_ids(session, fix, place.id, event_type, as_of)
@@ -200,7 +208,7 @@ def evaluate_person(session: Session, group, as_of: datetime) -> list[GroupPlace
     inserted: list[GroupPlaceEvent] = []
     for place in places:
         row = session.get(PersonPlaceState, (group.id, place.id))
-        if row is not None and row.since_observed_at and as_of <= row.since_observed_at:
+        if row is not None and row.since_observed_at and as_of < row.since_observed_at:
             continue  # backfill guard: a late older report never moves the state
         if row is None:
             row = PersonPlaceState(group_id=group.id, place_id=place.id, state="unknown")
@@ -220,9 +228,24 @@ def evaluate_person(session: Session, group, as_of: datetime) -> list[GroupPlace
                 inserted.append(event)
                 log.debug("person_place_event", group_id=group.id, place_id=place.id,
                          event_type=s.event_type, confidence=fix.confidence)  # fmt: skip
+    inserted.extend(_close_left(session, group, fix, trackers, places, states, inserted, as_of))
     session.flush()
     left_behind.evaluate(session, group, fix, trackers, places, as_of)
     return inserted
+
+
+def _close_left(session, group, fix, trackers, places, states, inserted, as_of):
+    """EXIT rows for places an arrival elsewhere proves the person left (uat116 #2)."""
+    from findplus.people.events_close import close_left_places
+
+    def write_exit(place, since, latest):
+        return _write_event(session, group, place, fix, trackers, states, "EXIT", as_of,
+                            since, latest)  # fmt: skip
+
+    arrivals = [e for e in inserted if e.event_type == "ENTER"]
+    return (
+        close_left_places(session, group, places, arrivals, as_of, write_exit) if arrivals else []
+    )
 
 
 def run_person_hook(session: Session, observation: LocationObservation, settings: object = None):

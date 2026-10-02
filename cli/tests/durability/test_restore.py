@@ -133,3 +133,32 @@ def test_restore_into_a_missing_database_works(tmp_db, session, seeded_backup) -
     result = restore_backup(settings, seeded_backup, now=NOW)
     assert result.replaced_file is None and result.pre_restore_backup is None
     assert _counts() == (3, 12)
+
+
+def test_a_file_with_a_known_revision_but_a_broken_schema_is_refused(
+    session, seeded_backup, tmp_path
+) -> None:
+    broken = tmp_path / "broken.sqlite"
+    backup.snapshot(seeded_backup, broken)
+    conn = sqlite3.connect(broken)
+    conn.execute("DROP TABLE alert_rules")
+    conn.commit()
+    conn.close()
+    assert backup_check_ok(broken)
+    with pytest.raises(RestoreError, match="alert_rules is missing"):
+        validate_backup(broken)
+    with pytest.raises(RestoreError):
+        restore_backup(get_settings(), broken, now=NOW)
+    assert _counts() == (3, 12)  # the live database was not touched
+
+
+def test_an_older_backup_is_judged_by_its_own_schema(session, tmp_db) -> None:
+    from findplus.db.restore import schema_problems
+
+    assert schema_problems(Path(tmp_db), head_revision()) == []
+
+
+def backup_check_ok(path: Path) -> bool:
+    from findplus.db.integrity import check_database
+
+    return check_database(path).ok

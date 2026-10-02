@@ -28,6 +28,25 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     from findplus.config import Settings
 
 
+#: Folder Find+ creates inside a user-chosen backup directory.
+BACKUP_SUBDIR = "findplus-backups"
+_FORBIDDEN = ("\r", "\n", "\x00", "=")
+
+
+def check_plain_value(value: str) -> None:
+    """Raise ValueError for a value that could add or change another config.env line."""
+    if any(ch in value for ch in _FORBIDDEN):
+        raise ValueError("A setting value cannot contain a line break, an equals sign or a null.")
+
+
+def backup_directory(chosen: Path | None, state_dir: Path) -> Path:
+    """`<state dir>/backups`, or a `findplus-backups` folder inside the chosen path, so
+    Find+ only ever changes permissions on a folder it made."""
+    if chosen is None:
+        return state_dir / "backups"
+    return chosen if chosen.name == BACKUP_SUBDIR else chosen / BACKUP_SUBDIR
+
+
 def validate_config_key(key: str, value: str) -> None:
     """Raise ValueError if `value` is not a legal setting for `key`.
 
@@ -36,6 +55,8 @@ def validate_config_key(key: str, value: str) -> None:
     here. It still applies to a value set directly in the environment or in
     .env, through Settings.effective_poll_interval_minutes.
     """
+    check_plain_value(key)
+    check_plain_value(value)
     key_lower = key.lower().removeprefix("findplus_")
     if key_lower == "host" and is_public_bind(value):
         raise ValueError(
@@ -59,6 +80,9 @@ def validate_config_key(key: str, value: str) -> None:
 
 def write_config_key(settings: Settings, key: str, value: str | None) -> None:
     """Set or remove KEY in config.env, keeping every other key intact."""
+    check_plain_value(key)
+    if value is not None:
+        check_plain_value(value)
     env_file = settings.state_dir / "config.env"
     settings.ensure_state_dir()
     existing: dict[str, str] = {}
@@ -109,6 +133,12 @@ def unprefixed_config_env(state_dir: Path, model_fields: dict) -> dict[str, str]
             continue  # handled by the dotenv source
         field = name.lower()
         if field in model_fields and f"FINDPLUS_{name}" not in os.environ:
-            values[field] = value.strip().strip("'\"")
+            clean = value.strip().strip("'\"")
+            try:
+                if field != "host":  # the host rule has its own env switch
+                    validate_config_key(field, clean)
+            except ValueError:
+                continue  # a hand-edited or injected value that breaks a rule is ignored
+            values[field] = clean
     values.pop("state_dir", None)  # already resolved by the caller
     return values

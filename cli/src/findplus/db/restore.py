@@ -8,12 +8,13 @@ Outputs    : `RestoreResult`; the database file now holds the backup, upgraded
              to the current schema.
 Constraints: Order matters, and every step is reversible until the last:
              1. validate the file (SQLite header, `quick_check`, a known schema
-                revision, not newer than this Find+);
+                revision, not newer than this Find+, every table and column that
+                revision has);
              2. refuse while the daemon runs unless `force`;
              3. take a pre-restore backup of the current database;
              4. build the new file beside the old one, verify it;
              5. move the current file aside as `findplus.sqlite.replaced-<stamp>`
-                (never deleted), drop its stale -wal/-shm, move the new file in;
+                (never deleted; its -wal/-shm go with it), move the new file in;
              6. upgrade to head.
              The file the owner passes is only ever read.
 """
@@ -22,6 +23,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -81,26 +83,78 @@ def validate_backup(path: Path) -> str:
         raise RestoreError(
             f"{path.name} was made by a newer Find+ (schema {revision}). Update Find+ first."
         ) from exc
+    problems = schema_problems(path, revision)
+    if problems:
+        raise RestoreError(
+            f"{path.name} claims schema {revision} but is not a complete Find+ database: "
+            + "; ".join(problems[:5])
+        )
     return revision
 
 
-def _checkpoint(database: Path) -> None:
-    """Fold the live WAL into the main file so moving the file aside loses nothing."""
-    conn = sqlite3.connect(database, timeout=10)
+def _tables(path: Path) -> dict[str, set[str]]:
+    """{table: column names} of a database file (read-only)."""
+    conn = open_readonly(path)
     try:
-        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        names = [
+            r[0]
+            for r in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            )
+        ]
+        return {n: {r[1] for r in conn.execute(f'PRAGMA table_info("{n}")')} for n in names}
     finally:
         conn.close()
 
 
+def schema_problems(path: Path, revision: str) -> list[str]:
+    """Tables or columns a database at `revision` should have but `path` lacks.
+
+    The reference is a scratch database migrated to the same revision, so an older
+    backup is judged against the schema of its own time, not today's.
+    """
+    from findplus.db.migrate import run_migrations
+
+    with tempfile.TemporaryDirectory(prefix="findplus-schema-") as tmp:
+        ref = Path(tmp) / "ref.sqlite"
+        run_migrations(f"sqlite:///{ref}", revision)
+        want = _tables(ref)
+    have = _tables(path)
+    out = [f"table {t} is missing" for t in sorted(want) if t not in have]
+    for table, cols in want.items():
+        out += [f"{table}.{c} is missing" for c in sorted(cols - have.get(table, cols))]
+    return out
+
+
+def _checkpoint(database: Path) -> bool:
+    """Fold the live WAL into the main file; False when a reader or writer blocked it."""
+    conn = sqlite3.connect(database, timeout=10)
+    try:
+        busy = conn.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()[0]
+    finally:
+        conn.close()
+    return not busy
+
+
+def _stamp(now: datetime) -> str:
+    """Second plus microsecond, so two restores in one second keep separate files."""
+    return now.strftime("%Y%m%d-%H%M%S-%f")
+
+
 def _swap_in(new_file: Path, database: Path, now: datetime) -> Path | None:
-    """Move the live file aside, remove its sidecars, move `new_file` into place."""
+    """Move the live file (and its -wal/-shm) aside, move `new_file` into place."""
     replaced: Path | None = None
     if database.exists():
-        replaced = database.with_name(f"{database.name}.replaced-{now.strftime('%Y%m%d-%H%M%S')}")
+        replaced = database.with_name(f"{database.name}.replaced-{_stamp(now)}")
+        if replaced.exists():  # never overwrite an earlier restore's kept file
+            raise RestoreError(f"{replaced.name} already exists. Nothing was changed.")
         os.replace(database, replaced)
     for suffix in ("-wal", "-shm"):
-        Path(f"{database}{suffix}").unlink(missing_ok=True)
+        sidecar = Path(f"{database}{suffix}")
+        if replaced is not None and sidecar.exists():
+            os.replace(sidecar, Path(f"{replaced}{suffix}"))  # keep it with its main file
+        else:
+            sidecar.unlink(missing_ok=True)
     os.replace(new_file, database)
     if os.name != "nt":
         database.chmod(0o600)
@@ -126,12 +180,18 @@ def restore_backup(
     database: Path = settings.database_path
     before = backup_revision(database) if database.exists() else None
     pre: Path | None = None
-    if database.exists():
-        _checkpoint(database)
+    if database.exists() and check_database(database).ok:
+        if not _checkpoint(database) and not force:
+            raise RestoreError(
+                "Something still has the database open, so it cannot be folded into one "
+                "file safely. Stop Find+ (findplus stop) and try again. Nothing was changed."
+            )
         pre = backup.create_backup(
             database, settings.effective_backup_dir, kind="prerestore", now=now
         ).path
-    staged = database.with_name(f".restore-{now.strftime('%Y%m%d-%H%M%S')}.sqlite")
+    # A damaged live file cannot be backed up (the copy would fail its own check):
+    # it is kept whole as `.replaced-<stamp>` below, which is the safety copy.
+    staged = database.with_name(f".restore-{_stamp(now)}.sqlite")
     try:
         backup.snapshot(source, staged)
         if not check_database(staged).ok:

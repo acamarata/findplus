@@ -56,9 +56,11 @@ def _check_exclusive(state_dir: Path) -> tuple[bool, str]:
     connection, or a foreign service on that port) is ignored: serve proceeds
     normally and will overwrite it.
     """
+    from findplus.db.runlock import is_held
+
     daemon_json = state_dir / "daemon.json"
     if not daemon_json.exists():
-        return (False, "")
+        return (is_held(state_dir), "")
     try:
         data = json.loads(daemon_json.read_text())
         port = int(data["port"])
@@ -71,7 +73,7 @@ def _check_exclusive(state_dir: Path) -> tuple[bool, str]:
             return (True, f"{url}/")
     except Exception:
         pass  # stale daemon.json or unreachable daemon
-    return (False, "")
+    return (is_held(state_dir), "")
 
 
 def _prep_or_read_only(settings) -> None:
@@ -269,6 +271,12 @@ def serve(foreground: bool, no_poller: bool, host: str | None, port: int | None)
     settings = get_settings()
     bind_host, bind_port = _bind_or_exit(host, port)
     _refuse_if_already_running(settings.state_dir)
+    from findplus.db.runlock import acquire
+
+    daemon_lock = acquire(settings.state_dir)  # held until this process exits
+    if daemon_lock is None:
+        click.echo("Find+ is already running (its lock file is held).")
+        sys.exit(3)
     _prep_or_read_only(settings)
 
     stop_event = threading.Event()
@@ -276,5 +284,6 @@ def serve(foreground: bool, no_poller: bool, host: str | None, port: int | None)
     _print_banner(bind_host, bind_port, settings, no_poller)
 
     exit_code = _run_server(settings, bind_host, bind_port, no_poller, stop_event)
+    daemon_lock.close()
     if exit_code:
         sys.exit(exit_code)

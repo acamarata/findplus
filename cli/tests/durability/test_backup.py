@@ -181,3 +181,66 @@ def test_run_scheduled_backs_up_once_per_day(session, tmp_db) -> None:
     assert backup.run_scheduled(settings, now=NOW + timedelta(hours=2)) is None
     assert backup.run_scheduled(settings, now=NOW + timedelta(hours=25)) is not None
     assert backup.run_scheduled(settings, now=NOW + timedelta(hours=2), force=True) is not None
+
+
+def test_a_chosen_folder_is_never_chmodded(tmp_db, monkeypatch, tmp_path) -> None:
+    """Only the findplus-backups subfolder is made private; the owner's folder is left alone."""
+    import stat
+
+    from findplus.config import get_settings, reset_settings_cache
+
+    chosen = tmp_path / "Documents"
+    chosen.mkdir(mode=0o755)
+    chosen.chmod(0o755)
+    monkeypatch.setenv("FINDPLUS_BACKUP_DIR", str(chosen))
+    reset_settings_cache()
+    directory = get_settings().effective_backup_dir
+    assert directory == chosen / "findplus-backups"
+    backup.create_backup(Path(tmp_db), directory)
+    assert stat.S_IMODE(chosen.stat().st_mode) == 0o755
+    assert stat.S_IMODE(directory.stat().st_mode) == 0o700
+
+
+def test_an_unusable_folder_is_a_backup_error(tmp_path) -> None:
+    blocker = tmp_path / "file"
+    blocker.write_text("x")
+    with pytest.raises(backup.BackupError):
+        backup.prepare_dir(blocker / "sub")
+
+
+def test_tilde_in_the_backup_directory_is_expanded(tmp_db, monkeypatch) -> None:
+    from findplus.config import get_settings, reset_settings_cache
+
+    monkeypatch.setenv("FINDPLUS_BACKUP_DIR", "~/findplus-test-backups")
+    reset_settings_cache()
+    directory = get_settings().effective_backup_dir
+    assert directory.is_absolute() and "~" not in str(directory)
+    assert directory == Path.home() / "findplus-test-backups" / "findplus-backups"
+
+
+def test_a_stray_file_or_dangling_link_does_not_break_listing(tmp_path) -> None:
+    (tmp_path / "findplus-20261399-000000.sqlite").write_text("x")
+    (tmp_path / "findplus-20260930-120000.sqlite").symlink_to(tmp_path / "nowhere")
+    good = tmp_path / "findplus-20260929-120000.sqlite"
+    good.write_text("x")
+    assert [b.path for b in backup.list_backups(tmp_path)] == [good]
+    assert backup.rotate(tmp_path) == []
+
+
+def test_a_backup_stamped_in_the_future_does_not_stop_backups(tmp_path) -> None:
+    now = datetime(2026, 9, 30, 12, 0, tzinfo=UTC)
+    (tmp_path / "findplus-20270101-000000.sqlite").write_text("x")
+    assert backup.backup_due(tmp_path, now)
+    (tmp_path / "findplus-20260930-110000.sqlite").write_text("x")
+    assert not backup.backup_due(tmp_path, now)
+
+
+def test_manual_and_prerestore_backups_are_rotated_to_a_bound(tmp_path) -> None:
+    for i in range(14):
+        (tmp_path / f"findplus-manual-202609{i + 1:02d}-120000.sqlite").write_text("x")
+    for i in range(8):
+        (tmp_path / f"findplus-prerestore-202609{i + 1:02d}-120000.sqlite").write_text("x")
+    gone = backup.rotate(tmp_path)
+    assert len(gone) == (14 - backup.KEEP_MANUAL) + (8 - backup.KEEP_PRERESTORE)
+    kept = backup.list_backups(tmp_path)
+    assert sum(b.kind == "manual" for b in kept) == backup.KEEP_MANUAL

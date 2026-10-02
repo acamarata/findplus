@@ -7,7 +7,8 @@ into a plain file you can read.
 ## Automatic backups
 
 While the daemon runs it makes one backup a day, and one at startup if the newest
-is a day old or more. Backups go to `~/.findplus/backups/` as
+is a day old or more. Backups go to `~/.findplus/backups/` (or, if you chose a folder,
+to a `findplus-backups` folder inside it; only that folder is made private) as
 `findplus-YYYYMMDD-HHMMSS.sqlite` (UTC time).
 
 - Each copy is made with SQLite's online backup, so it is consistent even while
@@ -16,11 +17,14 @@ is a day old or more. Backups go to `~/.findplus/backups/` as
   is thrown away and the failure is logged.
 - Find+ keeps the newest backup of each of the last 7 days, plus the newest of
   each of the 4 weeks before that. Older automatic backups are deleted. Backups
-  you make yourself, and the pre-restore backup below, are never deleted for you.
+  you make yourself, and the pre-restore backups below, are kept until there are more
+  than 10 and 5 of them; then the oldest go.
 - The folder is private (mode 0700) and every backup is 0600.
-- A backup holds the database only. Your sign-in tokens (`secrets.json`), alert
-  channel settings (`alerts.json`) and Apple keys live elsewhere and are never
-  copied into a backup. Back those up yourself if you want them.
+- A backup holds the database only: no sign-in tokens or keys. Your sign-in tokens
+  (`secrets.json`), alert channel settings (`alerts.json`) and Apple keys live
+  elsewhere and are never copied into a backup; back those up yourself if you want
+  them. The app-lock PIN hash and salt are rows in the database, so they are in the
+  backup. Treat backups like the database itself.
 
 Change where backups go and how many are kept in the dashboard's settings
 (`PATCH /api/settings`: `backup.directory`, `backup.keep_daily`,
@@ -61,13 +65,17 @@ findplus start
 Restore is built not to make things worse:
 
 1. It checks the file first: a SQLite file, passes its own checks, made by a
-   Find+ no newer than this one.
-2. It refuses while Find+ is running (use `--force` only if you are sure).
+   Find+ no newer than this one, with every table and column that version has.
+2. It refuses while Find+ is running (use `--force` only if you are sure). Running
+   means the dashboard answers or the `daemon.lock` file in `~/.findplus` is held.
 3. It takes a pre-restore backup of the current database
-   (`findplus-prerestore-...sqlite`).
+   (`findplus-prerestore-...sqlite`). If the current database is damaged there is
+   nothing sound to copy, so this step is skipped and step 5 keeps the damaged file
+   whole instead.
 4. It builds the new file beside the old one and checks it.
-5. It keeps the file it replaces as `findplus.sqlite.replaced-<time>`. Nothing is
-   deleted. Delete it yourself when you are happy.
+5. It keeps the file it replaces as `findplus.sqlite.replaced-<time>`, with its
+   `-wal` and `-shm` files beside it. Nothing is deleted. Delete it yourself when you
+   are happy.
 6. It upgrades the restored file to the current schema.
 
 ## If the database is damaged
@@ -75,7 +83,9 @@ Restore is built not to make things worse:
 At startup Find+ runs a quick check. If it finds damage, the daemon starts
 read-only: the dashboard shows "Find+ found damage in its history database, so
 it is read-only for now. Nothing has been deleted.", and Find+ does not poll,
-prune or write. The damaged file is left exactly as it was. Restore a backup as
+prune or write. The same goes for the command line: `poll-now`, `prune`,
+`db recompute-quality`, `import` and `db rebuild-derived` refuse on a damaged file,
+and "Poll now" in the dashboard says why it will not run. The damaged file is left exactly as it was. Restore a backup as
 above.
 
 ## Take your data out, bring it back
@@ -89,9 +99,17 @@ The JSONL file has one JSON object per line: a header (format version, Find+
 version, schema revision, counts), then devices, places, groups (with their kind
 and members), observations and alert rules. It is meant to be read by people as
 well as by Find+. Alert rules refer to places and groups by name. The file never
-includes your PIN hash, sign-in tokens or channel secrets. Quality flags, place
-events and delivery logs are not exported; they are worked out again. After an
-import run `findplus db recompute-quality`.
+includes your PIN hash, the lock switch, sign-in tokens or channel secrets. It
+does include your settings, alert deliveries and daily-summary records, so
+cooldowns hold and summaries are not sent twice. Quality flags and place, group and
+person state are not exported; they are worked out again. After an import run:
+
+```
+findplus db recompute-quality
+findplus db rebuild-derived    # replays every sighting; sends nothing about the past
+```
+
+`findplus import` and `findplus db import` are the same command.
 
 Import refuses a database that already has data. Use a fresh state directory
 (`FINDPLUS_STATE_DIR=/tmp/new findplus import file.jsonl`).

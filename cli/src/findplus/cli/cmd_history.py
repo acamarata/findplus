@@ -149,7 +149,7 @@ def export(
 @click.option("--yes", is_flag=True, help="Actually delete. Without this it is a dry run.")
 def prune(before: str, yes: bool) -> None:
     """Delete history before a date. Dry run unless --yes is given."""
-    _prep()
+    _prep(writes=True)
     from sqlalchemy import func
     from sqlalchemy import select as sa_select
 

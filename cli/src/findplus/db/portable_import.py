@@ -10,7 +10,9 @@ Constraints: Only into an EMPTY database: it never merges with or overwrites
              schema newer than this Find+, is refused. Unknown fields are
              ignored and missing ones take the column default, so older exports
              keep loading. Derived data is not in the file; run
-             `findplus db recompute-quality` afterwards.
+             `findplus db recompute-quality` and `findplus db rebuild-derived`
+             afterwards. A repeated record (the same sighting twice) is refused
+             in plain words, and nothing is kept.
 """
 
 from __future__ import annotations
@@ -22,11 +24,13 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import func, inspect, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from findplus.db.models import Device, DeviceGroup, Group, LocationObservation, Place
 from findplus.db.models_alerts import AlertRule
 from findplus.db.portable import FORMAT, FORMAT_VERSION, SKIP
+from findplus.db.portable_extra import EXTRA_KINDS, add_extra
 from findplus.db.types import UtcDateTime
 
 _MODELS = {
@@ -100,6 +104,7 @@ def _add_group(session: Session, rec: dict[str, Any], names: dict[str, dict[str,
 
 def _add_rule(session: Session, rec: dict[str, Any], names: dict[str, dict[str, int]]) -> None:
     data = _clean(AlertRule, rec, SKIP["alert_rule"])
+    ref = rec.get("ref")
     try:
         data["place_id"] = names["place"][rec["place"]] if rec.get("place") else None
         data["group_id"] = names["group"][rec["group"]] if rec.get("group") else None
@@ -107,7 +112,11 @@ def _add_rule(session: Session, rec: dict[str, Any], names: dict[str, dict[str, 
         raise PortableImportError(
             f"An alert rule points at {exc.args[0]!r}, which is not in the file."
         ) from exc
-    session.add(AlertRule(**data))
+    rule = AlertRule(**data)
+    session.add(rule)
+    if ref is not None:
+        session.flush()
+        names["rule"][ref] = rule.id
 
 
 def _flush_observations(session: Session, batch: list[dict[str, Any]]) -> None:
@@ -123,8 +132,18 @@ def import_lines(session: Session, lines: Iterable[str]) -> ImportResult:
             "This database already has data. Import only into an empty one "
             "(use a fresh state directory)."
         )
+    try:
+        return _import_records(session, lines)
+    except IntegrityError as exc:
+        raise PortableImportError(
+            "The file lists the same record twice (for example one sighting repeated), "
+            "or points at something that is not in it. Nothing was imported."
+        ) from exc
+
+
+def _import_records(session: Session, lines: Iterable[str]) -> ImportResult:
     result = ImportResult({k: 0 for k in _MODELS})
-    names: dict[str, dict[str, int]] = {"place": {}, "group": {}}
+    names: dict[str, dict[str, int]] = {"place": {}, "group": {}, "rule": {}}
     batch: list[dict[str, Any]] = []
     first = True
     for rec in _records(lines):
@@ -135,15 +154,15 @@ def import_lines(session: Session, lines: Iterable[str]) -> ImportResult:
             _check_header(rec)
             first = False
             continue
+        if kind != "observation":
+            _flush_observations(session, batch)
         if kind == "observation":
             batch.append(_clean(LocationObservation, rec, SKIP["observation"]))
-            result.counts[kind] += 1
             if len(batch) >= _BATCH:
                 _flush_observations(session, batch)
-            continue
-        _flush_observations(session, batch)
-        _add_other(session, kind, rec, names)
-        result.counts[kind] += 1
+        else:
+            _add_other(session, kind, rec, names)
+        result.counts[kind] = result.counts.get(kind, 0) + 1
     _flush_observations(session, batch)
     if first:
         raise PortableImportError("The file is empty.")
@@ -156,6 +175,8 @@ def _add_other(session: Session, kind: str | None, rec: dict, names: dict) -> No
         _add_group(session, rec, names)
     elif kind == "alert_rule":
         _add_rule(session, rec, names)
+    elif kind in EXTRA_KINDS:
+        add_extra(session, kind, rec, names)
     elif kind in ("device", "place"):
         obj = _MODELS[kind](**_clean(_MODELS[kind], rec, SKIP[kind]))
         session.add(obj)

@@ -1,4 +1,4 @@
-"""Online SQLite backups, verified, rotated, never containing secrets.
+"""Online SQLite backups, verified and rotated, with no sign-in tokens or keys.
 
 Purpose    : Keep recent copies of the history database so a bad disk, a bad
              upgrade or a mistaken delete costs hours, not months.
@@ -11,9 +11,12 @@ Constraints: Uses SQLite's online backup API (`Connection.backup`), a consistent
              WAL database. Each copy is written under a temporary name, verified
              by opening it and running `quick_check`, and only then renamed into
              place. The backup contains the database only: `secrets.json`,
-             `alerts.json` and Apple tokens live outside it and are never copied.
+             `alerts.json` and Apple tokens live outside it and are never copied. The
+             `settings` table is in it, and that holds the app-lock PIN hash and
+             salt: no sign-in tokens or keys, but the PIN hash is included.
              Rotation keeps the newest automatic backup of each of the last N
-             days plus the newest of each of the last K older weeks.
+             days plus the newest of each of the last K older weeks, and the
+             newest KEEP_MANUAL manual and KEEP_PRERESTORE pre-restore backups.
 """
 
 from __future__ import annotations
@@ -29,6 +32,9 @@ from findplus.db.integrity import check_database
 
 #: A new automatic backup is due when the newest one is older than this.
 DUE_AFTER = timedelta(hours=24)
+#: Manual and pre-restore backups are never aged out, but only this many are kept.
+KEEP_MANUAL = 10
+KEEP_PRERESTORE = 5
 _STAMP = "%Y%m%d-%H%M%S"
 _AUTO = re.compile(r"^findplus-(\d{8}-\d{6})\.sqlite$")
 _ALL = re.compile(r"^findplus-(?:(manual|prerestore)-)?(\d{8}-\d{6})\.sqlite$")
@@ -49,10 +55,17 @@ class BackupInfo:
 
 
 def prepare_dir(directory: Path) -> Path:
-    """Create the backup directory at 0700 (and tighten it if it already exists)."""
-    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
-    if os.name != "nt":
-        directory.chmod(0o700)
+    """Create the backup directory at 0700 (and tighten it if it already exists).
+
+    `Settings.effective_backup_dir` is always a Find+ owned folder, so a folder the
+    owner chose (Documents, an external disk) never has its permissions changed.
+    """
+    try:
+        directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        if os.name != "nt":
+            directory.chmod(0o700)
+    except OSError as exc:
+        raise BackupError(f"The backup folder {directory} cannot be used: {exc}") from exc
     return directory
 
 
@@ -86,6 +99,9 @@ def create_backup(
         raise BackupError("There is no database to back up yet.")
     prepare_dir(directory)
     final = _target(directory, kind, now)
+    while final.exists():  # two backups in one second must not replace each other
+        now += timedelta(seconds=1)
+        final = _target(directory, kind, now)
     temp = final.with_name(f".partial-{final.name}")
     temp.unlink(missing_ok=True)
     try:
@@ -115,8 +131,11 @@ def list_backups(directory: Path) -> list[BackupInfo]:
         m = _ALL.match(path.name)
         if not m:
             continue
-        taken = datetime.strptime(m.group(2), _STAMP).replace(tzinfo=UTC)
-        out.append(BackupInfo(path, m.group(1) or "auto", taken, path.stat().st_size))
+        try:  # a stray name (month 13) or a dangling symlink is skipped, never fatal
+            taken = datetime.strptime(m.group(2), _STAMP).replace(tzinfo=UTC)
+            out.append(BackupInfo(path, m.group(1) or "auto", taken, path.stat().st_size))
+        except (ValueError, OSError):
+            continue
     return sorted(out, key=lambda b: (b.taken_at, b.path.name), reverse=True)
 
 
@@ -125,7 +144,11 @@ def backup_due(
 ) -> bool:
     """True when there is no automatic backup, or the newest is at least `min_age` old."""
     now = now or datetime.now(UTC)
-    newest = next((b for b in list_backups(directory) if b.kind == "auto"), None)
+    # A backup stamped in the future (clock change) must not stop backups for good:
+    # only count autos stamped at or before now.
+    newest = next(
+        (b for b in list_backups(directory) if b.kind == "auto" and b.taken_at <= now), None
+    )
     return newest is None or now - newest.taken_at >= min_age
 
 
@@ -151,10 +174,16 @@ def rotation_keep(backups: list[BackupInfo], keep_daily: int, keep_weekly: int) 
 
 
 def rotate(directory: Path, keep_daily: int = 7, keep_weekly: int = 4) -> list[Path]:
-    """Delete automatic backups outside the keep set; returns the deleted paths."""
+    """Delete backups outside the keep sets; returns the deleted paths.
+
+    Automatic ones follow the daily/weekly rule; manual and pre-restore ones keep
+    only their newest KEEP_MANUAL / KEEP_PRERESTORE so the folder cannot grow forever.
+    """
     backups = list_backups(directory)
     keep = rotation_keep(backups, keep_daily, keep_weekly)
     gone = [b.path for b in backups if b.kind == "auto" and b.path not in keep]
+    for kind, limit in (("manual", KEEP_MANUAL), ("prerestore", KEEP_PRERESTORE)):
+        gone += [b.path for b in [x for x in backups if x.kind == kind][limit:]]
     for path in gone:
         path.unlink(missing_ok=True)
     return gone

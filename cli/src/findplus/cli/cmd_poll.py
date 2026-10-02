@@ -54,7 +54,7 @@ def _poll_now_exit_code(cycle) -> int:
 )
 def poll_now(device_ids: tuple[str, ...]) -> None:
     """Run a single Find Hub poll immediately."""
-    _prep()
+    _prep(writes=True)
     from findplus.poller import poll_once
 
     cycle = poll_once(device_ids=set(device_ids) if device_ids else None)

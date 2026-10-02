@@ -19,7 +19,7 @@ from pydantic import Field, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from findplus.config_bind import is_public_bind
-from findplus.config_keys import unprefixed_config_env
+from findplus.config_keys import backup_directory, unprefixed_config_env
 from findplus.config_keys import validate_config_key as validate_config_key
 from findplus.config_keys import write_config_key as write_config_key
 from findplus.providers.findhub.bootstrap import resolve_vendor_path
@@ -148,6 +148,11 @@ class Settings(BaseSettings):
             raise ValueError("poll_interval_minutes must be positive")
         return v
 
+    @field_validator("backup_dir")
+    @classmethod
+    def _expand_backup_dir(cls, v: Path | None) -> Path | None:
+        return v.expanduser() if v is not None else v  # `~/x` is legal; launchd has no ~
+
     @field_validator("host")
     @classmethod
     def _warn_on_public_bind(cls, v: str) -> str:
@@ -168,8 +173,8 @@ class Settings(BaseSettings):
 
     @property
     def effective_backup_dir(self) -> Path:
-        """Backups directory: `backup_dir` when set, else `<state dir>/backups`."""
-        return self.backup_dir or self.state_dir / "backups"
+        """Where backups live (a `findplus-backups` folder inside a chosen `backup_dir`)."""
+        return backup_directory(self.backup_dir, self.state_dir)
 
     @property
     def secrets_file(self) -> Path:

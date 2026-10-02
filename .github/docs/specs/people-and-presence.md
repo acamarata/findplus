@@ -260,7 +260,8 @@ Sam's bag stayed at Home.                    (only when a tracker is apart)
 <honesty.ALERTS_LATENCY, verbatim, never truncated>
 ```
 "Sam left Home at 7:40 AM" for EXIT. Times are local with the zone abbreviation, built by the existing
-`dispatch_core._fmt_local_time` [Certain]. Probably-level events add "(probably; only the bag reported)".
+`dispatch_core._fmt_local_time` [Certain]. Probably-level events add "(probably; only the bag reported)"; when the note does not fit the 400-character budget the
+"stayed" clause may drop, the probably clause never does (the head is trimmed instead).
 `render_message` gets a `basis == 'person'` branch in a new `alerts/render_person.py` (dispatch_core is 290
 lines [Certain]).
 
@@ -322,7 +323,8 @@ get score x 1.1 (capped), so diversity is not used beyond that.
 6. Gaps over 90 min outside a `home` place: "No sightings 11:00 AM to 1:30 PM."
 7. Left-behind episodes: "Bag stayed at School from 3:00 PM."
 8. Footer: "2 sightings looked wrong and were left out (show)." plus `honesty.TRIPS_APPROXIMATE`.
-9. Every line carries `evidence` (tracker ids) and `confidence`; "around" prefixes a time when the supporting
+9. Lines at the same minute read night first, then departures, then the rest ("left School" before "At Home
+   from"). Every line carries `evidence` (tracker ids) and `confidence`; "around" prefixes a time when the supporting
    sightings are more than 10 min apart.
 
 ### 7.2 Surfaces

@@ -180,8 +180,10 @@ def build_day(inp: DayInput) -> DayResult:
     elif has_data and not events and not is_today(ctx):
         through = seen_through(ctx)
         lines += [through] if through else []
-    rank = {"overnight": 0, "no_sightings": 0}
-    lines.sort(key=lambda x: (x.at, rank.get(x.kind, 1)))
+    # Same minute: the night first, then a departure, then whatever follows it
+    # ("left School" before "At Home from", review r116 #10).
+    rank = {"overnight": 0, "no_sightings": 0, "left": 1}
+    lines.sort(key=lambda x: (x.at, rank.get(x.kind, 2)))
     return DayResult(
         lines=lines,
         gaps=gaps,

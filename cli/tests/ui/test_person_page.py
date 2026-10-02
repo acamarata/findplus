@@ -49,6 +49,15 @@ async def test_map_has_one_line_per_tracker(trips_page, trips_server, pid):
     )
 
 
+async def test_map_is_named_for_the_person_and_renamed_on_leaving(trips_page, trips_server, pid):
+    await open_person(trips_page, trips_server, pid)
+    p = trips_page
+    assert await p.get_attribute("#map", "aria-label") == "Map of Sam's day, one line per tracker"
+    await p.click("#person-back")
+    await p.wait_for_selector("#tab-dashboard", state="visible")
+    assert "Sam" not in await p.get_attribute("#map", "aria-label")
+
+
 async def test_lead_tracker_is_first(trips_page, trips_server, pid):
     await open_person(trips_page, trips_server, pid)
     first = trips_page.locator(".lane-name").first

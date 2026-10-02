@@ -1315,7 +1315,6 @@
       },
       "accept": "Accept",
       "acceptAdd": "Add it",
-      "acceptNamed": "Accept {name}",
       "editMembers": "Edit members",
       "notPerson": "Not a person",
       "itsPet": "It's a pet",
@@ -1359,7 +1358,6 @@
     "back": "Back to dashboard",
     "pageLabel": "Person page",
     "loading": "Loading {name}'s day",
-    "loadingPerson": "Loading",
     "conf": {
       "likely": "Likely",
       "probably": "Probably",
@@ -1378,17 +1376,13 @@
       "next": "Next day",
       "today": "Today",
       "pick": "Day",
-      "hint": "Arrow keys change the day.",
-      "isToday": "Today, {date}"
+      "hint": "Arrow keys change the day."
     },
     "summary": {
       "title": "{name}'s day",
       "hint": "Select a line to see it on the map and in the day story.",
-      "empty": "Nothing to say about this day yet.",
       "noLines": "No summary lines came back for this day.",
       "unavailable": "The day summary is not available right now. The map and day story below still work.",
-      "evidence": "From {trackers}",
-      "around": "around",
       "wrong": {
         "one": "1 sighting looked wrong and was left out.",
         "other": "{n} sightings looked wrong and were left out."
@@ -1400,15 +1394,9 @@
       "label": "Map of {name}'s day, one line per tracker",
       "legend": "Each line is one tracker. Lines are never joined into one path.",
       "suspectTip": "This sighting looks wrong. Left out of stays, trips and alerts.",
-      "suspectCount": {
-        "one": "1 sighting that looks wrong is shown faintly.",
-        "other": "{n} sightings that look wrong are shown faintly."
-      },
       "stay": "{place}, {range}"
     },
-    "lanes": {
-      "lead": "{name} (best sighting)"
-    },
+    "lanes": {},
     "story": {
       "title": "Day story for {name}",
       "pick": "Whose tracker?"
@@ -1423,7 +1411,6 @@
       "role": "Role",
       "weightLabel": "How much to trust it",
       "weightHelp": "1 means it nearly always travels with {name}. 0 means it is never used to place {name}.",
-      "resetWeight": "Use the role's default",
       "save": "Save",
       "saved": "Saved {tracker}.",
       "saveFailed": "Could not save {tracker}: {message}",
@@ -1436,12 +1423,10 @@
     },
     "chip": {
       "carried": "Carried",
-      "parked": "Parked",
       "leftAt": "Left at {place}",
       "leftSpot": "Left behind",
       "movedWithout": "Moved without {name}",
       "stale": "No recent sighting",
-      "unknown": "Not enough to tell",
       "pending": "Maybe left behind"
     },
     "act": {
@@ -1469,12 +1454,9 @@
       "errorTitle": "Could not load {name}'s day",
       "notFoundTitle": "This person is not here any more",
       "notFoundLead": "It may have been deleted or turned back into a group.",
-      "locked": "Locked",
-      "retryDay": "Retry",
       "noNow": "Where they are right now could not be loaded."
     },
     "leftBehind": {
-      "title": "Left behind",
       "knowIt": "I know",
       "row": "{name}'s {tracker} looks left at {place} since {time}.",
       "rowSpot": "{name}'s {tracker} looks left behind since {time}.",

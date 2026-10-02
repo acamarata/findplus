@@ -14,6 +14,7 @@
 "use strict";
 
 import { $, state, todayLocal } from "./state.js";
+import { t } from "./i18n.js";
 import { switchTab } from "./main.js";
 import { wireDateBar } from "./person_datebar.js";
 import { dropLayers, ensureLayers, loadPerson, reload } from "./person_page.js";
@@ -73,6 +74,7 @@ export async function hidePerson() {
   $("app-shell").classList.remove("person-view");
   dropLayers();
   if (state.layer && state.map) state.layer.addTo(state.map);
+  if (state.map) state.map.getContainer().setAttribute("aria-label", t("map.label"));
   switchTab(previousTab);
   const { renderMap } = await import("./map.js");
   renderMap({ fit: false });

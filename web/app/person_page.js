@@ -172,6 +172,7 @@ function renderBody() {
   nodes.push(trackersCard({ ...storyCtx(), now: page.now, episodes: page.episodes, fixes: new Map(((page.day && page.day.trackers) || []).map((x) => [x.device_id, x.fixes])), name: page.person.name, devices: state.devices, leadId: page.now && page.now.lead_device_id, onChanged: () => reload() }), honestyFooter());
   setBody(...nodes);
   markList($("person-body"), page.selectedId);
+  state.map.getContainer().setAttribute("aria-label", t("person.map.label", { name: page.person.name }));
 }
 
 function mapNote() {
@@ -249,4 +250,5 @@ export function purge() {
   const date = $("person-date");
   if (date) date.value = "";
   if (layers) { layers.draw.clearLayers(); layers.mark.clearLayers(); }
+  if (state.map) state.map.getContainer().setAttribute("aria-label", t("map.label"));
 }

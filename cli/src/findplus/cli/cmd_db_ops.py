@@ -126,7 +126,7 @@ def db_recompute_quality(since: str | None) -> None:
     _prep(writes=True)
     start = day_bounds_utc(date.fromisoformat(since), local_zone())[0] if since else None
     with session_scope() as session:
-        result = recompute(session, since=start)
+        result = recompute(session, since=start, commit_every=2000)
     click.echo(
         f"Scored {result.rows} sighting(s) across {result.devices} tracker(s); "
         f"{result.suspects} look wrong."

@@ -7,7 +7,9 @@ Outputs    : `ObservationQuality` rows and small result dataclasses.
 Constraints: Raw observations never change (invariant 8): only the derived row is
              written. Rows carry `algo_version`; `recompute` rewrites every row
              in range, so a version bump is one command. Never commits (the
-             caller owns the transaction). Siblings are the other trackers of
+             caller owns the transaction) unless `recompute(commit_every=N)`
+             is asked to: then it commits every N rows so a long run never
+             holds the write lock for more than a moment. Siblings are the other trackers of
              the same person or pet group.
 """
 
@@ -170,9 +172,17 @@ class RecomputeResult:
 
 
 def recompute(
-    session: Session, *, since: datetime | None = None, now: datetime | None = None
+    session: Session,
+    *,
+    since: datetime | None = None,
+    now: datetime | None = None,
+    commit_every: int = 0,
 ) -> RecomputeResult:
-    """Rewrite quality rows for every tracker (from `since`, or all history)."""
+    """Rewrite quality rows for every tracker (from `since`, or all history).
+
+    With `commit_every` > 0 the writes go out in chunks of that many rows, each
+    committed, so another writer (the poller) is never locked out for the whole run.
+    """
     now = now or datetime.now(UTC)
     start = since or datetime(1970, 1, 1, tzinfo=UTC)
     end = now + timedelta(days=1)
@@ -180,6 +190,12 @@ def recompute(
     rows = suspects = 0
     for device_id in devices:
         scored = score_window(session, device_id, start, end, now=now)
-        rows += write_scores(session, scored.values(), now=now)
+        values = list(scored.values())
+        step = commit_every if commit_every > 0 else max(len(values), 1)
+        for i in range(0, len(values), step):
+            rows += write_scores(session, values[i : i + step], now=now)
+            if commit_every > 0:
+                session.commit()
+                session.expunge_all()
         suspects += sum(1 for s in scored.values() if s.suspect)
     return RecomputeResult(len(devices), rows, suspects)

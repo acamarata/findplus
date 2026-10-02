@@ -1,5 +1,7 @@
 """The row after a flagged sighting is measured from the last trusted fix."""
 
+# ruff: noqa: E501
+
 from __future__ import annotations
 
 import pytest

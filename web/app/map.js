@@ -11,13 +11,15 @@
 "use strict";
 
 import { uniqueLabel } from "./device_label.js";
-import { state, colorFor, displayName, visibleTracks, fmtTime, fmtDateTime, fmtDuration, fmtDistance, esc } from "./state.js";
+import { state, colorFor, displayName, visibleTracks, fmtTime, esc } from "./state.js";
 import { selectPoint } from "./timeline.js";
 import { renderBadge } from "./components/badge.js";
 import { t } from "./i18n.js";
 import { api } from "./api.js";
 import { syncMapOverlay } from "./map_empty.js";
 import { renderLegend, syncDense, watchTiles } from "./map_extras.js";
+import { popupHtml } from "./map_popup.js";
+import { storyMapRender } from "./trips_view.js";
 
 // U4 (R-P2-30.2): a US-centred default read as "my child is in Kansas" the
 // first time the map had no data to fit. A neutral world view says nothing
@@ -177,36 +179,6 @@ function numberedIcon(point, index, total, device) {
   });
 }
 
-function popupHtml(point, deviceName) {
-  // UAT2 N14: the tracker's name is the heading, not a subtitle under the
-  // time -- a popup with several tracks open at once otherwise reads as a
-  // bare timestamp with no way to tell whose fix it is.
-  const rows = [
-    `<b>${esc(deviceName)}</b>`,
-    `<div class="fp-popup-sub">${fmtTime(point.observed_at_local)}</div>`,
-    `<div>${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}</div>`,
-  ];
-  if (point.accuracy_meters != null) {
-    const rough = point.accuracy_meters >= 100 ? ` (${esc(t("timeline.roughFix"))})` : "";
-    rows.push(`<div>Accuracy ~${Math.round(point.accuracy_meters)} m${rough}</div>`);
-  } else {
-    // Apple Find My never reports a metres figure (CF-P2-6): say so plainly
-    // instead of just omitting the line, which could read as "exact".
-    rows.push(`<div>${esc(t("timeline.accuracyUnknown"))}</div>`);
-  }
-  if (point.seconds_since_previous !== null) {
-    rows.push(`<div>${fmtDuration(point.seconds_since_previous)} since previous observation</div>`);
-  }
-  const dist = fmtDistance(point.meters_from_previous);
-  if (dist) rows.push(`<div>${dist} from previous observation</div>`);
-  if (point.source) rows.push(`<div class="fp-popup-meta">Report: ${esc(point.source)}</div>`);
-  if (!point.is_movement && point.seconds_since_previous !== null) {
-    rows.push(`<div class="fp-popup-meta">Below movement threshold</div>`);
-  }
-  rows.push(`<div class="fp-popup-retrieved">Retrieved ${fmtDateTime(point.fetched_at)}</div>`);
-  return rows.join("");
-}
-
 /**
  * The device a track belongs to, or a stand-in that still renders.
  *
@@ -276,6 +248,8 @@ export function renderMap({ fit = true } = {}) {
     syncMapOverlay();
     return;
   }
+  // The day story (trips_view.js) draws its own layers when it is the view on screen.
+  if (storyMapRender({ fit })) { syncMapOverlay(); return; }
 
   const allLatLngs = [];
   const legend = [];

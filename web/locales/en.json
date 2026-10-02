@@ -1249,6 +1249,33 @@
       "car": "car",
       "luggage": "luggage",
       "other": "tracker"
+    },
+    "day": {
+      "heading": "{name}'s day",
+      "headingDate": "{name}'s day, {date}",
+      "overnight": "Overnight at {place}",
+      "noSightingsUntil": "No sightings until {time}",
+      "left": "{time} left {place}",
+      "arrived": "{time} arrived at {place}",
+      "atFrom": "At {place} from {time}",
+      "stay": "{range} at {where}",
+      "gap": "No sightings {range}.",
+      "stayedBehind": "{what} stayed at {place} from {time}.",
+      "stayedBehindUntil": "{what} stayed at {place} from {time} until {until}.",
+      "stillAt": "Still at {place} (seen {time})",
+      "lastSeenNear": "Last seen near {place} at {time}; nothing since",
+      "lastSeenAt": "Last seen at {where} at {time}",
+      "nothingSince": "; nothing since",
+      "seenThrough": "Seen at {place} through {time}",
+      "approx": "around {time}",
+      "via": "{text} ({via})",
+      "andMore": "{names} and {n} more",
+      "suspectOne": "1 sighting looked wrong and was left out.",
+      "suspectMany": "{n} sightings looked wrong and were left out.",
+      "empty": "No sightings for {name} on this day.",
+      "range": "{start} to {end}",
+      "digestOff": "The daily summary is off.",
+      "noChannel": "Connect Telegram to send the daily summary."
     }
   },
   "honesty": {

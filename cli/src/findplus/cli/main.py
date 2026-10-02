@@ -32,6 +32,7 @@ from . import (
     cmd_setup,
 )
 from .alerts import alerts_cmd
+from .cmd_day import day_cmd, digest_cmd
 from .cmd_mcp import mcp
 from .cmd_people import people_cmd
 from .cmd_poll import poll_now
@@ -55,6 +56,8 @@ def main() -> None:
     os.umask(PRIVATE_UMASK)
 
 
+people_cmd.add_command(digest_cmd)
+main.add_command(day_cmd)
 main.add_command(cmd_service.auth)
 main.add_command(cmd_service.serve)
 main.add_command(cmd_service.start)

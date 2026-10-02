@@ -26,6 +26,7 @@ EXPECTED_COMMANDS = {
     "apple",
     "auth",
     "config",
+    "day",
     "db",
     "devices",
     "doctor",

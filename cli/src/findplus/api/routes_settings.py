@@ -31,6 +31,7 @@ from findplus.security import SessionStore, hash_pin, reject_padded_pin, verify_
 from findplus.state import set_setting
 
 from ._settings_backup import write_backup_fields
+from ._settings_digest import write_digest_fields
 from ._settings_fields import (
     _RETENTION_KEY,
     _raw_patch_body,
@@ -77,6 +78,7 @@ def _apply_writes(
         _write_config_fields(poll_interval_minutes, retention_days, retention_present)
         _write_onboarding_fields(session, raw_body, completed_at, last_step)
         write_backup_fields(raw_body)
+        write_digest_fields(session, raw_body)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 

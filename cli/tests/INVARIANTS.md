@@ -54,6 +54,11 @@ A failing test in the Tests column is a regression, not a flaky test.
 | `unsure` and suspect sightings never move a person; late reports never rewrite state. | `people/test_scenarios_left_behind.py::test_sibling_carries_the_bag_gives_no_person_exit`, `people/test_quality_seam.py::test_suspect_jump_never_moves_the_person`, `people/test_scenarios_day.py::test_a_late_older_report_never_moves_person_state` |
 | Left-behind alerts once, never at Home. | `people/test_dispatch_people.py::test_left_behind_alerts_once_away_from_home` |
 | Every people route 401s while locked. | `people/test_people_api.py::test_every_people_route_401s_while_locked` |
+| A summary never says "still at" on stale data, and a time is "around" when the sightings that bound it are over 10 min apart. | `people/test_day_pure.py::test_last_line_still_at_only_when_fresh_and_in_a_place`, `people/test_day_pure.py::test_a_time_is_around_when_the_sighting_before_it_is_over_ten_minutes_back`, `people/test_day_scenarios.py::test_stale_data_never_says_still_at` |
+| Every summary line names its trackers; suspect sightings are left out and counted; the summary is read only. | `people/test_day_scenarios.py::test_every_line_names_the_trackers_behind_it`, `people/test_day_dst_suspect.py::test_a_teleport_sighting_is_left_out_and_counted`, `people/test_day_scenarios.py::test_summary_is_read_only` |
+| Summary days follow local midnight, 23 and 25 hour days included. | `people/test_day_dst_suspect.py::test_dst_day_runs_by_local_midnight` |
+| The evening summary sends once per person, chat and local date, survives a restart, is held while locked, retries once, and sends nothing for an empty day. | `people/test_digest_scheduler.py` |
+| Manual and API sends carry the latency and approximate sentences once, never the bot token, and 401 while locked. | `people/test_day_api.py::test_send_posts_a_clean_list_with_the_notices_once`, `people/test_day_api.py::test_send_failure_is_a_502_without_the_token`, `people/test_day_api.py::test_day_routes_401s_while_locked_and_leak_nothing` |
 
 ## Honesty Sentences
 

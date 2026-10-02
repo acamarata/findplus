@@ -58,6 +58,16 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - Every new place gets an arrive and leave rule for everyone on your connected channel;
   `POST /api/places/notify-defaults` adds it to existing places, with a dry run first.
 - Places have a kind (home, school, work, family, shop, other), guessed from the name.
+- A daily summary for each person ("Zaid's day"): when they left Home, arrived at School, left
+  again and got home, stops of 15 minutes or more away from saved places, long gaps with no
+  sightings, trackers left behind, and where they are now. Every line names the tracker that backs
+  it, a time reads "around" when the sightings that bound it are over 10 minutes apart, and "still
+  at" is only said on fresh data. `GET /api/people/{id}/day`, `findplus day <name>`, and the MCP
+  tools `get_person_day` and `where_is`.
+- Send it to Telegram: `POST /api/people/{id}/day/send`, `findplus day <name> --send`, or an
+  evening summary (setting `people.digest`, off by default, 20:00, `findplus people digest`). Each
+  person's day goes once per chat per day, never twice after a restart, and is held while the app
+  lock is on. A day with nothing tracked sends nothing unless you choose "always send".
 
 ### Changed
 - The database now syncs every commit to disk (`synchronous=FULL`, WAL kept) so a power cut cannot

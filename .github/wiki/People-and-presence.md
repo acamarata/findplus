@@ -101,6 +101,13 @@ Home place (a bike in the garage is normal), and you can turn left-behind alerts
 when the bag stops reporting (shown as "no recent sighting", never "still left behind"). "I know"
 silences that tracker at that place for the rest of the day.
 
+## The day in plain words
+
+Click a person to see their day, or ask for it: `findplus day Zaid`, `GET /api/people/{id}/day`,
+or the MCP tool `get_person_day`. It reads like "7:40 AM left Home / 8:10 AM arrived at School /
+3:00 PM left School / At Home from 3:33 PM". Details, the Telegram evening summary and the wording
+rules are on [Daily summary](Daily-summary).
+
 ## Known limits
 
 - A sibling wearing Zaid's shoes looks exactly like Zaid. Every message names the tracker it rests

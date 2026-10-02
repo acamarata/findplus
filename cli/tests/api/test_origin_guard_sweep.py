@@ -88,6 +88,9 @@ _EXTENSION_ONLY = {
     ("POST", "/api/auth/google/native/unlock"),
     ("POST", "/api/auth/google/native/event"),
     ("POST", "/api/auth/google/native/classify"),
+    # Only the desktop shell's own X-FindPlus-Client header gets past the
+    # handler (test_apply.py::test_apply_answers_only_the_desktop_shell).
+    ("POST", "/api/update/apply"),
 }
 _SAME_ORIGIN_ROUTES = [r for r in _ROUTES if r not in _EXTENSION_ONLY]
 _HEADERLESS_ROUTES = [

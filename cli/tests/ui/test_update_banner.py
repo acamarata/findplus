@@ -21,7 +21,9 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 BRIDGE = """
 window.__fpCalls = [];
 window.__findplus_native = true;
-window.__TAURI__ = { core: { invoke: async (cmd) => { window.__fpCalls.push(cmd); return "started"; } } };
+window.__TAURI__ = {
+  core: { invoke: async (cmd) => { window.__fpCalls.push(cmd); return "started"; } },
+};
 """
 
 

@@ -29,7 +29,8 @@ def test_doc_examples_name_the_project_version() -> None:
         text = (ROOT / doc).read_text(encoding="utf-8")
         assert f"(for example, v{ver})" in text, doc
         assert f"releases/download/v{ver}/findplus-{ver}-py3-none-any.whl" in text, doc
-        assert not re.search(r"v(?!%s\b)\d+\.\d+\.\d+/findplus-" % re.escape(ver), text), doc
+        stale = re.search(rf"v(?!{re.escape(ver)}\b)\d+\.\d+\.\d+/findplus-", text)
+        assert not stale, doc
 
 
 def test_bump_version_rewrites_the_doc_examples(tmp_path: Path) -> None:

@@ -152,6 +152,12 @@ class Settings(BaseSettings):
             raise ValueError("poll_interval_minutes must be positive")
         return v
 
+    @field_validator("backup_dir")
+    @classmethod
+    def _expand_backup_dir(cls, v: Path | None) -> Path | None:
+        # `~/x` passes validation, so expand it here: under launchd a bare `~` is relative.
+        return v.expanduser() if v is not None else v
+
     @field_validator("host")
     @classmethod
     def _warn_on_public_bind(cls, v: str) -> str:

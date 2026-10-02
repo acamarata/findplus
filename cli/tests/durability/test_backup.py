@@ -206,3 +206,13 @@ def test_an_unusable_folder_is_a_backup_error(tmp_path) -> None:
     blocker.write_text("x")
     with pytest.raises(backup.BackupError):
         backup.prepare_dir(blocker / "sub")
+
+
+def test_tilde_in_the_backup_directory_is_expanded(tmp_db, monkeypatch) -> None:
+    from findplus.config import get_settings, reset_settings_cache
+
+    monkeypatch.setenv("FINDPLUS_BACKUP_DIR", "~/findplus-test-backups")
+    reset_settings_cache()
+    directory = get_settings().effective_backup_dir
+    assert directory.is_absolute() and "~" not in str(directory)
+    assert directory == Path.home() / "findplus-test-backups" / "findplus-backups"

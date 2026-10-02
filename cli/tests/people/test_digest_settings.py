@@ -1,4 +1,4 @@
-"""The `people.digest` preference: GET/PATCH /api/settings, `findplus people digest`, lock probe."""
+"""The `people.digest` preference: GET/PATCH /api/settings, `findplus people digest`."""
 
 from __future__ import annotations
 
@@ -8,12 +8,11 @@ import threading
 import pytest
 from click.testing import CliRunner
 
-from findplus.appsettings import save_pin
 from findplus.cli.main import main
 from findplus.db.session import session_scope
 from findplus.people import digest_prefs
-from findplus.security import SessionStore, hash_pin
-from findplus.service.digest import DigestScheduler, make_lock_probe
+from findplus.security import SessionStore
+from findplus.service.digest import DigestScheduler
 from findplus.state import set_setting
 
 from ._digest_helpers import seed_school_day
@@ -93,25 +92,6 @@ def test_cli_digest_rejects_bad_input(tmp_db):
     assert digest_prefs.DEFAULTS["enabled"] is False  # the shared defaults are never mutated
 
 
-def test_lock_probe_holds_only_while_locked_and_nobody_unlocked(tmp_db):
-    sessions = SessionStore()
-    locked = make_lock_probe(sessions)
-    assert locked() is False  # no PIN, no lock
-    with session_scope() as s:
-        salt, digest = hash_pin("246810")
-        save_pin(s, salt, digest)
-    assert locked() is True
-    token = sessions.create()
-    assert locked() is False and sessions.is_valid(token)
-    sessions.revoke(token)
-    assert locked() is True
-    sessions.idle_timeout_seconds = 0.0001
-    sessions.create()
-    threading.Event().wait(0.01)  # idle expiry counts: a long-abandoned session does not unlock
-    sessions.idle_timeout_seconds = 0.005
-    assert locked() is True
-
-
 def test_serve_starts_the_digest_worker_beside_retention(tmp_db, monkeypatch):
     from findplus.cli import cmd_serve
     from findplus.config import get_settings
@@ -138,4 +118,4 @@ def test_serve_starts_the_digest_worker_beside_retention(tmp_db, monkeypatch):
     assert {"retention", "digest"} <= set(started) and isinstance(
         started["digest"], DigestScheduler
     )
-    assert isinstance(seen[0], SessionStore)  # the app and the digest share one session store
+    assert isinstance(seen[0], SessionStore)  # the app keeps its own session store

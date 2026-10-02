@@ -18,7 +18,7 @@
  */
 "use strict";
 
-import { state } from "./state.js";
+import { state, esc } from "./state.js";
 import { t } from "./i18n.js";
 import { clockOf, rangeText, titleOf } from "./trips_format.js";
 
@@ -36,13 +36,13 @@ function drawLine(layer, track, ctx) {
   const name = ctx.nameOf(track.device_id);
   if (latlngs.length > 1) {
     L.polyline(latlngs, { color, weight: lead ? 4 : 3, opacity: lead ? 0.9 : 0.7, dashArray: "6 5", keyboard: false })
-      .addTo(layer).bindTooltip(name, { sticky: true });
+      .addTo(layer).bindTooltip(esc(name), { sticky: true });
   }
   if (good.length) {
     const last = good[good.length - 1];
     L.circleMarker([lat(last), lon(last)], {
       radius: lead ? 7 : 5, color: "#fff", weight: 2, fillColor: color, fillOpacity: 0.95, keyboard: false,
-    }).addTo(layer).bindTooltip(`${name} ${clockOf(last.observed_at_local || "")}`.trim());
+    }).addTo(layer).bindTooltip(esc(`${name} ${clockOf(last.observed_at_local || "")}`.trim()));
   }
   return latlngs;
 }
@@ -51,7 +51,7 @@ function drawLine(layer, track, ctx) {
 function drawSuspect(layer, point, name) {
   const at = [lat(point), lon(point)];
   const reason = point.suspect_reason || t("person.map.suspectTip");
-  const tip = `${name}: ${reason}`;
+  const tip = esc(`${name}: ${reason}`);
   L.circleMarker(at, {
     radius: 4, color: "#64748b", weight: 1, opacity: 0.55, fillColor: "#94a3b8", fillOpacity: 0.3, keyboard: false,
   }).addTo(layer).bindTooltip(tip);
@@ -73,7 +73,7 @@ function drawStays(layer, device, payload, ctx) {
     const marker = L.circleMarker([stay.latitude, stay.longitude], {
       radius: stayRadius(stay), color, weight: lead ? 3 : 2, fillColor: color, fillOpacity: lead ? 0.35 : 0.18, keyboard: false,
     }).addTo(layer);
-    marker.bindTooltip(stayTip(stay, name), { direction: "top", offset: [0, -4] });
+    marker.bindTooltip(esc(stayTip(stay, name)), { direction: "top", offset: [0, -4] });
     marker.on("click", () => ctx.onPickStay(device, stay.id));
     return [stay.latitude, stay.longitude];
   });

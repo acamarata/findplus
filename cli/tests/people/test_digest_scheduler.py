@@ -96,14 +96,20 @@ def test_each_chat_target_is_its_own_row(world):
     assert len(fake.sent) == 2
 
 
-def test_held_while_locked_then_sent_after_unlock(world):
+def test_sends_while_the_app_is_locked(world):
+    """The lock protects what this computer shows; the daemon, like alerts, keeps sending."""
+    import inspect
+
+    from findplus.appsettings import save_pin
+    from findplus.security import hash_pin
+
     turn_on()
-    fake, locked = FakeChannel(), {"on": True}
-    sched = make(fake, is_locked=lambda: locked["on"])
-    out = sched.tick(at(20, 0))
-    assert [o.status for o in out] == ["held"] and fake.sent == [] and runs() == []
-    locked["on"] = False
-    out = sched.tick(at(22, 30))
+    with session_scope() as s:
+        salt, digest = hash_pin("246810")
+        save_pin(s, salt, digest)
+    assert "is_locked" not in inspect.signature(DigestScheduler).parameters
+    fake = FakeChannel()
+    out = make(fake).tick(at(20, 0))
     assert [o.status for o in out] == ["sent"] and len(fake.sent) == 1
 
 

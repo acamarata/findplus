@@ -81,8 +81,8 @@ Or `PATCH /api/settings` with `{"people.digest": {"enabled": true, "time": "19:3
   twice (one `digest_runs` row per person, date, channel and chat).
 - A failed send is tried once more a minute later, then logged as failed.
 - A day with nothing tracked sends nothing, unless `always_send` is on.
-- While the app lock is on and nobody has unlocked it, the summary is held, not dropped: it sends
-  after the next unlock, if it is still the same day. Notifications are held while Find+ is locked.
+- Summaries are sent even while Find+ is locked, like Telegram alerts. The lock protects what is shown on this computer.
+  Only the notifications the menu-bar app shows on this computer are held while Find+ is locked.
 - The message is a plain list with the person's name as the heading, and the delay and
   approximate-times sentences once at the end.
 

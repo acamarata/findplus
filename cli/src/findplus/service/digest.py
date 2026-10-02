@@ -6,14 +6,13 @@ Purpose    : At the time set in `people.digest` (default 20:00, off until the
              channel, target) makes a restart, a second daemon tick or a slow
              network unable to send twice.
 Inputs     : The `people.digest` preference, the person/pet groups, the stored
-             Telegram credentials, a clock, the computer's local zone, a lock
-             probe, and a sender. All five are injectable, so tests use a fake
+             Telegram credentials, a clock, the computer's local zone and a
+             sender. All of them are injectable, so tests use a fake
              clock and a fake channel and never touch the network.
 Outputs    : `Outcome` rows from `tick()`; `digest_runs` rows; log lines.
-Constraints: Held, not dropped, while the app lock is on and nobody has unlocked
-             it (the same posture as honesty.ALERTS_LOCKED); it sends after an
-             unlock if it is still the same local day. A day with nothing
-             tracked sends nothing, unless the owner chose "always send". A
+Constraints: Sends while the app is locked, like alerts do: the lock protects
+             what this computer shows, and the daemon keeps running. A day with
+             nothing tracked sends nothing, unless the owner chose "always send". A
              failed send is retried once on the next tick, then recorded as
              failed. A crash mid-send is never resent: the claim row stays.
              Statuses: sending, sent, skipped, retry, failed. `sent_at` is the
@@ -32,7 +31,6 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from findplus.appsettings import load_settings
 from findplus.db.models import Group
 from findplus.db.models_people import PERSON_KINDS, DigestRun
 from findplus.db.session import session_scope
@@ -56,19 +54,8 @@ DONE = ("sent", "skipped", "failed", "sending")
 class Outcome:
     person_id: int | None
     target: str
-    status: str  # sent | skipped | retry | failed | held | no_channel
+    status: str  # sent | skipped | retry | failed | no_channel
     error: str | None = None
-
-
-def make_lock_probe(sessions) -> Callable[[], bool]:
-    """True while the app lock is on and no unlock session is live."""
-
-    def locked() -> bool:
-        with session_scope() as s:
-            active = load_settings(s).lock_active
-        return bool(active and not sessions.any_valid())
-
-    return locked
 
 
 def _local_zone() -> ZoneInfo | None:
@@ -93,7 +80,6 @@ class DigestScheduler:
         *,
         clock: Callable[[], datetime] | None = None,
         tz: ZoneInfo | None = None,
-        is_locked: Callable[[], bool] | None = None,
         sender: Sender | None = None,
         channels_loader: Callable[[], object] | None = None,
         interval: float = TICK_SECONDS,
@@ -101,7 +87,6 @@ class DigestScheduler:
         self._state_dir = state_dir
         self._clock = clock or (lambda: datetime.now(UTC))
         self._tz = tz
-        self._is_locked = is_locked or (lambda: False)
         self._sender = sender
         self._channels = channels_loader
         self._interval = interval
@@ -122,7 +107,7 @@ class DigestScheduler:
 
     # ------------------------------------------------------------------ tick
     def tick(self, now: datetime | None = None) -> list[Outcome]:
-        """Send what is due. Returns one Outcome per (person, target) handled or held."""
+        """Send what is due. Returns one Outcome per (person, target) handled."""
         now = (now or self._clock()).astimezone(UTC)
         tz = self._tz or _local_zone()
         with session_scope() as s:
@@ -134,8 +119,6 @@ class DigestScheduler:
         hour, minute = digest_prefs.hour_minute(prefs)
         if local < local.replace(hour=hour, minute=minute, second=0, microsecond=0):
             return []
-        if self._is_locked():
-            return [Outcome(None, "", "held")]
         creds = telegram_creds(prefs["channel"], self._channels() if self._channels else None)
         if creds is None:
             return [Outcome(None, "", "no_channel")]

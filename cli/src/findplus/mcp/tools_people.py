@@ -20,7 +20,7 @@ from mcp.server.mcpserver import MCPServer
 
 from findplus import honesty
 from findplus.mcp import errors
-from findplus.mcp.client import DaemonClient
+from findplus.mcp.client import DaemonClient, seg
 from findplus.mcp.tools_read import _params, _with_notice
 
 _PLACING = (honesty.PRESENCE_STALE, honesty.ALERTS_LATENCY)
@@ -50,7 +50,7 @@ async def _people_with_now(client: DaemonClient) -> dict | list:
     if not isinstance(people, list):
         return people  # an error dict (locked, daemon down) passes through untouched
     for person in people:
-        person["now"] = await client.get(f"/api/people/{person['id']}/now")
+        person["now"] = await client.get(f"/api/people/{seg(person['id'])}/now")
     return people
 
 
@@ -66,7 +66,9 @@ def register_people_read_tools(mcp: MCPServer, _c) -> None:
         who = await _resolve(_c(), person)
         if isinstance(who, dict):
             return await _with_notice(who, _c())
-        return await _with_notice(await _c().get(f"/api/people/{who}/now"), _c(), caveats=_PLACING)
+        return await _with_notice(
+            await _c().get(f"/api/people/{seg(who)}/now"), _c(), caveats=_PLACING
+        )
 
     @mcp.tool(structured_output=True)
     async def get_person_day(
@@ -76,7 +78,7 @@ def register_people_read_tools(mcp: MCPServer, _c) -> None:
         who = await _resolve(_c(), person)
         if isinstance(who, dict):
             return await _with_notice(who, _c())
-        data = await _c().get(f"/api/people/{who}/day", _params(date=date, timezone=timezone))
+        data = await _c().get(f"/api/people/{seg(who)}/day", _params(date=date, timezone=timezone))
         return await _with_notice(data, _c(), caveats=_DAY)
 
     @mcp.tool(structured_output=True)
@@ -103,4 +105,6 @@ def register_people_write_tools(mcp: MCPServer, client: DaemonClient) -> None:
     ) -> dict[str, Any]:
         """Set what a tracker is attached to (bag, shoes, phone...) and its carry weight."""
         body = _params(role=role, carry_weight=carry_weight)
-        return await _with_notice(await _c().put(f"/api/people/trackers/{device_id}", body), _c())
+        return await _with_notice(
+            await _c().put(f"/api/people/trackers/{seg(device_id)}", body), _c()
+        )

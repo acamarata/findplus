@@ -143,6 +143,18 @@ async def test_hide_remembers_until_new_suggestions_and_recheck_refetches(trips_
     assert len(gets) > before
 
 
+async def test_a_lock_forgets_which_suggestions_were_hidden(trips_page, trips_server):
+    """The remembered "Not now" is made of suggestion keys, which carry people's names."""
+    await serve(trips_page)
+    await _open_groups(trips_page, trips_server)
+    p = trips_page
+    await p.get_by_role("button", name="Not now").click()
+    await p.get_by_role("button", name="Show suggestions (3)").wait_for()
+    assert await p.evaluate("localStorage.getItem('findplus.peopleHidden')")
+    await p.evaluate("import('/static/app/lock.js').then((m) => m.purgeRenderedData())")
+    assert await p.evaluate("localStorage.getItem('findplus.peopleHidden')") is None
+
+
 async def test_dashboard_banner_counts_and_opens_the_panel(trips_page, trips_server):
     await serve(trips_page)
     await trips_page.goto(trips_server["base"] + "/")

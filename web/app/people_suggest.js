@@ -191,8 +191,9 @@ export function mountBanner(host) {
   renderBanner();
 }
 
-/** Lock purge: no name may survive. */
+/** Lock purge: no name may survive, in the page or in localStorage (the hide signature holds keys made of names). */
 export function purge() {
+  writeHidden(null);
   data = null; people = []; failure = null; message = { text: "", kind: "" };
   hosts.forEach((_, host) => host.replaceChildren());
   if (banner) { banner.replaceChildren(); banner.hidden = true; }

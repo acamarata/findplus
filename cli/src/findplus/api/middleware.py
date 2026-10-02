@@ -66,7 +66,7 @@ _MUTATING_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 CONTENT_SECURITY_POLICY = (
     "default-src 'self'; "
     "img-src 'self' https://tile.openstreetmap.org data:; "
-    "frame-ancestors 'none'"
+    "frame-ancestors 'none'; form-action 'self'; base-uri 'none'; object-src 'none'"
 )
 
 _FOREIGN_HOST_DETAIL = (

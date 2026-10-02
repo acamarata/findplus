@@ -13,6 +13,8 @@ Constraints: Loopback only (enforced by the daemon); no retries; 30s/60s
 
 from __future__ import annotations
 
+from urllib.parse import quote
+
 import httpx
 
 from findplus.honesty import APPLE, FIND_HUB
@@ -41,6 +43,16 @@ def _notice_for(devices: object, find_hub: str, apple: str) -> str:
     if has_other and not has_apple:
         return find_hub
     return _both(find_hub, apple)
+
+
+def seg(value: object) -> str:
+    """One URL path segment from caller input: slashes, ? and # are percent-encoded.
+
+    A segment made only of dots would be collapsed by the HTTP client ("..") and
+    reach a different route, so its dots are encoded too.
+    """
+    text = quote(str(value), safe="")
+    return text.replace(".", "%2E") if set(text) == {"."} else text
 
 
 class DaemonClient:

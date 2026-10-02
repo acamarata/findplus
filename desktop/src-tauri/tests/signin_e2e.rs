@@ -40,6 +40,10 @@ fn signin_window_end_to_end() {
     assert_eq!(r["unlocked"], true, "{r}");
     assert_eq!(r["account"], "fake@example.com", "{r}");
 
+    let r = run_case("handed");
+    assert_eq!(r["outcome"], "success", "{r}");
+    assert_eq!(r["unlocked"], true, "{r}");
+
     let r = run_case("unlock");
     assert_eq!(r["outcome"], "success", "{r}");
     assert_eq!(r["mode"], "unlock", "{r}");

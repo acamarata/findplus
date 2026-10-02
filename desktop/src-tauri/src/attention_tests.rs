@@ -83,7 +83,16 @@ fn banner_text_is_generic() {
 
 #[test]
 fn deep_links_open_only_while_attention_is_set() {
-    assert_eq!(gate(None), Gate::Settings);
-    assert_eq!(gate(Some(Need::Signin)), Gate::Open(Need::Signin));
-    assert_eq!(gate(Some(Need::Unlock)), Gate::Open(Need::Unlock));
+    use Need::{Signin as S, Unlock as U};
+    use Provider::{Apple as A, Google as G};
+    assert_eq!(gate(G, S, None, false), Gate::Settings);
+    assert_eq!(gate(G, S, Some(S), false), Gate::Open(S));
+    assert_eq!(gate(G, U, Some(U), false), Gate::Open(U));
+    // A link for the other need does not open: contract deep_links[url].
+    assert_eq!(gate(G, S, Some(U), false), Gate::Settings);
+    assert_eq!(gate(G, U, Some(S), false), Gate::Settings);
+    assert_eq!(gate(A, S, Some(S), false), Gate::Open(S));
+    assert_eq!(gate(A, S, None, false), Gate::Settings);
+    // Locked: every link opens Settings (the lock screen first).
+    assert_eq!(gate(G, S, Some(S), true), Gate::Settings);
 }

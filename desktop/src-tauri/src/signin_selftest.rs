@@ -5,7 +5,8 @@
 //!              client at it, opens the REAL sign-in window (WKWebView, no
 //!              Chrome, no Google), prints the `signin-result` payload as one
 //!              `SIGNIN-RESULT {json}` line and exits.
-//! Cases      : ok (sign in + unlock), unlock (unlock-only, account page),
+//! Cases      : ok (sign in + unlock), handed (same, with the begin reply
+//!              passed in as the card does), unlock (unlock-only, account page),
 //!              reject (Google-style rejection page), cancel (window closed).
 //! Constraints: Compiled only with `debug_assertions`. No tray, daemon,
 //!              splash, single-instance plugin or dashboard window.
@@ -20,7 +21,7 @@ use crate::signin_window;
 /// The case name, when the self-test was asked for.
 pub fn requested() -> Option<String> {
     let case = std::env::var("FINDPLUS_SIGNIN_SELFTEST").ok()?;
-    ["ok", "unlock", "reject", "cancel"]
+    ["ok", "handed", "unlock", "reject", "cancel"]
         .contains(&case.as_str())
         .then_some(case)
 }
@@ -47,7 +48,10 @@ pub fn start(app: &AppHandle, case: &str) {
     } else {
         Mode::Signin
     };
-    signin_window::open(app, mode);
+    // "handed": the card's path, where the dashboard calls begin and passes
+    // the reply to open_signin_window.
+    let handed = (case == "handed").then(|| fake_begin(&base)).flatten();
+    signin_window::open(app, mode, handed);
     let watchdog = app.clone();
     let cancel = case == "cancel";
     std::thread::spawn(move || {
@@ -61,4 +65,14 @@ pub fn start(app: &AppHandle, case: &str) {
         println!("SIGNIN-RESULT {{\"outcome\":\"selftest_watchdog\"}}");
         watchdog.exit(4);
     });
+}
+
+/// The begin reply, fetched the way the dashboard card would.
+fn fake_begin(base: &str) -> Option<serde_json::Value> {
+    let client = reqwest::blocking::Client::new();
+    let resp = client
+        .post(format!("{base}/api/auth/google/native/begin"))
+        .send()
+        .ok()?;
+    resp.json().ok()
 }

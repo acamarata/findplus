@@ -16,7 +16,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::attention::{self, Gate, Provider};
+use crate::attention::{self, Gate, Need, Provider};
 use crate::{signin_window, windows};
 
 /// Derive the reload-widgets helper path from the running app's own
@@ -56,7 +56,7 @@ enum Action {
     OpenPlaces,
     Poll,
     RefreshWidget,
-    Login(Provider),
+    Login(Provider, Need),
     Unknown,
 }
 
@@ -67,8 +67,9 @@ fn classify(url: &str) -> Action {
         "findplus://places" => Action::OpenPlaces,
         "findplus://poll" => Action::Poll,
         "findplus://refresh-widget" => Action::RefreshWidget,
-        "findplus://signin/google" | "findplus://unlock/google" => Action::Login(Provider::Google),
-        "findplus://signin/apple" => Action::Login(Provider::Apple),
+        "findplus://signin/google" => Action::Login(Provider::Google, Need::Signin),
+        "findplus://unlock/google" => Action::Login(Provider::Google, Need::Unlock),
+        "findplus://signin/apple" => Action::Login(Provider::Apple, Need::Signin),
         _ => Action::Unknown,
     }
 }
@@ -89,10 +90,13 @@ pub fn handle(app: &tauri::AppHandle, url: &str) {
                 reload_widget_timelines(&reload_widgets_path(&exe));
             }
         }
-        Action::Login(provider) => match attention::gate(attention::current().get(provider)) {
-            Gate::Open(need) => signin_window::open_for(app, provider, need),
-            Gate::Settings => windows::open_settings(app),
-        },
+        Action::Login(provider, link) => {
+            let current = attention::current().get(provider);
+            match attention::gate(provider, link, current, attention::locked()) {
+                Gate::Open(need) => signin_window::open_for(app, provider, need),
+                Gate::Settings => windows::open_settings(app),
+            }
+        }
         Action::Unknown => log::debug!("urlscheme: unrecognised URL {url}"),
     }
 }
@@ -124,9 +128,11 @@ mod tests {
         assert_eq!(classify("findplus://places"), Action::OpenPlaces);
         assert_eq!(classify("findplus://poll"), Action::Poll);
         assert_eq!(classify("findplus://refresh-widget"), Action::RefreshWidget);
-        assert_eq!(classify("findplus://signin/google"), Action::Login(Provider::Google));
-        assert_eq!(classify("findplus://unlock/google"), Action::Login(Provider::Google));
-        assert_eq!(classify("findplus://signin/apple"), Action::Login(Provider::Apple));
+        let google = |n| Action::Login(Provider::Google, n);
+        assert_eq!(classify("findplus://signin/google"), google(Need::Signin));
+        assert_eq!(classify("findplus://unlock/google"), google(Need::Unlock));
+        let apple = Action::Login(Provider::Apple, Need::Signin);
+        assert_eq!(classify("findplus://signin/apple"), apple);
     }
 
     #[test]

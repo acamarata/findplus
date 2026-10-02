@@ -24,7 +24,7 @@ use serde_json::json;
 
 use crate::attention::{Need, Provider};
 use crate::signin_http::SESSION_COOKIE;
-use crate::signin_logic::{self as logic, Bridge, Hosts, Nav};
+use crate::signin_logic::{self as logic, Bridge, CookieFacts, Hosts, Nav};
 use crate::signin_machine::Mode;
 use crate::signin_script::{self as script, ScriptOrigins};
 
@@ -52,6 +52,7 @@ pub fn open_signin_window(
     webview: tauri::Webview,
     provider: String,
     mode: Option<String>,
+    begin: Option<serde_json::Value>,
 ) -> Result<String, String> {
     if webview.label() != "main" {
         return Err("not_main_window".into());
@@ -59,7 +60,7 @@ pub fn open_signin_window(
     match provider.as_str() {
         "google" => {
             let mode = Mode::parse(mode.as_deref()).ok_or("bad_mode")?;
-            Ok(open(&app, mode).to_string())
+            Ok(open(&app, mode, begin).to_string())
         }
         "apple" => {
             open_apple_sheet(&app);
@@ -70,7 +71,8 @@ pub fn open_signin_window(
 }
 
 /// Open (or focus) the Google sign-in window. Returns "opened" or "already_open".
-pub fn open(app: &AppHandle, mode: Mode) -> &'static str {
+/// `begin` is the card's own begin reply (contract §2), or None to mint one here.
+pub fn open(app: &AppHandle, mode: Mode, begin: Option<serde_json::Value>) -> &'static str {
     if let Some(win) = app.get_webview_window(LABEL) {
         let _ = win.show();
         let _ = win.set_focus();
@@ -81,7 +83,7 @@ pub fn open(app: &AppHandle, mode: Mode) -> &'static str {
     }
     let app = app.clone();
     std::thread::spawn(move || {
-        crate::signin_session::run(&app, mode);
+        crate::signin_start::run(&app, mode, begin);
         ACTIVE.store(false, Ordering::SeqCst);
         crate::attention::refresh_soon(&app);
     });
@@ -91,8 +93,8 @@ pub fn open(app: &AppHandle, mode: Mode) -> &'static str {
 /// Open the login a provider needs (tray item, gated deep link).
 pub fn open_for(app: &AppHandle, provider: Provider, need: Need) {
     match (provider, need) {
-        (Provider::Google, Need::Signin) => drop(open(app, Mode::Signin)),
-        (Provider::Google, Need::Unlock) => drop(open(app, Mode::Unlock)),
+        (Provider::Google, Need::Signin) => drop(open(app, Mode::Signin, None)),
+        (Provider::Google, Need::Unlock) => drop(open(app, Mode::Unlock, None)),
         (Provider::Apple, _) => open_apple_sheet(app),
     }
 }
@@ -249,4 +251,28 @@ pub fn session_cookie(app: &AppHandle, base: &str) -> Option<String> {
     let cookies = main.cookies_for_url(base.parse().ok()?).ok()?;
     let c = cookies.iter().find(|c| c.name() == SESSION_COOKIE)?;
     Some(format!("{SESSION_COOKIE}={}", c.value()))
+}
+
+/// Every cookie in the window's store, reduced to what the picker needs.
+/// wry's macOS `cookies_for_url` keeps only exact-host matches, so the
+/// session reads them all and signin_page.rs does the matching. Call from a
+/// worker thread (blocks up to 1 s on macOS; deadlocks on Windows from a
+/// handler).
+pub fn cookie_facts(win: &WebviewWindow) -> Vec<CookieFacts> {
+    let cookies = win.cookies().unwrap_or_default();
+    cookies
+        .iter()
+        .map(|c| CookieFacts {
+            name: c.name().to_string(),
+            value: c.value().to_string(),
+            domain: c.domain().unwrap_or("").to_string(),
+            expires: c.expires_datetime().map(|t| t.unix_timestamp()),
+        })
+        .collect()
+}
+
+/// Unix seconds now (0 if the clock is before 1970).
+pub fn now_secs() -> i64 {
+    let since = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH);
+    since.map(|d| d.as_secs() as i64).unwrap_or(0)
 }

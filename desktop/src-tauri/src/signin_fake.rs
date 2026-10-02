@@ -48,7 +48,8 @@ fn serve(mut conn: TcpStream, base: &str, case: &str) {
     let req = String::from_utf8_lossy(&buf).to_string();
     let path = req.split_whitespace().nth(1).unwrap_or("/").to_string();
     let (head, body) = req.split_once("\r\n\r\n").unwrap_or((&req, ""));
-    let resp = if shell_headers_ok(head, base) || !path.starts_with(SHELL_ONLY) {
+    let shell_only = path.starts_with(SHELL_ONLY) && !path.ends_with("/begin");
+    let resp = if !shell_only || shell_headers_ok(head, base) {
         respond(&path, body, base, case)
     } else {
         json(
@@ -59,7 +60,7 @@ fn serve(mut conn: TcpStream, base: &str, case: &str) {
     let _ = conn.write_all(resp.as_bytes());
 }
 
-/// The shell-only routes (everything under it but begin is checked here).
+/// The shell-only routes: everything under this prefix except begin.
 const SHELL_ONLY: &str = "/api/auth/google/native/";
 
 /// Pure: the pinned headers the real daemon requires (Origin + client header).
@@ -127,6 +128,7 @@ pub fn respond(path: &str, body: &str, base: &str, case: &str) -> String {
         "/api/auth/google/native/token" => token_reply(&v),
         "/api/auth/google/native/unlock" => unlock_reply(&v),
         "/api/auth/google/native/event" => json(200, r#"{"ok":true}"#),
+        "/api/auth/google/native/classify" => json(200, r#"{"blocked":false,"reason":null}"#),
         _ => "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_string(),
     }
 }
@@ -147,7 +149,8 @@ fn token_reply(v: &serde_json::Value) -> String {
 }
 
 fn unlock_reply(v: &serde_json::Value) -> String {
-    let account_ok = v.get("account_hint").is_none_or(|a| a == FAKE_ACCOUNT);
+    let hint = v.get("account_hint").filter(|a| !a.is_null());
+    let account_ok = hint.is_none_or(|a| a == FAKE_ACCOUNT);
     if v["state"] == "st-1" && v["vault_keys"] == FAKE_VAULT && account_ok {
         json(200, r#"{"state":"done"}"#)
     } else {

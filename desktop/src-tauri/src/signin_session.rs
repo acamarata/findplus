@@ -1,6 +1,6 @@
 //! In-app sign-in: one session's worker thread.
 //!
-//! Purpose    : Mint the daemon state, open the window, then loop: read the
+//! Purpose    : Loop over one open window (signin_start.rs opens it): read the
 //!              window's messages and its cookies every 500 ms, feed the state
 //!              machine (signin_machine.rs) and run its effects. Ends by wiping
 //!              the store, destroying the window, telling the daemon and the
@@ -13,12 +13,14 @@
 //!              into exactly one POST; nothing here logs or emits them.
 
 use std::sync::mpsc::{Receiver, RecvTimeoutError};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, WebviewWindow};
 
 use crate::signin_http::{Begin, Daemon};
-use crate::signin_logic::{self as logic, Bridge, CookieFacts, Hosts};
-use crate::signin_machine::{result_payload, step, Effect, Input, Mode, Outcome, Phase};
+use crate::signin_logic::{self as logic, Bridge, Hosts};
+use crate::signin_machine::{
+    result_payload, step, token_retry, Effect, Input, Mode, Outcome, Phase, TokenRetry,
+};
 use crate::signin_window::{self as window, Msg};
 
 const TICK: Duration = Duration::from_millis(500);
@@ -27,7 +29,7 @@ const STUCK_AFTER: Duration = Duration::from_secs(180);
 /// Unlock-only mode: how long the account page gets to report its address.
 const ACCOUNT_WAIT: Duration = Duration::from_secs(6);
 
-struct Session {
+pub struct Session {
     app: AppHandle,
     win: WebviewWindow,
     mode: Mode,
@@ -38,72 +40,59 @@ struct Session {
     token: Option<String>,
     vault: Option<String>,
     account: Option<String>,
+    /// The address the account page showed (unlock-only mode).
+    account_hint: Option<String>,
     message: Option<String>,
-    reason: Option<&'static str>,
+    reason: Option<String>,
     title: String,
     started: Instant,
     last_activity: Instant,
     home_seen: Option<Instant>,
     stuck_sent: bool,
-}
-
-/// Run one sign-in session to its end. Never panics on a daemon or window error.
-pub fn run(app: &AppHandle, mode: Mode) {
-    window::progress(app, mode, "starting", false);
-    let base = crate::daemon::daemon_base();
-    let daemon = Daemon {
-        cookie: window::session_cookie(app, &base),
-        base,
-    };
-    let begin = match daemon.begin(mode.wire()) {
-        Ok(b) => b,
-        Err(message) => return window::fail_early(app, mode, &message),
-    };
-    let hosts = window::hosts();
-    let (tx, rx) = window::channel();
-    let win = match window::build(app, mode, &hosts, tx) {
-        Ok(w) => w,
-        Err(e) => {
-            log::warn!("signin: could not open the window: {e}");
-            daemon.event(&begin.state, "failed", Some("window"));
-            return window::fail_early(app, mode, "Find+ could not open the sign-in window.");
-        }
-    };
-    daemon.event(&begin.state, "opened", None);
-    let now = Instant::now();
-    let mut s = Session {
-        app: app.clone(),
-        win,
-        mode,
-        phase: Phase::Waiting,
-        daemon,
-        begin,
-        hosts,
-        token: None,
-        vault: None,
-        account: None,
-        message: None,
-        reason: None,
-        title: String::new(),
-        started: now,
-        last_activity: now,
-        home_seen: None,
-        stuck_sent: false,
-    };
-    window::progress(app, mode, "waiting", false);
-    s.daemon.event(&s.begin.state, "waiting", None);
-    s.run_loop(&rx);
-}
-
-fn now_secs() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0)
+    /// Hash of a cookie value the daemon called malformed: never posted twice.
+    rejected_token: Option<u64>,
+    token_retried: bool,
 }
 
 impl Session {
-    fn run_loop(&mut self, rx: &Receiver<Msg>) {
+    /// A session for a window that is already open.
+    pub fn new(
+        app: &AppHandle,
+        win: WebviewWindow,
+        mode: Mode,
+        daemon: Daemon,
+        begin: Begin,
+        hosts: Hosts,
+    ) -> Self {
+        let now = Instant::now();
+        Session {
+            app: app.clone(),
+            win,
+            mode,
+            phase: Phase::Waiting,
+            daemon,
+            begin,
+            hosts,
+            token: None,
+            vault: None,
+            account: None,
+            account_hint: None,
+            message: None,
+            reason: None,
+            title: String::new(),
+            started: now,
+            last_activity: now,
+            home_seen: None,
+            stuck_sent: false,
+            rejected_token: None,
+            token_retried: false,
+        }
+    }
+}
+
+impl Session {
+    /// Run the window to its end: messages, a 500 ms tick, the machine.
+    pub fn run_loop(&mut self, rx: &Receiver<Msg>) {
         while self.phase != Phase::Done {
             match rx.recv_timeout(TICK) {
                 Ok(msg) => self.on_msg(msg),
@@ -122,22 +111,22 @@ impl Session {
             }
             Msg::Bridge(Bridge::Close) => self.feed(Input::BridgeClose),
             Msg::Bridge(Bridge::Account(a)) => {
-                self.account = Some(a);
+                self.account_hint = Some(a);
                 self.feed(Input::AccountKnown);
             }
             Msg::Bridge(Bridge::NoAccount) => self.feed(Input::AccountKnown),
             Msg::Bridge(Bridge::Bad) => log::info!("signin: ignored a malformed bridge message"),
             Msg::Loaded(url) => self.on_loaded(&url),
             Msg::Outside => {
-                self.reason = Some("outside_google");
+                self.reason = Some("outside_google".into());
                 self.feed(Input::Blocked);
             }
             Msg::Title(t) => {
                 self.last_activity = Instant::now();
                 let signal = logic::blocked_signal("", &t);
                 self.title = t;
-                if signal.is_some() {
-                    self.reason = signal;
+                if let Some(r) = signal {
+                    self.reason = Some(r.into());
                     self.feed(Input::Blocked);
                 }
             }
@@ -149,13 +138,17 @@ impl Session {
         if logic::is_account_home(url, &self.hosts) {
             self.home_seen.get_or_insert_with(Instant::now);
         }
-        let signal = logic::blocked_signal(url, &self.title);
-        if signal.is_some() {
+        // The daemon classifies too (contract §3.5); either one may say blocked.
+        let (host, path) = logic::host_and_path(url);
+        let class = logic::title_class(&self.title);
+        let signal = logic::blocked_signal(url, &self.title)
+            .map(String::from)
+            .or_else(|| self.daemon.classify(&self.begin.state, &host, &path, class));
+        let blocked = signal.is_some();
+        if blocked {
             self.reason = signal;
         }
-        self.feed(Input::PageLoaded {
-            blocked: signal.is_some(),
-        });
+        self.feed(Input::PageLoaded { blocked });
     }
 
     fn on_tick(&mut self) {
@@ -174,29 +167,23 @@ impl Session {
             return self.feed(Input::AccountKnown);
         }
         if waiting && self.mode == Mode::Signin {
-            if let Some(token) = self.read_token() {
+            let fresh = self
+                .read_token()
+                .filter(|t| Some(logic::fingerprint(t)) != self.rejected_token);
+            if let Some(token) = fresh {
                 self.token = Some(token);
                 self.feed(Input::CookieFound);
             }
         }
     }
 
-    /// Read every cookie (wry's macOS `cookies_for_url` only keeps exact-host
-    /// matches) and let the pure picker choose. The value stays in memory.
+    /// The live sign-in cookie, if the window's store holds one.
     fn read_token(&self) -> Option<String> {
-        let facts: Vec<CookieFacts> = self
-            .win
-            .cookies()
-            .unwrap_or_default()
-            .iter()
-            .map(|c| CookieFacts {
-                name: c.name().to_string(),
-                value: c.value().to_string(),
-                domain: c.domain().unwrap_or("").to_string(),
-                expires: c.expires_datetime().map(|t| t.unix_timestamp()),
-            })
-            .collect();
-        logic::pick_oauth_token(&facts, now_secs(), &self.hosts)
+        logic::pick_oauth_token(
+            &window::cookie_facts(&self.win),
+            window::now_secs(),
+            &self.hosts,
+        )
     }
 
     /// Step the machine and run effects until it settles.
@@ -227,6 +214,8 @@ impl Session {
 
     fn post_token(&mut self) -> Input {
         let token = self.token.take().unwrap_or_default();
+        let print = logic::fingerprint(&token);
+        let retry_copy = (!self.token_retried).then(|| token.clone());
         match self.daemon.token(&self.begin.state, token) {
             Ok(reply) => {
                 self.account = reply.account;
@@ -236,10 +225,21 @@ impl Session {
                     has_unlock_url,
                 }
             }
-            Err(message) => {
-                self.message = Some(message);
-                Input::TokenRejected
-            }
+            Err(e) => match token_retry(&e.code, self.token_retried) {
+                TokenRetry::Now => {
+                    self.token_retried = true;
+                    self.token = retry_copy;
+                    self.post_token()
+                }
+                TokenRetry::KeepPolling => {
+                    self.rejected_token = Some(print);
+                    Input::TokenRetryLater
+                }
+                TokenRetry::Fail => {
+                    self.message = Some(e.message);
+                    Input::TokenRejected
+                }
+            },
         }
     }
 
@@ -262,30 +262,31 @@ impl Session {
         let keys = self.vault.take().unwrap_or_default();
         match self
             .daemon
-            .unlock(&self.begin.state, keys, self.account.as_deref())
+            .unlock(&self.begin.state, keys, self.account_hint.as_deref())
         {
             Ok(()) => Input::UnlockStored,
-            Err(message) => {
-                self.message = Some(message);
+            Err(e) => {
+                self.message = Some(e.message);
                 Input::UnlockRejected
             }
         }
     }
 
-    /// Every exit path: wipe, destroy, tell the daemon and the dashboard.
+    /// Every exit path: tell the daemon, wipe, destroy, tell the dashboard.
     fn finish(&mut self, outcome: Outcome) {
         self.token = None;
         self.vault = None;
+        let (event, reason) = outcome.daemon_event(self.reason.as_deref());
+        self.daemon.event(&self.begin.state, event, reason);
         let _ = self.win.clear_all_browsing_data();
         let _ = self.win.destroy();
-        let (event, reason) = outcome.daemon_event(self.reason);
-        self.daemon.event(&self.begin.state, event, reason);
+        let account = self.account.as_deref().or(self.account_hint.as_deref());
         let payload = result_payload(
             self.mode,
             outcome,
-            self.account.as_deref(),
+            account,
             self.message.as_deref(),
-            self.reason,
+            self.reason.as_deref(),
         );
         log::info!("signin: finished, outcome {}", outcome.wire());
         window::emit(&self.app, "signin-result", payload);

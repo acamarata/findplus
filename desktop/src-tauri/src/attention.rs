@@ -15,6 +15,7 @@
 //!              `parse`, `newly_needing`, `banner` and `gate` are pure.
 
 use serde_json::Value;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
@@ -120,15 +121,29 @@ pub enum Gate {
     Settings,
 }
 
-/// Pure: the gate for a deep link, given the provider's current attention.
-pub fn gate(current: Option<Need>) -> Gate {
-    current.map_or(Gate::Settings, Gate::Open)
+/// Pure: the gate for one deep link (contract §4). It opens only the login
+/// it names, only while that provider needs exactly that, and never while
+/// the app is locked. Apple has one link for any attention.
+pub fn gate(provider: Provider, link: Need, current: Option<Need>, locked: bool) -> Gate {
+    match current {
+        _ if locked => Gate::Settings,
+        Some(n) if n == link || provider == Provider::Apple => Gate::Open(n),
+        _ => Gate::Settings,
+    }
 }
 
 static CURRENT: Mutex<Attention> = Mutex::new(Attention {
     google: None,
     apple: None,
 });
+
+/// True while /api/auth/status answers 401 (the app lock is on).
+static LOCKED: AtomicBool = AtomicBool::new(false);
+
+/// Whether the last read found the app locked.
+pub fn locked() -> bool {
+    LOCKED.load(Ordering::SeqCst)
+}
 
 /// The last attention read from the daemon.
 pub fn current() -> Attention {
@@ -144,6 +159,7 @@ fn fetch() -> Option<Attention> {
         .get(format!("{}/api/auth/status", crate::daemon::daemon_base()))
         .send()
         .ok()?;
+    LOCKED.store(resp.status().as_u16() == 401, Ordering::SeqCst);
     if !resp.status().is_success() {
         // Locked (401) or down: keep what we knew.
         return None;

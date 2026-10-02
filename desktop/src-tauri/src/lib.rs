@@ -122,11 +122,13 @@ mod probe_logic;
 mod signin_fake;
 mod signin_http;
 mod signin_logic;
+mod signin_page;
 mod signin_machine;
 mod signin_script;
 #[cfg(debug_assertions)]
 mod signin_selftest;
 mod signin_session;
+mod signin_start;
 mod signin_window;
 mod status;
 mod tray;

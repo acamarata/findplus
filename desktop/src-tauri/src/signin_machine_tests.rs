@@ -203,3 +203,28 @@ fn result_payload_shapes() {
     assert_eq!(err["message"], "Try again.");
     assert!(err.get("reason").is_none());
 }
+
+#[test]
+fn token_refusals_follow_the_contract() {
+    assert_eq!(token_retry("google_unreachable", false), TokenRetry::Now);
+    assert_eq!(token_retry("google_unreachable", true), TokenRetry::Fail);
+    assert_eq!(
+        token_retry("token_malformed", true),
+        TokenRetry::KeepPolling
+    );
+    for code in [
+        "token_rejected",
+        "state_invalid",
+        "bad_client",
+        "signin_failed",
+        "",
+    ] {
+        assert_eq!(token_retry(code, false), TokenRetry::Fail, "{code}");
+    }
+    let (p, e) = run(
+        Mode::Signin,
+        &[I::CookieFound, I::TokenRetryLater, I::CookieFound],
+    );
+    assert_eq!(p, P::Finishing);
+    assert_eq!(e, vec![E::PostToken, E::None, E::PostToken]);
+}

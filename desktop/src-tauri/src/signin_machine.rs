@@ -86,10 +86,7 @@ impl Outcome {
 
     /// The daemon `event` route's word and reason for this ending (spec
     /// §2.2; reasons are native_messages.BLOCKED_REASONS / FAILED_REASONS).
-    pub fn daemon_event(
-        self,
-        blocked_reason: Option<&'static str>,
-    ) -> (&'static str, Option<&'static str>) {
+    pub fn daemon_event(self, blocked_reason: Option<&str>) -> (&'static str, Option<&str>) {
         match self {
             Outcome::Success { .. } | Outcome::Cancelled => ("closed", None),
             Outcome::Timeout => ("failed", Some("timeout")),
@@ -108,6 +105,8 @@ pub enum Input {
         has_unlock_url: bool,
     },
     TokenRejected,
+    /// The daemon called the cookie malformed: keep waiting for a new one.
+    TokenRetryLater,
     /// A main-frame page finished loading.
     PageLoaded {
         blocked: bool,
@@ -187,11 +186,31 @@ pub fn step(phase: Phase, mode: Mode, input: &Input) -> (Phase, Effect) {
             },
         ) => after_token(*needs_unlock, *has_unlock_url),
         (P::Finishing, I::TokenRejected) => done(Outcome::Error),
+        (P::Finishing, I::TokenRetryLater) => (P::Waiting, Effect::None),
         (P::Unlocking, I::VaultKeys) => (P::Storing, Effect::PostUnlock),
         (P::Unlocking, I::BridgeClose) => early_end(phase, mode, Outcome::Cancelled),
         (P::Storing, I::UnlockStored) => done(Outcome::Success { unlocked: true }),
         (P::Storing, I::UnlockRejected) => done(Outcome::Error),
         _ => (phase, Effect::None),
+    }
+}
+
+/// What to do after the daemon refused a token (contract §3.2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TokenRetry {
+    /// Google did not answer (502): post the same token once more.
+    Now,
+    /// Not an oauth2_4 value (422): keep reading the cookie store.
+    KeepPolling,
+    Fail,
+}
+
+/// Pure: the retry rule for one refused token post.
+pub fn token_retry(code: &str, already_retried: bool) -> TokenRetry {
+    match code {
+        "google_unreachable" if !already_retried => TokenRetry::Now,
+        "token_malformed" => TokenRetry::KeepPolling,
+        _ => TokenRetry::Fail,
     }
 }
 

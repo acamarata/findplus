@@ -51,13 +51,20 @@ Versioning: [Semantic Versioning](https://semver.org/).
   pet?" and nameless trackers ask "Whose is this?". `GET /api/people/suggestions`,
   `findplus people suggest|accept|list|set-role`, and MCP tools to match.
 - Where a person probably is, from the trackers that are actually carried, in plain words: likely,
-  probably, not sure, or no recent sightings (`GET /api/people/{id}/now`).
+  probably, not sure, or no recent sightings (`GET /api/people/{id}/now`). A tracker counts as
+  carried for 45 minutes after it last moved. Trackers that never moved cannot move a person: when
+  the carried one goes quiet, the person stays where they were and it reads "no recent sighting".
 - One alert per person crossing, naming the tracker that saw it: "Sam just arrived at Grandma's"
   only when the sighting is under 10 minutes old, otherwise the time.
-- Left-behind trackers: "Sam's bag looks left at School", once per episode, never at Home.
+- Left-behind trackers: "Sam's bag looks left at School", once per episode (even when the bag goes
+  quiet and reports again), never at Home, only on rules for any place or that place.
 - Every new place gets an arrive and leave rule for everyone on your connected channel;
   `POST /api/places/notify-defaults` adds it to existing places, with a dry run first.
-- Places have a kind (home, school, work, family, shop, other), guessed from the name.
+- Places have a kind (home, school, work, family, shop, other), guessed from the name. Places you
+  already have get the guess on upgrade, shown in the Places list with a one-tap confirm.
+- One message per person crossing even when several rules match it. A person's rule replaces a
+  tracker's own alert only when the person really had that crossing. Pets are off by default on
+  the everyone rules; a rule naming the pet still alerts.
 - A Person page (`#/person/<id>?date=YYYY-MM-DD`): click a person's name on a group card, in an
   alert rule sentence, the delivery log or the arrivals list. It shows where they probably are now,
   a day bar (arrows, date picker, Today, left and right keys), the day summary with each line

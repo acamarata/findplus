@@ -93,6 +93,9 @@ def create_backup(
         raise BackupError("There is no database to back up yet.")
     prepare_dir(directory)
     final = _target(directory, kind, now)
+    while final.exists():  # two backups in one second must not replace each other
+        now += timedelta(seconds=1)
+        final = _target(directory, kind, now)
     temp = final.with_name(f".partial-{final.name}")
     temp.unlink(missing_ok=True)
     try:

@@ -126,20 +126,28 @@ def schema_problems(path: Path, revision: str) -> list[str]:
     return out
 
 
-def _checkpoint(database: Path) -> None:
-    """Fold the live WAL into the main file so moving the file aside loses nothing."""
+def _checkpoint(database: Path) -> bool:
+    """Fold the live WAL into the main file; False when a reader or writer blocked it."""
     conn = sqlite3.connect(database, timeout=10)
     try:
-        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        busy = conn.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()[0]
     finally:
         conn.close()
+    return not busy
+
+
+def _stamp(now: datetime) -> str:
+    """Second plus microsecond, so two restores in one second keep separate files."""
+    return now.strftime("%Y%m%d-%H%M%S-%f")
 
 
 def _swap_in(new_file: Path, database: Path, now: datetime) -> Path | None:
     """Move the live file (and its -wal/-shm) aside, move `new_file` into place."""
     replaced: Path | None = None
     if database.exists():
-        replaced = database.with_name(f"{database.name}.replaced-{now.strftime('%Y%m%d-%H%M%S')}")
+        replaced = database.with_name(f"{database.name}.replaced-{_stamp(now)}")
+        if replaced.exists():  # never overwrite an earlier restore's kept file
+            raise RestoreError(f"{replaced.name} already exists. Nothing was changed.")
         os.replace(database, replaced)
     for suffix in ("-wal", "-shm"):
         sidecar = Path(f"{database}{suffix}")
@@ -173,13 +181,17 @@ def restore_backup(
     before = backup_revision(database) if database.exists() else None
     pre: Path | None = None
     if database.exists() and check_database(database).ok:
-        _checkpoint(database)
+        if not _checkpoint(database) and not force:
+            raise RestoreError(
+                "Something still has the database open, so it cannot be folded into one "
+                "file safely. Stop Find+ (findplus stop) and try again. Nothing was changed."
+            )
         pre = backup.create_backup(
             database, settings.effective_backup_dir, kind="prerestore", now=now
         ).path
     # A damaged live file cannot be backed up (the copy would fail its own check):
     # it is kept whole as `.replaced-<stamp>` below, which is the safety copy.
-    staged = database.with_name(f".restore-{now.strftime('%Y%m%d-%H%M%S')}.sqlite")
+    staged = database.with_name(f".restore-{_stamp(now)}.sqlite")
     try:
         backup.snapshot(source, staged)
         if not check_database(staged).ok:

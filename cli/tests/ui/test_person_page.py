@@ -134,9 +134,12 @@ async def test_story_row_selects_and_hash_is_a_route(trips_page, trips_server, p
     p = trips_page
     await p.locator(".story-item").first.focus()
     await p.keyboard.press("ArrowDown")
+    assert await p.evaluate("document.activeElement.dataset.kind") == "trip"
     await p.keyboard.press("Enter")
     assert await p.locator(".story-item.is-picked").count() == 1
     assert await p.locator(".strip-bar rect.is-picked").count() == 1
+    await p.keyboard.press("Escape")
+    assert await p.locator(".story-item.is-picked").count() == 0
     assert p.fp_errors == []
 
 

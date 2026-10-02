@@ -109,7 +109,11 @@ function storyCtx() {
 function renderStory() {
   const old = $("person-body").querySelector(".person-story");
   const next = storyCard(storyCtx());
+  // The card is rebuilt on every pick: keep keyboard focus on the same row.
+  const held = document.activeElement && document.activeElement.closest(".story-item");
+  const heldId = held ? held.dataset.id : null;
   if (old) old.replaceWith(next);
+  if (heldId) next.querySelector(`.story-item[data-id="${heldId}"]`)?.focus({ preventScroll: true });
   markList(next, page.selectedId);
   const strip = next.querySelector(".strip");
   if (strip) markStrip(strip, page.selectedId);
@@ -133,6 +137,13 @@ function pickItem(device, id) {
     highlight(l.mark, [item.latitude, item.longitude], item.radius_meters);
     frameBounds(L.latLng(item.latitude, item.longitude).toBounds(Math.max(item.radius_meters, 60) * 2));
   }
+}
+
+/** Escape in the story list: let go of the picked row and the ring on the map. */
+export function clearSelection() {
+  page.selectedId = null;
+  renderStory();
+  if (layers) layers.mark.clearLayers();
 }
 
 function onLine(line) {

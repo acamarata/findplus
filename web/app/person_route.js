@@ -17,7 +17,8 @@ import { $, state, todayLocal } from "./state.js";
 import { t } from "./i18n.js";
 import { switchTab } from "./main.js";
 import { wireDateBar } from "./person_datebar.js";
-import { dropLayers, ensureLayers, loadPerson, reload } from "./person_page.js";
+import { clearSelection, dropLayers, ensureLayers, loadPerson, reload } from "./person_page.js";
+import { wireStoryKeys } from "./trips_list.js";
 import { showPageOnPhone } from "./person_map.js";
 import { refreshPeopleCache } from "./person_links.js";
 
@@ -40,6 +41,7 @@ function wireOnce() {
   if (wired) return;
   wired = true;
   wireDateBar();
+  wireStoryKeys($("person-body"), clearSelection);
   // A person edited in the Groups dialog: names and trackers on this page are stale.
   document.addEventListener("fp:groups-loaded", (e) => {
     const changed = seenGroups !== null && seenGroups !== e.detail;

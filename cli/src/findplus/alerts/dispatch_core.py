@@ -1,7 +1,7 @@
 """Pure dispatch types and rules: match, suppress, cool down, render.
 
 Purpose : The testable core of alert dispatch -- no DB or network import.
-Inputs  : DeviceEvent/GroupEvent, Rule, Delivery dataclasses.
+Inputs  : DeviceEvent/GroupEvent/LeftBehindEvent, Rule, Delivery (dispatch_types.py).
 Outputs : Filtered rule lists, booleans, a rendered message string.
 Constraints: Every function here takes dataclasses only. Split out of
           dispatch.py (PRI hard rule 7: <=300 lines/file) the same way
@@ -11,8 +11,15 @@ Constraints: Every function here takes dataclasses only. Split out of
 from __future__ import annotations
 
 import datetime
-from dataclasses import dataclass
 
+from findplus.alerts.dispatch_types import (
+    Delivery,
+    DeviceEvent,
+    GroupEvent,
+    LeftBehindEvent,
+    Rule,
+    event_key,
+)
 from findplus.alerts.retry_classify import (
     MAX_ATTEMPTS,
     RETRY_OFFSETS_MINUTES,
@@ -28,90 +35,39 @@ from findplus.honesty import ALERTS_LATENCY
 __all__ = [
     "MAX_ATTEMPTS",
     "RETRY_OFFSETS_MINUTES",
+    "Delivery",
+    "DeviceEvent",
+    "GroupEvent",
+    "LeftBehindEvent",
+    "Rule",
     "classify_new_delivery",
     "compute_next_attempt_at",
+    "event_key",
     "is_transient_failure",
 ]
 
 
-@dataclass(frozen=True)
-class DeviceEvent:
-    place_event_id: int
-    place_id: int
-    place_name: str
-    device_id: str
-    device_name: str
-    event_type: str
-    observed_at: datetime.datetime
-    fetched_at: datetime.datetime | None
-    confidence: str
-    group_ids: list[int]
+#: groups.kind values that get person events (models_people.PERSON_KINDS;
+#: repeated here because this module imports no DB code).
+_PERSON_KINDS = ("person", "pet")
 
 
-@dataclass(frozen=True)
-class GroupEvent:
-    group_place_event_id: int
-    group_id: int
-    group_name: str
-    place_id: int
-    place_name: str
-    event_type: str
-    observed_at: datetime.datetime
-    confidence: str | None
-    note: str
-    members_crossed: int
-    members_considered: int
-    members_stale: int
+def _targets(rule: Rule, event: DeviceEvent | GroupEvent) -> bool:
+    """Does the rule name this event's subject? An all-people rule names every
+    person/pet group, never a device or a plain set (spec § 5.2)."""
+    if isinstance(event, DeviceEvent):
+        return rule.device_id == event.device_id
+    if rule.all_people:
+        return event.group_kind in _PERSON_KINDS
+    return rule.group_id == event.group_id
 
 
-@dataclass(frozen=True)
-class Rule:
-    id: int
-    name: str
-    place_id: int | None
-    group_id: int | None
-    device_id: str | None
-    on_enter: bool
-    on_exit: bool
-    #: Every channel this rule notifies. One delivery row per channel per event.
-    channels: list[str]
-    cooldown_minutes: int
-    enabled: bool
-    also_notify_members: bool
-    #: A subset of the account's saved Telegram chat ids, or None for every
-    #: saved target (WP10, gap-audit P13) -- parsed from alert_rules.
-    #: telegram_targets by alerts/rule_telegram_targets.py. `[]` is a
-    #: distinct, meaningful value: the owner picked no chat, so dispatch.py's
-    #: _channel_targets() skips Telegram for this rule instead of falling
-    #: back to "all". Defaulted so retry.py's own Rule rebuild (which never
-    #: needs this -- a retry resends to the row's own already-stored target)
-    #: does not have to pass it.
-    telegram_targets: list[str] | None = None
-
-
-@dataclass(frozen=True)
-class Delivery:
-    rule_id: int
-    event_kind: str
-    event_id: int
-    sent_at: datetime.datetime | None
-    #: Which channel this row is for. One event under a multi-channel rule
-    #: produces one Delivery per channel, so the rule_id no longer implies it.
-    channel: str
-    #: "sent" | "failed". 1.0 never retries a delivery (events are stamped
-    #: notified_at regardless of outcome, to avoid a resend storm), so a
-    #: failed/skipped send must not itself start a cooldown -- only a
-    #: successful send should suppress the next same-key alert.
-    status: str = "sent"
-    #: Derived, never a stored column: the place of the source place_event /
-    #: group_place_event row. process() fills it via an ORM join so cooldown
-    #: can be scoped per place (a rule with place_id=None must cool down
-    #: separately at each place, never across all of them).
-    place_id: int | None = None
-
-
-def match(rules: list[Rule], event: DeviceEvent | GroupEvent) -> list[Rule]:
+def match(rules: list[Rule], event: DeviceEvent | GroupEvent | LeftBehindEvent) -> list[Rule]:
     """Rules that are enabled, cover this event's type and place, and target it."""
+    if isinstance(event, LeftBehindEvent):
+        from findplus.alerts.dispatch_left_behind import match_left_behind
+
+        return match_left_behind(rules, event)
     out = []
     for rule in rules:
         if not rule.enabled:
@@ -122,12 +78,8 @@ def match(rules: list[Rule], event: DeviceEvent | GroupEvent) -> list[Rule]:
             continue
         if rule.place_id is not None and rule.place_id != event.place_id:
             continue
-        if isinstance(event, DeviceEvent):
-            if rule.device_id != event.device_id:
-                continue
-        elif rule.group_id != event.group_id:
-            continue
-        out.append(rule)
+        if _targets(rule, event):
+            out.append(rule)
     return out
 
 
@@ -141,12 +93,16 @@ def suppressed_by_group(rule: Rule, event: DeviceEvent, rules: list[Rule]) -> bo
     device rule's own place_id: a group rule with place_id=None covers every
     place (engines.md match()), and a place-scoped group rule must still
     suppress an any-place device rule at that place -- comparing the two
-    rules' place_id fields against each other missed both crossings.
+    rules' place_id fields against each other missed both crossings. An
+    all-people rule covers every tracker that belongs to a person (spec § 5.2).
     """
     for r in rules:
-        if not r.enabled or r.group_id is None:
+        if not r.enabled:
             continue
-        if r.group_id not in event.group_ids:
+        if r.all_people:
+            if not event.person_group_ids:
+                continue
+        elif r.group_id is None or r.group_id not in event.group_ids:
             continue
         if r.place_id is not None and r.place_id != event.place_id:
             continue
@@ -161,7 +117,7 @@ def suppressed_by_group(rule: Rule, event: DeviceEvent, rules: list[Rule]) -> bo
 def in_cooldown(
     rule: Rule,
     channel: str,
-    event: DeviceEvent | GroupEvent,
+    event: DeviceEvent | GroupEvent | LeftBehindEvent,
     deliveries: list[Delivery],
     now: datetime.datetime,
 ) -> bool:
@@ -180,16 +136,22 @@ def in_cooldown(
     Only a `status == "sent"` delivery starts the cooldown -- a failed or
     skipped send must not suppress the next attempt at the same key, since
     1.0 never retries a delivery on its own (see Delivery.status).
+
+    An all-people rule covers many people, so its key also carries the
+    group: Zaid arriving must not cool down Sumayah's arrival. A left-behind
+    episode alerts once by construction and never cools down.
     """
-    if rule.cooldown_minutes == 0:
+    if rule.cooldown_minutes == 0 or isinstance(event, LeftBehindEvent):
         return False
-    kind = "device" if isinstance(event, DeviceEvent) else "group"
+    kind = event_key(event)[0]
+    subject = event.group_id if rule.all_people else None
     limit = now - datetime.timedelta(minutes=rule.cooldown_minutes)
     return any(
         d.rule_id == rule.id
         and d.channel == channel
         and d.event_kind == kind
         and d.place_id == event.place_id
+        and (subject is None or d.group_id == subject)
         and d.status == "sent"
         and d.sent_at is not None
         and d.sent_at > limit
@@ -244,7 +206,9 @@ def local_zone() -> datetime.tzinfo:
     return datetime.datetime.now().astimezone().tzinfo
 
 
-def render_message(event: DeviceEvent | GroupEvent, now: datetime.datetime) -> str:
+def render_message(
+    event: DeviceEvent | GroupEvent | LeftBehindEvent, now: datetime.datetime
+) -> str:
     """One alert line-set.
 
     Two honesty rules matter here, since an alert arrives with no context:
@@ -264,7 +228,13 @@ def render_message(event: DeviceEvent | GroupEvent, now: datetime.datetime) -> s
     use) but stays in the signature: dispatch.py/retry.py call every
     render_message() at a fixed instant regardless, and dropping the
     parameter would only churn every call site for no behaviour change.
+    Person events and left-behind episodes have their own wording
+    (alerts/render_person.py, specs/people-and-presence.md § 5.4).
     """
+    if isinstance(event, LeftBehindEvent) or getattr(event, "basis", "") == "person":
+        from findplus.alerts.render_person import render_person_message
+
+        return render_person_message(event, now)
     subject = event.device_name if isinstance(event, DeviceEvent) else event.group_name
     verb = "arrived at" if event.event_type == "ENTER" else "left"
     observed = as_utc(event.observed_at)

@@ -199,6 +199,11 @@ person/pet group the observation's device belongs to:
 3. For each place: target side = `inside` when a supporter of the best cluster has a confirmed `inside`
    place_state there and confidence is `likely` or `probably`; `outside` when the person was inside and the best
    cluster's members have all left that place; otherwise no change (`unsure` never moves state).
+   Trackers that never moved cannot move state: a change needs a supporter whose motion is not `parked`, or one
+   with its own device ENTER/EXIT at that place since the person's last transition there. When the carried
+   tracker goes quiet, the person holds where they were and the quiet tracker reads "no recent sighting".
+   Likewise `infer()` answers `unsure` when its best cluster is all parked while another tracker (reporting or
+   stale) moved within the window.
 4. Anti-flap: an opposite transition at the same place needs `settle_minutes` (default 10) since the last one.
    Device-level hysteresis (D17: 1 enter, 2 exit confirmations) has already filtered jitter underneath.
 5. First evaluation seeds state with no event (D17's rule).

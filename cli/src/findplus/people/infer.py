@@ -16,13 +16,14 @@ Constraints: Pure: no DB, no clock, a naive `now` raises ValueError. A stale
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from itertools import pairwise
+from datetime import datetime
 
 from findplus.geo import haversine_meters
 from findplus.groups.presence import MemberStatus, _greedy_clique
+from findplus.people.motion import DEFAULT_ACC as _DEFAULT_ACC
+from findplus.people.motion import last_move_at, motion_of, moved
 
-_DEFAULT_ACC = 100.0
+__all__ = ["InferParams", "MemberIn", "PersonFix", "PlaceRef", "TrackerFix", "infer", "motion_of"]
 
 
 @dataclass(frozen=True)
@@ -89,6 +90,7 @@ class MemberScore:
     fix: TrackerFix | None
     age_minutes: int | None
     still: bool = False  # its last two fixes did not move (left-behind needs this)
+    last_move_at: datetime | None = None  # latest move in the motion window, even when stale
 
 
 @dataclass(frozen=True)
@@ -114,25 +116,6 @@ class PersonFix:
     clusters: tuple[tuple[str, ...], ...] = ()  # device ids per cluster, best first
 
 
-def _moved(a: TrackerFix, b: TrackerFix, p: InferParams) -> bool:
-    acc = max(a.accuracy_meters or _DEFAULT_ACC, b.accuracy_meters or _DEFAULT_ACC)
-    return haversine_meters(a.lat, a.lon, b.lat, b.lon) > max(p.min_motion_meters, 2 * acc)
-
-
-def motion_of(fixes: tuple[TrackerFix, ...], now: datetime, p: InferParams) -> str:
-    """carried (moved within the window) | parked (still for the whole window) | unknown."""
-    window_start = now - timedelta(hours=p.motion_window_hours)
-    ordered = sorted(fixes, key=lambda f: f.observed_at)
-    for prev, cur in pairwise(ordered):
-        if cur.observed_at >= window_start and _moved(prev, cur, p):
-            return "carried"
-    if len(ordered) >= 2 and ordered[-1].observed_at - ordered[0].observed_at >= timedelta(
-        hours=p.motion_window_hours
-    ):
-        return "parked"
-    return "unknown"
-
-
 def _f_acc(accuracy: float | None) -> float:
     acc = accuracy if accuracy is not None else _DEFAULT_ACC
     if acc <= 100:
@@ -147,14 +130,17 @@ def score_member(m: MemberIn, now: datetime, p: InferParams) -> MemberScore:
     if last is None:
         return MemberScore(m.device_id, m.name, m.role, m.weight, "stale", 0.0, None, None)
     age = int((now - last.observed_at).total_seconds() // 60)
+    move_at = last_move_at(ordered, now, p)
     if age > p.stale_after_minutes:
-        return MemberScore(m.device_id, m.name, m.role, m.weight, "stale", 0.0, last, age)
+        return MemberScore(m.device_id, m.name, m.role, m.weight, "stale", 0.0, last, age,
+                           last_move_at=move_at)  # fmt: skip
     f_age = max(p.age_floor, 1.0 - (1.0 - p.age_floor) * age / p.stale_after_minutes)
-    motion = motion_of(m.fixes, now, p)
+    motion = motion_of(ordered, now, p)
     f_motion = {"carried": p.carried_factor, "parked": p.parked_factor}.get(motion, 1.0)
     score = m.weight * f_age * f_motion * _f_acc(last.accuracy_meters)
-    still = len(ordered) >= 2 and not _moved(ordered[-2], last, p)
-    return MemberScore(m.device_id, m.name, m.role, m.weight, motion, score, last, age, still)
+    still = len(ordered) >= 2 and not moved(ordered[-2], last, p.min_motion_meters)
+    return MemberScore(m.device_id, m.name, m.role, m.weight, motion, score, last, age, still,
+                       move_at)  # fmt: skip
 
 
 def clusters_of(reporting: list[MemberScore], radius_m: int) -> list[list[MemberScore]]:
@@ -175,6 +161,16 @@ def clusters_of(reporting: list[MemberScore], radius_m: int) -> list[list[Member
 
 def _cluster_sort_key(c: list[MemberScore]) -> tuple:
     return (-sum(s.score for s in c), sorted(s.device_id for s in c))
+
+
+def parked_only_while_another_moved(best: list[MemberScore], scores: list[MemberScore]) -> bool:
+    """The best cluster never moved, but another tracker (reporting or gone
+    quiet) did within the window: the person went with that one, so the
+    parked trackers say nothing about where they are now (review r116 #1)."""
+    if any(s.motion != "parked" for s in best):
+        return False
+    ids = {s.device_id for s in best}
+    return any(s.last_move_at is not None for s in scores if s.device_id not in ids)
 
 
 def _confidence(best: float, runner_up: float, p: InferParams) -> str:
@@ -206,8 +202,11 @@ def infer(
     r = sum(s.score for s in ranked[1]) if len(ranked) > 1 else 0.0
     lead = max(best, key=lambda s: (s.score, s.weight, s.device_id))
     where = locate(lead.fix, lead.device_id, [s.device_id for s in best], inside, places, p)
+    confidence = _confidence(b, r, p)
+    if parked_only_while_another_moved(best, scores):
+        confidence = "unsure"
     return PersonFix(
-        confidence=_confidence(b, r, p),
+        confidence=confidence,
         **where,
         lead_device_id=lead.device_id,
         lat=lead.fix.lat,

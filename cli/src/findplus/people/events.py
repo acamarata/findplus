@@ -58,17 +58,34 @@ def _near(place: PlaceRef, fix) -> bool:
     return d <= place.radius_meters + max(acc, exit_margin(place.radius_meters))
 
 
+def qualified(fix: PersonFix, crossed: frozenset[str] | set[str] = frozenset()) -> bool:
+    """May this answer move person state? Only when a supporter has not been
+    parked, or crossed this place itself (a device ENTER/EXIT) since the last
+    person transition. Trackers that never moved cannot say the person came
+    home while the one actually carried has gone quiet (review r116 #1)."""
+    motion = {m.device_id: m.motion for m in fix.members}
+    return any(motion.get(d) not in ("parked", None) or d in crossed for d in fix.supporters)
+
+
 def person_target(
-    fix: PersonFix, place: PlaceRef, states: dict[tuple[str, int], str]
+    fix: PersonFix,
+    place: PlaceRef,
+    states: dict[tuple[str, int], str],
+    crossed: frozenset[str] | set[str] = frozenset(),
+    seeding: bool = False,
 ) -> str | None:
     """inside / outside / None (no change) for one place (spec § 5.1 step 3).
 
     "inside" also needs the supporter's own non-suspect sighting to be at the
     place: a device state set by a sighting the quality flags later threw out
-    must not put the person there.
+    must not put the person there. `crossed` = supporters with a device-level
+    ENTER/EXIT at this place since the person's last transition there. A first
+    evaluation (`seeding`) may use parked trackers: it sets state without an event.
     """
     if fix.confidence not in ("likely", "probably") or not fix.supporters:
         return None
+    if not seeding and not qualified(fix, crossed):
+        return None  # hold: say "no recent sighting", never move on parked trackers
     last = {m.device_id: m.fix for m in fix.members}
     sides = [states.get((d, place.id), "unknown") for d in fix.supporters]
     if any(
@@ -112,6 +129,25 @@ def _device_states(session: Session, device_ids: list[str]) -> dict[tuple[str, i
         )
     ).all()
     return {(r.device_id, r.place_id): r.state for r in rows}
+
+
+def _crossings(session, fix: PersonFix, as_of: datetime) -> list[tuple[int, str, datetime]]:
+    """(place_id, device_id, observed_at) of the supporters' own crossings in the window."""
+    lo = as_of - timedelta(hours=6)
+    rows = session.execute(
+        select(PlaceEvent.place_id, PlaceEvent.device_id, PlaceEvent.observed_at).where(
+            PlaceEvent.device_id.in_(list(fix.supporters)),
+            PlaceEvent.observed_at > lo,
+            PlaceEvent.observed_at <= as_of,
+        )
+    ).all()
+    return [(r.place_id, r.device_id, r.observed_at) for r in rows]
+
+
+def _crossed_since(crossings, place_id: int, since: datetime | None) -> frozenset[str]:
+    return frozenset(
+        d for pid, d, at in crossings if pid == place_id and (since is None or at > since)
+    )
 
 
 def _member_event_ids(session, fix: PersonFix, place_id: int, event_type: str, as_of) -> list[int]:
@@ -160,6 +196,7 @@ def evaluate_person(session: Session, group, as_of: datetime) -> list[GroupPlace
     """Re-infer one person as of `as_of` and move every place's state."""
     fix, trackers, places = infer_person(session, group, as_of)
     states = _device_states(session, [t.device_id for t in trackers])
+    crossings = _crossings(session, fix, as_of)
     now = datetime.now(UTC)
     inserted: list[GroupPlaceEvent] = []
     for place in places:
@@ -169,7 +206,8 @@ def evaluate_person(session: Session, group, as_of: datetime) -> list[GroupPlace
         if row is None:
             row = PersonPlaceState(group_id=group.id, place_id=place.id, state="unknown")
             session.add(row)
-        target = person_target(fix, place, states)
+        crossed = _crossed_since(crossings, place.id, row.last_transition_at)
+        target = person_target(fix, place, states, crossed, seeding=row.state == "unknown")
         s = step(row.state, row.pending_side, row.pending_since, row.last_transition_at,
                  target, as_of)  # fmt: skip
         row.state, row.pending_side, row.pending_since = s.state, s.pending_side, s.pending_since

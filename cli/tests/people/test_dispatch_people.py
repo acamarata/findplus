@@ -75,7 +75,7 @@ def test_late_report_says_the_time_not_just(session, pinned_tz):
     _to_grandmas(session)
     sent = _run_dispatch(session, now=at(10, 10))
     first = next(t for t in sent if "Grandma's" in t.splitlines()[0]).splitlines()
-    assert first[0].startswith("Sam arrived at Grandma's at Sep 21, 9:")
+    assert first[0].startswith("Sam arrived at Grandma's at 9:")  # same day: no date
     assert first[1].startswith("Seen by ") and "min late" in first[1]
     assert "just" not in first[0]
 
@@ -100,7 +100,7 @@ def test_left_behind_alerts_once_away_from_home(session, pinned_tz):
     sent = _run_dispatch(session, now=at(15, 45))
     left = [t for t in sent if "looks left at" in t]
     assert len(left) == 1, sent
-    assert left[0].startswith("Sam's bag looks left at School. Last seen there at Sep 21, ")
+    assert left[0].startswith("Sam's bag looks left at School. Last seen there at 3:")
     assert left[0].endswith(ALERTS_LATENCY)
     assert "White" not in "".join(left)  # the shoes at Home never alert
     assert session.query(AlertDelivery).filter_by(event_kind="left_behind").count() == 1

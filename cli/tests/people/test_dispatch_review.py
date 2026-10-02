@@ -166,7 +166,7 @@ def test_a_settle_wait_keeps_the_crossing_time_and_the_lead_trackers_lag(session
     )
     assert seen.count() == 1
     text = next(t for t in _run_dispatch(session, now=at(10, 10)) if "left Grandma's" in t)
-    assert "left Grandma's at Sep 21, 9:43 AM" in text
+    assert "left Grandma's at 9:43 AM" in text
     assert "lag unknown" not in text and "5 min late" in text
 
 

@@ -1,4 +1,4 @@
-"""A person's arrivals and departures are never an INFO log line (no presence history in the log)."""
+"""A person's arrivals and departures are never an INFO log line (no presence log)."""
 
 from __future__ import annotations
 

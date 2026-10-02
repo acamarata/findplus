@@ -1,8 +1,8 @@
 """Settings: daily summary controls, the left-behind switch and the backup line."""
 
-
 from __future__ import annotations
 
+import asyncio
 import json
 
 import pytest
@@ -31,6 +31,14 @@ async def _stub_settings(page):
     return patches
 
 
+async def _until(check, seconds: float = 5.0):
+    for _ in range(int(seconds / 0.05)):
+        if check():
+            return
+        await asyncio.sleep(0.05)
+    raise AssertionError("the save never reached the server")
+
+
 async def _open_settings(page, server):
     await page.goto(server["base"] + "/")
     await page.wait_for_selector("#app-shell[data-fp-ready]")
@@ -57,9 +65,13 @@ async def test_each_control_saves_as_it_changes(trips_page, trips_server):
     await _open_settings(trips_page, trips_server)
     p = trips_page
     await p.check("#person-digest-on")
+    await _until(lambda: len(patches) == 1)
     await p.fill("#person-digest-time", "19:30")
+    await p.press("#person-digest-time", "Tab")
+    await _until(lambda: len(patches) == 2)
     await p.select_option("#person-digest-channel", "telegram")
-    await p.wait_for_function("document.querySelector('#settings-saved').textContent === 'Saved.'")
+    await _until(lambda: len(patches) == 3)
+    assert await p.inner_text("#settings-saved") == "Saved."
     assert [next(iter(x["people.digest"].items())) for x in patches] == [
         ("enabled", True),
         ("time", "19:30"),

@@ -21,7 +21,7 @@ from findplus.geo import haversine_meters
 from findplus.quality.fix import Fix
 
 #: Bump when a rule or constant changes; `findplus db recompute-quality` rewrites rows.
-ALGO_VERSION = 1
+ALGO_VERSION = 2
 
 # Reason codes (stored comma-separated in observation_quality.reasons).
 ABA_TELEPORT = "aba_teleport"
@@ -48,11 +48,25 @@ ABA_WINDOW_S = 30 * 60
 ABA_AGREE_RATIO = 0.5
 ABA_MIN_JUMP_M = 500.0
 ABA_ACCURACY_FACTOR = 2.0
-ABA_MIN_ROUND_TRIP_MPS = 20.0
-#: jump_unconfirmed: a fast, long hop from the previous fix with nothing after it yet.
-JUMP_MIN_M = 1000.0
-JUMP_MIN_MPS = 20.0
+#: Out and back faster than this (about 30 km/h door to door) with one sighting at
+#: the far end is a bad fix. Find Hub reports every 2 to 10 minutes, so a 20 m/s
+#: bound missed a 1 to 6 km spike at that cadence.
+ABA_MIN_ROUND_TRIP_MPS = 8.0
+#: When P and N agree within their accuracies this soon, no speed test at all.
+ABA_STILL_WINDOW_S = 20 * 60
+#: A shorter jump already counts when P and N are this close in time.
+ABA_QUICK_WINDOW_S = 5 * 60
+ABA_QUICK_MIN_JUMP_M = 300.0
+#: jump_unconfirmed: a jump aba_teleport could later flag, with nothing after it
+#: yet, is held this long (from when we fetched it) for the next fix to decide.
+#: Held when over 1 km whatever the speed, or faster than a brisk walk; a slow
+#: walk to a nearby place is never held.
 JUMP_WINDOW_S = 30 * 60
+JUMP_ALWAYS_M = 1000.0
+JUMP_MIN_MPS = 3.0
+JUMP_HOLD_S = 12 * 60
+#: edge_stray: the two neighbours of an end fix must be this recent.
+EDGE_WINDOW_S = 30 * 60
 #: sibling_disagree: other trackers of the same person, each seen this recently.
 SIBLING_WINDOW_S = 10 * 60
 SIBLING_AGREE_M = 300.0
@@ -107,30 +121,55 @@ def impossible_speed(prev: Fix, mid: Fix, nxt: Fix, max_speed: float = MAX_SPEED
     return dist(prev, nxt) < ABA_AGREE_RATIO * min(dist(prev, mid), dist(mid, nxt))
 
 
+def jump_floor(prev: Fix, mid: Fix, span_s: float) -> float:
+    """The shortest jump that can be a teleport when P and N are `span_s` apart."""
+    base = ABA_QUICK_MIN_JUMP_M if span_s <= ABA_QUICK_WINDOW_S else ABA_MIN_JUMP_M
+    return max(base, ABA_ACCURACY_FACTOR * (prev.acc + mid.acc))
+
+
 def aba_teleport(prev: Fix, mid: Fix, nxt: Fix) -> bool:
-    """The tracker jumps away and straight back: P and N agree, X is far and fast."""
-    if seconds(prev, nxt) > ABA_WINDOW_S:
+    """The tracker jumps away and straight back: P and N agree, X is far.
+
+    Far and fast (round trip above 8 m/s), or far while P and N sit within
+    their accuracies of each other inside 20 minutes, whatever the speed. A
+    real quick out-and-back (a missed exit and a U-turn) is flagged too; a
+    second sighting at the far end, or a sibling tracker there, rescues it.
+    """
+    span = seconds(prev, nxt)
+    if span > ABA_WINDOW_S:
         return False
-    d_in, d_out = dist(prev, mid), dist(mid, nxt)
-    if dist(prev, nxt) >= ABA_AGREE_RATIO * min(d_in, d_out):
+    d_in, d_out, d_pn = dist(prev, mid), dist(mid, nxt), dist(prev, nxt)
+    if d_pn >= ABA_AGREE_RATIO * min(d_in, d_out) or d_in <= jump_floor(prev, mid, span):
         return False
-    if d_in <= max(ABA_MIN_JUMP_M, ABA_ACCURACY_FACTOR * (prev.acc + mid.acc)):
-        return False
-    return (d_in + d_out) / max(seconds(prev, nxt), _MIN_DT_S) > ABA_MIN_ROUND_TRIP_MPS
+    if (d_in + d_out) / max(span, _MIN_DT_S) > ABA_MIN_ROUND_TRIP_MPS:
+        return True
+    return span <= ABA_STILL_WINDOW_S and d_pn <= max(STILL_RADIUS_M, prev.acc + nxt.acc)
 
 
 def edge_stray(edge: Fix, near: Fix, far: Fix, max_speed: float = MAX_SPEED_MPS) -> bool:
-    """An end fix jumps away from two neighbours that agree with each other."""
+    """An end fix jumps away from two recent neighbours that agree with each other."""
+    if seconds(edge, near) > EDGE_WINDOW_S or seconds(near, far) > EDGE_WINDOW_S:
+        return False
     if speed(edge, near) <= max_speed:
         return False
     return dist(near, far) < ABA_AGREE_RATIO * dist(edge, near)
 
 
 def is_jump(prev: Fix | None, fix: Fix) -> bool:
-    """A long, fast hop from the previous fix (the precondition of jump_unconfirmed)."""
-    if prev is None or seconds(prev, fix) > JUMP_WINDOW_S:
+    """A hop the next fix could still turn into aba_teleport (jump_unconfirmed's test).
+
+    No 20 m/s bar any more: at a 3 minute cadence a 1.5 km spike is just 8 m/s,
+    the speed of a car in town.
+    """
+    if prev is None:
         return False
-    return dist(prev, fix) > JUMP_MIN_M and speed(prev, fix) > JUMP_MIN_MPS
+    gap = seconds(prev, fix)
+    if gap > JUMP_WINDOW_S:
+        return False
+    d = dist(prev, fix)
+    if d <= jump_floor(prev, fix, 2 * gap):
+        return False
+    return d > JUMP_ALWAYS_M or d / max(gap, _MIN_DT_S) > JUMP_MIN_MPS
 
 
 def is_corroborating(fix: Fix, other: Fix) -> bool:

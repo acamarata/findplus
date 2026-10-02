@@ -77,13 +77,20 @@ def hard_reasons(
     return out
 
 
+def awaiting_next(fix: Fix, now: datetime | None) -> bool:
+    """No next fix yet and still inside the hold; once it runs out, benefit of the doubt."""
+    if now is None:
+        return True
+    anchor = max(fix.t, fix.fetched_at) if fix.fetched_at else fix.t
+    return (now - anchor).total_seconds() <= r.JUMP_HOLD_S
+
+
 def _unconfirmed_jump(prev: Fix | None, fix: Fix, nxt: Fix | None, now: datetime | None) -> bool:
     """A fast long hop that nothing has confirmed or contradicted yet."""
     if not r.is_jump(prev, fix):
         return False
     if nxt is None:
-        # Too old to ever be confirmed: give it the benefit of the doubt.
-        return now is None or (now - fix.t).total_seconds() <= r.JUMP_WINDOW_S
+        return awaiting_next(fix, now)
     # A next fix too late to vouch for it cannot confirm or deny: benefit of the doubt.
     return r.seconds(fix, nxt) <= r.RESCUE_OWN_WINDOW_S and r.is_corroborating(fix, nxt)
 

@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from findplus.quality import rules as r
 from findplus.quality.score import score_series
 from tests.quality._vectors import (
+    T0,
     fix,
     v1_owner_case,
     v2_real_drive,
     v3_school_run,
     v4_two_bad_in_a_row,
 )
+
+LATER = T0 + timedelta(days=1)  # long after the data: no fix is waiting on a next one
 
 
 def test_v1_owner_case_flags_the_middle_fix() -> None:
@@ -22,8 +27,15 @@ def test_v1_owner_case_flags_the_middle_fix() -> None:
 
 
 def test_v2_real_drive_flags_nothing() -> None:
-    out = score_series(v2_real_drive())
+    out = score_series(v2_real_drive(), now=LATER)
     assert all(s.reasons == () and s.score == 1.0 for s in out.values())
+
+
+def test_v2_live_the_newest_drive_fix_waits_one_poll() -> None:
+    """Live, the newest fix of a drive is held until the next one: the documented cost."""
+    fixes = v2_real_drive()
+    out = score_series(fixes, now=fixes[-1].t)
+    assert out[3].reasons == (r.JUMP_UNCONFIRMED,) and not out[2].reasons
 
 
 def test_v3_school_run_flags_nothing() -> None:
@@ -60,7 +72,7 @@ def test_v5_a_tracker_that_was_moving_may_be_carried_away() -> None:
     school = 3000
     bag = [fix(29, -20, 0), fix(30, -10, 1500), fix(32, 2, school + 3000)]
     sibs = {"a": [fix(10, 0, school)], "b": [fix(20, 1, school, 3)]}
-    assert not score_series(bag, siblings=sibs)[32].suspect
+    assert not score_series(bag, siblings=sibs, now=LATER)[32].suspect
 
 
 def test_v6_corroborated_jump_is_rescued() -> None:

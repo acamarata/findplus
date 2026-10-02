@@ -824,11 +824,12 @@
       "point_3": "Takes about three minutes. Only signing in is needed; every other step is optional."
     },
     "signin": {
-      "title": "Connect your trackers",
-      "lead": "Sign in to Google, Apple, or both, so Find+ can read where your trackers are. Next you'll choose which devices to follow. Not ready? Skip this and connect later in Settings.",
+      "title": "Connect your accounts",
+      "lead": "Connect Google, Apple, or both, so Find+ can read where your trackers are. Next you'll choose which devices to follow. Not ready? Skip this and connect later in Settings.",
       "not_signed_in": "Not signed in yet.",
-      "signed_in_as": "Signed in as {accounts}.",
-      "locked": "Google is connected, but its encrypted locations are still locked. Unlock them below, or skip and do it later in Settings."
+      "signed_in_as": "Connected: {accounts}.",
+      "locked": "Google is connected, but its encrypted locations are still locked. Unlock them below, or skip and do it later in Settings.",
+      "nextHint": "Connect at least one account to go on, or choose Skip to do it later."
     },
     "devices": {
       "title": "Choose what to track",
@@ -912,7 +913,7 @@
     "progress_named": "Step {n} of {total}: {name}",
     "step_names": {
       "welcome": "Welcome",
-      "signin": "Connect your trackers",
+      "signin": "Connect your accounts",
       "devices": "Choose devices",
       "groups": "Groups",
       "places": "Places",
@@ -937,8 +938,8 @@
   },
   "signin": {
     "account": {
-      "signedIn": "Signed in as {account}",
-      "signedOut": "Not signed in",
+      "signedIn": "Connected as {account}",
+      "signedOut": "Not connected",
       "revoked": "Needs sign-in again"
     },
     "retry": "Try again",
@@ -959,10 +960,18 @@
       },
       "helper": {
         "addTitle": "First time? Add the Find+ helper to Chrome",
-        "addHow": "The helper lets \"Sign in with Google\" use the Chrome you already use. Add it once: show its folder, open Chrome's extensions page, turn on Developer mode, and Load unpacked.",
-        "showFolder": "Show helper folder",
-        "openExtensions": "Open Chrome extensions",
-        "installed": "Find+ helper detected in Chrome."
+        "addHow": "The helper lets \"Sign in with Google\" use the Chrome you already use. Add it once, by hand. Find+ opens nothing for you here.",
+        "installed": "Find+ helper detected in Chrome.",
+        "step1": "In Chrome, type this in the address bar and press Return:",
+        "step2": "Turn on Developer mode, at the top right of that page.",
+        "step3": "Click Load unpacked and choose the Find+ helper folder:",
+        "step4": "Come back here and choose Sign in with Google.",
+        "copy": "Copy",
+        "copied": "Copied",
+        "copyFailed": "Select it and copy",
+        "copyLabel": "Copy {value}",
+        "folderName": "the helper folder path",
+        "folderFallback": "~/.findplus/chrome-helper"
       },
       "token": {
         "openedChrome": "Google's sign-in page is open in Google Chrome.",
@@ -1003,15 +1012,16 @@
         "body": "This usually happens after a password change. Find+ cannot get new locations until you sign in again. Your trackers and history are kept.",
         "button": "Sign in again"
       },
-      "ready": "Encrypted locations are unlocked.",
-      "switchHint": "Switching accounts replaces this sign-in. You may need to unlock encrypted locations again."
+      "ready": "Locations unlocked",
+      "switchHint": "Switching accounts replaces this sign-in. You may need to unlock encrypted locations again.",
+      "lockedChip": "Locations locked"
     },
     "apple": {
       "heading": "Apple Find My",
       "how": "Uses your Apple ID and password, then a verification code sent to one of your Apple devices or by text message.",
       "appleId": "Apple ID",
       "password": "Password",
-      "connect": "Connect Apple Find My",
+      "connect": "Connect",
       "switch": "Use a different Apple ID",
       "signingIn": "Signing in to Apple…",
       "codePrompt": "Apple sent a 6-digit code to your trusted Apple devices. If none of them is signed in, Apple sends it by text message to your phone number instead.",
@@ -1025,7 +1035,23 @@
       "unavailable": "Apple Find My support is not installed in this copy of Find+. Install the Apple extra with pip install 'findplus[apple]', then restart Find+.",
       "disconnectConfirm": "Disconnect Apple Find My? Find+ stops checking Apple for new locations. Your trackers and history stay on this computer. Sign in again any time.",
       "startOver": "Start over",
-      "badFormat": "The code is 6 digits. Check it and try again."
+      "badFormat": "The code is 6 digits. Check it and try again.",
+      "sheetTitle": "Connect Apple Find My",
+      "signIn": "Sign in",
+      "passwordNote": "Find+ uses your password once to sign in and never stores it.",
+      "preparing": "Preparing Apple sign-in (one-time download, a few MB)…",
+      "codeDevice": "Enter the 6-digit code shown on your iPhone, iPad or Mac.",
+      "codeSms": "Enter the 6-digit code Apple sent by text message to {phone}.",
+      "yourPhone": "your phone",
+      "textInstead": "Use a text message instead",
+      "texting": "Asking Apple to send a text…",
+      "cancelled": "Cancelled. Nothing changed.",
+      "readyChip": "Connected",
+      "revoked": {
+        "title": "Apple signed Find+ out",
+        "body": "Find+ cannot get new Apple locations until you sign in again. Your trackers and history are kept.",
+        "button": "Sign in again"
+      }
     },
     "error": {
       "title": "Sign-in did not finish",
@@ -1035,6 +1061,39 @@
       "timeout": "No sign-in was completed within 5 minutes.",
       "badCode": "That code was not accepted. Check it and verify again, or start over for a new code.",
       "unknown": "The sign-in stopped without saying why."
+    },
+    "connect": "Connect",
+    "moreWays": "More ways to sign in",
+    "native": {
+      "how": "Sign in on Google's own page, in a window Find+ opens and closes for you.",
+      "connecting": "Opening the sign-in window…",
+      "openedWaiting": "A Find+ sign-in window opened. Finish signing in there.",
+      "waiting": "Finish signing in in the Find+ window.",
+      "titleNote": "The window's title names the Google page it shows, so you can check where you type your password.",
+      "showWindow": "Show window",
+      "preferChrome": "Prefer your Chrome?",
+      "finishing": "Checking with Google…",
+      "needsUnlock": "One more step: enter your Android phone's screen lock in the same window.",
+      "unlockWaiting": "Unlock your locations in the Find+ window.",
+      "unlockWhy": "Google encrypts your Find Hub locations end to end. Unlocking them needs your Android phone's screen lock, once, in the Find+ sign-in window.",
+      "stuck": "Taking a while? You can keep going in the window, or use your Chrome instead.",
+      "cancelled": "Cancelled. Nothing changed.",
+      "blocked": "Google would not let Find+ sign you in inside the app. Use your Chrome instead.",
+      "useChrome": "Use your Chrome",
+      "showSteps": "Show the steps",
+      "tryWindow": "Try the Find+ window again",
+      "startWithHelper": "Google turned down the Find+ window recently, so Find+ starts with your Chrome for a few days.",
+      "openFailed": "Find+ could not open its sign-in window. Try again, or use your Chrome.",
+      "error": "The sign-in did not finish. Try again, or use your Chrome.",
+      "timeout": "The sign-in window was open too long and closed. Start again when you are ready.",
+      "openedUnlock": "A Find+ window opened. Enter your Android phone's screen lock there."
+    },
+    "attention": {
+      "googleReauth": "Google signed Find+ out, so new locations have stopped. Sign in again to pick up where you left off.",
+      "googleUnlock": "Google Find Hub locations are locked again. Unlock them once with your Android phone's screen lock.",
+      "appleReauth": "Apple signed Find+ out, so new Apple locations have stopped. Sign in again to pick up where you left off.",
+      "signIn": "Sign in again",
+      "unlock": "Unlock locations"
     }
   },
   "notices": {

@@ -18,7 +18,8 @@
  *              step's behalf: a step file only reads them off its ctx argument.
  *              The chrome owns a role="alert" region for step/guard failures
  *              (#alert lives in the hidden #app-shell, UAT6 N04), and ctx
- *              carries goToStep, completeSetup, reportError and rerun for steps.
+ *              carries goToStep, completeSetup, reportError, setNextEnabled
+ *              and rerun for steps.
  *              Moving to a step focuses its heading; typed values survive
  *              Back/Skip through wizard_drafts.js; a re-run never re-stamps.
  */
@@ -53,8 +54,10 @@ export class Wizard {
       goToStep: (id) => this.goToStep(id),
       completeSetup: () => this.complete(),
       reportError: (message) => this.setError(message),
+      setNextEnabled: (on) => this.setNextEnabled(on),
       rerun: this.rerun,
     };
+    this.nextHeld = false; // a step may hold Next (sign-in: until one account)
     /** True while a Back/Skip/Next/Skip-setup transition is still in flight. */
     this.busy = false;
     const found = initialStep ? steps.findIndex((s) => s.id === initialStep) : 0;
@@ -153,6 +156,12 @@ export class Wizard {
     this.errorEl.textContent = message || "";
   }
 
+  /** Hold or release Next for the current step; Skip is never held. */
+  setNextEnabled(on) {
+    this.nextHeld = !on;
+    if (!this.busy) this.nextBtn.disabled = this.nextHeld;
+  }
+
   footerButton(id, label, className, handler) {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -187,6 +196,7 @@ export class Wizard {
       .finally(() => {
         this.busy = false;
         chrome.forEach((btn) => (btn.disabled = false));
+        this.nextBtn.disabled = this.nextHeld;
         this.nextBtn.removeAttribute("aria-busy");
         if (focused && !focused.hidden && document.activeElement === document.body) {
           focused.focus();
@@ -208,6 +218,7 @@ export class Wizard {
     this.dots.forEach((dot, i) => dot.classList.toggle("filled", i <= this.index));
 
     this.setError("");
+    this.setNextEnabled(true);
     this.stepEl.textContent = "";
     step.render(this.stepEl, this.ctx);
     restoreDraft(this.drafts, step.id, this.stepEl);
@@ -240,11 +251,8 @@ export class Wizard {
     heading.focus({ preventScroll: true });
   }
 
-  /**
-   * Jump straight to a step by id (Done's "go fix it" links, UAT6 N19).
-   * Not routed through guard(): that lock stops a double-click repeating one
-   * transition, which does not apply to a link followed once.
-   */
+  /** Jump to a step by id (Done's "go fix it" links, UAT6 N19). Not guarded:
+   * that lock stops a double-click repeating one transition, not a link. */
   goToStep(id) {
     const index = this.steps.findIndex((s) => s.id === id);
     if (index < 0 || index === this.index) return;
@@ -261,12 +269,7 @@ export class Wizard {
     this.renderStep();
   }
 
-  /**
-   * Let the step being left put back anything it borrowed.
-   *
-   * The Places step moves the shared map into its own container; without this
-   * hook it would have nowhere to hand it back from.
-   */
+  /** Let the step being left put back what it borrowed (Places borrows the map). */
   leaveCurrent() {
     const step = this.steps[this.index];
     if (!step) return;

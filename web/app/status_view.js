@@ -20,6 +20,7 @@ import { t, plural } from "./i18n.js";
 import { anyProviderSignedIn, failedPollNotice, isFailedPoll, openSignin, openUnlock, shortStatus } from "./poll_status.js";
 import { awaitingActive, bannerRun, noSightingCount, pollingMessage, zeroNewMessage } from "./poll_cycle.js";
 import { refreshEmptyPane } from "./dashboard_empty.js";
+import { attentionNotice, fixSignin } from "./signin/attention.js";
 import { syncMapOverlay } from "./map_empty.js";
 import { syncProviderChrome } from "./provider_chrome.js";
 
@@ -152,8 +153,15 @@ async function renderStatusAlert(s) {
   }
   const waiting = awaitingActive(s);
   const failed = bannerRun(s);
+  // A lost sign-in outranks a failed poll: it says what broke and its one
+  // button starts the fix (signin/attention.js, spec in-app-login §6).
+  const lost = attentionNotice(s.provider_health);
   if (state.pollInFlight || waiting) {
     showAlert(pollingMessage(s), "info", { busy: true, hint: t("live.pollingHint") });
+  } else if (lost) {
+    showAlert(lost.message, "err", {
+      action: { label: lost.label, run: () => fixSignin(lost.provider, lost.kind) },
+    });
   } else if (failed) {
     const notice = failedPollNotice(failed);
     const make = ACTIONS[notice.action];

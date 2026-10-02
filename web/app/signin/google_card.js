@@ -1,21 +1,21 @@
 /*
- * The Google Find Hub card: sign in with your own Chrome first, Find+'s own
- * Chrome window second.
+ * The Google Find Hub card, for both sign-in surfaces.
  *
- * Purpose    : Build the Google card for both sign-in surfaces. The primary
- *              button opens Google's sign-in page in the Chrome people already
- *              use (POST /api/auth/google/open) and reveals the token panel:
- *              numbered steps to copy the `oauth_token` cookie, an email field,
- *              a token field and Connect (google_token_flow.js drives it). The
- *              smaller secondary button keeps the automatic flow, which opens a
- *              separate Chrome window (google_flow.js, unchanged behavior).
- * Inputs     : { prefix, level, notices, withNotices } like buildAppleCard.
- * Outputs    : { root, ...named elements }. `button` is the automatic flow's
- *              button, so FlowBase's busy/idle handling applies to it.
+ * Purpose    : Build the Google card the wizard and Settings share. In the
+ *              desktop app it leads with Connect (the Find+ sign-in window,
+ *              google_native_card.js); in a browser tab with "Sign in with
+ *              Google" (the Chrome helper, google_helper_flow.js). "More ways
+ *              to sign in" keeps the paste flow: open Google in your Chrome
+ *              (POST /api/auth/google/open), numbered steps, an email field, a
+ *              field for the copied value and Connect (google_token_flow.js).
+ * Inputs     : { prefix, level, notices, withNotices, native }.
+ * Outputs    : { root, ...named elements }. `button` is the hidden 1.1
+ *              own-window flow's button, so FlowBase's busy/idle handling
+ *              still applies to it.
  * Constraints: textContent only, every string from t() or /api/config. Why
  *              the paste step exists: Chrome 136+ refuses automation of the
- *              default profile, and Google issues the Find Hub token only as
- *              that cookie. The token field is a password input with
+ *              default profile, and Google issues the Find Hub sign-in only as
+ *              a browser cookie. That field is a password input with
  *              autocomplete off, cleared the moment Connect sends it.
  */
 "use strict";
@@ -23,6 +23,8 @@
 import { t } from "../i18n.js";
 import { loadIconSprite } from "../icon_sprite.js";
 import { buildNotices } from "./google_card_notices.js";
+import { buildNativeBlock } from "./google_native_card.js";
+import { buildHelperSteps } from "./helper_steps.js";
 import {
   CHROME_URL, button, card, chromeNoticeText, disconnectConfirmRow, el, feedback, field, head,
 } from "./cards.js";
@@ -137,10 +139,11 @@ function unlockBlock(prefix) {
 }
 
 /**
- * The primary "Sign in with Google" button (google_helper_flow.js) and its own
+ * The "Sign in with Google" button (google_helper_flow.js) and its own
  * status/cancel/error line. A neutral white button: no Google "G" artwork,
  * which is reserved for Google Identity Services. It signs in through the Find+
- * helper extension in the user's own Chrome.
+ * helper extension in the user's own Chrome. The install steps under it are
+ * text only (helper_steps.js): 1.2 opens no folder and no Chrome tab for you.
  */
 function helloBlock(prefix) {
   const wrap = el("div", "fp-signin-hello");
@@ -163,7 +166,7 @@ function helloBlock(prefix) {
   const errorDetail = el("p", "fp-signin-error-detail");
   const retry = button("btn btn-secondary", t("signin.retry"), `${prefix}-google-hello-retry`);
   error.append(errorDetail, retry);
-  const install = installHint(prefix);
+  const install = buildHelperSteps(prefix);
   wrap.append(actions, status, error, install.installHint);
   return {
     helloBlock: wrap, hello, helloStatus: statusText, helloStatusRow: status,
@@ -172,33 +175,45 @@ function helloBlock(prefix) {
   };
 }
 
-/** The one-time "Add the Find+ helper to Chrome" hint and its two buttons. */
-function installHint(prefix) {
-  const wrap = el("details", "fp-signin-install");
+/**
+ * "More ways to sign in": the paste flow (and, in the desktop app, the Chrome
+ * helper), in a native <details> so it collapses with no inline handler
+ * (CSP-safe). The 1.1 "Find+ opens its own Chrome window" button stays in
+ * the DOM but hidden in 1.2 (spec Q4: hide in 1.2, remove in 1.3).
+ */
+function moreWays(prefix, notices) {
+  const other = document.createElement("details");
+  other.className = "fp-signin-other";
+  other.id = `${prefix}-google-more`;
   const summary = document.createElement("summary");
-  summary.textContent = t("signin.google.helper.addTitle");
-  const how = el("p", "fp-signin-how", t("signin.google.helper.addHow"));
-  const actions = el("div", "fp-signin-actions");
-  const reveal = button("btn btn-secondary", t("signin.google.helper.showFolder"),
-    `${prefix}-google-helper-reveal`);
-  const openExt = button("btn btn-secondary", t("signin.google.helper.openExtensions"),
-    `${prefix}-google-helper-open`);
-  actions.append(reveal, openExt);
-  const installed = el("p", "fp-signin-how fp-signin-installed", t("signin.google.helper.installed"));
-  installed.id = `${prefix}-google-helper-installed`;
-  installed.hidden = true;
-  wrap.append(summary, how, actions, installed);
-  return { installHint: wrap, helperReveal: reveal, helperOpenExt: openExt, helperInstalled: installed };
+  summary.textContent = t("signin.moreWays");
+  const open = button("btn fp-signin-btn", t("signin.google.openChrome"), `${prefix}-google-open`);
+  const openRow = el("div", "fp-signin-actions fp-signin-paste-start");
+  openRow.append(open);
+  const panel = tokenPanel(prefix);
+  const signin = button("btn btn-secondary fp-signin-alt-btn", t("signin.google.ownWindow"),
+    `${prefix}-google-signin`);
+  signin.hidden = true;
+  const fb = feedback(`${prefix}-google`, { withCancel: true });
+  const chrome = chromeBlock(prefix, notices);
+  other.append(summary, openRow, panel.tokenPanel, signin, fb.progress, fb.error, chrome.chrome);
+  return { other, open, button: signin, ...panel, ...fb, ...chrome };
 }
 
-/** The Google Find Hub card. Primary: "Sign in with Google" (the helper). The
- * paste flow and the separate-window flow move under an "Other ways" details. */
-export function buildGoogleCard({ prefix, level, notices, withNotices }) {
+/**
+ * The Google Find Hub card. In the desktop app the primary button is Connect
+ * (the Find+ sign-in window, google_native_card.js) and the Chrome helper
+ * moves under "More ways to sign in". In a browser tab the helper's "Sign in
+ * with Google" leads, exactly as in 1.1, without the folder/extension openers.
+ */
+export function buildGoogleCard({ prefix, level, notices, withNotices, native = false }) {
   loadIconSprite().catch(() => {});
   const root = card(`${prefix}-google-card`, "google");
+  root.dataset.mode = native ? "native" : "browser";
   const top = head("compass", t("signin.google.heading"), level, `${prefix}-google-status`);
-  const how = el("p", "fp-signin-how", t("signin.google.how"));
+  const how = el("p", "fp-signin-how fp-signin-lead", t(native ? "signin.native.how" : "signin.google.how"));
   const hello = helloBlock(prefix);
+  const nativeBlock = native ? buildNativeBlock(prefix, notices) : {};
   const disconnect = button("btn btn-secondary", t("signin.disconnect"), `${prefix}-google-disconnect`);
   disconnect.hidden = true;
   const disconnectRow = el("div", "fp-signin-actions");
@@ -206,30 +221,13 @@ export function buildGoogleCard({ prefix, level, notices, withNotices }) {
   const disconnectConfirm = disconnectConfirmRow(prefix, "google", t("signin.google.disconnectConfirm"));
   const unlock = unlockBlock(prefix);
   const states = buildNotices(prefix);
-
-  // "Other ways to sign in": the paste flow and the separate-window flow, in a
-  // native <details> so it collapses with no inline handler (CSP-safe).
-  const other = document.createElement("details");
-  other.className = "fp-signin-other";
-  const summary = document.createElement("summary");
-  summary.textContent = t("signin.google.otherWays");
-  const open = button("btn fp-signin-btn", t("signin.google.openChrome"), `${prefix}-google-open`);
-  const openRow = el("div", "fp-signin-actions");
-  openRow.append(open);
-  const panel = tokenPanel(prefix);
-  const alt = el("div", "fp-signin-alt");
-  const signin = button("btn btn-secondary fp-signin-alt-btn", t("signin.google.ownWindow"),
-    `${prefix}-google-signin`);
-  alt.append(signin);
-  const fb = feedback(`${prefix}-google`, { withCancel: true });
-  const chrome = chromeBlock(prefix, notices);
-  other.append(summary, openRow, panel.tokenPanel, alt, fb.progress, fb.error, chrome.chrome);
-
-  root.append(top.wrap, states.revoked, how, hello.helloBlock, states.switchHint, states.ready,
-    disconnectRow, disconnectConfirm.row, unlock.unlock, other);
+  const more = moreWays(prefix, notices);
+  if (native) more.other.insertBefore(hello.helloBlock, more.other.children[1]);
+  root.append(top.wrap, states.revoked, how, native ? nativeBlock.native : hello.helloBlock,
+    states.chips, states.switchHint, disconnectRow, disconnectConfirm.row, unlock.unlock, more.other);
   if (withNotices) root.append(el("p", "fp-wizard-footnote", notices.find_hub || ""));
   return {
-    root, account: top.account, open, button: signin, disconnect, disconnectConfirm, other,
-    ...hello, ...unlock, ...panel, ...fb, ...chrome, ...states,
+    root, native, account: top.account, disconnect, disconnectConfirm,
+    ...hello, ...unlock, ...more, ...states, ...nativeBlock,
   };
 }

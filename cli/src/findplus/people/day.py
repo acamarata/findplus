@@ -84,7 +84,8 @@ def _stay_lines(ctx: Ctx) -> list[Line]:
 
 
 def _gaps(ctx: Ctx) -> list[GapOut]:
-    """Spans over GAP_MINUTES with no sighting of the person, unless Home on both ends."""
+    """Spans over GAP_MINUTES with no sighting of the person, unless Home on
+    both ends; one with the same place on both ends carries that place."""
     homes = home_ids(ctx)
     rows = ctx.person_fixes()
     out = []
@@ -94,8 +95,15 @@ def _gaps(ctx: Ctx) -> list[GapOut]:
         pa, pb = ctx.place_at(a), ctx.place_at(b)
         if pa and pb and pa.id in homes and pb.id in homes:
             continue
-        out.append(GapOut(a.t, b.t))
+        same = pa.name if pa and pb and pa.id == pb.id else None
+        out.append(GapOut(a.t, b.t, same))
     return out
+
+
+def _gap_text(g: GapOut, rng: str) -> str:
+    if g.place_name:
+        return day_t("gapAt", place=g.place_name, range=rng)
+    return day_t("gap", range=rng)
 
 
 def _gap_lines(ctx: Ctx, gaps: list[GapOut]) -> list[Line]:
@@ -103,9 +111,10 @@ def _gap_lines(ctx: Ctx, gaps: list[GapOut]) -> list[Line]:
         Line(
             "gap",
             g.start,
-            day_t("gap", range=clock_range(g.start, g.end, ctx.tz)),
+            _gap_text(g, clock_range(g.start, g.end, ctx.tz)),
             time=clock_range(g.start, g.end, ctx.tz),
             end=g.end,
+            place_name=g.place_name,
         )
         for g in gaps
     ]

@@ -1315,6 +1315,7 @@
       "atFrom": "At {place} from {time}",
       "stay": "{range} at {where}",
       "gap": "No sightings {range}.",
+      "gapAt": "Still at {place}, nothing new from {range}.",
       "stayedBehind": "{what} stayed at {place} from {time}.",
       "stayedBehindUntil": "{what} stayed at {place} from {time} until {until}.",
       "stillAt": "Still at {place} (seen {time})",

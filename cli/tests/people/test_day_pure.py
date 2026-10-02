@@ -188,6 +188,16 @@ def test_gap_skips_home_to_home_and_names_the_rest():
     shoes += every(SCHOOL, t(8), t(9), 10) + every(SCHOOL, t(12), t(13), 10)
     result = build_day(day_input({"zr": shoes}))
     assert [(g.start, g.end) for g in result.gaps] == [(t(9), t(12))]
+    # Seen at School on both ends: not "no sightings", which reads as vanished (uat116 #8).
+    assert "Still at School, nothing new from 9:00 AM to 12:00 PM." in [
+        x.text for x in result.lines
+    ]
+    assert not any(x.text.startswith("No sightings") for x in result.lines)
+
+
+def test_a_gap_between_two_different_places_still_says_no_sightings():
+    shoes = every(SCHOOL, t(8), t(9), 10) + every(HOME, t(12), t(13), 10)
+    result = build_day(day_input({"zr": shoes}))
     assert "No sightings 9:00 AM to 12:00 PM." in [x.text for x in result.lines]
 
 

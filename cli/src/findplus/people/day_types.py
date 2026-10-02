@@ -151,6 +151,9 @@ class Line:
 class GapOut:
     start: datetime
     end: datetime
+    #: The saved place seen at both ends, if the same: "Still at School,
+    #: nothing new", never "No sightings", which reads as vanished (uat116 #8).
+    place_name: str | None = None
 
     @property
     def minutes(self) -> int:

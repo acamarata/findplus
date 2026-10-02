@@ -205,6 +205,19 @@ def _waiting(kind: str) -> None:
     progress.set_phase("needs_unlock", m.MSG_NEEDS_UNLOCK if after_signin else m.MSG_UNLOCK_WAITING)
 
 
+def _stop() -> None:
+    """Closing or cancelling the window is a cancel, except after a finished sign-in: that stays
+    signed in, with the locations still locked (attention then says "unlock")."""
+    snap = progress.snapshot()
+    if snap["phase"] in progress.TERMINAL:
+        return
+    if snap["phase"] == "needs_unlock" and snap.get("account"):
+        account = snap["account"]
+        progress.set_phase("success", m.MSG_SIGNED_IN.format(account=account), unlocked=False)
+        return
+    progress.set_phase("cancelled", m.MSG_CANCELLED)
+
+
 def record_event(state: object, event: object, reason: object = None) -> dict[str, Any]:
     """What the shell saw: the window opened, is waiting, was blocked, closed or failed."""
     live, kind = _require_live(state)
@@ -216,8 +229,7 @@ def record_event(state: object, event: object, reason: object = None) -> dict[st
         _block(live, reason if reason in m.BLOCKED_REASONS else "other")
     elif event == "closed":
         hs.drop_state(live)
-        if progress.current_phase() not in progress.TERMINAL:
-            progress.set_phase("cancelled", m.MSG_CANCELLED)
+        _stop()
     else:  # failed
         hs.drop_state(live)
         word = reason if reason in m.FAILED_REASONS else "other"
@@ -247,8 +259,7 @@ def classify_report(state: object, host: object, path: object, title_class: obje
 def cancel() -> dict[str, Any]:
     """Drop every in-app state; the card says Cancelled. Safe to call twice."""
     hs.drop_states_of(hs.NATIVE_KINDS)
-    if progress.current_phase() not in progress.TERMINAL:
-        progress.set_phase("cancelled", m.MSG_CANCELLED)
+    _stop()
     return _brief()
 
 

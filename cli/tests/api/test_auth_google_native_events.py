@@ -64,6 +64,23 @@ def test_closing_the_window_is_a_cancel_and_kills_the_state(auth_client, monkeyp
     assert native_progress.blocked_at() is None  # a cancel is not a block
 
 
+@pytest.mark.parametrize("how", ["closed", "cancel"])
+def test_stopping_after_sign_in_keeps_the_account_signed_in(auth_client, monkeypatch, how):
+    state = _state(auth_client, monkeypatch)
+    body = {"state": state, "oauth_token": "oauth2_4/x"}
+    assert auth_client.post(f"{BASE}/token", json=body, headers=SHELL_HEADERS).json()[
+        "needs_unlock"
+    ]
+    if how == "closed":
+        _event(auth_client, state, "closed")
+    else:
+        auth_client.post(f"{BASE}/cancel", headers=SAME_ORIGIN_HEADERS)
+    progress = auth_client.get(f"{BASE}/progress").json()
+    assert progress["phase"] == "success" and progress["unlocked"] is False
+    assert progress["message"] == "Connected as kid@example.com."
+    assert hs.state_kind(state) is None
+
+
 def test_failed_maps_its_reason_to_plain_words(auth_client, monkeypatch) -> None:
     state = _state(auth_client, monkeypatch)
     body = _event(auth_client, state, "failed", "load_failed").json()

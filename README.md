@@ -273,6 +273,10 @@ see if sign-in cannot find Chrome, not a general statement.
 > Road routes are off unless you enter a routing server address. When
 > one is set, the sightings of each trip you open are sent to that
 > server to draw the path, so use a server you run yourself.
+>
+> Find+ can sign you in to Google in a window of its own. Google's
+> policy is against sign-in inside apps, so it can refuse at any time; if
+> it does, sign in with your own Chrome instead.
 
 ## CLI
 

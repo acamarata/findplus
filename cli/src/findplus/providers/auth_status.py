@@ -4,8 +4,10 @@ Purpose    : specs/auth-ui.md §5 requires `findplus auth --status` and the
              dashboard to agree. They agree by calling the same function.
 Inputs     : none (reads the process-wide provider registry).
 Outputs    : `{"providers": [{id, signed_in, account, method, last_checked,
-             needs}]}`. `needs` names a missing prerequisite ("chrome",
-             "apple_extra") so the wizard can show it without a second call.
+             needs, attention, deep_link}], ..., google_native, deep_links}`.
+             `needs` names a missing prerequisite ("chrome", "apple_extra") so
+             the wizard can show it without a second call; `attention`
+             (providers/attention.py) is "reauth", "unlock" or "none".
 Constraints: never raises on a broken provider — one whose is_available() or
              is_authenticated() throws is reported as signed out, not a 500.
              Mirrors api/routes_providers.py's aggregation, which has the same
@@ -17,6 +19,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+from findplus.providers.attention import attention_for, deep_link_for, deep_links
 from findplus.providers.base import available_providers, get_provider
 
 _GOOGLE = "google-find-hub"
@@ -62,6 +65,7 @@ def build_auth_status() -> dict[str, Any]:
             needs = _needs(name)
         except Exception:
             needs = []
+        attention = attention_for(name)
         providers.append(
             {
                 "id": name,
@@ -70,6 +74,8 @@ def build_auth_status() -> dict[str, Any]:
                 "method": "chrome" if name == _GOOGLE else "apple-2fa",
                 "last_checked": datetime.now(UTC).isoformat(),
                 "needs": needs,
+                "attention": attention,
+                "deep_link": deep_link_for(name, attention),
             }
         )
     try:
@@ -85,4 +91,16 @@ def build_auth_status() -> dict[str, Any]:
         "google_helper_installed": google_helper_installed,
         "google_signin_generation": generation,
         "google_helper_outcome": outcome,
+        "google_native": _native_snapshot(),
+        "deep_links": deep_links({p["id"]: p["attention"] for p in providers}),
     }
+
+
+def _native_snapshot() -> dict[str, Any] | None:
+    """The in-app sign-in window's progress (native_progress.py), or None if unreadable."""
+    try:
+        from findplus.providers.google_findhub import native_progress
+
+        return native_progress.snapshot()
+    except Exception:
+        return None

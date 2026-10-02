@@ -29,6 +29,26 @@ def _state_path(settings) -> pathlib.Path:
     return pathlib.Path(settings.state_dir) / "apple-account.json"
 
 
+def _required_path(settings) -> pathlib.Path:
+    return pathlib.Path(settings.state_dir) / "apple-auth-required"
+
+
+def mark_auth_required(settings) -> None:
+    """Remember that Apple refused the saved session (only while one is saved)."""
+    if _state_path(settings).exists():
+        path = _required_path(settings)
+        path.touch(mode=0o600, exist_ok=True)
+
+
+def clear_auth_required(settings) -> None:
+    """A finished sign-in (or a sign-out) ends the "sign in again" prompt."""
+    _required_path(settings).unlink(missing_ok=True)
+
+
+def auth_required_marked(settings) -> bool:
+    return _required_path(settings).exists()
+
+
 def anisette_libs_path(settings) -> pathlib.Path:
     """Cache for the local anisette engine's libraries (a few MB, downloaded once)."""
     return pathlib.Path(settings.state_dir) / "anisette-libs.bin"
@@ -90,6 +110,7 @@ def save_account(account, settings) -> None:
     path.touch(mode=0o600, exist_ok=True)
     path.chmod(0o600)
     path.write_text(json.dumps(data), encoding="utf-8")
+    clear_auth_required(settings)
 
 
 def restore_account(settings):

@@ -28,7 +28,11 @@ from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from findplus.api import _routes_auth_google_helper
+from findplus.api import (
+    _routes_auth_apple_sheet,
+    _routes_auth_google_helper,
+    _routes_auth_google_native,
+)
 from findplus.api._routes_auth_accessories import read_accessory_body
 from findplus.api._routes_auth_google_token import google_open, google_token
 from findplus.api._routes_auth_google_unlock import (
@@ -251,9 +255,13 @@ def build_router() -> APIRouter:
     router.add_api_route("/auth/google/unlock/progress", google_unlock_progress, methods=["GET"])
     router.add_api_route("/auth/google/unlock/cancel", google_unlock_cancel, methods=["POST"])
     _routes_auth_google_helper.register(router)
+    # The in-app sign-in window the desktop shell opens (_routes_auth_google_native.py).
+    _routes_auth_google_native.register(router)
     router.add_api_route("/auth/apple/start", apple_start, methods=["POST"], status_code=202)
     router.add_api_route("/auth/apple/code", apple_code, methods=["POST"])
     router.add_api_route("/auth/apple/progress", apple_progress, methods=["GET"])
+    # The Apple sheet: status, cancel, "Text me instead" (_routes_auth_apple_sheet.py).
+    _routes_auth_apple_sheet.register(router)
     router.add_api_route("/apple/accessories", apple_accessories, methods=["POST"], status_code=201)
     # Last: a one-segment catch-all, so every literal /auth/... route above
     # is checked first (Starlette matches in registration order).

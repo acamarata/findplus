@@ -79,6 +79,18 @@ class AppleFindMyProvider:
         ]
 
     def locate(self, device_id: str, name: str) -> list[RawObservation]:
+        from .auth import mark_auth_required
+        from .exceptions import AppleAuthRequiredError
+
+        try:
+            return self._locate(device_id, name)
+        except AppleAuthRequiredError:
+            # Remembered so /api/auth/status can ask for a fresh sign-in
+            # (attention "reauth"); save_account() clears it.
+            mark_auth_required(self._settings)
+            raise
+
+    def _locate(self, device_id: str, name: str) -> list[RawObservation]:
         avail, _hint = self.is_available()
         if not avail:
             return []

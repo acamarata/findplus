@@ -6,6 +6,9 @@ Purpose    : The helper (browser-helper/) posts the Google sign-in token and the
              accept a post only from the pinned extension origin AND with a valid
              unused state. This module holds that state store and the origin
              allow-list, with no HTTP or vendor imports so it is trivial to test.
+             The desktop shell's in-app sign-in window (native_flow.py) uses the
+             same store with its own two kinds, so a helper state can never drive
+             the window's routes or the other way round.
 Inputs     : `create_state(kind)`, `consume_state(kind, state)`, `mark_seen()`.
 Outputs    : opaque state strings; booleans.
 Constraints: In-memory and process-wide (the daemon is one process). A state is
@@ -31,6 +34,12 @@ CHROME_WEB_STORE_HELPER_ID: str | None = None
 
 KIND_SIGNIN = "signin"
 KIND_UNLOCK = "unlock"
+#: The desktop shell's in-app sign-in window (native_flow.py). One state covers
+#: the sign-in and the unlock that follows it: it is re-kinded, not burned,
+#: when the sign-in needs an unlock next.
+KIND_NATIVE_SIGNIN = "native_signin"
+KIND_NATIVE_UNLOCK = "native_unlock"
+NATIVE_KINDS = frozenset({KIND_NATIVE_SIGNIN, KIND_NATIVE_UNLOCK})
 
 HELPER_TOKEN_PATH = "/api/auth/google/helper/token"
 HELPER_UNLOCK_PATH = "/api/auth/google/helper/unlock"
@@ -128,6 +137,46 @@ def end_exchange(state: str, ok: bool) -> None:
         _inflight.discard(state)
         if ok:
             _states.pop(state, None)
+
+
+def state_kind(state: str | None) -> str | None:
+    """The kind of a valid, unexpired state, without claiming or burning it."""
+    if not state:
+        return None
+    now = time.monotonic()
+    with _lock:
+        _sweep(now)
+        entry = _states.get(state)
+        return entry[0] if entry else None
+
+
+def rekind_state(state: str, to_kind: str) -> None:
+    """End the running attempt and give `state` a new kind and a fresh TTL.
+
+    The in-app window signs in, then unlocks in the same window with the same
+    state; the unlock step may take the user a few minutes, so the clock restarts.
+    """
+    with _lock:
+        _inflight.discard(state)
+        if state in _states:
+            _states[state] = (to_kind, time.monotonic() + _STATE_TTL_SECONDS)
+
+
+def drop_state(state: str | None) -> None:
+    """Forget one state (cancelled, blocked or closed): it can never be used again."""
+    with _lock:
+        if state:
+            _states.pop(state, None)
+            _inflight.discard(state)
+
+
+def drop_states_of(kinds: frozenset[str]) -> None:
+    """Forget every state of these kinds (a new in-app sign-in replaces the old one)."""
+    with _lock:
+        for state, (kind, _expiry) in list(_states.items()):
+            if kind in kinds:
+                del _states[state]
+                _inflight.discard(state)
 
 
 def record_outcome(kind: str, ok: bool, message: str = "") -> None:

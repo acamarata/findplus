@@ -2011,6 +2011,16 @@ Apple Progress
 |---|---|---|---|
 | job_id | query | False | string |
 
+### GET /api/auth/apple/status
+The sheet's phase for one job, or for the newest job when none is named.
+
+| name | in | required | type |
+|---|---|---|---|
+| job_id | query | False | string |
+
+### GET /api/auth/google/native/progress
+Where the in-app sign-in stands; the dashboard card polls this.
+
 ### GET /api/auth/google/progress
 Google Progress
 
@@ -2051,6 +2061,24 @@ Unlock Begin Page
 
 ### POST /api/apple/accessories
 Apple Accessories
+
+### POST /api/auth/apple/cancel
+Cancel an Apple sign-in that is running or waiting for a code; nothing is saved.
+
+**Request body:**
+```json
+{
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "title": "Job Id",
+      "default": ""
+    }
+  },
+  "type": "object",
+  "title": "AppleJobBody"
+}
+```
 
 ### POST /api/auth/apple/code
 Apple Code
@@ -2099,6 +2127,35 @@ Apple Start
     "password"
   ],
   "title": "AppleStartBody"
+}
+```
+
+### POST /api/auth/apple/text
+Text me instead: Apple sends the code by text message to a number it offered.
+
+**Request body:**
+```json
+{
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "title": "Job Id",
+      "default": ""
+    },
+    "phone_id": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Phone Id"
+    }
+  },
+  "type": "object",
+  "title": "AppleTextBody"
 }
 ```
 
@@ -2195,6 +2252,124 @@ Helper Unlock
 
 ### POST /api/auth/google/helper/unlock-begin
 Helper Unlock Begin
+
+### POST /api/auth/google/native/begin
+Start an in-app sign-in (or unlock): a single-use state and the window's settings.
+
+**Request body:**
+```json
+{
+  "properties": {
+    "mode": {
+      "title": "Mode",
+      "default": "signin"
+    }
+  },
+  "type": "object",
+  "title": "BeginBody"
+}
+```
+
+### POST /api/auth/google/native/cancel
+Cancel the in-app sign-in: its state stops working at once.
+
+### POST /api/auth/google/native/classify
+Did Google block the window? The shell sends a host, a path and a title class only.
+
+**Request body:**
+```json
+{
+  "properties": {
+    "state": {
+      "title": "State",
+      "default": ""
+    },
+    "host": {
+      "title": "Host",
+      "default": ""
+    },
+    "path": {
+      "title": "Path",
+      "default": ""
+    },
+    "title_class": {
+      "title": "Title Class",
+      "default": "unknown"
+    }
+  },
+  "type": "object",
+  "title": "ClassifyBody"
+}
+```
+
+### POST /api/auth/google/native/event
+The window opened, is waiting, was blocked, closed or failed.
+
+**Request body:**
+```json
+{
+  "properties": {
+    "state": {
+      "title": "State",
+      "default": ""
+    },
+    "event": {
+      "title": "Event",
+      "default": ""
+    },
+    "reason": {
+      "title": "Reason"
+    }
+  },
+  "type": "object",
+  "title": "EventBody"
+}
+```
+
+### POST /api/auth/google/native/token
+The shell hands over Google's sign-in value once; Find+ exchanges it, never stores it.
+
+**Request body:**
+```json
+{
+  "properties": {
+    "state": {
+      "title": "State",
+      "default": ""
+    },
+    "oauth_token": {
+      "title": "Oauth Token",
+      "default": ""
+    }
+  },
+  "type": "object",
+  "title": "TokenBody"
+}
+```
+
+### POST /api/auth/google/native/unlock
+The shell relays the unlock page's vault keys; Find+ keeps only the location key.
+
+**Request body:**
+```json
+{
+  "properties": {
+    "state": {
+      "title": "State",
+      "default": ""
+    },
+    "vault_keys": {
+      "title": "Vault Keys",
+      "default": ""
+    },
+    "account_hint": {
+      "title": "Account Hint"
+    }
+  },
+  "type": "object",
+  "title": "UnlockBody"
+}
+```
 
 ### POST /api/auth/google/open
 Open Google's sign-in page (EmbeddedSetup) in the user's own Chrome.

@@ -113,9 +113,11 @@ def _block_non_loopback_sockets(monkeypatch: pytest.MonkeyPatch) -> None:
 def tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
     """A migrated, empty SQLite database scoped to one test."""
     from findplus.config import get_settings, reset_settings_cache
+    from findplus.db.integrity import reset_health
     from findplus.db.migrate import upgrade_to_head
     from findplus.db.session import get_engine, get_sessionmaker
 
+    reset_health()  # a test that fakes a damaged startup must not leak into the next
     db_path = tmp_path / "test.sqlite"
     monkeypatch.setenv("FINDPLUS_DATABASE_PATH", str(db_path))
     monkeypatch.setenv("FINDPLUS_STATE_DIR", str(tmp_path / "state"))

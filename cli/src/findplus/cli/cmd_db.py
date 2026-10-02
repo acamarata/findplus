@@ -15,6 +15,8 @@ import click
 from findplus.config import get_settings
 from findplus.db.migrate import current_revision, run_migrations
 
+from .cmd_db_ops import COMMANDS
+
 
 @click.group("db")
 def db_cmd() -> None:
@@ -41,3 +43,7 @@ def db_current() -> None:
 def db_path() -> None:
     """Print the absolute path to the SQLite database file."""
     click.echo(str(get_settings().database_path))
+
+
+for _command in COMMANDS:
+    db_cmd.add_command(_command)

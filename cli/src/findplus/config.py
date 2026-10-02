@@ -105,6 +105,13 @@ class Settings(BaseSettings):
     # --- Retention ----------------------------------------------------------
     retention_days: int = Field(default=0, description="0 = keep history forever.")
 
+    # --- Backups --------------------------------------------------------------
+    backup_dir: Path | None = Field(
+        default=None, description="Where database backups go. Unset = <state dir>/backups."
+    )
+    backup_keep_daily: int = Field(default=7, ge=1, le=60, description="Daily backups kept.")
+    backup_keep_weekly: int = Field(default=4, ge=0, le=52, description="Weekly backups kept.")
+
     # --- Storage ------------------------------------------------------------
     database_path: Path | None = None
     state_dir: Path = DEFAULT_STATE_DIR
@@ -158,6 +165,11 @@ class Settings(BaseSettings):
         if self.allow_fast_polling:
             return self.poll_interval_minutes
         return max(5.0, self.poll_interval_minutes)
+
+    @property
+    def effective_backup_dir(self) -> Path:
+        """Backups directory: `backup_dir` when set, else `<state dir>/backups`."""
+        return self.backup_dir or self.state_dir / "backups"
 
     @property
     def secrets_file(self) -> Path:

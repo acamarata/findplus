@@ -24,6 +24,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy import desc, select
 
 from findplus import __version__, honesty
+from findplus.db.integrity import current_health
 from findplus.db.migrate import current_revision, is_up_to_date
 from findplus.db.models import Device, PollRun
 from findplus.db.session import session_scope
@@ -77,6 +78,7 @@ def _status_extras(session, settings, last_run, next_poll_at) -> dict[str, Any]:
         "consecutive_failures": _consecutive_failures(session),
         "last_poll_at": _iso_z(last_run.started_at) if last_run else None,
         "next_poll_at": _iso_z(next_poll_at),
+        "database": {"ok": current_health().ok, "problems": list(current_health().problems)},
     }
 
 

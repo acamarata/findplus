@@ -74,6 +74,26 @@ def _check_exclusive(state_dir: Path) -> tuple[bool, str]:
     return (False, "")
 
 
+def _prep_or_read_only(settings) -> None:
+    """Quick-check the database, then upgrade it; a damaged file is left alone.
+
+    On a failed check the daemon serves read-only with a restore banner: no
+    migration, no polling, no pruning, no backups. The file is never deleted.
+    """
+    from findplus.db.integrity import startup_check
+    from findplus.logging_setup import configure_logging
+
+    exists = settings.database_path.exists()
+    health = startup_check(settings.database_path) if exists else None
+    if health is None or health.ok:
+        _prep(to_file=True)
+        return
+    configure_logging(settings, to_file=True)
+    settings.ensure_dirs()
+    click.secho("The database file looks damaged, so Find+ is read-only.", fg="red")
+    click.echo("Restore a backup with: findplus db restore <file>   (findplus db backups)")
+
+
 def _make_signal_handler(stop_event: threading.Event) -> Callable[[int, object], None]:
     """A pure factory: no module-level mutable state, so this is unit-testable
     without touching a global. `serve()` owns the one `stop_event` it builds."""
@@ -184,6 +204,7 @@ def _run_server(
     poller off still asked for history past the window to go.
     """
     from findplus import service
+    from findplus.db.integrity import current_health
     from findplus.poller import PollerService
     from findplus.service.retention import RetentionScheduler
 
@@ -196,9 +217,10 @@ def _run_server(
             pid=os.getpid(), port=bind_port, host=bind_host, version=__version__, argv=sys.argv
         )
 
-        if not no_poller:
-            workers.append(_start_worker(PollerService(settings), "poller"))
-        workers.append(_start_worker(RetentionScheduler(settings.state_dir), "retention"))
+        if current_health().ok:  # a damaged database is served read-only: nothing writes
+            if not no_poller:
+                workers.append(_start_worker(PollerService(settings), "poller"))
+            workers.append(_start_worker(RetentionScheduler(settings.state_dir), "retention"))
 
         server, server_thread = _start_uvicorn(bind_host, bind_port, settings)
 
@@ -228,11 +250,11 @@ def serve(foreground: bool, no_poller: bool, host: str | None, port: int | None)
     # Set again here, not only in the click group: the packaged daemon and the
     # LaunchAgent/systemd unit can invoke this command directly.
     os.umask(PRIVATE_UMASK)
-    _prep(to_file=True)
 
     settings = get_settings()
     bind_host, bind_port = _bind_or_exit(host, port)
     _refuse_if_already_running(settings.state_dir)
+    _prep_or_read_only(settings)
 
     stop_event = threading.Event()
     _install_signal_handlers(stop_event)

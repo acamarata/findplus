@@ -24,6 +24,7 @@ from . import (
     cmd_apple,
     cmd_config,
     cmd_db,
+    cmd_db_ops,
     cmd_devices,
     cmd_diagnostics,
     cmd_history,
@@ -79,6 +80,7 @@ main.add_command(poll_now)
 
 main.add_command(cmd_history.export)
 main.add_command(cmd_history.prune)
+main.add_command(cmd_db_ops.db_import, name="import")
 
 main.add_command(cmd_config.config_cmd)
 main.add_command(cmd_db.db_cmd)

@@ -45,6 +45,12 @@ def validate_config_key(key: str, value: str) -> None:
         minutes = float(value)
         if not (5 <= minutes <= 1440):
             raise ValueError("poll.interval_minutes must be between 5 and 1440.")
+    if key_lower == "backup_keep_daily" and not 1 <= int(value) <= 60:
+        raise ValueError("backup.keep_daily must be between 1 and 60.")
+    if key_lower == "backup_keep_weekly" and not 0 <= int(value) <= 52:
+        raise ValueError("backup.keep_weekly must be between 0 and 52.")
+    if key_lower == "backup_dir" and not Path(value).expanduser().is_absolute():
+        raise ValueError("backup.directory must be a full path, such as /Volumes/Backup/findplus.")
     if key_lower == "retention_days":
         days = int(value)
         if days != 0 and days < 7:

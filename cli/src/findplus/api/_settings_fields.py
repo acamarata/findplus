@@ -20,6 +20,8 @@ from findplus.appsettings import load_settings
 from findplus.config import get_settings, validate_config_key, write_config_key
 from findplus.state import get_setting, set_setting
 
+from ._settings_backup import backup_fields
+
 #: The wire key whose explicit null means "keep history forever".
 _RETENTION_KEY = "history.retention_days"
 
@@ -81,6 +83,7 @@ def _settings_body(session) -> dict[str, Any]:
         **load_settings(session).public(),
         "poll.interval_minutes": round(settings.poll_interval_minutes),
         "history.retention_days": None if settings.retention_days == 0 else settings.retention_days,
+        **backup_fields(settings),
         "alerts.native_detail": get_setting(session, "alerts.native_detail", "0") == "1",
         # Appended after public(), never merged into the AppSettings dataclass,
         # so the PIN hash and salt public() already drops cannot reappear here.

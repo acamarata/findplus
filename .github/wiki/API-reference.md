@@ -2182,11 +2182,14 @@ UAT6 N23: Cancel while waiting on Chrome. Same Origin guard as start.
 ### POST /api/auth/google/helper/begin
 Helper Begin
 
+### POST /api/auth/google/helper/folder
+Copy the extension to its stable folder and return the path. Opens nothing:
+
 ### POST /api/auth/google/helper/open-extensions
-Open chrome://extensions in the user's Google Chrome (their explicit ask).
+Legacy: open chrome://extensions in the user's Google Chrome. No 1.2 screen
 
 ### POST /api/auth/google/helper/reveal
-Copy the extension to a stable folder and reveal it in the file manager.
+Legacy (1.1 CLI and older pages): copy the extension and reveal the folder.
 
 ### POST /api/auth/google/helper/seen
 Helper Seen

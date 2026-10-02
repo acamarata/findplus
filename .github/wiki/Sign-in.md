@@ -23,9 +23,10 @@ step appears.
 This needs the **Find+ helper for Chrome**, a small open-source extension. The
 first time, add it once:
 
-1. In the sign-in card, use **Show helper folder**. Find+ copies the helper to
-   `~/.findplus/chrome-helper/<version>` and reveals it in your file manager.
-2. Use **Open Chrome extensions** (or open `chrome://extensions` yourself).
+1. In the sign-in card, open **First time? Add the Find+ helper to Chrome**.
+   Find+ copies the helper to `~/.findplus/chrome-helper/<version>` and shows
+   that path with a Copy button. It opens nothing for you.
+2. In Chrome, type `chrome://extensions` in the address bar and press Return.
 3. Turn on **Developer mode** (top right), click **Load unpacked**, and choose
    that folder.
 

@@ -64,8 +64,9 @@ at http://127.0.0.1:8647.
 
 Every install route above (curl, pipx, Homebrew, dmg) needs the Find+ Chrome
 helper for Google sign-in. Add it once: open the sign-in card in the dashboard,
-click **Show helper folder**, then **Open Chrome extensions**, turn on Developer
-mode and choose Load unpacked. See [Chrome helper privacy](Chrome-helper-privacy)
+open **First time? Add the Find+ helper to Chrome** and copy the folder path,
+then in Chrome go to `chrome://extensions`, turn on Developer mode, click Load
+unpacked and choose that folder. See [Chrome helper privacy](Chrome-helper-privacy)
 for what it reads.
 
 ## Updating the macOS app

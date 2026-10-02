@@ -63,6 +63,7 @@ _REQUIRES_OWN_SIGNAL = {
     ("POST", "/api/auth/google/unlock/cancel"),
     ("POST", "/api/auth/google/helper/begin"),
     ("POST", "/api/auth/google/helper/unlock-begin"),
+    ("POST", "/api/auth/google/helper/folder"),
     ("POST", "/api/auth/google/helper/reveal"),
     ("POST", "/api/auth/google/helper/open-extensions"),
     ("POST", "/api/auth/google/native/begin"),

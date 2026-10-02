@@ -95,7 +95,8 @@ def test_route_count():
     # +7 for the in-app sign-in window (1.2.0): /auth/google/native/{begin,token,
     # unlock,event,classify,cancel} (POST) and /progress (GET).
     # +3 for the Apple sheet (1.2.0): GET /auth/apple/status, POST cancel and text.
-    assert len(routes) == 132
+    # +1 for POST /auth/google/helper/folder (1.2.0: the path as text, opens nothing).
+    assert len(routes) == 133
 
 
 #: T1 (2026-09-22, PRI rule-7 50-line function cap): pulled out of
@@ -150,6 +151,7 @@ _EXPECTED_PATHS = {
     "/api/auth/google/helper/token",
     "/api/auth/google/helper/unlock",
     "/api/auth/google/helper/seen",
+    "/api/auth/google/helper/folder",
     "/api/auth/google/helper/reveal",
     "/api/auth/google/helper/open-extensions",
     "/auth/google/begin",

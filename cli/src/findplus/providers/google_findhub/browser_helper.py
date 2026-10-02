@@ -1,14 +1,14 @@
-"""Locate the shipped Find+ Chrome helper, copy it somewhere the user can load,
-and open Chrome's extensions page.
+"""Locate the shipped Find+ Chrome helper and copy it somewhere the user can load.
 
 Purpose    : The helper extension (repo `browser-helper/`) ships inside the
              wheel and the PyInstaller sidecar at `findplus/browser_helper/`.
-             The dashboard's one-time install UX copies it to a stable folder
-             under the state dir and reveals it, and opens chrome://extensions
-             in the user's Google Chrome.
-Constraints: No browser is launched here except that one explicit user action
-             (open the extensions page in Google Chrome); revealing a folder is
-             a file-manager action, not a browser. Tests mock subprocess.
+             The dashboard's one-time install steps copy it to a stable folder
+             under the state dir (install_helper, via POST .../helper/folder)
+             and show that path as text; nothing is opened for the user.
+Constraints: reveal_helper and open_chrome_extensions are kept for the legacy
+             .../helper/reveal and .../helper/open-extensions routes only; no
+             1.2 screen or default flow calls them. Both honour the launch
+             guard. Tests mock subprocess.
 """
 
 from __future__ import annotations

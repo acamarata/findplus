@@ -16,7 +16,7 @@ import re
 import unicodedata
 from dataclasses import dataclass
 
-from findplus.people.roles import BRAND_ROLE_WORDS, ROLE_WORDS
+from findplus.people.roles import ROLE_WORDS
 
 _SPLIT_RE = re.compile(r"[\s_\-.()/,]+")
 #: "Sam's" -> "Sam", "James'" -> "James".
@@ -25,6 +25,8 @@ _POSSESSIVE_RE = re.compile(f"(?:[{_APOSTROPHES}]s|[{_APOSTROPHES}])$", re.IGNOR
 _DIGITS_RE = re.compile(r"^\d+$")
 #: Model codes and ordinals: 8a, s23, 2nd, 11th, x1.
 _MODEL_RE = re.compile(r"^(\d+[a-z]{1,2}|[a-z]\d+[a-z]?|\d+(st|nd|rd|th))$")
+#: Short ids a provider invents ("4F2A", "0a1b2c"): hex with a digit, or long hex.
+_HEX_RE = re.compile(r"^(?=.*\d)[0-9a-f]{3,}$|^[0-9a-f]{8,}$")
 
 
 def _words(text: str) -> frozenset[str]:
@@ -37,7 +39,8 @@ COLOURS = _words(
 )
 _MODIFIERS = _words(
     "pro max plus ultra mini lite new old spare first second third tag tracker airtag "
-    "smarttag tile chipolo my the of"
+    "smarttag tile chipolo my the of unknown device devices unnamed untitled generic "
+    "bluetooth ble"
 )
 #: Brands that are not role words. A brand-only name ("Moto Tag 2") names no
 #: owner with any confidence.
@@ -102,6 +105,7 @@ def _is_modifier(key: str) -> bool:
         or key in _MODIFIERS
         or bool(_DIGITS_RE.match(key))
         or bool(_MODEL_RE.match(key))
+        or bool(_HEX_RE.match(key))
     )
 
 
@@ -115,8 +119,6 @@ def _owner(toks: list[tuple[str, str]]) -> tuple[str | None, str | None, tuple[s
         display, key = toks[0]
         if key in COLOURS:
             return key, display, ("owner_is_colour",)
-        if key in BRANDS and key not in BRAND_ROLE_WORDS:
-            return key, display, ("owner_is_brand",)
     return None, None, ()
 
 

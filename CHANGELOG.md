@@ -10,7 +10,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - Adding a place now ends with "who should be told, and where": the alert-rule dialog opens with the
   new place chosen. A place with no rule says "Not notifying anyone yet" in the Places list, with a
   Set up an alert button.
-- The rule dialog writes the rule in plain words ("Tell me on Telegram when Zaid Bag leaves
+- The rule dialog writes the rule in plain words ("Tell me on Telegram when Sam Bag leaves
   School."), lists what Save still needs, explains how a group decides, says why a channel is greyed
   out, can send a real test message to the ticked channels, and shows what the rule would have sent
   in the last 24 hours (`POST /api/alerts/rules/dry-run`, read-only).

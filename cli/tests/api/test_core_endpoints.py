@@ -178,11 +178,11 @@ def test_widget_group_note_uses_label_over_raw_provider_name(session) -> None:
 
     group = _widget_group(session, name="family")
     _widget_member(session, group, "dev1", minutes_ago=2)
-    session.get(Device, "dev1").label = "Omar's backpack"
+    session.get(Device, "dev1").label = "Noor's backpack"
     session.flush()
 
     rows = _group_rows(session)
-    assert rows[0]["note"] == "Only Omar's backpack is reporting (2 min ago)."
+    assert rows[0]["note"] == "Only Noor's backpack is reporting (2 min ago)."
 
 
 def test_widget_group_verdict_all_together(session) -> None:

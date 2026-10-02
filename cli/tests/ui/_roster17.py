@@ -28,7 +28,7 @@ PREFIX = "R17-"
 NAMES = [
     "Ali Pixel 8a",
     "Ali Pixel 8a",
-    "Zaid Shoes Red",
+    "Sam Shoes Red",
     "Ali's Keys — Café ☕",
     'O\'Brien "Bag"',
     "Tag 5",
@@ -36,7 +36,7 @@ NAMES = [
     "Tag 7",
     "Tag 8",
     "Tag 9",
-    "Zaid Shoes Red",
+    "Sam Shoes Red",
     "Never Seen 11",
     "Never Seen 12",
     "Never Seen 13",

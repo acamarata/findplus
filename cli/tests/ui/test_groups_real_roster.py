@@ -146,7 +146,7 @@ async def test_several_groups_in_a_row_each_start_clean(page, base_url, ui_db, u
 
 
 async def test_duplicate_name_with_apostrophes_is_quoted_correctly(page, base_url, ui_db, ui_env):
-    name = "T17 Ali's and Zaid's"
+    name = "T17 Ali's and Sam's"
     with roster17(ui_db, ui_env, tracked=10):
         await _open_add(page, base_url)
         await _make_group(page, name)

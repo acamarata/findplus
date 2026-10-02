@@ -1,7 +1,7 @@
 """Two trackers with one name are told apart in every picker (UAT #7).
 
 Roster (`_roster17.py`): R17-00 and R17-01 are both "Ali Pixel 8a" and tracked,
-R17-02 and R17-10 are both "Zaid Shoes Red" (only R17-02 tracked), and the rest
+R17-02 and R17-10 are both "Sam Shoes Red" (only R17-02 tracked), and the rest
 have unique names. A unique name must stay exactly as it was.
 """
 
@@ -45,7 +45,7 @@ async def test_rule_device_select_tells_the_twins_apart(page, base_url, ui_db, u
         texts = await _texts(page, "#fp-rule-device")
         assert [t for t in texts if t.startswith("Ali Pixel 8a")] == TWINS
         # The untracked twin of a tracked name is told apart too.
-        assert sum(t.startswith("Zaid Shoes Red (") for t in texts) == 2
+        assert sum(t.startswith("Sam Shoes Red (") for t in texts) == 2
 
 
 async def test_place_dialog_tracker_select_tells_the_twins_apart(page, base_url, ui_db, ui_env):

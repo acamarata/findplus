@@ -3,7 +3,7 @@
  * group explainer, the channel help, the 24 hour dry run and the test send.
  *
  * Purpose    : A rule is only trusted once someone has seen it work. This module
- *              keeps the sentence "Tell me on Telegram when Zaid Bag leaves
+ *              keeps the sentence "Tell me on Telegram when Sam Bag leaves
  *              School." current as the form changes, lists what Save still
  *              needs, explains how a group decides, says why a channel is
  *              greyed out, shows what the rule would have sent in the last day

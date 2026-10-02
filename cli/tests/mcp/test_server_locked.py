@@ -147,7 +147,7 @@ async def test_daemon_down_is_an_error_not_a_traceback() -> None:
 async def test_every_tool_has_a_description() -> None:
     async with Client(create_mcp_server(allow_writes=True)) as client:
         tools = (await client.list_tools()).tools
-    assert len(tools) == 21  # +4 people tools (1.1.6)
+    assert len(tools) == 23  # +4 people tools, +where_is, +get_person_day (1.1.6)
     missing = [t.name for t in tools if not (t.description or "").strip()]
     assert not missing, f"tools with no description: {missing}"
 

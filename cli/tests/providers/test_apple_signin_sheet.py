@@ -121,6 +121,45 @@ def test_cancel_during_login_saves_nothing(tmp_path, monkeypatch) -> None:
     assert signin_sheet.sheet_status(settings, job_id)["phase"] == "cancelled"
 
 
+def _cancel_inside_the_code_check(job_id) -> None:
+    """Make Apple's code check let the sheet's Cancel land before it answers."""
+    job = web_auth._jobs[job_id]
+    real = job["method"]
+
+    class Racing:
+        def __getattr__(self, name):
+            return getattr(real, name)
+
+        async def submit(self, code):
+            state = await real.submit(code)
+            with web_auth._lock:  # what signin_sheet.cancel records, minus the session close
+                job["cancelled"] = True
+                job["state"], job["message"] = "failed", signin_sheet.MSG_CANCELLED
+            return state
+
+    job["method"] = Racing()
+
+
+def test_cancel_during_the_code_check_saves_nothing(tmp_path, monkeypatch) -> None:
+    """r12 #11: Cancel while Apple checks the code must never save the account."""
+    saved: list = []
+    job_id, settings = _start(tmp_path, monkeypatch, FakeAccount(requires_2fa_val=True), saved)
+    _settle(settings, job_id)
+    _cancel_inside_the_code_check(job_id)
+    with pytest.raises(web_auth.InvalidAppleCodeError):
+        web_auth.submit_apple_code(job_id, GOOD_CODE, settings)
+    assert saved == []
+    assert signin_sheet.sheet_status(settings, job_id)["phase"] == "cancelled"
+
+
+def test_cancel_after_apple_accepted_is_too_late(tmp_path, monkeypatch) -> None:
+    saved: list = []
+    job_id, settings = _start(tmp_path, monkeypatch, FakeAccount(requires_2fa_val=True), saved)
+    _settle(settings, job_id)
+    web_auth._jobs[job_id]["saving"] = True
+    assert signin_sheet.cancel(job_id) is False
+
+
 def test_first_run_without_anisette_libs_says_preparing(tmp_path, monkeypatch) -> None:
     settings = _settings(tmp_path, url=None)
     with web_auth._lock:

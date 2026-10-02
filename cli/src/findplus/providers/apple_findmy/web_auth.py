@@ -246,11 +246,28 @@ def submit_apple_code(job_id: str, code: str, settings: Any) -> str:
         raise InvalidAppleCodeError(str(exc)) from exc
     if state != findmy.LoginState.LOGGED_IN:
         raise InvalidAppleCodeError(f"Apple did not accept the code (state {state}).")
-
+    _claim_save(job_id, session)
     save_account(session.account, settings)
 
     _set_progress(job_id, "done", f"Authenticated as {apple_id}.")
     return apple_id
+
+
+def _claim_save(job_id: str, session: Any) -> None:
+    """Past this point Cancel is too late; before it, a Cancel means save nothing.
+
+    The code check runs outside the lock, so the sheet's Cancel can land while
+    Apple answers. Checked and claimed under the lock (signin_sheet.cancel
+    refuses a job that is `saving`), so "Cancelled. Nothing changed." is true.
+    """
+    with _lock:
+        job = _jobs.get(job_id)
+        cancelled = job is None or bool(job.get("cancelled"))
+        if not cancelled:
+            job["saving"] = True
+    if cancelled:
+        _close_quietly(session)
+        raise InvalidAppleCodeError("This sign-in was cancelled. Nothing was saved.")
 
 
 def get_apple_auth_progress(job_id: str) -> dict[str, Any] | None:

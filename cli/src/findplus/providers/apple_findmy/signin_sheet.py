@@ -128,8 +128,8 @@ def cancel(job_id: str) -> bool:
     """Stop a running or code-waiting job. False when it is unknown or already over."""
     with web_auth._lock:
         found = _job(job_id)
-        if found is None or found[1]["state"] in web_auth._TERMINAL:
-            return False
+        if found is None or found[1]["state"] in web_auth._TERMINAL or found[1].get("saving"):
+            return False  # over, or already saving the account Apple accepted
         job = found[1]
         job["cancelled"] = True
         job["state"], job["message"] = "failed", MSG_CANCELLED

@@ -1,12 +1,17 @@
 """The Person page: header, date bar, summary, map, lanes, trackers, keyboard."""
 
-# ruff: noqa: E501
 
 from __future__ import annotations
 
 import pytest
 
-from ._person_helpers import ALERTS_LATENCY, HONESTY_TRIPS, PRESENCE_STALE, ensure_person, open_person
+from ._person_helpers import (
+    ALERTS_LATENCY,
+    HONESTY_TRIPS,
+    PRESENCE_STALE,
+    ensure_person,
+    open_person,
+)
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -36,7 +41,9 @@ async def test_map_has_one_line_per_tracker(trips_page, trips_server, pid):
     await open_person(trips_page, trips_server, pid)
     lines = await trips_page.locator("#map path[stroke-dasharray='6 5']").count()
     assert lines == 2, "one polyline per tracker, never merged"
-    assert await trips_page.locator(".marker-num").count() == 0, "the dashboard's own markers are gone"
+    assert await trips_page.locator(".marker-num").count() == 0, (
+        "the dashboard's own markers are gone"
+    )
 
 
 async def test_lead_tracker_is_first(trips_page, trips_server, pid):
@@ -83,7 +90,9 @@ async def test_summary_line_focuses_map_and_story(trips_page, trips_server, pid)
     await p.get_by_role("button", name="8:10 AM arrived at School").click()
     assert await p.locator(".person-line-btn[aria-current=true]").count() == 1
     assert await p.locator(".story-item.is-picked").count() == 1
-    assert await p.locator("#map path[stroke-dasharray='4 4']").count() >= 1, "a highlight ring on the map"
+    assert await p.locator("#map path[stroke-dasharray='4 4']").count() >= 1, (
+        "a highlight ring on the map"
+    )
     title = await p.locator(".story-item.is-picked .story-title").inner_text()
     assert title == "School"
 
@@ -98,7 +107,9 @@ async def test_story_row_selects_and_hash_is_a_route(trips_page, trips_server, p
     assert await p.locator(".strip-bar rect.is-picked").count() == 1
 
 
-async def test_person_view_hides_dashboard_filters_and_leaving_restores(trips_page, trips_server, pid):
+async def test_person_view_hides_dashboard_filters_and_leaving_restores(
+    trips_page, trips_server, pid
+):
     await open_person(trips_page, trips_server, pid)
     p = trips_page
     assert not await p.locator("section.controls").is_visible()

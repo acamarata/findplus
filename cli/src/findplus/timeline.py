@@ -152,6 +152,21 @@ def build_timeline(
     return points
 
 
+def _trusted_distance(points: list[TimelinePoint]) -> float:
+    """Distance between consecutive sightings, leaving out any that look wrong.
+
+    A tag that jumps 2 km away and back would otherwise add 4 km to the day. With no
+    suspect sighting this is exactly the sum of each point's own `meters_from_previous`.
+    """
+    if not any(p.suspect for p in points):
+        return sum(p.meters_from_previous or 0.0 for p in points)
+    good = [p for p in points if not p.suspect]
+    return sum(
+        haversine_meters(a.latitude, a.longitude, b.latitude, b.longitude)
+        for a, b in pairwise(good)
+    )
+
+
 def compute_stats(points: list[TimelinePoint]) -> DayStats:
     """Daily summary. Distance is between observations, not travelled."""
     if not points:
@@ -170,7 +185,7 @@ def compute_stats(points: list[TimelinePoint]) -> DayStats:
             longest_gap_end=None,
         )
 
-    total_m = sum(p.meters_from_previous or 0.0 for p in points)
+    total_m = _trusted_distance(points)
     longest_gap = 0.0
     gap_start = gap_end = None
     for prev, cur in pairwise(points):

@@ -94,3 +94,4 @@
 }
 .person-name:focus { outline: none; }
 .person-view .map-note, .person-view .map-empty { display: none; }
+.toggle[hidden] { display: none; }

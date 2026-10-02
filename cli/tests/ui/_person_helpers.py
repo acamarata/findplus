@@ -36,7 +36,15 @@ def day_body(date: str, pid: int = 1) -> dict:
     """A day summary in the spec 7.2 shape, for the seeded school day."""
 
     def line(i, hhmm, text, ev=("TAG-SON",)):
-        return {"id": f"d{i}", "kind": "line", "at": f"{date}T{hhmm}:00+00:00", "local": f"{date}T{hhmm}:00", "text": text, "evidence": list(ev), "confidence": "high"}
+        return {
+            "id": f"d{i}",
+            "kind": "line",
+            "at": f"{date}T{hhmm}:00+00:00",
+            "local": f"{date}T{hhmm}:00",
+            "text": text,
+            "evidence": list(ev),
+            "confidence": "high",
+        }
 
     return {
         "person": {"id": pid, "name": "Sam"},
@@ -80,6 +88,8 @@ async def open_person(page, server, pid, day_key="school", stub=True):
     if stub:
         await stub_day(page, pid)
     await page.goto(f"{server['base']}/#/person/{pid}?date={day}")
-    await page.wait_for_selector("#person-body .person-card, #person-body .empty-state, #person-body [data-pane-error]")
+    await page.wait_for_selector(
+        "#person-body .person-card, #person-body .empty-state, #person-body [data-pane-error]"
+    )
     await page.wait_for_selector("#person-body .skeleton", state="detached")
     return day

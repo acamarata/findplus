@@ -20,6 +20,7 @@
 
 import { state, fmtDistance } from "./state.js";
 import { t } from "./i18n.js";
+import { showSuspect } from "./suspect_pref.js";
 import { TRIP_COLORS, STAY_COLOR, clockOf, rangeText, sightingsText, titleOf } from "./trips_format.js";
 
 const MAX_ARROWS = 10;
@@ -115,9 +116,15 @@ function drawStay(ctx, stay, label) {
 
 /** A stray fix: faint, and it says why it is not part of the path. */
 function drawStray(fix) {
-  L.circleMarker([fix.latitude, fix.longitude], {
-    radius: 5, color: "#64748b", weight: 1, opacity: 0.5, fillColor: "#94a3b8", fillOpacity: 0.25, keyboard: false,
-  }).addTo(state.layer).bindTooltip(t("trips.strayTip", { time: clockOf(fix.local) }));
+  if (!showSuspect()) return;
+  const at = [fix.latitude, fix.longitude];
+  const tip = fix.suspect_reason ? `${clockOf(fix.local)} ${fix.suspect_reason}` : t("trips.strayTip", { time: clockOf(fix.local) });
+  L.circleMarker(at, {
+    radius: 4, color: "#64748b", weight: 1, opacity: 0.55, fillColor: "#94a3b8", fillOpacity: 0.3, keyboard: false,
+  }).addTo(state.layer).bindTooltip(tip);
+  L.circleMarker(at, {
+    radius: 10, color: "#64748b", weight: 1.5, opacity: 0.6, dashArray: "3 3", fill: false, keyboard: false,
+  }).addTo(state.layer).bindTooltip(tip);
 }
 
 /** Fixes of the tracker's own list whose time falls in [from, to] (ISO text from either API). */

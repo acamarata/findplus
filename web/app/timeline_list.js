@@ -97,10 +97,11 @@ export function timelineHtml(track) {
       : `<div class="tl-coords">${PIN_ICON}${esc(coordsTitle)}</div>`;
 
     html +=
-      `<li class="tl-item${point.is_movement ? "" : " jitter"}" data-id="${point.id}">` +
+      `<li class="tl-item${point.is_movement ? "" : " jitter"}${point.suspect ? " is-suspect" : ""}" data-id="${point.id}">` +
       `<div><span class="tl-seq">${point.sequence}.</span> <span class="tl-time">${fmtTime(point.observed_at_local)}</span>${agoHtml(point, index === points.length - 1)}</div>` +
       coordsLine +
       (meta.length ? `<div class="tl-meta">${esc(meta.join(" · "))}</div>` : "") +
+      (point.suspect ? `<div class="tl-suspect">${esc(point.suspect_reason || t("person.map.suspectTip"))}</div>` : "") +
       `</li>`;
   });
   return html + `</ol>`;

@@ -20,6 +20,7 @@ import { syncMapOverlay } from "./map_empty.js";
 import { renderLegend, syncDense, watchTiles } from "./map_extras.js";
 import { popupHtml } from "./map_popup.js";
 import { storyMapRender } from "./trips_view.js";
+import { showSuspect } from "./suspect_pref.js";
 
 // U4 (R-P2-30.2): a US-centred default read as "my child is in Kansas" the
 // first time the map had no data to fit. A neutral world view says nothing
@@ -152,6 +153,7 @@ export async function renderTrackedDeviceMarkers() {
 function numberedIcon(point, index, total, device) {
   const classes = ["marker-num"];
   if (!point.is_movement) classes.push("jitter");
+  if (point.suspect) classes.push("marker-num--suspect");
   // The ring colour used to be a per-marker inline style="border-color:…",
   // which CSP's default `style-src 'self'` (no unsafe-inline) silently drops
   // -- every marker rendered with a plain white ring and the console filled
@@ -199,7 +201,8 @@ export function deviceForTrack(track) {
 }
 
 export function visiblePoints(track) {
-  return state.movementOnly ? track.points.filter((p) => p.is_movement) : track.points;
+  const shown = showSuspect() ? track.points : track.points.filter((p) => !p.suspect);
+  return state.movementOnly ? shown.filter((p) => p.is_movement) : shown;
 }
 
 /**
@@ -218,7 +221,8 @@ function drawTrack(track) {
   // has, so they read the label first, exactly as the device list and the
   // timeline track head do (UAT U6: the one displayName() helper).
   const shown = uniqueLabel(device) || track.device_name;
-  const latlngs = points.map((p) => [p.latitude, p.longitude]);
+  // A sighting that looks wrong never joins the path; it is drawn faintly (see numberedIcon).
+  const latlngs = points.filter((p) => !p.suspect).map((p) => [p.latitude, p.longitude]);
   if (latlngs.length > 1) {
     // keyboard: false (U31): Leaflet's default Tab-stop-per-path/marker
     // behaviour put every point of every track in the Tab order ahead of the
@@ -230,7 +234,7 @@ function drawTrack(track) {
   points.forEach((point, index) => {
     const marker = L.marker([point.latitude, point.longitude], {
       icon: numberedIcon(point, index, points.length, device),
-      title: `${shown} · ${fmtTime(point.observed_at_local)}`,
+      title: `${shown} · ${fmtTime(point.observed_at_local)}${point.suspect ? ` · ${point.suspect_reason}` : ""}`,
       keyboard: false,
     }).addTo(state.layer);
     marker.bindPopup(popupHtml(point, shown));

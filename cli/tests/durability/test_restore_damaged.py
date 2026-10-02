@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -16,26 +14,10 @@ from findplus.db import backup
 from findplus.db.integrity import check_database
 from findplus.db.restore import restore_backup
 from findplus.db.session import get_engine
+from tests.durability._damage import add_bulk, damage
 from tests.durability._seed import seed_everything
 
 NOW = datetime(2026, 9, 30, 12, 0, tzinfo=UTC)
-PAGE = 4096
-
-
-def _bulk(db: Path) -> None:
-    """Enough rows that pages 50-90 hold real data."""
-    conn = sqlite3.connect(db)
-    conn.execute("CREATE TABLE filler (x BLOB)")
-    conn.executemany("INSERT INTO filler VALUES (?)", [(os.urandom(3000),) for _ in range(300)])
-    conn.commit()
-    conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-    conn.close()
-
-
-def _damage(db: Path) -> None:
-    with db.open("r+b") as fh:
-        fh.seek(49 * PAGE)
-        fh.write(os.urandom(41 * PAGE))
 
 
 @pytest.fixture
@@ -47,8 +29,8 @@ def damaged(session, tmp_db) -> tuple[Path, Path]:
     ).path
     get_engine().dispose()
     db = Path(tmp_db)
-    _bulk(db)
-    _damage(db)
+    add_bulk(db)
+    damage(db)
     assert not check_database(db).ok
     return db, good
 

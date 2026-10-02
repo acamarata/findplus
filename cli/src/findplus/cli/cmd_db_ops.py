@@ -123,7 +123,7 @@ def db_recompute_quality(since: str | None) -> None:
 
     from ._fmt import _prep
 
-    _prep()
+    _prep(writes=True)
     start = day_bounds_utc(date.fromisoformat(since), local_zone())[0] if since else None
     with session_scope() as session:
         result = recompute(session, since=start)
@@ -142,7 +142,7 @@ def db_import(file: Path) -> None:
 
     from ._fmt import _prep
 
-    _prep()
+    _prep(writes=True)
     try:
         with session_scope() as session, file.open(encoding="utf-8") as fh:
             result = import_lines(session, fh)

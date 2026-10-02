@@ -31,10 +31,28 @@ def _interactive() -> bool:
     return sys.stdin.isatty()
 
 
-def _prep(to_file: bool = False) -> None:
+def _prep(to_file: bool = False, *, writes: bool = False) -> None:
+    """Logging, directories, a health check, then migrations.
+
+    A database that fails `quick_check` is never migrated or written: connections
+    in this process turn `query_only`, and a command that needs to write (`writes`)
+    stops with plain words and the restore command.
+    """
+    from findplus.db.integrity import startup_check
+
     settings = get_settings()
     configure_logging(settings, to_file=to_file)
     settings.ensure_dirs()
+    health = startup_check(settings.database_path) if settings.database_path.exists() else None
+    if health is not None and not health.ok:
+        msg = (
+            "The database file looks damaged, so Find+ will only read it. "
+            "Restore a backup with: findplus db restore <file>   (findplus db backups)"
+        )
+        if writes:
+            raise click.ClickException(msg)
+        click.secho(msg, fg="red", err=True)
+        return
     upgrade_to_head()
 
 

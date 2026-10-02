@@ -146,8 +146,9 @@ def test_a_fast_clock_reporter_never_freezes_the_person(session):
     sam = seed_person(session)
     tl = _school_morning(Timeline(), until=(12, 0))
     tl.ingest(session)
-    settings = types.SimpleNamespace(geofence_default_accuracy_meters=100.0,
-                                     group_window_minutes=30, presence_window_minutes=60)  # fmt: skip
+    settings = types.SimpleNamespace(
+        geofence_default_accuracy_meters=100.0, group_window_minutes=30, presence_window_minutes=60
+    )
     skewed = raw("zb", SCHOOL[0], SCHOOL[1], at(16, 30))
     ingest_observations(session, [skewed], fetched_at=at(12, 5), settings=settings)
     tl = Timeline()

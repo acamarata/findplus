@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
-
 from unittest.mock import MagicMock
 
+import pytest
 from click.testing import CliRunner
 
 from findplus.cli.main import main

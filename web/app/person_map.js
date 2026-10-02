@@ -93,6 +93,19 @@ export function drawPerson(layer, ctx) {
   return { bounds: all.length ? L.latLngBounds(all) : null };
 }
 
+const phone = () => window.matchMedia && window.matchMedia("(max-width: 600px)").matches;
+const behavior = () => (reduced() ? "auto" : "smooth");
+
+/** On a phone the map and the page stack: bring the map into view after a focus. */
+export function showMapOnPhone() {
+  if (phone()) document.querySelector(".map-pane")?.scrollIntoView({ block: "nearest", behavior: behavior() });
+}
+
+/** On a phone the page sits under the map: bring its header to the top when it opens. */
+export function showPageOnPhone() {
+  if (phone()) document.getElementById("person-page")?.scrollIntoView({ block: "start", behavior: behavior() });
+}
+
 /** Move the map to `bounds`; no animation when the person asked for less motion. */
 export function frameBounds(bounds) {
   if (bounds && bounds.isValid && bounds.isValid()) {

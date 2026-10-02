@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from ._offline_tiles import stub_osm_tiles
 from ._person_helpers import (
     ALERTS_LATENCY,
     HONESTY_TRIPS,
@@ -137,3 +138,33 @@ async def test_phone_width_has_no_sideways_scroll(trips_page, trips_server, pid)
     await open_person(trips_page, trips_server, pid)
     over = await trips_page.evaluate("document.documentElement.scrollWidth - window.innerWidth")
     assert over <= 0
+
+
+async def test_phone_opens_at_the_page_and_a_focus_brings_the_map_back(
+    trips_page, trips_server, pid
+):
+    await trips_page.set_viewport_size({"width": 375, "height": 800})
+    await open_person(trips_page, trips_server, pid)
+    p = trips_page
+    top = "document.getElementById('person-page').getBoundingClientRect().top"
+    await p.wait_for_function(f"{top} < 200")
+    await p.get_by_role("button", name="8:10 AM arrived at School").click()
+    await p.wait_for_function(
+        "document.querySelector('.map-pane').getBoundingClientRect().top > -50"
+    )
+
+
+async def test_reduced_motion_has_no_animation_on_the_page(browser_session, trips_server, pid):
+    browser, _ = browser_session
+    ctx = await browser.new_context(bypass_csp=True, timezone_id="UTC", reduced_motion="reduce")
+    await stub_osm_tiles(ctx)
+    page = await ctx.new_page()
+    try:
+        await open_person(page, trips_server, pid)
+        names = await page.evaluate(
+            "[...document.querySelectorAll('.person *')]"
+            ".map(e => getComputedStyle(e).animationName).filter(n => n !== 'none')"
+        )
+        assert names == [], "nothing on the page animates under reduced motion"
+    finally:
+        await ctx.close()

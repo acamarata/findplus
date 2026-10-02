@@ -17,6 +17,7 @@ import { $, state, todayLocal } from "./state.js";
 import { switchTab } from "./main.js";
 import { wireDateBar } from "./person_datebar.js";
 import { dropLayers, ensureLayers, loadPerson, reload } from "./person_page.js";
+import { showPageOnPhone } from "./person_map.js";
 import { refreshPeopleCache } from "./person_links.js";
 
 let wired = false;
@@ -59,7 +60,10 @@ export async function showPerson(route) {
   ensureLayers();
   const done = loadPerson(route.id, route.date || todayLocal());
   await done;
-  if (first) $("person-name")?.focus({ preventScroll: true });
+  if (first) {
+    $("person-name")?.focus({ preventScroll: true });
+    showPageOnPhone();
+  }
 }
 
 /** Leave the Person page: restore the tab and the dashboard's map layers. */

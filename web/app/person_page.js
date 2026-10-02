@@ -31,7 +31,7 @@ import { emptyDayNode, errorNode, loadingNode, notFoundNode, partialNote } from 
 import { summaryCard, markLine } from "./person_summary.js";
 import { storyCard } from "./person_story.js";
 import { trackersCard } from "./person_trackers.js";
-import { drawPerson, frameBounds, highlight } from "./person_map.js";
+import { drawPerson, frameBounds, highlight, showMapOnPhone } from "./person_map.js";
 import { focusMoment } from "./person_focus.js";
 import { setShowSuspect, showSuspect, suspectToggle } from "./suspect_pref.js";
 import { honestyFooter } from "./person_notes.js";
@@ -120,6 +120,7 @@ function pickItem(device, id) {
   page.focusId = device;
   page.selectedId = id;
   renderStory();
+  showMapOnPhone();
   const payload = page.payloads.get(device);
   const item = payload && [...payload.stays, ...payload.trips].find((x) => x.id === id);
   if (!item) return;
@@ -138,6 +139,7 @@ function onLine(line) {
   markLine($("person-body"), line.id);
   const hit = focusMoment(line, { payloads: page.payloads, tracks: page.tracks, focusId: page.focusId });
   if (!hit) return;
+  showMapOnPhone();
   if (hit.item) pickItem(hit.device, hit.item.id);
   else if (hit.point) { highlight(ensureLayers().mark, hit.point, 40); state.map.setView(hit.point, Math.max(state.map.getZoom(), 16)); }
 }

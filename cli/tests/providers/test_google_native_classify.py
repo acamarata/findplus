@@ -6,7 +6,6 @@ import pytest
 
 from findplus.providers.google_findhub import native_classify as nc
 
-
 #: The same table as desktop/src-tauri/src/signin_hosts_tests.rs (r12 #2).
 ALLOWED = [
     "accounts.google.com",

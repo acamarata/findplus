@@ -25,6 +25,7 @@ from findplus.db.models import Device, LocationObservation, PlaceEvent
 from findplus.groups.events import evaluate_group_events as _group_events_evaluate
 from findplus.labels import palette_color_for
 from findplus.logging_setup import get_logger
+from findplus.people.events import run_person_hook as _person_events_evaluate
 from findplus.places.events import evaluate as _geofence_evaluate
 from findplus.providers.google_findhub.types import RawObservation
 
@@ -230,6 +231,17 @@ def _run_post_ingest_hooks(
                 device=lo.device_id,
                 observation_id=lo.id,
             )
+
+        try:
+            # Person events and left-behind (specs/people-and-presence.md § 5.1),
+            # after geofence so they read this fix's device place states.
+            with session.begin_nested():
+                _person_events_evaluate(session, lo, settings)
+        except Exception:
+            log.exception(
+                "post_ingest_hook_failed", hook="person_events", device=lo.device_id,
+                observation_id=lo.id,
+            )  # fmt: skip
 
 
 def _run_group_events_hook(session: Session, lo: LocationObservation, settings: object) -> None:

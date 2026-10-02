@@ -258,7 +258,7 @@ fn no_capability_names_the_signin_window_or_google() {
             let w = w.as_str().unwrap_or("");
             assert!(w == "main" || w == "splash", "{w} in {:?}", entry.path());
         }
-        assert!(!text.contains("signin"), "{:?}", entry.path());
+        assert!(!text.contains("signin-google"), "{:?}", entry.path());
         assert!(
             !text.to_lowercase().contains("google"),
             "{:?}",

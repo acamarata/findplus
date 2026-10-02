@@ -143,6 +143,9 @@ Versioning: [Semantic Versioning](https://semver.org/).
   sightings" while the person is at one place, and a sighting held for a second one is "waiting
   to confirm", never "looked wrong" ("Probably at School (waiting to confirm)").
 
+### Known limitations
+- Database restore and the permission tests for the backup folder run on macOS and Linux only. On Windows a SQLite file that is open cannot be replaced, so `db restore` is not yet supported there.
+
 ### Fixed
 - Place dialog: a new place starts at 100 m (was 200 m), the radius slider covers 50 to 500 m with a
   number box for larger places (the box is what is saved), the "guessed from the name" note waits

@@ -15,6 +15,9 @@ use std::fs;
 
 const FALLBACK: &str = "1.0.0.dev0";
 
+/// Every `#[tauri::command]` registered in lib.rs.
+const APP_COMMANDS: &[&str] = &["request_notification_permission", "open_signin_window"];
+
 /// `1.0.0.dev0` -> `1.0.0-dev0`; `1.0.0` -> `1.0.0`.
 fn to_semver(pep440: &str) -> String {
     let mut parts = pep440.splitn(4, '.');
@@ -66,5 +69,13 @@ fn main() {
     println!("cargo:rerun-if-changed=../../cli/pyproject.toml");
     println!("cargo:rustc-env=FINDPLUS_VERSION={version}");
     sync_config_version(&to_semver(&version));
-    tauri_build::build();
+    // App commands get generated `allow-<command>` permissions. With an app
+    // manifest Tauri checks every app command against the capabilities, and
+    // a remote origin (the dashboard on 127.0.0.1) can call one only when a
+    // `remote` capability grants it (capabilities/remote.json, window `main`).
+    let manifest = tauri_build::AppManifest::new().commands(APP_COMMANDS);
+    let attrs = tauri_build::Attributes::new().app_manifest(manifest);
+    if let Err(e) = tauri_build::try_build(attrs) {
+        panic!("tauri-build failed: {e:#}");
+    }
 }

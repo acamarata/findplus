@@ -43,6 +43,9 @@ findplus db backups           # list them, newest first (--json for scripts)
 findplus db check             # quick, integrity and foreign-key checks
 ```
 
+In the app, Settings shows when the newest backup was taken and has a **Back up now** button
+(`POST /api/settings/backup/now`, the same code as `findplus db backup`).
+
 `findplus doctor` runs the same checks and also says if backups have stopped
 (newest older than three days) or are readable by other users
 (`findplus doctor --repair` fixes the permissions).

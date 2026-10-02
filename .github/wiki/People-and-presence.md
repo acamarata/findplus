@@ -101,6 +101,32 @@ Home place (a bike in the garage is normal), and you can turn left-behind alerts
 when the bag stops reporting (shown as "no recent sighting", never "still left behind"). "I know"
 silences that tracker at that place for the rest of the day.
 
+## The Person page
+
+Click a person's name on a group card, in an alert rule, in the delivery log or in the arrivals
+list. The address is `#/person/<id>?date=YYYY-MM-DD`, so the Back button steps through days.
+
+- The header says where the person probably is, how sure Find+ is (likely, probably, not sure, no
+  recent sighting) and how long ago anything was seen.
+- The day bar has previous and next arrows, a date picker, Today, and the left and right arrow
+  keys. Nothing can be picked after today.
+- The day summary lists the lines for the day ("7:40 AM left Home"). Select a line to move the
+  map and the day story to that moment. Each line says which trackers it rests on.
+- The map draws one line per tracker. Trackers are never joined into one path. Sightings that look
+  wrong are drawn faintly in a dashed ring; the "Show sightings that look wrong" box turns them off.
+- The day story reuses the dashboard's lanes (best sighting first) and the list of stays and trips.
+- Each tracker shows its role, its weight and what it did that day (carried, left at School, moved
+  without Zaid, no recent sighting). Edit changes the role or the weight.
+- Send today's summary posts the day to your Telegram chat and says where it went, or why it did
+  not. Notify me opens a rule for this person. Edit person opens the group editor. Full map shows
+  the group on the dashboard map.
+- Loading, a day with no sightings, a partly loaded day, an error with Retry, no connection, and a
+  locked app each have their own words. Locking removes every name, time and place from the page.
+
+The suggestions panel ("We found people in your trackers") lives on the Groups tab, as a one-line
+banner on the dashboard, and in the setup wizard's Groups step. It has Accept all (it skips guesses
+that still need an answer or are low confidence) and Check again.
+
 ## Known limits
 
 - A sibling wearing Zaid's shoes looks exactly like Zaid. Every message names the tracker it rests

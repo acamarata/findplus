@@ -68,6 +68,20 @@ removes the user-level service. The app lock takes a PIN of at least six
 characters and can lock after an idle period. See [App lock](App-lock) for what
 it does and does not protect.
 
+## People: daily summary, left-behind alerts, backup
+
+The daily summary is off until you turn it on. Pick the time, the channel (Telegram), and whose
+day to send; **Send now** sends today. The message is words only, with no coordinates, and goes to
+the chat you chose, so anyone who reads that chat reads it. Turning the last person off turns the
+summary off.
+
+The left-behind switch controls whether "Zaid's bag looks left at School" becomes an alert. It
+never fires at a Home place.
+
+The backup line shows the time of the newest backup and how many are kept. **Back up now** takes a
+verified copy of the database (not your sign-ins or tokens). See [Backup and
+restore](Backup-and-restore).
+
 ## Delete history
 
 Delete observations before a date, or clear everything. Both tell you how many

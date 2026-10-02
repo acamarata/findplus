@@ -11,6 +11,18 @@ The Places tab's side panel lists every saved place -- its color, its radius, an
 tracked devices are inside it right now -- with Edit and Delete on each row and a click
 anywhere else on the row to centre the map on that place.
 
+### Kind, and the arrive-and-leave box
+
+A place has a kind: Home, School, Work, Family, Shop or Other. Find+ guesses it from the name
+("Grandma's House" is Family) and follows the name until you pick one yourself. At Home, left-behind
+alerts stay off and the day summary starts with "Overnight at Home".
+
+New places have a **Tell me when anyone arrives or leaves** box, on by default. With one channel
+connected it is chosen for you; with several you pick one or all; with none the box is off and says
+why. Saving makes the rule and shows one line (with **Customise**), with no second dialog. Places
+saved before this show a "N places have no arrival alerts" banner; **Notify me** previews the rules
+it would add before it writes anything.
+
 ## Alert rules
 
 An alert rule ties a place, a device or group, and one or more notification channels

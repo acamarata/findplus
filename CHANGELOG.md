@@ -58,6 +58,28 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - Every new place gets an arrive and leave rule for everyone on your connected channel;
   `POST /api/places/notify-defaults` adds it to existing places, with a dry run first.
 - Places have a kind (home, school, work, family, shop, other), guessed from the name.
+- A Person page (`#/person/<id>?date=YYYY-MM-DD`): click a person's name on a group card, in an
+  alert rule sentence, the delivery log or the arrivals list. It shows where they probably are now,
+  a day bar (arrows, date picker, Today, left and right keys), the day summary with each line
+  focusing the map and the day story, one map line and one lane per tracker (best sighting first),
+  each tracker's role, weight and chip (carried, left at School, moved without Zaid, no recent
+  sighting), Send today's summary, Notify me, Edit person and Full map. Loading, empty day,
+  partial, error with Retry, offline and locked are all handled; a lock leaves no name or place.
+- "We found people in your trackers": a panel on the Groups tab, a dashboard banner and the wizard's
+  Groups step offer each guess as a card (Accept, Edit members, Not a person, It's a pet), ask
+  "person or pet?" and "Whose is this?", and have Accept all and Check again. Nothing is applied
+  without a click.
+- The place dialog has a kind (guessed, with a Home hint), a "Tell me when anyone arrives or leaves"
+  box (on by default; the channel is picked for you when one is connected, a select when several,
+  off with a reason when none), and no second dialog after Save. Places saved earlier get a
+  "Notify me" banner that previews before it writes. `POST /api/places` takes `notify_channels`;
+  `GET /api/alerts/rules` carries `all_people`.
+- Sightings that look wrong are drawn faintly in a dashed ring with the reason on hover, behind a
+  "Show sightings that look wrong" box (on by default), and add nothing to a day's distance.
+- The dashboard says "Zaid's bag looks left at School since 3:00 PM", admits it is a guess, and has
+  "I know". Settings gains the daily summary (on/off, time, channel, per person, Send now), the
+  left-behind switch, and a backup line with Back up now (`GET /api/settings/backup`,
+  `POST /api/settings/backup/now`).
 
 ### Changed
 - The database now syncs every commit to disk (`synchronous=FULL`, WAL kept) so a power cut cannot

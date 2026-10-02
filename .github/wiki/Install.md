@@ -73,16 +73,17 @@ and [Chrome helper privacy](Chrome-helper-privacy) for what it reads.
 
 ## Updating the macOS app
 
-Run this while Find+ is open; it quits the app, swaps it and starts it again. Your history,
-settings and `~/.findplus/backups/` are not touched.
+The app updates itself while you are not using it (see [Updates](Updates)). To update right away,
+use **Restart to update** in the menu bar, or run this while Find+ is open; it quits the app,
+swaps it and starts it again. Your history, settings and `~/.findplus/backups/` are not touched.
 
 ```bash
 curl -fsSL https://github.com/acamarata/findplus/releases/latest/download/update-app.sh | bash
 ```
 
 `update-app.sh` checks the dmg against the sha256 published on the same release.
-That detects a corrupted download only. It does not authenticate the release, so
-it is no protection against a release that was itself tampered with.
+That detects a corrupted download only. It also refuses a new app signed by a
+different developer (Team ID) than the installed one.
 
 ## Where your data goes
 

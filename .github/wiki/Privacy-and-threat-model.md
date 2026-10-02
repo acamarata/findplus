@@ -7,7 +7,7 @@ is no cloud sync and no telemetry. Secrets (`secrets.json`, `alerts.json`,
 `apple-account.json`) are written at file mode `0600` inside a `0700`
 directory, and never appear in the database or logs.
 
-Four things are easy to miss:
+Five things are easy to miss:
 
 - **Telegram messages carry names.** An alert or daily summary sent to Telegram names the person,
   the place and the time ("Sam arrived at School at 8:12 AM"), and a summary lists a whole day of
@@ -19,6 +19,9 @@ Four things are easy to miss:
   database: use FileVault, and remove the folder if you remove the data. See
   [[Backup-and-restore]].
 - **The sign-in window keeps nothing.** In the app, Google sign-in runs in a throwaway window whose cookies and history are wiped when it closes. Find+ keeps the session it gets from Google, not your password and not the `oauth_token` cookie. See [[Sign-in]].
+- **Update checks go to GitHub.** About every six hours Find+ asks GitHub's releases API for the
+  newest version and, in the app, downloads it from the same release. Nothing about you is sent;
+  GitHub sees this computer's IP address. Turn it off in Settings > Updates. See [[Updates]].
 - **The app lock does not stop alerts or summaries.** While Find+ is locked it keeps polling and
   still sends alerts and the daily summary. The lock only guards the dashboard, CLI and API.
 

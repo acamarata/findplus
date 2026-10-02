@@ -126,9 +126,10 @@ def test_downgrade_drops_the_column(tmp_path: Path) -> None:
     assert version == "0012"
 
 
-def test_full_head_upgrade_reaches_0012(tmp_path: Path) -> None:
+def test_full_upgrade_through_0012(tmp_path: Path) -> None:
+    """0013 now sits on top; this pins that 0012 is still reachable on its own."""
     cfg, db_path = _cfg(tmp_path)
-    command.upgrade(cfg, "head")
+    command.upgrade(cfg, "0012")
     engine = _engine(db_path)
     with engine.begin() as conn:
         version = conn.execute(sa.text("SELECT version_num FROM alembic_version")).scalar_one()

@@ -18,6 +18,7 @@ use std::sync::mpsc::{Receiver, RecvTimeoutError};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, WebviewWindow};
 
+use crate::signin_hosts::FrameWatch;
 use crate::signin_http::{Begin, Daemon};
 use crate::signin_logic::{self as logic, Bridge, Hosts};
 use crate::signin_machine::{
@@ -56,6 +57,8 @@ pub struct Session {
     token_retried: bool,
     /// Ticks since the daemon's progress was last read (signin_close.rs).
     ticks_since_poll: u32,
+    /// Main frame or sub-frame, for refused off-Google hosts.
+    frames: FrameWatch,
 }
 
 impl Session {
@@ -91,6 +94,7 @@ impl Session {
             rejected_token: None,
             token_retried: false,
             ticks_since_poll: 0,
+            frames: FrameWatch::default(),
         }
     }
 }
@@ -121,10 +125,16 @@ impl Session {
             }
             Msg::Bridge(Bridge::NoAccount) => self.account_unknown(),
             Msg::Bridge(Bridge::Bad) => log::info!("signin: ignored a malformed bridge message"),
-            Msg::Loaded(url) => self.on_loaded(&url),
-            Msg::Outside => {
-                self.reason = Some("outside_google".into());
-                self.feed(Input::Blocked);
+            Msg::Committed => self.frames.committed(),
+            Msg::Loaded(url) => {
+                self.frames.finished();
+                self.on_loaded(&url);
+            }
+            Msg::Outside(host) => {
+                let ms = self.started.elapsed().as_millis() as u64;
+                if !self.frames.refused_outside(&host, ms) {
+                    log::info!("signin: refused a frame from host {host}");
+                }
             }
             Msg::Title(t) => {
                 self.last_activity = Instant::now();
@@ -159,6 +169,13 @@ impl Session {
     fn on_tick(&mut self) {
         if self.started.elapsed() > TIMEOUT {
             return self.feed(Input::TimedOut);
+        }
+        let ms = self.started.elapsed().as_millis() as u64;
+        if let Some(host) = self.frames.left_google(ms) {
+            // Only a top-level move off Google ends the window (r12 #2).
+            log::info!("signin: the page tried to leave Google for host {host}");
+            self.reason = Some("outside_google".into());
+            return self.feed(Input::Blocked);
         }
         if self.stop_asked() {
             return self.feed(Input::UserClosed);

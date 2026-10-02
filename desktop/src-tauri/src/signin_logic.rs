@@ -27,19 +27,9 @@ pub const BRIDGE_MAX_BYTES: usize = 64 * 1024;
 // Page facts (blocked pages, cookies, redaction) live in signin_page.rs.
 pub use crate::signin_page::*;
 
-/// Exact hosts the window may load over https. Google's sign-in pages embed
-/// frames from several of these, and on macOS every frame's navigation goes
-/// through the same handler, so the list covers frames as well as pages.
-const ALLOWED_HOSTS: &[&str] = &[
-    "accounts.google.com",
-    "accounts.youtube.com",
-    "myaccount.google.com",
-    "www.google.com",
-    "ssl.gstatic.com",
-    "www.gstatic.com",
-    "consent.google.com",
-    "ogs.google.com",
-];
+// Which hosts the window may load (Google's sign-in infrastructure) and when a
+// refusal means the sign-in left Google live in signin_hosts.rs.
+pub use crate::signin_hosts::{authority_is_plain, host_shape_ok, is_allowed_host};
 
 /// Where the window is allowed to go, plus the debug-only test origin.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -56,8 +46,9 @@ pub enum Nav {
     Bridge(Bridge),
     /// Refused. Carries the host only, for the log.
     Block(String),
-    /// Refused, and the page is leaving Google (a Workspace account's own
-    /// sign-in page, for example). The window cannot finish here.
+    /// Refused, and the host is not Google's. Either a frame (ignored) or
+    /// the main frame leaving Google (a Workspace account's own sign-in
+    /// page); the session tells them apart with `FrameWatch`.
     Outside(String),
 }
 
@@ -76,23 +67,6 @@ pub enum Bridge {
     NoAccount,
     /// A bridge URL that could not be decoded. Never acted on.
     Bad,
-}
-
-/// Pure: `accounts.google.<cc>` for a country domain (`.de`, `.co.uk`, `.com.br`).
-fn is_google_country_accounts(host: &str) -> bool {
-    let Some(tail) = host.strip_prefix("accounts.google.") else {
-        return false;
-    };
-    let two = |s: &str| s.len() == 2 && s.bytes().all(|b| b.is_ascii_lowercase());
-    match tail.split_once('.') {
-        None => two(tail),
-        Some((first, rest)) => (first == "co" || first == "com") && two(rest),
-    }
-}
-
-/// Pure: is this https host on the allow-list?
-pub fn is_allowed_host(host: &str) -> bool {
-    ALLOWED_HOSTS.contains(&host) || is_google_country_accounts(host)
 }
 
 /// Pure: the origin (`scheme://host[:port]`) of a URL string, lowercased.
@@ -117,30 +91,17 @@ pub fn decide_navigation(url: &str, scheme: &str, host: &str, hosts: &Hosts) -> 
             return Nav::Allow;
         }
     }
-    if scheme == "https" && is_allowed_host(host) {
+    if scheme == "https" && authority_is_plain(url) && is_allowed_host(host) {
         return Nav::Allow;
     }
-    if (scheme == "https" || scheme == "http") && !host.is_empty() && !is_google_family(host) {
+    // Off Google entirely (another company's sign-in page, or a third-party
+    // frame): the session decides whether it was the main frame (FrameWatch).
+    if (scheme == "https" || scheme == "http") && host_shape_ok(host) && !is_allowed_host(host) {
         return Nav::Outside(host.to_string());
     }
+    // A Google host over http, with a port or a user@ part, an IP literal,
+    // or an odd scheme: refused quietly.
     Nav::Block(host.to_string())
-}
-
-/// Pure: a Google-owned host. A refused frame on one of these is ignored; a
-/// refused navigation anywhere else means the sign-in left Google.
-pub fn is_google_family(host: &str) -> bool {
-    const SUFFIXES: &[&str] = &[
-        "google.com",
-        "gstatic.com",
-        "googleapis.com",
-        "googleusercontent.com",
-        "youtube.com",
-        "googlevideo.com",
-        "doubleclick.net",
-    ];
-    let family = |s: &&str| host == *s || host.ends_with(&format!(".{s}"));
-    SUFFIXES.iter().any(family)
-        || host.starts_with("accounts.google.") && is_google_country_accounts(host)
 }
 
 /// Pure: decode `https://findplus-bridge.invalid/<kind>#<base64url>`.

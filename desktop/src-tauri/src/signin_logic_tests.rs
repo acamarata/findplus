@@ -11,18 +11,17 @@ fn test_hosts() -> Hosts {
     }
 }
 
+/// Exactly what the window's handler does: parse with the url crate, decide.
 fn nav(url: &str, hosts: &Hosts) -> Nav {
-    let (scheme, rest) = url.split_once(':').unwrap();
-    let host = rest
-        .trim_start_matches("//")
-        .split(['/', ':', '?', '#'])
-        .next()
-        .unwrap();
-    decide_navigation(url, scheme, host, hosts)
+    match tauri::Url::parse(url) {
+        Ok(u) => decide_navigation(u.as_str(), u.scheme(), u.host_str().unwrap_or(""), hosts),
+        Err(_) => decide_navigation(url, "", "", hosts),
+    }
 }
 
 #[test]
 fn allow_list_table() {
+    // Google's sign-in pages and the frames they embed (r12 #2).
     for ok in [
         "https://accounts.google.com/EmbeddedSetup",
         "https://accounts.google.de/accounts/SetSID",
@@ -31,26 +30,53 @@ fn allow_list_table() {
         "https://accounts.youtube.com/accounts/CheckConnection",
         "https://myaccount.google.com/",
         "https://ssl.gstatic.com/x.js",
+        "https://www.gstatic.com/recaptcha/x.js",
+        "https://www.google.com/recaptcha/api2/anchor?k=1",
+        "https://www.recaptcha.net/recaptcha/api.js",
+        "https://www.google.de/",
+        "https://consent.google.de/ml?continue=x",
+        "https://consent.google.com/",
+        "https://play.google.com/log?format=json",
+        "https://apis.google.com/js/api.js",
+        "https://fonts.googleapis.com/css",
+        "https://lh3.googleusercontent.com/a/photo",
+        "https://ACCOUNTS.Google.COM/",
         "about:blank",
+        "about:srcdoc",
     ] {
         assert_eq!(nav(ok, &none()), Nav::Allow, "{ok}");
     }
+    // Refused quietly: never a reason to stop the sign-in.
     for bad in [
         "http://accounts.google.com/",
-        "https://play.google.com/log",
-        "https://fonts.googleapis.com/x",
+        "http://www.google.de/",
+        "https://accounts.google.com:8443/",
+        "https://user:pw@accounts.google.com/",
+        "https://127.0.0.1/",
+        "https://[::1]/",
         "file:///etc/passwd",
         "about:config",
         "data:text/html,hi",
+        "blob:https://accounts.google.com/x",
+        "javascript:alert(1)",
+        "ftp://accounts.google.com/",
     ] {
         assert!(matches!(nav(bad, &none()), Nav::Block(_)), "{bad}");
     }
+    // Refused, and not Google: a frame, or the main frame leaving Google.
     for outside in [
         "https://accounts.google.evil.com/",
         "https://accounts.google.co.evil/",
         "https://evil.com/accounts.google.com",
         "https://login.microsoftonline.com/",
         "https://accounts.google.c/",
+        "https://google.com.evil.net/",
+        "https://evilgoogle.com/",
+        "https://accounts.google.com@evil.com/",
+        "https://accounts.google.com.evil.com:8443/",
+        "https://xn--ggle-0nda.com/",
+        "https://accounts.gооgle.com/",
+        "http://okta.example.com/",
     ] {
         assert!(
             matches!(nav(outside, &none()), Nav::Outside(_)),
@@ -166,27 +192,5 @@ fn no_capability_names_the_signin_window_or_google() {
             entry.path()
         );
         assert!(!text.contains("\"*\""), "{:?}", entry.path());
-    }
-}
-
-#[test]
-fn google_family_hosts() {
-    for h in [
-        "play.google.com",
-        "google.com",
-        "fonts.gstatic.com",
-        "accounts.google.de",
-        "lh3.googleusercontent.com",
-    ] {
-        assert!(is_google_family(h), "{h}");
-    }
-    for h in [
-        "evilgoogle.com",
-        "google.com.evil.net",
-        "okta.com",
-        "127.0.0.1",
-        "accounts.google.evil",
-    ] {
-        assert!(!is_google_family(h), "{h}");
     }
 }

@@ -7,25 +7,60 @@ import pytest
 from findplus.providers.google_findhub import native_classify as nc
 
 
-@pytest.mark.parametrize(
-    "host",
-    ["accounts.google.com", "accounts.google.de", "accounts.google.co.uk", "accounts.youtube.com"],
-)
+#: The same table as desktop/src-tauri/src/signin_hosts_tests.rs (r12 #2).
+ALLOWED = [
+    "accounts.google.com",
+    "accounts.google.de",
+    "accounts.google.co.uk",
+    "accounts.youtube.com",
+    "myaccount.google.com",
+    "google.com",
+    "www.google.de",
+    "google.de",
+    "consent.google.de",
+    "consent.google.com.br",
+    "www.google.co.uk",
+    "play.google.com",
+    "apis.google.com",
+    "evilaccounts.google.com",  # only Google can name a google.com subdomain
+    "fonts.gstatic.com",
+    "gstatic.com",
+    "fonts.googleapis.com",
+    "lh3.googleusercontent.com",
+    "www.recaptcha.net",
+    "xn--80ak6aa92e.google.com",
+]
+REFUSED = [
+    "",
+    "google",
+    "127.0.0.1",
+    "localhost",
+    "accounts.google.com.evil.com",
+    "accounts.google.evil",
+    "accounts.google.co.evil",
+    "google.com.evil.net",
+    "google.co.uk.evil.de",
+    "evilgoogle.com",
+    "notgstatic.com",
+    "recaptcha.net.evil.io",
+    "youtube.com",
+    "accounts.google.com.",
+    "accounts..google.com",
+    "-x.google.com",
+    "xn--ggle-0nda.com",
+    "findplus-bridge.invalid",
+    "login.microsoftonline.com",
+    "a" * 250 + ".google.com",
+]
+
+
+@pytest.mark.parametrize("host", ALLOWED)
 def test_google_sign_in_hosts_are_allowed(host) -> None:
     assert nc.is_allowed_host(host)
+    assert nc.classify(host, "/").blocked is False
 
 
-@pytest.mark.parametrize(
-    "host",
-    [
-        "127.0.0.1",
-        "localhost",
-        "accounts.google.com.evil.com",
-        "evilaccounts.google.com",
-        "accounts.google.evil",
-        "findplus-bridge.invalid",
-    ],
-)
+@pytest.mark.parametrize("host", REFUSED)
 def test_everything_else_is_not(host) -> None:
     assert not nc.is_allowed_host(host)
 

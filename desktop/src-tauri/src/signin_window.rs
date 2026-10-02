@@ -38,10 +38,12 @@ pub static SELFTEST: AtomicBool = AtomicBool::new(false);
 #[derive(Debug)]
 pub enum Msg {
     Bridge(Bridge),
+    /// The main frame committed a new page (wry's `PageLoadEvent::Started`).
+    Committed,
     Loaded(String),
     Title(String),
-    /// A refused navigation off Google (host logged, not sent).
-    Outside,
+    /// A refused navigation to a non-Google host (main frame or sub-frame).
+    Outside(String),
     Closed,
 }
 
@@ -219,8 +221,7 @@ fn on_navigation(url: &tauri::Url, hosts: &Hosts, tx: &Sender<Msg>) -> bool {
             false
         }
         Nav::Outside(h) => {
-            log::info!("signin: the page tried to leave Google for host {h}");
-            let _ = tx.send(Msg::Outside);
+            let _ = tx.send(Msg::Outside(h));
             false
         }
         Nav::Block(h) => {
@@ -232,6 +233,7 @@ fn on_navigation(url: &tauri::Url, hosts: &Hosts, tx: &Sender<Msg>) -> bool {
 
 fn on_page_load(win: &WebviewWindow, url: &tauri::Url, ev: PageLoadEvent, tx: &Sender<Msg>) {
     if ev != PageLoadEvent::Finished {
+        let _ = tx.send(Msg::Committed);
         return;
     }
     let _ = win.set_title(&logic::window_title("Google", url.host_str().unwrap_or("")));

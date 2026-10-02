@@ -17,9 +17,12 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-#: Hosts the sign-in window may load (spec §9.1). The shell enforces this list
-#: with its own copy; the daemon uses it to classify a report. `accounts.google.<cc>`
-#: is matched by ALLOWED_HOST_PATTERN.
+#: Hosts the sign-in window may load (spec §9.1): Google's sign-in pages and the
+#: frames they embed. The shell enforces the same rule with its own copy
+#: (desktop/src-tauri/src/signin_hosts.rs); the daemon uses it to classify a report.
+#: Exact hosts here; every Google-owned family (and `google.<cc>`) is matched by
+#: ALLOWED_HOST_PATTERN, so `www.google.de` or `consent.google.de` never reads as
+#: "left Google".
 ALLOWED_HOSTS = frozenset(
     {
         "accounts.google.com",
@@ -29,7 +32,10 @@ ALLOWED_HOSTS = frozenset(
         "ssl.gstatic.com",
     }
 )
-ALLOWED_HOST_PATTERN = re.compile(r"^accounts\.google\.(?:[a-z]{2,3}|co\.[a-z]{2}|com\.[a-z]{2})$")
+_LABEL = r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
+_FAMILIES = r"google\.com|gstatic\.com|googleapis\.com|googleusercontent\.com|recaptcha\.net"
+_COUNTRY = r"google\.(?:[a-z]{2}|co\.[a-z]{2}|com\.[a-z]{2})"
+ALLOWED_HOST_PATTERN = re.compile(rf"^(?:{_LABEL}\.)*(?:{_FAMILIES}|{_COUNTRY})$")
 
 #: Coarse classes the shell may derive from the page title. Anything else is refused.
 TITLE_CLASSES = frozenset({"normal", "couldnt_sign_in", "browser_not_secure", "unknown"})
@@ -51,7 +57,9 @@ class Verdict:
 
 def is_allowed_host(host: str) -> bool:
     """True for a host the sign-in window may show (https only, enforced by the shell)."""
-    return host in ALLOWED_HOSTS or bool(ALLOWED_HOST_PATTERN.match(host))
+    if len(host) > 253:
+        return False
+    return host in ALLOWED_HOSTS or bool(ALLOWED_HOST_PATTERN.fullmatch(host))
 
 
 def clean_report(host: object, path: object, title_class: object) -> tuple[str, str, str]:

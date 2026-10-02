@@ -125,6 +125,7 @@ mod signin_close;
 mod signin_events;
 #[cfg(debug_assertions)]
 mod signin_fake;
+mod signin_hosts;
 mod signin_http;
 mod signin_logic;
 mod signin_page;

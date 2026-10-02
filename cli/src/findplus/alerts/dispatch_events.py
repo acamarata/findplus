@@ -44,11 +44,21 @@ def load_pending_events(session) -> list[DeviceEvent | GroupEvent | LeftBehindEv
     """
     from findplus.alerts.dispatch_left_behind import pending_left_behind
 
-    return [
+    events = [
         *_load_device_events(session),
         *pending_group_events(session),
         *pending_left_behind(session),
     ]
+    return sorted(events, key=_story_order)
+
+
+#: At the same instant a departure reads before an arrival: "left Home", then
+#: "arrived at Grandma's" (uat116 #14).
+_TYPE_ORDER = {"EXIT": 0, "ENTER": 1}
+
+
+def _story_order(event) -> tuple:
+    return (as_utc(event.observed_at), _TYPE_ORDER.get(event.event_type, 2))
 
 
 def _load_device_events(session) -> list[DeviceEvent]:

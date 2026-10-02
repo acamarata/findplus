@@ -88,6 +88,8 @@ class LeftBehindEvent:
     person_lead_name: str | None = None
     #: groups.kind of the person: an all-people rule covers "person" only.
     group_kind: str = "person"
+    #: When the episode was confirmed: its age for the dispatch gates.
+    decided_at: datetime.datetime | None = None
     event_type: str = "LEFT_BEHIND"
     confidence: str = "medium"
     note: str = ""
@@ -113,6 +115,8 @@ class Rule:
     telegram_targets: list[str] | None = None
     #: Matches every person/pet group's events (migration 0013, spec § 5.2).
     all_people: bool = False
+    #: A rule never sends an event from before it existed (uat116 #1).
+    created_at: datetime.datetime | None = None
 
 
 @dataclass(frozen=True)

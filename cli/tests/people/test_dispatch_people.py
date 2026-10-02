@@ -35,8 +35,12 @@ def _run_dispatch(session, now):
 
 
 def _default_rules(session, places):
+    """The default rules, created the day before the scenario: a rule never
+    sends a crossing from before it existed (uat116 #1)."""
     for place in places.values():
-        session.add(build_rule(place, ["telegram"], True))
+        rule = build_rule(place, ["telegram"], True)
+        rule.created_at = at(0, 0, day=-1)
+        session.add(rule)
     session.commit()
 
 
@@ -69,7 +73,7 @@ def test_late_report_says_the_time_not_just(session, pinned_tz):
     seed_person(session)
     _default_rules(session, places)
     _to_grandmas(session)
-    sent = _run_dispatch(session, now=at(11, 0))
+    sent = _run_dispatch(session, now=at(10, 10))
     first = next(t for t in sent if "Grandma's" in t.splitlines()[0]).splitlines()
     assert first[0].startswith("Sam arrived at Grandma's at Sep 21, 9:")
     assert first[1].startswith("Seen by ") and "min late" in first[1]
@@ -82,7 +86,7 @@ def test_leaving_home_says_has_just_left_and_names_what_stayed(session, pinned_t
     seed_person(session)
     _default_rules(session, places)
     _bag_stays_at_school(Timeline()).ingest(session)
-    exits = [t for t in _run_dispatch(session, now=at(18, 30)) if t.startswith("Sam left School")]
+    exits = [t for t in _run_dispatch(session, now=at(15, 32)) if t.startswith("Sam left School")]
     assert len(exits) == 1
     assert "Sam's bag stayed at School." in exits[0]
 
@@ -93,7 +97,7 @@ def test_left_behind_alerts_once_away_from_home(session, pinned_tz):
     seed_person(session)
     _default_rules(session, places)
     _bag_stays_at_school(Timeline()).ingest(session)
-    sent = _run_dispatch(session, now=at(18, 30))
+    sent = _run_dispatch(session, now=at(15, 45))
     left = [t for t in sent if "looks left at" in t]
     assert len(left) == 1, sent
     assert left[0].startswith("Sam's bag looks left at School. Last seen there at Sep 21, ")
@@ -138,7 +142,7 @@ def test_all_people_cooldown_is_per_person(session, pinned_tz):
     seed_person(session)
     seed_person(session, "Jamie", {"am": "Jamie"})
     rule = build_rule(places["Grandma's"], ["telegram"], True)
-    rule.cooldown_minutes = 60
+    rule.cooldown_minutes, rule.created_at = 60, at(0, 0, day=-1)
     session.add(rule)
     session.commit()
     _to_grandmas(session)

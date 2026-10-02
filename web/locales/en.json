@@ -1253,7 +1253,8 @@
       "probablyOnly": "(probably; only the {what} reported)",
       "leftBehind": "{name}'s {what} looks left at {place}. Last seen there at {time}.",
       "leftBehindPerson": "{name} was last seen near {place} at {time} ({tracker}).",
-      "unnamedSpot": "an unnamed spot"
+      "unnamedSpot": "an unnamed spot",
+      "burstMore": "{count} more arrivals and departures happened earlier: open Find+ to see them."
     },
     "now": {
       "likelyAt": "Likely at {place}, seen {age} ago ({trackers}).",
@@ -1284,7 +1285,8 @@
     },
     "notify": {
       "ruleName": "Arrivals and departures at {place}",
-      "connectTelegram": "Connect Telegram to get these."
+      "connectTelegram": "Connect Telegram to get these.",
+      "onlyNew": "Only new arrivals and departures will be sent. History is not sent."
     },
     "role": {
       "phone": "phone",

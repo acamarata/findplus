@@ -90,6 +90,7 @@ def _event_for(session, row, names) -> LeftBehindEvent | None:
         person_seen_at=as_utc(fix.observed_at) if elsewhere else None,
         person_lead_name=lead if elsewhere else None,
         group_kind=group.kind,
+        decided_at=as_of,
     )
 
 

@@ -25,6 +25,23 @@ pytestmark = [
     pytest.mark.skipif(not OUT, reason="set FP_SIGNIN_SHOTS=<folder> to save screenshots"),
 ]
 G = "#fp-setup-google"
+LOAD_ERROR = {
+    "provider": "google",
+    "mode": "signin",
+    "outcome": "error",
+    "message": "The sign-in page did not load. Check your internet connection and try again.",
+}
+APPLE_NEEDS_CODE = {
+    "job_id": "a",
+    "phase": "needs_code",
+    "message": "",
+    "second_factor": {
+        "kind": "trusted_device",
+        "phone": None,
+        "can_text": True,
+        "sms_options": [{"id": 1, "phone": "+1 (•••) •••-••12"}],
+    },
+}
 
 
 async def _shot(page, name: str) -> None:
@@ -71,37 +88,11 @@ async def test_problem_states_and_sheet(page, base_url, theme):
         await wait_text(page, f"{G}-native-text", "Google would not let")
         await _shot(page, f"wizard-1280-{theme}-5-blocked")
         await page.click(f"{G}-native-window-again")
-        await emit(
-            page,
-            "signin-result",
-            {
-                "provider": "google",
-                "mode": "signin",
-                "outcome": "error",
-                "message": (
-                    "The sign-in page did not load. Check your internet connection and try again."
-                ),
-            },
-        )
+        await emit(page, "signin-result", LOAD_ERROR)
         await wait_text(page, f"{G}-native-text", "did not load")
         await _shot(page, f"wizard-1280-{theme}-6-error")
         await page.route("**/api/auth/apple/start", reply({"job_id": "a"}, 202))
-        await page.route(
-            "**/api/auth/apple/status*",
-            reply(
-                {
-                    "job_id": "a",
-                    "phase": "needs_code",
-                    "message": "",
-                    "second_factor": {
-                        "kind": "trusted_device",
-                        "phone": None,
-                        "can_text": True,
-                        "sms_options": [{"id": 1, "phone": "+1 (•••) •••-••12"}],
-                    },
-                }
-            ),
-        )
+        await page.route("**/api/auth/apple/status*", reply(APPLE_NEEDS_CODE))
         await page.click("#fp-setup-apple-signin")
         await _shot(page, f"wizard-1280-{theme}-7-apple-sheet")
         await page.fill("#fp-setup-apple-id", "sam@example.invalid")

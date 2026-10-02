@@ -125,4 +125,8 @@ def sign_out(provider: str, settings) -> bool:
     if provider == GOOGLE:
         # Disconnect must not leave a full Google browser login behind.
         existed = _wipe_chrome_profile(settings) or existed
+    else:
+        from .apple_findmy.auth import clear_auth_required
+
+        clear_auth_required(settings)  # signed out is not "needs signing in again"
     return existed

@@ -45,12 +45,32 @@ def _print_auth_status(as_json: bool) -> None:
     if as_json:
         click.echo(json.dumps(status))
         return
-    click.echo(f"{'Provider':<20} {'Signed in':<12} Account")
+    click.echo(f"{'Provider':<20} {'Signed in':<12} {'Needs':<16} Account")
     for provider in status["providers"]:
         signed = "yes" if provider["signed_in"] else "no"
+        needs = _ATTENTION_WORDS.get(provider.get("attention", "none"), "-")
         # "-", never str(None): a bare "None" in a terminal reads as a value.
         account = provider["account"] or "-"
-        click.echo(f"{provider['id']:<20} {signed:<12} {account}")
+        click.echo(f"{provider['id']:<20} {signed:<12} {needs:<16} {account}")
+    _print_native_line(status.get("google_native"))
+
+
+#: `attention` (providers/attention.py) in the words the dashboard banner uses.
+_ATTENTION_WORDS = {"reauth": "sign in again", "unlock": "unlock", "none": "-"}
+_FALLBACK_WORDS = {
+    "use_helper": "Next: sign in with your own Chrome (findplus auth --helper).",
+    "use_paste": "Next: paste the sign-in value (findplus auth --token).",
+}
+
+
+def _print_native_line(native: dict | None) -> None:
+    """The in-app sign-in window's phase, the same words the dashboard card shows."""
+    if not native or native.get("phase") == "idle":
+        return
+    click.echo(f"Google in-app sign-in: {native['phase']}. {native.get('message') or ''}".rstrip())
+    hint = _FALLBACK_WORDS.get(native.get("fallback") or "")
+    if hint:
+        click.echo(hint)
 
 
 def _google_preamble(settings) -> None:

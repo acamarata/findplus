@@ -18,7 +18,7 @@ from findplus.people import messages as m
 #: Largest gap between the two sightings that bracket a time before it is "around".
 APPROX_MINUTES = 10
 #: Tracker names listed on one line before the rest collapse into "and N more".
-MAX_VIA = 3
+MAX_VIA = 2
 
 
 def day_t(key: str, **values: object) -> str:

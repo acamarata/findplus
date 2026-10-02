@@ -140,9 +140,11 @@ def test_overnight_needs_a_home_sighting_unless_the_morning_confirms_it():
 
 
 def _now(**kw) -> NowIn:
-    base = dict(confidence="likely", place_id=2, place_name="School", relation="at", distance_m=None,
-                reference_place=None, observed_at=t(15, 58), lead_device_id="zr", supporters=("zr",),
-                lat=41.127, lon=-80.64)  # fmt: skip
+    base = {
+        "confidence": "likely", "place_id": 2, "place_name": "School", "relation": "at",
+        "distance_m": None, "reference_place": None, "observed_at": t(15, 58),
+        "lead_device_id": "zr", "supporters": ("zr",), "lat": 41.127, "lon": -80.64,
+    }  # fmt: skip
     base.update(kw)
     return NowIn(**base)
 

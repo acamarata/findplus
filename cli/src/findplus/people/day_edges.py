@@ -44,6 +44,7 @@ def first_line(ctx: Ctx) -> Line | None:
     fresh = {d: f for d, f in before.items() if ctx.start - f.t <= stale}
     home_at = {d: ctx.place_at(f) for d, f in (fresh or before).items()}
     at_home = [d for d, p in home_at.items() if p and p.id in homes]
+    at_home.sort(key=lambda d: (-ctx.weights.get(d, 0.0), d))  # the likeliest-carried first
     first_place = ctx.place_at(first)
     bracket = bool(at_home) and not fresh and first_place is not None and first_place.id in homes
     if at_home and (fresh or bracket):

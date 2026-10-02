@@ -47,3 +47,17 @@ def school_day(tl: Timeline, carried=("zr", "zb"), parked=("zk", "zw")) -> Timel
     tl.stay(carried, HOME, at(15, 33), at(17, 0), every=5)
     tl.stay(parked, HOME, at(7, 40), at(17, 0), every=5)
     return tl
+
+
+def lean_school_day(tl: Timeline) -> Timeline:
+    """The same day with far fewer sightings (fast): dense only around the crossings."""
+    c, parked = ["zr", "zb"], ["zk", "zw"]
+    tl.stay([*c, *parked], HOME, at(0, 0), at(0, 0))
+    tl.stay([*c, *parked], HOME, at(7, 0), at(7, 35), every=5)
+    tl.walk(c, HOME, SCHOOL, at(7, 35), at(8, 10), every=5)
+    tl.stay(c, SCHOOL, at(8, 15), at(14, 15), every=40)
+    tl.stay(c, SCHOOL, at(14, 50), at(14, 55), every=5)
+    tl.walk(c, SCHOOL, NEAR_HOME, at(14, 55), at(15, 30), every=5)
+    tl.stay(c, HOME, at(15, 33), at(17, 0), every=30)
+    tl.stay(parked, HOME, at(7, 40), at(17, 0), every=180)
+    return tl

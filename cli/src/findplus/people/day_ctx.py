@@ -32,6 +32,7 @@ class Ctx:
     end: datetime
     places: dict[int, PlaceIn]
     labels: dict[str, str]
+    weights: dict[str, float]
     #: device_id -> fixes with start <= t < end, oldest first.
     window: dict[str, list[Fix]]
     #: (device_id, started, cleared-or-None) of confirmed left-behind episodes.
@@ -115,6 +116,7 @@ def make_ctx(inp: DayInput) -> Ctx:
         end=end,
         places={p.id: p for p in inp.places},
         labels={t.device_id: t.label for t in inp.trackers},
+        weights={t.device_id: t.weight for t in inp.trackers},
         window=window,
         apart=apart,
     )

@@ -58,7 +58,6 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - Every new place gets an arrive and leave rule for everyone on your connected channel;
   `POST /api/places/notify-defaults` adds it to existing places, with a dry run first.
 - Places have a kind (home, school, work, family, shop, other), guessed from the name.
-<<<<<<< HEAD
 - A Person page (`#/person/<id>?date=YYYY-MM-DD`): click a person's name on a group card, in an
   alert rule sentence, the delivery log or the arrivals list. It shows where they probably are now,
   a day bar (arrows, date picker, Today, left and right keys), the day summary with each line
@@ -81,7 +80,6 @@ Versioning: [Semantic Versioning](https://semver.org/).
   "I know". Settings gains the daily summary (on/off, time, channel, per person, Send now), the
   left-behind switch, and a backup line with Back up now (`GET /api/settings/backup`,
   `POST /api/settings/backup/now`).
-=======
 - A daily summary for each person ("Zaid's day"): when they left Home, arrived at School, left
   again and got home, stops of 15 minutes or more away from saved places, long gaps with no
   sightings, trackers left behind, and where they are now. Every line names the tracker that backs
@@ -92,7 +90,6 @@ Versioning: [Semantic Versioning](https://semver.org/).
   evening summary (setting `people.digest`, off by default, 20:00, `findplus people digest`). Each
   person's day goes once per chat per day, never twice after a restart, and is held while the app
   lock is on. A day with nothing tracked sends nothing unless you choose "always send".
->>>>>>> release/1.1.6
 
 ### Changed
 - The database now syncs every commit to disk (`synchronous=FULL`, WAL kept) so a power cut cannot

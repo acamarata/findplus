@@ -26,6 +26,8 @@ import { loadGroups, selectGroupById, clearGroup, isGroupSelected } from "./grou
 import { verdictLabel, verdictTitle } from "./groups_presence_render.js";
 import { confirmDialog, alertDialog } from "./components/confirm-dialog.js";
 import { metaLine, explainSlot, fillExplanation } from "./groups_card_meta.js";
+import { fillWhereNow, isPerson, personMeta } from "./groups_person_card.js";
+import { openPersonEditor } from "./person_editor.js";
 
 /** Avatars shown before the grid collapses the rest into a "+N" chip. */
 const MAX_AVATARS = 6;
@@ -141,7 +143,7 @@ function renderCard(group, devicesById) {
   actions.className = "fp-card-actions";
   actions.append(
     cardButton("fp-card-edit btn-tiny btn-secondary", t("common.edit"), t("groups.card.edit", { name: group.name }),
-      () => openEditDialog(group.id, group)),
+      () => (isPerson(group) ? openPersonEditor(group.id, loadGroups) : openEditDialog(group.id, group))),
     cardButton("fp-card-delete btn-tiny btn-secondary", t("common.delete"), t("groups.card.delete", { name: group.name }),
       () => onDelete(group)),
   );
@@ -149,8 +151,8 @@ function renderCard(group, devicesById) {
     icon,
     markForLinks(span("fp-card-name", group.name)),
     memberAvatars(group, devicesById),
-    metaLine(group, devicesById),
-    span("fp-card-verdict"),
+    isPerson(group) ? personMeta(group) : metaLine(group, devicesById),
+    ...(isPerson(group) ? [] : [span("fp-card-verdict")]),
     actions,
     explainSlot(),
   );
@@ -238,7 +240,8 @@ export async function loadCards() {
   groups.forEach((group) => {
     const card = renderCard(group, devicesById);
     listEl.appendChild(card);
-    fetchVerdict(card, group.id).catch(() => showVerdictUnavailable(card));
+    if (isPerson(group)) fillWhereNow(card, group);
+    else fetchVerdict(card, group.id).catch(() => showVerdictUnavailable(card));
   });
 }
 

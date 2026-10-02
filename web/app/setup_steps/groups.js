@@ -123,7 +123,9 @@ function buildNameField() {
 }
 
 async function refresh(ctx) {
-  const groups = await ctx.api("/api/groups");
+  const everything = await ctx.api("/api/groups");
+  // People and pets live in the panel above; this list is for real groups.
+  const groups = everything.filter((g) => g.kind !== "person" && g.kind !== "pet");
   els.list.textContent = "";
   groups.forEach((group) => els.list.append(groupRow(group)));
 
@@ -141,12 +143,13 @@ export default {
     container.textContent = "";
     const heading = document.createElement("h2");
     heading.textContent = t("setup.groups.title");
+    const groupsHead = document.createElement("h3");
+    groupsHead.className = "fp-wizard-subhead";
+    groupsHead.textContent = t("setup.groups.groups_title");
 
-    // UAT6-N18: the step opened straight into a bare list and a form with no
-    // word about what a group is for.
-    const lead = document.createElement("p");
-    lead.className = "fp-wizard-lead";
-    lead.textContent = `${t("setup.groups.lead")} ${t("setup.groups.skip_hint")}`;
+    const groupsLead = document.createElement("p");
+    groupsLead.className = "fp-wizard-lead";
+    groupsLead.textContent = `${t("setup.groups.lead")} ${t("setup.groups.skip_hint")}`;
 
     const list = document.createElement("div");
     list.id = "fp-setup-groups-list";
@@ -178,13 +181,13 @@ export default {
     // nameField already carries `name` (labeled() moved it into its own
     // wrapper) -- appending `name` again here would rip it back out.
     container.append(
-      heading, lead, list, nameField, pickers.iconWrap, pickers.colorWrap, members, error, add
+      heading, groupsHead, groupsLead, list, nameField, pickers.iconWrap, pickers.colorWrap, members, error, add
     );
     container.addEventListener("click", (e) => pickers.closeIfOutside(e.target));
     // Find+'s guesses from tracker names ("Sam Bag", "Sam Bike"): one click makes a person.
     const people = document.createElement("div");
     people.id = "fp-setup-people-suggest";
-    lead.after(people);
+    heading.after(people);
     import("../people_suggest.js").then((m) => m.mountSuggestions(people, { wizard: true, onChange: () => refresh(ctx) }));
   },
   async onEnter(ctx) {

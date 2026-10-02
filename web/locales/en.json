@@ -248,6 +248,10 @@
       "untracked": {
         "one": "1 member is not tracked, so Find+ never checks it.",
         "other": "{count} members are not tracked, so Find+ never checks them."
+      },
+      "trackers": {
+        "one": "1 tracker",
+        "other": "{count} trackers"
       }
     },
     "confirm": {
@@ -812,7 +816,15 @@
       "where_title": "Where to find things",
       "where_native": "The F+ icon in your menu bar shows Find+'s status. Choose Open Dashboard to see the map.",
       "where_web": "Open Find+ any time at {url}.",
-      "where_settings": "Settings (under More on a phone) holds sign-in, polling, app lock and Run setup again."
+      "where_settings": "Settings (under More on a phone) holds sign-in, polling, app lock and Run setup again.",
+      "peopleCount": {
+        "one": "1 person",
+        "other": "{n} people"
+      },
+      "groupsCount": {
+        "one": "1 group",
+        "other": "{n} groups"
+      }
     },
     "welcome": {
       "title": "See where your trackers are, privately",
@@ -853,12 +865,13 @@
       "go_signin": "Back to sign-in"
     },
     "groups": {
-      "title": "Groups (optional)",
+      "title": "People and groups",
       "lead": "Combine devices into a group to see them together on the map and set alerts for the whole group.",
       "name_placeholder": "Group name",
       "add": "Add",
       "no_devices": "No tracked devices to add yet. Go back to Devices to track one first.",
-      "skip_hint": "Most people skip this. You can make groups any time from the Groups tab."
+      "skip_hint": "Most people skip this. You can make groups any time from the Groups tab.",
+      "groups_title": "Groups (optional)"
     },
     "places": {
       "title": "Places (optional)",
@@ -914,7 +927,7 @@
       "welcome": "Welcome",
       "signin": "Connect your trackers",
       "devices": "Choose devices",
-      "groups": "Groups",
+      "groups": "People and groups",
       "places": "Places",
       "notifications": "Notifications",
       "applock": "App lock",

@@ -37,7 +37,8 @@ Versioning: [Semantic Versioning](https://semver.org/).
   every export carry `suspect` and `suspect_reason`; `/api/trips` lists these under `outliers` with
   `reasons`. A lone far-and-fast sighting is held from place alerts for one poll.
 - Database backups: a verified online copy once a day (and at startup when the newest is a day
-  old), kept 7 daily and 4 weekly in `~/.findplus/backups` (0700, files 0600, no secrets).
+  old), kept 7 daily and 4 weekly in `~/.findplus/backups` (0700, files 0600, no sign-in tokens or keys;
+  the app-lock PIN hash is in the copy).
   `findplus db backup`, `db backups`, `db check`, and a safe `db restore <file>` (checks the file,
   refuses while running, takes a pre-restore backup, keeps the replaced file). Backup folder and
   counts are settings (`backup.directory`, `backup.keep_daily`, `backup.keep_weekly`).
@@ -95,6 +96,29 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - The database now syncs every commit to disk (`synchronous=FULL`, WAL kept) so a power cut cannot
   lose the last sightings.
 - A tracker belongs to at most one person; adding it to a second one is refused with 409.
+- `findplus export --format jsonl` now also carries your settings (not the app lock), alert
+  deliveries and digest runs, so cooldowns and daily summaries do not repeat after an import. The
+  new `findplus db rebuild-derived` replays every sighting into place, group and person state and
+  marks the rebuilt events as already sent. `findplus import` and `findplus db import` are the same
+  command; the docs use `findplus import`.
+- A chosen backup folder gets a `findplus-backups` folder inside it; only that folder is made
+  private. Manual and pre-restore backups keep the newest 10 and 5.
+
+### Fixed
+- `findplus db restore` now works over a damaged database (the case it exists for): the damaged
+  file is kept whole as `.replaced-<time>` with its `-wal` and `-shm`, and a failed backup prints
+  plain words instead of a traceback. Restore also refuses a file with a missing table, keeps every
+  replaced file even when two restores share a second, stops if the old log cannot be folded in,
+  and `serve` holds a lock file so a starting or wedged daemon is noticed too.
+- A config value with a line break, `=` or null can no longer add other keys to `config.env` (it
+  could slip past the 7-day retention and 5-minute poll rules). Hand-edited bad values are ignored.
+- CLI write commands (`poll-now`, `prune`, `db recompute-quality`, `import`, `db rebuild-derived`)
+  check the database first and refuse on a damaged file; the other commands only read it.
+- `findplus db recompute-quality` commits in chunks, so it no longer locks out the poller.
+- `~` in `backup.directory` is expanded; a stray file name or dangling link in the backup folder no
+  longer breaks listing, scheduled backups, Settings or `doctor`; a backup stamped in the future no
+  longer stops automatic backups. A repeated sighting in an import file gives a plain message.
+- "Poll now" is refused with a clear message while the database is read-only.
 
 ## [1.1.5] - 2026-10-01
 

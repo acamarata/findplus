@@ -20,14 +20,9 @@ from findplus.mcp.client import DaemonClient, seg
 from findplus.mcp.tools_read import _params, _with_notice
 
 
-def register_write_tools(mcp: MCPServer, client: DaemonClient) -> None:
+def _register_place_tools(mcp: MCPServer) -> None:
     def _c() -> DaemonClient:
         return mcp._daemon_client
-
-    @mcp.tool(structured_output=True)
-    async def poll_now() -> dict[str, Any]:
-        """Ask the daemon to poll every tracked device now."""
-        return await _with_notice(await _c().post("/api/poll-now"), _c())
 
     @mcp.tool(structured_output=True)
     async def add_place(
@@ -57,6 +52,18 @@ def register_write_tools(mcp: MCPServer, client: DaemonClient) -> None:
     async def remove_place(place_id: int) -> dict[str, Any]:
         """Delete a place and stop its events."""
         return await _with_notice(await _c().delete(f"/api/places/{seg(place_id)}"), _c())
+
+
+def register_write_tools(mcp: MCPServer, client: DaemonClient) -> None:
+    _register_place_tools(mcp)
+
+    def _c() -> DaemonClient:
+        return mcp._daemon_client
+
+    @mcp.tool(structured_output=True)
+    async def poll_now() -> dict[str, Any]:
+        """Ask the daemon to poll every tracked device now."""
+        return await _with_notice(await _c().post("/api/poll-now"), _c())
 
     @mcp.tool(structured_output=True)
     async def add_group(

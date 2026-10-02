@@ -443,14 +443,15 @@
       "sentTo": "Sent to {channel}.",
       "pick": "Send to",
       "all": "Every connected channel",
-      "none": "Connect Telegram, WhatsApp or a webhook in the Alerts tab to get these. You can add the alert later with Notify me.",
+      "none": "Nothing is connected yet. The alert is saved but stays off until you connect Telegram, WhatsApp or a webhook in the Alerts tab.",
       "native": "Shown as a notification on this computer.",
       "unknown": "Find+ picks the channel for you.",
       "on": "Alerts are on for {place}: {channels}.",
       "onPlain": "Alerts are on for {place}.",
       "customise": "Customise",
       "customiseIntro": "Anyone arriving at or leaving {place} already sends a message. Change where it goes or when.",
-      "noneWizard": "Nothing is connected yet. Connect Telegram on the Notifications step, then press Notify me on the Places tab to add these alerts."
+      "noneWizard": "Nothing is connected yet. The alert is saved but stays off until you connect Telegram on the Notifications step.",
+      "savedOff": "Saved an alert for {place}, switched off until a channel is connected."
     },
     "backfill": {
       "text": {
@@ -471,6 +472,41 @@
       },
       "failed": "Could not add alerts: {message}",
       "previewFailed": "Could not check which places need alerts: {message}"
+    },
+    "noticed": {
+      "heading": "We noticed these places",
+      "lead": "These are spots where a tracker stayed a while. Find+ only guesses what they are. Nothing is saved until you name one.",
+      "guess": {
+        "home": "Home?",
+        "school_or_work": "School or work?",
+        "regular": "Regular stop"
+      },
+      "visits": {
+        "one": "1 visit",
+        "other": "{count} visits"
+      },
+      "onDays": {
+        "one": "on 1 day",
+        "other": "on {count} days"
+      },
+      "usually": "usually {from} to {to} {days}",
+      "days": {
+        "weekdays": "on weekdays",
+        "weekends": "on weekends",
+        "every_day": "on most days"
+      },
+      "nights": {
+        "one": "1 night there",
+        "other": "{count} nights there"
+      },
+      "seenBy": "Seen by {names}",
+      "nameIt": "Name it",
+      "notAPlace": "Not a place",
+      "save": "Save place",
+      "saved": "Saved {name}.",
+      "failed": "Could not save: {message}",
+      "mapLabel": "Map of this spot, {lat}, {lon}",
+      "notEnough": "Find+ needs a few days of sightings to suggest places."
     }
   },
   "alerts": {

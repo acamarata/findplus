@@ -32,7 +32,7 @@ from findplus.places.repo import (
     update_place,
 )
 
-from . import routes_places_notify
+from . import routes_places_notify, routes_places_suggest
 
 
 class PlaceCreate(BaseModel):
@@ -195,6 +195,7 @@ def get_presence(device_id: str | None = None) -> list[dict[str, Any]]:
 def build_router() -> APIRouter:
     router = APIRouter(prefix="/api/places", tags=["places"])
     routes_places_notify.register(router)
+    routes_places_suggest.register(router)
     router.add_api_route("", get_places, methods=["GET"])
     router.add_api_route("", post_place, methods=["POST"], status_code=201)
     router.add_api_route("/{place_id}", put_place, methods=["PUT"])

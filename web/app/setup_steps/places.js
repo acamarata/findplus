@@ -19,6 +19,8 @@
  *              the DASHBOARD's list, which is hidden behind the wizard -- this
  *              step reloads its own list off the dialog's "close" event
  *              instead, the same pattern _device_row.js's Edit button uses.
+ *              "We noticed these places" (places_noticed.js) sits above the list;
+ *              with no history yet it says so in one plain sentence.
  *              The map opens fitted to the tracked devices (or saved places)
  *              via map.js's own setDefaultView(), instead of world zoom.
  */
@@ -26,11 +28,14 @@
 
 import { t } from "../i18n.js";
 import { showAddDialog } from "../places_dialog.js";
-import { setDefaultView, renderTrackedDeviceMarkers } from "../map.js";
+import { setDefaultView, renderMap, renderTrackedDeviceMarkers } from "../map.js";
+import { mountNoticed } from "../places_noticed.js";
 
 /** Where `.map-pane` came from, so onLeave can put it back exactly there. */
 let borrowed = null;
 let els = null;
+let noticed = null;
+let savedCount = 0;
 
 /**
  * Move the shared map into the step, remembering where it was.
@@ -79,6 +84,7 @@ async function reloadList(ctx) {
   // Which places already send a message when anyone arrives or leaves (a failed look reads as none).
   const rules = await ctx.api("/api/alerts/rules").catch(() => []);
   const alertPlaceIds = new Set(rules.filter((r) => r.all_people || r.place_id == null).map((r) => r.place_id));
+  savedCount = places.length;
   els.list.textContent = "";
   places.forEach((place) => els.list.append(placeRow(place, alertPlaceIds)));
   if (!places.length) {
@@ -122,25 +128,32 @@ export default {
     const mapHost = document.createElement("div");
     mapHost.id = "fp-setup-map-host";
 
+    const noticedHost = document.createElement("div");
+    noticedHost.id = "fp-setup-places-noticed";
+    noticed = mountNoticed(noticedHost, { onSaved: () => reloadList(ctx), showEmpty: () => savedCount === 0 });
+
     els = { list };
     const lead = document.createElement("p");
     lead.className = "fp-wizard-lead";
     lead.textContent = t("setup.places.lead");
-    container.append(heading, lead, list, add, mapHost);
+    container.append(heading, lead, noticedHost, list, add, mapHost);
     borrowMap(mapHost);
     if (ctx.state.map) ctx.state.map.invalidateSize();
   },
   async onEnter(ctx) {
     await reloadList(ctx);
+    if (noticed) noticed.refresh();
     // N6: a fresh borrowed map defaulted to world zoom with no tracker
     // markers to give it a reason to zoom in. Fit it the same way the
     // dashboard does: tracked devices' latest fixes, else saved places.
     await setDefaultView().catch(() => {});
     // N36: a true first run has no timeline yet to draw tracker markers
     // from, so give it its own -- a no-op once the dashboard has booted.
-    await renderTrackedDeviceMarkers().catch(() => {});
+    await renderTrackedDeviceMarkers({ force: true }).catch(() => {});
   },
   onLeave(ctx) {
+    if (noticed) noticed.purge();
     returnMap(ctx);
+    renderMap({ fit: false });
   },
 };

@@ -14,6 +14,7 @@
 "use strict";
 
 import { api } from "./api.js";
+import { radiusOf } from "./places_dialog_dom.js";
 import { readNotify } from "./places_notify.js";
 
 /** The fields every save sends. */
@@ -22,7 +23,7 @@ export function placeBody(fields) {
     name: fields.name.value,
     latitude: Number(fields.lat.value),
     longitude: Number(fields.lon.value),
-    radius_meters: Number(fields.radius.value),
+    radius_meters: radiusOf(fields),
     color: fields.color.value,
     enter_confirmations: Number(fields.enter.value),
     exit_confirmations: Number(fields.exit.value),

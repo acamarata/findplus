@@ -181,6 +181,11 @@ export default {
       heading, lead, list, nameField, pickers.iconWrap, pickers.colorWrap, members, error, add
     );
     container.addEventListener("click", (e) => pickers.closeIfOutside(e.target));
+    // Find+'s guesses from tracker names ("Zaid Bag", "Zaid Bike"): one click makes a person.
+    const people = document.createElement("div");
+    people.id = "fp-setup-people-suggest";
+    lead.after(people);
+    import("../people_suggest.js").then((m) => m.mountSuggestions(people, { wizard: true, onChange: () => refresh(ctx) }));
   },
   async onEnter(ctx) {
     await refresh(ctx);

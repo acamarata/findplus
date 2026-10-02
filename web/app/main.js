@@ -184,6 +184,7 @@ export async function bootDashboard(resume) {
 
   startIdleTimer();
   refreshPeopleCache();
+  import("./people_suggest.js").then((m) => { m.mountBanner($("fp-people-banner")); m.mountSuggestions($("fp-people-suggest")); }).catch(() => {});
   await applyHashRoute({ closeOthers: false });
   if (stale()) return;
 

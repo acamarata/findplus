@@ -27,6 +27,9 @@ export const fetchLeftBehind = (id) => api(`/api/people/${id}/left-behind`);
 export const dismissLeftBehind = (id, episode) => postJson(`/api/people/${id}/left-behind/${episode}/dismiss`, {});
 export const saveTracker = (deviceId, body) => put(`/api/people/trackers/${deviceId}`, body);
 export const fetchPeople = () => api("/api/people");
+export const fetchSuggestions = () => api("/api/people/suggestions");
+/** Accept some suggestions (`accept`) and silence others (`dismiss` keys) in one all-or-nothing call. */
+export const acceptSuggestions = (accept, dismiss = []) => postJson("/api/people/suggestions/accept", { accept, dismiss });
 
 const first = (obj, keys) => {
   for (const k of keys) if (obj[k] !== undefined && obj[k] !== null) return obj[k];

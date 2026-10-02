@@ -1,6 +1,5 @@
 """The Person page: header, date bar, summary, map, lanes, trackers, keyboard."""
 
-
 from __future__ import annotations
 
 import pytest

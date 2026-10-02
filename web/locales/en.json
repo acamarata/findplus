@@ -1249,6 +1249,61 @@
       "car": "car",
       "luggage": "luggage",
       "other": "tracker"
+    },
+    "panel": {
+      "title": "We found people in your trackers",
+      "lead": "Find+ guessed these from your tracker names. Nothing is grouped until you say yes.",
+      "hide": "Not now",
+      "show": "Show suggestions ({n})",
+      "empty": "No new people found in your trackers.",
+      "loading": "Looking at your tracker names",
+      "recheck": "Check again",
+      "rechecking": "Checking",
+      "errorTitle": "Could not look for people",
+      "cardTitle": {
+        "one": "{name} (1 tracker: {names})",
+        "other": "{name} ({n} trackers: {names})"
+      },
+      "accept": "Accept",
+      "acceptAdd": "Add it",
+      "acceptNamed": "Accept {name}",
+      "editMembers": "Edit members",
+      "notPerson": "Not a person",
+      "itsPet": "It's a pet",
+      "itsPerson": "It's a person",
+      "neither": "Neither",
+      "askKind": "Is {name} a person or a pet?",
+      "acceptAll": "Accept all ({n})",
+      "acceptAllSkipped": {
+        "one": "1 more needs your answer first.",
+        "other": "{n} more need your answer first."
+      },
+      "accepted": {
+        "one": "Added 1 person.",
+        "other": "Added {n} people."
+      },
+      "dismissed": "Got it. Find+ will not suggest that again.",
+      "failed": "Could not save: {message}",
+      "lowConfidence": "Check this one: the name is also a colour or brand.",
+      "editName": "Name",
+      "editKind": "This is a",
+      "editTrackers": "Trackers",
+      "editSave": "Save and accept",
+      "editCancel": "Cancel",
+      "editNone": "Pick at least one tracker.",
+      "whoseTitle": "Whose is this?",
+      "whoseLead": "These trackers do not look like they belong to anyone yet.",
+      "whosePick": "Whose is {tracker}?",
+      "whoseChoose": "Choose a person",
+      "whoseNew": "A new person",
+      "whoseNewName": "New person's name",
+      "whoseAdd": "Add",
+      "wizardLead": "Find+ can group a person's trackers for you, so one name shows where they are.",
+      "banner": {
+        "one": "Find+ found 1 person in your trackers.",
+        "other": "Find+ found {n} people in your trackers."
+      },
+      "review": "Review"
     }
   },
   "person": {

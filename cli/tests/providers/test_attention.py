@@ -115,7 +115,9 @@ def test_deep_links_open_a_login_only_while_needed(tmp_db) -> None:
 def test_every_surface_says_the_same(tmp_db) -> None:
     from findplus.api import create_app
     from findplus.cli.cmd_auth import auth
+    from findplus.providers.google_findhub import native_progress
 
+    native_progress.reset()  # process-wide; another suite may have left a phase behind
     _google_store(username="a@b.com", aas_token="t", auth_revoked="1")
     client = TestClient(create_app())
     status = client.get("/api/auth/status", headers=SAME_ORIGIN_HEADERS).json()

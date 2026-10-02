@@ -441,7 +441,8 @@
       "on": "Alerts are on for {place}: {channels}.",
       "onPlain": "Alerts are on for {place}.",
       "customise": "Customise",
-      "customiseIntro": "Anyone arriving at or leaving {place} already sends a message. Change where it goes or when."
+      "customiseIntro": "Anyone arriving at or leaving {place} already sends a message. Change where it goes or when.",
+      "noneWizard": "Nothing is connected yet. Connect Telegram on the Notifications step, then press Notify me on the Places tab to add these alerts."
     },
     "backfill": {
       "text": {
@@ -859,7 +860,9 @@
       "title": "Places (optional)",
       "add": "Add a place",
       "lead": "A place is a circle on the map, such as Home or Work. Find+ records when a tracker arrives or leaves, and alert rules can use it.",
-      "empty": "No places yet. Add one now, or later from the Places tab."
+      "empty": "No places yet. Add one now, or later from the Places tab.",
+      "alertsOn": "arrival alerts on",
+      "alertsOff": "no alerts yet"
     },
     "notifications": {
       "title": "Notifications (optional)",

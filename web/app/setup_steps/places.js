@@ -56,7 +56,7 @@ function returnMap(ctx) {
   if (ctx.state.map) ctx.state.map.invalidateSize();
 }
 
-function placeRow(place) {
+function placeRow(place, alertPlaceIds) {
   const row = document.createElement("div");
   row.className = "fp-dialog-field";
   const dot = document.createElement("span");
@@ -64,15 +64,23 @@ function placeRow(place) {
   dot.style.background = place.color || "#3b82f6";
   const name = document.createElement("span");
   name.textContent = place.name;
-  row.append(dot, name);
+  // The kind (Home, School, ...) and whether arrivals and departures already send a message.
+  const meta = document.createElement("span");
+  meta.className = "fp-field-hint";
+  const alerts = alertPlaceIds.has(place.id) ? t("setup.places.alertsOn") : t("setup.places.alertsOff");
+  meta.textContent = `${t(`places.kind.${place.kind || "other"}`)} · ${alerts}`;
+  row.append(dot, name, meta);
   return row;
 }
 
 /** Re-fetch and repaint the step's own list (onEnter, and after Add saves). */
 async function reloadList(ctx) {
   const places = await ctx.api("/api/places");
+  // Which places already send a message when anyone arrives or leaves (a failed look reads as none).
+  const rules = await ctx.api("/api/alerts/rules").catch(() => []);
+  const alertPlaceIds = new Set(rules.filter((r) => r.all_people || r.place_id == null).map((r) => r.place_id));
   els.list.textContent = "";
-  places.forEach((place) => els.list.append(placeRow(place)));
+  places.forEach((place) => els.list.append(placeRow(place, alertPlaceIds)));
   if (!places.length) {
     const empty = document.createElement("p");
     empty.className = "fp-tab-hint";

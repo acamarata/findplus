@@ -56,6 +56,12 @@ function option(value, text) {
   return opt;
 }
 
+/** The setup wizard is open: nothing is connected yet because Notifications comes next. */
+function inWizard() {
+  const view = document.getElementById("setup-view");
+  return Boolean(view && view.firstChild && !view.hidden && !view.classList.contains("hidden"));
+}
+
 /** Decide what the box and the line say from the connected channels (null: unknown). */
 export function applyChannels(field, connected) {
   field.connected = connected;
@@ -70,7 +76,7 @@ export function applyChannels(field, connected) {
   else if (!ids.length) {
     field.box.checked = false;
     field.box.disabled = true;
-    field.line.textContent = t("places.notify.none");
+    field.line.textContent = t(inWizard() ? "places.notify.noneWizard" : "places.notify.none");
   } else if (ids.length === 1) field.line.textContent = t("places.notify.sentTo", { channel: t(`alerts.channels.${ids[0]}`) });
   else {
     field.line.textContent = "";

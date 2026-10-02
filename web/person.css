@@ -160,3 +160,20 @@ input[type=time] {
 .pe-row { margin: 6px 0; }
 .pe-extra { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 4px 24px; }
 .pe-extra .pe-weight { width: 7em; }
+
+/* The Person page scrolls inside its pane: a soft shadow at the top or bottom edge says there is more. */
+.person-view .timeline-pane {
+  background:
+    linear-gradient(var(--panel) 30%, transparent) top / 100% 28px no-repeat local,
+    linear-gradient(transparent, var(--panel) 70%) bottom / 100% 28px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, rgba(0, 0, 0, .28), transparent) top / 100% 10px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, .28), transparent) bottom / 100% 10px no-repeat scroll,
+    var(--panel);
+}
+/* Arrow keys need a keyboard: on a touch screen the hint is noise. */
+@media (hover: none), (pointer: coarse) { .person-keys-hint { display: none; } }
+
+/* "Updating past days..." (people_replay.js): a small status pill, never over the controls. */
+.fp-replay { position: fixed; left: 16px; bottom: 16px; z-index: 40; margin: 0; max-width: calc(100vw - 32px);
+  padding: 8px 12px; border-radius: 999px; background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--line-strong); font-size: 13px; box-shadow: 0 6px 18px rgba(0, 0, 0, .3); }

@@ -8,7 +8,7 @@
  * Inputs     : The person (GET /api/people/{id}) and their now answer
  *              (GET /api/people/{id}/now), either of which may be missing.
  * Outputs    : Fills #person-head.
- * Constraints: textContent only. The "seen N min ago" chip is shown only when
+ * Constraints: textContent only. NOW is for today only: a past day reads "On <date>". The "seen N min ago" chip is shown only when
  *              the server gave an age. A pet reads "Pet" beside its name.
  */
 "use strict";
@@ -26,11 +26,22 @@ function chip(cls, text) {
   return el;
 }
 
-function statusLine(now) {
+/** "Sep 30, 2026" for a YYYY-MM-DD day. */
+function dayLabel(date) {
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+}
+
+/** For a past day: "On Sep 30, 2026: At Home from 3:40 PM." Never the live "now" answer. */
+function pastText(past) {
+  const when = dayLabel(past.date);
+  return past.last ? t("person.head.onDateLast", { date: when, last: past.last }) : t("person.head.onDate", { date: when });
+}
+
+function statusLine(now, past) {
   const p = document.createElement("p");
   p.className = "person-now";
   p.id = "person-now";
-  p.textContent = now ? now.text : "";
+  p.textContent = past ? pastText(past) : now ? now.text : "";
   return p;
 }
 
@@ -46,8 +57,12 @@ function chips(now) {
   return row;
 }
 
-/** Fill the header. `person` is required; `now` may be null (not loaded or failed). */
-export function renderHead(person, now) {
+/**
+ * Fill the header. `person` is required; `now` may be null (not loaded or failed).
+ * `past` is {date, last} when a day before today is on screen: the header then
+ * says what that day ended with, and carries no "seen N min ago" chip.
+ */
+export function renderHead(person, now, past = null) {
   const head = $("person-head");
   const badge = document.createElement("span");
   badge.className = "person-avatar";
@@ -60,7 +75,7 @@ export function renderHead(person, now) {
   if (person.kind === "pet") name.appendChild(chip("person-kind", t("person.kind.pet")));
   const text = document.createElement("div");
   text.className = "person-head-text";
-  text.append(name, statusLine(now), chips(now));
+  text.append(name, statusLine(now, past), chips(past ? null : now));
   head.replaceChildren(badge, text);
 }
 

@@ -9,7 +9,8 @@
  *              the page is open (map.js's renderMap() stands aside meanwhile).
  * Constraints: The page has no tab button, so the tab that was active stays the
  *              one Tab stop of the tab bar. Leaving restores it. First open moves
- *              keyboard focus to the person's name so a screen reader hears it.
+ *              keyboard focus to "Back to dashboard", the first control, which is
+ *              described by the person's name so a screen reader still hears it.
  */
 "use strict";
 
@@ -64,7 +65,8 @@ export async function showPerson(route) {
   const done = loadPerson(route.id, route.date || todayLocal());
   await done;
   if (first) {
-    $("person-name")?.focus({ preventScroll: true });
+    // First stop of the page: "Back to dashboard" (described by the person's name).
+    $("person-back")?.focus({ preventScroll: true });
     showPageOnPhone();
   }
 }

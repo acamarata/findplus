@@ -66,6 +66,7 @@ export function init(mapArg, _deviceListEl) {
  * "who should be told, and where", with the place already chosen. */
 async function onPlaceSaved(place, mode) {
   await loadPlaces();
+  import("./people_replay.js").then((m) => m.watchReplay()).catch(() => {});
   if (mode === "add" && place) announceDefaultRule(place);
 }
 

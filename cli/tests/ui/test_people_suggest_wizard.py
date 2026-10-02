@@ -41,6 +41,6 @@ async def test_groups_step_offers_the_people_panel_and_accepts(page, base_url):
     assert posts == []
     sam = page.locator("#fp-setup-people-suggest .ps-card", has_text="Sam (4 trackers")
     await sam.get_by_role("button", name="Accept", exact=True).click()
-    await page.locator("#fp-setup-people-suggest").get_by_text("Added 1 person.").wait_for()
+    await page.locator("#fp-setup-people-suggest").get_by_text("Created 1 person.").wait_for()
     assert posts[0]["accept"][0]["name"] == "Sam"
     assert await page.locator("#fp-setup-group-name").count() == 1, "the manual form is still there"

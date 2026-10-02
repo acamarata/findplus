@@ -43,7 +43,7 @@ async def test_accept_posts_the_exact_guess(trips_page, trips_server):
         .get_by_role("button", name="Accept", exact=True)
         .click()
     )
-    await trips_page.get_by_text("Added 1 person.").wait_for()
+    await trips_page.get_by_text("Created 1 person.").wait_for()
     assert posts[0]["accept"][0]["name"] == "Sam" and posts[0]["accept"][0]["kind"] == "person"
     assert [m["device_id"] for m in posts[0]["accept"][0]["members"]] == ["z1", "z2", "z3", "z4"]
     assert posts[0]["dismiss"] == []
@@ -58,7 +58,7 @@ async def test_person_or_pet_question_decides_the_kind(trips_page, trips_server)
         .get_by_role("button", name="It's a pet")
         .click()
     )
-    await trips_page.get_by_text("Added 1 person.").wait_for()
+    await trips_page.get_by_text("Created 1 person.").wait_for()
     assert posts[0]["accept"][0]["kind"] == "pet" and posts[0]["accept"][0]["name"] == "Whiskers"
 
 
@@ -90,7 +90,7 @@ async def test_accept_all_skips_what_still_needs_an_answer(trips_page, trips_ser
     await _open_groups(trips_page, trips_server)
     btn = trips_page.get_by_role("button", name="Accept all (2)")
     await btn.click()
-    await trips_page.get_by_text("Added 1 person.").wait_for()
+    await trips_page.get_by_text("Created 1 person.").wait_for()
     assert [a["name"] for a in posts[0]["accept"]] == ["Sam", "Ali"], (
         "Whiskers (asks) and Rose (low confidence) are left"
     )
@@ -104,7 +104,7 @@ async def test_edit_members_changes_name_and_trackers_before_accepting(trips_pag
     await card.get_by_label("Sam Bike").uncheck()
     await card.get_by_label("Name").fill("Zed")
     await card.get_by_role("button", name="Save and accept").click()
-    await trips_page.get_by_text("Added 1 person.").wait_for()
+    await trips_page.get_by_text("Created 1 person.").wait_for()
     sent = posts[0]["accept"][0]
     assert sent["name"] == "Zed" and [m["device_id"] for m in sent["members"]] == ["z1", "z3", "z4"]
 
@@ -117,7 +117,7 @@ async def test_whose_is_this_adds_to_a_new_person(trips_page, trips_server):
     await row.locator("select").select_option("new")
     await row.get_by_placeholder("New person's name").fill("Ali")
     await row.get_by_role("button", name="Add").click()
-    await trips_page.get_by_text("Added 1 person.").wait_for()
+    await trips_page.get_by_text("Created 1 person.").wait_for()
     assert posts[0]["accept"][0] == {
         "action": "create",
         "name": "Ali",
@@ -193,7 +193,7 @@ async def test_real_server_round_trip_creates_the_person(trips_page, trips_serve
     card = p.locator(".ps-card", has_text="Sam")
     await card.wait_for()
     await card.get_by_role("button", name="It's a person").click()
-    await p.get_by_text("Added 1 person.").wait_for()
+    await p.get_by_text("Created 1 person.").wait_for()
     link = p.locator(".fp-group-card a.person-link", has_text="Sam")
     await link.wait_for()
     assert (await link.get_attribute("href")).startswith("#/person/")

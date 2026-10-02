@@ -888,7 +888,7 @@
       "whatsapp": "WhatsApp",
       "native": "Notifications",
       "connect": "Connect",
-      "configure_later": "Configure from the Alerts tab after finishing setup.",
+      "configure_later": "A webhook sends each alert to a web address you choose. You set it up in the Alerts tab, which opens when you finish.",
       "enable": "Enable notifications",
       "permission_granted": "Notifications are on.",
       "permission_denied": "Notifications are off. You can turn them on in your system settings.",
@@ -1371,8 +1371,8 @@
         "other": "{n} more need your answer first."
       },
       "accepted": {
-        "one": "Added 1 person.",
-        "other": "Added {n} people."
+        "one": "Created 1 person.",
+        "other": "Created {n} people."
       },
       "dismissed": "Got it. Find+ will not suggest that again.",
       "failed": "Could not save: {message}",
@@ -1396,6 +1396,11 @@
         "other": "Find+ found {n} people in your trackers."
       },
       "review": "Review"
+    },
+    "replay": {
+      "running": "Updating past days...",
+      "progress": "Updating past days... {done} of {total}",
+      "done": "Past days are up to date."
     }
   },
   "person": {
@@ -1562,6 +1567,10 @@
         "other": "Added alerts to {n} places. You will hear when {name} arrives or leaves."
       },
       "failed": "Could not turn on alerts: {message}"
+    },
+    "head": {
+      "onDate": "On {date}",
+      "onDateLast": "On {date}: {last}"
     }
   },
   "honesty": {

@@ -17,7 +17,7 @@
  */
 "use strict";
 
-import { $, state, colorFor } from "./state.js";
+import { $, state, colorFor, todayLocal } from "./state.js";
 import { t } from "./i18n.js";
 import { uniqueLabel } from "./device_label.js";
 import { loadTrips } from "./trips_data.js";
@@ -165,6 +165,14 @@ function showWrong() {
   if (wrong.length) frameBounds(L.latLngBounds(wrong.map((p) => [p.lat !== undefined ? p.lat : p.latitude, p.lon !== undefined ? p.lon : p.longitude])));
 }
 
+/** {date, last} for a day before today (the header then says "On <date>"), else null. */
+function pastOf() {
+  if (!page.date || page.date >= todayLocal()) return null;
+  const lines = (page.day && page.day.lines) || [];
+  const last = lines.length ? lines[lines.length - 1].text : "";
+  return { date: page.date, last };
+}
+
 function failedNames() {
   return [...page.failed].map(nameOf);
 }
@@ -210,7 +218,7 @@ export async function loadPerson(id, date) {
   const gen = state.lockGeneration;
   const alive = () => mine === page.seq && gen === state.lockGeneration && !state.locked;
   if (page.id !== id) Object.assign(page, fresh(), { seq: mine });
-  Object.assign(page, { id, date, payloads: new Map(), failed: new Set(), notes: [], selectedId: null });
+  Object.assign(page, { id, date, day: null, payloads: new Map(), failed: new Set(), notes: [], selectedId: null });
   syncDateBar(id, date);
   setStatus("", "");
   setBody(loadingNode(page.person && page.person.name));
@@ -219,14 +227,14 @@ export async function loadPerson(id, date) {
   if (!alive()) return;
   if (person.e) return fail(person.e, retry);
   page.person = person.v;
-  renderHead(page.person, null);
+  renderHead(page.person, null, pastOf());
   renderActions(page.person, date, setStatus);
   const [now, day, tl, lb] = await Promise.all([fetchNow(id), fetchDay(id, date), fetchTimeline(id, date), fetchLeftBehind(id)].map(quiet));
   if (!alive()) return;
   if (tl.e) return fail(tl.e, retry);
   Object.assign(page, { now: now.v || null, day: day.v ? normalizeDay(day.v) : null, tracks: tl.v, episodes: lb.v || [] });
   if (now.e) page.notes.push(t("person.state.noNow"));
-  renderHead(page.person, page.now);
+  renderHead(page.person, page.now, pastOf());
   page.focusId = ordered(page.person, page.now)[0]?.device_id || null;
   await Promise.all(page.person.trackers.map((tr) => loadOne(tr.device_id)));
   if (!alive()) return;
@@ -253,6 +261,7 @@ export function purge() {
   purgePeopleCache();
   purgeSuggestions();
   purgeLeftBehind();
+  import("./people_replay.js").then((m) => m.purgeReplay()).catch(() => {});
   import("./person_editor.js").then((m) => m.purgePersonEditor()).catch(() => {});
   import("./settings_people.js").then((m) => m.purgePeopleSettings()).catch(() => {});
   clearHead();

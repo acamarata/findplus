@@ -116,7 +116,11 @@ pub fn respond(path: &str, body: &str, base: &str, case: &str) -> String {
         "/" => redirect("/myaccount"),
         "/myaccount" => page(
             "Account",
-            &format!("<a aria-label=\"Google Account: Test ({FAKE_ACCOUNT})\" href=#>me</a>"),
+            &format!(
+                "<a aria-label=\"Recovery: r@example.org\" href=#>r</a>\
+                 <a aria-label=\"Google Account: Test ({FAKE_ACCOUNT})\" \
+                 href=\"/SignOutOptions?hl=en\">me</a>"
+            ),
             "",
             "",
         ),

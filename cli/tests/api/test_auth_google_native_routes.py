@@ -194,11 +194,46 @@ def test_unlock_refuses_a_different_account(auth_client, monkeypatch) -> None:
     assert calls["keys"] == []
 
 
+def test_unlock_only_without_an_account_hint_saves_nothing(auth_client, monkeypatch) -> None:
+    """Probe P3 (r12 #1): no hint means Find+ cannot know whose keys these are."""
+    calls = fake_google(monkeypatch)
+    state = _begin(auth_client, "unlock")["state"]
+    for hint in (None, "", "   "):
+        res = auth_client.post(
+            f"{BASE}/unlock",
+            json={"state": state, "vault_keys": "{}", "account_hint": hint},
+            headers=SHELL_HEADERS,
+        )
+        assert res.status_code == 409 and res.json()["code"] == "account_unknown"
+    assert calls["keys"] == []
+    assert "could not tell which Google account" in res.json()["detail"]
+    progress = auth_client.get(f"{BASE}/progress").json()
+    assert progress["phase"] == "error" and progress["reason"] == "account_unknown"
+    # The shell's own "failed" report afterwards keeps the daemon's words.
+    body = {"state": state, "event": "failed", "reason": "other"}
+    auth_client.post(f"{BASE}/event", json=body, headers=SHELL_HEADERS)
+    after = auth_client.get(f"{BASE}/progress").json()
+    assert after["phase"] == "error" and "could not tell which" in after["message"]
+
+
+def test_unlock_only_with_the_right_hint_stores_the_keys(auth_client, monkeypatch) -> None:
+    calls = fake_google(monkeypatch)
+    state = _begin(auth_client, "unlock")["state"]
+    res = auth_client.post(
+        f"{BASE}/unlock",
+        json={"state": state, "vault_keys": "{}", "account_hint": " Kid@Example.com "},
+        headers=SHELL_HEADERS,
+    )
+    assert res.status_code == 200 and calls["keys"] == ["{}"]
+
+
 def test_unlock_with_unusable_keys_says_so(auth_client, monkeypatch) -> None:
     fake_google(monkeypatch, keys_error=True)
     state = _begin(auth_client, "unlock")["state"]
     res = auth_client.post(
-        f"{BASE}/unlock", json={"state": state, "vault_keys": "junk"}, headers=SHELL_HEADERS
+        f"{BASE}/unlock",
+        json={"state": state, "vault_keys": "junk", "account_hint": "kid@example.com"},
+        headers=SHELL_HEADERS,
     )
     assert res.status_code == 400 and res.json()["code"] == "keys_rejected"
     assert "junk" not in res.text

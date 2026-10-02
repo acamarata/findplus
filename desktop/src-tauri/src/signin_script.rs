@@ -30,6 +30,7 @@ const TEMPLATE: &str = r#"(function () {
   if (window.top !== window) { return; }
   var UNLOCK = __UNLOCK__, ACCOUNT = __ACCOUNT__, ACCOUNT_PATH = __ACCOUNT_PATH__;
   var BRIDGE = 'https://findplus-bridge.invalid/';
+  var AVATAR = 'a[href*="/SignOutOptions"][aria-label*="@"]';
   function enc(s) {
     var b = new TextEncoder().encode(s), bin = '';
     for (var i = 0; i < b.length; i++) { bin += String.fromCharCode(b[i]); }
@@ -60,8 +61,8 @@ const TEMPLATE: &str = r#"(function () {
   if (location.origin === ACCOUNT && location.pathname.indexOf(ACCOUNT_PATH) === 0) {
     var tries = 0;
     var look = setInterval(function () {
-      var a = document.querySelector('a[aria-label*="@"], [data-email]');
-      var text = a ? (a.getAttribute('data-email') || a.getAttribute('aria-label') || '') : '';
+      var a = document.querySelector(AVATAR);
+      var text = a ? (a.getAttribute('aria-label') || '') : '';
       var m = text.match(/[^\s()<>]+@[^\s()<>]+\.[A-Za-z]{2,}/);
       if (m) { clearInterval(look); send('account', m[0]); }
       else if (++tries > 20) { clearInterval(look); send('noaccount'); }
@@ -103,6 +104,15 @@ mod tests {
         }
         assert!(s.contains("window.mm = {"));
         assert!(s.contains("https://findplus-bridge.invalid/"));
+    }
+
+    #[test]
+    fn the_account_is_read_from_the_avatar_button_only() {
+        // r12 #1: any `a[aria-label*="@"]` could be a recovery address.
+        let s = init_script(&GOOGLE_ORIGINS);
+        assert!(s.contains(r#"a[href*="/SignOutOptions"][aria-label*="@"]"#));
+        assert!(!s.contains("'a[aria-label*=\"@\"]"));
+        assert!(!s.contains("data-email"));
     }
 
     #[test]

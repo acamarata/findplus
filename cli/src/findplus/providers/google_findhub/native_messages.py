@@ -35,6 +35,10 @@ MSG_UNLOCK_UNAVAILABLE = "Find+ could not prepare the unlock page. Try again in 
 MSG_ACCOUNT_MISMATCH = (
     "The unlock page is signed in to a different Google account than Find+. Unlock with {account}."
 )
+MSG_ACCOUNT_UNKNOWN = (
+    "Find+ could not tell which Google account the window is signed in to, so it saved "
+    "nothing. Try again."
+)
 MSG_LOAD_FAILED = "The sign-in page did not load. Check your internet connection and try again."
 MSG_WINDOW_FAILED = (
     "Find+ could not finish the sign-in in its window. Try again, or use your Chrome."
@@ -48,6 +52,7 @@ FAILED_REASONS: dict[str, str] = {
     "timeout": MSG_TIMED_OUT,
     "cookie_read_failed": MSG_WINDOW_FAILED,
     "bridge_bad": MSG_WINDOW_FAILED,
+    "account_unknown": MSG_ACCOUNT_UNKNOWN,
     "other": MSG_WINDOW_FAILED,
 }
 

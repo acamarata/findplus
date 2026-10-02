@@ -46,6 +46,9 @@ ACCOUNT_HOME_URL = "https://accounts.google.com/"
 SIGNED_IN_HOST = "myaccount.google.com"
 MODES = {"signin": hs.KIND_NATIVE_SIGNIN, "unlock": hs.KIND_NATIVE_UNLOCK}
 EVENTS = frozenset({"opened", "waiting", "blocked", "closed", "failed"})
+#: Unlock states that this same window just signed in with: the account is known.
+#: Any other unlock state (unlock-only mode) needs the window's account hint.
+_after_signin: set[str] = set()
 
 #: What the shell needs to build the window (spec §2, §7, §9.1).
 WINDOW = {
@@ -96,6 +99,7 @@ def begin(mode: object) -> dict[str, Any]:
         raise NativeFlowError(409, "not_signed_in", m.MSG_NOT_SIGNED_IN)
     url = _unlock_url_or_none(str(mode))
     hs.drop_states_of(hs.NATIVE_KINDS)
+    _after_signin.clear()
     state = hs.create_state(MODES[str(mode)])
     progress.set_phase("connecting", m.MSG_CONNECTING, mode=mode, account=None, unlocked=False)
     return {
@@ -149,6 +153,7 @@ def submit_token(state: object, oauth_token: object) -> dict[str, Any]:
     needs_unlock = needs_shared_key()
     if needs_unlock:
         hs.rekind_state(claimed, hs.KIND_NATIVE_UNLOCK)
+        _after_signin.add(claimed)
         progress.set_phase("needs_unlock", m.MSG_NEEDS_UNLOCK, account=account)
     else:
         hs.end_exchange(claimed, ok=True)
@@ -165,6 +170,9 @@ def submit_unlock(state: object, vault_keys: object, account_hint: object = None
     if not expected:
         raise _fail(claimed, 409, "not_signed_in", m.MSG_NOT_SIGNED_IN)
     hint = account_hint.strip().lower() if isinstance(account_hint, str) else ""
+    if not hint and claimed not in _after_signin:
+        # Unlock-only: the keys must never be tagged with a guessed account.
+        raise _fail(claimed, 409, "account_unknown", m.MSG_ACCOUNT_UNKNOWN)
     if hint and hint != expected.lower():
         message = m.MSG_ACCOUNT_MISMATCH.format(account=expected)
         raise _fail(claimed, 409, "account_mismatch", message)
@@ -176,6 +184,7 @@ def submit_unlock(state: object, vault_keys: object, account_hint: object = None
     except Exception:
         raise _fail(claimed, 500, "unlock_failed", m.MSG_HANDOFF_FAILED) from None
     hs.end_exchange(claimed, ok=True)
+    _after_signin.discard(claimed)
     progress.forget_block()
     unlocked = has_shared_key()
     progress.set_phase(
@@ -238,7 +247,9 @@ def record_event(state: object, event: object, reason: object = None) -> dict[st
     else:  # failed
         hs.drop_state(live)
         word = _word(reason, m.FAILED_REASONS)
-        progress.set_phase("error", m.FAILED_REASONS[word], reason=word)
+        if word != "other" or progress.current_phase() != "error":
+            # A refusal the daemon already explained (wrong account, ...) keeps its words.
+            progress.set_phase("error", m.FAILED_REASONS[word], reason=word)
     return _brief()
 
 

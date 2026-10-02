@@ -20,7 +20,9 @@ use tauri::{AppHandle, WebviewWindow};
 
 use crate::signin_http::{Begin, Daemon};
 use crate::signin_logic::{self as logic, Bridge, Hosts};
-use crate::signin_machine::{result_payload, step, Effect, Input, Mode, Outcome, Phase};
+use crate::signin_machine::{
+    result_payload, step, Effect, Input, Mode, Outcome, Phase, ACCOUNT_UNKNOWN, MSG_ACCOUNT_UNKNOWN,
+};
 use crate::signin_window::{self as window, Msg};
 
 const TICK: Duration = Duration::from_millis(500);
@@ -117,7 +119,7 @@ impl Session {
                 self.account_hint = Some(a);
                 self.feed(Input::AccountKnown);
             }
-            Msg::Bridge(Bridge::NoAccount) => self.feed(Input::AccountKnown),
+            Msg::Bridge(Bridge::NoAccount) => self.account_unknown(),
             Msg::Bridge(Bridge::Bad) => log::info!("signin: ignored a malformed bridge message"),
             Msg::Loaded(url) => self.on_loaded(&url),
             Msg::Outside => {
@@ -170,7 +172,7 @@ impl Session {
             && self.mode == Mode::Unlock
             && self.home_seen.is_some_and(|t| t.elapsed() > ACCOUNT_WAIT)
         {
-            return self.feed(Input::AccountKnown);
+            return self.account_unknown();
         }
         if waiting && self.mode == Mode::Signin {
             let fresh = self
@@ -181,6 +183,15 @@ impl Session {
                 self.feed(Input::CookieFound);
             }
         }
+    }
+
+    /// Unlock-only mode without an address: stop, say why, offer a retry.
+    fn account_unknown(&mut self) {
+        if self.mode == Mode::Unlock && self.phase == Phase::Waiting {
+            self.reason = Some(ACCOUNT_UNKNOWN.into());
+            self.message = Some(MSG_ACCOUNT_UNKNOWN.into());
+        }
+        self.feed(Input::AccountUnknown);
     }
 
     /// The live sign-in cookie, if the window's store holds one.

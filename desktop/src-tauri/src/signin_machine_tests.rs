@@ -171,6 +171,14 @@ fn wire_strings_are_the_contract() {
     assert_eq!(O::Timeout.daemon_event(None), ("failed", Some("timeout")));
     assert_eq!(O::Cancelled.daemon_event(Some("x")), ("closed", None));
     assert_eq!(O::Error.daemon_event(None), ("failed", Some("other")));
+    assert_eq!(
+        O::Error.daemon_event(Some("outside_google")),
+        ("failed", Some("other"))
+    );
+    assert_eq!(
+        O::Error.daemon_event(Some("account_unknown")),
+        ("failed", Some("account_unknown"))
+    );
     assert_eq!(P::Unlocking.wire(), "unlock");
     assert_eq!(Mode::parse(None), Some(Mode::Signin));
     assert_eq!(Mode::parse(Some("unlock")), Some(Mode::Unlock));
@@ -227,4 +235,16 @@ fn token_refusals_follow_the_contract() {
     );
     assert_eq!(p, P::Finishing);
     assert_eq!(e, vec![E::PostToken, E::None, E::PostToken]);
+}
+
+#[test]
+fn unlock_only_without_an_account_never_opens_the_unlock_page() {
+    // r12 #1: no address from the account page (or none in time) ends the
+    // window with an error before the unlock page; keys are never asked for.
+    let (p, e) = run(Mode::Unlock, &[I::AccountUnknown, I::VaultKeys]);
+    assert_eq!(p, P::Done);
+    assert_eq!(e[0], E::Finish(O::Error));
+    assert!(!e.contains(&E::NavigateUnlock) && !e.contains(&E::PostUnlock));
+    // In sign-in mode the account comes from the token answer: ignored there.
+    assert_eq!(run(Mode::Signin, &[I::AccountUnknown]).1[0], E::None);
 }

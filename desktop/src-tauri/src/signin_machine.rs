@@ -38,6 +38,11 @@ impl Mode {
     }
 }
 
+/// The failed reason for an unlock-only window that could not read the account.
+pub const ACCOUNT_UNKNOWN: &str = "account_unknown";
+/// The card's words for it (the daemon's native_messages.MSG_ACCOUNT_UNKNOWN).
+pub const MSG_ACCOUNT_UNKNOWN: &str = "Find+ could not tell which Google account the window is signed in to, so it saved nothing. Try again.";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Phase {
     /// Google's page is showing; the person is signing in.
@@ -86,12 +91,17 @@ impl Outcome {
 
     /// The daemon `event` route's word and reason for this ending (spec
     /// §2.2; reasons are native_messages.BLOCKED_REASONS / FAILED_REASONS).
-    pub fn daemon_event(self, blocked_reason: Option<&str>) -> (&'static str, Option<&str>) {
+    /// An error carries its reason only when it is one the shell itself
+    /// found (`account_unknown`); every other error is "other".
+    pub fn daemon_event(self, reason: Option<&str>) -> (&'static str, Option<&str>) {
         match self {
             Outcome::Success { .. } | Outcome::Cancelled => ("closed", None),
             Outcome::Timeout => ("failed", Some("timeout")),
-            Outcome::BlockedEmbedded => ("blocked", Some(blocked_reason.unwrap_or("other"))),
-            Outcome::Error => ("failed", Some("other")),
+            Outcome::BlockedEmbedded => ("blocked", Some(reason.unwrap_or("other"))),
+            Outcome::Error => (
+                "failed",
+                Some(reason.filter(|r| *r == ACCOUNT_UNKNOWN).unwrap_or("other")),
+            ),
         }
     }
 }
@@ -111,9 +121,13 @@ pub enum Input {
     PageLoaded {
         blocked: bool,
     },
-    /// Unlock-only mode: the account page reported (or timed out reporting)
-    /// which Google account is signed in.
+    /// Unlock-only mode: the account page reported which Google account is
+    /// signed in.
     AccountKnown,
+    /// Unlock-only mode: the account page showed no address (or took too
+    /// long). Find+ cannot tell whose keys the unlock page would give, so it
+    /// stops before the unlock page (r12 #1).
+    AccountUnknown,
     /// The page is a rejection page, or the sign-in left Google.
     Blocked,
     VaultKeys,
@@ -178,6 +192,7 @@ pub fn step(phase: Phase, mode: Mode, input: &Input) -> (Phase, Effect) {
         (P::Waiting, I::AccountKnown) if mode == Mode::Unlock => {
             (P::Unlocking, Effect::NavigateUnlock)
         }
+        (P::Waiting, I::AccountUnknown) if mode == Mode::Unlock => done(Outcome::Error),
         (
             P::Finishing,
             I::TokenAccepted {

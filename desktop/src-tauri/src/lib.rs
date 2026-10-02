@@ -121,6 +121,8 @@ mod probe_fake;
 mod probe_login;
 #[cfg(any(feature = "login-probe", test))]
 mod probe_logic;
+#[cfg(test)]
+mod signin_acl_tests;
 mod signin_close;
 mod signin_events;
 #[cfg(debug_assertions)]

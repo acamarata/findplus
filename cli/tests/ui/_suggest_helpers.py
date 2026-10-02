@@ -1,4 +1,4 @@
-"""A realistic /api/people/suggestions body (the owner's names) and a route that serves and records."""
+"""A realistic /api/people/suggestions body (the owner's names) and a recording route."""
 
 from __future__ import annotations
 
@@ -76,7 +76,7 @@ def payload() -> dict:
 
 
 async def serve(page, body: dict | None = None, accept_reply: dict | None = None):
-    """Answer GET suggestions (and /api/people) and record every accept call; returns (gets, posts)."""
+    """Serve GET suggestions and record every accept call; returns (gets, posts)."""
     gets: list[int] = []
     posts: list[dict] = []
 

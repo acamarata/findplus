@@ -18,7 +18,7 @@ async def _open_groups(page, server):
 
 
 async def test_cards_preview_each_guess_and_apply_nothing(trips_page, trips_server):
-    gets, posts = await serve(trips_page)
+    _, posts = await serve(trips_page)
     await _open_groups(trips_page, trips_server)
     p = trips_page
     titles = await p.locator(".ps-title").all_inner_texts()

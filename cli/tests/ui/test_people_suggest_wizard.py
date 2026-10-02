@@ -33,7 +33,7 @@ async def _unfinished(page, base_url):
 
 
 async def test_groups_step_offers_the_people_panel_and_accepts(page, base_url):
-    gets, posts = await serve(page)
+    _, posts = await serve(page)
     await page.goto(base_url + "/#/setup")
     await page.wait_for_selector("#fp-setup-people-suggest .ps-card", timeout=15000)
     assert "can group a person's trackers" in await page.inner_text("#fp-setup-people-suggest")

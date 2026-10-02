@@ -26,17 +26,18 @@ import { createColorPicker } from "./components/color-picker.js";
 import { createPlaceLocator } from "./components/place_locator.js";
 import { startMapPick } from "./components/place_map_pick.js";
 import { duplicateNameMessage, placeValidationMessage } from "./dialog_errors.js";
-import { buildDialog, updateRadiusWarning, wireRadius } from "./places_dialog_dom.js";
+import { buildDialog, radiusOf, setRadius, updateRadiusWarning, wireRadius } from "./places_dialog_dom.js";
 import { showWhere, clearWhere, showUsage } from "./places_dialog_where.js";
 import { submitPlace } from "./places_dialog_save.js";
-import { guessKind, syncKindHint } from "./places_kind.js";
+import { guessKind, guessedFrom, syncKindHint } from "./places_kind.js";
 import { fillNotify } from "./places_notify.js";
 
 // N26: a same-default-blue place after another already existed made a new
 // one hard to tell apart on the map circles' colour alone; showAddDialog()
 // picks the next entry for a place that does not exist yet instead.
 const PLACE_PALETTE = ["#3b82f6", "#e7663f", "#37c67a", "#c77ae6", "#e7b53f", "#3fc9d6", "#e64f7a", "#8fb43f"];
-const DEFAULT_RADIUS = "200";
+// UAT 11: a new place starts at the recommended 100 m, not 200 m.
+const DEFAULT_RADIUS = "100";
 const PREVIEW_COLOR = "#94a3b8";
 // UAT7 N01: the one place a new place's confirmation defaults are written,
 // so the dialog can never drift from create_place's own defaults again
@@ -84,7 +85,7 @@ function ensureDialog() {
   f.name.addEventListener("input", () => {
     if (dlg.dataset.mode !== "add" || f.kind.select.dataset.touched) return;
     f.kind.select.value = guessKind(f.name.value);
-    syncKindHint(f.kind);
+    syncKindHint(f.kind, guessedFrom(f.name.value));
   });
   dlg.addEventListener("close", removePreviewCircle);
 
@@ -100,12 +101,11 @@ function applyPickedLocation({ latitude, longitude, radiusMeters }) {
   fields.lon.value = String(longitude);
   showWhere(fields.where, "picked", latitude, longitude);
   if (radiusMeters) {
-    fields.radius.value = String(radiusMeters);
-    fields.radiusNumber.value = fields.radius.value;
+    setRadius(fields, radiusMeters);
     updateRadiusWarning(fields);
   }
   map.setView([latitude, longitude], Math.max(map.getZoom(), 15));
-  drawPreview({ lat: latitude, lng: longitude }, Number(fields.radius.value));
+  drawPreview({ lat: latitude, lng: longitude }, radiusOf(fields));
 }
 
 /**
@@ -128,7 +128,7 @@ function beginMapPick() {
   map.getContainer().scrollIntoView({ block: "nearest" });
   activePick = startMapPick(map, {
     latlng: initial,
-    radiusMeters: Number(fields.radius.value),
+    radiusMeters: radiusOf(fields),
     color: fields.color.value || PLACE_PALETTE[0],
     onConfirm: (picked) => {
       activePick = null;
@@ -146,7 +146,7 @@ function beginMapPick() {
     },
     onCancel: () => {
       activePick = null;
-      if (hasPoint) drawPreview(initial, Number(fields.radius.value));
+      if (hasPoint) drawPreview(initial, radiusOf(fields));
       dlg.showModal();
     },
   });
@@ -161,7 +161,7 @@ function drawPreview(latlng, radiusMeters) {
 
 function updatePreviewCircle() {
   if (!previewCircle) return;
-  drawPreview(previewCircle.getLatLng(), Number(fields.radius.value));
+  drawPreview(previewCircle.getLatLng(), radiusOf(fields));
 }
 
 function removePreviewCircle() {
@@ -176,7 +176,7 @@ function fillKindAndNotify(mode, place) {
   const kind = fields.kind;
   kind.select.value = place ? place.kind || "other" : "other";
   delete kind.select.dataset.touched;
-  syncKindHint(kind);
+  syncKindHint(kind, Boolean(place && place.kind_guessed));
   fields.notify.wrap.hidden = mode === "edit";
   if (mode === "add") fillNotify(fields.notify);
 }
@@ -192,8 +192,7 @@ function fillDialog(mode, id, place, latlng, existingCount, ruleCount = 0) {
   fields.lat.value = String(latlng.lat);
   fields.lon.value = String(latlng.lng);
   const radius = place ? place.radius_meters : Number(DEFAULT_RADIUS);
-  fields.radius.value = String(radius);
-  fields.radiusNumber.value = String(radius);
+  setRadius(fields, radius);
   updateRadiusWarning(fields);
   const color = place ? place.color : PLACE_PALETTE[(existingCount || 0) % PLACE_PALETTE.length];
   fields.color.value = color;
@@ -264,8 +263,7 @@ function clearDialogFields() {
   fields.name.value = "";
   fields.lat.value = "";
   fields.lon.value = "";
-  fields.radius.value = DEFAULT_RADIUS;
-  fields.radiusNumber.value = DEFAULT_RADIUS;
+  setRadius(fields, DEFAULT_RADIUS);
   fields.color.value = PLACE_PALETTE[0];
   fields.enter.value = DEFAULT_ENTER_CONFIRMATIONS;
   fields.exit.value = DEFAULT_EXIT_CONFIRMATIONS;

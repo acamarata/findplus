@@ -4,8 +4,8 @@
  * Purpose    : A new place should tell the owner when anyone arrives or leaves,
  *              with no second dialog. The box is ticked by default; the channel
  *              is picked for them when exactly one is connected, offered as a
- *              select when several are, and the box is switched off with a reason
- *              when none is.
+ *              select when several are, and with none the box stays ticked and the
+ *              line says the alert is saved but off until a channel is connected.
  * Inputs     : GET /api/alerts/channels (through alerts_rule_channels.js).
  * Outputs    : buildNotifyField(), fillNotify(), readNotify(); the values end up
  *              in POST /api/places as `notify` and `notify_channels`.
@@ -74,8 +74,7 @@ export function applyChannels(field, connected) {
   if (connected === null) field.line.textContent = t("places.notify.unknown");
   else if (!ids.length && native) field.line.textContent = t("places.notify.native");
   else if (!ids.length) {
-    field.box.checked = false;
-    field.box.disabled = true;
+    // Stays ticked: the rule is saved now (switched off, with its reason) so the place is never silent by accident.
     field.line.textContent = t(inWizard() ? "places.notify.noneWizard" : "places.notify.none");
   } else if (ids.length === 1) field.line.textContent = t("places.notify.sentTo", { channel: t(`alerts.channels.${ids[0]}`) });
   else {

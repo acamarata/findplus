@@ -1,0 +1,18 @@
+/* The place dialog: compact, two columns when wide, Save always in view (UAT 11, 21). */
+#fp-place-dialog { width: calc(100vw - 24px); max-height: calc(100dvh - 24px); }
+#fp-place-dialog[open] { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+#fp-place-dialog form { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; margin: 0; }
+#fp-place-dialog h2 { margin: 0; padding: 16px 20px 6px; }
+#fp-place-dialog .fp-place-cols { overflow-y: auto; padding: 0 20px 6px; min-height: 0; flex: 1 1 auto; }
+#fp-place-dialog .fp-dialog-field { margin: 7px 0; }
+#fp-place-dialog .fp-dialog-error { margin: 0; padding: 0 20px; }
+#fp-place-dialog .fp-dialog-error:empty { display: none; }
+#fp-place-dialog footer { margin: 0; padding: 10px 20px; border-top: 1px solid var(--line); background: var(--panel); }
+#fp-place-dialog input[type="range"] { flex: 1; min-width: 80px; }
+#fp-place-dialog #fp-place-radius-number { flex: 0 0 76px; }
+@media (min-width: 760px) {
+  #fp-place-dialog { max-width: 780px; }
+  #fp-place-dialog .fp-place-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; align-items: start; }
+}
+/* While a spot is being picked, saved circles must not catch the click. */
+.fp-picking .leaflet-pane > svg path.leaflet-interactive { pointer-events: none !important; }

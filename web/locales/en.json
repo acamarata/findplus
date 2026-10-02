@@ -439,14 +439,15 @@
       "sentTo": "Sent to {channel}.",
       "pick": "Send to",
       "all": "Every connected channel",
-      "none": "Connect Telegram, WhatsApp or a webhook in the Alerts tab to get these. You can add the alert later with Notify me.",
+      "none": "Nothing is connected yet. The alert is saved but stays off until you connect Telegram, WhatsApp or a webhook in the Alerts tab.",
       "native": "Shown as a notification on this computer.",
       "unknown": "Find+ picks the channel for you.",
       "on": "Alerts are on for {place}: {channels}.",
       "onPlain": "Alerts are on for {place}.",
       "customise": "Customise",
       "customiseIntro": "Anyone arriving at or leaving {place} already sends a message. Change where it goes or when.",
-      "noneWizard": "Nothing is connected yet. Connect Telegram on the Notifications step, then press Notify me on the Places tab to add these alerts."
+      "noneWizard": "Nothing is connected yet. The alert is saved but stays off until you connect Telegram on the Notifications step.",
+      "savedOff": "Saved an alert for {place}, switched off until a channel is connected."
     },
     "backfill": {
       "text": {

@@ -122,6 +122,12 @@ Versioning: [Semantic Versioning](https://semver.org/).
   The app lock does not stop alerts or summaries going out. See the Privacy page.
 
 ### Fixed
+- Place dialog: a new place starts at 100 m (was 200 m), the radius slider covers 50 to 500 m with a
+  number box for larger places (the box is what is saved), the "guessed from the name" note waits
+  for a name, "Tell me when anyone arrives or leaves" stays ticked with nothing connected (the rule
+  is saved switched off, and the line says so), and the dialog fits 720 px tall with Save always in
+  view. A click inside an existing place no longer blocks picking a spot on the map. In setup,
+  sixteen trackers at one address show one numbered pin instead of a stack.
 - `findplus db restore` now works over a damaged database (the case it exists for): the damaged
   file is kept whole as `.replaced-<time>` with its `-wal` and `-shm`, and a failed backup prints
   plain words instead of a traceback. Restore also refuses a file with a missing table, keeps every

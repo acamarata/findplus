@@ -53,5 +53,7 @@ async def test_the_alert_box_points_to_the_notifications_step_when_nothing_is_co
             "() => document.getElementById('fp-place-notify-line')?.textContent.length > 0"
         )
         text = await line.inner_text()
-        assert "Connect Telegram on the Notifications step" in text
-        assert await page.locator("#fp-place-notify").is_disabled()
+        assert "connect Telegram on the Notifications step" in text
+        # UAT 11: the box stays ticked so a first-run Home still gets its (switched off) rule.
+        box = page.locator("#fp-place-notify")
+        assert await box.is_checked() and not await box.is_disabled()

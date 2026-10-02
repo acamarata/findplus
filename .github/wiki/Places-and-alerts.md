@@ -11,6 +11,14 @@ The Places tab's side panel lists every saved place -- its color, its radius, an
 tracked devices are inside it right now -- with Edit and Delete on each row and a click
 anywhere else on the row to centre the map on that place.
 
+### The Add place dialog
+
+A new place starts at 100 m, the recommended minimum. The slider covers 50 to 500 m; the number box
+next to it takes anything up to 5000 m and is the value that is saved. The "Find+ guessed this from
+the name" note appears only after you type a name it recognises. The dialog is two columns on a
+wide screen and one on a phone, and Save stays in view at any height. While you pick a spot on the
+map, a click inside an existing place still places the pin.
+
 ### Kind, and the arrive-and-leave box
 
 A place has a kind: Home, School, Work, Family, Shop or Other. Find+ guesses it from the name
@@ -18,8 +26,8 @@ A place has a kind: Home, School, Work, Family, Shop or Other. Find+ guesses it 
 alerts stay off and the day summary starts with "Overnight at Home".
 
 New places have a **Tell me when anyone arrives or leaves** box, on by default. With one channel
-connected it is chosen for you; with several you pick one or all; with none the box is off and says
-why. Saving makes the rule and shows one line (with **Customise**), with no second dialog. Places
+connected it is chosen for you; with several you pick one or all; with none the box stays on and says
+the alert is saved but off until you connect a channel. Saving makes the rule and shows one line (with **Customise**), with no second dialog. Places
 saved before this show a "N places have no arrival alerts" banner; **Notify me** previews the rules
 it would add before it writes anything.
 

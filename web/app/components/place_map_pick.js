@@ -160,6 +160,9 @@ function wireMovement(map, marker, moveTo) {
     moveTo(e.latlng);
   }
   map.on("click", onMapClick);
+  // Saved places' circles open a popup on click and swallow it; while picking, a click
+  // inside one must still place the pin (places-dialog.css turns their hit area off).
+  map.getContainer().classList.add("fp-picking");
   marker.on("drag", () => moveTo(marker.getLatLng()));
   return onMapClick;
 }
@@ -200,7 +203,7 @@ export function startMapPick(map, { latlng, radiusMeters, color, onConfirm, onCa
    * callback -- the one path purgeDialog() uses on lock (real coordinates
    * must not linger in a dangling marker behind the lock screen either). */
   function abort() {
-    map.off("click", onMapClick);
+    map.off("click", onMapClick).getContainer().classList.remove("fp-picking");
     map.removeLayer(marker);
     map.removeLayer(circle);
     radiusHandle.remove();

@@ -80,9 +80,11 @@ function announceDefaultRule(place) {
   if (!rule) return;
   refreshRules();
   const channels = rule.channels.map((c) => t(`alerts.channels.${c}`)).join(", ");
-  const text = rule.hint
-    ? `${t("places.notify.onPlain", { place: place.name })} ${rule.hint}`
-    : t("places.notify.on", { place: place.name, channels });
+  const text = rule.enabled === false
+    ? `${t("places.notify.savedOff", { place: place.name })} ${rule.hint || ""}`.trim()
+    : rule.hint
+      ? `${t("places.notify.onPlain", { place: place.name })} ${rule.hint}`
+      : t("places.notify.on", { place: place.name, channels });
   showAlert(text, "info", { action: { label: t("places.notify.customise"), run: () => customiseRule(place, rule.id) } });
 }
 

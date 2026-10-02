@@ -1528,6 +1528,27 @@
       "backupFailed": "Could not back up: {message}",
       "backupLoadFailed": "Could not read the backup status: {message}",
       "backupNote": "A backup holds your history, places and groups, never your sign-ins or tokens."
+    },
+    "edit": {
+      "title": "Edit {name}",
+      "kind": "This is a",
+      "role": "Role",
+      "members": "Trackers",
+      "membersHint": "Tick the trackers that travel with this one. Say what each one is, and how much to trust it.",
+      "belongsTo": "With {name}",
+      "noDevices": "No tracked devices yet.",
+      "needOne": "Pick at least one tracker."
+    },
+    "notify": {
+      "title": "Tell me when {name} arrives or leaves?",
+      "lead": "Find+ will add an arrival and departure alert to each place that has none. It covers {name} and everyone else.",
+      "already": "Alerts are already on. You will hear when {name} arrives or leaves a place.",
+      "noPlaces": "Add a place first, such as Home or School. Then Find+ can tell you when {name} gets there.",
+      "done": {
+        "one": "Added alerts to 1 place. You will hear when {name} arrives or leaves.",
+        "other": "Added alerts to {n} places. You will hear when {name} arrives or leaves."
+      },
+      "failed": "Could not turn on alerts: {message}"
     }
   },
   "honesty": {

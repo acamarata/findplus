@@ -151,3 +151,12 @@ input[type=time] {
 .person-line-text { display: block; }
 .person-line-via { display: block; margin-top: 1px; color: var(--muted); font-size: 12px; }
 .ps-head .btn-secondary { white-space: nowrap; flex: 0 0 auto; }
+
+/* The person editor (person_editor.js): a person's name, kind, icon, colour and trackers. */
+#fp-person-dialog { max-width: 460px; max-height: calc(100vh - 32px); overflow-y: auto; }
+#fp-person-dialog fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 10px 0; padding: 6px 10px; }
+#fp-person-dialog legend { color: var(--muted); font-size: 13px; padding: 0 4px; }
+#fp-person-dialog .pe-kind { display: flex; gap: 16px; }
+.pe-row { margin: 6px 0; }
+.pe-extra { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 4px 24px; }
+.pe-extra .pe-weight { width: 7em; }

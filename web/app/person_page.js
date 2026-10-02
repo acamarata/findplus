@@ -253,6 +253,7 @@ export function purge() {
   purgePeopleCache();
   purgeSuggestions();
   purgeLeftBehind();
+  import("./person_editor.js").then((m) => m.purgePersonEditor()).catch(() => {});
   import("./settings_people.js").then((m) => m.purgePeopleSettings()).catch(() => {});
   clearHead();
   clearActions();

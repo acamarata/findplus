@@ -1643,7 +1643,8 @@
       "backupKind": {
         "auto": "automatic",
         "manual": "manual",
-        "prerestore": "before a restore"
+        "prerestore": "before a restore",
+        "preupdate": "before an update"
       },
       "backupNow": "Back up now",
       "backupDone": "Backup saved.",
@@ -1676,6 +1677,34 @@
       "onDate": "On {date}",
       "onDateLast": "On {date}: {last}"
     }
+  },
+  "updates": {
+    "heading": "Updates",
+    "auto": "Update Find+ automatically",
+    "autoNote": "Find+ downloads the new version, checks it, backs up your database, and restarts into it while you are not using the app. Your history and settings stay where they are.",
+    "installed": "Installed: Find+ {version}.",
+    "checkedAt": "Last checked {when}.",
+    "neverChecked": "Not checked yet.",
+    "upToDate": "This is the newest version.",
+    "available": "Find+ {version} is available.",
+    "ready": "Find+ {version} is downloaded, checked and ready.",
+    "readyDev": "A developer build of Find+ {version} is ready.",
+    "checking": "Checking...",
+    "checkNow": "Check now",
+    "updateNow": "Update now",
+    "installing": "Installing. Find+ restarts in a moment.",
+    "problem": "Update problem: {message}",
+    "failed": "The last install did not finish, so Find+ stayed on {version}. Update now tries again.",
+    "installFailed": "Could not start the update: {message}",
+    "appOnly": "Updates install from the Find+ app for Mac. In a browser, update with install.sh or Homebrew.",
+    "backupAt": "A database backup was taken before the last update ({when}).",
+    "devDir": "Developer builds are read from {path}.",
+    "bannerReady": "Find+ {version} is ready.",
+    "bannerAvailable": "Find+ {version} is available.",
+    "bannerRestart": "Restart to update",
+    "bannerRelease": "Release notes",
+    "bannerLater": "Later",
+    "bannerLabel": "Update"
   },
   "honesty": {
     "findHub": "This history consists of locations reported through Google's Find Hub network. Your trackers use nearby participating Android devices to report their location. Location updates can therefore be delayed, sparse, or unavailable, and this application should not be treated as real-time emergency or child-safety GPS tracking.",

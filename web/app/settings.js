@@ -16,6 +16,7 @@ import { trapFocus } from "./components/dialog-trap.js";
 import { renderPollingSection, renderPollRate, wirePollingControls } from "./settings_polling.js";
 import { showNewPinError, wirePinActions } from "./settings_pin.js";
 import { markSaved, clearSaved, wireBackup } from "./settings_saved.js";
+import { loadUpdateSettings, wireUpdateSettings } from "./settings_updates.js";
 
 /** The focus trap for #settings-modal while it is open, or null. */
 let settingsTrap = null;
@@ -120,6 +121,7 @@ export async function openSettings() {
   try {
     await loadSettings();
     import("./settings_people.js").then((m) => m.loadPeopleSettings()).catch(() => {});
+    loadUpdateSettings(state.settings);
     const req = await api("/api/lock/requirements");
     $("lock-caveat").textContent = req.caveat;
     if (!state.config) {
@@ -213,5 +215,6 @@ export function wireSettingsControls() {
   wireThemeAndLockControls();
   wirePollingControls(saveSettings, showSettingsMessage, markSaved);
   wireBackup(showSettingsMessage);
+  wireUpdateSettings(saveSettings, showSettingsMessage);
   wirePinControls();
 }

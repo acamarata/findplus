@@ -60,6 +60,8 @@ export async function loadNotices() {
     "fp-notice-not-affiliated": n.not_affiliated,
     // UAT6-N08: the dashboard footer says it too, not only Settings > Notices.
     "fp-footer-not-affiliated": n.not_affiliated,
+    // Settings > Updates: the one request automatic updates make.
+    "fp-notice-update-check": n.update_check,
   };
   for (const [id, text] of Object.entries(map)) {
     const el = document.getElementById(id);

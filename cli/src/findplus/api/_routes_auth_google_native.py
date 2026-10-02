@@ -84,6 +84,7 @@ def _require_shell(request: Request) -> None:
 
 
 def native_begin(body: BeginBody, request: Request) -> Any:
+    """Start an in-app sign-in (or unlock): a single-use state and the window's settings."""
     from findplus.api.routes_auth import _require_origin_signal
 
     _require_origin_signal(request)
@@ -98,6 +99,7 @@ def native_begin(body: BeginBody, request: Request) -> Any:
 
 
 def native_token(body: TokenBody, request: Request) -> Any:
+    """The shell hands over Google's sign-in value once; Find+ exchanges it, never stores it."""
     try:
         _require_shell(request)
         return native_flow.submit_token(body.state, body.oauth_token)
@@ -106,6 +108,7 @@ def native_token(body: TokenBody, request: Request) -> Any:
 
 
 def native_unlock(body: UnlockBody, request: Request) -> Any:
+    """The shell relays the unlock page's vault keys; Find+ keeps only the location key."""
     try:
         _require_shell(request)
         return native_flow.submit_unlock(body.state, body.vault_keys, body.account_hint)
@@ -114,6 +117,7 @@ def native_unlock(body: UnlockBody, request: Request) -> Any:
 
 
 def native_event(body: EventBody, request: Request) -> Any:
+    """The window opened, is waiting, was blocked, closed or failed."""
     try:
         _require_shell(request)
         return native_flow.record_event(body.state, body.event, body.reason)
@@ -122,6 +126,7 @@ def native_event(body: EventBody, request: Request) -> Any:
 
 
 def native_classify(body: ClassifyBody, request: Request) -> Any:
+    """Did Google block the window? The shell sends a host, a path and a title class only."""
     try:
         _require_shell(request)
         return native_flow.classify_report(body.state, body.host, body.path, body.title_class)
@@ -130,10 +135,12 @@ def native_classify(body: ClassifyBody, request: Request) -> Any:
 
 
 def native_progress_route() -> dict[str, Any]:
+    """Where the in-app sign-in stands; the dashboard card polls this."""
     return native_progress.snapshot()
 
 
 def native_cancel(request: Request) -> dict[str, Any]:
+    """Cancel the in-app sign-in: its state stops working at once."""
     from findplus.api.routes_auth import _require_origin_signal
 
     _require_origin_signal(request)

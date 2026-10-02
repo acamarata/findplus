@@ -54,13 +54,17 @@ async def test_try_again_follows_a_window_that_is_still_working(page, base_url):
     await page.click(CONNECT)
     await wait_text(page, TEXT, "A Find+ sign-in window opened")
     fake.set_phase("error", message="Something went wrong.")
-    await page.wait_for_function(f"() => document.querySelector('{CARD}').dataset.phase === 'error'")
+    await page.wait_for_function(
+        f"() => document.querySelector('{CARD}').dataset.phase === 'error'"
+    )
     # The daemon says the window still works: begin answers 409 window_open.
     fake.begin_status = 409
     fake.open_window = {"flow": "flow1", "mode": "signin"}
     fake.set_phase("waiting", flow="flow1")
     await page.click(RETRY)
-    await page.wait_for_function(f"() => document.querySelector('{CARD}').dataset.phase === 'waiting'")
+    await page.wait_for_function(
+        f"() => document.querySelector('{CARD}').dataset.phase === 'waiting'"
+    )
     calls = await invokes(page)
     assert "begin" in calls[0] and "begin" not in calls[-1]  # focused, never replaced
     assert len(fake.begins) == 2
@@ -74,7 +78,9 @@ async def test_its_own_late_success_lands_after_an_error(page, base_url):
     await page.click(CONNECT)
     await wait_text(page, TEXT, "A Find+ sign-in window opened")
     await _result(page, "error", "flow1", message="Couldn't reach Google.")
-    await page.wait_for_function(f"() => document.querySelector('{CARD}').dataset.phase === 'error'")
+    await page.wait_for_function(
+        f"() => document.querySelector('{CARD}').dataset.phase === 'error'"
+    )
     fake.status = auth_status(google=True)
     await _result(page, "success", "flow1", unlocked=True, account=ACCOUNT)
     await wait_text(page, "#fp-auth-google-status", f"Connected as {ACCOUNT}")

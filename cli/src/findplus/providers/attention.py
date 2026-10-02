@@ -6,15 +6,20 @@ Purpose    : Lost sign-in (spec in-app-login.md §6). GET /api/auth/status and
              the same answer: "reauth" (sign in again), "unlock" (unlock the
              encrypted locations) or "none". Also says which findplus:// deep
              link may open a login right now: only one whose provider needs it.
-Inputs     : the stored Google session marks (bootstrap.py, revoked.py) and the
-             saved Apple session plus its "Apple refused it" marker (auth.py).
+Inputs     : the stored Google session marks (bootstrap.py, revoked.py), the
+             saved Apple session plus its "Apple refused it" marker (auth.py),
+             and the provider's newest poll run (attention_polls.py: a poll
+             refused for its sign-in after the last saved sign-in).
 Outputs    : attention_for(); deep_link_for(); deep_links(); deep_link_allowed().
-Constraints: Never raises (a broken probe answers "none"); no network, no DB;
+Constraints: Never raises (a broken probe answers "none"); no network; one
+             indexed DB read per provider;
              a provider that was never signed in needs no attention (the card's
              Connect button covers it, not a lost-sign-in banner).
 """
 
 from __future__ import annotations
+
+from pathlib import Path
 
 GOOGLE = "google-find-hub"
 APPLE = "apple-find-my"
@@ -31,10 +36,16 @@ _LINKS = {
 
 
 def _google() -> str:
+    from findplus.config import get_settings
+
+    from .attention_polls import poll_says_signin_needed, saved_at
     from .google_findhub.bootstrap import is_session_revoked, needs_shared_key, stored_account_email
 
     if stored_account_email() and is_session_revoked():
         return "reauth"  # Google refused the saved login (revoked.py set the mark)
+    signed_in_at = saved_at(get_settings().secrets_file)
+    if stored_account_email() and poll_says_signin_needed(GOOGLE, signed_in_at):
+        return "reauth"  # the poller itself was refused (last_error_type "auth")
     if needs_shared_key():
         return "unlock"  # signed in, but a key reset left the locations locked
     return "none"
@@ -50,6 +61,11 @@ def _apple() -> str:
     if data is None:
         return "none"  # never signed in, or signed out on purpose
     if not is_signed_in(data) or auth_required_marked(settings):
+        return "reauth"
+    from .attention_polls import poll_says_signin_needed, saved_at
+
+    signed_in_at = saved_at(Path(settings.state_dir) / "apple-account.json")
+    if poll_says_signin_needed(APPLE, signed_in_at):
         return "reauth"
     return "none"
 

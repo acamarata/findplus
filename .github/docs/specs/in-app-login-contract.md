@@ -229,10 +229,13 @@ closing is held by the shell and opened right after (`open_signin_window` answer
  "google_native": {"phase": "idle", "...": "..."}}
 ```
 `attention` is `"reauth"`, `"unlock"` or `"none"` (a string, never null):
-- Google `reauth`: Google refused the saved login (`auth_revoked` mark: revoked access, password change).
+- Google `reauth`: Google refused the saved login (`auth_revoked` mark: revoked access, password change),
+  or the newest poll of a Google device was refused for its sign-in (`last_error_type` `auth`, stored
+  as `AuthRequiredError` / `unauthenticated`) after the last saved sign-in.
 - Google `unlock`: signed in but the location key is missing or belongs to another account (key reset).
 - Apple `reauth`: Apple refused the saved session during a poll (marker cleared by the next sign-in or
-  a sign-out), or the saved session never finished signing in.
+  a sign-out), the newest poll of an Apple device was refused for its sign-in after the last saved
+  sign-in, or the saved session never finished signing in.
 - `none`: healthy, or never signed in (the Connect button covers that; no banner).
 
 `/api/status` `provider_health` rows carry the same `attention` (the tray already polls it; the

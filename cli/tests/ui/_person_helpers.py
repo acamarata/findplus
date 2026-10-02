@@ -97,9 +97,17 @@ async def stub_day(page, pid: int, fail: bool = False) -> list[str]:
     return asked
 
 
+def errors_of(page) -> list[str]:
+    """Collect uncaught page errors; a test asserts the list is empty at the end."""
+    errors: list[str] = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    return errors
+
+
 async def open_person(page, server, pid, day_key="school", stub=True):
     """Open `#/person/<pid>?date=<seeded day>` and wait for the page to draw."""
     day = server["days"][day_key]
+    page.fp_errors = errors_of(page)
     if stub:
         await stub_day(page, pid)
     await page.goto(f"{server['base']}/#/person/{pid}?date={day}")

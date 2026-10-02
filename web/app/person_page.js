@@ -131,7 +131,7 @@ function pickItem(device, id) {
     frameBounds(b);
   } else {
     highlight(l.mark, [item.latitude, item.longitude], item.radius_meters);
-    frameBounds(L.circle([item.latitude, item.longitude], { radius: Math.max(item.radius_meters, 60) }).getBounds());
+    frameBounds(L.latLng(item.latitude, item.longitude).toBounds(Math.max(item.radius_meters, 60) * 2));
   }
 }
 

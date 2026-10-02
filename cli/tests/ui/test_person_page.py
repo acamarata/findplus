@@ -98,6 +98,7 @@ async def test_summary_line_focuses_map_and_story(trips_page, trips_server, pid)
     )
     title = await p.locator(".story-item.is-picked .story-title").inner_text()
     assert title == "School"
+    assert p.fp_errors == [], "focusing a line must not throw"
 
 
 async def test_wrong_sightings_sentence_has_a_show_button(trips_page, trips_server, pid):
@@ -110,6 +111,15 @@ async def test_wrong_sightings_sentence_has_a_show_button(trips_page, trips_serv
     assert await p.is_checked("#person-suspect"), "Show switches the faint sightings back on"
 
 
+async def test_every_summary_line_can_be_pressed_without_an_error(trips_page, trips_server, pid):
+    await open_person(trips_page, trips_server, pid)
+    p = trips_page
+    for button in await p.locator(".person-line-btn").all():
+        await button.click()
+    await p.locator(".story-item").first.click()
+    assert p.fp_errors == []
+
+
 async def test_story_row_selects_and_hash_is_a_route(trips_page, trips_server, pid):
     await open_person(trips_page, trips_server, pid)
     p = trips_page
@@ -118,6 +128,7 @@ async def test_story_row_selects_and_hash_is_a_route(trips_page, trips_server, p
     await p.keyboard.press("Enter")
     assert await p.locator(".story-item.is-picked").count() == 1
     assert await p.locator(".strip-bar rect.is-picked").count() == 1
+    assert p.fp_errors == []
 
 
 async def test_person_view_hides_dashboard_filters_and_leaving_restores(

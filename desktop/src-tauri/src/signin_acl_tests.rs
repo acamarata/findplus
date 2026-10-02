@@ -135,8 +135,9 @@ fn command_body(name: &str) -> String {
     for entry in std::fs::read_dir(root().join("src")).unwrap().flatten() {
         let text = std::fs::read_to_string(entry.path()).unwrap_or_default();
         if let Some(at) = text.find(&format!("pub fn {name}(")) {
+            let head = text[..at].trim_end();
             assert!(
-                text[..at].trim_end().ends_with("#[tauri::command]"),
+                head.ends_with("#[tauri::command]") || head.ends_with("#[tauri::command(async)]"),
                 "{name} is not a command"
             );
             let body = &text[at..];
@@ -165,7 +166,7 @@ fn every_permission_granted_is_an_app_command() {
 #[test]
 fn the_signin_commands_refuse_any_caller_but_main() {
     let commands = app_commands();
-    for name in ["open_signin_window", "close_signin_window", "webview_ready"] {
+    for name in ["open_signin_window", "close_signin_window", "webview_ready", "apply_update"] {
         assert!(
             commands.iter().any(|c| c == name),
             "{name} missing from build.rs"

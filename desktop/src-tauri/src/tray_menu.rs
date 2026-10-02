@@ -26,7 +26,8 @@ fn entry(app: &AppHandle, id: &str, text: String, enabled: bool) -> tauri::Resul
 }
 
 /// Build the menu in the order specs/desktop-app.md pins, under the
-/// in-app-login attention items when a provider lost its sign-in: dot line
+/// in-app-login attention items when a provider lost its sign-in and the
+/// "Restart to update" item when an update is staged: dot line
 /// (disabled) · Restart daemon (only when Down after a crash) · latest
 /// (hidden when Locked/Down) · tracked count (disabled) · Poll Now · Lock ·
 /// Open Dashboard or Sign in (when Chrome is missing) · Settings… ·
@@ -38,6 +39,7 @@ pub fn build_menu_items(
 ) -> tauri::Result<Menu<tauri::Wry>> {
     let mut items: Vec<Item> = Vec::new();
     items.extend(attention_items(app, &crate::attention::current())?);
+    items.extend(update_items(app, crate::updater::staged_version())?);
     items.extend(status_items(app, status)?);
     items.extend(action_items(app, status, chrome_missing)?);
     items.push(Box::new(PredefinedMenuItem::separator(app)?));
@@ -73,6 +75,18 @@ fn attention_items(app: &AppHandle, a: &Attention) -> tauri::Result<Vec<Item>> {
         items.push(Box::new(PredefinedMenuItem::separator(app)?));
     }
     Ok(items)
+}
+
+/// "Restart to update (vX)" while a verified update waits for a quiet moment.
+fn update_items(app: &AppHandle, staged: Option<String>) -> tauri::Result<Vec<Item>> {
+    let Some(version) = staged else {
+        return Ok(Vec::new());
+    };
+    let label = crate::updater::logic::tray_label(&version);
+    Ok(vec![
+        entry(app, "update_restart", label, true)?,
+        Box::new(PredefinedMenuItem::separator(app)?),
+    ])
 }
 
 /// The read-only block: dot line, the crash-only Restart item, the latest

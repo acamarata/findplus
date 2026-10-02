@@ -140,6 +140,8 @@ def db_rebuild_derived(force: bool) -> None:
 
     Replays every sighting, oldest first, and marks every rebuilt event as already
     notified, so nothing is sent about the past. Dismissed left-behind notes are lost.
+    The running app does the same on its own after people are added or a place is
+    saved (GET /api/people/replay shows it); this command is for imports and repairs.
     """
     from findplus.cli.cmd_serve import _check_exclusive
     from findplus.db.rebuild import rebuild_derived

@@ -100,8 +100,17 @@ def ingest_observations(
     `fetched_at` is when THIS COMPUTER retrieved the batch, which is unrelated to
     `observed_at` — when Find Hub says the tag was actually seen. `settings`
     defaults to `get_settings()`; callers that already hold a Settings instance
-    (poller.py) can pass it through instead of re-loading it here.
+    (poller.py) can pass it through instead of re-loading it here. A batch
+    waits while past days are being replayed (people/replay.py): a newer live
+    sighting would otherwise close the backfill guard on the replayed ones.
     """
+    from findplus.people.replay import INGEST_LOCK
+
+    with INGEST_LOCK:
+        return _ingest_batch(session, observations, fetched_at, settings)
+
+
+def _ingest_batch(session, observations, fetched_at, settings) -> IngestResult:
     fetched_at = fetched_at or datetime.now(UTC)
     settings = settings or get_settings()
     if not observations:

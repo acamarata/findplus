@@ -15,6 +15,7 @@ from findplus.ingest import ingest_observations, upsert_device
 from tests._autouse_isolation import (  # noqa: F401 (autouse guards)
     _clear_poller_flag_files,
     _isolate_bind_env_vars,
+    _replay_on_this_thread,
 )
 from tests._no_browser_launch import no_real_browser  # noqa: F401 (autouse guard)
 

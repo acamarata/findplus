@@ -1144,6 +1144,9 @@ Del Person
 ### GET /api/people
 Get People
 
+### GET /api/people/replay
+{state: idle|running|done|failed, done, total}: "Updating past days...".
+
 ### GET /api/people/settings
 Get Settings
 

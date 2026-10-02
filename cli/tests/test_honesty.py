@@ -74,6 +74,7 @@ def test_notices_dict_matches_named_constants() -> None:
         "routing_privacy": honesty.ROUTING_PRIVACY,
         "native_signin": honesty.NATIVE_SIGNIN,
         "native_signin_kept": honesty.NATIVE_SIGNIN_KEPT,
+        "update_check": honesty.UPDATE_CHECK,
     }
 
 

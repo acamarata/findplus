@@ -2473,3 +2473,13 @@ Google Unlock Cancel
 ### POST /api/auth/google/unlock/start
 Google Unlock Start
 
+## updates
+### GET /api/update/status
+Where the update stands: found, downloaded, ready, or blocked by a failed attempt.
+
+### POST /api/update/apply
+Verify the staged update and back up the database. Desktop shell only.
+
+### POST /api/update/check
+Check GitHub (and the developer folder) now, in the background.
+

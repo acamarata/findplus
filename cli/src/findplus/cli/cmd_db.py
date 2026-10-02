@@ -26,8 +26,11 @@ def db_cmd() -> None:
 @db_cmd.command("upgrade")
 def db_upgrade() -> None:
     """Run Alembic migrations to head. Safe to run repeatedly (idempotent)."""
+    from findplus.db.premigrate import backup_before_migrate
+
     settings = get_settings()
     settings.ensure_state_dir()
+    backup_before_migrate(settings)  # a copy of the old schema first, as at daemon start
     run_migrations(settings.database_url, "head")
     click.echo(f"Database upgraded to head: {settings.database_path}")
 

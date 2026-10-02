@@ -35,6 +35,7 @@ TAG_ORDER = [
     "alerts",
     "providers",
     "auth",
+    "updates",
 ]
 
 OUTPUT = (

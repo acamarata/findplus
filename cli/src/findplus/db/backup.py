@@ -4,8 +4,10 @@ Purpose    : Keep recent copies of the history database so a bad disk, a bad
              upgrade or a mistaken delete costs hours, not months.
 Inputs     : Settings (database path, backup directory, keep counts).
 Outputs    : Backup files `findplus-<UTC stamp>.sqlite` (automatic, rotated),
-             `findplus-manual-<stamp>.sqlite` and `findplus-prerestore-<stamp>
-             .sqlite` (never rotated), all mode 0600 in a 0700 directory.
+             `findplus-manual-<stamp>.sqlite`, `findplus-prerestore-<stamp>.sqlite`
+             and `findplus-preupdate-<stamp>.sqlite` (taken before an app update
+             or a schema upgrade; never aged out), all mode 0600 in a 0700
+             directory.
 Constraints: Uses SQLite's online backup API (`Connection.backup`), a consistent
              snapshot while the daemon keeps writing; never a file copy of a live
              WAL database. Each copy is written under a temporary name, verified
@@ -16,7 +18,8 @@ Constraints: Uses SQLite's online backup API (`Connection.backup`), a consistent
              salt: no sign-in tokens or keys, but the PIN hash is included.
              Rotation keeps the newest automatic backup of each of the last N
              days plus the newest of each of the last K older weeks, and the
-             newest KEEP_MANUAL manual and KEEP_PRERESTORE pre-restore backups.
+             newest KEEP_MANUAL manual, KEEP_PRERESTORE pre-restore and
+             KEEP_PREUPDATE pre-update backups.
 """
 
 from __future__ import annotations
@@ -35,9 +38,10 @@ DUE_AFTER = timedelta(hours=24)
 #: Manual and pre-restore backups are never aged out, but only this many are kept.
 KEEP_MANUAL = 10
 KEEP_PRERESTORE = 5
+KEEP_PREUPDATE = 5
 _STAMP = "%Y%m%d-%H%M%S"
 _AUTO = re.compile(r"^findplus-(\d{8}-\d{6})\.sqlite$")
-_ALL = re.compile(r"^findplus-(?:(manual|prerestore)-)?(\d{8}-\d{6})\.sqlite$")
+_ALL = re.compile(r"^findplus-(?:(manual|prerestore|preupdate)-)?(\d{8}-\d{6})\.sqlite$")
 
 
 class BackupError(RuntimeError):
@@ -49,7 +53,7 @@ class BackupInfo:
     """One backup file on disk."""
 
     path: Path
-    kind: str  # auto | manual | prerestore
+    kind: str  # auto | manual | prerestore | preupdate
     taken_at: datetime
     size_bytes: int
 
@@ -177,12 +181,14 @@ def rotate(directory: Path, keep_daily: int = 7, keep_weekly: int = 4) -> list[P
     """Delete backups outside the keep sets; returns the deleted paths.
 
     Automatic ones follow the daily/weekly rule; manual and pre-restore ones keep
-    only their newest KEEP_MANUAL / KEEP_PRERESTORE so the folder cannot grow forever.
+    only their newest KEEP_MANUAL / KEEP_PRERESTORE / KEEP_PREUPDATE so the folder
+    cannot grow forever.
     """
     backups = list_backups(directory)
     keep = rotation_keep(backups, keep_daily, keep_weekly)
     gone = [b.path for b in backups if b.kind == "auto" and b.path not in keep]
-    for kind, limit in (("manual", KEEP_MANUAL), ("prerestore", KEEP_PRERESTORE)):
+    kept = (("manual", KEEP_MANUAL), ("prerestore", KEEP_PRERESTORE), ("preupdate", KEEP_PREUPDATE))
+    for kind, limit in kept:
         gone += [b.path for b in [x for x in backups if x.kind == kind][limit:]]
     for path in gone:
         path.unlink(missing_ok=True)

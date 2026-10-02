@@ -50,6 +50,7 @@ from . import (
     routes_providers,
     routes_settings,
     routes_trips,
+    routes_update,
 )
 from ._app_instance import new_fastapi_app
 from ._routes_history_export import build_export_router
@@ -231,6 +232,7 @@ def _register_routers(app: FastAPI, *, settings, sessions, sync_idle_timeout) ->
     )
     app.include_router(routes_trips.build_router())
     app.include_router(build_export_router())
+    app.include_router(routes_update.build_router())
 
 
 def create_app(

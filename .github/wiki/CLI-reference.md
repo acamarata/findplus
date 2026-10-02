@@ -736,6 +736,30 @@ Unload and delete the service and watchdog unit files, and daemon.json.
 |---|---|---|
 | --yes |  | Unload and delete the unit files without asking. |
 
+## findplus update auto
+Turn automatic updates on or off. Off: no update request unless you ask.
+
+**Usage:** `findplus update auto [OPTIONS]`
+
+## findplus update check
+Ask GitHub for the newest release now (one request, nothing about you is sent).
+
+**Usage:** `findplus update check [OPTIONS]`
+
+## findplus update dev-dir
+For developers: install local builds of Find+.app from PATH automatically.
+
+**Usage:** `findplus update dev-dir [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --clear |  | Stop using a developer build folder. |
+
+## findplus update status
+Show the installed version and what the updater has found.
+
+**Usage:** `findplus update status [OPTIONS]`
+
 ## findplus version
 Print the installed version.
 

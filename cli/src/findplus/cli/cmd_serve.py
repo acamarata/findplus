@@ -200,11 +200,12 @@ def _start_uvicorn(
 
 
 def _start_workers(settings, no_poller: bool) -> list[tuple[Any, threading.Thread]]:
-    """The background workers: poller (unless off), retention, and the evening summary."""
+    """The background workers: poller (unless off), retention, the evening summary, updates."""
     from findplus.people import replay
     from findplus.poller import PollerService
     from findplus.service.digest import DigestScheduler
     from findplus.service.retention import RetentionScheduler
+    from findplus.updater.scheduler import UpdateScheduler
 
     workers = []
     if not no_poller:
@@ -212,6 +213,7 @@ def _start_workers(settings, no_poller: bool) -> list[tuple[Any, threading.Threa
     workers.append(_start_worker(RetentionScheduler(settings.state_dir), "retention"))
     digest = DigestScheduler(settings.state_dir)
     workers.append(_start_worker(digest, "digest"))
+    workers.append(_start_worker(UpdateScheduler(settings.state_dir), "updates"))
     replay.on_start()  # a database from before 1.1.6: fill in past days once, in the background
     return workers
 

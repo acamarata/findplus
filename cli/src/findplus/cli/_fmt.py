@@ -32,7 +32,7 @@ def _interactive() -> bool:
 
 
 def _prep(to_file: bool = False, *, writes: bool = False) -> None:
-    """Logging, directories, a health check, then migrations.
+    """Logging, directories, a health check, a backup when the schema is behind, then migrations.
 
     A database that fails `quick_check` is never migrated or written: connections
     in this process turn `query_only`, and a command that needs to write (`writes`)
@@ -53,6 +53,9 @@ def _prep(to_file: bool = False, *, writes: bool = False) -> None:
             raise click.ClickException(msg)
         click.secho(msg, fg="red", err=True)
         return
+    from findplus.db.premigrate import backup_before_migrate
+
+    backup_before_migrate(settings)  # a new version's first start: keep the old copy
     upgrade_to_head()
 
 

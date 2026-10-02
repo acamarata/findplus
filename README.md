@@ -77,7 +77,12 @@ from [Releases](https://github.com/acamarata/findplus/releases). There is no
 Intel build of the app; on an Intel Mac use Homebrew or the curl installer and
 open the dashboard in your browser.
 
-**Update the macOS app** (works while Find+ is running; keeps your history and settings):
+**Updates.** The macOS app updates itself: it checks GitHub every few hours,
+downloads and verifies the new version, backs up your database, and restarts
+into it while you are not using it. Turn this off in Settings > Updates. Details:
+[Updates](.github/wiki/Updates.md).
+
+**Update the macOS app by hand** (works while Find+ is running; keeps your history and settings):
 
 ```bash
 curl -fsSL https://github.com/acamarata/findplus/releases/latest/download/update-app.sh | bash
@@ -280,6 +285,12 @@ see if sign-in cannot find Chrome, not a general statement.
 > Find+ keeps a long-lived sign-in to your Google account on this Mac so
 > it can read your trackers. You can remove its access any time at
 > myaccount.google.com/security (Third-party access) or with Disconnect.
+>
+> Automatic updates ask GitHub's releases API for the newest Find+ about
+> every six hours and download a new version from the same GitHub release.
+> The request names only the Find+ version; nothing about you, your trackers or your history is sent,
+> though GitHub sees this computer's IP address. Turn automatic updates off
+> to stop these requests.
 
 ## CLI
 

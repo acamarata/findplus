@@ -39,6 +39,7 @@ from .cmd_people import people_cmd
 from .cmd_poll import poll_now
 from .cmd_selfcheck import selfcheck
 from .cmd_trips import trips_cmd
+from .cmd_update import update_cmd
 from .cmd_version import version_cmd
 from .doctor import doctor_cmd
 from .groups import groups_cmd
@@ -88,6 +89,7 @@ main.add_command(cmd_history.prune)
 main.add_command(cmd_db_ops.db_import, name="import")
 
 main.add_command(cmd_config.config_cmd)
+main.add_command(update_cmd)
 main.add_command(cmd_db.db_cmd)
 
 main.add_command(providers_cmd, name="providers")

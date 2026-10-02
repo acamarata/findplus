@@ -23,6 +23,9 @@ from tests._no_browser_launch import no_real_browser  # noqa: F401 (autouse guar
 os.environ.setdefault("FINDPLUS_STATE_DIR", "/tmp/findplus-tests-state")
 # Fixture servers started as subprocesses inherit this: nothing may open a real program.
 os.environ.setdefault("FINDPLUS_NO_LAUNCH", "1")
+# A daemon started by a test (a UI live server) checks for updates at start. Point that
+# check at a closed loopback port so no test, in this process or a child, reaches GitHub.
+os.environ.setdefault("FINDPLUS_UPDATE_API", "http://127.0.0.1:9")
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:

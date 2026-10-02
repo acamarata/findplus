@@ -3,8 +3,9 @@
 Purpose    : Runs the real script against a fake app directory with stub `codesign`,
              `lipo`, `sysctl`, `launchctl`, `xattr` and friends on PATH. Checks the
              unsigned refusal and --force, the arm64 refusal, the leftover `.new`,
-             the rollback when the swap fails, quarantine handling and the exact
-             launchctl label match.
+             the rollback when the swap fails, quarantine handling, the exact
+             launchctl label match, and (automatic updates) the Team ID refusal,
+             --verify-only, --result and starting the old app again after a failure.
 Constraints: macOS only (PlistBuddy). Never touches /Applications or a real launchd.
 """
 
@@ -26,12 +27,17 @@ pytestmark = pytest.mark.skipif(
 )
 
 STUBS = {
-    "codesign": '[ "${STUB_SIGNED:-1}" = 1 ]',
+    # `codesign -dv APP` prints the signing team: STUB_OLD_TEAM for the installed
+    # app (under APP_DIR), STUB_NEW_TEAM for the new one. `--verify` obeys STUB_SIGNED.
+    "codesign": 'if [ "$1" = -dv ]; then for a; do last="$a"; done; '
+    'case "$last" in "$APP_DIR"/*) t="${STUB_OLD_TEAM:-}";; *) t="${STUB_NEW_TEAM:-}";; esac; '
+    '[ -n "$t" ] && echo "TeamIdentifier=$t" >&2; exit 0; fi; '
+    '[ "${STUB_SIGNED:-1}" = 1 ]',
     "lipo": 'echo "${STUB_ARCHS:-arm64}"',
     "sysctl": "echo 1",
     "pgrep": "exit 1",
     "osascript": "exit 0",
-    "open": "exit 0",
+    "open": 'echo "$@" >> "$STUB_LOG/open"',
     "launchctl": 'echo "$@" >> "$STUB_LOG/launchctl"; '
     '[ "$1" = print ] && [ "$2" = "gui/$(id -u)/com.acamarata.findplus" ] || '
     '[ "$1" = kickstart ]',
@@ -144,3 +150,68 @@ def test_launchctl_is_asked_about_the_exact_label(env) -> None:
     uid = str(os.getuid())
     assert f"print gui/{uid}/com.acamarata.findplus" in calls
     assert f"kickstart -k gui/{uid}/com.acamarata.findplus" in calls
+
+
+def test_a_new_app_from_another_team_is_refused(env) -> None:
+    environ, apps, new, _log = env
+    res = _run(environ, new, STUB_OLD_TEAM="AAAA111111", STUB_NEW_TEAM="BBBB222222")
+    assert res.returncode == 1
+    assert "BBBB222222" in res.stderr and "AAAA111111" in res.stderr
+    assert _version(apps) == "1.0.0"
+
+
+def test_an_unsigned_new_app_cannot_replace_a_team_signed_one(env) -> None:
+    environ, apps, new, _log = env
+    res = _run(environ, new, STUB_OLD_TEAM="AAAA111111")
+    assert res.returncode == 1
+    assert "team none" in res.stderr
+    assert _version(apps) == "1.0.0"
+
+
+def test_the_same_team_installs(env) -> None:
+    environ, apps, new, _log = env
+    res = _run(environ, new, STUB_OLD_TEAM="AAAA111111", STUB_NEW_TEAM="AAAA111111")
+    assert res.returncode == 0, res.stderr
+    assert _version(apps) == "2.0.0"
+
+
+def test_verify_only_checks_and_changes_nothing(env, tmp_path: Path) -> None:
+    environ, apps, new, _log = env
+    result = tmp_path / "result"
+    res = _run(environ, new, "--verify-only", "--result", str(result))
+    assert res.returncode == 0, res.stderr
+    assert _version(apps) == "1.0.0"
+    assert not result.exists()
+
+
+def test_result_file_says_ok_with_the_version(env, tmp_path: Path) -> None:
+    environ, _apps, new, _log = env
+    result = tmp_path / "result"
+    assert _run(environ, new, "--result", str(result)).returncode == 0
+    assert result.read_text().strip() == "ok 2.0.0"
+
+
+def test_a_failure_after_the_app_quit_starts_the_old_app_again(env, tmp_path: Path) -> None:
+    """--wait-pid means the app already quit itself: a refusal must not leave it closed."""
+    environ, apps, new, log = env
+    result = tmp_path / "result"
+    res = subprocess.run(
+        ["bash", str(SCRIPT), "--app", str(new), "--wait-pid", "999999", "--result", str(result)],
+        env={**environ, "STUB_MV_FAIL": "1"},
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert res.returncode == 1
+    assert _version(apps) == "1.0.0"
+    assert result.read_text().startswith("failed could not put the new app in place")
+    assert str(apps / "Find+.app") in (log / "open").read_text()
+
+
+def test_a_refusal_before_quitting_never_starts_anything(env, tmp_path: Path) -> None:
+    environ, _apps, new, log = env
+    result = tmp_path / "result"
+    res = _run(environ, new, "--result", str(result), STUB_SIGNED="0")
+    assert res.returncode == 1
+    assert result.read_text().startswith("failed the new app's code signature")
+    assert not (log / "open").exists()

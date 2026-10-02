@@ -68,6 +68,10 @@ def _is_helper_page(path: str) -> bool:
         "/api/auth/google/native/unlock",
         "/api/auth/google/native/event",
         "/api/auth/google/native/classify",
+        # Automatic updates install while locked: status names no paths or places,
+        # and apply needs the desktop shell's own header (routes_update.py).
+        "/api/update/status",
+        "/api/update/apply",
     }
 
 

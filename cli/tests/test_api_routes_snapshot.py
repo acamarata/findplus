@@ -91,7 +91,8 @@ def test_route_count():
     # accept, settings GET/PUT, trackers role, left-behind list/dismiss (7),
     # and POST /places/notify-defaults (1).
     # +2 for the Settings backup line: GET /settings/backup, POST /settings/backup/now.
-    assert len(routes) == 120
+    # +2 for the daily summary (1.1.6): GET /people/{id}/day and POST /people/{id}/day/send.
+    assert len(routes) == 122
 
 
 #: T1 (2026-09-22, PRI rule-7 50-line function cap): pulled out of
@@ -184,6 +185,8 @@ _EXPECTED_PATHS = {
     "/api/people/{group_id}",
     "/api/people/{group_id}/members",
     "/api/people/{group_id}/now",
+    "/api/people/{group_id}/day",
+    "/api/people/{group_id}/day/send",
     "/api/people/{group_id}/left-behind",
     "/api/people/{group_id}/left-behind/{episode_id}/dismiss",
     "/api/people/suggestions",

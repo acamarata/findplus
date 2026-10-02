@@ -155,11 +155,17 @@ def person_dict(group: Group) -> dict:
 
 def now_dict(session: Session, group: Group, now: datetime | None = None) -> dict:
     """Where the person is now: the § 3 answer plus its sentence."""
-    from findplus.people.describe import now_text
     from findplus.people.inputs import infer_person
 
     now = now or datetime.now(UTC)
-    fix, trackers, places = infer_person(session, group, now, unique_names(session))
+    return now_from(infer_person(session, group, now, unique_names(session)), group, now)
+
+
+def now_from(inferred, group: Group, now: datetime) -> dict:
+    """`now_dict` for an already inferred (PersonFix, trackers, places) triple."""
+    from findplus.people.describe import now_text
+
+    fix, trackers, places = inferred
     iso = fix.observed_at.isoformat() if fix.observed_at else None
     return {
         "confidence": fix.confidence,

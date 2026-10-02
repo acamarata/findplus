@@ -31,13 +31,10 @@ import { purgeMapPanes } from "./trips_map.js";
  * The current view is captured first so unlocking returns to exactly it.
  */
 export async function showLock() {
-  // A second call while the lock screen is already up (a stray 401 from a
-  // request that was in flight) must not wipe what the person is looking at:
-  // their typed PIN, the error, the forgot-PIN help.
+  // A repeat call (a stray 401) must not wipe the typed PIN, error or help.
   const alreadyLocked = state.locked;
   if (!alreadyLocked) {
-    // Only non-sensitive view state is remembered — a date, a device filter and
-    // a row id. No coordinates are retained anywhere once locked.
+    // Only non-sensitive view state is kept: no coordinates survive a lock.
     state.resume = {
       day: state.day,
       deviceFilter: state.deviceFilter,
@@ -47,9 +44,7 @@ export async function showLock() {
     };
   }
   state.locked = true;
-  // Bumped synchronously, before any await below: bootDashboard() (and any
-  // other async renderer holding an earlier generation) checks this after
-  // its own next await and bails rather than rendering behind this lock.
+  // Bumped before any await: async renderers check it and stop drawing.
   state.lockGeneration++;
   stopIdleTimer();
   closeModals();

@@ -101,6 +101,7 @@ Home place (a bike in the garage is normal), and you can turn left-behind alerts
 when the bag stops reporting (shown as "no recent sighting", never "still left behind"). "I know"
 silences that tracker at that place for the rest of the day.
 
+<<<<<<< HEAD
 ## The Person page
 
 Click a person's name on a group card, in an alert rule, in the delivery log or in the arrivals
@@ -126,6 +127,14 @@ list. The address is `#/person/<id>?date=YYYY-MM-DD`, so the Back button steps t
 The suggestions panel ("We found people in your trackers") lives on the Groups tab, as a one-line
 banner on the dashboard, and in the setup wizard's Groups step. It has Accept all (it skips guesses
 that still need an answer or are low confidence) and Check again.
+=======
+## The day in plain words
+
+Click a person to see their day, or ask for it: `findplus day Zaid`, `GET /api/people/{id}/day`,
+or the MCP tool `get_person_day`. It reads like "7:40 AM left Home / 8:10 AM arrived at School /
+3:00 PM left School / At Home from 3:33 PM". Details, the Telegram evening summary and the wording
+rules are on [Daily summary](Daily-summary).
+>>>>>>> release/1.1.6
 
 ## Known limits
 

@@ -199,6 +199,19 @@ Remove KEY from config.env.
 
 **Usage:** `findplus config unset [OPTIONS]`
 
+## findplus day
+A person's day in plain words: when they left, arrived and where they are.
+
+**Usage:** `findplus day [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --date |  | Local date, YYYY-MM-DD (default today). |
+| --days | 1 | Consecutive days. |
+| --timezone |  | IANA zone (default this computer's). |
+| --json |  | Output JSON. |
+| --send |  | Also send it to the connected Telegram chat. |
+
 ## findplus db backup
 Make a verified copy of the database now (kept until you delete it).
 
@@ -462,6 +475,21 @@ Create the suggested people (by --key or --all), or dismiss suggestions.
 | --all |  | Accept every suggestion as shown. |
 | --dismiss |  | A suggestion key to dismiss. |
 | --kind |  | Override the kind. |
+| --json |  | Output JSON. |
+
+## findplus people digest
+Show or change the evening summary (off until you turn it on).
+
+**Usage:** `findplus people digest [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --on |  | Switch the evening summary. |
+| --time |  | HH:MM, 24-hour (default 20:00). |
+| --person |  | Name or id; repeat for several. |
+| --all-people |  | Send for every person and pet. |
+| --channel |  |  |
+| --always-send |  | Also send on a day with nothing tracked. |
 | --json |  | Output JSON. |
 
 ## findplus people list

@@ -22,7 +22,7 @@ from findplus.db.session import session_scope
 from findplus.groups.repo import delete_group, set_members, update_group
 from findplus.people import repo
 
-from . import routes_people_extra
+from . import routes_people_day, routes_people_extra
 from ._people_http import map_value_error
 from ._people_http import run_write as _run
 
@@ -118,6 +118,7 @@ def get_now(group_id: int) -> dict[str, Any]:
 def build_router() -> APIRouter:
     router = APIRouter(prefix="/api/people", tags=["people"])
     routes_people_extra.register(router)
+    routes_people_day.register(router)
     router.add_api_route("", get_people, methods=["GET"])
     router.add_api_route("", post_person, methods=["POST"], status_code=201)
     router.add_api_route("/{group_id}", get_person, methods=["GET"])

@@ -1157,6 +1157,15 @@ Get Person
 |---|---|---|---|
 | group_id | path | True | integer |
 
+### GET /api/people/{group_id}/day
+One person's day: lines with the trackers behind each, gaps, left-behind, a footer.
+
+| name | in | required | type |
+|---|---|---|---|
+| group_id | path | True | integer |
+| date | query | False | string |
+| timezone | query | False | string |
+
 ### GET /api/people/{group_id}/left-behind
 Open episodes plus those cleared in the last 24 hours.
 
@@ -1350,6 +1359,28 @@ Post Accept
   },
   "type": "object",
   "title": "AcceptBody"
+}
+```
+
+### POST /api/people/{group_id}/day/send
+Send that day's summary to the connected Telegram chat now.
+
+| name | in | required | type |
+|---|---|---|---|
+| group_id | path | True | integer |
+
+**Request body:**
+```json
+{
+  "anyOf": [
+    {
+      "$ref": "#/components/schemas/DaySendBody"
+    },
+    {
+      "type": "null"
+    }
+  ],
+  "title": "Body"
 }
 ```
 

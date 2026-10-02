@@ -254,7 +254,8 @@ the chosen channel named. Backfill: the Alerts tab shows "3 places have no arriv
 ### 5.4 Message templates (`people/messages.py`, through `web/locales/en.json` keys `people.msg.*`)
 ```
 Sam arrived at Grandma's at 4:12 PM          (or "Sam just arrived at Grandma's" when < 10 min old)
-Seen by Sam Shoes Red · reported 4:31 PM · 19 min late
+Seen by Sam Shoes Red · reported 4:31 PM · 19 min late   (the event's lead: its sighting at the crossing time,
+                                                       else its next one; never another tracker's)
 Sam's bag stayed at Home.                    (only when a tracker is apart)
 <honesty.ALERTS_LATENCY, verbatim, never truncated>
 ```

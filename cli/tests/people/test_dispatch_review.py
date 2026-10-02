@@ -135,3 +135,55 @@ def test_notify_me_and_the_place_default_send_one_message_per_crossing(session, 
     sent = _run_dispatch(session, now=at(9, 50))
     arrivals = [t for t in sent if "arrived at Grandma's" in t.splitlines()[0]]
     assert len(arrivals) == 1, sent
+
+
+def test_a_settle_wait_keeps_the_crossing_time_and_the_lead_trackers_lag(session, pinned_tz):
+    """Sam reaches Grandma's at 9:40 and turns back at once. The EXIT waits out
+    the 10-minute settle, but "left at" is the first sighting outside (9:43),
+    and "reported ... late" belongs to the tracker seen there."""
+    from findplus.db.models import GroupPlaceEvent, LocationObservation
+
+    pinned_tz("UTC")
+    places = seed_places(session)
+    sam = seed_person(session)
+    _default_rules(session, places)
+    tl = Timeline()
+    overnight(tl, ["zr", "zb", "zk", "zw"], end=at(9, 0))
+    tl.walk(["zr", "zb"], HOME, GRANDMA, at(9, 0), at(9, 40))
+    tl.walk(["zr", "zb"], GRANDMA, HOME, at(9, 41), at(10, 21), every=2)
+    tl.stay(["zk", "zw"], HOME, at(9, 5), at(10, 20), every=10)
+    tl.ingest(session)
+    left = (
+        session.query(GroupPlaceEvent)
+        .filter_by(group_id=sam.id, place_id=places["Grandma's"].id, event_type="EXIT")
+        .one()
+    )
+    assert left.observed_at == at(9, 43)
+    seen = session.query(LocationObservation).filter_by(
+        device_id=left.lead_device_id, observed_at=left.observed_at
+    )
+    assert seen.count() == 1
+    text = next(t for t in _run_dispatch(session, now=at(10, 30)) if "left Grandma's" in t)
+    assert "left Grandma's at Sep 21, 9:43 AM" in text
+    assert "lag unknown" not in text and "5 min late" in text
+
+
+def test_lag_falls_back_to_the_leads_first_sighting_after_the_event(session):
+    """A person row whose lead has no sighting at exactly that instant still
+    says when that tracker was next reported, never "reported unknown"."""
+    from findplus.alerts.group_event_rows import group_events_by_ids
+    from findplus.db.models import GroupPlaceEvent
+
+    places = seed_places(session)
+    sam = seed_person(session)
+    tl = Timeline()
+    tl.add("zr", HOME, at(9, 0)).add("zr", HOME, at(9, 20))
+    tl.ingest(session)
+    row = GroupPlaceEvent(group_id=sam.id, place_id=places["Home"].id, event_type="ENTER",
+                          observed_at=at(9, 10), member_event_ids="[]", members_crossed=1,
+                          members_considered=4, members_stale=0, confidence="high",
+                          basis="person", lead_device_id="zr")  # fmt: skip
+    session.add(row)
+    session.flush()
+    event = group_events_by_ids(session, [row.id])[row.id]
+    assert event.fetched_at == at(9, 25)

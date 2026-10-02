@@ -13,7 +13,7 @@ Constraints: Order matters, and every step is reversible until the last:
              3. take a pre-restore backup of the current database;
              4. build the new file beside the old one, verify it;
              5. move the current file aside as `findplus.sqlite.replaced-<stamp>`
-                (never deleted), drop its stale -wal/-shm, move the new file in;
+                (never deleted; its -wal/-shm go with it), move the new file in;
              6. upgrade to head.
              The file the owner passes is only ever read.
 """
@@ -94,13 +94,17 @@ def _checkpoint(database: Path) -> None:
 
 
 def _swap_in(new_file: Path, database: Path, now: datetime) -> Path | None:
-    """Move the live file aside, remove its sidecars, move `new_file` into place."""
+    """Move the live file (and its -wal/-shm) aside, move `new_file` into place."""
     replaced: Path | None = None
     if database.exists():
         replaced = database.with_name(f"{database.name}.replaced-{now.strftime('%Y%m%d-%H%M%S')}")
         os.replace(database, replaced)
     for suffix in ("-wal", "-shm"):
-        Path(f"{database}{suffix}").unlink(missing_ok=True)
+        sidecar = Path(f"{database}{suffix}")
+        if replaced is not None and sidecar.exists():
+            os.replace(sidecar, Path(f"{replaced}{suffix}"))  # keep it with its main file
+        else:
+            sidecar.unlink(missing_ok=True)
     os.replace(new_file, database)
     if os.name != "nt":
         database.chmod(0o600)
@@ -126,11 +130,13 @@ def restore_backup(
     database: Path = settings.database_path
     before = backup_revision(database) if database.exists() else None
     pre: Path | None = None
-    if database.exists():
+    if database.exists() and check_database(database).ok:
         _checkpoint(database)
         pre = backup.create_backup(
             database, settings.effective_backup_dir, kind="prerestore", now=now
         ).path
+    # A damaged live file cannot be backed up (the copy would fail its own check):
+    # it is kept whole as `.replaced-<stamp>` below, which is the safety copy.
     staged = database.with_name(f".restore-{now.strftime('%Y%m%d-%H%M%S')}.sqlite")
     try:
         backup.snapshot(source, staged)

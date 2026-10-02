@@ -73,6 +73,7 @@ def db_backups(as_json: bool) -> None:
 def db_restore(file: Path, force: bool) -> None:
     """Replace the database with a backup. Your current one is kept aside, not deleted."""
     from findplus.cli.cmd_serve import _check_exclusive
+    from findplus.db.backup import BackupError
     from findplus.db.restore import RestoreError, restore_backup
 
     settings = get_settings()
@@ -83,7 +84,7 @@ def db_restore(file: Path, force: bool) -> None:
             daemon_running=lambda: _check_exclusive(settings.state_dir)[0],
             force=force,
         )
-    except RestoreError as exc:
+    except (RestoreError, BackupError) as exc:
         raise click.ClickException(str(exc)) from exc
     click.secho(f"Restored from {result.restored_from.name}.", fg="green")
     if result.replaced_file:

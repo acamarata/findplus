@@ -19,65 +19,79 @@ fn nav(url: &str, hosts: &Hosts) -> Nav {
     }
 }
 
+/// Google's sign-in pages and the frames they embed (r12 #2).
+const ALLOWED_URLS: &[&str] = &[
+    "https://accounts.google.com/EmbeddedSetup",
+    "https://accounts.google.de/accounts/SetSID",
+    "https://accounts.google.co.uk/x",
+    "https://accounts.google.com.br/x",
+    "https://accounts.youtube.com/accounts/CheckConnection",
+    "https://myaccount.google.com/",
+    "https://ssl.gstatic.com/x.js",
+    "https://www.gstatic.com/recaptcha/x.js",
+    "https://www.google.com/recaptcha/api2/anchor?k=1",
+    "https://www.recaptcha.net/recaptcha/api.js",
+    "https://www.google.de/",
+    "https://consent.google.de/ml?continue=x",
+    "https://consent.google.com/",
+    "https://play.google.com/log?format=json",
+    "https://apis.google.com/js/api.js",
+    "https://fonts.googleapis.com/css",
+    "https://lh3.googleusercontent.com/a/photo",
+    "https://ACCOUNTS.Google.COM/",
+    "about:blank",
+    "about:srcdoc",
+];
+
+/// Refused quietly: never a reason to stop the sign-in.
+const QUIET_BLOCKS: &[&str] = &[
+    "http://accounts.google.com/",
+    "http://www.google.de/",
+    "https://accounts.google.com:8443/",
+    "https://user:pw@accounts.google.com/",
+    "https://127.0.0.1/",
+    "https://[::1]/",
+    "file:///etc/passwd",
+    "about:config",
+    "data:text/html,hi",
+    "blob:https://accounts.google.com/x",
+    "javascript:alert(1)",
+    "ftp://accounts.google.com/",
+];
+
+/// Refused, and not Google: a frame, or the main frame leaving Google.
+const OUTSIDE: &[&str] = &[
+    "https://accounts.google.evil.com/",
+    "https://accounts.google.co.evil/",
+    "https://evil.com/accounts.google.com",
+    "https://login.microsoftonline.com/",
+    "https://accounts.google.c/",
+    "https://google.com.evil.net/",
+    "https://evilgoogle.com/",
+    "https://accounts.google.com@evil.com/",
+    "https://accounts.google.com.evil.com:8443/",
+    "https://xn--ggle-0nda.com/",
+    "https://accounts.gооgle.com/",
+    "http://okta.example.com/",
+];
+
 #[test]
 fn allow_list_table() {
-    // Google's sign-in pages and the frames they embed (r12 #2).
-    for ok in [
-        "https://accounts.google.com/EmbeddedSetup",
-        "https://accounts.google.de/accounts/SetSID",
-        "https://accounts.google.co.uk/x",
-        "https://accounts.google.com.br/x",
-        "https://accounts.youtube.com/accounts/CheckConnection",
-        "https://myaccount.google.com/",
-        "https://ssl.gstatic.com/x.js",
-        "https://www.gstatic.com/recaptcha/x.js",
-        "https://www.google.com/recaptcha/api2/anchor?k=1",
-        "https://www.recaptcha.net/recaptcha/api.js",
-        "https://www.google.de/",
-        "https://consent.google.de/ml?continue=x",
-        "https://consent.google.com/",
-        "https://play.google.com/log?format=json",
-        "https://apis.google.com/js/api.js",
-        "https://fonts.googleapis.com/css",
-        "https://lh3.googleusercontent.com/a/photo",
-        "https://ACCOUNTS.Google.COM/",
-        "about:blank",
-        "about:srcdoc",
-    ] {
+    for ok in ALLOWED_URLS {
         assert_eq!(nav(ok, &none()), Nav::Allow, "{ok}");
     }
-    // Refused quietly: never a reason to stop the sign-in.
-    for bad in [
-        "http://accounts.google.com/",
-        "http://www.google.de/",
-        "https://accounts.google.com:8443/",
-        "https://user:pw@accounts.google.com/",
-        "https://127.0.0.1/",
-        "https://[::1]/",
-        "file:///etc/passwd",
-        "about:config",
-        "data:text/html,hi",
-        "blob:https://accounts.google.com/x",
-        "javascript:alert(1)",
-        "ftp://accounts.google.com/",
-    ] {
+}
+
+#[test]
+fn google_hosts_with_tricks_are_refused_quietly() {
+    for bad in QUIET_BLOCKS {
         assert!(matches!(nav(bad, &none()), Nav::Block(_)), "{bad}");
     }
-    // Refused, and not Google: a frame, or the main frame leaving Google.
-    for outside in [
-        "https://accounts.google.evil.com/",
-        "https://accounts.google.co.evil/",
-        "https://evil.com/accounts.google.com",
-        "https://login.microsoftonline.com/",
-        "https://accounts.google.c/",
-        "https://google.com.evil.net/",
-        "https://evilgoogle.com/",
-        "https://accounts.google.com@evil.com/",
-        "https://accounts.google.com.evil.com:8443/",
-        "https://xn--ggle-0nda.com/",
-        "https://accounts.gооgle.com/",
-        "http://okta.example.com/",
-    ] {
+}
+
+#[test]
+fn non_google_hosts_are_outside() {
+    for outside in OUTSIDE {
         assert!(
             matches!(nav(outside, &none()), Nav::Outside(_)),
             "{outside}"

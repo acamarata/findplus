@@ -1223,8 +1223,8 @@
       "aba_teleport": "This sighting looks wrong: it jumps far away and back within minutes. Left out of stays, trips and alerts.",
       "impossible_speed": "This sighting looks wrong: it implies a speed no tracker travels. Left out of stays, trips and alerts.",
       "edge_stray": "This sighting looks wrong: it is far from the sightings around it. Left out of stays, trips and alerts.",
-      "jump_unconfirmed": "This sighting jumped far, fast, and nothing has confirmed it yet. It is held back until the next sighting arrives.",
-      "sibling_disagree": "This sighting looks wrong: the person's other trackers agree on a place far from here. Left out of stays, trips and alerts.",
+      "jump_unconfirmed": "This sighting jumped far and nothing has confirmed it yet. It is held back until the next sighting arrives.",
+      "sibling_disagree": "This sighting looks wrong: the person's other trackers agree on a place far from here, and this tracker has not backed it up. Left out of stays, trips and alerts.",
       "low_accuracy": "The network could only place this sighting within a wide area.",
       "clock_skew": "The time on this sighting is later than when it was received."
     },

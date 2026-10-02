@@ -25,11 +25,12 @@ REASON_TEXT: dict[str, str] = {
     r.IMPOSSIBLE_SPEED: f"{_WRONG}it implies a speed no tracker travels. {LEFT_OUT}",
     r.EDGE_STRAY: f"{_WRONG}it is far from the sightings around it. {LEFT_OUT}",
     r.JUMP_UNCONFIRMED: (
-        "This sighting jumped far, fast, and nothing has confirmed it yet. "
+        "This sighting jumped far and nothing has confirmed it yet. "
         "It is held back until the next sighting arrives."
     ),
     r.SIBLING_DISAGREE: (
-        f"{_WRONG}the person's other trackers agree on a place far from here. {LEFT_OUT}"
+        f"{_WRONG}the person's other trackers agree on a place far from here, "
+        f"and this tracker has not backed it up. {LEFT_OUT}"
     ),
     r.LOW_ACCURACY: "The network could only place this sighting within a wide area.",
     r.CLOCK_SKEW: "The time on this sighting is later than when it was received.",

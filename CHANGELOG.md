@@ -35,7 +35,9 @@ Versioning: [Semantic Versioning](https://semver.org/).
   disagreeing with the rest of its person. Raw history is never changed. Scores live in a derived
   table, with `findplus db recompute-quality [--since DATE]`. `GET /api/latest`, the timeline and
   every export carry `suspect` and `suspect_reason`; `/api/trips` lists these under `outliers` with
-  `reasons`. A lone far-and-fast sighting is held from place alerts for one poll.
+  `reasons`. A lone far sighting is held from place alerts for one poll (12 minutes at most),
+  and the alert keeps the sighting's own time. Spikes are caught at Find Hub's real 2 to 10
+  minute cadence, not only one minute apart.
 - Database backups: a verified online copy once a day (and at startup when the newest is a day
   old), kept 7 daily and 4 weekly in `~/.findplus/backups` (0700, files 0600, no secrets).
   `findplus db backup`, `db backups`, `db check`, and a safe `db restore <file>` (checks the file,

@@ -219,9 +219,13 @@ jump_unconfirmed, sibling_disagree, low_accuracy, clock_skew) with every thresho
 that a neighbour within `max(200 m, accuracy)` vouches for; `quality/store.py` writes
 `observation_quality` with `algo_version`; `quality/api.py` (`suspect_ids`, `is_suspect`) is the read
 interface other packages import. `trips/outliers.py` is a wrapper: a stored verdict wins over the
-pure rules. Ingest scores the new fix and its neighbours after insert (`quality/ingest_hook.py`); a
-`jump_unconfirmed` fix is held out of the geofence until the next fix confirms it (released in
-order) or turns it into `aba_teleport`.
+pure rules. Ingest rescores the tracker's own fixes two hours either side of each new fix, its
+person-group siblings' fixes 30 minutes either side, and every fix still held
+(`quality/ingest_hook.py`), writing only changed verdicts. A `jump_unconfirmed` or
+`sibling_disagree` fix is held out of the geofence until the tracker's next fix decides; any fix
+whose stored verdict flips from suspect to clean is fed to the geofence then, in observed order.
+The poller ends each cycle with `ingest.release_held_fixes`, which releases holds older than 12
+minutes even when no new fix arrives.
 
 Durability: `db/backup.py` (online backup API, verify, rotate), `db/restore.py`, `db/integrity.py`
 (`quick_check` at start, full checks for `db check` and doctor), `db/portable.py` and

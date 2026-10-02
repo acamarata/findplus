@@ -32,9 +32,14 @@ seen.
   lands within 200 m of it. Two bad sightings in a row are kept: Find+ needs two
   neighbours that agree before it calls one wrong. Re-score after upgrading with
   `findplus db recompute-quality [--since DATE]`.
-- **One poll of delay.** A sighting that jumps far and fast with nothing after it yet
-  is held back from place alerts until the next one arrives. If the next sighting
-  confirms it, the alert follows one poll late; if the tag jumps back, it never fires.
+- **One poll of delay.** A sighting that jumps more than a kilometre (or faster than a
+  brisk walk) with nothing after it yet is held back from place alerts until the next
+  one arrives. So is one far from where the person's other trackers agree. If the next
+  sighting confirms it, the alert follows one poll late but carries the held sighting's
+  own time; if the tag jumps back, it never fires. If nothing arrives, the hold runs out
+  after 12 minutes and the alert follows then. A real quick out-and-back with a single
+  sighting at the far end (a missed exit and a U-turn) is flagged too, unless a second
+  sighting or another of the person's trackers was there.
 
 ## Ask for it
 

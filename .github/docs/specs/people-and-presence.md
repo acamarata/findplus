@@ -248,11 +248,11 @@ Each observation gets `score` in [0, 1] and zero or more reasons:
 
 | reason | rule (defaults) |
 |---|---|
-| `aba_teleport` | neighbours P, N within 30 min agree (`d(P,N) < 0.5 x min(d(P,X), d(X,N))`), `d(P,X) > max(500 m, 2 x (accP + accX))`, round-trip speed `(d(P,X)+d(X,N)) / (tN - tP) > 20 m/s` |
+| `aba_teleport` | neighbours P, N within 30 min agree (`d(P,N) < 0.5 x min(d(P,X), d(X,N))`), `d(P,X) > max(500 m, 2 x (accP + accX))` (300 m when P and N are under 5 min apart), and either round-trip speed `(d(P,X)+d(X,N)) / (tN - tP) > 8 m/s` or `tN - tP <= 20 min` with `d(P,N) <= max(100 m, accP + accN)` (no speed test). Was 20 m/s, which missed the owner's spike at a 2 to 10 min cadence (review 2026-10-02) |
 | `impossible_speed` | both legs above 55 m/s (today's rule, kept) |
-| `edge_stray` | first/last fix of the window jumps away from two agreeing neighbours (today's rule) |
-| `jump_unconfirmed` | ingest-time only: speed from the last trusted fix > 20 m/s and > 1 km, no next fix yet |
-| `sibling_disagree` | 2+ other trackers of the same person, each seen within 10 min, agree within 300 m and this fix is > 1.5 km away while this tracker showed no motion before it |
+| `edge_stray` | first/last fix of the window jumps away (> 55 m/s) from two agreeing neighbours, each within 30 min |
+| `jump_unconfirmed` | a hold: the jump from the last trusted fix (within 30 min) clears the `aba_teleport` floor and is > 1 km or > 3 m/s, and no next fix yet; held 12 min from the fetch |
+| `sibling_disagree` | a hold: 2+ other trackers of the same person, each seen within 10 min, agree within 300 m and this fix is > 1.5 km away while this tracker showed no motion in the 90 min before it. The tracker's own next fix decides: agrees (kept, rescued), straight back (suspect), moved on or none within the hold (cleared) |
 | `low_accuracy` | accuracy > 1000 m (soft: score x 0.5, never suspect on its own) |
 | `clock_skew` | `observed_at` later than `first_fetched_at` + 5 min |
 
@@ -264,9 +264,13 @@ get score x 1.1 (capped), so diversity is not used beyond that.
 ### 6.3 Storage and use
 - Raw rows never change (invariant 8). Flags live in `observation_quality` with `algo_version`; a version bump or
   `findplus db recompute-quality [--since DATE]` rewrites them. Retention cascades through the FK.
-- Ingest: the new fix and its predecessor are scored after insert. `jump_unconfirmed` holds the fix out of the
-  geofence; the next fix either confirms it (clear the flag, feed both in order) or turns it into
-  `aba_teleport`. Cost: an ENTER after a real fast trip can be one poll later. Accepted, documented.
+- Ingest: the tracker's own fixes 2 h either side of each new fix, its siblings' fixes 30 min either side
+  and every held fix are rescored; only changed verdicts are written, and incremental equals a full
+  recompute. A suspect new fix is not fed to the geofence. Any fix whose stored verdict flips from suspect
+  to clean is fed then, in observed order, so the ENTER carries its own time. The poller's end-of-cycle
+  tick releases holds older than 12 min when no next fix comes. Cost: an ENTER after a real trip can be
+  one poll (12 min at most) later. A real quick out-and-back with one sighting at the far end is flagged
+  `aba_teleport` unless a second sighting or a sibling vouches for it. Accepted, documented.
 - Stays, trips, person inference and left-behind skip suspect fixes. The trips payload keeps listing them under
   `outliers` with `reasons` added.
 - UI: faint dot, dashed ring, tooltip "This sighting looks wrong: it jumps 2.4 km and back within 2 minutes.
@@ -280,6 +284,10 @@ get score x 1.1 (capped), so diversity is not used beyond that.
 - V5 sibling disagree: shoes + watch at school 10:00 and 10:04; bag (still since 8:10) reports 3 km away at 10:02.
 - V6 corroborated jump: B far, then C within 100 m of B two minutes later. B rescued.
 - V7 ingest hold: B arrives alone; no ENTER at the far place; C confirms; one ENTER at C's time.
+- Review 2026-10-02 (`test_spike_cadence.py`, `test_ingest_*.py`, `test_spike_stats.py`): B 2.5 km, 1 km,
+  600 m, 400 m at 1 min; 1 to 6 km at 2 to 10 min; C at 4:25 instead of 4:19; plane arrival, fast train
+  arrival and departure, bag-only departure, clock release; 2,000 spikes in 200k rows at 3 min: 93.9%
+  caught, 0.0035% false flags (0.0045% on the spike-free control).
 
 ## 7. Daily summary
 

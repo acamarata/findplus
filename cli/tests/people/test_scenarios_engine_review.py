@@ -130,3 +130,32 @@ def test_grandmas_arrival_with_sparse_reports(session):
     _back_home_then_grandma(Timeline(), every_at_grandma=75, walk_every=15).ingest(session)
     tail = [(e, p) for e, p, _ in person_events(session, sam.id)][-2:]
     assert tail == [("EXIT", "Home"), ("ENTER", "Grandma's")]
+
+
+def test_a_fast_clock_reporter_never_freezes_the_person(session):
+    """One bag sighting claims 16:30 but was fetched at 12:05 (a reporter with a
+    fast clock). Sam really leaves School at 15:00 and is home at 15:30: those
+    events must carry their own times, not wait until after 16:30."""
+    import types
+
+    from findplus.ingest import ingest_observations
+
+    from ._helpers import raw
+
+    seed_places(session)
+    sam = seed_person(session)
+    tl = _school_morning(Timeline(), until=(12, 0))
+    tl.ingest(session)
+    settings = types.SimpleNamespace(geofence_default_accuracy_meters=100.0,
+                                     group_window_minutes=30, presence_window_minutes=60)  # fmt: skip
+    skewed = raw("zb", SCHOOL[0], SCHOOL[1], at(16, 30))
+    ingest_observations(session, [skewed], fetched_at=at(12, 5), settings=settings)
+    tl = Timeline()
+    tl.stay(["zr", "zb"], SCHOOL, at(12, 10), at(15, 0), every=10)
+    tl.walk(["zr", "zb"], SCHOOL, HOME, at(15, 0), at(15, 30))
+    tl.stay(["zr", "zb"], HOME, at(15, 35), at(16, 0), every=5)
+    tl.stay(["zk", "zw"], HOME, at(12, 0), at(16, 0), every=30)
+    tl.ingest(session)
+    tail = person_events(session, sam.id)[-2:]
+    assert [(e, p) for e, p, _ in tail] == [("EXIT", "School"), ("ENTER", "Home")]
+    assert tail[0][2] <= at(15, 10) and tail[1][2] <= at(15, 35)

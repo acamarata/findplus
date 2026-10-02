@@ -201,7 +201,9 @@ Sam" (chip, no alert). Phone battery dies: it goes stale and drops out; what sti
 person/pet group the observation's device belongs to:
 
 1. Skip suspect or held observations (§6). Skip when `observed_at <= person_place_states.since_observed_at`
-   (the same backfill guard as `geofence.advance`).
+   (the same backfill guard as `geofence.advance`). Clock skew is hard here: a sighting that claims a time
+   later than its first fetch + 5 min is skipped and never used as evidence, and `as_of` is clamped to
+   `min(observed_at, fetched_at + 5 min)`, so one fast-clock reporter cannot hold the guard shut for hours.
 2. Run `infer()` as of the observation's `observed_at`, using only fixes observed at or before it.
 3. For each place: target side = `inside` when a supporter of the best cluster has a confirmed `inside`
    place_state there and confidence is `likely` or `probably`; `outside` when the person was inside and the best

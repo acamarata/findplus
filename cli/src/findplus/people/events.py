@@ -227,9 +227,13 @@ def evaluate_person(session: Session, group, as_of: datetime) -> list[GroupPlace
 
 def run_person_hook(session: Session, observation: LocationObservation, settings: object = None):
     """The ingest hook: every person/pet this sighting's tracker belongs to."""
-    if _quality.is_suspect(session, observation.id):
+    fetched = observation.first_fetched_at
+    if _quality.is_suspect(session, observation.id) or _quality.skewed(
+        observation.observed_at, fetched
+    ):
         return []
+    as_of = _quality.as_of_for(observation.observed_at, fetched)
     inserted: list[GroupPlaceEvent] = []
     for group in person_groups_of(session, observation.device_id):
-        inserted.extend(evaluate_person(session, group, observation.observed_at))
+        inserted.extend(evaluate_person(session, group, as_of))
     return inserted

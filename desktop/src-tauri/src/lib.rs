@@ -8,18 +8,43 @@
 //!              two-line `findplus_lib::run()` shim.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(on_second_instance))
+    let probe = probe_mode();
+    let mut builder = tauri::Builder::<tauri::Wry>::default();
+    if !probe {
+        builder = builder.plugin(tauri_plugin_single_instance::init(on_second_instance));
+    }
+    builder
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             notify::request_notification_permission
         ])
-        .setup(on_setup)
+        .setup(move |app| if probe { setup_probe(app) } else { on_setup(app) })
         .build(tauri::generate_context!())
         .expect("error building Find+")
         .run(on_run_event);
+}
+
+/// True only in a `login-probe` build launched with `--probe-google-embedded`.
+fn probe_mode() -> bool {
+    #[cfg(feature = "login-probe")]
+    return probe_login::requested();
+    #[cfg(not(feature = "login-probe"))]
+    false
+}
+
+/// Probe launch: no tray, daemon or splash, just the gate-probe window.
+fn setup_probe(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    #[cfg(feature = "login-probe")]
+    {
+        #[cfg(target_os = "macos")]
+        app.set_activation_policy(tauri::ActivationPolicy::Regular);
+        probe_login::start(app.handle());
+    }
+    #[cfg(not(feature = "login-probe"))]
+    let _ = app;
+    Ok(())
 }
 
 /// A second launch from Applications/Spotlight/`open` while Find+ is already
@@ -74,6 +99,12 @@ fn on_run_event(app_handle: &tauri::AppHandle, event: tauri::RunEvent) {
 mod daemon;
 mod first_launch;
 mod notify;
+#[cfg(all(debug_assertions, feature = "login-probe"))]
+mod probe_fake;
+#[cfg(feature = "login-probe")]
+mod probe_login;
+#[cfg(any(feature = "login-probe", test))]
+mod probe_logic;
 mod status;
 mod tray;
 mod urlscheme;

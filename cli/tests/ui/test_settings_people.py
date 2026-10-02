@@ -19,13 +19,16 @@ async def _stub_settings(page):
     patches: list[dict] = []
 
     async def handler(route):
-        real = await route.fetch()
-        body = await real.json()
-        if route.request.method == "PATCH":
-            sent = json.loads(route.request.post_data)
-            patches.append(sent)
-            digest.update(sent.get("people.digest", {}))
-        await route.fulfill(json={**body, "people.digest": dict(digest)})
+        try:
+            real = await route.fetch()
+            body = await real.json()
+            if route.request.method == "PATCH":
+                sent = json.loads(route.request.post_data)
+                patches.append(sent)
+                digest.update(sent.get("people.digest", {}))
+            await route.fulfill(json={**body, "people.digest": dict(digest)})
+        except Exception:  # the page closed while a request was in flight
+            return
 
     await page.route("**/api/settings", handler)
     return patches
@@ -89,6 +92,7 @@ async def test_turning_the_last_person_off_turns_the_summary_off(trips_page, tri
     await p.locator(".person-digest-row input[type=checkbox]").first.uncheck()
     await p.get_by_text("Pick at least one person").wait_for()
     assert not await p.is_checked("#person-digest-on")
+    await _until(lambda: len(patches) == 2)
     assert patches[-1] == {"people.digest": {"enabled": False}}
 
 

@@ -8,9 +8,8 @@ Constraints:
       storage, so DST transitions produce correct 23h/25h days.
     - Movement filtering annotates; it never deletes -- every raw observation
       returns with an `is_movement` flag alongside.
-    - The point/stats/day dataclasses live in timeline_models.py (PRI rule-7
-      300-line split) and are re-exported below, so every existing
-      `from findplus.timeline import TimelinePoint` caller is unchanged.
+    - The point/stats/day dataclasses live in timeline_models.py (300-line split)
+      and are re-exported below, so `from findplus.timeline import TimelinePoint` still works.
 """
 
 from __future__ import annotations
@@ -26,6 +25,7 @@ from sqlalchemy.orm import Session
 from findplus.db.models import LocationObservation
 from findplus.geo import haversine_meters, is_meaningful_movement, meters_to_miles
 from findplus.quality.annotate import annotate_points
+from findplus.timeline_distance import trusted_distance
 from findplus.timeline_models import DayStats, DayTimeline, TimelinePoint
 
 __all__ = [
@@ -152,21 +152,6 @@ def build_timeline(
     return points
 
 
-def _trusted_distance(points: list[TimelinePoint]) -> float:
-    """Distance between consecutive sightings, leaving out any that look wrong.
-
-    A tag that jumps 2 km away and back would otherwise add 4 km to the day. With no
-    suspect sighting this is exactly the sum of each point's own `meters_from_previous`.
-    """
-    if not any(p.suspect for p in points):
-        return sum(p.meters_from_previous or 0.0 for p in points)
-    good = [p for p in points if not p.suspect]
-    return sum(
-        haversine_meters(a.latitude, a.longitude, b.latitude, b.longitude)
-        for a, b in pairwise(good)
-    )
-
-
 def compute_stats(points: list[TimelinePoint]) -> DayStats:
     """Daily summary. Distance is between observations, not travelled."""
     if not points:
@@ -185,7 +170,7 @@ def compute_stats(points: list[TimelinePoint]) -> DayStats:
             longest_gap_end=None,
         )
 
-    total_m = _trusted_distance(points)
+    total_m = trusted_distance(points)
     longest_gap = 0.0
     gap_start = gap_end = None
     for prev, cur in pairwise(points):

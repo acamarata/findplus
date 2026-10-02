@@ -96,6 +96,33 @@ def _unconfirmed_jump(prev: Fix | None, fix: Fix, nxt: Fix | None, now: datetime
     return r.seconds(fix, nxt) <= r.RESCUE_OWN_WINDOW_S and r.is_corroborating(fix, nxt)
 
 
+def _sibling_hold(
+    fix: Fix,
+    before: Sequence[Fix],
+    nxt: Fix | None,
+    sib_index: Sequence[tuple[list[float], list[Fix]]],
+    now: datetime | None,
+) -> bool:
+    """sibling_disagree is a hold, not a verdict: this tracker's own next fix decides.
+
+    The siblings can be the ones left behind (a child takes only the bag), so
+    one far fix is never condemned on their word. No next fix yet: held, like
+    an unconfirmed jump. The next fix lands where this one did: kept (and the
+    rescue lifts it). It goes straight back to where the tracker sat: suspect.
+    It moved on, or came too late to judge: benefit of the doubt.
+    """
+    near = [c for t, f in sib_index if (c := r.nearest_in_time(t, f, fix))]
+    if not r.sibling_disagree(fix, before, near):
+        return False
+    if nxt is None:
+        return awaiting_next(fix, now)
+    if r.seconds(fix, nxt) > r.RESCUE_OWN_WINDOW_S:
+        return False
+    if r.is_corroborating(fix, nxt):
+        return True
+    return r.dist(nxt, before[-1]) <= max(r.STILL_RADIUS_M, nxt.acc)
+
+
 def _soft_and_context(
     ordered: Sequence[Fix],
     sib_index: Sequence[tuple[list[float], list[Fix]]],
@@ -110,8 +137,7 @@ def _soft_and_context(
         nxt = ordered[i + 1] if i + 1 < len(ordered) else None
         if not found and _unconfirmed_jump(prev, fix, nxt, now):
             found.append(r.JUMP_UNCONFIRMED)
-        near = [c for t, f in sib_index if (c := r.nearest_in_time(t, f, fix))]
-        if sib_index and r.sibling_disagree(fix, ordered[max(0, i - 2) : i], near):
+        if sib_index and _sibling_hold(fix, ordered[max(0, i - 2) : i], nxt, sib_index, now):
             found.append(r.SIBLING_DISAGREE)
         if r.low_accuracy(fix):
             found.append(r.LOW_ACCURACY)

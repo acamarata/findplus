@@ -137,6 +137,53 @@ def test_a_bag_that_stays_put_while_siblings_leave_is_not_suspect() -> None:
     shoes = fix(4, 182, 3200.0)  # its siblings are 3.2 km away and agree with each other
     watch = fix(5, 183, 3210.0)
     assert r.sibling_disagree(bag_now, bag_before, [shoes, watch]) is False
-    # ...but a bag that JUMPS 3 km while its siblings agree elsewhere is still flagged.
+    # ...but a bag that JUMPS 3 km while its siblings agree elsewhere is still flagged
+    # (as long as its "before" is recent: hours-old fixes say nothing about motion).
     jumped = fix(6, 180, 3000.0)
-    assert r.sibling_disagree(jumped, bag_before, [fix(7, 182, 0.0), fix(8, 183, 5.0)]) is True
+    recent = [fix(9, 150, 0.0), fix(10, 170, 5.0)]
+    siblings_home = [fix(7, 182, 0.0), fix(8, 183, 5.0)]
+    assert r.sibling_disagree(jumped, recent, siblings_home) is True
+    assert r.sibling_disagree(jumped, bag_before, siblings_home) is False
+
+
+def _v5_world():
+    school = 3000
+    shoes = [fix(10, 0, school), fix(11, 4, school, 5)]
+    watch = [fix(20, 1, school, -4), fix(21, 5, school)]
+    bag = [fix(30, -110, school), fix(31, -60, school), fix(32, 2, school + 3000)]
+    return school, bag, {"shoes": shoes, "watch": watch}
+
+
+def test_v5_the_bags_own_next_fix_back_at_school_condemns_it() -> None:
+    school, bag, sibs = _v5_world()
+    out = score_series([*bag, fix(33, 6, school, 10)], siblings=sibs, now=LATER)
+    assert out[32].suspect and r.SIBLING_DISAGREE in out[32].reasons
+
+
+def test_v5_the_bags_own_next_fix_far_away_too_clears_it() -> None:
+    """The child took only the bag: its own next fix agrees, so the first one was real."""
+    school, bag, sibs = _v5_world()
+    out = score_series([*bag, fix(33, 6, school + 3020)], siblings=sibs, now=LATER)
+    assert not out[32].suspect and out[32].corroborated_by == 33
+
+
+def test_v5_a_bag_that_moves_on_is_not_condemned() -> None:
+    school, bag, sibs = _v5_world()
+    out = score_series([*bag, fix(33, 6, school + 4500)], siblings=sibs, now=LATER)
+    assert not out[32].suspect
+
+
+def test_v5_with_no_next_fix_the_hold_runs_out() -> None:
+    from datetime import timedelta
+
+    _, bag, sibs = _v5_world()
+    assert score_series(bag, siblings=sibs, now=bag[-1].t)[32].suspect
+    later = bag[-1].t + timedelta(minutes=13)
+    assert not score_series(bag, siblings=sibs, now=later)[32].suspect
+
+
+def test_still_means_recently_still() -> None:
+    """Own fixes hours old say nothing about whether the tracker was moving."""
+    school, _, sibs = _v5_world()
+    bag = [fix(30, -400, school), fix(31, -300, school), fix(32, 2, school + 3000)]
+    assert not score_series(bag, siblings=sibs)[32].suspect

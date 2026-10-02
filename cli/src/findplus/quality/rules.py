@@ -72,6 +72,8 @@ SIBLING_WINDOW_S = 10 * 60
 SIBLING_AGREE_M = 300.0
 SIBLING_FAR_M = 1500.0
 SIBLING_MIN_COUNT = 2
+#: "Showed no motion" only counts own fixes this recent; older ones say nothing.
+SIBLING_STILL_WINDOW_S = 90 * 60
 #: A tracker that has not moved by more than this "showed no motion".
 STILL_RADIUS_M = 100.0
 #: low_accuracy and clock_skew.
@@ -186,8 +188,11 @@ def sibling_disagree(fix: Fix, before: Sequence[Fix], near: Sequence[Fix]) -> bo
     have been carried away, and `fix` itself must be a jump away from where the
     tracker just was. A tracker that keeps reporting the SAME place while its
     siblings leave (a bag left at school) is not a bad coordinate: it is the
-    left-behind case the people engine alerts on.
+    left-behind case the people engine alerts on. Only own fixes from the last
+    90 minutes count as "before". The scorer treats a hit as a hold for the
+    tracker's own next fix, never as a verdict on its own.
     """
+    before = [b for b in before if seconds(b, fix) <= SIBLING_STILL_WINDOW_S]
     if not before or dist(fix, before[-1]) <= max(STILL_RADIUS_M, fix.acc):
         return False
     if len(before) >= 2 and dist(before[-1], before[-2]) > max(STILL_RADIUS_M, before[-1].acc):

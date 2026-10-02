@@ -94,7 +94,8 @@ def test_route_count():
     # +2 for the daily summary (1.1.6): GET /people/{id}/day and POST /people/{id}/day/send.
     # +7 for the in-app sign-in window (1.2.0): /auth/google/native/{begin,token,
     # unlock,event,classify,cancel} (POST) and /progress (GET).
-    assert len(routes) == 129
+    # +3 for the Apple sheet (1.2.0): GET /auth/apple/status, POST cancel and text.
+    assert len(routes) == 132
 
 
 #: T1 (2026-09-22, PRI rule-7 50-line function cap): pulled out of
@@ -157,6 +158,9 @@ _EXPECTED_PATHS = {
     "/api/auth/apple/start",
     "/api/auth/apple/code",
     "/api/auth/apple/progress",
+    "/api/auth/apple/status",
+    "/api/auth/apple/cancel",
+    "/api/auth/apple/text",
     "/api/auth/google/native/begin",
     "/api/auth/google/native/token",
     "/api/auth/google/native/unlock",

@@ -67,6 +67,8 @@ _REQUIRES_OWN_SIGNAL = {
     ("POST", "/api/auth/google/helper/open-extensions"),
     ("POST", "/api/auth/google/native/begin"),
     ("POST", "/api/auth/google/native/cancel"),
+    ("POST", "/api/auth/apple/cancel"),
+    ("POST", "/api/auth/apple/text"),
     ("DELETE", "/api/auth/{provider}"),
 }
 

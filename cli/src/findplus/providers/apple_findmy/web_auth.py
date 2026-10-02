@@ -110,7 +110,7 @@ def _set_progress(job_id: str, state: str, message: str) -> None:
     session = None
     with _lock:
         job = _jobs.get(job_id)
-        if job is None:
+        if job is None or job.get("cancelled"):
             return
         job["state"] = state
         job["message"] = message
@@ -118,6 +118,7 @@ def _set_progress(job_id: str, state: str, message: str) -> None:
         if state in _TERMINAL:
             job["finished_monotonic"] = time.monotonic()
             session, job["session"], job["method"] = job.get("session"), None, None
+            job["methods"] = []
     _close_quietly(session)
 
 
@@ -182,15 +183,19 @@ def _run_apple_auth(job_id: str, settings: Any, apple_id: str, password: str) ->
             session.run(method.request())
             with _lock:
                 job = _jobs.get(job_id)
-                if job is not None:
-                    job["method"], job["session"] = method, session
-            if job is None:  # swept while Apple was answering: nobody will submit
+                live = job is not None and not job.get("cancelled")
+                if live:
+                    job["method"], job["session"], job["methods"] = method, session, methods
+            if not live:  # swept or cancelled while Apple was answering: nobody will submit
                 _close_quietly(session)
                 return
             _set_progress(job_id, "needs_2fa", _needs_2fa_message(method))
             return
         if state != findmy.LoginState.LOGGED_IN:
             raise RuntimeError(f"Apple sign-in did not finish (state {state}).")
+        if _is_cancelled(job_id):
+            _close_quietly(session)  # Cancel arrived while Apple answered: save nothing
+            return
         save_account(session.account, settings)
     except Exception as exc:
         _close_quietly(session)
@@ -198,6 +203,13 @@ def _run_apple_auth(job_id: str, settings: Any, apple_id: str, password: str) ->
     else:
         _close_quietly(session)
         _set_progress(job_id, "done", f"Authenticated as {apple_id}.")
+
+
+def _is_cancelled(job_id: str) -> bool:
+    """True once the sheet's Cancel reached this job (signin_sheet.py)."""
+    with _lock:
+        job = _jobs.get(job_id)
+        return job is None or bool(job.get("cancelled"))
 
 
 def submit_apple_code(job_id: str, code: str, settings: Any) -> str:

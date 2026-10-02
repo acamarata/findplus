@@ -31,6 +31,10 @@ Versioning: [Semantic Versioning](https://semver.org/).
   it and falls back to your Chrome helper or pasting the cookie. It remembers the refusal for 7
   days and leads with your Chrome in that time. **Try the Find+ window again** is on the card.
 - Honesty notice for the sign-in window ("Find+ can sign you in to Google in a window of its own...").
+- Before the window opens the card also says what Find+ keeps and how to take it back: "Find+
+  keeps a long-lived sign-in to your Google account on this Mac so it can read your trackers. You
+  can remove its access any time at myaccount.google.com/security (Third-party access) or with
+  Disconnect."
 - `findplus auth --status` shows a Needs column and, for a blocked window, the next fallback.
 - Manual test checklist for the in-app sign-in: [Desktop manual tests](.github/wiki/Desktop-manual-tests.md).
 
@@ -42,6 +46,23 @@ Versioning: [Semantic Versioning](https://semver.org/).
   from older versions; see the Uninstall page for how to delete it.
 - The account line reads "Connected as ..." and "Not connected" instead of "Signed in as ...".
 - The wizard's sign-in step holds **Next** until one provider is connected (Skip still works).
+
+### Fixed (review of the sign-in, before release)
+- Unlocking on its own no longer stores the keys when Find+ cannot see which Google account the
+  window is signed in to; the card says so and offers **Try again**.
+- A frame from another site inside Google's page, or a Google country page such as
+  `www.google.de`, no longer ends the window as "left Google" or sets the 7-day memory.
+- **Try again** or **Connect** while the window is still open brings that window forward instead
+  of breaking its sign-in. A slow Google (502) or an unusable cookie no longer shows an error
+  while the window keeps going, and a retry that then works shows **Connected**.
+- Cancel while Google checks the sign-in now always ends in "Connected" or "Cancelled", never a
+  stuck spinner; an older window can no longer finish a newer sign-in; a sign-in left by a quit
+  or crashed app expires instead of waiting forever.
+- A poll Google or Apple refused for its sign-in now raises the same menu bar item, banner and
+  link as a revoked sign-in, and the banner shows once per loss also across app restarts.
+- The unlock step gets its own 10 minutes; closing the window while Google checks says
+  "finishing, one moment..." in its title.
+- Apple: Cancel while the code is being checked never saves the account.
 
 ### Removed
 - The **Show helper folder** and **Open Chrome extensions** buttons. Nothing in Find+ opens Finder
@@ -61,6 +82,13 @@ Versioning: [Semantic Versioning](https://semver.org/).
   Events: `signin-progress`, `signin-result`, `signin-apple-sheet`, `auth-attention`, kept until
   the page can hear them.
 - The notification button in the wizard works again (the app now declares its own command ACL).
+- Sign-in state has one owner, the daemon's progress record; every begin, progress answer and
+  shell event carries a `flow` id, and the card's begin sends `if_idle` (409 `window_open` while a
+  window still works). The window's allow-list covers Google's sign-in infrastructure, bridge
+  messages carry a per-run key, and a unit test proves no capability reaches the sign-in window.
+  Transition table: `.github/docs/specs/in-app-login-contract.md` §3.8.
+- Package 0 (the owner's real-account spike) has not run yet; the owner checklist is
+  [Desktop manual tests](.github/wiki/Desktop-manual-tests.md), steps 1 to 22.
 
 ## [1.1.6] - Unreleased
 

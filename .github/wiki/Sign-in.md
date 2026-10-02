@@ -12,6 +12,12 @@ wizard shows the same card. In the Find+ app, the card has one button.
 
 ### In the Find+ app: the sign-in window
 
+Before the window opens, the card says what Find+ keeps:
+
+> Find+ keeps a long-lived sign-in to your Google account on this Mac so it
+> can read your trackers. You can remove its access any time at
+> myaccount.google.com/security (Third-party access) or with Disconnect.
+
 1. Click **Connect**. A small window titled "Find+ sign-in: Google" opens. It
    shows Google's own sign-in page, and the title names the page you are on so
    you can check where you type your password.
@@ -22,6 +28,10 @@ wizard shows the same card. In the Find+ app, the card has one button.
 
 If you would rather stop, click **Cancel** on the card, or close the window
 (Command+W). Nothing changes and the card says "Cancelled. Nothing changed."
+If Google had already accepted you when you cancelled, the card says
+**Connected as** your account instead, because that is what happened.
+Clicking **Connect** or **Try again** while the window is still open brings
+that window to the front; it never starts a second one.
 A window left open for 10 minutes closes on its own. If it is slow, the card
 adds a hint after a few minutes, but the window stays open; some 2-step checks
 take a while.
@@ -176,7 +186,9 @@ password does the same.
 | A blank page after you sign in | Wait a few seconds. If the card still waits, close the window and click **Connect** again. |
 | The window closed but the card says "Cancelled" | Command+W or Cancel was pressed. Start again. |
 | "Locations locked" after signing in | Click **Unlock encrypted locations** and enter your Android screen lock in the window. |
-| A banner keeps coming back | The sign-in is still lost. Click **Sign in again** and finish the window. |
+| A banner keeps coming back | The sign-in is still lost. Click **Sign in again** and finish the window. Find+ shows the banner once per loss, also across restarts. |
+| "Find+ could not tell which Google account the window is signed in to" | Unlocking on its own needs to see your account on Google's page. Click **Try again**, and sign in with the same account Find+ uses. Nothing was saved. |
+| "Google is slow to answer. Trying again..." | Wait: Find+ tries once more by itself. If it still fails, the card says so and offers **Try again**. |
 | Nothing in the app reacts to the banner | Open **Settings**, then Sign-in, and click **Connect**. |
 
 More in [Troubleshooting](Troubleshooting).

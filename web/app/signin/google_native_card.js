@@ -7,7 +7,10 @@
  *              Show window, Cancel, Use your Chrome, Try again, ...). Which of
  *              them shows is decided by google_native_view.js.
  * Inputs     : The card's id prefix and the /api/config notices.
- * Outputs    : { native, nativeStatus, nativeText, nativeNote, ...buttons }.
+ * Outputs    : { native, nativeStatus, nativeText, nativeNote, nativeHonesty,
+ *              nativeKept, ...buttons }. The two honesty lines (Google may
+ *              refuse; what Find+ keeps and how to remove it) show before the
+ *              window opens.
  * Constraints: textContent only; every string from t() or /api/config. No
  *              "cookie" or "token" anywhere on this path. Built only when the
  *              page has the desktop bridge (native_bridge.js).
@@ -73,7 +76,13 @@ export function buildNativeBlock(prefix, notices) {
     (notices && notices.native_signin) || t("honesty.nativeSignin")
   );
   honesty.id = `${prefix}-google-native-honesty`;
-  wrap.append(status.nativeStatus, note, actions, honesty);
-  return { native: wrap, nativeNote: note, nativeHonesty: honesty, ...status, ...buttons,
-    ...quietButtons };
+  // What Find+ keeps and how to take it back, said before the window opens.
+  const kept = el(
+    "p", "fp-signin-how fp-signin-native-kept",
+    (notices && notices.native_signin_kept) || t("honesty.nativeSigninKept")
+  );
+  kept.id = `${prefix}-google-native-kept`;
+  wrap.append(status.nativeStatus, note, actions, honesty, kept);
+  return { native: wrap, nativeNote: note, nativeHonesty: honesty, nativeKept: kept, ...status,
+    ...buttons, ...quietButtons };
 }

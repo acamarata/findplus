@@ -98,6 +98,14 @@ NATIVE_SIGNIN = (
     "Chrome instead."
 )
 
+#: Said on the Google card before the in-app window opens (r12 #5): what Find+
+#: keeps and how to take it back.
+NATIVE_SIGNIN_KEPT = (
+    "Find+ keeps a long-lived sign-in to your Google account on this Mac so it can read "
+    "your trackers. You can remove its access any time at myaccount.google.com/security "
+    "(Third-party access) or with Disconnect."
+)
+
 NOTICES: dict[str, str] = {
     "find_hub": FIND_HUB,
     "apple": APPLE,
@@ -115,4 +123,5 @@ NOTICES: dict[str, str] = {
     "route_likely": ROUTE_LIKELY,
     "routing_privacy": ROUTING_PRIVACY,
     "native_signin": NATIVE_SIGNIN,
+    "native_signin_kept": NATIVE_SIGNIN_KEPT,
 }

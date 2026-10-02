@@ -91,3 +91,22 @@ only a host and a path, never a token, a cookie or a password. Send back lines t
     value that looks like a token, which you should not send; tell the developer instead.
 17. **A week later.** Sign in once more a week later and report whether Google flagged the
     account (a security email, a forced password change).
+18. **Unlock with the right account, then the wrong one.** From the menu bar item "Unlock Google
+    locations..." (after a key reset), sign in with the SAME Google account: expect "Locations
+    unlocked". Repeat and sign in with a DIFFERENT Google account in the window: expect the card
+    to refuse ("signed in to a different Google account" or "could not tell which Google account
+    ... saved nothing") and nothing unlocked. Report both card texts.
+19. **Try again while the window is open.** Click **Connect**, leave the window open, and click
+    the card's button again (or the menu bar item). Expect: the same window comes to the front;
+    no second window, and finishing the sign-in there still connects. Report: yes or no.
+20. **Cancel while Google checks.** Click the card's **Cancel** right as the card says "Checking
+    with Google..." (try a few times). Expect: within 5 seconds the card settles on "Connected
+    as ..." (the sign-in had already gone through) or "Cancelled", never a spinner that stays.
+    Report what it showed.
+21. **One banner per loss, even after a restart.** With Google still revoked (step 9), quit
+    Find+ and open it again twice. Expect: no new "Find+ needs you" notification on either
+    start; the menu bar item is still there. Sign in again, revoke again: exactly one new
+    notification. Report the counts.
+22. **Frames and leaving Google.** In the log, `signin: refused a frame from host ...` lines are
+    harmless (another site's frame inside Google's page). Report every
+    `tried to leave Google for host ...` line with its host: each one ended the window.

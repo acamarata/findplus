@@ -268,6 +268,15 @@ browser-only mode.
 
 A and B run in parallel; C starts against a stubbed bridge; D last. Every file stays under 300 lines.
 
+### 8.1 Package 0 status
+
+Not yet run with a real account: owner UAT steps list in Desktop-manual-tests.md. A, B, C and D
+were built and tested against fakes only (fake EmbeddedSetup, unlock and daemon on 127.0.0.1, a
+stub bridge in the dashboard). Everything marked [Guessing] in §3 and §4 (the rejection paths,
+whether the EmbeddedSetup session is enough for `/encryption/unlock`, which frames Google's pages
+load) is still a guess until the owner runs [Desktop manual tests](../../wiki/Desktop-manual-tests.md),
+section "In-app sign-in (1.2.0)", and the results are written here.
+
 ## 9. Security review and tests
 
 ### 9.1 Window hardening
@@ -330,7 +339,10 @@ A and B run in parallel; C starts against a stubbed bridge; D last. Every file s
 - Cleanup: the in-app window persists nothing. `~/.findplus/chrome-profile` (from the old own-Chrome path)
   stays until the user removes it; uninstall docs list it.
 - Gates: the PRI list (pytest, ruff, node --check, shellcheck, clippy -D warnings, cargo test, widget build)
-  plus package 0's result recorded in this file.
+  plus package 0's result recorded in this file (§8.1: not yet run with a real account).
+- Consent: before the window opens the card says, from `honesty.NATIVE_SIGNIN_KEPT`: "Find+ keeps a
+  long-lived sign-in to your Google account on this Mac so it can read your trackers. You can remove
+  its access any time at myaccount.google.com/security (Third-party access) or with Disconnect."
 
 ## 11. Adversarial critique
 

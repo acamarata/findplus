@@ -275,6 +275,10 @@ see if sign-in cannot find Chrome, not a general statement.
 > Find+ can sign you in to Google in a window of its own. Google's
 > policy is against sign-in inside apps, so it can refuse at any time; if
 > it does, sign in with your own Chrome instead.
+>
+> Find+ keeps a long-lived sign-in to your Google account on this Mac so
+> it can read your trackers. You can remove its access any time at
+> myaccount.google.com/security (Third-party access) or with Disconnect.
 
 ## CLI
 

@@ -114,3 +114,17 @@ async def test_unlock_without_a_known_account_says_why_and_offers_retry(page, ba
     await wait_text(page, TEXT, "could not tell which Google account")
     assert await page.locator(RETRY).is_visible()
     assert await page.locator(TEXT).inner_text() == UNKNOWN
+
+
+async def test_the_card_says_what_find_keeps_before_the_window_opens(page, base_url):
+    """r12 #5: consent first. Both sentences come from honesty.py, verbatim."""
+    from findplus import honesty
+
+    await _open(page, base_url)
+    assert await page.locator(CONNECT).is_visible()
+    kept = page.locator("#fp-auth-google-native-kept")
+    assert await kept.is_visible()
+    assert await kept.inner_text() == honesty.NATIVE_SIGNIN_KEPT
+    refuse = page.locator("#fp-auth-google-native-honesty")
+    assert await refuse.inner_text() == honesty.NATIVE_SIGNIN
+    assert await page.evaluate("() => window.__fpShell.calls.length") == 0  # nothing opened yet

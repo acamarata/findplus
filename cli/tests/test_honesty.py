@@ -73,6 +73,7 @@ def test_notices_dict_matches_named_constants() -> None:
         "route_likely": honesty.ROUTE_LIKELY,
         "routing_privacy": honesty.ROUTING_PRIVACY,
         "native_signin": honesty.NATIVE_SIGNIN,
+        "native_signin_kept": honesty.NATIVE_SIGNIN_KEPT,
     }
 
 

@@ -31,11 +31,8 @@ from findplus.security import SessionStore, hash_pin, reject_padded_pin, verify_
 from findplus.state import set_setting
 
 from ._settings_backup import write_backup_fields
-<<<<<<< HEAD
 from ._settings_backup_routes import register_backup_routes
-=======
 from ._settings_digest import write_digest_fields
->>>>>>> release/1.1.6
 from ._settings_fields import (
     _RETENTION_KEY,
     _raw_patch_body,

@@ -58,7 +58,10 @@ Per-tracker override 0.0 to 1.0 (0 = never used to place the person).
 
 `places.kind`: `home | school | work | family | shop | other` (default `other`); several homes allowed. Home
 stays fold into one line, left-behind alerts are off at homes (§4), the summary opens "Overnight at Home". The
-dialog guesses kind from the name ("Grandma's" -> family) for the owner to confirm.
+dialog guesses kind from the name ("Grandma's" -> family) for the owner to confirm. `places.kind_guessed` marks a
+guess the owner has not confirmed: set when the API guessed (no `kind` in the body) and by 0013 for every
+existing place whose name suggests a kind (an upgraded "Home" becomes `home`). The places list shows "Kind: Home,
+guessed from the name." with a one-tap confirm; any PUT with `kind` clears it (review r116 #8).
 
 ### 1.4 Migration `0013_people_and_quality`
 
@@ -67,7 +70,8 @@ Order inside one revision; `upgrade_to_head` already wraps it in `fk_disabled` [
 ```
 groups               + kind TEXT NOT NULL DEFAULT 'set'        -- API-validated (no CHECK: no parent-table rebuild)
 devices              + role TEXT NULL, + carry_weight REAL NULL
-places               + kind TEXT NOT NULL DEFAULT 'other'
+places               + kind TEXT NOT NULL DEFAULT 'other', + kind_guessed BOOLEAN NOT NULL DEFAULT 0
+                       data step: kind = guess(name), kind_guessed = 1 where the name suggests one
 group_place_events   + basis TEXT NOT NULL DEFAULT 'quorum'    -- 'quorum' | 'person'
                      + note TEXT NULL                          -- person events store their sentence
                      + lead_device_id TEXT NULL                -- tracker whose crossing decided it
@@ -141,9 +145,16 @@ non-suspect fixes, role weight, place_states. No DB, no clock, tz-aware `now` (s
    - `f_motion`: 2.0 "carried" when two consecutive non-suspect fixes in the last 6 h are more than
      `max(150 m, 2 x accuracy)` apart; 0.4 "parked" when it has not moved for 6 h; 1.0 when there are too few
      fixes to tell. **Trackers do not move on their own; a moved tracker was carried. A parked one proves little.**
+   - Motion is scored from the LAST move (review r116 #3): `carried` only within `carried_minutes` (45) of it;
+     after that the tracker is `settled` (1.0, neutral) until 6 h of stillness make it `parked`. A bag that
+     came home an hour ago no longer outweighs the shoes walking to Grandma's. 45 min covers a school run or a
+     shop visit; longer would let a bag that came home after school block the next trip.
    - Worked: Sam leaves at 7:40. Shoes Red carried 0.8 x 2 = 1.6; bag, bike, Shoes White parked at Home
-     (0.5 + 0.4 + 0.8) x 0.4 = 0.68. B/R = 2.35, so `likely` away from Home. At School by noon the shoes still
-     count as carried (moved within 6 h), so the answer stays `likely` at School.
+     (0.5 + 0.4 + 0.8) x 0.4 = 0.68. B/R = 2.35, so `likely` away from Home. At School by noon the shoes are
+     `settled`; with the bag that is 1.3 against 0.48 at Home, so the answer stays `likely` at School.
+   - Only a `carried` (or too-new-to-judge) supporter, or one with its own crossing, may move person state. When
+     no best-cluster tracker is carried and a tracker at least as trusted moved later than all of them, the
+     answer is `unsure`: the person went with that one.
    - `f_acc`: 1.0 at <= 100 m, 0.7 at <= 300 m, 0.4 beyond (missing accuracy = 100 m, as presence.py does).
 3. Cluster reporting trackers with `presence._greedy_clique` (radius = group `cluster_radius_meters` plus
    accuracy) [Certain the function exists]. Repeat on the remainder to get every cluster.
@@ -171,9 +182,11 @@ States per (person, tracker): `with_person -> apart_pending -> left_behind -> cl
 - the tracker is not stale.
 
 Confirm `left_behind` after `apart_minutes` (default 20) with the above true across at least two newer person
-fixes. Hysteresis: one contrary fix resets `apart_pending`, never a confirmed row.
+fixes: non-suspect sightings of the trackers that place the person now (best cluster, not parked), never the bike
+and spare shoes reporting from the garage. Hysteresis: one contrary fix resets `apart_pending`, never a confirmed row.
 
-Alert once per episode. Setting `people.left_behind_alerts` (Q4): on at non-home places and unnamed spots, off at
+Alert once per episode. A confirmed episode cleared as `stale` resumes, with its `notified_at` kept, when the
+tracker reports again from the same spot, so a bag that goes quiet and comes back never re-alerts. Setting `people.left_behind_alerts` (Q4): on at non-home places and unnamed spots, off at
 `home` (a bike in the garage is normal). Sent on the channels of the rules that cover that person; logged in
 `alert_deliveries` with `event_kind='left_behind'`. Text: "Sam's bag looks left at School. Last seen there at
 3:02 PM; Sam's shoes were seen near Home at 3:40 PM."
@@ -194,11 +207,21 @@ Sam" (chip, no alert). Phone battery dies: it goes stale and drops out; what sti
 person/pet group the observation's device belongs to:
 
 1. Skip suspect or held observations (§6). Skip when `observed_at <= person_place_states.since_observed_at`
-   (the same backfill guard as `geofence.advance`).
+   (the same backfill guard as `geofence.advance`). Clock skew is hard here: a sighting that claims a time
+   later than its first fetch + 5 min is skipped and never used as evidence, and `as_of` is clamped to
+   `min(observed_at, fetched_at + 5 min)`, so one fast-clock reporter cannot hold the guard shut for hours.
 2. Run `infer()` as of the observation's `observed_at`, using only fixes observed at or before it.
 3. For each place: target side = `inside` when a supporter of the best cluster has a confirmed `inside`
    place_state there and confidence is `likely` or `probably`; `outside` when the person was inside and the best
    cluster's members have all left that place; otherwise no change (`unsure` never moves state).
+   Trackers that never moved cannot move state: a change needs a supporter whose motion is not `parked`, or one
+   with its own device ENTER/EXIT at that place since the person's last transition there. When the carried
+   tracker goes quiet, the person holds where they were and the quiet tracker reads "no recent sighting".
+   Likewise `infer()` answers `unsure` when its best cluster is all parked while another tracker (reporting or
+   stale) moved within the window.
+   `outside` comes only from a supporter's own device state `outside`: a supporter whose geofence still says
+   `inside` holds the person there, so one stray fix never skips D17's two-exit confirmation. The event then
+   carries the crossing time, the deciding tracker's first sighting on the new side (`people/crossing.py`).
 4. Anti-flap: an opposite transition at the same place needs `settle_minutes` (default 10) since the last one.
    Device-level hysteresis (D17: 1 enter, 2 exit confirmations) has already filtered jitter underneath.
 5. First evaluation seeds state with no event (D17's rule).
@@ -209,9 +232,14 @@ person/pet group the observation's device belongs to:
 Dispatch already picks up `notified_at IS NULL` group rows [Certain]; `_GROUP_EVENTS_SQL` adds `basis`, `note`, `g.kind`.
 
 ### 5.2 Rule matching
-- `match()`: an `all_people` rule matches any `GroupEvent` whose group kind is person/pet.
+- `match()`: an `all_people` rule matches any `GroupEvent` whose group kind is `person`. Pets get person events but
+  their alerts are off by default (Q8): a pet alerts only through a rule naming its group (review r116 #12).
+- Left-behind uses the rules covering the person whose `place_id` is NULL or the episode's place: a rule for
+  Grandma's never carries a bag left at School or an unnamed spot.
 - `suppressed_by_group()`: an enabled `all_people` or person rule suppresses device rules for that person's
-  trackers at the same place and type unless `also_notify_members` (same semantics as today).
+  trackers at the same place and type unless `also_notify_members`, and only when that person recorded its own
+  event for the place and type within 30 min of the device crossing. With no person event the tracker's own rule
+  still sends, so "Notify me" never silences an alert the owner already had (review r116 #4).
 - Cooldown: default person rules use `cooldown_minutes = 0`. `in_cooldown` keys on (rule, channel, place) and
   ignores event type [Certain], so a 30-minute cooldown would swallow "left the shop" 20 minutes after "arrived".
   Debounce lives in the engine (§5.1.4). No quiet hours this release (Q5); dispatch is in `observed_at` order.
@@ -221,19 +249,23 @@ Dispatch already picks up `notified_at IS NULL` group rows [Certain]; `_GROUP_EV
 name "Arrivals and departures at <Place>", `place_id`, `all_people=1`, `on_enter=on_exit=1`, cooldown 0.
 Channel choice: exactly one of {telegram, whatsapp, webhook} configured -> that one; several -> telegram if
 present, else all configured external ones; none -> `native` when the desktop app has registered, else the rule
-is saved disabled with the hint "Connect Telegram to get these." The place dialog shows the checkbox ticked with
+is saved disabled with the hint "Connect Telegram to get these." When an enabled any-place all-people rule (arrive
+and leave) already exists, no rule is added and the answer names that rule (`covered: true`). Dispatch sends one
+message per (group event, channel, chat) however many rules match it (review r116 #7). The place dialog shows the checkbox ticked with
 the chosen channel named. Backfill: the Alerts tab shows "3 places have no arrival alerts. Notify me" ->
 `POST /api/places/notify-defaults` with a dry-run preview first (`?dry_run=1` lists the rules it would add).
 
 ### 5.4 Message templates (`people/messages.py`, through `web/locales/en.json` keys `people.msg.*`)
 ```
 Sam arrived at Grandma's at 4:12 PM          (or "Sam just arrived at Grandma's" when < 10 min old)
-Seen by Sam Shoes Red · reported 4:31 PM · 19 min late
+Seen by Sam Shoes Red · reported 4:31 PM · 19 min late   (the event's lead: its sighting at the crossing time,
+                                                       else its next one; never another tracker's)
 Sam's bag stayed at Home.                    (only when a tracker is apart)
 <honesty.ALERTS_LATENCY, verbatim, never truncated>
 ```
 "Sam left Home at 7:40 AM" for EXIT. Times are local with the zone abbreviation, built by the existing
-`dispatch_core._fmt_local_time` [Certain]. Probably-level events add "(probably; only the bag reported)".
+`dispatch_core._fmt_local_time` [Certain]. Probably-level events add "(probably; only the bag reported)"; when the note does not fit the 400-character budget the
+"stayed" clause may drop, the probably clause never does (the head is trimmed instead).
 `render_message` gets a `basis == 'person'` branch in a new `alerts/render_person.py` (dispatch_core is 290
 lines [Certain]).
 
@@ -303,7 +335,8 @@ get score x 1.1 (capped), so diversity is not used beyond that.
 6. Gaps over 90 min outside a `home` place: "No sightings 11:00 AM to 1:30 PM."
 7. Left-behind episodes: "Bag stayed at School from 3:00 PM."
 8. Footer: "2 sightings looked wrong and were left out (show)." plus `honesty.TRIPS_APPROXIMATE`.
-9. Every line carries `evidence` (tracker ids) and `confidence`; "around" prefixes a time when the supporting
+9. Lines at the same minute read night first, then departures, then the rest ("left School" before "At Home
+   from"). Every line carries `evidence` (tracker ids) and `confidence`; "around" prefixes a time when the supporting
    sightings are more than 10 min apart.
 
 ### 7.2 Surfaces

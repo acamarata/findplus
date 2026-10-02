@@ -45,10 +45,24 @@ def evidence_line(tracker: str | None, observed, fetched) -> str:
     return m.t("msg.seenBy", tracker=tracker or m.t("role.other"), reported=reported, lag=lag)
 
 
+def _probably_clause(note: str) -> str:
+    """The "(probably...)" part of a person note, or "" (people/notes.py puts it last)."""
+    head = m.t("msg.probably").rstrip(")")
+    at = note.find(head)
+    return note[at:] if at >= 0 else ""
+
+
 def _fit(lines: list[str], note: str) -> str:
+    """Lines, then the note whole if it fits. When it does not, the probably
+    clause still goes in and the head is trimmed for it: dropping it would make
+    a probably-level alert read as certain (review r116 #10)."""
     msg = "\n".join(lines)
     if note and len(f"{msg}\n{note}") <= _BUDGET:
-        msg = f"{msg}\n{note}"
+        return f"{msg}\n{note}" + _LATENCY_TAIL
+    keep = _probably_clause(note) if note else ""
+    if keep:
+        room = max(0, _BUDGET - len(keep) - 1)
+        return f"{msg[:room]}\n{keep}"[:_BUDGET] + _LATENCY_TAIL
     return msg[:_BUDGET] + _LATENCY_TAIL
 
 

@@ -7,7 +7,7 @@ Inputs  : An open Session, a person/pet Group, a tz-aware `as_of`.
 Outputs : MemberIn/PlaceRef lists, a PersonFix, tracker display names.
 Constraints: Read only. Only fixes observed at or before `as_of` are used, so a
           late report replayed through the engine sees what was known then.
-          Suspect fixes are dropped through people/_quality.py only.
+          Suspect and clock-skewed fixes are dropped through people/_quality.py.
 """
 
 from __future__ import annotations
@@ -118,6 +118,11 @@ def _to_fix(o: LocationObservation) -> TrackerFix:
     )
 
 
+def _usable(o: LocationObservation, suspect: set[int]) -> bool:
+    """Not flagged, and not from a reporter whose clock runs fast (r116 #5)."""
+    return o.id not in suspect and not _quality.skewed(o.observed_at, o.first_fetched_at)
+
+
 def load_members(
     session: Session, trackers: list[Tracker], as_of: datetime, p: InferParams
 ) -> list[MemberIn]:
@@ -140,7 +145,7 @@ def load_members(
             name=t.name,
             role=t.role,
             weight=t.weight,
-            fixes=tuple(_to_fix(o) for o in rows[t.device_id] if o.id not in suspect),
+            fixes=tuple(_to_fix(o) for o in rows[t.device_id] if _usable(o, suspect)),
             inside_place_ids=tuple(sorted(inside.get(t.device_id, []))),
         )
         for t in trackers

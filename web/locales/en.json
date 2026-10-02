@@ -390,7 +390,11 @@
       "noRules": "no alert rules",
       "notNotifying": "Not notifying anyone yet",
       "setUpAlert": "Set up an alert",
-      "setUpAlertFor": "Set up an alert for {name}"
+      "setUpAlertFor": "Set up an alert for {name}",
+      "kindGuess": "Kind: {kind}, guessed from the name.",
+      "kindConfirm": "That's right",
+      "kindConfirmFor": "Confirm that {name} is {kind}",
+      "kindConfirmFailed": "Could not save the kind: {message}"
     },
     "card": {
       "edit": "Edit {name}",

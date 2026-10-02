@@ -9,7 +9,9 @@ Outputs : list[GroupEvent] in observed_at order.
 Constraints: Read only. A quorum row's note is rebuilt from its stored counts
           (groups/quorum.group_event_note); a person row carries its own note.
           The lead's fetched_at is the first fetch of the lead tracker's sighting
-          at the event's observed_at, so "reported 4:31 PM" is a real time.
+          at the event's observed_at (people/crossing.py makes the event time a
+          sighting of the lead), else of its first sighting after it, so
+          "reported 4:31 PM" is a real time of the right tracker (r116 #9).
 """
 
 from __future__ import annotations
@@ -23,9 +25,9 @@ _SQL = """SELECT gpe.id, gpe.group_id, g.name AS group_name, g.kind AS group_kin
        p.name AS place_name, gpe.event_type, gpe.observed_at, gpe.confidence,
        gpe.members_crossed, gpe.members_considered, gpe.members_stale,
        gpe.basis, gpe.note, gpe.lead_device_id, COALESCE(d.label, d.name) AS lead_name,
-       (SELECT MIN(lo.first_fetched_at) FROM location_observations lo
-         WHERE lo.device_id = gpe.lead_device_id AND lo.observed_at = gpe.observed_at)
-         AS lead_fetched_at
+       (SELECT lo.first_fetched_at FROM location_observations lo
+         WHERE lo.device_id = gpe.lead_device_id AND lo.observed_at >= gpe.observed_at
+         ORDER BY lo.observed_at, lo.first_fetched_at LIMIT 1) AS lead_fetched_at
 FROM group_place_events gpe JOIN groups g ON g.id = gpe.group_id
 JOIN places p ON p.id = gpe.place_id
 LEFT JOIN devices d ON d.device_id = gpe.lead_device_id

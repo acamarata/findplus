@@ -47,18 +47,19 @@ __all__ = [
 ]
 
 
-#: groups.kind values that get person events (models_people.PERSON_KINDS;
-#: repeated here because this module imports no DB code).
-_PERSON_KINDS = ("person", "pet")
+#: The groups.kind an all-people rule covers. Pets get person events too but
+#: their alerts are off by default (spec Q8): a cat on Home's edge would
+#: message all evening. A pet alerts through a rule naming it (review r116 #12).
+ALL_PEOPLE_KINDS = ("person",)
 
 
 def _targets(rule: Rule, event: DeviceEvent | GroupEvent) -> bool:
     """Does the rule name this event's subject? An all-people rule names every
-    person/pet group, never a device or a plain set (spec § 5.2)."""
+    person group (not pets, not a device, not a plain set; spec § 5.2, Q8)."""
     if isinstance(event, DeviceEvent):
         return rule.device_id == event.device_id
     if rule.all_people:
-        return event.group_kind in _PERSON_KINDS
+        return event.group_kind in ALL_PEOPLE_KINDS
     return rule.group_id == event.group_id
 
 
@@ -95,14 +96,23 @@ def suppressed_by_group(rule: Rule, event: DeviceEvent, rules: list[Rule]) -> bo
     suppress an any-place device rule at that place -- comparing the two
     rules' place_id fields against each other missed both crossings. An
     all-people rule covers every tracker that belongs to a person (spec § 5.2).
+    A person rule (all-people, or a person's own group rule) suppresses only
+    when that person really recorded an event for this place and type: the
+    owner's per-tracker alert must not vanish when the person engine stayed
+    silent (review r116 #4).
     """
+    persons = set(event.person_group_ids)
     for r in rules:
         if not r.enabled:
             continue
         if r.all_people:
-            if not event.person_group_ids:
+            if not set(event.person_event_group_ids) - set(event.pet_group_ids):
                 continue
-        elif r.group_id is None or r.group_id not in event.group_ids:
+        elif (
+            r.group_id is None
+            or r.group_id not in event.group_ids
+            or (r.group_id in persons and r.group_id not in event.person_event_group_ids)
+        ):
             continue
         if r.place_id is not None and r.place_id != event.place_id:
             continue

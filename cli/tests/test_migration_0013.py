@@ -69,12 +69,20 @@ def test_foreign_key_and_integrity_checks_are_clean(upgraded) -> None:
 def test_new_columns_default_to_todays_behaviour(upgraded) -> None:
     engine, _ = upgraded
     assert _scalar(engine, "SELECT group_concat(DISTINCT kind) FROM groups") == "set"
-    assert _scalar(engine, "SELECT group_concat(DISTINCT kind) FROM places") == "other"
     assert _scalar(engine, "SELECT COUNT(*) FROM devices WHERE role IS NOT NULL") == 0
     assert _scalar(engine, "SELECT COUNT(*) FROM devices WHERE carry_weight IS NOT NULL") == 0
     assert _scalar(engine, "SELECT basis FROM group_place_events") == "quorum"
     assert _scalar(engine, "SELECT note IS NULL AND lead_device_id IS NULL FROM group_place_events")
     assert _scalar(engine, "SELECT SUM(all_people) FROM alert_rules") == 0
+
+
+def test_existing_places_get_a_kind_guess_marked_for_confirmation(upgraded) -> None:
+    """An upgrade must not leave "Home" as kind other (left-behind alerts on at
+    Home, no "Overnight at Home"): the name's guess is stored and flagged so
+    the places list asks the owner to confirm it (review r116 #8)."""
+    engine, _ = upgraded
+    rows = seed.dump(engine, "places", "name, kind, kind_guessed")
+    assert rows == [("Home", "home", 1), ("School", "school", 1)]
 
 
 def test_rule_delete_still_cascades_to_its_deliveries(upgraded) -> None:

@@ -140,3 +140,13 @@ def test_unnamed_spot_is_measured_from_home():
 def test_naive_now_is_refused():
     with pytest.raises(ValueError):
         infer([], PLACES, datetime(2026, 9, 21, 12, 0))
+
+
+def test_carried_decays_once_still_for_a_while_after_the_last_move():
+    """Scored from the last move, not "any move in 6 h" (review r116 #3)."""
+    p = InferParams()
+    moved_long_ago = (_fix(HOME, 200), _fix(SCHOOL, 180), _fix(SCHOOL, 60), _fix(SCHOOL, 5))
+    moved_just_now = (_fix(HOME, 200), _fix(HOME, 40), _fix(SCHOOL, 5))
+    assert motion_of(moved_long_ago, NOW, p) == "settled"
+    assert motion_of(moved_just_now, NOW, p) == "carried"
+    assert p.carried_minutes == 45

@@ -12,7 +12,9 @@ Constraints: A pending episode is dropped by one contrary sighting; a confirmed
           one only clears when the tracker moves (carried), the person comes
           back (rejoined), the tracker goes stale (stale: "no recent sighting",
           never "still left behind") or the owner says "I know" (dismissed,
-          which silences that tracker at that place for the local day).
+          which silences that tracker at that place for the local day). A
+          stale-cleared episode resumes, already notified, when the tracker
+          reports again from the same spot.
 """
 
 from __future__ import annotations
@@ -25,6 +27,7 @@ from sqlalchemy.orm import Session
 from findplus.db.models import LocationObservation, PlaceState
 from findplus.db.models_people import LeftBehind
 from findplus.geo import haversine_meters
+from findplus.people import _quality
 from findplus.people.infer import MemberScore, PersonFix, PlaceRef
 from findplus.places.geofence import exit_margin
 
@@ -85,15 +88,25 @@ def _anchor_place(session: Session, device_id: str, places: list[PlaceRef]) -> P
     return min(hits, key=lambda p: (p.radius_meters, p.name)) if hits else None
 
 
-def _newer_sightings(session: Session, group_trackers: list[str], device_id: str, since) -> int:
-    others = [d for d in group_trackers if d != device_id]
-    if not others:
+def _newer_sightings(session: Session, fix: PersonFix, device_id: str, since) -> int:
+    """Newer sightings OF THE PERSON: non-suspect fixes of the trackers that
+    place them now (the best cluster), skipping parked ones. A bike and spare
+    shoes reporting from the garage are not sightings of the person (r116 #11)."""
+    motion = {m.device_id: m.motion for m in fix.members}
+    carriers = [d for d in fix.supporters if d != device_id and motion.get(d) != "parked"]
+    if not carriers:
         return 0
-    return session.scalar(
-        select(func.count(LocationObservation.id)).where(
-            LocationObservation.device_id.in_(others), LocationObservation.observed_at > since
+    ids = session.scalars(
+        select(LocationObservation.id).where(
+            LocationObservation.device_id.in_(carriers), LocationObservation.observed_at > since
         )
-    )
+    ).all()
+    if not ids:
+        return 0
+    newest = session.scalar(select(func.max(LocationObservation.observed_at)).where(
+        LocationObservation.id.in_(ids)))  # fmt: skip
+    suspect = _quality.suspect_ids(session, carriers, since, newest)
+    return sum(1 for i in ids if i not in suspect)
 
 
 def _dismissed_today(session: Session, group_id: int, device_id: str, place_id, as_of) -> bool:
@@ -115,9 +128,35 @@ def _dismissed_today(session: Session, group_id: int, device_id: str, place_id, 
     return any(c is not None and c.astimezone(zone).date() == day for c in rows)
 
 
+def _same_anchor(row: LeftBehind, score: MemberScore) -> bool:
+    acc = max(150.0, 2 * (score.fix.accuracy_meters or 100.0))
+    lat, lon = row.anchor_lat_e7 / 1e7, row.anchor_lon_e7 / 1e7
+    return haversine_meters(lat, lon, score.fix.lat, score.fix.lon) <= acc
+
+
+def _resume_after_stale(session: Session, group_id: int, device_id: str, score, pid) -> bool:
+    """A tracker that went quiet and reports again from the same spot is the
+    same episode: reopen it with its notified_at kept, so it never alerts
+    twice (spec § 4 "once per episode", review r116 #6)."""
+    last = session.scalars(
+        select(LeftBehind)
+        .where(LeftBehind.group_id == group_id, LeftBehind.device_id == device_id)
+        .order_by(LeftBehind.id.desc())
+        .limit(1)
+    ).first()
+    if last is None or last.clear_reason != "stale" or last.place_id != pid:
+        return False
+    if not _same_anchor(last, score):
+        return False
+    last.state, last.cleared_at, last.clear_reason = "left_behind", None, None
+    return True
+
+
 def _open(session: Session, group_id: int, device_id: str, score, place, as_of) -> None:
     pid = place.id if place else None
     if _dismissed_today(session, group_id, device_id, pid, as_of):
+        return
+    if _resume_after_stale(session, group_id, device_id, score, pid):
         return
     session.add(
         LeftBehind(group_id=group_id, device_id=device_id, place_id=pid,
@@ -128,7 +167,7 @@ def _open(session: Session, group_id: int, device_id: str, score, place, as_of) 
 
 def _advance(session, row, score, fix, ctx) -> None:
     """Move one open episode: confirm, clear, drop or keep."""
-    trackers, weights, place, as_of = ctx
+    _, weights, place, as_of = ctx
     threshold = apart_threshold(place)
     reason = clear_reason(row, score, fix, threshold)
     if row.state == "apart_pending":
@@ -136,7 +175,7 @@ def _advance(session, row, score, fix, ctx) -> None:
             session.delete(row)  # one contrary sighting resets a pending episode
             return
         old_enough = as_of - row.started_observed_at >= timedelta(minutes=APART_MINUTES)
-        seen = _newer_sightings(session, trackers, row.device_id, row.started_observed_at)
+        seen = _newer_sightings(session, fix, row.device_id, row.started_observed_at)
         if old_enough and seen >= CONFIRM_SIGHTINGS and is_apart(score, fix, weights, threshold):
             row.state, row.confirmed_at = "left_behind", as_of
         return

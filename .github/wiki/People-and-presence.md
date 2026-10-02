@@ -51,7 +51,8 @@ tracker to place the person").
 
 ## Where is the person now
 
-A tracker that moved was carried. A tracker that has sat still for six hours proves little. Find+
+A tracker that moved was carried, for 45 minutes after its last move. A tracker that has sat
+still since then is neutral, and one still for six hours proves little. Find+
 scores each tracker by its weight, how recent its sighting is, whether it moved, and how accurate
 it is, then groups the trackers that are close together. The answer is always in plain words:
 
@@ -62,6 +63,9 @@ it is, then groups the trackers that are close together. The answer is always in
 - **No recent sightings. Last seen near Home at 4:10 PM.** when nothing has reported recently.
 
 A tag with no recent fix is stale, not at home and not left behind. Find+ reports it as unknown.
+Trackers that never moved cannot move the person: if Sam's shoes go quiet at School while his bag
+and bike keep reporting from Home, Sam stays "at School" and the shoes read "no recent sighting".
+When the trackers left sitting disagree with one that moved later, the answer is "Not sure".
 
 The person's position is always one tracker's own sighting. Tracks are never merged across
 trackers and no point is invented.
@@ -79,8 +83,11 @@ Alerts inherit the network's delay. An arrival or departure may be reported minu
 "Just" is used only when the sighting is under 10 minutes old when the message is sent; otherwise
 the message gives the time ("Sam left Home at Sep 26, 7:40 AM EDT"). When a tracker stays behind,
 the message says so ("Sam's bag stayed at Home."), and a weaker answer says "(probably; only the
-bag reported)". A person who flips back across the same place waits 10 minutes before the opposite
-event, and a late, older report never rewrites what already happened.
+bag reported)"; that note is never cut from a long message. Leaving waits for the tracker's own
+second sighting outside, so one stray fix never sends "left", and the time given is the first
+sighting outside. A person who flips back across the same place waits 10 minutes before the
+opposite event, a late, older report never rewrites what already happened, and a sighting dated
+after it was fetched (a reporter with a fast clock) is ignored.
 
 Every new place gets a rule "Arrivals and departures at <place>" for everyone, on the channel you
 use: Telegram if it is the only one connected (or one of several), otherwise WhatsApp or the
@@ -90,12 +97,20 @@ the rule is saved turned off with the hint "Connect Telegram to get these." Crea
 the same rule; with `?dry_run=1` it only lists what it would add.
 
 An everyone rule, or a rule for one person, replaces the per-tracker alerts for that person's
-trackers at the same place, so one crossing is one message.
+trackers at the same place, but only when Find+ recorded that person's own crossing; otherwise the
+tracker's rule still sends. One crossing is one message per chat, however many rules match it. A
+new place gets no rule of its own when an everyone rule for every place already covers it.
+Everyone rules cover people, not pets: a pet alerts only through a rule that names it.
+
+Places you made before 1.1.6 get a kind from their name on upgrade ("Home" becomes home). The
+Places list shows it as a guess with a one-tap "That's right".
 
 ## Left behind
 
 If Sam's shoes go home while his bag stays at School for 20 minutes and two more sightings, Find+
-sends once: "Sam's bag looks left at School. Last seen there at 3:02 PM." It does not alert at a
+sends once: "Sam's bag looks left at School. Last seen there at 3:02 PM." Only Sam's own sightings
+count, never the bike in the garage, and a bag that goes quiet and reports again is the same
+episode. A rule for one place carries left-behind alerts for that place only. It does not alert at a
 Home place (a bike in the garage is normal), and you can turn left-behind alerts off entirely
 (`PUT /api/people/settings`). The episode ends when the bag moves, when Sam comes back for it, or
 when the bag stops reporting (shown as "no recent sighting", never "still left behind"). "I know"

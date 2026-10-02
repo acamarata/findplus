@@ -26,6 +26,14 @@ WHERE pe.notified_at IS NULL ORDER BY pe.observed_at ASC"""
 _MEMBERSHIP_SQL = """SELECT dg.group_id, g.kind FROM device_group dg
 JOIN groups g ON g.id = dg.group_id WHERE dg.device_id = :device_id"""
 
+#: Person groups of this tracker with their own event for the same place and
+#: type within PERSON_EVENT_WINDOW minutes of the device crossing.
+_PERSON_EVENT_SQL = """SELECT DISTINCT gpe.group_id FROM group_place_events gpe
+JOIN device_group dg ON dg.group_id = gpe.group_id
+WHERE dg.device_id = :device_id AND gpe.basis = 'person' AND gpe.place_id = :place_id
+  AND gpe.event_type = :event_type AND gpe.observed_at BETWEEN :lo AND :hi"""
+PERSON_EVENT_WINDOW = 30
+
 
 def load_pending_events(session) -> list[DeviceEvent | GroupEvent | LeftBehindEvent]:
     """Un-notified place_events, group_place_events and left-behind episodes.
@@ -62,6 +70,19 @@ def _load_device_events(session) -> list[DeviceEvent]:
                 confidence=row.confidence,
                 group_ids=[m.group_id for m in memberships],
                 person_group_ids=[m.group_id for m in memberships if m.kind in ("person", "pet")],
+                person_event_group_ids=_person_event_groups(session, row),
             )
         )
     return events
+
+
+def _person_event_groups(session, row) -> list[int]:
+    from datetime import UTC, timedelta
+
+    from sqlalchemy import text
+
+    at = as_utc(row.observed_at).astimezone(UTC).replace(tzinfo=None)
+    window = timedelta(minutes=PERSON_EVENT_WINDOW)
+    params = {"device_id": row.device_id, "place_id": row.place_id,
+              "event_type": row.event_type, "lo": at - window, "hi": at + window}  # fmt: skip
+    return [r.group_id for r in session.execute(text(_PERSON_EVENT_SQL), params).all()]

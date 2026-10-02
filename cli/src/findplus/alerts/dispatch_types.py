@@ -32,6 +32,11 @@ class DeviceEvent:
     #: The person/pet groups among `group_ids`: an all-people rule suppresses
     #: device alerts for these trackers (spec § 5.2).
     person_group_ids: list[int] = field(default_factory=list)
+    #: The person groups among those that recorded their own person event for
+    #: this place and type near this crossing. Only these suppress the
+    #: tracker's device rules: with no person event, the device rule still
+    #: sends (review r116 #4).
+    person_event_group_ids: list[int] = field(default_factory=list)
 
 
 @dataclass(frozen=True)

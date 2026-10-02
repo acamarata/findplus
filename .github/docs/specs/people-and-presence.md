@@ -226,7 +226,9 @@ Dispatch already picks up `notified_at IS NULL` group rows [Certain]; `_GROUP_EV
 ### 5.2 Rule matching
 - `match()`: an `all_people` rule matches any `GroupEvent` whose group kind is person/pet.
 - `suppressed_by_group()`: an enabled `all_people` or person rule suppresses device rules for that person's
-  trackers at the same place and type unless `also_notify_members` (same semantics as today).
+  trackers at the same place and type unless `also_notify_members`, and only when that person recorded its own
+  event for the place and type within 30 min of the device crossing. With no person event the tracker's own rule
+  still sends, so "Notify me" never silences an alert the owner already had (review r116 #4).
 - Cooldown: default person rules use `cooldown_minutes = 0`. `in_cooldown` keys on (rule, channel, place) and
   ignores event type [Certain], so a 30-minute cooldown would swallow "left the shop" 20 minutes after "arrived".
   Debounce lives in the engine (§5.1.4). No quiet hours this release (Q5); dispatch is in `observed_at` order.

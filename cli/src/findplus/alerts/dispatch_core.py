@@ -95,14 +95,23 @@ def suppressed_by_group(rule: Rule, event: DeviceEvent, rules: list[Rule]) -> bo
     suppress an any-place device rule at that place -- comparing the two
     rules' place_id fields against each other missed both crossings. An
     all-people rule covers every tracker that belongs to a person (spec § 5.2).
+    A person rule (all-people, or a person's own group rule) suppresses only
+    when that person really recorded an event for this place and type: the
+    owner's per-tracker alert must not vanish when the person engine stayed
+    silent (review r116 #4).
     """
+    persons = set(event.person_group_ids)
     for r in rules:
         if not r.enabled:
             continue
         if r.all_people:
-            if not event.person_group_ids:
+            if not event.person_event_group_ids:
                 continue
-        elif r.group_id is None or r.group_id not in event.group_ids:
+        elif (
+            r.group_id is None
+            or r.group_id not in event.group_ids
+            or (r.group_id in persons and r.group_id not in event.person_event_group_ids)
+        ):
             continue
         if r.place_id is not None and r.place_id != event.place_id:
             continue

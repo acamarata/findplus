@@ -223,7 +223,8 @@ can appear on a locked screen. Turn on notification details in Settings to name
 the person and the place instead. See [Settings](Settings) for the exact
 wording and what it costs you.
 
-Notifications are held while Find+ is locked. Unlock to see what you missed.
+Desktop notifications on this computer are held while Find+ is locked; unlock to see what you
+missed. Telegram, WhatsApp and webhook alerts and daily summaries are still sent.
 
 ## Signing in from the dashboard
 

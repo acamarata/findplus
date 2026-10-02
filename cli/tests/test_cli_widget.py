@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from unittest.mock import MagicMock
 
 from click.testing import CliRunner
@@ -50,6 +52,7 @@ def test_show_map_bogus_value_is_usage_error(tmp_db: str) -> None:
     assert result.exit_code == 2
 
 
+@pytest.mark.usefixtures("launch_allowed")
 def test_refresh_app_not_installed(tmp_db: str, monkeypatch) -> None:
     failing = MagicMock(returncode=1)
     monkeypatch.setattr("findplus.cli.widget.subprocess.run", lambda *a, **k: failing)
@@ -58,6 +61,7 @@ def test_refresh_app_not_installed(tmp_db: str, monkeypatch) -> None:
     assert "app not installed" in result.output
 
 
+@pytest.mark.usefixtures("launch_allowed")
 def test_refresh_succeeds_when_app_installed(tmp_db: str, monkeypatch) -> None:
     succeeding = MagicMock(returncode=0)
     monkeypatch.setattr("findplus.cli.widget.subprocess.run", lambda *a, **k: succeeding)

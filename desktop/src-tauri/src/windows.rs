@@ -1,7 +1,8 @@
 //! Window management: the main dashboard window and the splash window are
 //! created from Rust (tauri.conf.json's app.windows is empty).
 
-use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::webview::PageLoadEvent;
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 
 /// Pure: may a window be pointed at port 8647?
 ///
@@ -29,104 +30,77 @@ fn refuse_if_another_app(app: &AppHandle) -> bool {
 }
 
 pub fn open_main(app: &AppHandle) {
+    show_main_at(app, "");
+}
+
+pub fn open_settings(app: &AppHandle) {
+    show_main_at(app, "settings");
+}
+
+pub fn open_places(app: &AppHandle) {
+    show_main_at(app, "places");
+}
+
+/// Show the dashboard, on `#<hash>` when one is given (empty: stay where it is).
+fn show_main_at(app: &AppHandle, hash: &str) {
     if refuse_if_another_app(app) {
         return;
     }
     // Someone asked for the dashboard: a splash still saying "Starting" is stale.
     close_splash(app);
     if let Some(win) = app.get_webview_window("main") {
+        if !hash.is_empty() {
+            let _ = win.eval(format!("window.location.hash = '#{hash}'"));
+        }
         let _ = win.show();
         let _ = win.set_focus();
         return;
     }
-    let win = WebviewWindowBuilder::new(
-        app,
-        "main",
-        WebviewUrl::External("http://127.0.0.1:8647/".parse().unwrap()),
-    )
-    .title("Find+")
-    .inner_size(1280.0, 820.0)
-    .decorations(true)
-    // Runs before any page script, including main.js. The only writer of the
-    // flag every native-only branch gates on, so a plain browser tab pointed at
-    // :8647 never sees it (R-P2-13).
-    .initialization_script("window.__findplus_native = true;")
-    .build();
+    let url = if hash.is_empty() {
+        DASHBOARD.to_string()
+    } else {
+        format!("{DASHBOARD}#{hash}")
+    };
     // The app runs with ActivationPolicy::Accessory (no Dock icon), which
     // means a freshly created window is not guaranteed to come to the front
     // on its own; set_focus() calls through to activateIgnoringOtherApps on
     // macOS, so a brand-new window gets the same "come to front" treatment
     // as the show()+set_focus() path above for an existing one.
-    if let Ok(win) = win {
+    if let Ok(win) = build_main(app, &url) {
         let _ = win.show();
         let _ = win.set_focus();
     }
 }
 
-pub fn open_settings(app: &AppHandle) {
-    if refuse_if_another_app(app) {
-        return;
-    }
-    // Someone asked for the dashboard: a splash still saying "Starting" is stale.
-    close_splash(app);
-    if let Some(win) = app.get_webview_window("main") {
-        let _ = win.eval("window.location.hash = '#settings'");
-        let _ = win.show();
-        let _ = win.set_focus();
-        return;
-    }
-    let win = WebviewWindowBuilder::new(
-        app,
-        "main",
-        WebviewUrl::External("http://127.0.0.1:8647/#settings".parse().unwrap()),
-    )
-    .title("Find+")
-    .inner_size(1280.0, 820.0)
-    .decorations(true)
-    // Runs before any page script, including main.js. The only writer of the
-    // flag every native-only branch gates on, so a plain browser tab pointed at
-    // :8647 never sees it (R-P2-13).
-    .initialization_script("window.__findplus_native = true;")
-    .build();
-    // See open_main(): a fresh window under ActivationPolicy::Accessory
-    // still needs an explicit focus to come to the front.
-    if let Ok(win) = win {
-        let _ = win.show();
-        let _ = win.set_focus();
-    }
-}
+const DASHBOARD: &str = "http://127.0.0.1:8647/";
 
-pub fn open_places(app: &AppHandle) {
-    if refuse_if_another_app(app) {
-        return;
-    }
-    // Someone asked for the dashboard: a splash still saying "Starting" is stale.
-    close_splash(app);
-    if let Some(win) = app.get_webview_window("main") {
-        let _ = win.eval("window.location.hash = '#places'");
-        let _ = win.show();
-        let _ = win.set_focus();
-        return;
-    }
-    let win = WebviewWindowBuilder::new(
-        app,
-        "main",
-        WebviewUrl::External("http://127.0.0.1:8647/#places".parse().unwrap()),
-    )
-    .title("Find+")
-    .inner_size(1280.0, 820.0)
-    .decorations(true)
-    // Runs before any page script, including main.js. The only writer of the
-    // flag every native-only branch gates on, so a plain browser tab pointed at
-    // :8647 never sees it (R-P2-13).
-    .initialization_script("window.__findplus_native = true;")
-    .build();
-    // See open_main(): a fresh window under ActivationPolicy::Accessory
-    // still needs an explicit focus to come to the front.
-    if let Ok(win) = win {
-        let _ = win.show();
-        let _ = win.set_focus();
-    }
+/// The one place the dashboard window is built. Its page loads drive the
+/// sign-in event buffer (signin_events.rs): events sent while a page is
+/// loading are kept and sent again once it can hear them.
+fn build_main(app: &AppHandle, url: &str) -> tauri::Result<tauri::WebviewWindow> {
+    let parsed = url
+        .parse()
+        .map_err(|_| tauri::Error::InvalidWebviewUrl("dashboard"))?;
+    let loaded = app.clone();
+    let win = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(parsed))
+        .title("Find+")
+        .inner_size(1280.0, 820.0)
+        .decorations(true)
+        // Runs before any page script, including main.js. The only writer of the
+        // flag every native-only branch gates on, so a plain browser tab pointed at
+        // :8647 never sees it (R-P2-13).
+        .initialization_script("window.__findplus_native = true;")
+        .on_page_load(move |_, p| match p.event() {
+            PageLoadEvent::Started => drop(crate::signin_events::page_loading()),
+            PageLoadEvent::Finished => crate::signin_events::page_loaded(&loaded),
+        })
+        .build()?;
+    win.on_window_event(|ev| {
+        if let WindowEvent::Destroyed = ev {
+            crate::signin_events::page_loading();
+        }
+    });
+    Ok(win)
 }
 
 pub fn open_splash(app: &AppHandle) {

@@ -20,6 +20,7 @@ const APP_COMMANDS: &[&str] = &[
     "request_notification_permission",
     "open_signin_window",
     "close_signin_window",
+    "webview_ready",
 ];
 
 /// `1.0.0.dev0` -> `1.0.0-dev0`; `1.0.0` -> `1.0.0`.

@@ -178,6 +178,10 @@ pub fn refresh(app: &AppHandle) {
         return;
     }
     let _ = app.emit("auth-attention", next);
+    // The tray heard it; a dashboard page still loading did not.
+    if let Ok(v) = serde_json::to_value(next) {
+        crate::signin_events::keep("auth-attention", v);
+    }
     for (p, n) in newly_needing(&prev, &next) {
         show_banner(app, p, n);
     }

@@ -106,13 +106,18 @@ pub fn open_for(app: &AppHandle, provider: Provider, need: Need) {
 /// the page to open it.
 pub fn open_apple_sheet(app: &AppHandle) {
     crate::windows::open_settings(app);
-    let _ = app.emit_to("main", "signin-apple-sheet", ());
+    emit(app, "signin-apple-sheet", serde_json::Value::Null);
 }
 
-/// Send one event to the dashboard window. (`listen_any` in the debug
-/// self-test sees it too.)
+/// Send one event to the dashboard window, kept until a fresh page is ready
+/// (signin_events.rs). The debug self-test has no dashboard: it hears the
+/// event directly (`listen_any`).
 pub fn emit(app: &AppHandle, event: &str, payload: serde_json::Value) {
-    let _ = app.emit_to("main", event, payload);
+    if SELFTEST.load(Ordering::SeqCst) {
+        let _ = app.emit_to("main", event, payload);
+        return;
+    }
+    crate::signin_events::send(app, event, payload);
 }
 
 /// True while a sign-in session runs (from begin to the window's end).

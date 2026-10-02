@@ -180,7 +180,8 @@ States per (person, tracker): `with_person -> apart_pending -> left_behind -> cl
 Confirm `left_behind` after `apart_minutes` (default 20) with the above true across at least two newer person
 fixes. Hysteresis: one contrary fix resets `apart_pending`, never a confirmed row.
 
-Alert once per episode. Setting `people.left_behind_alerts` (Q4): on at non-home places and unnamed spots, off at
+Alert once per episode. A confirmed episode cleared as `stale` resumes, with its `notified_at` kept, when the
+tracker reports again from the same spot, so a bag that goes quiet and comes back never re-alerts. Setting `people.left_behind_alerts` (Q4): on at non-home places and unnamed spots, off at
 `home` (a bike in the garage is normal). Sent on the channels of the rules that cover that person; logged in
 `alert_deliveries` with `event_kind='left_behind'`. Text: "Sam's bag looks left at School. Last seen there at
 3:02 PM; Sam's shoes were seen near Home at 3:40 PM."

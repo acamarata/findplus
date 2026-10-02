@@ -82,3 +82,35 @@ def test_suppression_needs_the_persons_own_event():
         assert suppressed_by_group(device, event([7]), [device, other])
     quorum = rule(4, group_id=9)
     assert suppressed_by_group(device, event([]), [device, quorum])
+
+
+def _bag_left_reporting_rarely(tl: Timeline) -> Timeline:
+    """The owner's example, but the bag at School reports only every 100 min
+    (its stale limit is 90): it goes quiet and comes back four times by 23:00."""
+    from ._helpers import SCHOOL
+
+    overnight(tl, ["zr", "zb", "zk", "zw"], end=at(7, 40))
+    tl.walk(["zr", "zb"], HOME, SCHOOL, at(7, 40), at(8, 10))
+    tl.stay(["zr", "zb"], SCHOOL, at(8, 30), at(15, 0))
+    tl.walk(["zr"], SCHOOL, HOME, at(15, 0), at(15, 30))
+    tl.stay(["zr"], HOME, at(15, 33), at(23, 0))
+    tl.stay(["zb"], SCHOOL, at(15, 20), at(15, 40), every=10)
+    tl.stay(["zb"], SCHOOL, at(17, 20), at(23, 0), every=100)
+    tl.stay(["zk", "zw"], HOME, at(8, 0), at(23, 0), every=30)
+    return tl
+
+
+def test_left_behind_alerts_once_even_when_the_bag_goes_quiet_and_comes_back(session, pinned_tz):
+    pinned_tz("UTC")
+    places = seed_places(session)
+    seed_person(session)
+    _default_rules(session, places)
+    tl = _bag_left_reporting_rarely(Timeline())
+    sent = []
+    for hour in (16, 18, 20, 23):  # dispatch runs between the bag's reports
+        part = Timeline()
+        part.fixes = [f for f in tl.fixes if f[0] <= at(hour, 0)]
+        tl.fixes = [f for f in tl.fixes if f[0] > at(hour, 0)]
+        part.ingest(session)
+        sent += _run_dispatch(session, now=at(hour, 1))
+    assert len([t for t in sent if "looks left at School" in t]) == 1, sent

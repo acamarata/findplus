@@ -12,7 +12,9 @@ Constraints: A pending episode is dropped by one contrary sighting; a confirmed
           one only clears when the tracker moves (carried), the person comes
           back (rejoined), the tracker goes stale (stale: "no recent sighting",
           never "still left behind") or the owner says "I know" (dismissed,
-          which silences that tracker at that place for the local day).
+          which silences that tracker at that place for the local day). A
+          stale-cleared episode resumes, already notified, when the tracker
+          reports again from the same spot.
 """
 
 from __future__ import annotations
@@ -115,9 +117,35 @@ def _dismissed_today(session: Session, group_id: int, device_id: str, place_id, 
     return any(c is not None and c.astimezone(zone).date() == day for c in rows)
 
 
+def _same_anchor(row: LeftBehind, score: MemberScore) -> bool:
+    acc = max(150.0, 2 * (score.fix.accuracy_meters or 100.0))
+    lat, lon = row.anchor_lat_e7 / 1e7, row.anchor_lon_e7 / 1e7
+    return haversine_meters(lat, lon, score.fix.lat, score.fix.lon) <= acc
+
+
+def _resume_after_stale(session: Session, group_id: int, device_id: str, score, pid) -> bool:
+    """A tracker that went quiet and reports again from the same spot is the
+    same episode: reopen it with its notified_at kept, so it never alerts
+    twice (spec § 4 "once per episode", review r116 #6)."""
+    last = session.scalars(
+        select(LeftBehind)
+        .where(LeftBehind.group_id == group_id, LeftBehind.device_id == device_id)
+        .order_by(LeftBehind.id.desc())
+        .limit(1)
+    ).first()
+    if last is None or last.clear_reason != "stale" or last.place_id != pid:
+        return False
+    if not _same_anchor(last, score):
+        return False
+    last.state, last.cleared_at, last.clear_reason = "left_behind", None, None
+    return True
+
+
 def _open(session: Session, group_id: int, device_id: str, score, place, as_of) -> None:
     pid = place.id if place else None
     if _dismissed_today(session, group_id, device_id, pid, as_of):
+        return
+    if _resume_after_stale(session, group_id, device_id, score, pid):
         return
     session.add(
         LeftBehind(group_id=group_id, device_id=device_id, place_id=pid,

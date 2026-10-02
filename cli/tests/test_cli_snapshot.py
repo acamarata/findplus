@@ -36,6 +36,7 @@ EXPECTED_COMMANDS = {
     "lock",
     "mcp",
     "open",
+    "people",
     "pin",
     "places",
     "poll-now",

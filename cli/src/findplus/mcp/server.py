@@ -19,6 +19,7 @@ from mcp.server.mcpserver import MCPServer
 
 from findplus.honesty import ALERTS_LATENCY, APPLE, FIND_HUB, PRESENCE_STALE
 from findplus.mcp.client import DaemonClient
+from findplus.mcp.tools_people import register_people_read_tools, register_people_write_tools
 from findplus.mcp.tools_read import register_read_tools
 from findplus.mcp.tools_write import register_write_tools
 
@@ -65,6 +66,8 @@ def create_mcp_server(
     mcp._allow_writes = allow_writes
     mcp._startup_pin = read_startup_pin()
     register_read_tools(mcp, client)
+    register_people_read_tools(mcp, lambda: mcp._daemon_client)
     if allow_writes:
         register_write_tools(mcp, client)
+        register_people_write_tools(mcp, client)
     return mcp

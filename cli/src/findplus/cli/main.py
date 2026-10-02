@@ -32,6 +32,7 @@ from . import (
 )
 from .alerts import alerts_cmd
 from .cmd_mcp import mcp
+from .cmd_people import people_cmd
 from .cmd_poll import poll_now
 from .cmd_selfcheck import selfcheck
 from .cmd_trips import trips_cmd
@@ -90,6 +91,7 @@ main.add_command(cmd_apple.apple_group, name="apple")
 main.add_command(trips_cmd)
 main.add_command(places_cmd)
 main.add_command(groups_cmd)
+main.add_command(people_cmd)
 main.add_command(alerts_cmd)
 main.add_command(version_cmd)
 main.add_command(selfcheck)

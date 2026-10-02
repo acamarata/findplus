@@ -136,6 +136,22 @@ async function refresh(ctx) {
   renderMembers(els.members, devices);
 }
 
+/** The "Add group" button: a failed add shows its reason (a duplicate name quotes the typed name). */
+function buildAddButton(ctx) {
+  const add = document.createElement("button");
+  add.type = "button";
+  add.id = "fp-setup-group-add";
+  add.className = "btn";
+  add.textContent = t("setup.groups.add");
+  add.addEventListener("click", () => {
+    addGroup(ctx).catch((err) => {
+      els.error.textContent =
+        duplicateNameMessage(err, "groups.error.duplicate_name", els.name.value.trim()) || err.message;
+    });
+  });
+  return add;
+}
+
 export default {
   id: "groups",
   canSkip: true,
@@ -163,17 +179,7 @@ export default {
     const members = document.createElement("div");
     members.id = "fp-setup-group-members";
 
-    const add = document.createElement("button");
-    add.type = "button";
-    add.id = "fp-setup-group-add";
-    add.className = "btn";
-    add.textContent = t("setup.groups.add");
-    add.addEventListener("click", () => {
-      addGroup(ctx).catch((err) => {
-        els.error.textContent =
-          duplicateNameMessage(err, "groups.error.duplicate_name", els.name.value.trim()) || err.message;
-      });
-    });
+    const add = buildAddButton(ctx);
 
     const error = groupErrorEl();
 

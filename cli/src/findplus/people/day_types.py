@@ -100,6 +100,9 @@ class DayInput:
     episodes: tuple[EpisodeIn, ...]
     places: tuple[PlaceIn, ...]
     now_fix: NowIn | None = None
+    #: The day's sightings held until a second one confirms them (quality's
+    #: jump_unconfirmed), oldest first: not wrong, not yet counted (uat116 #12).
+    held: tuple[Fix, ...] = ()
 
 
 @dataclass(frozen=True)

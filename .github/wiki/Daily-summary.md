@@ -31,8 +31,10 @@ distances are approximate straight lines, not the road driven.
 | At Home from 3:33 PM | The last Home visit of the day. Earlier Home visits stay as separate arrive and leave lines. |
 | 10:05 to 10:45 AM at an unnamed spot, 2.1 km from Home | The lead tracker stayed 15 minutes or more away from every saved place. |
 | No sightings 11:00 AM to 1:30 PM. | Over 90 minutes with no sighting, unless both ends were at Home. |
+| Still at School, nothing new from 8:10 to 11:05 AM. | The same, when both ends were at the same saved place. |
 | Bag stayed at School from 3:00 PM. | A tracker was left behind (never listed at a Home place). |
 | Still at School (seen 3:58 PM) | Today only, and only when the latest sighting is fresh and inside a saved place. |
+| Probably at School (waiting to confirm) | Today, when a newer sighting jumped far and waits for a second one to confirm it. |
 | Last seen near School at 3:58 PM; nothing since | Today, when the data is stale. Find+ never says "still at" on stale data. |
 
 ## How it stays honest
@@ -40,7 +42,9 @@ distances are approximate straight lines, not the road driven.
 - Every line names the tracker that backs it, in brackets, and the API lists the tracker ids
   (`evidence`) and a `confidence`.
 - A time reads "around 7:40 AM" when the sightings that bound it are more than 10 minutes apart.
-- Sightings that look wrong are left out; the footer counts them. Raw history is never changed.
+- Sightings that look wrong are left out; the footer counts them. A sighting that jumped far is
+  held until a second one confirms it; the footer says it is waiting, not wrong. Raw history is
+  never changed.
 - A tracker left behind never counts as the person's own sightings, and never leads the day.
 - Days follow the local calendar day, including the 23 and 25 hour days when clocks change.
 - The word "just" is not used here. A time is when a tag was seen.

@@ -37,7 +37,8 @@ ANCHOR_HOURS = 12
 
 
 def _fixes(session: Session, device_ids: list[str], start: datetime, end: datetime):
-    """(fixes by device without suspect ones, suspect count inside the day)."""
+    """(fixes by device without suspect ones, wrong count inside the day, the
+    day's sightings held for a second sighting, oldest first)."""
     lo = start - timedelta(hours=ANCHOR_HOURS)
     rows = session.scalars(
         select(LocationObservation)
@@ -56,8 +57,15 @@ def _fixes(session: Session, device_ids: list[str], start: datetime, end: dateti
         by_dev[o.device_id].append(
             Fix(o.id, o.observed_at, o.latitude, o.longitude, o.accuracy_meters)
         )
-    in_day = sum(1 for o in rows if o.id in suspect and start <= o.observed_at < end)
-    return {d: tuple(v) for d, v in by_dev.items()}, in_day
+    held_ids = _quality.held_ids(session, device_ids, start, end)
+    day = [o for o in rows if o.id in suspect and start <= o.observed_at < end]
+    held = tuple(
+        Fix(o.id, o.observed_at, o.latitude, o.longitude, o.accuracy_meters)
+        for o in day
+        if o.id in held_ids
+    )
+    wrong = sum(1 for o in day if o.id not in held_ids)
+    return {d: tuple(v) for d, v in by_dev.items()}, wrong, held
 
 
 def _events(session: Session, group_id: int, start: datetime, end: datetime) -> list[EventIn]:
@@ -176,7 +184,7 @@ def load_input(session: Session, group, day: date, tz: ZoneInfo, now: datetime):
     names = unique_names(session)
     trackers = trackers_of(session, group.id, names)
     labels = labels_for(trackers, group.name)
-    fixes, suspect = _fixes(session, [t.device_id for t in trackers], start, end)
+    fixes, suspect, held = _fixes(session, [t.device_id for t in trackers], start, end)
     place_rows = list(session.scalars(select(Place).order_by(Place.name)).all())
     places = tuple(
         PlaceIn(p.id, p.name, p.kind, p.latitude_e7 / 1e7, p.longitude_e7 / 1e7, p.radius_meters)
@@ -198,6 +206,7 @@ def load_input(session: Session, group, day: date, tz: ZoneInfo, now: datetime):
         ),
         fixes=fixes,
         suspect_count=suspect,
+        held=held,
         events=tuple(_events(session, group.id, start, end)),
         episodes=tuple(e for _, e in episodes),
         places=places,
@@ -248,6 +257,7 @@ def day_payload(
         "lines": [line.to_dict(tz) for line in result.lines],
         "left_behind": [episode_dict(r, names, places) for r in rows],
         "suspect_count": inp.suspect_count,
+        "held_count": len(inp.held),
         "suspect_text": result.suspect_text,
         "gaps": [
             {

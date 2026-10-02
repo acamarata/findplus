@@ -58,8 +58,12 @@ def via_text(device_ids, labels: dict[str, str]) -> str:
     return m.join_words(names)
 
 
-def suspect_sentence(count: int) -> str | None:
-    """ "2 sightings looked wrong and were left out." or None."""
-    if count <= 0:
-        return None
-    return day_t("suspectOne") if count == 1 else day_t("suspectMany", n=count)
+def suspect_sentence(count: int, held: int = 0) -> str | None:
+    """ "2 sightings looked wrong and were left out.", then "1 sighting is
+    waiting for a second sighting to confirm it." for held ones, or None."""
+    parts = []
+    if count > 0:
+        parts.append(day_t("suspectOne") if count == 1 else day_t("suspectMany", n=count))
+    if held > 0:
+        parts.append(day_t("heldOne") if held == 1 else day_t("heldMany", n=held))
+    return " ".join(parts) or None

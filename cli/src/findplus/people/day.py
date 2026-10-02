@@ -197,6 +197,6 @@ def build_day(inp: DayInput) -> DayResult:
         lines=lines,
         gaps=gaps,
         lead_device_id=ctx.lead,
-        suspect_text=suspect_sentence(inp.suspect_count),
+        suspect_text=suspect_sentence(inp.suspect_count, len(inp.held)),
         empty=not lines,
     )

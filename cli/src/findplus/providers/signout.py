@@ -104,6 +104,9 @@ def _cancel_google_jobs() -> None:
     job_guards.cancel_active(browser, browser.cancel_google_auth)
     job_guards.cancel_active(unlock, unlock.cancel_google_unlock)
     helper_state.drop_all_states()
+    from .google_findhub import native_progress
+
+    native_progress.reset()  # the in-app window's card goes back to Connect
 
 
 def sign_out(provider: str, settings) -> bool:

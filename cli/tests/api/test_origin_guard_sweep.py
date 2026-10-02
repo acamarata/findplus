@@ -65,6 +65,8 @@ _REQUIRES_OWN_SIGNAL = {
     ("POST", "/api/auth/google/helper/unlock-begin"),
     ("POST", "/api/auth/google/helper/reveal"),
     ("POST", "/api/auth/google/helper/open-extensions"),
+    ("POST", "/api/auth/google/native/begin"),
+    ("POST", "/api/auth/google/native/cancel"),
     ("DELETE", "/api/auth/{provider}"),
 }
 
@@ -77,6 +79,12 @@ _REQUIRES_OWN_SIGNAL = {
 _EXTENSION_ONLY = {
     ("POST", "/api/auth/google/helper/token"),
     ("POST", "/api/auth/google/helper/unlock"),
+    # The in-app window's shell posts need the pinned shell Origin AND the
+    # X-FindPlus-Client header (test_auth_google_native_routes.py pins them).
+    ("POST", "/api/auth/google/native/token"),
+    ("POST", "/api/auth/google/native/unlock"),
+    ("POST", "/api/auth/google/native/event"),
+    ("POST", "/api/auth/google/native/classify"),
 }
 _SAME_ORIGIN_ROUTES = [r for r in _ROUTES if r not in _EXTENSION_ONLY]
 _HEADERLESS_ROUTES = [

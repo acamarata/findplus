@@ -120,17 +120,23 @@ _STATE_GATED_ROUTES = {
     ("POST", "/api/auth/google/helper/token"),
     ("POST", "/api/auth/google/helper/unlock"),
     ("POST", "/api/auth/google/helper/seen"),
+    # The in-app window's shell posts (pinned shell headers + a native state).
+    ("POST", "/api/auth/google/native/token"),
+    ("POST", "/api/auth/google/native/unlock"),
+    ("POST", "/api/auth/google/native/event"),
+    ("POST", "/api/auth/google/native/classify"),
 }
 _E6_ROUTES = _auth_routes()
 
 
-def test_the_dynamic_sweep_sees_all_twentyone_routes() -> None:
+def test_the_dynamic_sweep_sees_all_twentyeight_routes() -> None:
     """7 from E6, plus S11/WP8's `POST /auth/google/cancel` and
     `DELETE /auth/{provider}` (sign-out), the main-Chrome
     `POST /auth/google/open` and `POST /auth/google/token`, the unlock
     step's start/progress/cancel, and the Chrome helper's five
-    `POST /auth/google/helper/*` ingest routes."""
-    assert len(_E6_ROUTES) == 21, _E6_ROUTES
+    `POST /auth/google/helper/*` ingest routes; 1.2.0 adds the in-app
+    window's seven `/auth/google/native/*` routes."""
+    assert len(_E6_ROUTES) == 28, _E6_ROUTES
 
 
 @pytest.mark.parametrize("method,path", [r for r in _E6_ROUTES if r not in _STATE_GATED_ROUTES])
@@ -152,7 +158,8 @@ def test_every_e6_route_401s_while_locked(locked_client, method: str, path: str)
 
 
 @pytest.mark.parametrize(
-    "method,path", sorted(r for r in _STATE_GATED_ROUTES if not r[1].endswith("/seen"))
+    "method,path",
+    sorted(r for r in _STATE_GATED_ROUTES if "/helper/" in r[1] and not r[1].endswith("/seen")),
 )
 def test_helper_ingest_routes_reach_their_own_gate_while_locked(
     locked_client, method: str, path: str

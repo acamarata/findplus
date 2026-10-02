@@ -63,6 +63,11 @@ def _is_helper_page(path: str) -> bool:
         "/api/auth/google/helper/token",
         "/api/auth/google/helper/unlock",
         "/api/auth/google/helper/seen",
+        # The in-app sign-in window's shell posts: pinned shell headers + state.
+        "/api/auth/google/native/token",
+        "/api/auth/google/native/unlock",
+        "/api/auth/google/native/event",
+        "/api/auth/google/native/classify",
     }
 
 

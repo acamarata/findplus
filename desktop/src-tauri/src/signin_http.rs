@@ -23,6 +23,7 @@ const TOKEN: &str = "/api/auth/google/native/token";
 const UNLOCK: &str = "/api/auth/google/native/unlock";
 const EVENT: &str = "/api/auth/google/native/event";
 const CLASSIFY: &str = "/api/auth/google/native/classify";
+const PROGRESS: &str = "/api/auth/google/native/progress";
 const CLIENT_HEADER: &str = "X-FindPlus-Client";
 const CLIENT_VALUE: &str = "signin-window";
 /// The dashboard's session cookie name (cli/src/findplus/api/__init__.py).
@@ -145,6 +146,34 @@ impl Daemon {
                 .to_string(),
         )
     }
+}
+
+impl Daemon {
+    /// The daemon's sign-in `phase` (GET .../progress), or None when it does
+    /// not answer (down, or 401 while locked). A short timeout: the session
+    /// thread asks every few seconds.
+    pub fn progress_phase(&self) -> Option<String> {
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(3))
+            .build()
+            .ok()?;
+        let mut req = client
+            .get(format!("{}{PROGRESS}", self.base))
+            .header("Origin", self.base.as_str());
+        if let Some(c) = &self.cookie {
+            req = req.header("Cookie", c.as_str());
+        }
+        let resp = req.send().ok()?;
+        if !resp.status().is_success() {
+            return None;
+        }
+        parse_phase(&resp.json().ok()?)
+    }
+}
+
+/// Pure: `phase` from a progress reply.
+pub fn parse_phase(v: &Value) -> Option<String> {
+    v.get("phase").and_then(Value::as_str).map(String::from)
 }
 
 /// Pure: an unlock URL Find+ will navigate to: Google's own unlock page (or

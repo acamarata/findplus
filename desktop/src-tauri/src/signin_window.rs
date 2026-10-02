@@ -5,7 +5,8 @@
 //!              the dashboard what happened through `signin-progress` and
 //!              `signin-result` events. Spec: .github/docs/specs/in-app-login.md.
 //! Inputs     : `open_signin_window` from the main window only, the tray's
-//!              attention item, or a gated deep link.
+//!              attention item, or a gated deep link. `close_signin_window`
+//!              and the daemon's cancel end it (signin_close.rs).
 //! Outputs    : The `signin-google` window, events to `main`, daemon calls.
 //! Constraints: Incognito (non-persistent WKWebsiteDataStore); no capability
 //!              names this label, so Google's page cannot call any Tauri
@@ -81,6 +82,8 @@ pub fn open(app: &AppHandle, mode: Mode, begin: Option<serde_json::Value>) -> &'
     if ACTIVE.swap(true, Ordering::SeqCst) {
         return "already_open";
     }
+    // A close asked for before this session is not for it.
+    crate::signin_close::clear();
     let app = app.clone();
     std::thread::spawn(move || {
         crate::signin_start::run(&app, mode, begin);
@@ -110,6 +113,11 @@ pub fn open_apple_sheet(app: &AppHandle) {
 /// self-test sees it too.)
 pub fn emit(app: &AppHandle, event: &str, payload: serde_json::Value) {
     let _ = app.emit_to("main", event, payload);
+}
+
+/// True while a sign-in session runs (from begin to the window's end).
+pub fn is_active() -> bool {
+    ACTIVE.load(Ordering::SeqCst)
 }
 
 /// Focus returns to the dashboard once the window is gone.

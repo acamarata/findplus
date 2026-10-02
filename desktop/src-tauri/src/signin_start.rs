@@ -13,7 +13,7 @@ use tauri::AppHandle;
 
 use crate::signin_http::{parse_begin, Begin, Daemon};
 use crate::signin_logic::Hosts;
-use crate::signin_machine::Mode;
+use crate::signin_machine::{result_payload, Mode, Outcome};
 use crate::signin_session::Session;
 use crate::signin_window as window;
 
@@ -31,6 +31,12 @@ pub fn run(app: &AppHandle, mode: Mode, handed: Option<Value>) {
     let Some(begin) = obtain_begin(app, mode, &daemon, &hosts, handed) else {
         return;
     };
+    if crate::signin_close::take_request() {
+        // Cancelled on the card before the window existed: open nothing.
+        daemon.event(&begin.state, "closed", None);
+        let payload = result_payload(mode, Outcome::Cancelled, None, None, None);
+        return window::emit(app, "signin-result", payload);
+    }
     let (tx, rx) = window::channel();
     let win = match window::build(app, mode, &hosts, tx) {
         Ok(w) => w,

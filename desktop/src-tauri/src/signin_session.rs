@@ -7,6 +7,8 @@
 //!              dashboard, and focusing the dashboard.
 //! Inputs     : `Msg` from signin_window.rs callbacks; the cookie store.
 //! Outputs    : `signin-progress` / `signin-result` events; daemon calls.
+//!              The daemon calls and the outside close check live in
+//!              signin_session_calls.rs (a child module, same fields).
 //! Constraints: Runs on its own thread (never the main thread: `cookies()`
 //!              blocks, and deadlocks on Windows from an event handler). The
 //!              token and the vault keys live in `Option`s that are `take()`n
@@ -18,9 +20,7 @@ use tauri::{AppHandle, WebviewWindow};
 
 use crate::signin_http::{Begin, Daemon};
 use crate::signin_logic::{self as logic, Bridge, Hosts};
-use crate::signin_machine::{
-    result_payload, step, token_retry, Effect, Input, Mode, Outcome, Phase, TokenRetry,
-};
+use crate::signin_machine::{result_payload, step, Effect, Input, Mode, Outcome, Phase};
 use crate::signin_window::{self as window, Msg};
 
 const TICK: Duration = Duration::from_millis(500);
@@ -52,6 +52,8 @@ pub struct Session {
     /// Hash of a cookie value the daemon called malformed: never posted twice.
     rejected_token: Option<u64>,
     token_retried: bool,
+    /// Ticks since the daemon's progress was last read (signin_close.rs).
+    ticks_since_poll: u32,
 }
 
 impl Session {
@@ -86,6 +88,7 @@ impl Session {
             stuck_sent: false,
             rejected_token: None,
             token_retried: false,
+            ticks_since_poll: 0,
         }
     }
 }
@@ -155,6 +158,9 @@ impl Session {
         if self.started.elapsed() > TIMEOUT {
             return self.feed(Input::TimedOut);
         }
+        if self.stop_asked() {
+            return self.feed(Input::UserClosed);
+        }
         let waiting = self.phase == Phase::Waiting;
         if waiting && !self.stuck_sent && self.last_activity.elapsed() > STUCK_AFTER {
             self.stuck_sent = true;
@@ -212,66 +218,6 @@ impl Session {
         }
     }
 
-    fn post_token(&mut self) -> Input {
-        let token = self.token.take().unwrap_or_default();
-        let print = logic::fingerprint(&token);
-        let retry_copy = (!self.token_retried).then(|| token.clone());
-        match self.daemon.token(&self.begin.state, token) {
-            Ok(reply) => {
-                self.account = reply.account;
-                let has_unlock_url = self.begin.unlock_url.is_some();
-                Input::TokenAccepted {
-                    needs_unlock: reply.needs_unlock,
-                    has_unlock_url,
-                }
-            }
-            Err(e) => match token_retry(&e.code, self.token_retried) {
-                TokenRetry::Now => {
-                    self.token_retried = true;
-                    self.token = retry_copy;
-                    self.post_token()
-                }
-                TokenRetry::KeepPolling => {
-                    self.rejected_token = Some(print);
-                    Input::TokenRetryLater
-                }
-                TokenRetry::Fail => {
-                    self.message = Some(e.message);
-                    Input::TokenRejected
-                }
-            },
-        }
-    }
-
-    fn navigate_unlock(&mut self) -> Option<Input> {
-        let url = self
-            .begin
-            .unlock_url
-            .as_deref()
-            .and_then(|u| u.parse().ok());
-        match url.map(|u| self.win.navigate(u)) {
-            Some(Ok(())) => None,
-            _ => {
-                self.message = Some("Find+ could not open the unlock page.".into());
-                Some(Input::Failed)
-            }
-        }
-    }
-
-    fn post_unlock(&mut self) -> Input {
-        let keys = self.vault.take().unwrap_or_default();
-        match self
-            .daemon
-            .unlock(&self.begin.state, keys, self.account_hint.as_deref())
-        {
-            Ok(()) => Input::UnlockStored,
-            Err(e) => {
-                self.message = Some(e.message);
-                Input::UnlockRejected
-            }
-        }
-    }
-
     /// Every exit path: tell the daemon, wipe, destroy, tell the dashboard.
     fn finish(&mut self, outcome: Outcome) {
         self.token = None;
@@ -293,3 +239,6 @@ impl Session {
         window::focus_main(&self.app);
     }
 }
+
+#[path = "signin_session_calls.rs"]
+mod calls;

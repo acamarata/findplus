@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-close-signin-window"
+description = "Enables the close_signin_window command without any pre-configured scope."
+commands.allow = ["close_signin_window"]
+
+[[permission]]
+identifier = "deny-close-signin-window"
+description = "Denies the close_signin_window command without any pre-configured scope."
+commands.deny = ["close_signin_window"]

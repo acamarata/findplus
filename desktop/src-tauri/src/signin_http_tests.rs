@@ -91,3 +91,13 @@ fn errors_carry_the_code_and_never_a_credential() {
     assert_eq!(ok.message, "Sign in to Google first.");
     assert!(api_error(500, &Value::Null).message.contains("500"));
 }
+
+#[test]
+fn the_progress_phase_is_read_plainly() {
+    assert_eq!(
+        parse_phase(&json!({"phase": "cancelled", "message": "x"})),
+        Some("cancelled".into())
+    );
+    assert_eq!(parse_phase(&json!({"phase": 3})), None);
+    assert_eq!(parse_phase(&Value::Null), None);
+}

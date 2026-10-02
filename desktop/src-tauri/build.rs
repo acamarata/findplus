@@ -16,7 +16,11 @@ use std::fs;
 const FALLBACK: &str = "1.0.0.dev0";
 
 /// Every `#[tauri::command]` registered in lib.rs.
-const APP_COMMANDS: &[&str] = &["request_notification_permission", "open_signin_window"];
+const APP_COMMANDS: &[&str] = &[
+    "request_notification_permission",
+    "open_signin_window",
+    "close_signin_window",
+];
 
 /// `1.0.0.dev0` -> `1.0.0-dev0`; `1.0.0` -> `1.0.0`.
 fn to_semver(pep440: &str) -> String {

@@ -204,6 +204,9 @@ person/pet group the observation's device belongs to:
    tracker goes quiet, the person holds where they were and the quiet tracker reads "no recent sighting".
    Likewise `infer()` answers `unsure` when its best cluster is all parked while another tracker (reporting or
    stale) moved within the window.
+   `outside` comes only from a supporter's own device state `outside`: a supporter whose geofence still says
+   `inside` holds the person there, so one stray fix never skips D17's two-exit confirmation. The event then
+   carries the crossing time, the deciding tracker's first sighting on the new side (`people/crossing.py`).
 4. Anti-flap: an opposite transition at the same place needs `settle_minutes` (default 10) since the last one.
    Device-level hysteresis (D17: 1 enter, 2 exit confirmations) has already filtered jitter underneath.
 5. First evaluation seeds state with no event (D17's rule).

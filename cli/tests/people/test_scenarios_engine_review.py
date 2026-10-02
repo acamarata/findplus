@@ -65,3 +65,26 @@ def test_the_quiet_shoes_reporting_again_from_home_bring_sam_home(session):
     events = person_events(session, sam.id)
     assert [(e, p) for e, p, _ in events[:2]] == [("EXIT", "Home"), ("ENTER", "School")]
     assert sorted(events[2:]) == [("ENTER", "Home", at(15, 40)), ("EXIT", "School", at(15, 40))]
+
+
+def _school_morning(tl: Timeline, until=(15, 0)) -> Timeline:
+    """Shoes and bag to School at 7:40 to 8:10; bike and white shoes stay home."""
+    overnight(tl, ["zr", "zb", "zk", "zw"], end=at(7, 40))
+    tl.walk(["zr", "zb"], HOME, SCHOOL, at(7, 40), at(8, 10))
+    tl.stay(["zr", "zb"], SCHOOL, at(8, 20), at(*until), every=10)
+    tl.stay(["zk", "zw"], HOME, at(8, 0), at(*until), every=30)
+    return tl
+
+
+def test_one_stray_fix_never_skips_the_two_exit_confirmation(session):
+    """One shoes fix 450 m north of School at 11:05 (accuracy 50 m, not flagged).
+    The device geofence rightly waits for a second outside fix; so must Sam."""
+    seed_places(session)
+    sam = seed_person(session)
+    tl = _school_morning(Timeline())
+    tl.add("zr", (SCHOOL[0] + 0.00405, SCHOOL[1]), at(11, 5), acc=50.0)
+    tl.ingest(session)
+    assert [(e, p) for e, p, _ in person_events(session, sam.id)] == [
+        ("EXIT", "Home"),
+        ("ENTER", "School"),
+    ]

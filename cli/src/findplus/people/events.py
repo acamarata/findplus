@@ -25,14 +25,13 @@ from sqlalchemy.orm import Session
 
 from findplus.db.models import GroupPlaceEvent, LocationObservation, PlaceEvent, PlaceState
 from findplus.db.models_people import PersonPlaceState
-from findplus.geo import haversine_meters
 from findplus.groups.events import _existing_group_event, _insert_group_event
 from findplus.logging_setup import get_logger
 from findplus.people import _quality, left_behind
+from findplus.people.crossing import crossing, near
 from findplus.people.infer import PersonFix, PlaceRef
 from findplus.people.inputs import infer_person, person_groups_of
 from findplus.people.notes import event_note
-from findplus.places.geofence import exit_margin
 
 log = get_logger(__name__)
 
@@ -47,15 +46,6 @@ class Step:
     pending_since: datetime | None
     last_transition_at: datetime | None
     event_type: str | None
-
-
-def _near(place: PlaceRef, fix) -> bool:
-    """The sighting itself is not clearly outside the place (geofence's own band)."""
-    if fix is None:
-        return False
-    d = haversine_meters(place.latitude_e7 / 1e7, place.longitude_e7 / 1e7, fix.lat, fix.lon)
-    acc = fix.accuracy_meters if fix.accuracy_meters is not None else 100.0
-    return d <= place.radius_meters + max(acc, exit_margin(place.radius_meters))
 
 
 def qualified(fix: PersonFix, crossed: frozenset[str] | set[str] = frozenset()) -> bool:
@@ -89,13 +79,13 @@ def person_target(
     last = {m.device_id: m.fix for m in fix.members}
     sides = [states.get((d, place.id), "unknown") for d in fix.supporters]
     if any(
-        side == "inside" and _near(place, last.get(d))
+        side == "inside" and near(place, last.get(d))
         for d, side in zip(fix.supporters, sides, strict=True)
     ):
         return "inside"
-    if "outside" in sides or "inside" in sides:
-        return "outside"
-    return None
+    if "inside" in sides:
+        return None  # its own geofence has not confirmed the exit yet (D17: 2 fixes)
+    return "outside" if "outside" in sides else None
 
 
 def step(
@@ -167,9 +157,15 @@ def _member_event_ids(session, fix: PersonFix, place_id: int, event_type: str, a
     )
 
 
-def _write_event(session, group, place, fix, trackers, states, event_type, as_of):
-    """Insert the one person row for this crossing, unless one already covers it."""
-    if _existing_group_event(session, group.id, place.id, event_type, as_of, SETTLE_MINUTES):
+def _write_event(session, group, place, fix, trackers, states, event_type, as_of, since=None):
+    """Insert the one person row for this crossing, unless one already covers it.
+
+    The row's time and lead are the first sighting on the new side and the
+    tracker seen there (people/crossing.py), never the confirming sighting.
+    """
+    target = "inside" if event_type == "ENTER" else "outside"
+    lead, when = crossing(session, fix, place, target, since, as_of) or (fix.lead_device_id, as_of)
+    if _existing_group_event(session, group.id, place.id, event_type, when, SETTLE_MINUTES):
         return None
     ids = _member_event_ids(session, fix, place.id, event_type, as_of)
     side = "inside" if event_type == "ENTER" else "outside"
@@ -178,7 +174,7 @@ def _write_event(session, group, place, fix, trackers, states, event_type, as_of
         group_id=group.id,
         place_id=place.id,
         event_type=event_type,
-        observed_at=as_of,
+        observed_at=when,
         member_event_ids=json.dumps(ids),
         members_crossed=crossed,
         members_considered=len(trackers) - len(fix.stale),
@@ -187,7 +183,7 @@ def _write_event(session, group, place, fix, trackers, states, event_type, as_of
         notified_at=None,
         basis="person",
         note=event_note(group, place, fix, trackers, states, event_type),
-        lead_device_id=fix.lead_device_id,
+        lead_device_id=lead,
     )
     return row if _insert_group_event(session, row) else None
 
@@ -208,14 +204,15 @@ def evaluate_person(session: Session, group, as_of: datetime) -> list[GroupPlace
             session.add(row)
         crossed = _crossed_since(crossings, place.id, row.last_transition_at)
         target = person_target(fix, place, states, crossed, seeding=row.state == "unknown")
-        s = step(row.state, row.pending_side, row.pending_since, row.last_transition_at,
-                 target, as_of)  # fmt: skip
+        since = row.last_transition_at
+        s = step(row.state, row.pending_side, row.pending_since, since, target, as_of)
         row.state, row.pending_side, row.pending_since = s.state, s.pending_side, s.pending_since
         row.last_transition_at, row.since_observed_at, row.updated_at = (
             s.last_transition_at, as_of, now,
         )  # fmt: skip
         if s.event_type:
-            event = _write_event(session, group, place, fix, trackers, states, s.event_type, as_of)
+            event = _write_event(session, group, place, fix, trackers, states, s.event_type,
+                                 as_of, since)  # fmt: skip
             if event is not None:
                 inserted.append(event)
                 log.info("person_place_event", group_id=group.id, place_id=place.id,

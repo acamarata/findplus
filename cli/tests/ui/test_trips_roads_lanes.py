@@ -1,6 +1,5 @@
 """Draw likely roads (absent / present routing server), family lanes, lock purge, axe."""
 
-
 from __future__ import annotations
 
 import json

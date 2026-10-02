@@ -254,6 +254,15 @@ Print the absolute path to the SQLite database file.
 
 **Usage:** `findplus db path [OPTIONS]`
 
+## findplus db rebuild-derived
+Rebuild place, group and person state from the sightings (run it after an import).
+
+**Usage:** `findplus db rebuild-derived [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --force |  | Run even if Find+ looks like it is running. |
+
 ## findplus db recompute-quality
 Re-score every sighting for 'looks wrong' flags (raw data is never changed).
 

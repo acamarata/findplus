@@ -7,14 +7,18 @@ Purpose    : `findplus export --format jsonl`: devices, observations, places,
 Inputs     : An open session.
 Outputs    : An iterator of JSON lines. Line 1 is a header (format version, app
              version, schema revision, counts); every other line is
-             `{"t": <kind>, ...fields}` in dependency order: device, place,
-             group, observation, alert_rule.
+             `{"t": <kind>, ...fields}` in dependency order: setting, device,
+             place, group, digest_run, observation, alert_rule, alert_delivery.
 Constraints: Columns come from the ORM mapper, so a new column is exported
              without code changes here. Alert rules refer to places and groups by
-             NAME (ids are not portable). No secrets: the settings table (PIN
-             hash), `secrets.json`, `alerts.json` and Apple tokens are never
-             read. Derived data (quality flags, events, states, deliveries) is
-             left out: it is recomputed. Datetimes are ISO-8601 UTC.
+             NAME (ids are not portable). No sign-in tokens or keys:
+             `secrets.json`, `alerts.json` and Apple tokens are never read, and
+             the app lock (settings starting `lock_`: PIN hash and salt) is left
+             out. Settings, alert deliveries and digest runs are exported
+             (portable_extra.py) so cooldowns and daily summaries do not repeat
+             after an import. Derived data (quality flags, events, place and
+             person states) is left out: `findplus db rebuild-derived`
+             recomputes it. Datetimes are ISO-8601 UTC.
 """
 
 from __future__ import annotations
@@ -36,6 +40,12 @@ from findplus.db.models import (
     Place,
 )
 from findplus.db.models_alerts import AlertRule
+from findplus.db.portable_extra import (
+    export_deliveries,
+    export_digest_runs,
+    export_settings,
+    extra_counts,
+)
 
 FORMAT = "findplus-export"
 FORMAT_VERSION = 1
@@ -77,7 +87,8 @@ def _counts(session: Session) -> dict[str, int]:
         "observation": LocationObservation,
         "alert_rule": AlertRule,
     }
-    return {k: session.scalar(select(func.count()).select_from(m)) or 0 for k, m in models.items()}
+    core = {k: session.scalar(select(func.count()).select_from(m)) or 0 for k, m in models.items()}
+    return {**core, **extra_counts(session)}
 
 
 def _header(session: Session, now: datetime) -> str:
@@ -110,7 +121,7 @@ def _rules(session: Session) -> Iterator[str]:
     places = {p.id: p.name for p in session.scalars(select(Place))}
     groups = {g.id: g.name for g in session.scalars(select(Group))}
     for r in session.scalars(select(AlertRule).order_by(AlertRule.id)):
-        extra = {"place": places.get(r.place_id), "group": groups.get(r.group_id)}
+        extra = {"place": places.get(r.place_id), "group": groups.get(r.group_id), "ref": r.id}
         yield _line("alert_rule", {**row_dict(r, SKIP["alert_rule"]), **extra})
 
 
@@ -123,10 +134,13 @@ def _observations(session: Session) -> Iterator[str]:
 def export_lines(session: Session, now: datetime | None = None) -> Iterator[str]:
     """The whole export, header first, one JSON object per yielded string."""
     yield _header(session, now or datetime.now(UTC))
+    yield from export_settings(session, row_dict)
     for d in session.scalars(select(Device).order_by(Device.device_id)):
         yield _line("device", row_dict(d, SKIP["device"]))
     for p in session.scalars(select(Place).order_by(Place.id)):
         yield _line("place", row_dict(p, SKIP["place"]))
     yield from _groups(session)
+    yield from export_digest_runs(session, row_dict)
     yield from _observations(session)
     yield from _rules(session)
+    yield from export_deliveries(session, row_dict)

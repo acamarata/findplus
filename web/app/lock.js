@@ -31,7 +31,11 @@ import { purgeMapPanes } from "./trips_map.js";
  * The current view is captured first so unlocking returns to exactly it.
  */
 export async function showLock() {
-  if (!state.locked) {
+  // A second call while the lock screen is already up (a stray 401 from a
+  // request that was in flight) must not wipe what the person is looking at:
+  // their typed PIN, the error, the forgot-PIN help.
+  const alreadyLocked = state.locked;
+  if (!alreadyLocked) {
     // Only non-sensitive view state is remembered — a date, a device filter and
     // a row id. No coordinates are retained anywhere once locked.
     state.resume = {
@@ -52,11 +56,13 @@ export async function showLock() {
   await purgeRenderedData();
   $("app-shell").classList.add("hidden");
   $("lock-screen").classList.remove("hidden");
-  $("lock-error").textContent = "";
-  $("lock-forgot").hidden = true;
-  $("lock-pin").value = "";
-  $("lock-pin").type = "password"; // a shown PIN never carries over to the next lock
-  $("lock-show-pin").checked = false;
+  if (!alreadyLocked) {
+    $("lock-error").textContent = "";
+    $("lock-forgot").hidden = true;
+    $("lock-pin").value = "";
+    $("lock-pin").type = "password"; // a shown PIN never carries over to the next lock
+    $("lock-show-pin").checked = false;
+  }
   await showLockCaveat();
   $("lock-pin").focus();
 }

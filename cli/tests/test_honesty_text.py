@@ -83,6 +83,11 @@ EXPECTED = {
         "sightings of each trip you open are sent to that server to draw the path, so use a "
         "server you run yourself."
     ),
+    "native_signin": (
+        "Find+ can sign you in to Google in a window of its own. Google's policy is against "
+        "sign-in inside apps, so it can refuse at any time; if it does, sign in with your own "
+        "Chrome instead."
+    ),
 }
 
 
@@ -205,6 +210,7 @@ README_FRAGMENTS = {
     "trips_approximate": "distances are approximate straight lines",
     "route_likely": "not a record of the road driven",
     "routing_privacy": "use a server you run yourself",
+    "native_signin": "sign in with your own Chrome instead",
 }
 
 

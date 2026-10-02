@@ -92,6 +92,12 @@ ROUTING_PRIVACY = (
     "server you run yourself."
 )
 
+NATIVE_SIGNIN = (
+    "Find+ can sign you in to Google in a window of its own. Google's policy is against "
+    "sign-in inside apps, so it can refuse at any time; if it does, sign in with your own "
+    "Chrome instead."
+)
+
 NOTICES: dict[str, str] = {
     "find_hub": FIND_HUB,
     "apple": APPLE,
@@ -108,4 +114,5 @@ NOTICES: dict[str, str] = {
     "trips_approximate": TRIPS_APPROXIMATE,
     "route_likely": ROUTE_LIKELY,
     "routing_privacy": ROUTING_PRIVACY,
+    "native_signin": NATIVE_SIGNIN,
 }

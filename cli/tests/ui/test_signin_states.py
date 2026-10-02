@@ -206,7 +206,7 @@ async def test_done_shows_the_account_and_offers_a_switch(page, base_url):
         await page.unroute("**/api/auth/status")
         await page.route("**/api/auth/status", reply(status_body(google=True)))
         await page.get_by_role("button", name=CONNECT).click()
-        await wait_text(page, "#fp-setup-google-status", "Signed in as g@example.com")
+        await wait_text(page, "#fp-setup-google-status", "Connected as g@example.com")
         await wait_text(page, "#fp-setup-signin-status", "g@example.com")
         assert await page.locator(PROGRESS).is_hidden()
         assert await page.get_by_role("button", name="Switch Google account").is_enabled()

@@ -78,7 +78,7 @@ async def test_progress_is_a_named_group_not_a_live_region(page, base_url):
     progress = page.locator(".fp-wizard-progress")
     assert await progress.get_attribute("role") == "group"
     assert await progress.get_attribute("aria-live") is None
-    assert await progress.get_attribute("aria-label") == "Step 2 of 8: Connect your trackers"
+    assert await progress.get_attribute("aria-label") == "Step 2 of 8: Connect your accounts"
     dots = page.locator(".fp-wizard-dot")
     assert await dots.count() == 8
     assert await dots.first.get_attribute("aria-hidden") == "true"
@@ -91,7 +91,7 @@ async def test_a_new_step_puts_focus_on_its_heading(page, base_url):
     focused = await page.evaluate(
         "() => ({tag: document.activeElement.tagName, text: document.activeElement.textContent})"
     )
-    assert focused == {"tag": "H2", "text": "Connect your trackers"}
+    assert focused == {"tag": "H2", "text": "Connect your accounts"}
 
 
 async def test_welcome_leads_with_purpose_and_a_start_button(page, base_url):
@@ -177,7 +177,7 @@ async def test_done_states_what_find_is_doing_and_where_to_find_it(page, base_ur
     await _open(page, base_url, "done")
     await page.wait_for_selector("#setup-view p[data-ready='true']", timeout=15000)
     facts = await page.locator("#fp-setup-done-facts").inner_text()
-    assert "Signed in as g@example.com" in facts
+    assert "Connected: g@example.com" in facts
     assert "about every" in facts and "minutes" in facts
     assert "App lock is off." in facts
     step = await page.locator("#setup-view .fp-wizard-step").inner_text()

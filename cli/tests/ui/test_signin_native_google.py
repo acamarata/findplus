@@ -60,22 +60,43 @@ async def test_connect_hands_begin_to_the_window_and_ends_connected(page, base_u
     assert await page.locator(CONNECT).inner_text() == "Connect"
     await _connect(page, fake)
     calls = await invokes(page)
-    assert calls == [{"provider": "google", "mode": "signin",
-                      "begin": {"state": "fake-state", "mode": "signin",
-                                "window": {"timeout_seconds": 600}, "generation": 1}}]
+    assert calls == [
+        {
+            "provider": "google",
+            "mode": "signin",
+            "begin": {
+                "state": "fake-state",
+                "mode": "signin",
+                "window": {"timeout_seconds": 600},
+                "generation": 1,
+            },
+        }
+    ]
     assert fake.begins[0]["body"] == {"mode": "signin"}
     assert fake.begins[0]["origin"] == base_url
     assert await page.locator("#fp-auth-google-native-show").is_visible()
     note = await page.locator("#fp-auth-google-native-note").inner_text()
     assert "title" in note  # the window-title note
 
-    await emit(page, "signin-progress",
-               {"provider": "google", "mode": "signin", "phase": "finishing", "stuck": False})
+    await emit(
+        page,
+        "signin-progress",
+        {"provider": "google", "mode": "signin", "phase": "finishing", "stuck": False},
+    )
     await wait_text(page, TEXT, "Checking with Google")
     fake.set_phase("success", account=ACCOUNT, unlocked=True)
     fake.status = auth_status(google=True)
-    await emit(page, "signin-result", {"provider": "google", "mode": "signin",
-                                       "outcome": "success", "unlocked": True, "account": ACCOUNT})
+    await emit(
+        page,
+        "signin-result",
+        {
+            "provider": "google",
+            "mode": "signin",
+            "outcome": "success",
+            "unlocked": True,
+            "account": ACCOUNT,
+        },
+    )
     await wait_text(page, "#fp-auth-google-status", f"Connected as {ACCOUNT}")
     assert await page.locator("#fp-auth-google-ready").inner_text() == "Locations unlocked"
     await page.wait_for_function(
@@ -116,8 +137,17 @@ async def test_cancel_drops_the_state_and_closes_the_window(page, base_url):
 async def test_a_timeout_says_so_and_retry_begins_again(page, base_url):
     fake = await _open(page, base_url)
     await _connect(page, fake)
-    await emit(page, "signin-result", {"provider": "google", "mode": "signin",
-                                       "outcome": "timeout", "unlocked": False, "account": None})
+    await emit(
+        page,
+        "signin-result",
+        {
+            "provider": "google",
+            "mode": "signin",
+            "outcome": "timeout",
+            "unlocked": False,
+            "account": None,
+        },
+    )
     await wait_text(page, TEXT, "open too long")
     assert await _phase(page) == "error"
     await page.click("#fp-auth-google-native-retry")
@@ -172,10 +202,16 @@ async def test_a_locked_daemon_stops_quietly(page, base_url):
 async def test_a_window_the_tray_opened_is_followed_too(page, base_url):
     fake = await _open(page, base_url)
     fake.set_phase("waiting", mode="signin")
-    await emit(page, "signin-progress",
-               {"provider": "google", "mode": "signin", "phase": "waiting", "stuck": False})
+    await emit(
+        page,
+        "signin-progress",
+        {"provider": "google", "mode": "signin", "phase": "waiting", "stuck": False},
+    )
     await wait_text(page, TEXT, "Finish signing in in the Find+ window")
-    await emit(page, "signin-progress",
-               {"provider": "google", "mode": "signin", "phase": "waiting", "stuck": True})
+    await emit(
+        page,
+        "signin-progress",
+        {"provider": "google", "mode": "signin", "phase": "waiting", "stuck": True},
+    )
     await wait_text(page, "#fp-auth-google-native-note", "Taking a while")
     assert await invokes(page) == []

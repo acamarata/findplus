@@ -79,24 +79,44 @@ async def invokes(page, cmd: str = "open_signin_window") -> list[dict]:
 def progress(phase: str, **extra) -> dict:
     """A GET .../native/progress body (contract §3.6)."""
     body = {
-        "phase": phase, "message": "", "mode": "signin", "account": None, "unlocked": False,
-        "reason": None, "updated_at": "2026-10-02T09:00:00+00:00", "blocked_at": None,
-        "start_with": "window", "fallback": None, "generation": 1,
+        "phase": phase,
+        "message": "",
+        "mode": "signin",
+        "account": None,
+        "unlocked": False,
+        "reason": None,
+        "updated_at": "2026-10-02T09:00:00+00:00",
+        "blocked_at": None,
+        "start_with": "window",
+        "fallback": None,
+        "generation": 1,
     }
     body.update(extra)
     return body
 
 
-def auth_status(*, google=False, apple=False, needs_g=(), att_g="none", att_a="none",
-                native=None) -> dict:
+def auth_status(
+    *, google=False, apple=False, needs_g=(), att_g="none", att_a="none", native=None
+) -> dict:
     """A GET /api/auth/status body with the 1.2 fields."""
     return {
         "providers": [
-            {"id": "google-find-hub", "signed_in": google, "account": ACCOUNT if google else None,
-             "needs": list(needs_g), "attention": att_g, "deep_link": None},
-            {"id": "apple-find-my", "signed_in": apple,
-             "account": APPLE_ACCOUNT if apple else None, "needs": [], "attention": att_a,
-             "deep_link": None},
+            {
+                "id": "google-find-hub",
+                "signed_in": google,
+                "account": ACCOUNT if google else None,
+                "needs": list(needs_g),
+                "attention": att_g,
+                "deep_link": None,
+            },
+            {
+                "id": "apple-find-my",
+                "signed_in": apple,
+                "account": APPLE_ACCOUNT if apple else None,
+                "needs": [],
+                "attention": att_a,
+                "deep_link": None,
+            },
         ],
         "google_helper_installed": False,
         "google_signin_generation": 1,
@@ -132,8 +152,14 @@ class FakeNativeDaemon:
             await route.fulfill(status=self.begin_status, json={"detail": "Locked", "code": "x"})
             return
         self.set_phase("connecting", mode=body.get("mode", "signin"))
-        await route.fulfill(json={"state": "fake-state", "mode": body.get("mode", "signin"),
-                                  "window": {"timeout_seconds": 600}, "generation": 1})
+        await route.fulfill(
+            json={
+                "state": "fake-state",
+                "mode": body.get("mode", "signin"),
+                "window": {"timeout_seconds": 600},
+                "generation": 1,
+            }
+        )
 
     async def _progress(self, route) -> None:
         await route.fulfill(json=self.phase)

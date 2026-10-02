@@ -40,8 +40,7 @@ async def _catalog(page, base_url) -> dict:
 
 
 async def _open_settings(page, base_url) -> None:
-    """Go to the dashboard, open Settings, and reveal the "Other ways" details.
-
+    """Go to the dashboard, open Settings, and reveal the "More ways" details.
     openSettings() (web/app/settings.js) unhides #settings-modal before any
     await, so one deterministic wait for the sign-in panel's static host is
     enough to know the dialog is open (CI run 35546305331 fix).
@@ -179,7 +178,7 @@ async def test_apple_2fa_field_shown_when_the_server_asks_for_a_code(page, base_
     await page.evaluate(
         """async () => {
             const auth = await import('/static/app/auth.js');
-            auth.signInPanel().apple.askForCode();
+            const apple = auth.signInPanel().apple; apple.open(); apple.askForCode();
         }"""
     )
     assert await page.locator("#fp-auth-apple-2fa").is_visible()
@@ -215,6 +214,7 @@ async def test_the_lock_purge_empties_the_sign_in_panel(page, base_url) -> None:
     await page.wait_for_function(
         "() => (document.getElementById('fp-auth-google-status')?.textContent ?? '') !== ''"
     )
+    await page.click("#fp-auth-apple-signin")  # 1.2: the fields live in the sheet
     await page.fill("#fp-auth-apple-id", "someone@example.com")
     await page.fill("#fp-auth-apple-password", "not-a-real-password")
     await page.evaluate(

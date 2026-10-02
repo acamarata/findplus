@@ -25,6 +25,7 @@ def status_body(*, google=False, apple=False, needs_g=(), needs_a=()) -> dict:
                 "id": "google-find-hub",
                 "signed_in": google,
                 "account": "g@example.com" if google else None,
+                "attention": "none",
                 "needs": list(needs_g),
             },
             {
@@ -62,13 +63,18 @@ async def _post_setting(page, base_url, key, value):
 
 
 async def reveal_other_ways(page) -> None:
-    """Open the Google card's "Other ways to sign in" <details> so the demoted
-    paste / separate-window controls are interactable in tests that target them.
-    The primary "Sign in with Google" button lives outside it and needs no open.
+    """Open the Google card's "More ways to sign in" <details> so the paste
+    controls are interactable in tests that target them.
+
+    1.2 hides the 1.1 "Find+ opens its own Chrome window" button (spec Q4: hide
+    in 1.2, remove in 1.3) but keeps its code; the older state tests unhide it
+    here so that code stays covered until it is removed.
     """
     await page.evaluate(
-        "() => document.querySelectorAll('details.fp-signin-other')"
-        ".forEach((d) => { d.open = true; })"
+        "() => document.querySelectorAll('details.fp-signin-other').forEach((d) => {"
+        " d.open = true;"
+        " d.querySelectorAll('[id$=\"-google-signin\"]').forEach((b) => { b.hidden = false; });"
+        "})"
     )
 
 

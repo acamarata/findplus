@@ -2,9 +2,9 @@
 
 Purpose    : the neutral primary button posts /api/auth/google/helper/begin and
              then advances on its own when /api/auth/status flips to signed in;
-             a failed begin shows in the card; the paste and separate-window
-             flows sit under a collapsed "Other ways to sign in" details. No
-             real browser: the begin route is stubbed.
+             a failed begin shows in the card; the paste flow sits under a
+             collapsed "More ways to sign in"; the one-time helper install is
+             written steps that open nothing. No real browser: routes stubbed.
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ async def test_click_begins_and_auto_advances_on_status(page, base_url):
     await page.route("**/api/auth/google/helper/begin", begin_route)
 
     await page.get_by_role("button", name="Sign in with Google").click()
-    await wait_text(page, "#fp-auth-google-status", "Signed in as g@example.com")
+    await wait_text(page, "#fp-auth-google-status", "Connected as g@example.com")
     assert began == [1]
 
 
@@ -92,27 +92,47 @@ async def test_a_failed_begin_shows_in_the_card_with_retry(page, base_url):
     assert await page.locator(HELLO_ERROR).get_by_role("button", name="Try again").is_visible()
 
 
-async def test_other_ways_reveals_the_paste_and_separate_window_flows(page, base_url):
+async def test_more_ways_keeps_the_paste_flow_and_hides_the_own_window(page, base_url):
     await _open(page, base_url)
-    await page.locator("#fp-auth-google-card details.fp-signin-other > summary").click()
+    summary = page.locator("#fp-auth-google-card details.fp-signin-other > summary")
+    assert await summary.inner_text() == "More ways to sign in"
+    await summary.click()
     assert await page.get_by_role("button", name="Sign in with your Chrome").is_visible()
-    assert await page.get_by_role(
-        "button", name="Or let Find+ open its own Chrome window"
-    ).is_visible()
+    # 1.2 hides Find+'s own Chrome window (spec Q4: hide in 1.2, remove in 1.3).
+    assert await page.locator("#fp-auth-google-signin").is_hidden()
 
 
-async def test_show_folder_and_open_extensions_post_their_routes(page, base_url):
-    reveal = []
-    openext = []
+async def test_helper_install_is_written_steps_that_open_nothing(page, base_url):
+    """1.2: no "Show helper folder" / "Open Chrome extensions" buttons (they
+    opened Finder and a Chrome tab). The steps are text with two Copy buttons;
+    the folder path comes from POST .../helper/folder, which opens nothing."""
+    folder = []
+    opened = []
     await _open(page, base_url)
-    await page.route("**/api/auth/google/helper/reveal", reply({"path": "/x/1.1.5"}, 200, reveal))
     await page.route(
-        "**/api/auth/google/helper/open-extensions", reply({"opened": True}, 200, openext)
+        "**/api/auth/google/helper/folder",
+        reply({"path": "/x/.findplus/chrome-helper/1.2.0"}, 200, folder),
     )
+    for route in ("reveal", "open-extensions"):
+        await page.route(f"**/api/auth/google/helper/{route}", reply({}, 200, opened))
+    card = page.locator("#fp-auth-google-card")
+    assert await card.get_by_role("button", name="Show helper folder").count() == 0
+    assert await card.get_by_role("button", name="Open Chrome extensions").count() == 0
     await page.locator("#fp-auth-google-card details.fp-signin-install > summary").click()
-    await page.get_by_role("button", name="Show helper folder").click()
-    await page.get_by_role("button", name="Open Chrome extensions").click()
-    assert len(reveal) == 1 and len(openext) == 1
+    await wait_text(page, "#fp-auth-google-helper-folder", "/x/.findplus/chrome-helper/1.2.0")
+    assert await page.locator("#fp-auth-google-helper-extensions").inner_text() == (
+        "chrome://extensions"
+    )
+    await page.click("#fp-auth-google-helper-folder-copy")
+    assert len(folder) == 1 and opened == []
+
+
+async def test_helper_folder_falls_back_to_the_plain_path(page, base_url):
+    await _open(page, base_url)
+    await page.route("**/api/auth/google/helper/folder", reply({"detail": "Not Found"}, 404))
+    await page.locator("#fp-auth-google-card details.fp-signin-install > summary").click()
+    await page.wait_for_timeout(300)
+    assert "chrome-helper" in await page.locator("#fp-auth-google-helper-folder").inner_text()
 
 
 async def test_helper_installed_line_follows_status(page, base_url):

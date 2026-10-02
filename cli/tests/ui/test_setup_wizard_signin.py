@@ -77,11 +77,11 @@ async def test_step_has_a_heading_and_google_button_reflects_signed_in_state(
         # text_content(), not inner_text(): h2 is styled text-transform:
         # uppercase, which inner_text() would reflect as "SIGN IN".
         assert (await page.locator("#setup-view h2").first.text_content()) == (
-            "Connect your trackers"
+            "Connect your accounts"
         )
         await page.wait_for_function(
             "() => document.getElementById('fp-setup-signin-status')"
-            ".textContent.includes('Signed in as')",
+            ".textContent.includes('Connected:')",
             timeout=15000,
         )
         button = page.get_by_role("button", name="Switch Google account")
@@ -193,7 +193,7 @@ async def test_signed_in_hides_the_chrome_notice_even_with_a_stale_needs_chrome(
         await reveal_other_ways(page)
         await page.wait_for_function(
             "() => document.getElementById('fp-setup-signin-status')"
-            ".textContent.includes('Signed in as')",
+            ".textContent.includes('Connected:')",
             timeout=15000,
         )
 

@@ -242,6 +242,24 @@ fn token_refusals_follow_the_contract() {
 }
 
 #[test]
+fn the_unlock_step_restarts_the_window_budget() {
+    assert!(restarts_budget(P::Finishing, P::Unlocking));
+    assert!(restarts_budget(P::Waiting, P::Unlocking));
+    assert!(!restarts_budget(P::Unlocking, P::Unlocking));
+    assert!(!restarts_budget(P::Waiting, P::Finishing));
+    assert!(!restarts_budget(P::Unlocking, P::Storing));
+}
+
+#[test]
+fn a_close_during_an_exchange_says_finishing() {
+    assert!(is_exchanging(P::Finishing) && is_exchanging(P::Storing));
+    for p in [P::Waiting, P::Unlocking, P::Done] {
+        assert!(!is_exchanging(p));
+    }
+    assert!(CLOSING_TITLE.starts_with("Find+ sign-in"));
+}
+
+#[test]
 fn unlock_only_without_an_account_never_opens_the_unlock_page() {
     // r12 #1: no address from the account page (or none in time) ends the
     // window with an error before the unlock page; keys are never asked for.

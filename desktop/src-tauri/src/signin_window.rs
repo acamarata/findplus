@@ -32,6 +32,8 @@ use crate::signin_script::{self as script, ScriptOrigins};
 
 pub const LABEL: &str = "signin-google";
 static ACTIVE: AtomicBool = AtomicBool::new(false);
+/// True while the daemon checks a token or stores keys: a close then waits.
+static EXCHANGING: AtomicBool = AtomicBool::new(false);
 /// Set by the debug self-test: no dashboard to focus afterwards.
 pub static SELFTEST: AtomicBool = AtomicBool::new(false);
 
@@ -138,6 +140,11 @@ pub fn emit(app: &AppHandle, event: &str, payload: serde_json::Value) {
     crate::signin_events::send(app, event, payload);
 }
 
+/// The session says whether an exchange is in flight (see `EXCHANGING`).
+pub fn set_exchanging(on: bool) {
+    EXCHANGING.store(on, Ordering::SeqCst);
+}
+
 /// True while a sign-in session runs (from begin to the window's end).
 pub fn is_active() -> bool {
     ACTIVE.load(Ordering::SeqCst)
@@ -190,9 +197,13 @@ pub fn build(
         })
         .build()
         .map_err(|e| e.to_string())?;
+    let shown = win.clone();
     win.on_window_event(move |ev| match ev {
         WindowEvent::CloseRequested { api, .. } => {
             api.prevent_close();
+            if EXCHANGING.load(Ordering::SeqCst) {
+                let _ = shown.set_title(crate::signin_machine::CLOSING_TITLE);
+            }
             let _ = tx.send(Msg::Closed);
         }
         WindowEvent::Destroyed => {

@@ -97,13 +97,33 @@ pub fn handle(app: &tauri::AppHandle, url: &str) {
                 Gate::Settings => windows::open_settings(app),
             }
         }
-        Action::Unknown => log::debug!("urlscheme: unrecognised URL {url}"),
+        Action::Unknown => log::debug!("urlscheme: unrecognised {}", log_safe(url)),
     }
+}
+
+/// Pure: what the log may say about a link any web page can fire: its scheme
+/// and its length, never its contents (r12 #13).
+fn log_safe(url: &str) -> String {
+    let scheme = url
+        .split_once(':')
+        .map(|(s, _)| s)
+        .filter(|s| s.len() <= 16 && s.bytes().all(|b| b.is_ascii_alphanumeric()))
+        .unwrap_or("?");
+    format!("{scheme} link ({} bytes)", url.len())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_unknown_link_is_logged_without_its_contents() {
+        let line = log_safe("findplus://secret-host/path?token=abc#frag");
+        assert_eq!(line, "findplus link (42 bytes)");
+        assert!(!line.contains("secret") && !line.contains("abc"));
+        assert_eq!(log_safe("no scheme here"), "? link (14 bytes)");
+        assert_eq!(log_safe("x y:rest"), "? link (8 bytes)");
+    }
 
     #[test]
     fn reload_widgets_path_is_sibling_of_app_binary() {

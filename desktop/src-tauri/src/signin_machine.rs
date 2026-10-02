@@ -217,6 +217,21 @@ pub fn step(phase: Phase, mode: Mode, input: &Input) -> (Phase, Effect) {
     }
 }
 
+/// Pure: the unlock step gets its own 10 minutes (the daemon gives its state a
+/// fresh TTL then too), so a slow sign-in never leaves it seconds (r12 #10).
+pub fn restarts_budget(prev: Phase, next: Phase) -> bool {
+    next == Phase::Unlocking && prev != Phase::Unlocking
+}
+
+/// The window title while a close waits on an exchange in flight (the token
+/// post can take up to 75 s; the close is held until it ends, r12 #14).
+pub const CLOSING_TITLE: &str = "Find+ sign-in: finishing, one moment...";
+
+/// Pure: true while the daemon is checking a token or storing keys.
+pub fn is_exchanging(phase: Phase) -> bool {
+    matches!(phase, Phase::Finishing | Phase::Storing)
+}
+
 /// What to do after the daemon refused a token (contract §3.2).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenRetry {

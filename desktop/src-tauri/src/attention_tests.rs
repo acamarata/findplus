@@ -45,29 +45,6 @@ fn falls_back_to_needs_on_an_older_daemon() {
 }
 
 #[test]
-fn one_banner_per_loss() {
-    let healthy = Attention::default();
-    let lost = Attention {
-        google: Some(Need::Signin),
-        apple: None,
-    };
-    assert_eq!(
-        newly_needing(&healthy, &lost),
-        vec![(Provider::Google, Need::Signin)]
-    );
-    // Still lost on the next poll: no second banner.
-    assert!(newly_needing(&lost, &lost).is_empty());
-    // Signin -> unlock is the same loss continuing, not a new one.
-    let unlock = Attention {
-        google: Some(Need::Unlock),
-        apple: None,
-    };
-    assert!(newly_needing(&lost, &unlock).is_empty());
-    // Healthy again, then lost again: a new banner.
-    assert_eq!(newly_needing(&healthy, &unlock).len(), 1);
-}
-
-#[test]
 fn banner_text_is_generic() {
     for (p, n) in [
         (Provider::Google, Need::Signin),

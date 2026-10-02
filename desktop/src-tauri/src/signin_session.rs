@@ -22,7 +22,8 @@ use crate::signin_hosts::FrameWatch;
 use crate::signin_http::{Begin, Daemon};
 use crate::signin_logic::{self as logic, Bridge, Hosts};
 use crate::signin_machine::{
-    result_payload, step, Effect, Input, Mode, Outcome, Phase, ACCOUNT_UNKNOWN, MSG_ACCOUNT_UNKNOWN,
+    is_exchanging, restarts_budget, result_payload, step, Effect, Input, Mode, Outcome, Phase,
+    ACCOUNT_UNKNOWN, MSG_ACCOUNT_UNKNOWN,
 };
 use crate::signin_window::{self as window, Msg};
 
@@ -49,6 +50,8 @@ pub struct Session {
     reason: Option<String>,
     title: String,
     started: Instant,
+    /// The 10-minute budget starts at open and again at the unlock step.
+    budget_from: Instant,
     last_activity: Instant,
     home_seen: Option<Instant>,
     stuck_sent: bool,
@@ -88,6 +91,7 @@ impl Session {
             reason: None,
             title: String::new(),
             started: now,
+            budget_from: now,
             last_activity: now,
             home_seen: None,
             stuck_sent: false,
@@ -167,7 +171,7 @@ impl Session {
     }
 
     fn on_tick(&mut self) {
-        if self.started.elapsed() > TIMEOUT {
+        if self.budget_from.elapsed() > TIMEOUT {
             return self.feed(Input::TimedOut);
         }
         let ms = self.started.elapsed().as_millis() as u64;
@@ -228,6 +232,10 @@ impl Session {
             if phase != self.phase && phase != Phase::Done {
                 window::progress(&self.app, self.mode, phase.wire(), false);
             }
+            if restarts_budget(self.phase, phase) {
+                self.budget_from = Instant::now();
+            }
+            window::set_exchanging(is_exchanging(phase));
             self.phase = phase;
             next = self.run_effect(effect);
         }

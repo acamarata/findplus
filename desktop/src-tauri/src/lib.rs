@@ -112,6 +112,7 @@ fn on_run_event(app_handle: &tauri::AppHandle, event: tauri::RunEvent) {
 }
 
 mod attention;
+mod attention_memory;
 mod daemon;
 mod first_launch;
 mod notify;

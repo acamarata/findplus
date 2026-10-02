@@ -12,7 +12,8 @@
 //! Constraints: Banner text names no account and no place (generic-while-
 //!              locked rule, notify.rs). The notification plugin cannot report
 //!              a click on desktop, so the text points to the menu bar icon.
-//!              `parse`, `newly_needing`, `banner` and `gate` are pure.
+//!              `parse`, `banner` and `gate` are pure; which loss already had
+//!              its banner is kept across app starts (attention_memory.rs).
 
 use serde_json::Value;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -20,6 +21,8 @@ use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 use tauri_plugin_notification::{NotificationExt, PermissionState};
+
+use crate::attention_memory as memory;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -84,17 +87,6 @@ pub fn parse(body: &Value) -> Option<Attention> {
         }
     }
     Some(a)
-}
-
-/// Pure: providers that went from healthy to needing attention.
-pub fn newly_needing(prev: &Attention, next: &Attention) -> Vec<(Provider, Need)> {
-    [Provider::Google, Provider::Apple]
-        .into_iter()
-        .filter_map(|p| match (prev.get(p), next.get(p)) {
-            (None, Some(n)) => Some((p, n)),
-            _ => None,
-        })
-        .collect()
 }
 
 /// Pure: the banner for one loss. Generic: no account, no place.
@@ -174,6 +166,7 @@ pub fn refresh(app: &AppHandle) {
         &mut *CURRENT.lock().unwrap_or_else(|e| e.into_inner()),
         next,
     );
+    announce(app, &next);
     if prev == next {
         return;
     }
@@ -182,7 +175,19 @@ pub fn refresh(app: &AppHandle) {
     if let Ok(v) = serde_json::to_value(next) {
         crate::signin_events::keep("auth-attention", v);
     }
-    for (p, n) in newly_needing(&prev, &next) {
+}
+
+/// One banner per loss, remembered across app starts (attention_memory.rs).
+fn announce(app: &AppHandle, next: &Attention) {
+    let file = memory::path();
+    let notified = file.as_deref().map(memory::load).unwrap_or_default();
+    let (banners, keep) = memory::due(notified, next);
+    if keep != notified {
+        if let Some(f) = &file {
+            memory::save(f, keep);
+        }
+    }
+    for (p, n) in banners {
         show_banner(app, p, n);
     }
 }

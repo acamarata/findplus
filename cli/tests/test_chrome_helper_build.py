@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -65,7 +66,9 @@ def test_build_fails_when_the_versions_differ(tmp_path, which) -> None:
         if which == "core"
         else tmp_path / "cli" / "pyproject.toml"
     )
-    target.write_text(target.read_text().replace("1.1.5", "9.9.9", 1))
+    text = target.read_text()
+    version = re.search(r"\d+\.\d+\.\d+", text).group(0)  # first version string in the file
+    target.write_text(text.replace(version, "9.9.9", 1))
     result = subprocess.run(
         ["bash", str(tmp_path / "packaging" / "scripts" / _SCRIPT.name)],
         capture_output=True,

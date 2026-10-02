@@ -91,7 +91,9 @@ async def test_the_row_links_to_the_persons_day(trips_page, trips_server):
     pid = ensure_person(trips_server)
     await _serve(trips_page, pid, [episode(1, "left_behind", None)], [])
     await _open(trips_page, trips_server)
-    assert "looks left behind since 3:00 PM" in await trips_page.inner_text("#fp-left-behind")
+    await trips_page.wait_for_function(
+        "() => document.querySelector('#fp-left-behind')?.innerText.includes('looks left behind since 3:00 PM')"
+    )
     await trips_page.get_by_role("link", name="See Sam's day").click()
     await trips_page.wait_for_selector("#tab-person:not([hidden]) .person-name")
 

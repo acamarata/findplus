@@ -15,7 +15,10 @@ def test_the_helper_ships_and_is_found_in_the_dev_tree() -> None:
     available, reason = bh.helper_available()
     assert available is True, reason
     assert (bh.packaged_helper_dir() / "manifest.json").is_file()
-    assert bh.helper_version() == "1.1.5"
+    assert (
+        bh.helper_version()
+        == json.loads((bh.packaged_helper_dir() / "manifest.json").read_text())["version"]
+    )
 
 
 def _fake_source(tmp_path):

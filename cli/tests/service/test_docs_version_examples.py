@@ -10,7 +10,10 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[3]
 DOCS = ("README.md", ".github/wiki/Install.md")
@@ -33,6 +36,7 @@ def test_doc_examples_name_the_project_version() -> None:
         assert not stale, doc
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="needs a real bash (not available on Windows)")
 def test_bump_version_rewrites_the_doc_examples(tmp_path: Path) -> None:
     git = ["git", "-c", "user.name=t", "-c", "user.email=t@example.com"]
     for rel in (

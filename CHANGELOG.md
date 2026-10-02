@@ -90,7 +90,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - Package 0 (the owner's real-account spike) has not run yet; the owner checklist is
   [Desktop manual tests](.github/wiki/Desktop-manual-tests.md), steps 1 to 22.
 
-## [1.1.6] - Unreleased
+## [1.1.6] - 2026-10-02
 
 ### Added
 - Sightings that look wrong are caught and left out of stays, trips and alerts: a tracker that
@@ -226,6 +226,9 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - The day summary says "Still at School, nothing new from 8:10 to 11:05 AM." instead of "No
   sightings" while the person is at one place, and a sighting held for a second one is "waiting
   to confirm", never "looked wrong" ("Probably at School (waiting to confirm)").
+
+### Known limitations
+- Database restore and the permission tests for the backup folder run on macOS and Linux only. On Windows a SQLite file that is open cannot be replaced, so `db restore` is not yet supported there.
 
 ### Fixed
 - Place dialog: a new place starts at 100 m (was 200 m), the radius slider covers 50 to 500 m with a

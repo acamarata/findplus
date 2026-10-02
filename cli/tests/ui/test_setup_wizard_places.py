@@ -79,7 +79,7 @@ async def test_places_step_draws_tracked_device_markers_on_a_true_first_run(page
         await _open_step(page, base_url, "places")
         await page.wait_for_selector("#fp-setup-map-host #map", timeout=15000)
         await page.wait_for_function(
-            "() => document.querySelectorAll('#map .leaflet-marker-icon').length > 0",
+            "() => document.querySelectorAll('#map .leaflet-marker-icon').length === 2",
             timeout=15000,
         )
         marker_count = await page.locator("#map .leaflet-marker-icon").count()

@@ -1,4 +1,4 @@
-"""GET /api/settings/backup and POST /api/settings/backup/now (the Settings dialog's backup line)."""
+"""GET /api/settings/backup and POST /api/settings/backup/now (Settings backup line)."""
 
 from __future__ import annotations
 

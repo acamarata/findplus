@@ -94,6 +94,9 @@ Read Settings
 ### GET /api/settings/app.start_at_login
 Get Start At Login
 
+### GET /api/settings/backup
+Get Backup Status
+
 ### GET /api/settings/onboarding.completed_at
 Get Onboarding Completed At
 
@@ -223,6 +226,9 @@ Toggle the desktop app's LaunchAgent through findplus.service.
   "title": "Body_set_start_at_login_api_settings_app_start_at_login_post"
 }
 ```
+
+### POST /api/settings/backup/now
+Post Backup Now
 
 ### POST /api/settings/onboarding.completed_at
 Stamp or clear the onboarding completion time (specs/onboarding.md § 2).

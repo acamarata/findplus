@@ -23,6 +23,7 @@ fi
 TMPDIR=$(mktemp -d)
 export HOME="$TMPDIR"
 export FINDPLUS_STATE_DIR="$TMPDIR/.findplus"
+export FINDPLUS_NO_LAUNCH=1
 SIDECAR_PID=""
 # Kill the server on every exit path, not just the happy one: an orphaned
 # child keeps the script's stdout pipe open and the caller hangs for ever.

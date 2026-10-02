@@ -20,6 +20,8 @@ from tests._no_browser_launch import no_real_browser  # noqa: F401 (autouse guar
 
 # Point every setting at a throwaway location BEFORE findplus.config is imported.
 os.environ.setdefault("FINDPLUS_STATE_DIR", "/tmp/findplus-tests-state")
+# Fixture servers started as subprocesses inherit this: nothing may open a real program.
+os.environ.setdefault("FINDPLUS_NO_LAUNCH", "1")
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
@@ -268,3 +270,15 @@ def locked_client(client: TestClient):
         yield client
     finally:
         client.post("/api/lock/unlock", json={"pin": pin})
+
+
+@pytest.fixture
+def launch_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """For tests that mock the launch call itself and assert on its arguments.
+
+    Switches the launch guard (findplus.launch_guard) off for THIS test only; the
+    test must patch subprocess/webbrowser, or it would open a real program.
+    """
+    from findplus import launch_guard
+
+    monkeypatch.setattr(launch_guard, "_allow_for_mocked_test", True)

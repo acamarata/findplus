@@ -20,6 +20,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from findplus.launch_guard import launching_disabled
+
 _REPO_DIRNAME = "browser-helper"
 _PACKAGE_SUBDIR = "browser_helper"
 
@@ -84,7 +86,8 @@ _QUIET = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": s
 def reveal_helper(settings) -> Path:
     """Install the helper and reveal its folder in the file manager."""
     dest = install_helper(settings)
-    subprocess.Popen(_reveal_argv(str(dest)), **_QUIET)
+    if not launching_disabled():
+        subprocess.Popen(_reveal_argv(str(dest)), **_QUIET)
     return dest
 
 
@@ -96,6 +99,8 @@ def open_chrome_extensions() -> bool:
     """
     from .chrome_path import find_google_chrome
 
+    if launching_disabled():
+        return True
     url = "chrome://extensions"
     if sys.platform == "darwin":
         argv = ["open", "-a", "Google Chrome", url]

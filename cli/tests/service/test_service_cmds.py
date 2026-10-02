@@ -192,6 +192,7 @@ def test_start_interactive_confirm_no_does_not_install(
 
 
 # ------------------------------------------------------------- i: start --yes
+@pytest.mark.usefixtures("launch_allowed")
 def test_start_yes_installs_confirmed(
     tmp_db, monkeypatch: pytest.MonkeyPatch, _no_browser: list[str]
 ) -> None:

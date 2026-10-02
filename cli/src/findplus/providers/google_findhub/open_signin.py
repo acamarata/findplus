@@ -23,6 +23,8 @@ import subprocess
 import sys
 import webbrowser
 
+from findplus.launch_guard import launching_disabled
+
 from .chrome_path import find_google_chrome
 
 EMBEDDED_SETUP_URL = "https://accounts.google.com/EmbeddedSetup"
@@ -46,6 +48,8 @@ def chrome_argv(chrome: str, url: str) -> list[str]:
 
 def _launch_chrome(chrome: str, url: str) -> bool:
     """True once Chrome accepted the URL. `open` returns at once; a binary is detached."""
+    if launching_disabled():
+        return True
     argv = chrome_argv(chrome, url)
     quiet = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL}
     try:
@@ -66,6 +70,8 @@ def open_sign_in_page(url: str = EMBEDDED_SETUP_URL) -> str:
     chrome = find_google_chrome()
     if chrome and _launch_chrome(chrome, url):
         return "chrome"
+    if launching_disabled():
+        return "default"
     try:
         opened = webbrowser.open(url)
     except webbrowser.Error:

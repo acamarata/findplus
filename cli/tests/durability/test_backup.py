@@ -216,3 +216,20 @@ def test_tilde_in_the_backup_directory_is_expanded(tmp_db, monkeypatch) -> None:
     directory = get_settings().effective_backup_dir
     assert directory.is_absolute() and "~" not in str(directory)
     assert directory == Path.home() / "findplus-test-backups" / "findplus-backups"
+
+
+def test_a_stray_file_or_dangling_link_does_not_break_listing(tmp_path) -> None:
+    (tmp_path / "findplus-20261399-000000.sqlite").write_text("x")
+    (tmp_path / "findplus-20260930-120000.sqlite").symlink_to(tmp_path / "nowhere")
+    good = tmp_path / "findplus-20260929-120000.sqlite"
+    good.write_text("x")
+    assert [b.path for b in backup.list_backups(tmp_path)] == [good]
+    assert backup.rotate(tmp_path) == []
+
+
+def test_a_backup_stamped_in_the_future_does_not_stop_backups(tmp_path) -> None:
+    now = datetime(2026, 9, 30, 12, 0, tzinfo=UTC)
+    (tmp_path / "findplus-20270101-000000.sqlite").write_text("x")
+    assert backup.backup_due(tmp_path, now)
+    (tmp_path / "findplus-20260930-110000.sqlite").write_text("x")
+    assert not backup.backup_due(tmp_path, now)

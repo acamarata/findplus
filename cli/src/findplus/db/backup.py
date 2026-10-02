@@ -122,8 +122,11 @@ def list_backups(directory: Path) -> list[BackupInfo]:
         m = _ALL.match(path.name)
         if not m:
             continue
-        taken = datetime.strptime(m.group(2), _STAMP).replace(tzinfo=UTC)
-        out.append(BackupInfo(path, m.group(1) or "auto", taken, path.stat().st_size))
+        try:  # a stray name (month 13) or a dangling symlink is skipped, never fatal
+            taken = datetime.strptime(m.group(2), _STAMP).replace(tzinfo=UTC)
+            out.append(BackupInfo(path, m.group(1) or "auto", taken, path.stat().st_size))
+        except (ValueError, OSError):
+            continue
     return sorted(out, key=lambda b: (b.taken_at, b.path.name), reverse=True)
 
 
@@ -132,7 +135,11 @@ def backup_due(
 ) -> bool:
     """True when there is no automatic backup, or the newest is at least `min_age` old."""
     now = now or datetime.now(UTC)
-    newest = next((b for b in list_backups(directory) if b.kind == "auto"), None)
+    # A backup stamped in the future (clock change) must not stop backups for good:
+    # only count autos stamped at or before now.
+    newest = next(
+        (b for b in list_backups(directory) if b.kind == "auto" and b.taken_at <= now), None
+    )
     return newest is None or now - newest.taken_at >= min_age
 
 

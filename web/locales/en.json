@@ -1308,6 +1308,7 @@
     "day": {
       "heading": "{name}'s day",
       "headingDate": "{name}'s day, {date}",
+      "familyHeading": "Everyone's day, {date}",
       "overnight": "Overnight at {place}",
       "noSightingsUntil": "No sightings until {time}",
       "left": "{time} left {place}",

@@ -39,6 +39,8 @@ def t(key: str, **values: object) -> str:
             raise KeyError(f"people.{key} is missing from web/locales/en.json")
         node = node[part]
     text = str(node)
+    if str(values.get("name", "")).endswith("s"):
+        text = text.replace("{name}'s", "{name}'")  # "Whiskers' day", not "Whiskers's"
     for name, value in values.items():
         text = text.replace("{" + name + "}", str(value))
     return text

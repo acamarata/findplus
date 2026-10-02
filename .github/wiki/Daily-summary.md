@@ -72,6 +72,7 @@ Off until you turn it on. Setting `people.digest`:
 | `people` | [] | Person ids. Empty means every person and pet. |
 | `channel` | "auto" | Telegram, the only channel that carries it today. |
 | `always_send` | false | Also send "No sightings for Sam on this day." |
+| `combined` | true | One message for everyone ("Everyone's day"), each person under their name. False sends one message per person (`--one-each`). |
 
 ```
 findplus people digest --on --time 19:30 --person Sam --person Jamie
@@ -81,13 +82,13 @@ findplus people digest --off
 
 Or `PATCH /api/settings` with `{"people.digest": {"enabled": true, "time": "19:30"}}`.
 
-- One message per person, per Telegram chat, per day. A restart or a second check never sends it
-  twice (one `digest_runs` row per person, date, channel and chat).
+- One family message per Telegram chat per day (or one per person with `combined` off). A restart
+  or a second check never sends it twice (one `digest_runs` row per person, date, channel and chat).
 - A failed send is tried once more a minute later, then logged as failed.
 - A day with nothing tracked sends nothing, unless `always_send` is on.
 - Summaries are sent even while Find+ is locked, like Telegram alerts. The lock protects what is shown on this computer.
   Only the notifications the menu-bar app shows on this computer are held while Find+ is locked.
-- The message is a plain list with the person's name as the heading, and the delay and
+- The message is a plain list with each person's name as a heading, and the delay and
   approximate-times sentences once at the end.
 
 "Send today's summary" (`POST /api/people/{id}/day/send`) sends right now and never uses up the

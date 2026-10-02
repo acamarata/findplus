@@ -37,6 +37,16 @@ its setting every cycle, so a change needs no restart. It is a different thing
 from `findplus prune`, which is a manual one-shot you run yourself against a
 date you choose.
 
+## Backups
+
+Find+ backs up its database once a day. **Backup folder**, **Daily backups kept**
+(1 to 60, default 7) and **Weekly backups kept** (0 to 52, default 4) are the
+`backup.directory`, `backup.keep_daily` and `backup.keep_weekly` keys of
+`GET/PATCH /api/settings`, and `backup_dir`, `backup_keep_daily` and
+`backup_keep_weekly` in `findplus config set`. They take effect on the next
+backup. A folder must be a full path. Send `null` for `backup.directory` to go
+back to `~/.findplus/backups`. See [Backup and restore](Backup-and-restore).
+
 ## Notification detail
 
 **Show who and where in notifications** appears only in the macOS app, and is

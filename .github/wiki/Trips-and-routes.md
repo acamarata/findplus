@@ -21,9 +21,20 @@ seen.
 - **Gaps.** "No sightings between 3:10 and 4:40." Shown whenever two sightings are more
   than 60 minutes apart (change it with `gap_minutes`). A gap is missing data, not proof
   the tag stayed put.
-- **Strays.** A single sighting that would need an impossible speed (over about 200 km/h)
-  from both neighbours is left out of trips. It stays in your history and is listed
-  under `outliers`.
+- **Sightings that look wrong.** Find+ scores every sighting. One that jumps far and
+  comes straight back (the tag "teleports" 2.5 km and returns within minutes), needs an
+  impossible speed, sits far from the sightings around it, or disagrees with the rest of
+  the same person's trackers is flagged. A flagged sighting stays in your history. It is
+  left out of stays, trips, person events and alerts, and the API lists it under
+  `outliers` with `reasons` (codes such as `aba_teleport`) and a plain-words
+  `suspect_reason`. Latest, timeline and export rows carry `suspect` and `suspect_reason`
+  too. A flag is dropped when another sighting of the same tracker, or a sibling tracker,
+  lands within 200 m of it. Two bad sightings in a row are kept: Find+ needs two
+  neighbours that agree before it calls one wrong. Re-score after upgrading with
+  `findplus db recompute-quality [--since DATE]`.
+- **One poll of delay.** A sighting that jumps far and fast with nothing after it yet
+  is held back from place alerts until the next one arrives. If the next sighting
+  confirms it, the alert follows one poll late; if the tag jumps back, it never fires.
 
 ## Ask for it
 

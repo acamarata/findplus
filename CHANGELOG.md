@@ -27,6 +27,29 @@ Versioning: [Semantic Versioning](https://semver.org/).
   its accuracy and half the radius (at least 50 m), confirmed as many times as the place asks. Find+
   recommends a radius of at least 100 m.
 
+## [1.1.6] - Unreleased
+
+### Added
+- Sightings that look wrong are caught and left out of stays, trips and alerts: a tracker that
+  jumps 2.5 km and straight back, an impossible speed, a stray at the edge of a day, or one tracker
+  disagreeing with the rest of its person. Raw history is never changed. Scores live in a derived
+  table, with `findplus db recompute-quality [--since DATE]`. `GET /api/latest`, the timeline and
+  every export carry `suspect` and `suspect_reason`; `/api/trips` lists these under `outliers` with
+  `reasons`. A lone far-and-fast sighting is held from place alerts for one poll.
+- Database backups: a verified online copy once a day (and at startup when the newest is a day
+  old), kept 7 daily and 4 weekly in `~/.findplus/backups` (0700, files 0600, no secrets).
+  `findplus db backup`, `db backups`, `db check`, and a safe `db restore <file>` (checks the file,
+  refuses while running, takes a pre-restore backup, keeps the replaced file). Backup folder and
+  counts are settings (`backup.directory`, `backup.keep_daily`, `backup.keep_weekly`).
+- `findplus doctor` checks database integrity and backups. A damaged database at startup makes the
+  daemon read-only with a restore banner; the file is never deleted.
+- `findplus export --format jsonl` and `findplus import FILE`: a full-fidelity, human-readable
+  export of devices, observations, places, groups (with kinds and members) and alert rules.
+
+### Changed
+- The database now syncs every commit to disk (`synchronous=FULL`, WAL kept) so a power cut cannot
+  lose the last sightings.
+
 ## [1.1.5] - 2026-10-01
 
 ### Added

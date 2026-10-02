@@ -211,6 +211,23 @@ New tables: `person_place_states` (PK group, place), `left_behind` (episodes, pl
 `digest_runs` (UNIQUE group, local date, channel, target). Every parent link cascades. Downgrade
 is lossy: new tables, kinds, roles, all-people rules and left-behind deliveries go.
 
+### Observation quality and durability (1.1.6)
+
+`quality/rules.py` holds the pure rules (aba_teleport, impossible_speed, edge_stray,
+jump_unconfirmed, sibling_disagree, low_accuracy, clock_skew) with every threshold a named constant;
+`quality/score.py` combines them into a score in [0, 1] (suspect below 0.5) and rescues a suspect fix
+that a neighbour within `max(200 m, accuracy)` vouches for; `quality/store.py` writes
+`observation_quality` with `algo_version`; `quality/api.py` (`suspect_ids`, `is_suspect`) is the read
+interface other packages import. `trips/outliers.py` is a wrapper: a stored verdict wins over the
+pure rules. Ingest scores the new fix and its neighbours after insert (`quality/ingest_hook.py`); a
+`jump_unconfirmed` fix is held out of the geofence until the next fix confirms it (released in
+order) or turns it into `aba_teleport`.
+
+Durability: `db/backup.py` (online backup API, verify, rotate), `db/restore.py`, `db/integrity.py`
+(`quick_check` at start, full checks for `db check` and doctor), `db/portable.py` and
+`db/portable_import.py` (JSONL). Every connection runs `synchronous=FULL` with WAL; after a failed
+startup check new connections are `query_only` and no worker starts.
+
 ## Timestamps and timezones
 
 All timestamps are stored as **naive UTC** through a `UtcDateTime` `TypeDecorator`

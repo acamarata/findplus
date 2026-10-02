@@ -19,7 +19,8 @@ See [Privacy and threat model](Privacy-and-threat-model).
 - [Devices and groups](Devices-and-groups): track trackers, form groups.
 - [Places and alerts](Places-and-alerts): geofences and notifications.
 - [Trips and routes](Trips-and-routes): stays, trips and gaps for one device and day.
-- [Settings](Settings): poll interval, history retention, app lock, notifications.
+- [Settings](Settings): poll interval, history retention, backups, app lock, notifications.
+- [Backup and restore](Backup-and-restore): automatic backups, restore, damage checks, full export and import.
 - [CLI reference](CLI-reference)
 - [API reference](API-reference)
 - [MCP](MCP): connect Find+ to Claude Desktop or Claude Code.

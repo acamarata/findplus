@@ -30,6 +30,19 @@ A failing test in the Tests column is a regression, not a flaky test.
 | Quality flags live beside observations; raw rows never change (I8). | `test_migration_0013.py::test_new_tables_cascade_from_their_parents` |
 | Downgrade then upgrade keeps every row; re-running at head is a no-op. | `test_migration_0013_guards.py::test_downgrade_then_upgrade_round_trips`, `test_migration_0013_guards.py::test_findplus_db_upgrade_is_idempotent_at_head` |
 
+## Quality and durability guards
+
+| Guard | Tests |
+|---|---|
+| A real drive and a school run are never flagged; scoring ignores input order and is idempotent. | `quality/test_properties.py`, `quality/test_vectors.py::test_v2_real_drive_flags_nothing`, `quality/test_vectors.py::test_v3_school_run_flags_nothing` |
+| The owner's 4:17 teleport is flagged, two bad fixes in a row are kept, a corroborated jump is rescued. | `quality/test_vectors.py::test_v1_owner_case_flags_the_middle_fix`, `test_v4_two_bad_in_a_row_are_kept_and_scored_point_six`, `test_v6_corroborated_jump_is_rescued`, `test_v5_sibling_disagree_flags_the_bag` |
+| A lone jump is held out of the geofence for one poll, then confirmed or dropped; a failing scorer never loses observations (I8, I12). | `quality/test_ingest_hold.py` |
+| Recompute is idempotent, honours `--since`, and never changes raw rows. | `quality/test_store.py::test_recompute_is_idempotent`, `test_raw_observations_are_never_changed` |
+| Backups are online, verified, 0600 in a 0700 directory, rotated 7 daily + 4 weekly, secret-free, and whole while ingest writes. | `durability/test_backup.py` |
+| Restore validates, refuses while running, backs up first, keeps the replaced file, never changes the source. | `durability/test_restore.py`, `durability/test_cli.py::test_restore_refuses_while_running` |
+| Damage is found; a damaged daemon is read-only and starts no workers; the file is untouched. | `durability/test_integrity.py`, `durability/test_doctor_and_serve.py` |
+| The JSONL export round-trips losslessly, holds no secrets, and imports only into an empty database. | `durability/test_portable.py`, `durability/test_cli.py::test_export_jsonl_to_a_file_is_private_and_importable` |
+
 ## Honesty Sentences
 
 | Sentence key | Required text (verbatim from specs/honesty.md) | Enforced by |

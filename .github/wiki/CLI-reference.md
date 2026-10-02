@@ -199,15 +199,65 @@ Remove KEY from config.env.
 
 **Usage:** `findplus config unset [OPTIONS]`
 
+## findplus db backup
+Make a verified copy of the database now (kept until you delete it).
+
+**Usage:** `findplus db backup [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --json |  | Print the result as JSON. |
+
+## findplus db backups
+List the backups on disk, newest first.
+
+**Usage:** `findplus db backups [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --json |  | Print the list as JSON. |
+
+## findplus db check
+Check the database for damage (quick, integrity and foreign-key checks).
+
+**Usage:** `findplus db check [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --json |  | Print the result as JSON. |
+
 ## findplus db current
 Print the current Alembic revision of the database.
 
 **Usage:** `findplus db current [OPTIONS]`
 
+## findplus db import
+Load a full export (`findplus export --format jsonl`) into an empty database.
+
+**Usage:** `findplus db import [OPTIONS]`
+
 ## findplus db path
 Print the absolute path to the SQLite database file.
 
 **Usage:** `findplus db path [OPTIONS]`
+
+## findplus db recompute-quality
+Re-score every sighting for 'looks wrong' flags (raw data is never changed).
+
+**Usage:** `findplus db recompute-quality [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --since |  | Only sightings from this local date, YYYY-MM-DD. |
+
+## findplus db restore
+Replace the database with a backup. Your current one is kept aside, not deleted.
+
+**Usage:** `findplus db restore [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --force |  | Restore even if Find+ looks like it is running. |
 
 ## findplus db upgrade
 Run Alembic migrations to head. Safe to run repeatedly (idempotent).
@@ -259,13 +309,13 @@ Diagnose the installation; with --repair, fix what can be fixed.
 | --json |  | Print machine-readable JSON. |
 
 ## findplus export
-Export history to CSV, JSON, GPX or KML.
+Export history to CSV, JSON, GPX or KML; --format jsonl exports the whole database.
 
 **Usage:** `findplus export [OPTIONS]`
 
 | option | default | help |
 |---|---|---|
-| --format | csv |  |
+| --format | csv | jsonl exports everything (devices, places, groups, rules) for `findplus import`. |
 | --day |  | Single local day, YYYY-MM-DD. |
 | --start |  | Range start, YYYY-MM-DD. |
 | --end |  | Range end, YYYY-MM-DD. |
@@ -350,6 +400,11 @@ Delete a group and its membership rows.
 | option | default | help |
 |---|---|---|
 | --yes |  | Confirm removal. |
+
+## findplus import
+Load a full export (`findplus export --format jsonl`) into an empty database.
+
+**Usage:** `findplus import [OPTIONS]`
 
 ## findplus install-service
 Start the background service: auth check, then discover-and-track, then

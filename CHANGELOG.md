@@ -91,6 +91,11 @@ Versioning: [Semantic Versioning](https://semver.org/).
 - Places: search and sort, coordinates and rule count on each card, a rule-count line when editing,
   relative times in Recent arrivals and departures, and a note under the radius that very small
   places can report late.
+- Places we noticed: Find+ looks at stays of 45 minutes or more over the last 30 days and suggests
+  likely places, never named for you ("Home?" for the spot with the most nights, "School or work?"
+  for weekday daytime stops, "Regular stop" otherwise). Spots inside a saved place, or marked "Not
+  a place", are left out. `GET /api/places/suggestions`, `POST /api/places/suggestions/dismiss` and
+  `findplus places suggest`.
 
 ### Changed
 - The database now syncs every commit to disk (`synchronous=FULL`, WAL kept) so a power cut cannot

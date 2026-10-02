@@ -598,6 +598,18 @@ Delete a place. Requires --yes.
 |---|---|---|
 | --yes |  | Confirm removal. |
 
+## findplus places suggest
+List places Find+ noticed from long stays (nothing is saved).
+
+**Usage:** `findplus places suggest [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --days | 30 |  |
+| --timezone |  | IANA zone; default is this computer's. |
+| --date |  | Last local day to look at (YYYY-MM-DD). |
+| --json |  | Output JSON. |
+
 ## findplus poll-now
 Run a single Find Hub poll immediately.
 

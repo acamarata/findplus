@@ -23,6 +23,18 @@ why. Saving makes the rule and shows one line (with **Customise**), with no seco
 saved before this show a "N places have no arrival alerts" banner; **Notify me** previews the rules
 it would add before it writes anything.
 
+### Places we noticed
+
+After a few days of sightings, Find+ can suggest places from where trackers stayed 45 minutes or
+more in the last 30 days (`GET /api/places/suggestions`, `findplus places suggest`). Each
+suggestion shows how many visits and nights it has, when people are usually there, and a question
+mark guess: "Home?" for the spot with the most nights, "School or work?" for weekday daytime stops,
+"Regular stop" otherwise. Find+ never invents a name or a coordinate: the position comes from your
+data and you choose the name. **Name it** saves a place with the arrive-and-leave box ticked. **Not
+a place** hides that spot for good (`POST /api/places/suggestions/dismiss`). Spots inside a saved
+place are not suggested, and sightings flagged as wrong never count. With fewer than three days of
+history the list is empty and the app says so.
+
 ## Alert rules
 
 An alert rule ties a place, a device or group, and one or more notification channels

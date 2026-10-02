@@ -708,6 +708,14 @@ Get Search
 |---|---|---|---|
 | q | query | False | string |
 
+### GET /api/places/suggestions
+Get Suggestions
+
+| name | in | required | type |
+|---|---|---|---|
+| timezone | query | False | string |
+| date | query | False | string |
+
 ### POST /api/places
 Post Place
 
@@ -816,6 +824,35 @@ Post Notify Defaults
   },
   "type": "object",
   "title": "Body_post_notify_defaults_api_places_notify_defaults_post"
+}
+```
+
+### POST /api/places/suggestions/dismiss
+Post Dismiss
+
+**Request body:**
+```json
+{
+  "properties": {
+    "latitude": {
+      "type": "number",
+      "maximum": 90.0,
+      "minimum": -90.0,
+      "title": "Latitude"
+    },
+    "longitude": {
+      "type": "number",
+      "maximum": 180.0,
+      "minimum": -180.0,
+      "title": "Longitude"
+    }
+  },
+  "type": "object",
+  "required": [
+    "latitude",
+    "longitude"
+  ],
+  "title": "Dismiss"
 }
 ```
 

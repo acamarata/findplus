@@ -180,7 +180,7 @@ def evaluate_person(session: Session, group, as_of: datetime) -> list[GroupPlace
             event = _write_event(session, group, place, fix, trackers, states, s.event_type, as_of)
             if event is not None:
                 inserted.append(event)
-                log.info("person_place_event", group_id=group.id, place_id=place.id,
+                log.debug("person_place_event", group_id=group.id, place_id=place.id,
                          event_type=s.event_type, confidence=fix.confidence)  # fmt: skip
     session.flush()
     left_behind.evaluate(session, group, fix, trackers, places, as_of)

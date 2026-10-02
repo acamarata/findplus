@@ -8,7 +8,8 @@
  *              second click writes anything.
  * Inputs     : POST /api/places/notify-defaults?dry_run=1, then without dry_run.
  * Outputs    : The banner inside #fp-places-backfill; a one-line result.
- * Constraints: createElement/textContent only. The preview carries the latency
+ * Constraints: createElement/textContent only. The preview says only new
+ *              crossings are sent (never history) and carries the latency
  *              honesty sentence verbatim. A failed preview says so and keeps the
  *              banner (with Notify me retrying). purge() empties it on lock.
  */
@@ -42,7 +43,7 @@ function channelsText(rule) {
 export function previewBody(preview) {
   const lines = preview.rules.map((r) => t("places.backfill.line", { place: r.place_name, channels: channelsText(r) }));
   const off = preview.rules.some((r) => !r.enabled) ? [t("places.backfill.off")] : [];
-  return [lines.join("\n"), ...off, t("honesty.alertsLatency")].join("\n\n");
+  return [lines.join("\n"), ...off, t("people.notify.onlyNew"), t("honesty.alertsLatency")].join("\n\n");
 }
 
 async function apply(preview) {

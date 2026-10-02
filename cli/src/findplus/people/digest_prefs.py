@@ -6,7 +6,8 @@ Purpose    : One place that reads, validates and saves the daily-summary
 Inputs     : An open Session; a partial dict (only the keys being changed).
 Outputs    : The full preference dict:
              {"enabled": false, "time": "20:00", "people": [], "channel": "auto",
-              "always_send": false}. `people` empty means every person and pet.
+              "always_send": false, "combined": true}. `people` empty means every
+             person and pet; `combined` sends one family message, not one each.
 Constraints: Stored as JSON in the settings table under `people.digest`. Off by
              default: nothing is ever sent until the owner switches it on. A bad
              value raises ValueError naming it; nothing is written then.
@@ -33,6 +34,9 @@ DEFAULTS: dict[str, Any] = {
     "people": [],
     "channel": "auto",
     "always_send": False,
+    #: One message for the whole family with a short heading per person and
+    #: the honesty footer once, instead of one message per person (uat116 #13).
+    "combined": True,
 }
 _TIME = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 
@@ -62,7 +66,7 @@ def validate(session: Session, patch: dict[str, Any]) -> dict[str, Any]:
         raise ValueError(f"unknown people.digest key {unknown[0]!r}")
     out: dict[str, Any] = {}
     for name, value in patch.items():
-        if name in ("enabled", "always_send"):
+        if name in ("enabled", "always_send", "combined"):
             out[name] = _bool(name, value)
         elif name == "time":
             if not isinstance(value, str) or not _TIME.match(value):

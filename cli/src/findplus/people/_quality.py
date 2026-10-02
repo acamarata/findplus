@@ -59,3 +59,31 @@ def as_of_for(observed_at: datetime, fetched_at: datetime | None) -> datetime:
     if fetched_at is None:
         return observed_at
     return min(observed_at, fetched_at + CLOCK_SLACK)
+
+
+#: quality's reason code for a jump held until a second sighting confirms it.
+HELD_REASON = "jump_unconfirmed"
+
+
+def held_ids(session, device_ids: list[str], start: datetime, end: datetime) -> set[int]:
+    """Suspect ids that are only waiting for a second sighting (uat116 #12):
+    not wrong, just unconfirmed. A subset of suspect_ids."""
+    if _suspect_ids is None or not device_ids:
+        return set()
+    from sqlalchemy import select
+
+    from findplus.db.models import LocationObservation
+    from findplus.db.models_people import ObservationQuality
+
+    stmt = (
+        select(ObservationQuality.observation_id)
+        .join(LocationObservation, LocationObservation.id == ObservationQuality.observation_id)
+        .where(
+            ObservationQuality.suspect.is_(True),
+            ObservationQuality.reasons.contains(HELD_REASON),
+            LocationObservation.device_id.in_(list(device_ids)),
+            LocationObservation.observed_at >= start,
+            LocationObservation.observed_at <= end,
+        )
+    )
+    return set(session.scalars(stmt))

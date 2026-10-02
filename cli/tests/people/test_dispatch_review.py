@@ -107,12 +107,14 @@ def test_left_behind_alerts_once_even_when_the_bag_goes_quiet_and_comes_back(ses
     _default_rules(session, places)
     tl = _bag_left_reporting_rarely(Timeline())
     sent = []
-    for hour in (16, 18, 20, 23):  # dispatch runs between the bag's reports
+    # Dispatch runs between the bag's reports, and soon after the confirmation:
+    # an alert is only sent while it is news (uat116 #1).
+    for hour, minute in ((15, 45), (18, 0), (20, 0), (23, 0)):
         part = Timeline()
-        part.fixes = [f for f in tl.fixes if f[0] <= at(hour, 0)]
-        tl.fixes = [f for f in tl.fixes if f[0] > at(hour, 0)]
+        part.fixes = [f for f in tl.fixes if f[0] <= at(hour, minute)]
+        tl.fixes = [f for f in tl.fixes if f[0] > at(hour, minute)]
         part.ingest(session)
-        sent += _run_dispatch(session, now=at(hour, 1))
+        sent += _run_dispatch(session, now=at(hour, minute + 1))
     assert len([t for t in sent if "looks left at School" in t]) == 1, sent
 
 
@@ -163,8 +165,8 @@ def test_a_settle_wait_keeps_the_crossing_time_and_the_lead_trackers_lag(session
         device_id=left.lead_device_id, observed_at=left.observed_at
     )
     assert seen.count() == 1
-    text = next(t for t in _run_dispatch(session, now=at(10, 30)) if "left Grandma's" in t)
-    assert "left Grandma's at Sep 21, 9:43 AM" in text
+    text = next(t for t in _run_dispatch(session, now=at(10, 10)) if "left Grandma's" in t)
+    assert "left Grandma's at 9:43 AM" in text
     assert "lag unknown" not in text and "5 min late" in text
 
 

@@ -125,8 +125,14 @@ def _send(payload: dict) -> None:
     default=None,
     help="Also send on a day with nothing tracked.",
 )
+@click.option(
+    "--combined/--one-each",
+    "combined",
+    default=None,
+    help="One message for everyone (default), or one message per person.",
+)
 @click.option("--json", "as_json", is_flag=True, help="Output JSON.")
-def digest_cmd(enabled, at_time, people, all_people, channel, always, as_json) -> None:
+def digest_cmd(enabled, at_time, people, all_people, channel, always, combined, as_json) -> None:
     """Show or change the evening summary (off until you turn it on)."""
     patch: dict = {}
     for name, value in (
@@ -134,6 +140,7 @@ def digest_cmd(enabled, at_time, people, all_people, channel, always, as_json) -
         ("time", at_time),
         ("channel", channel),
         ("always_send", always),
+        ("combined", combined),
     ):
         if value is not None:
             patch[name] = value

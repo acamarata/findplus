@@ -499,6 +499,7 @@ Show or change the evening summary (off until you turn it on).
 | --all-people |  | Send for every person and pet. |
 | --channel |  |  |
 | --always-send |  | Also send on a day with nothing tracked. |
+| --combined |  | One message for everyone (default), or one message per person. |
 | --json |  | Output JSON. |
 
 ## findplus people list

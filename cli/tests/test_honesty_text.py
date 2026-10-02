@@ -53,7 +53,8 @@ EXPECTED = {
         "replies with an API key within about two minutes. Paste it below."
     ),
     "alerts_locked": (
-        "Notifications are held while Find+ is locked. Unlock to see what you missed."
+        "Desktop notifications on this computer are held while Find+ is locked; unlock to see "
+        "what you missed. Telegram, WhatsApp and webhook alerts and daily summaries are still sent."
     ),
     "native_generic": (
         'By default, macOS notifications show a generic "Find+ alert" instead of who or '
@@ -197,7 +198,7 @@ README_FRAGMENTS = {
     "lock_not_encryption": "The app lock stops casual browsing",
     "whatsapp_relay": "relayed through CallMeBot, a third-party free",
     "whatsapp_setup": "two minutes. Paste it below",
-    "alerts_locked": "Notifications are held while Find+ is locked",
+    "alerts_locked": "Desktop notifications on this computer are held while Find+ is locked",
     "native_generic": "Anyone who can see the screen then sees",
     "not_affiliated": "not affiliated with Apple or Google",
     "chrome_required": "cannot run without it",

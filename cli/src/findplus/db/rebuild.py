@@ -91,10 +91,14 @@ def _stamp_notified(session: Session, now: datetime) -> None:
 
 
 def rebuild_derived(
-    session: Session, settings, *, chunk: int = 500, now: datetime | None = None
+    session: Session, settings, *, chunk: int = 500, now: datetime | None = None, progress=None
 ) -> RebuildResult:
-    """Empty the derived tables and replay every sighting through the engines."""
+    """Empty the derived tables and replay every sighting through the engines.
+
+    `progress(done, total)` is called after every chunk (people/replay.py's status).
+    """
     now = now or datetime.now(UTC)
+    total = _count(session, LocationObservation)
     for model in _DERIVED:
         session.execute(delete(model))
     session.commit()
@@ -116,6 +120,8 @@ def rebuild_derived(
             replayed += 1
         _stamp_notified(session, now)
         session.commit()
+        if progress is not None:
+            progress(replayed, total)
         cursor = (rows[-1].observed_at, rows[-1].id)
         session.expunge_all()
     return RebuildResult(

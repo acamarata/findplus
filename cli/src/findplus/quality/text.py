@@ -24,9 +24,10 @@ REASON_TEXT: dict[str, str] = {
     r.ABA_TELEPORT: f"{_WRONG}it jumps far away and back within minutes. {LEFT_OUT}",
     r.IMPOSSIBLE_SPEED: f"{_WRONG}it implies a speed no tracker travels. {LEFT_OUT}",
     r.EDGE_STRAY: f"{_WRONG}it is far from the sightings around it. {LEFT_OUT}",
+    # Held, not wrong: a real trip often starts like this (uat116 #12).
     r.JUMP_UNCONFIRMED: (
-        "This sighting jumped far and nothing has confirmed it yet. "
-        "It is held back until the next sighting arrives."
+        "This sighting is far from the one before. It is waiting for a second "
+        "sighting to confirm it, and is left out until then."
     ),
     r.SIBLING_DISAGREE: (
         f"{_WRONG}the person's other trackers agree on a place far from here, "

@@ -22,6 +22,7 @@ from pydantic import BaseModel
 from findplus.alerts.default_rules import add_default_rule
 from findplus.db.models import Place, PlaceEvent
 from findplus.db.session import session_scope
+from findplus.people import replay
 from findplus.places.kinds import guess_place_kind
 from findplus.places.repo import (
     create_place,
@@ -132,7 +133,9 @@ def post_place(body: PlaceCreate) -> dict[str, Any]:
             s.rollback()
             raise _map_value_error(exc) from exc
         s.commit()
-        return {**_place_to_dict(p), "notify_rule": rule}
+        out = {**_place_to_dict(p), "notify_rule": rule}
+    replay.request("place")  # past days learn the new place (uat116 #4)
+    return out
 
 
 def put_place(place_id: int, body: PlaceUpdate) -> dict[str, Any]:
@@ -148,7 +151,10 @@ def put_place(place_id: int, body: PlaceUpdate) -> dict[str, Any]:
             s.rollback()
             raise _map_value_error(exc) from exc
         s.commit()
-        return _place_to_dict(p)
+        out = _place_to_dict(p)
+    if {"latitude_e7", "longitude_e7", "radius_meters"} & set(kwargs):
+        replay.request("place")  # the place moved or changed size: past days follow
+    return out
 
 
 def del_place(place_id: int) -> Response:

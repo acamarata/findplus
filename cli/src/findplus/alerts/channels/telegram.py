@@ -227,7 +227,7 @@ def _handle_update(u: dict, token: str, username: str) -> dict | None:
         return None
     chat = msg["chat"]
     chat_id = str(chat["id"])
-    label = chat.get("title") or chat.get("username") or "private"
+    label = chat.get("title") or chat.get("username") or chat.get("first_name") or "private"
     existing = load_alerts().telegram
     if existing and existing.bot_token == token:
         chat_ids, chat_labels = _merge_target(

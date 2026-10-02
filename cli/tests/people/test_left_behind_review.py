@@ -45,9 +45,11 @@ def _rule(session, name, place_id=None, group_id=None, all_people=True):
     session.commit()
 
 
-def test_a_rule_for_one_place_does_not_send_left_behind_alerts_elsewhere(session, pinned_tz):
-    """The owner's only rule is for Grandma's: the bag left at School is not
-    news on that rule (test_dispatch_people covers the School rule sending it)."""
+def test_a_rule_for_one_place_still_carries_a_bag_left_elsewhere(session, pinned_tz):
+    """The owner's only rule is for Grandma's. Left-behind alerts follow the
+    person setting ("tell me when a tracker is left behind, anywhere"), not the
+    rule's place: the bag left at School is sent once on that rule's channel
+    (uat116 #3, reversing review r116's place filter)."""
     from .test_dispatch_people import _run_dispatch
 
     pinned_tz("UTC")
@@ -55,7 +57,7 @@ def test_a_rule_for_one_place_does_not_send_left_behind_alerts_elsewhere(session
     seed_person(session)
     _rule(session, "Arrivals and departures at Grandma's", place_id=places["Grandma's"].id)
     _bag_left_at_school(session)
-    assert [t for t in _run_dispatch(session, now=at(18, 30)) if "looks left" in t] == []
+    assert len([t for t in _run_dispatch(session, now=at(15, 45)) if "looks left" in t]) == 1
 
 
 def test_pets_get_no_all_people_alerts_by_default(session, pinned_tz):

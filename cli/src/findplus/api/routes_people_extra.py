@@ -23,7 +23,7 @@ from findplus.db.models import Place
 from findplus.db.models_people import LeftBehind
 from findplus.db.session import session_scope
 from findplus.device_labels import unique_names
-from findplus.people import left_behind, repo, suggestions
+from findplus.people import left_behind, replay, repo, suggestions
 from findplus.state import get_setting, set_setting
 
 from ._people_http import run_write as _run
@@ -65,7 +65,15 @@ def post_accept(body: AcceptBody) -> dict[str, Any]:
     items = [i.model_dump(exclude_unset=False) for i in body.accept]
     for item, raw in zip(items, body.accept, strict=True):
         item["members"] = [m.model_dump(exclude_unset=True) for m in raw.members]
-    return _run(lambda s: suggestions.accept(s, items, body.dismiss))
+    out = _run(lambda s: suggestions.accept(s, items, body.dismiss))
+    if body.accept:
+        replay.request("people")  # fill in past days for the new people (uat116 #4)
+    return out
+
+
+def get_replay() -> dict[str, Any]:
+    """{state: idle|running|done|failed, done, total}: "Updating past days..."."""
+    return replay.status()
 
 
 def put_tracker(device_id: str, body: TrackerBody) -> dict[str, Any]:
@@ -147,6 +155,7 @@ def put_settings(body: PeopleSettings) -> dict[str, Any]:
 
 
 def register(router: APIRouter) -> None:
+    router.add_api_route("/replay", get_replay, methods=["GET"])
     router.add_api_route("/suggestions", get_suggestions, methods=["GET"])
     router.add_api_route("/suggestions/accept", post_accept, methods=["POST"])
     router.add_api_route("/settings", get_settings, methods=["GET"])

@@ -15,6 +15,13 @@ Constraints: A pending episode is dropped by one contrary sighting; a confirmed
           which silences that tracker at that place for the local day). A
           stale-cleared episode resumes, already notified, when the tracker
           reports again from the same spot.
+Cadence : Find Hub tags report every few minutes while moving and about every
+          one to two hours while still; a person's trackers at home may report
+          only every hour or so. So a pending episode survives the tracker
+          going quiet (stale is "no news", not "carried"), and it confirms on
+          the tracker's last sighting at its spot plus any later sighting of
+          the person far from it (uat116 #5), not only on two newer person
+          sightings inside the 90-minute stale window.
 """
 
 from __future__ import annotations
@@ -53,7 +60,16 @@ def is_apart(
     score: MemberScore, fix: PersonFix, weights: dict[str, float], threshold: float
 ) -> bool:
     """Every entry condition of spec § 4 for one tracker, as of this fix."""
-    if score.motion == "stale" or not score.still or score.fix is None:
+    if score.motion == "stale" or not score.still:
+        return False
+    return apart_on_last_fix(score, fix, weights, threshold)
+
+
+def apart_on_last_fix(
+    score: MemberScore, fix: PersonFix, weights: dict[str, float], threshold: float
+) -> bool:
+    """The tracker's last sighting, fresh or not, is far from where the person is now."""
+    if score.fix is None:
         return False
     if fix.confidence != "likely" or score.device_id in fix.supporters or fix.lat is None:
         return False
@@ -165,18 +181,37 @@ def _open(session: Session, group_id: int, device_id: str, score, place, as_of) 
     )  # fmt: skip
 
 
+def _confirmed(session, row, score, fix, weights, threshold, as_of) -> bool:
+    """Confirm a pending episode (uat116 #5): old enough, the tracker's last
+    sighting (fresh, or the last one before it went quiet) still at its anchor
+    and far from the person, and either two newer sightings of the person
+    since the episode began or one later than the tracker's last sighting."""
+    if as_of - row.started_observed_at < timedelta(minutes=APART_MINUTES):
+        return False
+    if score.motion == "stale":
+        if not (score.fix and _same_anchor(row, score)):
+            return False
+        if not apart_on_last_fix(score, fix, weights, threshold):
+            return False
+    elif not is_apart(score, fix, weights, threshold):
+        return False
+    if _newer_sightings(session, fix, row.device_id, row.started_observed_at) >= CONFIRM_SIGHTINGS:
+        return True
+    return _newer_sightings(session, fix, row.device_id, score.fix.observed_at) >= 1
+
+
 def _advance(session, row, score, fix, ctx) -> None:
     """Move one open episode: confirm, clear, drop or keep."""
     _, weights, place, as_of = ctx
     threshold = apart_threshold(place)
     reason = clear_reason(row, score, fix, threshold)
     if row.state == "apart_pending":
+        if reason == "stale":
+            reason = None  # a quiet tag is not contrary evidence; wait for news
         if reason is not None or (fix.confidence == "likely" and score.device_id in fix.supporters):
             session.delete(row)  # one contrary sighting resets a pending episode
             return
-        old_enough = as_of - row.started_observed_at >= timedelta(minutes=APART_MINUTES)
-        seen = _newer_sightings(session, fix, row.device_id, row.started_observed_at)
-        if old_enough and seen >= CONFIRM_SIGHTINGS and is_apart(score, fix, weights, threshold):
+        if _confirmed(session, row, score, fix, weights, threshold, as_of):
             row.state, row.confirmed_at = "left_behind", as_of
         return
     if reason is not None:

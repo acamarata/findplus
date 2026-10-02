@@ -17,7 +17,7 @@ Constraints: Never touches the network or the real ~/.findplus (conftest.py's
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from findplus.alerts.channels_field import format_channels
 from findplus.config import Settings
@@ -66,7 +66,7 @@ def _seed_group_and_rule(session, base: datetime) -> None:
             cooldown_minutes=30,
             enabled=True,
             also_notify_members=False,
-            created_at=base,
+            created_at=base - timedelta(hours=1),  # the rule predates the fixes it fires on
         )
     )
     session.commit()

@@ -93,7 +93,8 @@ def test_route_count():
     # +2 for the Settings backup line: GET /settings/backup, POST /settings/backup/now.
     # +2 for the daily summary (1.1.6): GET /people/{id}/day and POST /people/{id}/day/send.
     # +2 for places we noticed: GET /places/suggestions and POST /places/suggestions/dismiss.
-    assert len(routes) == 124
+    # +1 for GET /people/replay ("Updating past days...", uat116 #4).
+    assert len(routes) == 125
 
 
 #: T1 (2026-09-22, PRI rule-7 50-line function cap): pulled out of
@@ -192,6 +193,7 @@ _EXPECTED_PATHS = {
     "/api/people/{group_id}/day/send",
     "/api/people/{group_id}/left-behind",
     "/api/people/{group_id}/left-behind/{episode_id}/dismiss",
+    "/api/people/replay",
     "/api/people/suggestions",
     "/api/people/suggestions/accept",
     "/api/people/settings",

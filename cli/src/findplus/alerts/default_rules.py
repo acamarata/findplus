@@ -167,4 +167,5 @@ def backfill(session: Session, *, dry_run: bool, place_ids: list[int] | None = N
             session.add(rule)
             session.flush()
         out.append(rule_preview(rule, place, hint))
-    return {"dry_run": dry_run, "count": len(out), "rules": out}
+    # Saying it plainly: the rules start now; past crossings are never sent (uat116 #1).
+    return {"dry_run": dry_run, "count": len(out), "rules": out, "note": t("notify.onlyNew")}

@@ -1276,7 +1276,7 @@
       "aba_teleport": "This sighting looks wrong: it jumps far away and back within minutes. Left out of stays, trips and alerts.",
       "impossible_speed": "This sighting looks wrong: it implies a speed no tracker travels. Left out of stays, trips and alerts.",
       "edge_stray": "This sighting looks wrong: it is far from the sightings around it. Left out of stays, trips and alerts.",
-      "jump_unconfirmed": "This sighting jumped far and nothing has confirmed it yet. It is held back until the next sighting arrives.",
+      "jump_unconfirmed": "This sighting is far from the one before. It is waiting for a second sighting to confirm it, and is left out until then.",
       "sibling_disagree": "This sighting looks wrong: the person's other trackers agree on a place far from here, and this tracker has not backed it up. Left out of stays, trips and alerts.",
       "low_accuracy": "The network could only place this sighting within a wide area.",
       "clock_skew": "The time on this sighting is later than when it was received."
@@ -1302,7 +1302,9 @@
       "probablyOnly": "(probably; only the {what} reported)",
       "leftBehind": "{name}'s {what} looks left at {place}. Last seen there at {time}.",
       "leftBehindPerson": "{name} was last seen near {place} at {time} ({tracker}).",
-      "unnamedSpot": "an unnamed spot"
+      "unnamedSpot": "an unnamed spot",
+      "burstOne": "1 more arrival or departure happened earlier: open Find+ to see it.",
+      "burstMore": "{count} more arrivals and departures happened earlier: open Find+ to see them."
     },
     "now": {
       "likelyAt": "Likely at {place}, seen {age} ago ({trackers}).",
@@ -1333,7 +1335,8 @@
     },
     "notify": {
       "ruleName": "Arrivals and departures at {place}",
-      "connectTelegram": "Connect Telegram to get these."
+      "connectTelegram": "Connect Telegram to get these.",
+      "onlyNew": "Only new arrivals and departures will be sent. History is not sent."
     },
     "role": {
       "phone": "phone",
@@ -1355,6 +1358,7 @@
     "day": {
       "heading": "{name}'s day",
       "headingDate": "{name}'s day, {date}",
+      "familyHeading": "Everyone's day, {date}",
       "overnight": "Overnight at {place}",
       "noSightingsUntil": "No sightings until {time}",
       "left": "{time} left {place}",
@@ -1362,6 +1366,7 @@
       "atFrom": "At {place} from {time}",
       "stay": "{range} at {where}",
       "gap": "No sightings {range}.",
+      "gapAt": "Still at {place}, nothing new from {range}.",
       "stayedBehind": "{what} stayed at {place} from {time}.",
       "stayedBehindUntil": "{what} stayed at {place} from {time} until {until}.",
       "stillAt": "Still at {place} (seen {time})",
@@ -1374,6 +1379,10 @@
       "andMore": "{names} and {n} more",
       "suspectOne": "1 sighting looked wrong and was left out.",
       "suspectMany": "{n} sightings looked wrong and were left out.",
+      "heldOne": "1 sighting is waiting for a second sighting to confirm it.",
+      "heldMany": "{n} sightings are waiting for a second sighting to confirm them.",
+      "pendingAt": "Probably at {place} (waiting to confirm)",
+      "pendingSpot": "an unnamed spot",
       "empty": "No sightings for {name} on this day.",
       "range": "{start} to {end}",
       "digestOff": "The daily summary is off.",
@@ -1617,7 +1626,7 @@
     "lockNotEncryption": "The app lock stops casual browsing. It does not encrypt the database; anyone with access to this user account or the disk can read it. Use FileVault.",
     "whatsappRelay": "WhatsApp alerts are relayed through CallMeBot, a third-party free service. Your alert text transits CallMeBot's servers before reaching WhatsApp. Delivery is best-effort with no guarantee. Find+ is not affiliated with WhatsApp, Meta or CallMeBot.",
     "whatsappSetup": "To connect WhatsApp: add +34 623 91 22 04 to your phone's contacts, then send it the message \"I allow callmebot to send me messages\" from your own WhatsApp. CallMeBot replies with an API key within about two minutes. Paste it below.",
-    "alertsLocked": "Notifications are held while Find+ is locked. Unlock to see what you missed.",
+    "alertsLocked": "Desktop notifications on this computer are held while Find+ is locked; unlock to see what you missed. Telegram, WhatsApp and webhook alerts and daily summaries are still sent.",
     "nativeGeneric": "By default, macOS notifications show a generic \"Find+ alert\" instead of who or where, because notification banners can appear on a locked screen. Turn on notification details in Settings to show the person and place. Anyone who can see the screen then sees the same thing.",
     "notAffiliated": "Find+ is not affiliated with Apple or Google. Find Hub and Find My are their trademarks.",
     "chromeRequired": "Google Chrome was not found on this machine. Google sign-in drives Chrome directly and cannot run without it. Install it from https://www.google.com/chrome/ and try again.",

@@ -93,6 +93,16 @@ def test_an_unknown_event_is_refused(auth_client, monkeypatch) -> None:
     assert _event(auth_client, state, "stolen").status_code == 422
 
 
+@pytest.mark.parametrize("field", ["event", "reason"])
+def test_odd_json_values_are_plain_refusals_not_crashes(auth_client, monkeypatch, field) -> None:
+    state = _state(auth_client, monkeypatch)
+    body = {"state": state, "event": "failed", "reason": None, field: {"x": [1]}}
+    res = auth_client.post(f"{BASE}/event", json=body, headers=SHELL_HEADERS)
+    assert res.status_code in (200, 422)
+    mode = auth_client.post(f"{BASE}/begin", json={"mode": ["x"]}, headers=SAME_ORIGIN_HEADERS)
+    assert mode.status_code == 422 and mode.json()["code"] == "bad_mode"
+
+
 def test_events_need_a_live_state(auth_client) -> None:
     res = _event(auth_client, "nope", "opened")
     assert res.status_code == 403 and res.json()["code"] == "state_invalid"

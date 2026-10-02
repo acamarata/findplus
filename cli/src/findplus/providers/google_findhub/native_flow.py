@@ -90,7 +90,7 @@ def _unlock_url_or_none(mode: str) -> str | None:
 
 def begin(mode: object) -> dict[str, Any]:
     """Mint the state for one window (replacing any older one) and describe the window."""
-    if mode not in MODES:
+    if not isinstance(mode, str) or mode not in MODES:
         raise NativeFlowError(422, "bad_mode", 'mode must be "signin" or "unlock".')
     if mode == "unlock" and not has_google_session():
         raise NativeFlowError(409, "not_signed_in", m.MSG_NOT_SIGNED_IN)
@@ -205,6 +205,11 @@ def _waiting(kind: str) -> None:
     progress.set_phase("needs_unlock", m.MSG_NEEDS_UNLOCK if after_signin else m.MSG_UNLOCK_WAITING)
 
 
+def _word(reason: object, known: dict[str, str]) -> str:
+    """A reason the daemon knows, else "other" (any JSON value is safe here)."""
+    return reason if isinstance(reason, str) and reason in known else "other"
+
+
 def _stop() -> None:
     """Closing or cancelling the window is a cancel, except after a finished sign-in: that stays
     signed in, with the locations still locked (attention then says "unlock")."""
@@ -221,19 +226,19 @@ def _stop() -> None:
 def record_event(state: object, event: object, reason: object = None) -> dict[str, Any]:
     """What the shell saw: the window opened, is waiting, was blocked, closed or failed."""
     live, kind = _require_live(state)
-    if event not in EVENTS:
+    if not isinstance(event, str) or event not in EVENTS:
         raise NativeFlowError(422, "bad_event", "event is not one of the known events.")
     if event in ("opened", "waiting"):
         _waiting(kind)
     elif event == "blocked":
-        _block(live, reason if reason in m.BLOCKED_REASONS else "other")
+        _block(live, _word(reason, m.BLOCKED_REASONS))
     elif event == "closed":
         hs.drop_state(live)
         _stop()
     else:  # failed
         hs.drop_state(live)
-        word = reason if reason in m.FAILED_REASONS else "other"
-        progress.set_phase("error", m.FAILED_REASONS[str(word)], reason=word)
+        word = _word(reason, m.FAILED_REASONS)
+        progress.set_phase("error", m.FAILED_REASONS[word], reason=word)
     return _brief()
 
 

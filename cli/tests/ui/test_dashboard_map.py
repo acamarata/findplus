@@ -29,10 +29,13 @@ async def test_legend_lists_each_tracker_and_frames_it(page, base_url):
         "() => import('/static/app/state.js').then((m) => m.state.map.getBounds().toBBoxString())"
     )
     await rows.nth(3).click()
-    after = await page.evaluate(
-        "() => import('/static/app/state.js').then((m) => m.state.map.getBounds().toBBoxString())"
+    # The map frames the tracker with an animated fitBounds: wait for it to move.
+    await page.wait_for_function(
+        "(before) => import('/static/app/state.js').then("
+        "(m) => m.state.map.getBounds().toBBoxString() !== before)",
+        arg=before,
+        timeout=10000,
     )
-    assert before != after
 
 
 async def test_short_legend_starts_open(page, base_url):

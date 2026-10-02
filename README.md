@@ -161,6 +161,12 @@ card. Details for both: [Sign-in](https://github.com/acamarata/findplus/wiki/Sig
 - Trips view: a day's history as stays (home noise collapsed into one row) and trips between
   them, with honest no-sighting gaps. Optional road route through a routing server you run.
 - Groups and quorum-based presence (together, partial, unknown).
+- People: Find+ suggests people from tracker names ("Sam Bag", "Sam Bike" become Sam), says
+  where each probably is, alerts once per crossing, and flags a bag left behind.
+- A daily summary per person ("Sam's day"), in the CLI, the dashboard or on Telegram each evening.
+- Daily database backups with a safe restore, a damage check and a plain-text export.
+- Bad-coordinate detection: a sighting that teleports or disagrees with the person's other
+  trackers is drawn faintly and kept out of stays, trips and alerts.
 - Telegram (every Telegram alert goes to all your chats unless you pick specific chats on the
   rule, up to 10 targets per bot), WhatsApp (via CallMeBot), webhook, and native macOS
   notification alert channels, with automatic delivery retry.
@@ -186,12 +192,19 @@ Find+ connects to the following external services during normal operation:
 - The location network (Google Find Hub or Apple Find My) to poll for tag updates.
 - Map tiles from OpenStreetMap, fetched directly by your browser.
 - api.telegram.org, your webhook URL, or CallMeBot's WhatsApp relay -- only when
-  that alert channel is configured.
+  that alert channel is configured. Those messages and the daily summary carry
+  people's names, place names and times, so they reach that service in plain text.
 - OpenStreetMap's Nominatim geocoder -- only when you type an address into the
   place dialog and press Search. The daemon makes this request, not your
   browser, and sends nothing else.
 - A routing server you name (`routing.endpoint`, an OSRM-compatible address) -- off by
   default. Only when set, and only for a trip you open, that trip's sightings go to it.
+
+Backups are unencrypted copies of the database in `~/.findplus/backups/`, with the app-lock
+PIN hash but never sign-in tokens or keys. A PIN lock guards the dashboard, CLI and API; it
+does not stop alerts or daily summaries going out, and it does not encrypt anything.
+Use FileVault. Details: [Privacy and threat
+model](https://github.com/acamarata/findplus/wiki/Privacy-and-threat-model).
 
 ## Honesty
 

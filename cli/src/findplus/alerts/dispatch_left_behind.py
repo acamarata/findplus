@@ -3,11 +3,17 @@
 Purpose : A confirmed left-behind episode alerts once, "on the channels of the
           rules that cover that person". Several rules cover one person (one
           default rule per place), so each channel is used once per episode,
-          under the lowest-id rule that names it: one bag, one message.
+          under the lowest-id rule that names it: one bag, one message. The
+          setting people.left_behind_alerts ("tell me when a tracker is left
+          behind, anywhere") decides whether it alerts at all; a rule's place
+          never does, so a bag left at an unnamed spot alerts too (uat116 #3).
 Inputs  : left_behind rows (state left_behind, confirmed, not yet notified, not
           at a Home place, setting people.left_behind_alerts on); alert rules.
 Outputs : LeftBehindEvent dataclasses; the de-duplicated rule list to send on.
-Constraints: Home is off by default (a bike in the garage is normal). The
+Constraints: Home is off by default (a bike in the garage is normal). Pets
+          only through a rule naming the pet. An episode is stamped notified
+          only once a delivery row exists for it (or it is too old to be news);
+          with no rule to carry it, it stays pending and is logged once. The
           person's whereabouts in the text are re-inferred as of the
           confirmation instant, so a retry renders the same words.
 """
@@ -17,6 +23,9 @@ from __future__ import annotations
 import dataclasses
 
 from findplus.alerts.dispatch_core import ALL_PEOPLE_KINDS, LeftBehindEvent, Rule, as_utc
+from findplus.logging_setup import get_logger
+
+log = get_logger(__name__)
 
 #: Setting key; "0" turns left-behind alerts off everywhere (spec Q4).
 LEFT_BEHIND_ALERTS = "people.left_behind_alerts"
@@ -25,9 +34,11 @@ LEFT_BEHIND_ALERTS = "people.left_behind_alerts"
 def match_left_behind(rules: list[Rule], event: LeftBehindEvent) -> list[Rule]:
     """Enabled rules naming this person (or everyone), each channel used once.
 
-    A rule's place counts: a rule for Grandma's does not carry a bag left at
-    School or at an unnamed spot; only an any-place rule or one for that place
-    does. An all-people rule covers people, not pets (review r116 #12).
+    The rule's place does not count: it says where arrivals are news, while
+    a left-behind alert follows the person-level setting, wherever the bag is
+    (uat116 #3; this reverses review r116's place filter, which dropped every
+    bag left at a friend's house or a cafe). An all-people rule covers people,
+    not pets (review r116 #12).
     """
     seen: set[str] = set()
     out: list[Rule] = []
@@ -37,13 +48,41 @@ def match_left_behind(rules: list[Rule], event: LeftBehindEvent) -> list[Rule]:
         everyone = rule.all_people and event.group_kind in ALL_PEOPLE_KINDS
         if not (everyone or (rule.group_id is not None and rule.group_id == event.group_id)):
             continue
-        if rule.place_id is not None and rule.place_id != event.place_id:
-            continue
         fresh = [c for c in rule.channels if c not in seen]
         if not fresh:
             continue
         seen.update(fresh)
         out.append(dataclasses.replace(rule, channels=fresh))
+    return out
+
+
+_LOGGED_UNSENT: set[int] = set()
+
+
+def settled(session, events: list, fresh: list) -> list:
+    """The events dispatch may stamp notified now.
+
+    Every device and group event, sent or not. A left-behind episode only when
+    a delivery row was written for it, or when it is too old to be news
+    (`fresh` lacks it): one that no rule could carry stays pending, so it is
+    sent once a channel is connected, and is logged once rather than vanishing.
+    """
+    from findplus.db.models_alerts import AlertDelivery
+
+    fresh_ids = {id(e) for e in fresh}
+    out = []
+    for event in events:
+        if not isinstance(event, LeftBehindEvent) or id(event) not in fresh_ids:
+            out.append(event)
+            continue
+        q = session.query(AlertDelivery.id).filter_by(
+            event_kind="left_behind", event_id=event.left_behind_id
+        )
+        if q.first() is not None:
+            out.append(event)
+        elif event.left_behind_id not in _LOGGED_UNSENT:
+            _LOGGED_UNSENT.add(event.left_behind_id)
+            log.info("left_behind_unsent_no_rule", left_behind_id=event.left_behind_id)
     return out
 
 

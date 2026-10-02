@@ -234,8 +234,10 @@ Dispatch already picks up `notified_at IS NULL` group rows [Certain]; `_GROUP_EV
 ### 5.2 Rule matching
 - `match()`: an `all_people` rule matches any `GroupEvent` whose group kind is `person`. Pets get person events but
   their alerts are off by default (Q8): a pet alerts only through a rule naming its group (review r116 #12).
-- Left-behind uses the rules covering the person whose `place_id` is NULL or the episode's place: a rule for
-  Grandma's never carries a bag left at School or an unnamed spot.
+- Left-behind uses the channels of every enabled rule covering the person, whatever the rule's place: the
+  setting `people.left_behind_alerts` decides whether it alerts, anywhere (uat116 #3, replacing r116's place
+  filter, which dropped every bag left at an unnamed spot). An episode no rule carries stays pending (logged once)
+  and is stamped notified only once a delivery row exists or it is too old to be news.
 - `suppressed_by_group()`: an enabled `all_people` or person rule suppresses device rules for that person's
   trackers at the same place and type unless `also_notify_members`, and only when that person recorded its own
   event for the place and type within 30 min of the device crossing. With no person event the tracker's own rule

@@ -33,6 +33,7 @@ from findplus.alerts.dispatch_core import (
 )
 from findplus.alerts.dispatch_events import load_pending_events
 from findplus.alerts.dispatch_gate import Burst, fresh_events, predates, send_summaries
+from findplus.alerts.dispatch_left_behind import settled
 from findplus.alerts.dispatch_send import _status_for
 from findplus.alerts.dispatch_targets import (
     _already_delivered,
@@ -241,7 +242,8 @@ def process(events: list, session, settings, now: datetime.datetime | None = Non
 
     Every event passed in is stamped notified at the end, sent or not: an
     event too old to be news (alerts/dispatch_gate.py) is logged and never
-    comes back to flood a chat later.
+    comes back to flood a chat later. A left-behind episode no rule could
+    carry is the exception: it stays pending (dispatch_left_behind.settled).
     """
     if not getattr(settings, "alerts_enabled", True) or not events:
         return
@@ -256,4 +258,4 @@ def process(events: list, session, settings, now: datetime.datetime | None = Non
     for event in fresh:
         _dispatch_event(session, event, rules, ctx)
     send_summaries(burst, ctx[0])
-    _mark_notified(session, events, now)
+    _mark_notified(session, settled(session, events, fresh), now)

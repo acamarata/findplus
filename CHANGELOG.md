@@ -6,7 +6,7 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [1.2.0] - Unreleased
+## [1.2.0] - 2026-10-02
 
 ### Added
 - Sign in to Google in a Find+ window. In the app, **Connect** opens a small window with Google's

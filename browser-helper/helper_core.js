@@ -8,7 +8,7 @@
  */
 "use strict";
 
-export const HELPER_VERSION = "1.1.6";
+export const HELPER_VERSION = "1.2.0";
 export const GOOGLE_COOKIE_DOMAIN = "accounts.google.com";
 export const OAUTH_COOKIE = "oauth_token";
 

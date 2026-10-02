@@ -58,10 +58,10 @@ brew install acamarata/tap/findplus
 
 **pipx:** Find+ is not on PyPI, so install the wheel from the latest release.
 Download the `findplus-<version>-py3-none-any.whl` from
-[Releases](https://github.com/acamarata/findplus/releases) (for example, v1.1.6):
+[Releases](https://github.com/acamarata/findplus/releases) (for example, v1.2.0):
 
 ```bash
-pipx install https://github.com/acamarata/findplus/releases/download/v1.1.6/findplus-1.1.6-py3-none-any.whl
+pipx install https://github.com/acamarata/findplus/releases/download/v1.2.0/findplus-1.2.0-py3-none-any.whl
 ```
 
 Or install from the latest release directly:

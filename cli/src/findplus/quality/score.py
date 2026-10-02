@@ -87,7 +87,7 @@ def awaiting_next(fix: Fix, now: datetime | None) -> bool:
 
 
 def _unconfirmed_jump(prev: Fix | None, fix: Fix, nxt: Fix | None, now: datetime | None) -> bool:
-    """A fast long hop that nothing has confirmed or contradicted yet."""
+    """A long hop (see `rules.is_jump`) that nothing has confirmed or contradicted yet."""
     if not r.is_jump(prev, fix):
         return False
     if nxt is None:

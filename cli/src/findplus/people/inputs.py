@@ -20,7 +20,6 @@ from sqlalchemy.orm import Session
 
 from findplus.db.models import Device, DeviceGroup, Group, LocationObservation, Place, PlaceState
 from findplus.db.models_people import PERSON_KINDS
-from findplus.device_labels import unique_names
 from findplus.labels import display_name
 from findplus.people import _quality
 from findplus.people.infer import InferParams, MemberIn, PersonFix, PlaceRef, TrackerFix, infer
@@ -54,8 +53,13 @@ def person_groups_of(session: Session, device_id: str) -> list[Group]:
 def trackers_of(
     session: Session, group_id: int, names: dict[str, str] | None = None
 ) -> list[Tracker]:
-    """Every member with its effective role and weight, by display name."""
-    names = names if names is not None else unique_names(session)
+    """Every member with its effective role and weight, by display name.
+
+    Without `names` the members' own labels are used, with no id tail: the
+    ingest hook runs per sighting and must not scan every observation for
+    device_labels.unique_names. Surfaces that list people pass unique_names.
+    """
+    names = names or {}
     rows = session.execute(
         select(Device.device_id, Device.label, Device.name, Device.role, Device.carry_weight)
         .join(DeviceGroup, DeviceGroup.device_id == Device.device_id)
@@ -63,8 +67,9 @@ def trackers_of(
     ).all()
     out = []
     for r in rows:
-        shown = names.get(r.device_id) or r.device_id
-        guessed = read_name(r.device_id, display_name(r.label, r.name, r.device_id) or "").role
+        base = display_name(r.label, r.name, r.device_id) or r.device_id
+        shown = names.get(r.device_id) or base
+        guessed = read_name(r.device_id, base).role
         role = r.role or guessed
         source = "set" if r.role else ("name" if guessed else "none")
         weight = effective_weight(role, r.carry_weight)

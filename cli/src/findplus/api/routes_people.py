@@ -67,7 +67,7 @@ def post_person(body: PersonCreate) -> dict[str, Any]:
 
 def _person_view(s, group_id: int) -> dict[str, Any]:
     group = repo.get_person(s, group_id)
-    group._trackers = repo.trackers_of(s, group_id)
+    group._trackers = repo.trackers_of(s, group_id, repo.unique_names(s))
     return repo.person_dict(group)
 
 

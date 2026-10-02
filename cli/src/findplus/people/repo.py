@@ -78,7 +78,7 @@ def create_person(
     )  # fmt: skip
     apply_roles(session, roles)
     session.flush()
-    group._trackers = trackers_of(session, group.id)
+    group._trackers = trackers_of(session, group.id, unique_names(session))
     return group
 
 
@@ -100,7 +100,7 @@ def add_members(
     flush_checked(session)
     apply_roles(session, roles)
     session.flush()
-    group._trackers = trackers_of(session, group_id)
+    group._trackers = trackers_of(session, group_id, unique_names(session))
     return group
 
 
@@ -159,7 +159,7 @@ def now_dict(session: Session, group: Group, now: datetime | None = None) -> dic
     from findplus.people.inputs import infer_person
 
     now = now or datetime.now(UTC)
-    fix, trackers, places = infer_person(session, group, now)
+    fix, trackers, places = infer_person(session, group, now, unique_names(session))
     iso = fix.observed_at.isoformat() if fix.observed_at else None
     return {
         "confidence": fix.confidence,

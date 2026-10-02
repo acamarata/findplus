@@ -37,6 +37,8 @@ log = get_logger(__name__)
 
 #: An opposite transition at the same place waits this long after the last one.
 SETTLE_MINUTES = 10
+#: Motion that may move person state on its own (people/motion.py).
+_MOVING = ("carried", "unknown")
 
 
 @dataclass(frozen=True)
@@ -49,12 +51,13 @@ class Step:
 
 
 def qualified(fix: PersonFix, crossed: frozenset[str] | set[str] = frozenset()) -> bool:
-    """May this answer move person state? Only when a supporter has not been
-    parked, or crossed this place itself (a device ENTER/EXIT) since the last
-    person transition. Trackers that never moved cannot say the person came
-    home while the one actually carried has gone quiet (review r116 #1)."""
+    """May this answer move person state? Only when a supporter is being
+    carried now (or is too new to judge), or crossed this place itself (a
+    device ENTER/EXIT) since the last person transition. Trackers sitting
+    still (parked, or settled after an earlier trip) cannot say the person
+    came home while the one actually carried has gone quiet (r116 #1/#3)."""
     motion = {m.device_id: m.motion for m in fix.members}
-    return any(motion.get(d) not in ("parked", None) or d in crossed for d in fix.supporters)
+    return any(motion.get(d) in _MOVING or d in crossed for d in fix.supporters)
 
 
 def person_target(

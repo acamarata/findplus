@@ -21,7 +21,7 @@ from datetime import datetime
 from findplus.geo import haversine_meters
 from findplus.groups.presence import MemberStatus, _greedy_clique
 from findplus.people.motion import DEFAULT_ACC as _DEFAULT_ACC
-from findplus.people.motion import last_move_at, motion_of, moved
+from findplus.people.motion import last_move_at, motion_of, moved, moved_on_without_them
 
 __all__ = ["InferParams", "MemberIn", "PersonFix", "PlaceRef", "TrackerFix", "infer", "motion_of"]
 
@@ -69,6 +69,7 @@ class InferParams:
     stale_after_minutes: int = 90
     cluster_radius_meters: int = 150
     motion_window_hours: int = 6
+    carried_minutes: int = 45  # a tracker still this long after its last move is settled
     carried_factor: float = 2.0
     parked_factor: float = 0.4
     min_motion_meters: float = 150.0
@@ -85,7 +86,7 @@ class MemberScore:
     name: str
     role: str | None
     weight: float
-    motion: str  # carried | parked | unknown | stale
+    motion: str  # carried | settled | parked | unknown | stale
     score: float
     fix: TrackerFix | None
     age_minutes: int | None
@@ -163,16 +164,6 @@ def _cluster_sort_key(c: list[MemberScore]) -> tuple:
     return (-sum(s.score for s in c), sorted(s.device_id for s in c))
 
 
-def parked_only_while_another_moved(best: list[MemberScore], scores: list[MemberScore]) -> bool:
-    """The best cluster never moved, but another tracker (reporting or gone
-    quiet) did within the window: the person went with that one, so the
-    parked trackers say nothing about where they are now (review r116 #1)."""
-    if any(s.motion != "parked" for s in best):
-        return False
-    ids = {s.device_id for s in best}
-    return any(s.last_move_at is not None for s in scores if s.device_id not in ids)
-
-
 def _confidence(best: float, runner_up: float, p: InferParams) -> str:
     if best <= 0:
         return "unsure"
@@ -203,7 +194,7 @@ def infer(
     lead = max(best, key=lambda s: (s.score, s.weight, s.device_id))
     where = locate(lead.fix, lead.device_id, [s.device_id for s in best], inside, places, p)
     confidence = _confidence(b, r, p)
-    if parked_only_while_another_moved(best, scores):
+    if moved_on_without_them(best, scores):
         confidence = "unsure"
     return PersonFix(
         confidence=confidence,

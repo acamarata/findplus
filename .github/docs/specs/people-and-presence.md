@@ -141,9 +141,16 @@ non-suspect fixes, role weight, place_states. No DB, no clock, tz-aware `now` (s
    - `f_motion`: 2.0 "carried" when two consecutive non-suspect fixes in the last 6 h are more than
      `max(150 m, 2 x accuracy)` apart; 0.4 "parked" when it has not moved for 6 h; 1.0 when there are too few
      fixes to tell. **Trackers do not move on their own; a moved tracker was carried. A parked one proves little.**
+   - Motion is scored from the LAST move (review r116 #3): `carried` only within `carried_minutes` (45) of it;
+     after that the tracker is `settled` (1.0, neutral) until 6 h of stillness make it `parked`. A bag that
+     came home an hour ago no longer outweighs the shoes walking to Grandma's. 45 min covers a school run or a
+     shop visit; longer would let a bag that came home after school block the next trip.
    - Worked: Sam leaves at 7:40. Shoes Red carried 0.8 x 2 = 1.6; bag, bike, Shoes White parked at Home
-     (0.5 + 0.4 + 0.8) x 0.4 = 0.68. B/R = 2.35, so `likely` away from Home. At School by noon the shoes still
-     count as carried (moved within 6 h), so the answer stays `likely` at School.
+     (0.5 + 0.4 + 0.8) x 0.4 = 0.68. B/R = 2.35, so `likely` away from Home. At School by noon the shoes are
+     `settled`; with the bag that is 1.3 against 0.48 at Home, so the answer stays `likely` at School.
+   - Only a `carried` (or too-new-to-judge) supporter, or one with its own crossing, may move person state. When
+     no best-cluster tracker is carried and a tracker at least as trusted moved later than all of them, the
+     answer is `unsure`: the person went with that one.
    - `f_acc`: 1.0 at <= 100 m, 0.7 at <= 300 m, 0.4 beyond (missing accuracy = 100 m, as presence.py does).
 3. Cluster reporting trackers with `presence._greedy_clique` (radius = group `cluster_radius_meters` plus
    accuracy) [Certain the function exists]. Repeat on the remainder to get every cluster.

@@ -10,7 +10,17 @@ from __future__ import annotations
 from findplus.db.models import Group
 from findplus.people.inputs import infer_person
 
-from ._helpers import HOME, SCHOOL, Timeline, at, overnight, person_events, seed_person, seed_places
+from ._helpers import (
+    GRANDMA,
+    HOME,
+    SCHOOL,
+    Timeline,
+    at,
+    overnight,
+    person_events,
+    seed_person,
+    seed_places,
+)
 
 
 def _now(session, group, when):
@@ -88,3 +98,35 @@ def test_one_stray_fix_never_skips_the_two_exit_confirmation(session):
         ("EXIT", "Home"),
         ("ENTER", "School"),
     ]
+
+
+def _back_home_then_grandma(tl: Timeline, every_at_grandma=10, walk_every=5) -> Timeline:
+    """A school day home at 15:30, then at 16:30 Sam walks to Grandma's with the
+    red shoes only. The bag he carried all day stays home."""
+    _school_morning(tl, until=(14, 50))
+    tl.walk(["zr", "zb"], SCHOOL, HOME, at(15, 0), at(15, 30))
+    tl.stay(["zr", "zb"], HOME, at(15, 35), at(16, 30), every=10)
+    tl.stay(["zk", "zw"], HOME, at(15, 0), at(19, 0), every=30)
+    tl.stay(["zb"], HOME, at(16, 40), at(19, 0), every=10)
+    tl.walk(["zr"], HOME, GRANDMA, at(16, 30), at(17, 0), every=walk_every)
+    tl.stay(["zr"], GRANDMA, at(17, 0) + (at(0, every_at_grandma) - at(0)), at(19, 0),
+            every=every_at_grandma)  # fmt: skip
+    return tl
+
+
+def test_leaving_with_some_trackers_after_a_trip_still_alerts(session):
+    """The bag moved this afternoon but has sat at Home for an hour: it no
+    longer counts as carried, so the shoes leaving decide it."""
+    seed_places(session)
+    sam = seed_person(session)
+    _back_home_then_grandma(Timeline()).ingest(session)
+    tail = [(e, p) for e, p, _ in person_events(session, sam.id)][-2:]
+    assert tail == [("EXIT", "Home"), ("ENTER", "Grandma's")]
+
+
+def test_grandmas_arrival_with_sparse_reports(session):
+    seed_places(session)
+    sam = seed_person(session)
+    _back_home_then_grandma(Timeline(), every_at_grandma=75, walk_every=15).ingest(session)
+    tail = [(e, p) for e, p, _ in person_events(session, sam.id)][-2:]
+    assert tail == [("EXIT", "Home"), ("ENTER", "Grandma's")]

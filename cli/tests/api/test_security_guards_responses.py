@@ -45,6 +45,8 @@ def test_the_csp_allows_only_self_and_the_tile_host() -> None:
     assert "https://tile.openstreetmap.org" in CONTENT_SECURITY_POLICY
     assert "frame-ancestors 'none'" in CONTENT_SECURITY_POLICY
     assert "unsafe-inline" not in CONTENT_SECURITY_POLICY
+    for directive in ("form-action 'self'", "base-uri 'none'", "object-src 'none'"):
+        assert directive in CONTENT_SECURITY_POLICY
 
 
 def test_a_refusal_also_carries_the_headers(client: TestClient) -> None:

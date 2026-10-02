@@ -71,6 +71,7 @@ def _load_device_events(session) -> list[DeviceEvent]:
                 group_ids=[m.group_id for m in memberships],
                 person_group_ids=[m.group_id for m in memberships if m.kind in ("person", "pet")],
                 person_event_group_ids=_person_event_groups(session, row),
+                pet_group_ids=[m.group_id for m in memberships if m.kind == "pet"],
             )
         )
     return events

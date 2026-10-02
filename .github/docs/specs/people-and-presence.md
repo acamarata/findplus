@@ -232,7 +232,10 @@ person/pet group the observation's device belongs to:
 Dispatch already picks up `notified_at IS NULL` group rows [Certain]; `_GROUP_EVENTS_SQL` adds `basis`, `note`, `g.kind`.
 
 ### 5.2 Rule matching
-- `match()`: an `all_people` rule matches any `GroupEvent` whose group kind is person/pet.
+- `match()`: an `all_people` rule matches any `GroupEvent` whose group kind is `person`. Pets get person events but
+  their alerts are off by default (Q8): a pet alerts only through a rule naming its group (review r116 #12).
+- Left-behind uses the rules covering the person whose `place_id` is NULL or the episode's place: a rule for
+  Grandma's never carries a bag left at School or an unnamed spot.
 - `suppressed_by_group()`: an enabled `all_people` or person rule suppresses device rules for that person's
   trackers at the same place and type unless `also_notify_members`, and only when that person recorded its own
   event for the place and type within 30 min of the device crossing. With no person event the tracker's own rule

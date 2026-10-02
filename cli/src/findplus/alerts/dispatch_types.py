@@ -37,6 +37,8 @@ class DeviceEvent:
     #: tracker's device rules: with no person event, the device rule still
     #: sends (review r116 #4).
     person_event_group_ids: list[int] = field(default_factory=list)
+    #: The pet groups among person_group_ids: an all-people rule never covers them.
+    pet_group_ids: list[int] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -84,6 +86,8 @@ class LeftBehindEvent:
     person_place: str | None = None
     person_seen_at: datetime.datetime | None = None
     person_lead_name: str | None = None
+    #: groups.kind of the person: an all-people rule covers "person" only.
+    group_kind: str = "person"
     event_type: str = "LEFT_BEHIND"
     confidence: str = "medium"
     note: str = ""

@@ -16,20 +16,28 @@ from __future__ import annotations
 
 import dataclasses
 
-from findplus.alerts.dispatch_core import LeftBehindEvent, Rule, as_utc
+from findplus.alerts.dispatch_core import ALL_PEOPLE_KINDS, LeftBehindEvent, Rule, as_utc
 
 #: Setting key; "0" turns left-behind alerts off everywhere (spec Q4).
 LEFT_BEHIND_ALERTS = "people.left_behind_alerts"
 
 
 def match_left_behind(rules: list[Rule], event: LeftBehindEvent) -> list[Rule]:
-    """Enabled rules naming this person (or everyone), each channel used once."""
+    """Enabled rules naming this person (or everyone), each channel used once.
+
+    A rule's place counts: a rule for Grandma's does not carry a bag left at
+    School or at an unnamed spot; only an any-place rule or one for that place
+    does. An all-people rule covers people, not pets (review r116 #12).
+    """
     seen: set[str] = set()
     out: list[Rule] = []
     for rule in sorted(rules, key=lambda r: r.id):
         if not rule.enabled:
             continue
-        if not (rule.all_people or (rule.group_id is not None and rule.group_id == event.group_id)):
+        everyone = rule.all_people and event.group_kind in ALL_PEOPLE_KINDS
+        if not (everyone or (rule.group_id is not None and rule.group_id == event.group_id)):
+            continue
+        if rule.place_id is not None and rule.place_id != event.place_id:
             continue
         fresh = [c for c in rule.channels if c not in seen]
         if not fresh:
@@ -81,6 +89,7 @@ def _event_for(session, row, names) -> LeftBehindEvent | None:
         person_place=elsewhere,
         person_seen_at=as_utc(fix.observed_at) if elsewhere else None,
         person_lead_name=lead if elsewhere else None,
+        group_kind=group.kind,
     )
 
 

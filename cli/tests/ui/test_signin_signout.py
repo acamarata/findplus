@@ -52,7 +52,7 @@ async def test_google_disconnect_confirm_row_and_cancel(page, base_url):
         assert await confirm_row.is_visible()
         assert await page.locator("#fp-setup-google-disconnect").is_hidden()
         await wait_text(
-            page, "#fp-setup-google-disconnect-confirm", "Tracked devices and their history stay"
+            page, "#fp-setup-google-disconnect-confirm", "Your trackers and history stay"
         )
 
         await page.click("#fp-setup-google-disconnect-cancel")

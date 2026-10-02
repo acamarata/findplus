@@ -129,15 +129,15 @@ _STATE_GATED_ROUTES = {
 _E6_ROUTES = _auth_routes()
 
 
-def test_the_dynamic_sweep_sees_all_thirtyone_routes() -> None:
+def test_the_dynamic_sweep_sees_all_thirtytwo_routes() -> None:
     """7 from E6, plus S11/WP8's `POST /auth/google/cancel` and
     `DELETE /auth/{provider}` (sign-out), the main-Chrome
     `POST /auth/google/open` and `POST /auth/google/token`, the unlock
     step's start/progress/cancel, and the Chrome helper's five
     `POST /auth/google/helper/*` ingest routes; 1.2.0 adds the in-app
     window's seven `/auth/google/native/*` routes and the Apple sheet's
-    status, cancel and text routes."""
-    assert len(_E6_ROUTES) == 31, _E6_ROUTES
+    status, cancel and text routes, and the helper folder route (path only)."""
+    assert len(_E6_ROUTES) == 32, _E6_ROUTES
 
 
 @pytest.mark.parametrize("method,path", [r for r in _E6_ROUTES if r not in _STATE_GATED_ROUTES])

@@ -451,6 +451,46 @@ Open the dashboard in the default browser.
 
 **Usage:** `findplus open [OPTIONS]`
 
+## findplus people accept
+Create the suggested people (by --key or --all), or dismiss suggestions.
+
+**Usage:** `findplus people accept [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --key |  | A suggestion key from `people suggest`. |
+| --all |  | Accept every suggestion as shown. |
+| --dismiss |  | A suggestion key to dismiss. |
+| --kind |  | Override the kind. |
+| --json |  | Output JSON. |
+
+## findplus people list
+Every person and pet, its trackers and where it likely is now.
+
+**Usage:** `findplus people list [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --json |  | Output JSON. |
+
+## findplus people set-role
+Set a tracker's role (phone, bag, shoes...) and optionally its carry weight.
+
+**Usage:** `findplus people set-role [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --weight |  | Carry weight 0 to 1 (default: role's). |
+
+## findplus people suggest
+Preview people suggested from tracker names. Nothing is saved.
+
+**Usage:** `findplus people suggest [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --json |  | Output JSON. |
+
 ## findplus pin reset
 Delete the PIN and turn the app lock off.
 

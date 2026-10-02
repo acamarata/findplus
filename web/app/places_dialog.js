@@ -224,6 +224,10 @@ async function onSave() {
     color: fields.color.value,
     enter_confirmations: Number(fields.enter.value),
     exit_confirmations: Number(fields.exit.value),
+    // The dialog runs its own "who should be told" step after saving, so it
+    // asks the API not to add the default everyone rule (1.1.6). The Person
+    // page work replaces this with a "Notify me" checkbox.
+    notify: false,
   };
   const opts = { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
   try {

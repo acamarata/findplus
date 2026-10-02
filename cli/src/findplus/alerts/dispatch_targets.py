@@ -23,7 +23,7 @@ import datetime
 
 from sqlalchemy.exc import IntegrityError
 
-from findplus.alerts.dispatch_core import Delivery, DeviceEvent, Rule
+from findplus.alerts.dispatch_core import Delivery, Rule, event_key
 
 
 def _already_delivered(
@@ -105,8 +105,7 @@ def _deliver_skip(
     "no Telegram chats selected" case (_channel_targets returning no
     targets). Mirrors _deliver_one's own dedup-then-insert-then-commit shape
     but never touches a channel API: there is nothing configured to call."""
-    kind = "device" if isinstance(event, DeviceEvent) else "group"
-    eid = event.place_event_id if isinstance(event, DeviceEvent) else event.group_place_event_id
+    kind, eid = event_key(event)
     target = ""
     if _already_delivered(session, rule.id, kind, eid, channel, target):
         return None
@@ -124,4 +123,5 @@ def _deliver_skip(
         channel=channel,
         status="skipped",
         place_id=event.place_id,
+        group_id=getattr(event, "group_id", None),
     )

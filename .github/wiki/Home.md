@@ -18,6 +18,7 @@ See [Privacy and threat model](Privacy-and-threat-model).
 - [Sign in](Sign-in): connect Google or Apple from the dashboard.
 - [Devices and groups](Devices-and-groups): track trackers, form groups.
 - [Places and alerts](Places-and-alerts): geofences and notifications.
+- [People and presence](People-and-presence): people from tracker names, arrivals, left-behind trackers.
 - [Trips and routes](Trips-and-routes): stays, trips and gaps for one device and day.
 - [Settings](Settings): poll interval, history retention, backups, app lock, notifications.
 - [Backup and restore](Backup-and-restore): automatic backups, restore, damage checks, full export and import.

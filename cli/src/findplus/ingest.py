@@ -25,6 +25,7 @@ from findplus.db.models import Device, LocationObservation, PlaceEvent
 from findplus.groups.events import evaluate_group_events as _group_events_evaluate
 from findplus.labels import palette_color_for
 from findplus.logging_setup import get_logger
+from findplus.people.events import run_person_hook as _person_events_evaluate
 from findplus.places.events import evaluate as _geofence_evaluate
 from findplus.providers.google_findhub.types import RawObservation
 from findplus.quality.ingest_hook import plan_geofence_feed
@@ -210,34 +211,28 @@ def _run_post_ingest_hooks(
     delay, see quality/ingest_hook.py).
     """
     for lo in _quality_feed(session, new_rows, now):
-        try:
-            # SAVEPOINT: a DB-level failure inside the hook rolls back only the
-            # hook's own writes, so the session stays usable and the
-            # observations still commit.
-            with session.begin_nested():
-                _geofence_evaluate(
-                    session,
-                    lo,
-                    default_accuracy=settings.geofence_default_accuracy_meters,
+        # Order matters: group and person hooks read what geofence just wrote.
+        # Person events and left-behind: specs/people-and-presence.md § 5.1.
+        hooks = (
+            ("geofence", _run_geofence_hook),
+            ("group_events", _run_group_events_hook),
+            ("person_events", _person_events_evaluate),
+        )
+        for name, hook in hooks:
+            try:
+                # SAVEPOINT: a DB-level failure inside the hook rolls back only
+                # the hook's own writes, so the session stays usable and the
+                # observations still commit.
+                with session.begin_nested():
+                    hook(session, lo, settings)
+            except Exception:
+                log.exception(
+                    "post_ingest_hook_failed", hook=name, device=lo.device_id, observation_id=lo.id
                 )
-        except Exception:
-            log.exception(
-                "post_ingest_hook_failed",
-                hook="geofence",
-                device=lo.device_id,
-                observation_id=lo.id,
-            )
 
-        try:
-            with session.begin_nested():
-                _run_group_events_hook(session, lo, settings)
-        except Exception:
-            log.exception(
-                "post_ingest_hook_failed",
-                hook="group_events",
-                device=lo.device_id,
-                observation_id=lo.id,
-            )
+
+def _run_geofence_hook(session: Session, lo: LocationObservation, settings: object) -> None:
+    _geofence_evaluate(session, lo, default_accuracy=settings.geofence_default_accuracy_meters)
 
 
 def _quality_feed(

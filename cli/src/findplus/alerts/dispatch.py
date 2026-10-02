@@ -25,6 +25,7 @@ from findplus.alerts.dispatch_core import (
     Rule,
     as_utc,
     classify_new_delivery,
+    event_key,
     in_cooldown,
     match,
     render_message,
@@ -74,22 +75,28 @@ def _load_rules(session) -> list[Rule]:
             enabled=r.enabled,
             also_notify_members=r.also_notify_members,
             telegram_targets=parse_rule_telegram_targets(r.telegram_targets),
+            all_people=r.all_people,
         )
         for r in rows
     ]
 
 
-def _delivery_place_ids(session, rows) -> dict[tuple[str, int], int | None]:
-    """Derived place_id per (event_kind, event_id): alert_deliveries has no place_id column."""
+def _delivery_place_ids(session, rows) -> dict[tuple[str, int], tuple[int | None, int | None]]:
+    """Derived (place_id, group_id) per (event_kind, event_id): the delivery row
+    stores neither, and cooldown keys on the place (and, for an all-people
+    rule, the person). place_events.group_id is vestigial and always NULL."""
     from findplus.db.models import GroupPlaceEvent, PlaceEvent
+    from findplus.db.models_people import LeftBehind
 
-    out: dict[tuple[str, int], int | None] = {}
-    for kind, model in (("device", PlaceEvent), ("group", GroupPlaceEvent)):
+    out: dict[tuple[str, int], tuple[int | None, int | None]] = {}
+    models = (("device", PlaceEvent), ("group", GroupPlaceEvent), ("left_behind", LeftBehind))
+    for kind, model in models:
         ids = {d.event_id for d in rows if d.event_kind == kind}
         if not ids:
             continue
-        for event_id, place_id in session.query(model.id, model.place_id).filter(model.id.in_(ids)):
-            out[(kind, event_id)] = place_id
+        query = session.query(model.id, model.place_id, model.group_id)
+        for event_id, place_id, group_id in query.filter(model.id.in_(ids)):
+            out[(kind, event_id)] = (place_id, group_id)
     return out
 
 
@@ -107,7 +114,8 @@ def _load_recent_deliveries(session, now: datetime.datetime) -> list[Delivery]:
             sent_at=d.sent_at,
             channel=d.channel,
             status=d.status,
-            place_id=place_ids.get((d.event_kind, d.event_id)),
+            place_id=place_ids.get((d.event_kind, d.event_id), (None, None))[0],
+            group_id=place_ids.get((d.event_kind, d.event_id), (None, None))[1],
         )
         for d in rows
     ]
@@ -132,8 +140,7 @@ def _deliver_one(
     """Send one (rule, channel, target, event) tuple and record it. None if
     already delivered. A failure on one target never touches another --
     each target is its own row, its own retry ladder (alerts/retry.py)."""
-    kind = "device" if isinstance(event, DeviceEvent) else "group"
-    eid = event.place_event_id if isinstance(event, DeviceEvent) else event.group_place_event_id
+    kind, eid = event_key(event)
     if _already_delivered(session, rule.id, kind, eid, channel, target):
         return None
 
@@ -162,6 +169,7 @@ def _deliver_one(
         channel=channel,
         status=status,
         place_id=event.place_id,
+        group_id=getattr(event, "group_id", None),
     )
 
 
@@ -171,17 +179,12 @@ def _mark_notified(session, events: list, now: datetime.datetime) -> None:
     # text() bypasses the UtcDateTime bind hook: normalise here so SQLite
     # never stores an offset string the reader re-reads as UTC.
     now = now.astimezone(datetime.UTC).replace(tzinfo=None)
+    tables = {"device": "place_events", "group": "group_place_events", "left_behind": "left_behind"}
     for event in events:
-        if isinstance(event, DeviceEvent):
-            session.execute(
-                text("UPDATE place_events SET notified_at = :n WHERE id = :i"),
-                {"n": now, "i": event.place_event_id},
-            )
-        else:
-            session.execute(
-                text("UPDATE group_place_events SET notified_at = :n WHERE id = :i"),
-                {"n": now, "i": event.group_place_event_id},
-            )
+        kind, eid = event_key(event)
+        session.execute(
+            text(f"UPDATE {tables[kind]} SET notified_at = :n WHERE id = :i"), {"n": now, "i": eid}
+        )
     session.commit()
 
 

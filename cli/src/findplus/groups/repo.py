@@ -29,6 +29,7 @@ from findplus.db.models import (
     PlaceState,
 )
 from findplus.device_labels import unique_names
+from findplus.groups.membership import check_one_person, flush_checked, validate_kind
 from findplus.groups.place_event_list import list_group_place_events  # re-exported
 from findplus.groups.presence import (
     Fix,
@@ -90,7 +91,9 @@ def create_group(
     cluster_radius_meters: int = 150,
     stale_after_minutes: int = 90,
     member_ids: list[str] | None = None,
+    kind: str = "set",
 ) -> Group:
+    validate_kind(kind)
     validate_group_fields(
         quorum=quorum,
         cluster_radius_meters=cluster_radius_meters,
@@ -101,6 +104,7 @@ def create_group(
     if _name_taken(session, name):
         raise ValueError(f"group name {name!r} already exists")
     member_ids = check_member_ids(session, member_ids or [])
+    check_one_person(session, None, kind, member_ids)
     group = Group(
         name=name,
         color=color,
@@ -108,13 +112,14 @@ def create_group(
         quorum=quorum,
         cluster_radius_meters=cluster_radius_meters,
         stale_after_minutes=stale_after_minutes,
+        kind=kind,
         created_at=datetime.now(UTC),
     )
     session.add(group)
     session.flush()  # IntegrityError on a duplicate name propagates to the caller.
     for device_id in member_ids:
         session.add(DeviceGroup(device_id=device_id, group_id=group.id))
-    session.flush()
+    flush_checked(session)
     group._members = _members_of(session, group.id)
     return group
 
@@ -129,6 +134,9 @@ def update_group(session: Session, group_id: int, **fields) -> Group:
         stale_after_minutes=fields.get("stale_after_minutes"),
         icon=fields.get("icon"),
     )
+    if validate_kind(fields.get("kind")) is not None:
+        members = [m["device_id"] for m in _members_of(session, group_id)]
+        check_one_person(session, group_id, fields["kind"], members)
     if fields.get("name") is not None:
         # Name rules apply only to a name that actually changes: a legacy group
         # (case-variant twin, over 64 chars) must stay editable when the dialog
@@ -142,7 +150,7 @@ def update_group(session: Session, group_id: int, **fields) -> Group:
     for key, value in fields.items():
         if value is not None:
             setattr(group, key, value)
-    session.flush()
+    flush_checked(session)
     group._members = _members_of(session, group.id)
     return group
 
@@ -160,12 +168,13 @@ def set_members(session: Session, group_id: int, member_ids: list[str]) -> Group
     if group is None:
         raise ValueError(f"group {group_id} not found")
     member_ids = check_member_ids(session, member_ids)
+    check_one_person(session, group_id, group.kind, member_ids)
     session.query(DeviceGroup).filter(DeviceGroup.group_id == group_id).delete(
         synchronize_session=False
     )
     for device_id in member_ids:
         session.add(DeviceGroup(device_id=device_id, group_id=group_id))
-    session.flush()
+    flush_checked(session)
     group._members = _members_of(session, group.id)
     return group
 

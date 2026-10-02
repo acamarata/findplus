@@ -34,6 +34,8 @@ READ_TOOLS: dict[str, dict] = {
     "get_place_events": {},
     "get_group_presence": {"group_id": 1},
     "export": {"format": "csv", "start": "2026-09-01", "end": "2026-09-19"},
+    "list_people": {},
+    "get_people_suggestions": {},
 }
 WRITE_TOOLS: dict[str, dict] = {
     "poll_now": {},
@@ -41,6 +43,8 @@ WRITE_TOOLS: dict[str, dict] = {
     "remove_place": {"place_id": 1},
     "add_group": {"name": "g", "member_ids": ["TAG-001"]},
     "set_group_members": {"group_id": 1, "member_ids": ["TAG-001"]},
+    "accept_people_suggestions": {"dismiss": ["x"]},
+    "set_tracker_role": {"device_id": "TAG-001", "role": "bag"},
 }
 
 
@@ -143,7 +147,7 @@ async def test_daemon_down_is_an_error_not_a_traceback() -> None:
 async def test_every_tool_has_a_description() -> None:
     async with Client(create_mcp_server(allow_writes=True)) as client:
         tools = (await client.list_tools()).tools
-    assert len(tools) == 17
+    assert len(tools) == 21  # +4 people tools (1.1.6)
     missing = [t.name for t in tools if not (t.description or "").strip()]
     assert not missing, f"tools with no description: {missing}"
 

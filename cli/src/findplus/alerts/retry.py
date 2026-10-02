@@ -40,13 +40,12 @@ import datetime
 from findplus.alerts.dispatch_core import (
     MAX_ATTEMPTS,
     DeviceEvent,
-    GroupEvent,
     as_utc,
     compute_next_attempt_at,
     is_transient_failure,
 )
 from findplus.alerts.dispatch_send import _status_for
-from findplus.groups.quorum import group_event_note, stale_note_for_count
+from findplus.alerts.group_event_rows import group_events_by_ids
 from findplus.logging_setup import get_logger
 
 log = get_logger(__name__)
@@ -68,15 +67,8 @@ FROM place_events pe JOIN places p ON p.id = pe.place_id
 JOIN devices d ON d.device_id = pe.device_id
 WHERE pe.id = :id"""
 
-_GROUP_EVENT_SQL = """SELECT gpe.id, gpe.group_id, g.name AS group_name, gpe.place_id,
-       p.name AS place_name, gpe.event_type, gpe.observed_at, gpe.confidence,
-       gpe.members_crossed, gpe.members_considered, gpe.members_stale
-FROM group_place_events gpe JOIN groups g ON g.id = gpe.group_id
-JOIN places p ON p.id = gpe.place_id
-WHERE gpe.id = :id"""
 
-
-def _load_event(session, kind: str, event_id: int) -> DeviceEvent | GroupEvent | None:
+def _load_event(session, kind: str, event_id: int):
     """Reload one already-notified event by id, ignoring notified_at.
 
     A retry's source event was stamped notified on the first attempt
@@ -85,44 +77,26 @@ def _load_event(session, kind: str, event_id: int) -> DeviceEvent | GroupEvent |
     """
     from sqlalchemy import text
 
-    if kind == "device":
-        row = session.execute(text(_DEVICE_EVENT_SQL), {"id": event_id}).first()
-        if row is None:
-            return None
-        return DeviceEvent(
-            place_event_id=row.id,
-            place_id=row.place_id,
-            place_name=row.place_name,
-            device_id=row.device_id,
-            device_name=row.device_name,
-            event_type=row.event_type,
-            observed_at=as_utc(row.observed_at),
-            fetched_at=as_utc(row.fetched_at),
-            confidence=row.confidence,
-            group_ids=[],
-        )
-    row = session.execute(text(_GROUP_EVENT_SQL), {"id": event_id}).first()
+    if kind == "group":
+        return group_events_by_ids(session, [event_id]).get(event_id)
+    if kind == "left_behind":
+        from findplus.alerts.dispatch_left_behind import left_behind_by_ids
+
+        return left_behind_by_ids(session, [event_id]).get(event_id)
+    row = session.execute(text(_DEVICE_EVENT_SQL), {"id": event_id}).first()
     if row is None:
         return None
-    return GroupEvent(
-        group_place_event_id=row.id,
-        group_id=row.group_id,
-        group_name=row.group_name,
+    return DeviceEvent(
+        place_event_id=row.id,
         place_id=row.place_id,
         place_name=row.place_name,
+        device_id=row.device_id,
+        device_name=row.device_name,
         event_type=row.event_type,
         observed_at=as_utc(row.observed_at),
+        fetched_at=as_utc(row.fetched_at),
         confidence=row.confidence,
-        note=group_event_note(
-            crossed=row.members_crossed,
-            considered=row.members_considered,
-            event_type=row.event_type,
-            place=row.place_name,
-            stale_note=stale_note_for_count(row.members_stale),
-        ),
-        members_crossed=row.members_crossed,
-        members_considered=row.members_considered,
-        members_stale=row.members_stale,
+        group_ids=[],
     )
 
 
@@ -146,6 +120,7 @@ def _load_rule(session, rule_id: int):
         cooldown_minutes=r.cooldown_minutes,
         enabled=r.enabled,
         also_notify_members=r.also_notify_members,
+        all_people=r.all_people,
     )
 
 
@@ -163,8 +138,8 @@ def _superseded_by_newer_delivery(session, row, rule, event, now: datetime.datet
     "newer than row.sent_at" is exactly "happened after this row's own
     original failure".
     """
-    if rule.cooldown_minutes == 0:
-        return False
+    if rule.cooldown_minutes == 0 or row.event_kind == "left_behind":
+        return False  # a left-behind episode alerts once and never cools down
     from sqlalchemy import select
 
     from findplus.db.models import GroupPlaceEvent, PlaceEvent

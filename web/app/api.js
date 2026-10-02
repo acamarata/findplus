@@ -11,6 +11,7 @@
 "use strict";
 
 import { showLock } from "./lock.js";
+import { t } from "./i18n.js";
 
 /** Renders a FastAPI error body's `detail` as a string.
  *
@@ -68,7 +69,15 @@ export async function api(path, options) {
   // detail in favour of the generic "Locked" message (UAT U20). Stripped
   // before the options object reaches fetch().
   const { skipLock, ...fetchOptions } = options || {};
-  const res = await fetch(path, fetchOptions);
+  let res;
+  try {
+    res = await fetch(path, fetchOptions);
+  } catch (err) {
+    // The browser's own text ("Failed to fetch", "Load failed", "NetworkError...")
+    // names no cause a person can act on. `offline` lets a caller tell this from
+    // an HTTP error, which always carries a `status` (UAT #14).
+    throw Object.assign(new Error(t("common.networkDown")), { offline: true, cause: err });
+  }
   if (res.status === 401 && skipLock) {
     throw withStatus(new Error(await _detailOr(res, "Locked")), 401);
   }

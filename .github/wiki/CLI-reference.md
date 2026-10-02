@@ -171,6 +171,7 @@ Sign in to a provider (Google via Chrome, or Apple interactively).
 | --sign-out |  | Remove this provider's saved sign-in credential and exit. |
 | --token |  | Google: sign in in your own Chrome and paste the oauth_token cookie (or set FINDPLUS_OAUTH_TOKEN). |
 | --unlock |  | Google: unlock encrypted locations with your Android phone's screen lock, in a Find+ Chrome window. |
+| --helper |  | Google: sign in through the Find+ helper in your own Chrome (the default in a terminal when the service is running), or skip it and use the separate window. |
 | --provider | google-find-hub | Provider to authenticate: google-find-hub or apple-find-my |
 
 ## findplus config get
@@ -567,6 +568,19 @@ Stop the background service. Unit files are kept; the next login (or
 Set the dashboard theme without opening the UI.
 
 **Usage:** `findplus theme [OPTIONS]`
+
+## findplus trips
+Show stays, trips and gaps for one device. Distances are approximate.
+
+**Usage:** `findplus trips [OPTIONS]`
+
+| option | default | help |
+|---|---|---|
+| --device-id |  | Device to show. Optional when one is tracked. |
+| --date |  | Local date, YYYY-MM-DD. Default today. |
+| --days | 1 | Number of days from --date. |
+| --timezone |  | IANA zone. Default this computer's. |
+| --json |  | Print the API payload as JSON. |
 
 ## findplus uninstall
 Unload and delete the service and watchdog unit files, and daemon.json.

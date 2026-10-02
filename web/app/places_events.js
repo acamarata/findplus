@@ -24,6 +24,9 @@
 import { api } from "./api.js";
 import { state } from "./state.js";
 import { t } from "./i18n.js";
+import { labelMap, visibleDevices } from "./device_label.js";
+import { absoluteTime, relativeTime } from "./rel_time.js";
+import { paneError } from "./pane_error.js";
 
 const PAGE_SIZE = 20;
 const POLL_MS = 45000; // matches main.js's own status-refresh cadence
@@ -78,20 +81,11 @@ async function loadNotice() {
   }
 }
 
-/** "Sep 26, 7:00 AM EDT" -- date, time and zone abbreviation together so the
- * row reads unambiguously on its own (same shape alerts_deliveries.js's own
- * fmtDeliveryTime() uses for the same reason, UAT6 N17). */
-function fmtLocalWithZone(iso) {
-  const d = new Date(iso);
-  const datePart = d.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-  const zone = d.toLocaleTimeString([], { timeZoneName: "short" }).split(" ").pop();
-  return `${datePart} ${zone}`;
-}
-
-function deviceEventText(row) {
+function deviceEventText(row, labels) {
   const verb = row.event_type === "ENTER" ? t("places.events.entered") : t("places.events.left");
   return t("places.events.deviceLine", {
-    device: row.device_name || row.device_id,
+    // The shared label helper, so two trackers with one name read apart.
+    device: labels.get(row.device_id) || row.device_name || row.device_id,
     verb,
     place: row.place_name,
   });
@@ -109,9 +103,10 @@ async function fetchEvents(limit) {
     api(`/api/places/events?limit=${limit}`),
     api(`/api/groups/events?limit=${limit}`),
   ]);
+  const labels = labelMap(visibleDevices());
   const merged = [
-    ...placeRows.map((r) => ({ time: r.observed_at, text: deviceEventText(r) })),
-    ...groupRows.map((r) => ({ time: r.observed_at, text: groupEventText(r) })),
+    ...placeRows.map((r) => ({ time: r.observed_at, text: deviceEventText(r, labels), kind: r.event_type })),
+    ...groupRows.map((r) => ({ time: r.observed_at, text: groupEventText(r), kind: r.event_type })),
   ];
   merged.sort((a, b) => new Date(b.time) - new Date(a.time));
   return merged.slice(0, limit);
@@ -120,14 +115,29 @@ async function fetchEvents(limit) {
 function renderRow(entry) {
   const li = document.createElement("li");
   li.className = "fp-events-row";
-  const time = document.createElement("span");
-  time.className = "fp-events-time";
-  time.textContent = fmtLocalWithZone(entry.time);
+  if (entry.kind) li.dataset.kind = String(entry.kind).toLowerCase();
   const text = document.createElement("span");
   text.className = "fp-events-text";
   text.textContent = entry.text;
-  li.append(time, text);
+  // Relative first ("12 minutes ago"); the exact time is the hover title and
+  // the machine-readable datetime, so nothing is lost.
+  const time = document.createElement("time");
+  time.className = "fp-events-time";
+  time.dateTime = entry.time;
+  time.title = absoluteTime(entry.time);
+  time.textContent = relativeTime(entry.time);
+  li.append(text, time);
   return li;
+}
+
+/** A failed load says so, with Retry, instead of leaving the old rows or nothing. */
+function showError(err) {
+  if (!listEl) return;
+  if (emptyEl) emptyEl.hidden = true;
+  if (moreBtn) moreBtn.hidden = true;
+  listEl.replaceChildren(
+    paneError({ title: t("places.events.loadFailed"), message: err.message, onRetry: refresh }),
+  );
 }
 
 export async function refresh() {
@@ -135,8 +145,10 @@ export async function refresh() {
   let rows;
   try {
     rows = await fetchEvents(shown);
-  } catch (_) {
-    return; // locked or unreachable; the next refresh (or the poll timer) retries
+  } catch (err) {
+    // Locked: api() already showed the lock screen, say nothing here.
+    if (err.message !== "Locked") showError(err);
+    return;
   }
   while (listEl.firstChild) listEl.removeChild(listEl.firstChild);
   if (rows.length === 0) {

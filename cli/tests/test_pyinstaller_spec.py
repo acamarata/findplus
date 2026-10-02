@@ -66,6 +66,13 @@ def test_the_dashboard_itself_still_ships() -> None:
     assert len([d for d in datas if d.startswith("findplus/db/migrations/")]) >= 8
 
 
+def test_the_chrome_helper_ships() -> None:
+    """The sidecar must carry the browser helper so "Show helper folder" works."""
+    datas = _expanded_datas()
+    assert "findplus/browser_helper/manifest.json" in datas
+    assert "findplus/browser_helper/background.js" in datas
+
+
 @pytest.mark.parametrize("spec_name", SPECS)
 def test_no_pycache_ships_from_any_tree(spec_name: str) -> None:
     """Local .pyc files are build-host junk; the vendored tree collected them too."""

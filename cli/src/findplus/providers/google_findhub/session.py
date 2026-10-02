@@ -56,6 +56,9 @@ def _drop_account_bound_keys() -> None:
 
 def finish_sign_in(email: str) -> str:
     """Log the finished sign-in (the account, never a token) and return the email."""
+    from .revoked import clear_revoked
+
+    clear_revoked()
     log.info("auth_complete", account=email, secrets_path=str(get_settings().secrets_file))
     return email
 

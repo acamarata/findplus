@@ -6,6 +6,98 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Adding a place now ends with "who should be told, and where": the alert-rule dialog opens with the
+  new place chosen. A place with no rule says "Not notifying anyone yet" in the Places list, with a
+  Set up an alert button.
+- The rule dialog writes the rule in plain words ("Tell me on Telegram when Sam Bag leaves
+  School."), lists what Save still needs, explains how a group decides, says why a channel is greyed
+  out, can send a real test message to the ticked channels, and shows what the rule would have sent
+  in the last 24 hours (`POST /api/alerts/rules/dry-run`, read-only).
+- Webhook has its own Send a test message now button. The Alerts tab opens with a strip of
+  connected channels and the rule count, Telegram setup lists its four steps, and the delivery log
+  has status and channel filters and pages 15 rows at a time.
+- Places: search and sort, coordinates and rule count on each card, a rule-count line when editing,
+  relative times in Recent arrivals and departures, and a note under the radius that very small
+  places can report late.
+
+### Changed
+- The geofence is accuracy-aware. A fix whose accuracy circle straddles the edge of a place is
+  uncertain and neither enters nor exits. Leaving needs a fix beyond the radius plus the larger of
+  its accuracy and half the radius (at least 50 m), confirmed as many times as the place asks. Find+
+  recommends a radius of at least 100 m.
+
+## [1.1.5] - 2026-10-01
+
+### Added
+- Google sign-in now leads with a single **Sign in with Google** button. Find+ opens Google's
+  sign-in in the Chrome you already use, and the new open-source **Find+ helper for Chrome**
+  extension (`browser-helper/`) passes the sign-in token and the end-to-end unlock keys to Find+
+  on 127.0.0.1. You land on a "Signed in. You can close this tab." page and the card advances on
+  its own. The helper talks only to Google and to 127.0.0.1, with no analytics and no remote
+  code. A one-time "Add the helper to Chrome" step (Show helper folder, Open Chrome extensions,
+  Load unpacked) is built into the card, and the helper ships inside the app. The older paste
+  flow and the separate-window flow move under "Other ways to sign in". New endpoints:
+  `POST /api/auth/google/helper/{begin,unlock-begin,token,unlock,seen,reveal,open-extensions}`.
+  The two ingest routes accept only the pinned extension origin and a single-use state.
+- Groundwork to publish the helper on the Chrome Web Store: a keyless store-zip build
+  (`packaging/scripts/build-chrome-helper.sh`), a listing kit and privacy policy, and a
+  generated icon and promo tile.
+- `update-app.sh` (a release asset): update the macOS app while it is running. It quits Find+ and its
+  daemon, verifies the dmg checksum, swaps the app and starts it again; your data is untouched.
+  The checksum catches a corrupted download. It does not prove who published the release.
+- The dashboard has an **Unlock** action, and its status refreshes by itself and polls at once
+  after you act.
+- When the Chrome helper is detected, **Unlock encrypted locations** and `findplus auth` use it
+  too; the separate Find+ Chrome window stays as the other way.
+- The groups page explains why a group is empty or locked, and lists devices that are not
+  tracked.
+- `install.sh --help` prints usage. The Homebrew caveats, README and Install page now mention the
+  one-time Chrome helper step for every install route.
+- The macOS app bundle now ships a notices file with the licences of the packages inside it.
+  Leaflet's licence text sits next to its vendored copy.
+
+### Changed
+- Group names are trimmed and compared without regard to case, so "Family" and "family" no longer
+  both exist.
+- JSON, KML and CSV exports label distances as approximate.
+- `update-app.sh` restarts the login-service daemon after it swaps the app.
+- The helper sign-in leads in the README and wiki; the paste route is marked as the fallback.
+- Release builds on a tag now fail rather than ship an unsigned app. Only the signed Apple Silicon
+  dmg is attached to a release. CI runs with read-only token permissions by default and scans for
+  secrets with gitleaks.
+
+- The Chrome helper only talks to Find+ on port 8647 (checked against `/api/health`), forgets a
+  pending sign-in after 10 minutes, and only moves the tab that started the flow.
+- Devices that share a name get a short id suffix in pickers, group notes, place events and
+  export file names.
+
+### Fixed
+- Groups saved by older versions with case-variant or very long names can be edited again, and a
+  member that is no longer tracked can be removed from a group.
+- Poll Now while signed out ends in seconds and says why. Trackers Find Hub has no newer sighting
+  for are listed as "no recent sighting", not as errors, and the banner no longer claims they
+  "reported the same place".
+- A failed helper hand-off shows its reason on the card and can be retried; "Switch Google
+  account" waits for the new sign-in instead of finishing on the old one.
+- Disconnect cancels a running sign-in or unlock, so a late job cannot sign you back in.
+- The timeline and Groups panes show an error with a Retry button instead of stale or blank
+  content, and timeline entries work from the keyboard.
+- `update-app.sh` checks the new app's signature and architecture, and rolls back if the swap
+  fails.
+- The unlock wait loop can be cancelled, times out, and ends cleanly.
+- The helper's token and unlock hand-off, and its "seen" ping, work while the app lock is on.
+- The unlock key is tagged with its Google account, and a key that belongs to another account is
+  refused.
+- Disconnect also empties the Google data held in the Find+ Chrome profile.
+- A revoked Google login now reads as signed out and offers a sign-in prompt.
+- A location report Find+ cannot decrypt counts as a failed poll, not as "no data".
+- Find+ no longer backs off when no Google traffic happened.
+- After you unlock encrypted locations or sign in, Find+ now polls straight away and clears its
+  retry delay. Before, the dashboard stayed empty for up to ten minutes after a successful unlock.
+- The dashboard map no longer renders into a small corner box when the window or layout changes
+  size after start-up; it re-measures whenever its area resizes.
+
 ## [1.1.4] - 2026-09-27
 
 ### Added

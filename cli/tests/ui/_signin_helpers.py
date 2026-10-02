@@ -61,6 +61,17 @@ async def _post_setting(page, base_url, key, value):
     )
 
 
+async def reveal_other_ways(page) -> None:
+    """Open the Google card's "Other ways to sign in" <details> so the demoted
+    paste / separate-window controls are interactable in tests that target them.
+    The primary "Sign in with Google" button lives outside it and needs no open.
+    """
+    await page.evaluate(
+        "() => document.querySelectorAll('details.fp-signin-other')"
+        ".forEach((d) => { d.open = true; })"
+    )
+
+
 async def open_wizard_signin(page, base_url, status: dict | None = None) -> None:
     """Land on the wizard's sign-in step with GET /api/auth/status stubbed."""
     await page.route("**/api/auth/status", reply(status or status_body()))
@@ -68,6 +79,7 @@ async def open_wizard_signin(page, base_url, status: dict | None = None) -> None
     await _post_setting(page, base_url, "onboarding.last_step", "signin")
     await page.goto(base_url + "/#/setup")
     await page.wait_for_selector("#fp-setup-google-status:not(:empty)", timeout=15000)
+    await reveal_other_ways(page)
 
 
 async def restore_onboarding(page, base_url) -> None:
@@ -81,6 +93,7 @@ async def open_settings_signin(page, base_url, status: dict | None = None) -> No
     await page.goto(base_url + "/#dashboard")
     await page.click("#btn-settings")
     await page.wait_for_selector("#fp-auth-google-status:not(:empty)", timeout=15000)
+    await reveal_other_ways(page)
 
 
 async def wait_text(page, selector: str, text: str, timeout: int = 15000) -> None:

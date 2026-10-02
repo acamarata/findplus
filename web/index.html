@@ -9,38 +9,30 @@
 <link rel="apple-touch-icon" href="/static/icon.svg">
 <meta name="theme-color" content="#11141a">
 <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
+<!-- Stylesheets split at the 300-line cap (PRI rule 7), in cascade order: base, tabs/badges,
+     dialogs and pickers, settings and sign-in, wizard, places, confirm dialog, alerts, live status,
+     dashboard polish. responsive.css loads last on purpose: its focus ring, screen-reader helper
+     and phone tier override everything above at equal specificity. -->
 <link rel="stylesheet" href="/static/style.css">
-<!-- The tabs/groups/alerts/provider-badge rules split off style.css, which
-     reached the 300-line cap again (PRI rule 7). Same cascade position as
-     the file it split from -- nothing here overrides it. -->
 <link rel="stylesheet" href="/static/style-tabs.css">
-<!-- The dialog, picker, badge and group-card rules. Their own file because
-     style.css had reached its 300-line cap with nowhere left to write. -->
 <link rel="stylesheet" href="/static/components.css">
-<!-- The settings/sign-in, add-rule dialog, table-scroll and places-list rules
-     split off components.css, which reached the 300-line cap again (PRI
-     rule 7). Same cascade position as the file it split from. -->
 <link rel="stylesheet" href="/static/components-panels.css">
-<!-- Settings dialog only (UAT6 N29): a unit-beside-its-input group and a
-     fixed label column, kept out of components-panels.css to avoid pushing
-     it past the 300-line cap. Before responsive.css so the phone tier wins. -->
 <link rel="stylesheet" href="/static/settings.css">
-<!-- The setup wizard and the shared sign-in cards (wizard step 2 and
-     Settings > Sign-in). Before responsive.css so the phone tier still wins. -->
 <link rel="stylesheet" href="/static/setup.css">
+<link rel="stylesheet" href="/static/setup-steps.css">
+<!-- Sign-in cards: action-needed states (revoked, locked). -->
+<link rel="stylesheet" href="/static/signin.css">
+<!-- Groups tab: card meta lines, member Track buttons, picker marks. -->
+<link rel="stylesheet" href="/static/groups.css">
 <!-- Places tab additions (pick-on-map, avatar/icon-picker polish, the
      arrivals/departures panel): components.css and components-panels.css
      belong to other in-flight fixes this round, so this stays its own file. -->
 <link rel="stylesheet" href="/static/places-events.css">
-<!-- The shared confirm/alert dialog (UAT6-N21): its own file so it needs no
-     shared edit to components.css while WP-D was editing that file too. -->
 <link rel="stylesheet" href="/static/confirm-dialog.css">
-<!-- Alerts tab additions (Telegram target chips, rule-dialog polish): its
-     own file so it needs no shared edit to components.css/components-panels.css
-     while other in-flight fixes this round were editing those files too. -->
 <link rel="stylesheet" href="/static/alerts.css">
-<!-- Loaded last on purpose: every rule in it overrides one above at equal
-     specificity (focus ring, screen-reader helper, phone tier). -->
+<link rel="stylesheet" href="/static/live.css">
+<link rel="stylesheet" href="/static/dashboard.css">
+<link rel="stylesheet" href="/static/trips.css">
 <link rel="stylesheet" href="/static/responsive.css">
 </head>
 <body>
@@ -63,12 +55,14 @@
              data-i18n-attr="placeholder:common.pin,aria-label:common.pin">
       <button type="submit" class="btn" id="lock-submit" data-i18n="common.unlock">Unlock</button>
     </form>
+    <label class="lock-show"><input type="checkbox" id="lock-show-pin">
+      <span data-i18n="common.showPin">Show PIN</span></label>
     <p id="lock-error" class="lock-error" role="alert"></p>
     <!-- UAT6-N07: the recovery path in words first; the terminal command is
          only the secondary "Advanced" line. Shown after a wrong PIN. -->
     <details id="lock-forgot" class="lock-forgot" hidden>
       <summary data-i18n="common.lockForgotSummary">Forgot your PIN?</summary>
-      <p data-i18n="common.lockForgotBody">If you remember it later, you can change or remove it in Settings, under App lock. A forgotten PIN can only be removed on this computer itself.</p>
+      <p data-i18n="common.lockForgotBody">Find+ cannot recover a forgotten PIN for you. If you remember it later, you can change or remove it in Settings, under App lock. If you cannot, the PIN can only be removed on this computer itself.</p>
       <p class="lock-forgot-advanced" data-i18n="common.lockForgotAdvanced">Advanced: open Terminal and run findplus lock reset, then reload this page.</p>
     </details>
     <!-- honesty.LOCK_NOT_ENCRYPTION, from the PUBLIC /api/lock/requirements.
@@ -129,6 +123,15 @@
   <div class="card"><span class="label" data-i18n="common.cardPollLabel">Last successful poll</span><strong id="card-poll">—</strong><span class="sub" id="card-poll-status">—</span></div>
   <div class="card"><span class="label" data-i18n="common.cardTodayLabel">Observations today</span><strong id="card-today">—</strong><span class="sub" id="card-total">—</span></div>
 </section>
+<details class="cards-help" id="cards-help">
+  <summary data-i18n="common.cardsHelpSummary">What do these four boxes mean?</summary>
+  <dl>
+    <dt data-i18n="common.cardsHelpObservedTerm">Last observed</dt><dd data-i18n="common.cardsHelpObservedBody"></dd>
+    <dt data-i18n="common.cardsHelpFetchedTerm">Retrieved by this computer</dt><dd data-i18n="common.cardsHelpFetchedBody"></dd>
+    <dt data-i18n="common.cardsHelpPollTerm">Last successful poll</dt><dd data-i18n="common.cardsHelpPollBody"></dd>
+    <dt data-i18n="common.cardsHelpTodayTerm">Observations today</dt><dd data-i18n="common.cardsHelpTodayBody"></dd>
+  </dl>
+</details>
 
 <div id="alert" class="alert hidden" role="status" aria-live="polite"></div>
 
@@ -159,6 +162,9 @@
           data-i18n-attr="title:common.nextDay,aria-label:common.nextDay">›</button>
 
   <label class="toggle"><input type="checkbox" id="toggle-movement"> <span data-i18n="common.movementOnly">Movement only</span></label>
+  <span class="roads-group" id="roads-group" hidden>
+    <label class="toggle"><input type="checkbox" id="toggle-roads" disabled> <span data-i18n="trips.roads">Draw likely roads</span></label>
+  </span>
 
   <span class="spacer"></span>
 
@@ -186,6 +192,7 @@
     </span>
     <button class="btn btn-secondary" id="btn-export" data-i18n="common.download">Download</button>
   </span>
+  <p class="roads-note" id="roads-note" hidden></p>
 </section>
 </div><!-- /status-region -->
 
@@ -197,7 +204,7 @@
      unchanged, so main.js/tabs_a11y.js's `.fp-tabs` selectors still resolve
      the same element set. Only the active tab is a Tab stop; ArrowLeft/
      Right/Home/End move focus between the other three. -->
-<nav aria-label="Sections" data-i18n-attr="aria-label:common.sectionsNavLabel">
+<nav class="fp-topnav" aria-label="Sections" data-i18n-attr="aria-label:common.sectionsNavLabel">
   <div class="fp-tabs" role="tablist">
     <button class="fp-tab active" role="tab" id="fp-tab-dashboard" aria-selected="true" aria-controls="tab-dashboard" tabindex="0" data-tab="dashboard" data-i18n="common.tabDashboard">Dashboard</button>
     <button class="fp-tab" role="tab" id="fp-tab-places" aria-selected="false" aria-controls="tab-places" tabindex="-1" data-tab="places" data-i18n="common.tabPlaces">Places</button>
@@ -206,11 +213,7 @@
   </div>
 </nav>
 
-<!-- U31: a visible, focusable link past the map so a keyboard user reaches
-     the timeline in one Tab press instead of walking every marker (map
-     markers/paths also stop being Tab stops themselves — see map.js
-     `keyboard: false`). Off-screen until focused, matching .sr-only's own
-     technique but visible on focus (components.css). -->
+<!-- U31: a visible-on-focus link past the map, so a keyboard user reaches the timeline in one Tab. -->
 <a href="#timeline-pane" class="fp-skip-map" data-i18n="common.skipMap">Skip map, go to timeline</a>
 
 <main class="layout">
@@ -267,6 +270,7 @@
     </p>
     <div id="device-list" class="device-list"></div>
     <p class="modal-rate" id="device-rate"></p>
+    <p class="fp-dialog-error" id="device-modal-error" role="alert"></p>
     <footer class="modal-foot">
       <button class="btn btn-secondary" id="btn-refresh-devices" data-i18n="devices.refreshProvidersLabel">Refresh from your providers</button>
       <span class="spacer"></span>

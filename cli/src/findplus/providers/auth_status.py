@@ -28,10 +28,13 @@ def _needs(name: str) -> list[str]:
     missing: list[str] = []
     if name == _GOOGLE:
         from findplus.cli.doctor import check_chrome
-        from findplus.providers.google_findhub.bootstrap import needs_shared_key
+        from findplus.providers.google_findhub.bootstrap import is_session_revoked, needs_shared_key
 
         if not check_chrome().passed:
             missing.append("chrome")
+        # Google refused the saved login (revoked or expired): sign in again.
+        if is_session_revoked():
+            missing.append("reauth")
         # Signed in but the E2EE key is still locked: the wizard and Settings
         # show the "Unlock encrypted locations" step until it is done.
         if needs_shared_key():
@@ -69,4 +72,17 @@ def build_auth_status() -> dict[str, Any]:
                 "needs": needs,
             }
         )
-    return {"providers": providers}
+    try:
+        from findplus.providers.google_findhub import helper_state
+
+        google_helper_installed = helper_state.helper_seen()
+        generation = helper_state.signin_generation()
+        outcome = helper_state.last_outcome()
+    except Exception:
+        google_helper_installed, generation, outcome = False, 0, None
+    return {
+        "providers": providers,
+        "google_helper_installed": google_helper_installed,
+        "google_signin_generation": generation,
+        "google_helper_outcome": outcome,
+    }

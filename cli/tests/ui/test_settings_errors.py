@@ -18,7 +18,11 @@ PIN = "864213"
 
 async def _open_settings(page, base_url) -> None:
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map.leaflet-container")
+    # Not just #map.leaflet-container: the toolbar is live well before
+    # bootDashboard() issues its own loadSettings(), and that call landing
+    # after a field edit below reset the poll field and cleared its error
+    # (timed out once under load). data-fp-ready is set once boot is done.
+    await page.wait_for_selector("#app-shell[data-fp-ready='dashboard']")
     await page.click("#btn-settings")
     # openSettings() unhides first and fills afterwards; its loadSettings()
     # resets the poll field and clears its error, so wait for the fills.
@@ -220,3 +224,33 @@ async def test_short_pin_never_reaches_the_server(page, base_url):
     await page.wait_for_selector("#setting-new-pin-error:not(.hidden)")
     assert "at least 6" in await page.locator("#setting-new-pin-error").inner_text()
     assert calls == [], "a too-short PIN must never reach the server"
+
+
+async def test_wrong_current_pin_reports_beside_the_fields(page, base_url):
+    """UAT #4: Remove PIN with a wrong current PIN reported "Current PIN is
+    incorrect." in #settings-message, cut off at the top of the scrolled dialog,
+    far from the field. It now shows in the line between the fields and the
+    buttons, marks Current PIN invalid, and leaves the top message empty."""
+    set_resp = await page.request.post(
+        base_url + "/api/settings/pin",
+        data=json.dumps({"new_pin": PIN}),
+        headers={"Content-Type": "application/json"},
+    )
+    assert set_resp.ok, await set_resp.text()
+    try:
+        await _open_settings(page, base_url)
+        await page.wait_for_selector("#lock-is-set:not(.hidden)")
+        await page.fill("#current-pin", "000000")
+        await page.click("#btn-remove-pin")
+        line = page.locator("#setting-change-pin-error")
+        await line.wait_for(state="visible")
+        # The PIN is checked before any confirmation is asked.
+        assert await page.locator("#fp-confirm-dialog[open]").count() == 0
+        assert "incorrect" in (await line.inner_text()).lower()
+        assert await page.get_attribute("#current-pin", "aria-invalid") == "true"
+        assert await page.locator("#settings-message").inner_text() == ""
+        await page.fill("#current-pin", "")
+        await page.click("#btn-change-pin")
+        assert await page.get_attribute("#current-pin", "aria-invalid") == "false"
+    finally:
+        await _clear_pin_if_configured(page, base_url)

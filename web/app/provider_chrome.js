@@ -29,9 +29,9 @@ import { t } from "./i18n.js";
  * queried. A mixed or unknown set falls back to neutral wording rather than
  * picking a side.
  */
-export function providerWording() {
+export function providerWording({ devices } = {}) {
   const providers = new Set(
-    (state.devices || []).filter((d) => d.is_tracked !== false).map((d) => d.provider)
+    (devices || (state.devices || []).filter((d) => d.is_tracked !== false)).map((d) => d.provider)
   );
   const apple = providers.has("apple-find-my");
   const other = [...providers].some((p) => p && p !== "apple-find-my");
@@ -47,6 +47,21 @@ export function providerWording() {
 }
 
 /**
+ * Sync the "Last observed" card label. It names the network only when every
+ * tracked tracker uses the same one; a mixed set reads plain. With nothing
+ * tracked the label is left as it is: it used to flip to "by your providers"
+ * whenever the tracked count hit zero (UAT note), which read as another card.
+ */
+function syncObservedLabel(el) {
+  const tracked = (state.devices || []).filter((d) => d.is_tracked !== false);
+  if (!tracked.length && el.textContent) return;
+  const w = providerWording({ devices: tracked });
+  el.textContent = w.network === t("devices.wordingProviders")
+    ? t("common.cardObservedLabel")
+    : t("devices.cardObservedFor", { network: w.network });
+}
+
+/**
  * Rewrite the provider-named chrome for the current device set.
  *
  * These strings live in the markup because they are there before any device
@@ -57,7 +72,7 @@ export function syncProviderChrome() {
   const poll = $("btn-poll");
   if (poll) poll.title = t("devices.pollTitleFor", { requests: w.requests });
   const observed = $("card-observed-label");
-  if (observed) observed.textContent = t("devices.cardObservedFor", { network: w.network });
+  if (observed) syncObservedLabel(observed);
   // UAT6-N14: the heading read "Devices on this Google account" above an
   // Apple AirTag, and the note "one your providers request". One provider-
   // neutral heading and note for every device set, rather than a noun phrase

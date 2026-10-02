@@ -68,6 +68,10 @@
   font-size: 11px;
   padding: 1px 6px;
   box-shadow: none;
+  /* UAT #18: a 60-character name ran past the map edge and clipped. */
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .fp-place-tooltip::before {
   display: none; /* no arrow needed on a label centered inside its own circle */
@@ -143,14 +147,19 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 6px 8px;
+  padding: 6px 8px 6px 10px;
+  border-left: 3px solid var(--muted);
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--panel-2);
 }
+/* Arrivals and departures get a coloured edge so a long list scans at a glance. */
+.fp-events-row[data-kind="enter"] { border-left-color: var(--ok, #2f9e5f); }
+.fp-events-row[data-kind="exit"] { border-left-color: var(--warn, #c77a1a); }
 .fp-events-time {
   font-size: 11px;
   color: var(--muted);
+  cursor: help;
 }
 .fp-events-text {
   font-size: 13px;
@@ -159,3 +168,20 @@
 #fp-places-events-more {
   margin-top: 8px;
 }
+
+/* --- Places list: search and sort bar ------------------------------------- */
+.fp-places-tools { display: flex; gap: 8px; margin: 0 0 8px; }
+.fp-places-tools[hidden] { display: none; }
+.fp-places-tools input[type="search"] { flex: 1 1 auto; min-width: 0; }
+.fp-places-tools select { flex: 0 0 auto; max-width: 45%; }
+
+/* --- Places list: a place that messages nobody says so -------------------- */
+.fp-place-card {
+  grid-template-areas: "dot name edit del" ". meta meta meta" ". who who who" ". notify notify notify";
+}
+.fp-place-card > .fp-place-notify { grid-area: notify; }
+.fp-place-notify {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+  font-size: 12px; font-weight: 600; color: var(--text);
+}
+.fp-place-notify:empty { display: none; }

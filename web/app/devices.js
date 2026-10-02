@@ -8,6 +8,7 @@
 "use strict";
 
 import { $, state, colorFor, displayName, showAlert } from "./state.js";
+import { labelMap, tailOf } from "./device_label.js";
 import { api } from "./api.js";
 import { applyHashRoute, reload } from "./main.js";
 import { loadPresence } from "./places.js";
@@ -16,6 +17,8 @@ import { renderBadge } from "./components/badge.js";
 import { initDialog, openEditDialog } from "./devices_dialog.js";
 import { trapFocus } from "./components/dialog-trap.js";
 import { providerWording, syncProviderChrome, syncProviderNotice } from "./provider_chrome.js";
+import { loadStatus } from "./status_view.js";
+import { applyView, decorateRow, mountToolbar, resetSearch, setVisibleChecked } from "./devices_tools.js";
 import { pollNow, refreshFromProviders, saveTrackedDevices } from "./devices_actions.js";
 
 /** The focus trap for #device-modal while it is open, or null. */
@@ -50,12 +53,14 @@ export function renderDeviceFilter() {
   const current = state.deviceFilter;
   while (select.firstChild) select.removeChild(select.firstChild);
   select.appendChild(allTrackedOption());
-  state.devices
-    .filter((d) => d.is_tracked || d.observation_count > 0)
-    .forEach((d) => {
+  const shownDevices = state.devices.filter((d) => d.is_tracked || d.observation_count > 0);
+  const labels = labelMap(shownDevices);
+  shownDevices.forEach((d) => {
       const opt = document.createElement("option");
       opt.value = d.device_id;
-      const full = displayName(d) + " (" + providerLabel(d.provider) + ")" + (d.is_tracked ? "" : t("devices.notPolledSuffix"));
+      // UAT #7: the shared label adds an id tail only when two names clash.
+      const tail = tailOf(d, labels);
+      const full = displayName(d) + tail + " (" + providerLabel(d.provider) + ")" + (d.is_tracked ? "" : t("devices.notPolledSuffix"));
       // UAT6-N09: a <select> is as wide as its longest option, and CSS cannot
       // ellipsize inside the open list. Cut long names here; the title keeps
       // the whole thing for hover.
@@ -130,6 +135,7 @@ function deviceRow(d) {
   const meta = el("span", "d-meta");
   meta.append(obs, provider);
   row.append(label, editButton(d), meta);
+  decorateRow(row, d);
   return row;
 }
 
@@ -149,6 +155,9 @@ export function renderDeviceModal() {
   // removed `hidden`, so the rows sat in the DOM invisible (CI-2, CI run
   // 35530635344: the row resolved but was hidden through 61 retries).
   try {
+    mountToolbar();
+    resetSearch();
+    applyView();
     updateModalRate();
   } catch (err) {
     console.error("updateModalRate failed", err);
@@ -199,7 +208,9 @@ export { providerWording, syncProviderChrome, syncProviderNotice } from "./provi
  */
 export async function openDevices() {
   try {
-    await loadDevices();
+    // Fresh sightings for the "last seen" text; a failed status read only
+    // leaves that text on its last values.
+    await Promise.all([loadDevices(), loadStatus().catch(() => null)]);
     renderDeviceModal();
   } catch (err) {
     showAlert(t("devices.loadFailed", { message: err.message }), "err");
@@ -247,11 +258,11 @@ export function wireDeviceControls() {
   });
 
   $("btn-track-all").addEventListener("click", () => {
-    document.querySelectorAll("#device-list input").forEach((i) => { i.checked = true; });
+    setVisibleChecked(true);
     updateModalRate();
   });
   $("btn-track-none").addEventListener("click", () => {
-    document.querySelectorAll("#device-list input").forEach((i) => { i.checked = false; });
+    setVisibleChecked(false);
     updateModalRate();
   });
 

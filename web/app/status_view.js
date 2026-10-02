@@ -17,11 +17,14 @@
 import { $, state, fmtTime, fmtDuration, showAlert } from "./state.js";
 import { api } from "./api.js";
 import { t, plural } from "./i18n.js";
-import { anyProviderSignedIn, failedPollNotice, isFailedPoll, openSignin, shortStatus } from "./poll_status.js";
+import { anyProviderSignedIn, failedPollNotice, isFailedPoll, openSignin, openUnlock, shortStatus } from "./poll_status.js";
+import { awaitingActive, bannerRun, noSightingCount, pollingMessage, zeroNewMessage } from "./poll_cycle.js";
+import { refreshEmptyPane } from "./dashboard_empty.js";
+import { syncMapOverlay } from "./map_empty.js";
 import { syncProviderChrome } from "./provider_chrome.js";
 
 /** The topbar device name: the filtered tracker, or how many are tracked.
- * U30: the title tooltip spells out what "~72/hr" counts. */
+ * The text says how often Find+ asks; the tooltip spells out the request rate. */
 function renderDeviceName(s) {
   const tracked = s.devices.filter((d) => d.is_tracked);
   const el = $("device-name");
@@ -31,7 +34,7 @@ function renderDeviceName(s) {
     return;
   }
   if (!tracked.length) { el.textContent = t("common.noDevicesTracked"); return; }
-  el.textContent = plural("common.devicesTracked", tracked.length, { n: tracked.length, rate: s.requests_per_hour });
+  el.textContent = plural("common.devicesTracked", tracked.length, { n: tracked.length, rate: s.requests_per_hour, interval: s.poll_interval_minutes });
   el.title = t("common.devicesTrackedRateHint", { rate: s.requests_per_hour });
 }
 
@@ -104,14 +107,21 @@ function renderCards(s) {
 
   const run = s.last_successful_poll;
   $("card-poll").textContent = run ? fmtTime(run.started_at_local) : empty;
-  $("card-poll-status").textContent = s.last_poll
+  const attempt = s.last_poll
     ? t("common.lastAttempt", { status: shortStatus(s.last_poll.status) })
     : t("common.noPollsYet");
+  // "last attempt: no recent sighting" already says it when that is the newest
+  // run; otherwise add how many trackers had nothing to report.
+  const silent = s.last_poll && s.last_poll.status === "no_location" ? "" : noSightingCount(s);
+  $("card-poll-status").textContent = silent ? `${attempt} · ${silent}` : attempt;
   $("card-today").textContent = String(s.observations_today);
   $("card-total").textContent = t("common.totalOnRecord", { total: s.observations_total });
 }
 
 const signinAction = () => ({ label: t("pollStatus.actionConnect"), run: () => openSignin() });
+const unlockAction = () => ({ label: t("pollStatus.actionUnlock"), run: () => openUnlock() });
+const retryAction = () => ({ label: t("pollStatus.actionRetry"), run: () => $("btn-poll").click() });
+const ACTIONS = { signin: signinAction, unlock: unlockAction, retry: retryAction };
 
 /** Nothing tracked: sign in first if nobody is, else pick devices.
  *
@@ -132,11 +142,17 @@ async function nothingTrackedBanner() {
   });
 }
 
-/** The banner, in priority order: a failed poll, nothing tracked, a stopped service. */
+/** The banner, in priority order: a poll under way, a failed poll, nothing
+ * tracked, a stopped service, then why the last poll found nothing new. */
 async function renderStatusAlert(s) {
-  if (isFailedPoll(s.last_poll)) {
-    const notice = failedPollNotice(s.last_poll);
-    showAlert(notice.message, "err", notice.action === "signin" ? { action: signinAction() } : {});
+  const waiting = awaitingActive(s);
+  const failed = bannerRun(s);
+  if (state.pollInFlight || waiting) {
+    showAlert(pollingMessage(s), "info", { busy: true, hint: t("live.pollingHint") });
+  } else if (failed) {
+    const notice = failedPollNotice(failed);
+    const make = ACTIONS[notice.action];
+    showAlert(notice.message, "err", make ? { action: make() } : {});
   } else if (!s.tracked_count) {
     await nothingTrackedBanner();
   } else if (!s.poller_running) {
@@ -145,10 +161,12 @@ async function renderStatusAlert(s) {
       hint: t("pollStatus.serviceStaleHint"),
     });
   } else {
-    showAlert(null);
+    const why = zeroNewMessage(s);
+    showAlert(why, "info");
   }
 }
 
+/** Fetch and render /api/status; resolves with the body, or null on failure. */
 export async function loadStatus() {
   // A lock (state.lockGeneration bump) mid-fetch must cancel the render
   // below, same guard as timeline.js's loadDay() (PROMPT.md §2 invariant 11).
@@ -156,13 +174,21 @@ export async function loadStatus() {
   try {
     const query = state.deviceFilter ? `?device_id=${encodeURIComponent(state.deviceFilter)}` : "";
     const s = await api(`/api/status${query}`);
-    if (state.lockGeneration !== gen) return;
+    if (state.lockGeneration !== gen) return null;
+    state.status = s;
     renderDeviceName(s);
     renderPollerDot(s);
     renderCards(s);
     syncTrackingActions(s);
     await renderStatusAlert(s);
+    refreshEmptyPane();
+    syncMapOverlay();
+    return s;
   } catch (err) {
-    showAlert(t("common.apiUnreachable", { message: err.message }), "err");
+    if (state.lockGeneration !== gen) return null; // the lock's own 401, not an outage
+    showAlert(t("common.apiUnreachable", { message: err.message }), "err", {
+      action: { label: t("common.retry"), run: () => loadStatus() },
+    });
+    return null;
   }
 }

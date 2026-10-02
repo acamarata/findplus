@@ -32,6 +32,8 @@ pub fn open_main(app: &AppHandle) {
     if refuse_if_another_app(app) {
         return;
     }
+    // Someone asked for the dashboard: a splash still saying "Starting" is stale.
+    close_splash(app);
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.show();
         let _ = win.set_focus();
@@ -65,6 +67,8 @@ pub fn open_settings(app: &AppHandle) {
     if refuse_if_another_app(app) {
         return;
     }
+    // Someone asked for the dashboard: a splash still saying "Starting" is stale.
+    close_splash(app);
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.eval("window.location.hash = '#settings'");
         let _ = win.show();
@@ -96,6 +100,8 @@ pub fn open_places(app: &AppHandle) {
     if refuse_if_another_app(app) {
         return;
     }
+    // Someone asked for the dashboard: a splash still saying "Starting" is stale.
+    close_splash(app);
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.eval("window.location.hash = '#places'");
         let _ = win.show();
@@ -132,6 +138,19 @@ pub fn open_splash(app: &AppHandle) {
         .decorations(false)
         .always_on_top(true)
         .build();
+}
+
+/// Switch the splash from "Starting..." to its "could not start" state. A no-op
+/// when there is no splash. The page has no script of its own, so this flips
+/// the three elements it already carries.
+pub fn show_splash_error(app: &AppHandle) {
+    if let Some(win) = app.get_webview_window("splash") {
+        let _ = win.eval(
+            "document.getElementById('spinner').classList.add('hidden');\
+             document.getElementById('status').textContent='Still starting Find+...';\
+             document.getElementById('error').classList.remove('hidden');",
+        );
+    }
 }
 
 /// Close the splash window, if one is open. A no-op otherwise.

@@ -8,7 +8,7 @@
  *              names the provider behind it, and says which in-app action
  *              fixes it.
  * Inputs     : A serialized poll run ({status, device_id}) and state.devices.
- * Outputs    : Catalog sentences and an action id ("signin" or null).
+ * Outputs    : Catalog sentences and an action id ("signin", "unlock" or null).
  * Constraints: Never shows error_message: it is a server-side exception
  *              string, not user copy. Provider names are trademarks and are
  *              not translated.
@@ -37,6 +37,7 @@ export function shortStatus(code) {
     case "needs_shared_key": return t("pollStatus.locked");
     case "provider_unavailable": return t("pollStatus.unavailable");
     case "timeout": return t("pollStatus.timeout");
+    case "decrypt_failed": return t("pollStatus.cannotRead");
     default: return t("pollStatus.failed");
   }
 }
@@ -56,8 +57,9 @@ function providerNameFor(deviceId) {
 /**
  * The banner sentence for a failed run, plus the action that fixes it.
  *
- * Returns {message, action}; action is "signin" when signing in is the fix
- * and null when the right move is to wait for the next poll.
+ * Returns {message, action}; action is "signin" when signing in is the fix,
+ * "unlock" when the account is signed in but its encrypted locations are not
+ * unlocked yet, and "retry" (poll again now) for a timeout or an unknown failure.
  */
 export function failedPollNotice(run) {
   const provider = providerNameFor(run.device_id);
@@ -66,13 +68,15 @@ export function failedPollNotice(run) {
     case "auth_error":
       return { message: t("pollStatus.bannerSignedOut", { provider }), action: "signin" };
     case "needs_shared_key":
-      return { message: t("pollStatus.bannerNeedsUnlock", { provider }), action: "signin" };
+      return { message: t("pollStatus.bannerNeedsUnlock", { provider }), action: "unlock" };
     case "provider_unavailable":
       return { message: t("pollStatus.bannerUnavailable", { provider }), action: "signin" };
     case "timeout":
-      return { message: t("pollStatus.bannerTimeout", { provider }), action: null };
+      return { message: t("pollStatus.bannerTimeout", { provider }), action: "retry" };
+    case "decrypt_failed":
+      return { message: t("pollStatus.bannerCannotRead", { provider }), action: "signin" };
     default:
-      return { message: t("pollStatus.bannerFailed"), action: null };
+      return { message: t("pollStatus.bannerFailed"), action: "retry" };
   }
 }
 
@@ -99,6 +103,11 @@ export async function anyProviderSignedIn() {
   }
 }
 
+/** Forget the cached account answer (an account was just signed in or out). */
+export function resetSignedInCache() {
+  signedInCache = null;
+}
+
 /** Open Settings on its Sign-in section, the in-app answer to "not signed in". */
 export async function openSignin() {
   signedInCache = null;
@@ -106,4 +115,40 @@ export async function openSignin() {
   await settings.openSettings();
   const section = document.getElementById("fp-settings-signin");
   if (section) section.scrollIntoView({ block: "start" });
+}
+
+/** Resolve with the element once it exists and is not hidden, else null. */
+function whenVisible(id, ms) {
+  const deadline = Date.now() + ms;
+  return new Promise((resolve) => {
+    const look = () => {
+      const node = document.getElementById(id);
+      if (node && !node.hidden) return resolve(node);
+      if (Date.now() > deadline) return resolve(null);
+      setTimeout(look, 100);
+    };
+    look();
+  });
+}
+
+/**
+ * Open Settings straight on the Google "Unlock encrypted locations" step.
+ *
+ * The block renders only after Settings has read the sign-in status, so wait
+ * for it, bring it to the middle of the dialog and focus its button. Starting
+ * the unlock stays the user's click: it opens a Chrome window. If the block
+ * never shows (the account signed out meanwhile), the Sign-in section is the
+ * fallback, the same place openSignin() lands.
+ */
+export async function openUnlock() {
+  signedInCache = null;
+  const settings = await import("./settings.js");
+  await settings.openSettings();
+  const block = await whenVisible("fp-auth-google-unlock", 6000);
+  if (!block) {
+    document.getElementById("fp-settings-signin")?.scrollIntoView({ block: "start" });
+    return;
+  }
+  block.scrollIntoView({ block: "center" });
+  document.getElementById("fp-auth-google-unlock-btn")?.focus();
 }

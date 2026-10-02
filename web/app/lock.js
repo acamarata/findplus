@@ -16,6 +16,11 @@ import { postJson, api } from "./api.js";
 import { t } from "./i18n.js";
 import { closeModals, bootDashboard } from "./main.js";
 import { WORLD_VIEW_CENTER, WORLD_VIEW_ZOOM } from "./map.js";
+import { purgeMapOverlay } from "./map_empty.js";
+import { stopLiveRefresh } from "./live_refresh.js";
+import { unlockErrorText } from "./lock_errors.js";
+import { purgeStory } from "./trips_view.js";
+import { purgeMapPanes } from "./trips_map.js";
 
 /**
  * Show the lock screen.
@@ -26,9 +31,10 @@ import { WORLD_VIEW_CENTER, WORLD_VIEW_ZOOM } from "./map.js";
  * The current view is captured first so unlocking returns to exactly it.
  */
 export async function showLock() {
-  if (!state.locked) {
-    // Only non-sensitive view state is remembered — a date, a device filter and
-    // a row id. No coordinates are retained anywhere once locked.
+  // A repeat call (a stray 401) must not wipe the typed PIN, error or help.
+  const alreadyLocked = state.locked;
+  if (!alreadyLocked) {
+    // Only non-sensitive view state is kept: no coordinates survive a lock.
     state.resume = {
       day: state.day,
       deviceFilter: state.deviceFilter,
@@ -38,18 +44,20 @@ export async function showLock() {
     };
   }
   state.locked = true;
-  // Bumped synchronously, before any await below: bootDashboard() (and any
-  // other async renderer holding an earlier generation) checks this after
-  // its own next await and bails rather than rendering behind this lock.
+  // Bumped before any await: async renderers check it and stop drawing.
   state.lockGeneration++;
   stopIdleTimer();
   closeModals();
   await purgeRenderedData();
   $("app-shell").classList.add("hidden");
   $("lock-screen").classList.remove("hidden");
-  $("lock-error").textContent = "";
-  $("lock-forgot").hidden = true;
-  $("lock-pin").value = "";
+  if (!alreadyLocked) {
+    $("lock-error").textContent = "";
+    $("lock-forgot").hidden = true;
+    $("lock-pin").value = "";
+    $("lock-pin").type = "password"; // a shown PIN never carries over to the next lock
+    $("lock-show-pin").checked = false;
+  }
   await showLockCaveat();
   $("lock-pin").focus();
 }
@@ -86,6 +94,12 @@ async function showLockCaveat() {
 export async function purgeRenderedData() {
   state.timeline = null;
   state.devices = [];
+  // The last status names devices and says what the poll found: gone too.
+  state.status = null;
+  state.pollInFlight = false;
+  stopLiveRefresh();
+  purgeMapOverlay();
+  purgeStory(); // the day story: its list, strip, lanes, map layers and cached trips
   // Both footer sentences are device-derived: leaving either up behind the
   // lock screen would tell a passer-by which networks this person tracks on.
   for (const id of ["apple-notice", "findhub-notice"]) {
@@ -98,6 +112,7 @@ export async function purgeRenderedData() {
   state.selectedId = null;
   state.markers.clear();
   if (state.layer) state.layer.clearLayers();
+  if (state.legend) { state.legend.remove(); state.legend = null; }  // names of trackers
   // U4: the same neutral world view initMap() starts at, not the old US
   // default -- a locked screen must not hint at a last-viewed region either.
   if (state.map) state.map.setView(WORLD_VIEW_CENTER, WORLD_VIEW_ZOOM);
@@ -119,6 +134,7 @@ export async function purgeRenderedData() {
   });
 
   await purgeTabModules();
+  purgeMapPanes(); // Leaflet leaves removed tooltips and popups (place and tracker names) in their panes
 }
 
 /**
@@ -218,15 +234,6 @@ export async function refreshLockState() {
   }
 }
 
-/** UAT6-N07: a catalog sentence per refusal, never the server's detail text
- * (it named attempt counts and, before, a terminal command). */
-function unlockErrorText(e) {
-  if (e.status === 401) return t("common.wrongPinHint");
-  if (e.status === 429) return t("common.lockTooManyTries");
-  if (e.status === 422) return t("common.lockPinFormat");
-  return t("common.lockUnlockFailed");
-}
-
 export async function submitPin(pin) {
   const err = $("lock-error");
   const btn = $("lock-submit");
@@ -240,9 +247,10 @@ export async function submitPin(pin) {
     err.textContent = "";
     await hideLockAndRestore();
   } catch (e) {
-    err.textContent = unlockErrorText(e);
-    // The recovery hint appears once a PIN has been refused, not before.
-    if (e.status === 401) $("lock-forgot").hidden = false;
+    err.textContent = await unlockErrorText(e);
+    // The recovery hint appears once a PIN has been refused (401) or the lock
+    // has shut the door for a while (429): that person needs it most.
+    if (e.status === 401 || e.status === 429) $("lock-forgot").hidden = false;
     $("lock-pin").value = "";
     $("lock-pin").focus();
   } finally {
@@ -280,6 +288,10 @@ export function wireLockControls() {
     if (pin) submitPin(pin);
   });
   $("btn-lock").addEventListener("click", lockNow);
+  // Show PIN: a typo is easier to catch than a retry against the five-try limit.
+  $("lock-show-pin").addEventListener("change", (e) => {
+    $("lock-pin").type = e.target.checked ? "text" : "password";
+  });
 
   // Any interaction postpones the idle auto-lock.
   ["mousemove", "keydown", "click", "scroll", "touchstart"].forEach((evt) => {

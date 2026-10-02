@@ -26,30 +26,16 @@
  */
 "use strict";
 
-import { t } from "../i18n.js";
+import { t, plural } from "../i18n.js";
 import { renderBadge } from "../components/badge.js";
+import { renderMemberList } from "../groups_members.js";
 import { labeled } from "../groups_dialog_fields.js";
+import { duplicateNameMessage } from "../dialog_errors.js";
 import { createGroupPickers, DEFAULT_ICON } from "./_group_pickers.js";
 
 /** The live step's elements and picker handle, replaced on every render. */
 let els = null;
 let pickers = null;
-
-function memberRow(device) {
-  const row = document.createElement("label");
-  row.className = "fp-member-row";
-  const box = document.createElement("input");
-  box.type = "checkbox";
-  box.dataset.deviceId = device.device_id;
-  const badge = document.createElement("span");
-  badge.appendChild(
-    renderBadge({ icon: device.icon || "letter", color: device.color, label: device.label, name: device.name, size: 16 })
-  );
-  const name = document.createElement("span");
-  name.textContent = device.label || device.name || device.device_id;
-  row.append(box, badge, name);
-  return row;
-}
 
 /** N45: a duplicate name (409) used to only log to the console -- ctx.showAlert
  * writes into #alert inside #app-shell, hidden for the whole time the wizard
@@ -72,7 +58,11 @@ function groupRow(group) {
   );
   const name = document.createElement("span");
   name.textContent = group.name;
-  row.append(name);
+  const count = document.createElement("span");
+  count.className = "fp-field-hint";
+  const n = (group.members || []).length;
+  count.textContent = plural("groups.members.count", n, { count: n });
+  row.append(name, count);
   return row;
 }
 
@@ -103,22 +93,13 @@ async function addGroup(ctx) {
   await refresh(ctx);
 }
 
-/** UAT6-N18: an untracked device (the Devices step's own AirTag example)
- * cannot report a location for a group to use, so it is never a sensible
- * member -- offering it invites a group that can never show more than
- * "Unknown" for that slot. */
+/** UAT6-N18: an untracked device cannot report a location for a group to
+ * use. It is still listed, disabled and with the reason beside it
+ * (groups_members.js): an empty box after a first sign-in, when nothing is
+ * tracked yet, looked like a bug. */
 function renderMembers(members, devices) {
-  members.textContent = "";
-  const tracked = devices.filter((d) => d.is_tracked);
-  members.classList.toggle("fp-setup-group-members-empty", tracked.length === 0);
-  if (!tracked.length) {
-    const empty = document.createElement("p");
-    empty.className = "fp-tab-hint";
-    empty.textContent = t("setup.groups.no_devices");
-    members.append(empty);
-    return;
-  }
-  tracked.forEach((device) => members.append(memberRow(device)));
+  members.classList.toggle("fp-setup-group-members-empty", devices.length === 0);
+  renderMemberList(members, devices, { wizard: true });
 }
 
 /** The name input plus its visible label -- split out of render() to keep
@@ -165,7 +146,7 @@ export default {
     // word about what a group is for.
     const lead = document.createElement("p");
     lead.className = "fp-wizard-lead";
-    lead.textContent = t("setup.groups.lead");
+    lead.textContent = `${t("setup.groups.lead")} ${t("setup.groups.skip_hint")}`;
 
     const list = document.createElement("div");
     list.id = "fp-setup-groups-list";
@@ -186,7 +167,8 @@ export default {
     add.textContent = t("setup.groups.add");
     add.addEventListener("click", () => {
       addGroup(ctx).catch((err) => {
-        els.error.textContent = err.message;
+        els.error.textContent =
+          duplicateNameMessage(err, "groups.error.duplicate_name", els.name.value.trim()) || err.message;
       });
     });
 

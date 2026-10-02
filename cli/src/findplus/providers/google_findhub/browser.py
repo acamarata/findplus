@@ -9,9 +9,8 @@ Outputs    : `start_google_auth()` -> job id; `get_google_auth_progress()` ->
              `cancel_google_auth()` -> bool, True when a live job was stopped
              (UAT6 N23: Cancel while waiting on Chrome).
 Constraints: `cli/vendor/GoogleFindMyTools/` is never edited (PRI hard rule 8).
-             Two vendor attributes are rebound at runtime instead, the same
-             surgical pattern `google_findhub/bootstrap.py` uses on
-             `Auth.token_cache._get_secrets_file`:
+             Two vendor attributes are rebound at runtime instead, the same pattern
+             `google_findhub/bootstrap.py` uses on `Auth.token_cache._get_secrets_file`:
 
              - `chrome_driver.create_driver`, whose original runs
                `pkill -f chrome` and then opens the user's DEFAULT Chrome
@@ -23,9 +22,8 @@ Constraints: `cli/vendor/GoogleFindMyTools/` is never edited (PRI hard rule 8).
              - `Auth.auth_flow.input`, a blocking stdin read no daemon thread
                can answer.
 
-             Import order is the whole trick: `Auth/auth_flow.py:7` binds
-             `create_driver` at its FIRST import, so `chrome_driver` must be
-             patched BEFORE `Auth.auth_flow` is imported in the process.
+             Import order matters: `Auth/auth_flow.py:7` binds `create_driver` at its
+             FIRST import, so `chrome_driver` is patched BEFORE `Auth.auth_flow`.
 """
 
 from __future__ import annotations
@@ -39,7 +37,8 @@ from typing import Any
 
 from findplus.honesty import CHROME_REQUIRED as MSG_CHROME_MISSING
 
-from .bootstrap import ensure_gfmt_importable, restore_create_driver_guard
+from . import job_guards
+from .bootstrap import ensure_gfmt_importable, restore_create_driver_guard, set_create_driver
 
 __all__ = [
     "MSG_CANCELLED",
@@ -57,12 +56,10 @@ MSG_CAPTURING = "Finishing up..."
 #: `Auth/auth_flow.py:30` caps the cookie wait at 300 s. Say what that means in
 #: minutes rather than surfacing a selenium traceback.
 MSG_TIMEOUT = "No sign-in was completed within 5 minutes. Try again."
-#: UAT6 N23: there was no way to back out of "waiting on Chrome" short of
-#: closing the window and leaving the job to time out 5 minutes later.
+#: UAT6 N23: backing out of "waiting on Chrome" without closing the window.
 MSG_CANCELLED = "Sign-in cancelled."
 
-#: How long a finished job stays readable before a lazy sweep drops it. A
-#: background timer would be a second thread to own for no gain.
+#: How long a finished job stays readable before a lazy sweep drops it.
 _JOB_TTL_SECONDS = 600
 
 #: How long a job may sit without a state transition before it counts as
@@ -141,10 +138,7 @@ def _sweep_expired_jobs() -> None:
 
 
 def _set_progress(job_id: str, state: str, message: str) -> None:
-    """Record a state transition. Ignores an already-swept or cancelled job:
-    `cancel_google_auth()` sets its own terminal state under the same lock,
-    and the background thread's own outcome (racing `driver.quit()`) must
-    never overwrite it."""
+    """Record a state transition; a swept or cancelled job keeps its own outcome."""
     with _lock:
         job = _jobs.get(job_id)
         if job is None or job.get("cancelled"):
@@ -191,10 +185,9 @@ def _patch_vendor_chrome(settings: Any, job_id: str) -> None:
         _set_progress(job_id, "waiting_for_user", MSG_WAITING)
         return _CookieWatchProxy(driver, job_id)
 
-    chrome_driver.create_driver = _isolated_create_driver
-
-    # Imported only AFTER create_driver is replaced: auth_flow binds the name
-    # into its own namespace at import time and never looks it up again.
+    # auth_flow binds the name into its own namespace at its first import (maybe
+    # long ago, as the blocked guard), so every copy is rebound, not just chrome_driver's.
+    set_create_driver(_isolated_create_driver)
     import Auth.auth_flow as auth_flow
 
     auth_flow.input = lambda _prompt="": ""
@@ -219,6 +212,12 @@ def _run_google_auth(job_id: str, settings: Any) -> None:
         safe_msg = redact_text(str(exc)) or "Unknown error"
         _set_progress(job_id, "failed", safe_msg[:200])
     else:
+        if job_guards.explicitly_cancelled(_lock, _jobs, job_id):
+            job_guards.discard_late_secrets(settings)  # Disconnect won the race
+            return
+        from findplus.poller_service import wake_poller
+
+        wake_poller()  # the signed-out failures before this are over: poll now
         _set_progress(job_id, "done", f"Authenticated as {email}.")
     finally:
         restore_create_driver_guard()  # re-arm the blocked guard the job replaced

@@ -4,7 +4,7 @@ title = "findplus gitleaks config"
 [extend]
 useDefault = true
 
-[allowlist]
+[[allowlists]]
 description = "Known false positives, reviewed 2026-09-19"
 regexTarget = "match"
 
@@ -24,4 +24,16 @@ paths = [
 regexes = [
   '''--private-key.*private_key_b64''',
   '''private_key_b64=private_key_b64''',
+]
+
+# Reviewed 2026-10-01: the remaining seven generic-api-key hits are not secrets.
+[[allowlists]]
+description = "Public extension key and fake test fixtures"
+targetRules = ["generic-api-key"]
+paths = [
+  # Chrome extension PUBLIC key: pins the unpacked helper's extension id.
+  '''^browser-helper/manifest\.json$''',
+  # Made-up values for the Apple and WhatsApp fixtures; no network, no account.
+  '''^cli/tests/providers/test_apple_auth\.py$''',
+  '''^cli/tests/ui/test_alerts_whatsapp\.py$''',
 ]

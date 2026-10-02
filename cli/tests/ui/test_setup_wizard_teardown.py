@@ -117,8 +117,9 @@ async def test_run_setup_again_on_a_finished_install_starts_at_step_one(page, ba
 async def test_the_wizard_can_be_walked_on_the_keyboard(page, base_url):
     """Next is disabled for the length of a transition (CR-C-E11 F8).
 
-    Disabling the focused button drops focus to <body>, so the guard puts it
-    back; without that a keyboard user restarts the Tab cycle on every step.
+    Disabling the focused button drops focus to <body>. A new step moves focus
+    to its heading (never <body>), so the Tab cycle continues inside the step
+    instead of restarting at the top of the page.
     """
     await _open_wizard_at(page, base_url, "welcome")
     await page.focus("#fp-wizard-next")
@@ -127,4 +128,10 @@ async def test_the_wizard_can_be_walked_on_the_keyboard(page, base_url):
     await page.wait_for_function(
         "() => !document.getElementById('fp-wizard-next').disabled", timeout=15000
     )
-    assert await page.evaluate("() => document.activeElement.id") == "fp-wizard-next"
+    assert await page.evaluate("() => document.activeElement.tagName") == "H2"
+    await page.keyboard.press("Tab")
+    inside = await page.evaluate(
+        "() => document.querySelector('#setup-view .fp-wizard-step')"
+        ".contains(document.activeElement)"
+    )
+    assert inside, "Tab from the heading should land on the step's first control"

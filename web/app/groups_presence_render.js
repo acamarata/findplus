@@ -21,7 +21,7 @@
  */
 "use strict";
 
-import { esc, fmtAgeMinutes } from "./state.js";
+import { esc, fmtAgeMinutes, state } from "./state.js";
 import { t } from "./i18n.js";
 
 export function drawGroupOverlays(overlayLayer, presence, group) {
@@ -73,6 +73,13 @@ export function verdictLabel(presence) {
   if (presence.verdict === "partial" && hasStaleMember && presence.diverged && presence.diverged.length > 0) {
     return t("groups.verdictPartial");
   }
+  // Nobody has reported: "Unknown" is true but explains nothing. Right after a
+  // first sign-in, with Google still locked, every group reads this way.
+  if (presence.verdict === "unknown" && considered > 0 && reporting === 0) {
+    return (presence.members || []).some(hasEverReported)
+      ? t("groups.verdictNoRecentLocation")
+      : t("groups.verdictNoLocation");
+  }
   if (presence.verdict_label) return presence.verdict_label;
   if (presence.verdict === "all_together") {
     return considered && reporting < considered
@@ -92,6 +99,9 @@ export function verdictLabel(presence) {
  * flag alone would have said -- the same hasStaleMember condition, checked
  * the same way, decides which sentence applies. */
 export function verdictTitle(presence) {
+  // The server's own sentence names the silent members and says a missing fix
+  // is not evidence of where they are.
+  if (presence.verdict === "unknown") return presence.note || "";
   if (presence.verdict !== "partial") return "";
   const reporting = presence.reporting_count;
   const considered = presence.considered_count;
@@ -103,6 +113,21 @@ export function verdictTitle(presence) {
 
 export function ageLabel(member) {
   return fmtAgeMinutes(member ? member.age_minutes : null);
+}
+
+/**
+ * The line for one stale member (UAT #12). A tracker Find+ is not polling has
+ * no fix because nothing ever asked for one, which is a different thing to say
+ * than "no fix yet": the Devices dialog and the group dialog both call it "not
+ * tracked", so this does too. Anything else keeps the age or "no fix yet" text.
+ */
+export function staleBadgeText(member, key) {
+  const name = (member && member.name) || key;
+  const device = member && (state.devices || []).find((d) => d.device_id === member.device_id);
+  if (device && !device.is_tracked) return t("groups.staleBadgeUntracked", { name });
+  return hasEverReported(member)
+    ? t("groups.staleBadge", { name, age: ageLabel(member) })
+    : t("groups.staleBadgeNoFix", { name });
 }
 
 // Ever reported at all? (UAT3 N19: "no fix yet" vs "no fix for {age}".)

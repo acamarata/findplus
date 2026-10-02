@@ -37,7 +37,7 @@ let circlesById = new Map();
 export function init(mapArg, _deviceListEl) {
   map = mapArg;
   placeLayer = L.layerGroup().addTo(map);
-  initDialog(map, { onSaved: loadPlaces });
+  initDialog(map, { onSaved: onPlaceSaved });
   placesList.init(document.getElementById("fp-places-list"));
   placesEvents.init(document.getElementById("fp-places-events"));
   const addBtn = document.getElementById("fp-add-place-btn");
@@ -54,15 +54,45 @@ export function init(mapArg, _deviceListEl) {
   // state.locked is already known here -- skip the fetch rather than fire it
   // and swallow a 401. lock.js's refreshTabsAfterUnlock() calls refreshAll()
   // again once unlocked.
-  if (!state.locked) refreshAll();
+  if (!state.locked) {
+    placesList.showLoading();
+    refreshAll();
+  }
+}
+
+/** A place says nothing on its own. After a NEW one is saved, go straight to
+ * "who should be told, and where", with the place already chosen. */
+async function onPlaceSaved(place, mode) {
+  await loadPlaces();
+  if (mode === "add" && place) await offerRule(place);
+}
+
+/** The rule dialog for `place`; also the list card's "Set up an alert" button. */
+export async function offerRule(place) {
+  const { openRuleDialog } = await import("./alerts_rule_dialog.js");
+  await openRuleDialog(null, {
+    placeId: place.id,
+    intro: t("alerts.ruleIntroAfterPlace", { place: place.name }),
+  });
+}
+
+export async function offerRuleFor(id) {
+  const place = placesById.get(String(id));
+  if (place) await offerRule(place);
 }
 
 export async function refreshAll() {
   try {
     await loadPlaces();
     await loadPresence();
-  } catch (_) {
-    // Locked or unreachable at boot; the lock screen / next refresh handles it.
+  } catch (err) {
+    // Locked: the lock screen takes over. Anything else gets the list's own
+    // error state with Retry, and no circles left from an earlier good load.
+    if (err.message === "Locked") return;
+    if (placeLayer) placeLayer.clearLayers();
+    placesById = new Map();
+    circlesById.clear();
+    placesList.showError(err);
   }
 }
 
@@ -144,7 +174,7 @@ function buildPlacePopup(place) {
 export async function editPlace(id) {
   const place = placesById.get(String(id));
   if (!place) return;
-  openEditDialog(id, place);
+  openEditDialog(id, place, await countPlaceRules(id));
 }
 
 /** How many alert rules point at this place, so the delete confirm can say

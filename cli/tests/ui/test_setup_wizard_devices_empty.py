@@ -128,7 +128,10 @@ async def test_empty_devices_list_has_no_track_header(page, base_url):
         timeout=15000,
     )
 
-    assert "Track" not in await page.locator("#setup-view").inner_text()
+    # The column header is the one `.fp-field-hint` paragraph reading "Track";
+    # the step's lead sentence says "tracking" and is not a column header.
+    header = page.locator("#setup-view p.fp-field-hint", has_text="Track")
+    assert await header.count() == 1 and await header.is_hidden()
 
 
 async def test_empty_devices_list_next_has_no_confirm_and_posts_empty_list(page, base_url):

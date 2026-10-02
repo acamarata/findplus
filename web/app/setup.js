@@ -52,7 +52,10 @@ export function closeSetup() {
   // Hand the borrowed map back BEFORE the container is emptied: the Places
   // step moves the one Leaflet pane into itself, and clearing the view with
   // the pane still inside would delete the dashboard's map for good.
-  if (active) active.leaveCurrent();
+  if (active) {
+    active.leaveCurrent();
+    active.destroy();
+  }
   active = null;
   view.textContent = "";
   view.hidden = true;
@@ -69,11 +72,14 @@ export function purge() {
   closeSetup();
 }
 
-export async function mountSetup(initialStep) {
+export async function mountSetup(initialStep, rerun = false) {
   // A second mount over a live one (an unlock that lands back on #/setup) must
   // let the old wizard give the map pane back first: the Wizard constructor
   // empties its mount, and the pane would go with it.
-  if (active) active.leaveCurrent();
+  if (active) {
+    active.leaveCurrent();
+    active.destroy();
+  }
   document.getElementById("setup-view").hidden = false;
   active = new Wizard({
     steps: SETUP_STEPS,
@@ -89,6 +95,7 @@ export async function mountSetup(initialStep) {
       }
     },
     initialStep,
+    rerun,
   });
   return active;
 }

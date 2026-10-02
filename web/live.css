@@ -1,0 +1,22 @@
+/* Live status: the calm banner for work in progress and the map's empty note.
+   Both honour the two themes through the same custom properties style.css owns. */
+
+/* "Polling 17 trackers..." and "no new locations because ...": information,
+   not a fault, so blue rather than the red/amber of a problem. */
+.alert.info { background: rgba(79,140,247,.12); border-color: rgba(79,140,247,.4); color: #d6e6ff; }
+html[data-theme="light"] .alert.info { color: #1b3d7a; }
+
+.alert-spinner { display: inline-block; width: 11px; height: 11px; margin-right: 8px;
+                 border: 2px solid currentColor; border-right-color: transparent;
+                 border-radius: 50%; vertical-align: -1px; animation: fp-live-spin .9s linear infinite; }
+@keyframes fp-live-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .alert-spinner { animation: none; border-right-color: currentColor; } }
+
+/* The note on a map with nothing to draw. The pane is its positioning box. */
+.map-pane { position: relative; }
+.map-empty { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 1000;
+             max-width: calc(100% - 100px); padding: 6px 12px; border-radius: 999px; font-size: 12.5px;
+             text-align: center; pointer-events: none; color: var(--text);
+             background: var(--panel); border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.map-empty[hidden] { display: none; }
+.map-empty[data-kind="locked"] { border-color: rgba(231,181,63,.6); }

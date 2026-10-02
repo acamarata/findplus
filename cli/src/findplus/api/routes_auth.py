@@ -28,6 +28,7 @@ from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from findplus.api import _routes_auth_google_helper
 from findplus.api._routes_auth_accessories import read_accessory_body
 from findplus.api._routes_auth_google_token import google_open, google_token
 from findplus.api._routes_auth_google_unlock import (
@@ -249,6 +250,7 @@ def build_router() -> APIRouter:
     )
     router.add_api_route("/auth/google/unlock/progress", google_unlock_progress, methods=["GET"])
     router.add_api_route("/auth/google/unlock/cancel", google_unlock_cancel, methods=["POST"])
+    _routes_auth_google_helper.register(router)
     router.add_api_route("/auth/apple/start", apple_start, methods=["POST"], status_code=202)
     router.add_api_route("/auth/apple/code", apple_code, methods=["POST"])
     router.add_api_route("/auth/apple/progress", apple_progress, methods=["GET"])

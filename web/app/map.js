@@ -10,11 +10,16 @@
  */
 "use strict";
 
-import { state, colorFor, displayName, visibleTracks, fmtTime, fmtDateTime, fmtDuration, fmtDistance, esc } from "./state.js";
+import { uniqueLabel } from "./device_label.js";
+import { state, colorFor, displayName, visibleTracks, fmtTime, esc } from "./state.js";
 import { selectPoint } from "./timeline.js";
 import { renderBadge } from "./components/badge.js";
 import { t } from "./i18n.js";
 import { api } from "./api.js";
+import { syncMapOverlay } from "./map_empty.js";
+import { renderLegend, syncDense, watchTiles } from "./map_extras.js";
+import { popupHtml } from "./map_popup.js";
+import { storyMapRender } from "./trips_view.js";
 
 // U4 (R-P2-30.2): a US-centred default read as "my child is in Kansas" the
 // first time the map had no data to fit. A neutral world view says nothing
@@ -24,13 +29,32 @@ import { api } from "./api.js";
 export const WORLD_VIEW_CENTER = [20, 0];
 export const WORLD_VIEW_ZOOM = 2;
 
+/** The inhabited world, trimmed of the polar bands. */
+const WORLD_BOUNDS = [[-58, -170], [78, 175]];
+
+/** Fit the whole world into the map's own box, whatever size it is. A fixed
+ * zoom 2 left a wide, short box showing the same continents twice. */
+function fitWorld() {
+  state.map.fitBounds(WORLD_BOUNDS, { animate: false });
+}
+
 export function initMap() {
   state.map = L.map("map", { zoomControl: true }).setView(WORLD_VIEW_CENTER, WORLD_VIEW_ZOOM);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  const tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(state.map);
+  watchTiles(tiles, document.querySelector(".map-pane"));
+  state.map.getContainer().setAttribute("aria-label", t("map.label"));
+  state.map.on("zoomend", () => syncDense(state.map, state.markers.size));
   state.layer = L.layerGroup().addTo(state.map);
+  // Leaflet only measures its container once. If the pane was hidden, still
+  // laying out, or later resized (window drag, tab switch, banner appearing),
+  // tiles render into a stale tiny box. Re-measure whenever the box changes.
+  const el = document.getElementById("map");
+  if (el && typeof ResizeObserver === "function") {
+    new ResizeObserver(() => state.map && state.map.invalidateSize()).observe(el);
+  }
 }
 
 /**
@@ -58,7 +82,7 @@ export async function setDefaultView() {
     );
     return;
   }
-  state.map.setView(WORLD_VIEW_CENTER, WORLD_VIEW_ZOOM);
+  fitWorld();
 }
 
 /** Each tracked device paired with its latest fix, skipping any that have
@@ -155,35 +179,6 @@ function numberedIcon(point, index, total, device) {
   });
 }
 
-function popupHtml(point, deviceName) {
-  // UAT2 N14: the tracker's name is the heading, not a subtitle under the
-  // time -- a popup with several tracks open at once otherwise reads as a
-  // bare timestamp with no way to tell whose fix it is.
-  const rows = [
-    `<b>${esc(deviceName)}</b>`,
-    `<div class="fp-popup-sub">${fmtTime(point.observed_at_local)}</div>`,
-    `<div>${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}</div>`,
-  ];
-  if (point.accuracy_meters != null) {
-    rows.push(`<div>Accuracy ~${Math.round(point.accuracy_meters)} m</div>`);
-  } else {
-    // Apple Find My never reports a metres figure (CF-P2-6): say so plainly
-    // instead of just omitting the line, which could read as "exact".
-    rows.push(`<div>${esc(t("timeline.accuracyUnknown"))}</div>`);
-  }
-  if (point.seconds_since_previous !== null) {
-    rows.push(`<div>${fmtDuration(point.seconds_since_previous)} since previous observation</div>`);
-  }
-  const dist = fmtDistance(point.meters_from_previous);
-  if (dist) rows.push(`<div>${dist} from previous observation</div>`);
-  if (point.source) rows.push(`<div class="fp-popup-meta">Report: ${esc(point.source)}</div>`);
-  if (!point.is_movement && point.seconds_since_previous !== null) {
-    rows.push(`<div class="fp-popup-meta">Below movement threshold</div>`);
-  }
-  rows.push(`<div class="fp-popup-retrieved">Retrieved ${fmtDateTime(point.fetched_at)}</div>`);
-  return rows.join("");
-}
-
 /**
  * The device a track belongs to, or a stand-in that still renders.
  *
@@ -207,51 +202,71 @@ export function visiblePoints(track) {
   return state.movementOnly ? track.points.filter((p) => p.is_movement) : track.points;
 }
 
-export function renderMap() {
+/**
+ * Draw one tracker's path and numbered markers; returns its legend entry, or
+ * null when it has nothing to show (a movement-only day with no movement).
+ */
+function drawTrack(track) {
+  const points = visiblePoints(track);
+  if (!points.length) return null;
+  const device = deviceForTrack(track);
+  // The path takes the tracker's own colour, the same one its markers and
+  // timeline badge use, so the map and the legend agree.
+  const color = device.color || colorFor(track.device_id);
+  // D-P2-15: a map marker shows the label as well as the icon and colour.
+  // The tooltip, the hover title and the popup are the only text the map
+  // has, so they read the label first, exactly as the device list and the
+  // timeline track head do (UAT U6: the one displayName() helper).
+  const shown = uniqueLabel(device) || track.device_name;
+  const latlngs = points.map((p) => [p.latitude, p.longitude]);
+  if (latlngs.length > 1) {
+    // keyboard: false (U31): Leaflet's default Tab-stop-per-path/marker
+    // behaviour put every point of every track in the Tab order ahead of the
+    // timeline; a keyboard user picks a point from the timeline instead.
+    L.polyline(latlngs, { color, weight: 3, opacity: 0.75, dashArray: "6 5", keyboard: false })
+      .addTo(state.layer)
+      .bindTooltip(`${esc(shown)}: observed path; actual route between detections may differ.`);
+  }
+  points.forEach((point, index) => {
+    const marker = L.marker([point.latitude, point.longitude], {
+      icon: numberedIcon(point, index, points.length, device),
+      title: `${shown} · ${fmtTime(point.observed_at_local)}`,
+      keyboard: false,
+    }).addTo(state.layer);
+    marker.bindPopup(popupHtml(point, shown));
+    marker.on("click", () => selectPoint(point.id, false));
+    state.markers.set(point.id, marker);
+  });
+  return { name: shown, color, latlngs };
+}
+
+export function renderMap({ fit = true } = {}) {
   state.layer.clearLayers();
   state.markers.clear();
-  if (!state.timeline) return;
+  if (!state.timeline) {
+    if (state.legend) { state.legend.remove(); state.legend = null; }
+    syncMapOverlay();
+    return;
+  }
+  // The day story (trips_view.js) draws its own layers when it is the view on screen.
+  if (storyMapRender({ fit })) { syncMapOverlay(); return; }
 
   const allLatLngs = [];
+  const legend = [];
 
   // The dashboard's group select narrows both the map and the timeline to
   // one group's members client-side, with no second fetch (UAT U8).
   visibleTracks(state.timeline.tracks).forEach((track) => {
-    const points = visiblePoints(track);
-    if (!points.length) return;
-    const color = colorFor(track.device_id);
-    const device = deviceForTrack(track);
-    // D-P2-15: a map marker shows the label as well as the icon and colour.
-    // The tooltip, the hover title and the popup are the only text the map
-    // has, so they read the label first, exactly as the device list and the
-    // timeline track head do (UAT U6: the one displayName() helper).
-    const shown = displayName(device) || track.device_name;
-    const latlngs = points.map((p) => [p.latitude, p.longitude]);
-    allLatLngs.push(...latlngs);
-
-    if (latlngs.length > 1) {
-      // keyboard: false (U31) — Leaflet's default Tab-stop-per-path/marker
-      // behaviour put every point of every track in the Tab order ahead of
-      // the timeline; a keyboard user reaches the timeline directly and picks
-      // a point from there instead (selectPoint() below draws its marker).
-      L.polyline(latlngs, { color, weight: 3, opacity: 0.75, dashArray: "6 5", keyboard: false })
-        .addTo(state.layer)
-        .bindTooltip(`${esc(shown)}: observed path; actual route between detections may differ.`);
-    }
-
-    points.forEach((point, index) => {
-      const marker = L.marker([point.latitude, point.longitude], {
-        icon: numberedIcon(point, index, points.length, device),
-        title: `${shown} · ${fmtTime(point.observed_at_local)}`,
-        keyboard: false,
-      }).addTo(state.layer);
-      marker.bindPopup(popupHtml(point, shown));
-      marker.on("click", () => selectPoint(point.id, false));
-      state.markers.set(point.id, marker);
-    });
+    const drawn = drawTrack(track);
+    if (!drawn) return;
+    allLatLngs.push(...drawn.latlngs);
+    legend.push(drawn);
   });
 
-  if (allLatLngs.length) {
+  state.legend = renderLegend(state.map, legend, state.legend);
+  syncDense(state.map, state.markers.size);
+  if (allLatLngs.length && fit) {
     state.map.fitBounds(L.latLngBounds(allLatLngs), { padding: [42, 42], maxZoom: 17 });
   }
+  syncMapOverlay();
 }

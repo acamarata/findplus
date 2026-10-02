@@ -23,11 +23,13 @@ import { t } from "./i18n.js";
 import { createIconPicker } from "./components/icon-picker.js";
 import { createColorPicker } from "./components/color-picker.js";
 import {
-  buildDialog, memberRow, renderIconPreview, renderColorPreview,
+  buildDialog, renderIconPreview, renderColorPreview,
   closeOpenPopover, closePopoverIfOutside, clampPopoverToViewport,
 } from "./groups_dialog_dom.js";
 import { groupBody, saveGroup } from "./groups_dialog_save.js";
+import { renderMemberList, applyMemberSelection } from "./groups_members.js";
 import { duplicateNameMessage } from "./dialog_errors.js";
+import { refreshQuorumWarning, quorumProblem, wireQuorumGuard } from "./groups_dialog_quorum.js";
 
 const DEFAULT_ICON = "lucide:users";
 const DEFAULT_COLOR = "#27ae60";
@@ -89,6 +91,7 @@ function wireDialog(dlg) {
   fields.quorum.addEventListener("change", () => {
     fields.quorumN.hidden = fields.quorum.value !== "custom";
   });
+  wireQuorumGuard(fields);
   // A bare "letter" icon draws its glyph from the name (CR-C-E5 F7): keep the
   // preview live as the user types instead of only on icon/colour pick.
   fields.name.addEventListener("input", () => renderIconPreview(fields));
@@ -117,11 +120,11 @@ function clearMembers() {
   while (box.lastChild && box.lastChild !== fields.membersLegend) box.removeChild(box.lastChild);
 }
 
-/** Untracked devices cannot report presence, so they are not offered. */
+/** Untracked devices cannot report presence, so they are listed but not
+ * tickable, with the reason beside them (groups_members.js). */
 async function populateMembers() {
   const { devices } = await api("/api/devices");
-  clearMembers();
-  devices.filter((d) => d.is_tracked).forEach((d) => fields.members.appendChild(memberRow(d)));
+  renderMemberList(fields.members, devices);
 }
 
 function applyQuorum(quorum) {
@@ -148,9 +151,8 @@ function applyGroup(group) {
   fields.radiusOut.textContent = radius;
   fields.stale.value = group ? String(group.stale_after_minutes) : DEFAULT_STALE;
   const ids = new Set(((group && group.members) || []).map((m) => m.device_id));
-  fields.members.querySelectorAll("input[data-device-id]").forEach((box) => {
-    box.checked = ids.has(box.dataset.deviceId);
-  });
+  applyMemberSelection(fields.members, ids);
+  refreshQuorumWarning(fields);
 }
 
 async function fillDialog(mode, id, group) {
@@ -209,7 +211,7 @@ function handleSaveError(err) {
   // N48: the raw server text named the field and quoted the name in Python
   // repr style ("group name 'Pets' already exists") -- a catalog sentence
   // when that is what happened, the raw message for anything else.
-  const duplicate = duplicateNameMessage(err, "groups.error.duplicate_name");
+  const duplicate = duplicateNameMessage(err, "groups.error.duplicate_name", fields.name.value.trim());
   fields.error.textContent = duplicate || err.message;
   if (duplicate) fields.name.focus();
 }
@@ -227,6 +229,12 @@ async function onSave() {
   // confuse later.
   if (!fields.members.querySelectorAll("input:checked").length) {
     fields.error.textContent = t("groups.error.members_required");
+    return;
+  }
+  const quorumProblemText = quorumProblem(fields);
+  if (quorumProblemText) {
+    fields.error.textContent = quorumProblemText;
+    fields.quorumN.focus();
     return;
   }
   try {
@@ -250,6 +258,7 @@ function clearDialogFields() {
   fields.quorum.value = DEFAULT_QUORUM;
   fields.quorumN.value = "";
   fields.quorumN.hidden = true;
+  refreshQuorumWarning(fields);
   fields.radius.value = DEFAULT_RADIUS;
   fields.radiusOut.textContent = DEFAULT_RADIUS;
   fields.stale.value = DEFAULT_STALE;

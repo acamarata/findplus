@@ -77,21 +77,25 @@ export function pickerRow(id, labelText, hiddenInput, swatchClass) {
   return { btn, host, wrap };
 }
 
-/** One tracked device: its checkbox, its badge and its name. */
-export function memberRow(device) {
+/** One device: its checkbox, its badge and its name. `disabled` draws an
+ * untracked device that cannot be ticked; `suffix` tells apart devices that
+ * share a name (groups_members.js decides when). */
+export function memberRow(device, { disabled = false, suffix = "" } = {}) {
   const row = document.createElement("label");
   row.className = "fp-member-row";
   const box = field("checkbox", {});
   box.dataset.deviceId = device.device_id;
+  box.disabled = disabled;
+  row.classList.toggle("fp-member-row--off", disabled);
   const badge = document.createElement("span");
   badge.appendChild(
     renderBadge({
-      icon: device.icon, color: device.color, label: device.label, name: device.name, size: 16,
+      icon: device.icon || "letter", color: device.color, label: device.label, name: device.name, size: 16,
     }),
   );
   const name = document.createElement("span");
   // UAT U6: the group dialog's own member picker shows the label too.
-  name.textContent = displayName(device);
+  name.textContent = displayName(device) + suffix;
   row.append(box, badge, name);
   return row;
 }
@@ -166,6 +170,17 @@ export function closePopoverIfOutside(fields, target) {
   }
 }
 
+/** The sentence that ties quorum, member count and radius together; kept live by
+ * groups_dialog_quorum.js so "Most members arrive" is never abstract. */
+function quorumSentenceEl() {
+  const sentence = document.createElement("p");
+  sentence.id = "fp-group-quorum-sentence";
+  sentence.className = "fp-quorum-sentence";
+  sentence.setAttribute("role", "status");
+  sentence.setAttribute("aria-live", "polite");
+  return sentence;
+}
+
 export function buildDialog({ onSave, onCancel }) {
   const dlg = document.createElement("dialog");
   dlg.id = "fp-group-dialog";
@@ -187,6 +202,7 @@ export function buildDialog({ onSave, onCancel }) {
   const radius = radiusRow();
   const stale = staleRow();
   const members = membersFieldset();
+  const sentence = quorumSentenceEl();
 
   const error = document.createElement("p");
   error.className = "fp-dialog-error";
@@ -196,7 +212,7 @@ export function buildDialog({ onSave, onCancel }) {
 
   form.append(
     title, labeled(t("groups.field.name"), name, name.id), icon.wrap, color.wrap,
-    quorum.wrap, radius.wrap, stale.wrap, members.fieldset, error, footer,
+    quorum.wrap, radius.wrap, sentence, stale.wrap, members.fieldset, error, footer,
   );
   dlg.appendChild(form);
 
@@ -204,7 +220,7 @@ export function buildDialog({ onSave, onCancel }) {
     title, name, error,
     icon: iconValue, iconBtn: icon.btn, iconHost: icon.host,
     color: colorValue, colorBtn: color.btn, colorHost: color.host,
-    quorum: quorum.select, quorumN: quorum.n,
+    quorum: quorum.select, quorumN: quorum.n, quorumWarn: quorum.warn, quorumSentence: sentence,
     radius: radius.input, radiusOut: radius.out,
     stale: stale.input, members: members.fieldset, membersLegend: members.legend,
   };

@@ -21,13 +21,14 @@ import pytest
 
 from findplus import honesty
 
+from ._signin_helpers import reveal_other_ways
+
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 # E11's first-run check redirects a hash-less "/" to #/setup and hides
-# #app-shell whenever onboarding.completed_at is null, which it always is in
-# this suite's seeded state dir. A non-empty, inert hash (applyHashRoute only
-# acts on #settings/#devices/#/setup) keeps the dashboard on screen; it stays
-# correct once that precondition is seeded for the whole suite.
+# #app-shell whenever onboarding.completed_at is null. A non-empty, inert hash
+# (applyHashRoute only acts on #settings/#devices/#/setup) keeps the dashboard
+# on screen for this suite's seeded state.
 DASHBOARD = "/#dashboard"
 
 
@@ -39,17 +40,16 @@ async def _catalog(page, base_url) -> dict:
 
 
 async def _open_settings(page, base_url) -> None:
-    """Go to the dashboard and open Settings.
+    """Go to the dashboard, open Settings, and reveal the "Other ways" details.
 
     openSettings() (web/app/settings.js) unhides #settings-modal before any
-    await now, so the click below no longer races state.config or needs a
-    retry-and-diagnose loop (CI run 35546305331 fix) -- one deterministic
-    wait for the sign-in panel's static host is enough to know the dialog
-    is open.
+    await, so one deterministic wait for the sign-in panel's static host is
+    enough to know the dialog is open (CI run 35546305331 fix).
     """
     await page.goto(base_url + DASHBOARD)
     await page.click("#btn-settings")
     await page.wait_for_selector("#fp-settings-signin")
+    await reveal_other_ways(page)
 
 
 async def _open_settings_settled(page, base_url) -> None:
@@ -110,21 +110,22 @@ async def test_each_provider_card_says_which_provider_it_is(page, base_url) -> N
 
 
 async def test_signed_in_google_card_offers_switch_account(page, base_url) -> None:
-    """UAT3 N23: a signed-in account used to leave a dimmed "Sign in with
-    Google" button -- a real action with nothing to do. The button now stays
-    enabled and relabels to "Switch Google account" (now the main-Chrome
-    button); the wizard mounts the same component, so it cannot drift."""
+    """UAT3 N23: the primary "Sign in with Google" button stays enabled and
+    relabels to "Switch Google account" when signed in; the separate-window
+    option keeps its own label. The wizard mounts the same component."""
     await _open_settings_settled(page, base_url)
     catalog = (await _catalog(page, base_url))["signin"]["google"]
+    hello = page.locator("#fp-auth-google-hello")
 
     await _render_google(page, {"signed_in": True, "account": "a@example.com", "needs": []})
-    button = page.locator("#fp-auth-google-open")
-    assert await button.inner_text() == catalog["switch"]
-    assert await button.is_disabled() is False
+    assert (await hello.inner_text(), await hello.is_disabled()) == (catalog["switch"], False)
     assert await page.locator("#fp-auth-google-signin").inner_text() == catalog["ownWindow"]
 
     await _render_google(page, {"signed_in": False, "account": None, "needs": []})
-    assert (await button.inner_text(), await button.is_disabled()) == (catalog["openChrome"], False)
+    assert (await hello.inner_text(), await hello.is_disabled()) == (
+        catalog["hello"]["button"],
+        False,
+    )
 
 
 async def test_apple_2fa_field_hidden_by_default(page, base_url) -> None:
@@ -147,8 +148,7 @@ async def test_google_progress_states_render(page, base_url) -> None:
         assert await text.inner_text() == google[key]
 
 
-#: UAT6 N23: drops "Install it from <url>" -- the Download Chrome link beside it is that action.
-_CHROME_NOTICE_TEXT = honesty.CHROME_REQUIRED.split(" Install it from")[0]
+_CHROME_NOTICE_TEXT = honesty.CHROME_REQUIRED.split(" Install it from")[0]  # drops the URL clause
 
 
 async def test_google_chrome_missing_disables_button(page, base_url) -> None:

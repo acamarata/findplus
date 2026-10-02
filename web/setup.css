@@ -278,3 +278,22 @@
   #setup-view section input[type="text"],
   #setup-view section input[type="password"] { width: 100%; }
 }
+
+/* Primary "Sign in with Google": a neutral white button (no Google "G" mark,
+   which is reserved for Google Identity Services). */
+.fp-signin-hello { display: flex; flex-direction: column; gap: 8px; }
+.fp-google-btn {
+  background: #fff; color: #1f1f1f; border: 1px solid #cfcfd4; border-radius: 8px;
+  font-weight: 600;
+}
+.fp-google-btn:hover:not(:disabled) { background: #f6f6f8; }
+.fp-signin-other { border-top: 1px solid var(--line); padding-top: 8px; }
+.fp-signin-other > summary {
+  cursor: pointer; font-size: 13px; color: var(--muted); padding: 4px 0; list-style: revert;
+}
+.fp-signin-other[open] > summary { margin-bottom: 8px; }
+
+/* One-time helper install hint on the Google card. */
+.fp-signin-install { border-top: 1px solid var(--line); padding-top: 8px; }
+.fp-signin-install > summary { cursor: pointer; font-size: 13px; color: var(--muted); padding: 4px 0; }
+.fp-signin-installed { color: var(--ok); font-weight: 600; }

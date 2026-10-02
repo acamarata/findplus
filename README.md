@@ -58,10 +58,10 @@ brew install acamarata/tap/findplus
 
 **pipx:** Find+ is not on PyPI, so install the wheel from the latest release.
 Download the `findplus-<version>-py3-none-any.whl` from
-[Releases](https://github.com/acamarata/findplus/releases) (for example, v1.1.2):
+[Releases](https://github.com/acamarata/findplus/releases) (for example, v1.1.5):
 
 ```bash
-pipx install https://github.com/acamarata/findplus/releases/download/v1.1.2/findplus-1.1.2-py3-none-any.whl
+pipx install https://github.com/acamarata/findplus/releases/download/v1.1.5/findplus-1.1.5-py3-none-any.whl
 ```
 
 Or install from the latest release directly:
@@ -76,6 +76,21 @@ Requires Python 3.12, 3.13 or 3.14.
 from [Releases](https://github.com/acamarata/findplus/releases). There is no
 Intel build of the app; on an Intel Mac use Homebrew or the curl installer and
 open the dashboard in your browser.
+
+**Update the macOS app** (works while Find+ is running; keeps your history and settings):
+
+```bash
+curl -fsSL https://github.com/acamarata/findplus/releases/latest/download/update-app.sh | bash
+```
+
+The updater checks the download against the sha256 published on the same release.
+That catches a corrupted download. It does not prove who published the release.
+
+**Chrome helper (every install route).** Google sign-in runs through the Find+
+helper extension in your own Chrome. Whether you used the dmg, Homebrew, pipx or
+the curl installer, add it once: the sign-in card has **Show helper folder** and
+**Open Chrome extensions** buttons that walk you through Load unpacked. Details:
+[Install](.github/wiki/Install.md#chrome-helper).
 
 ## First run
 
@@ -96,9 +111,19 @@ findplus start --yes
 
 ## Sign in
 
-**Google Find Hub, with your own Chrome (recommended).** In Settings or the setup
-wizard, click **Sign in with your Chrome**. Find+ opens Google's sign-in page as a
-normal tab of the Chrome you already use. Then:
+**Google Find Hub, with the Find+ helper (recommended).** Click **Sign in with
+Google**. Find+ opens Google's sign-in in the Chrome you already use, and the
+open-source [Find+ helper](browser-helper/) extension passes the sign-in to Find+
+on your computer. You land on a "Signed in. You can close this tab." page and
+Find+ continues on its own. The first time, add the helper once: the card's
+**Show helper folder** and **Open Chrome extensions** buttons walk you through
+Load unpacked. The helper talks only to Google and to Find+ on 127.0.0.1, with no
+analytics and no remote code
+([privacy](https://github.com/acamarata/findplus/wiki/Chrome-helper-privacy)).
+
+**Fallback: copy one value by hand.** Use this only if you cannot or would rather
+not add the helper. Under "Other ways to sign in", **Sign in with your
+Chrome** opens Google's sign-in page as a normal tab of your Chrome. Then:
 
 1. Sign in to your Google account in that tab. The page may look blank or keep
    spinning after you sign in. That is expected.
@@ -114,7 +139,7 @@ that cookie. Find+ exchanges it with Google right away and never stores it. It
 expires within minutes, so copy it right after you sign in. From a terminal,
 `findplus auth --token` does the same.
 
-**Or let Find+ open its own Chrome window.** The smaller option on the same card
+**Fallback: let Find+ open its own Chrome window.** The smaller option on the same card
 opens a separate Chrome window with a profile of its own and picks the token up by
 itself. It needs Google Chrome installed.
 
@@ -133,6 +158,8 @@ card. Details for both: [Sign-in](https://github.com/acamarata/findplus/wiki/Sig
 - Places and geofence alerts, with configurable enter/exit confirmations.
 - Address search when adding a place, via OpenStreetMap's Nominatim geocoder --
   opt-in, only when you type an address and press Search.
+- Trips view: a day's history as stays (home noise collapsed into one row) and trips between
+  them, with honest no-sighting gaps. Optional road route through a routing server you run.
 - Groups and quorum-based presence (together, partial, unknown).
 - Telegram (every Telegram alert goes to all your chats unless you pick specific chats on the
   rule, up to 10 targets per bot), WhatsApp (via CallMeBot), webhook, and native macOS
@@ -163,6 +190,8 @@ Find+ connects to the following external services during normal operation:
 - OpenStreetMap's Nominatim geocoder -- only when you type an address into the
   place dialog and press Search. The daemon makes this request, not your
   browser, and sends nothing else.
+- A routing server you name (`routing.endpoint`, an OSRM-compatible address) -- off by
+  default. Only when set, and only for a trip you open, that trip's sightings go to it.
 
 ## Honesty
 
@@ -221,6 +250,16 @@ see if sign-in cannot find Chrome, not a general statement.
 > Address search sends the text you type to OpenStreetMap's Nominatim
 > service, a third party not affiliated with Find+, and only when you
 > press Search.
+>
+> Stays and trips are worked out from sparse, delayed sightings. Times
+> are when a tag was seen, and distances are approximate straight lines,
+> not the road driven.
+>
+> Likely route between sparse sightings, not a record of the road driven.
+>
+> Road routes are off unless you enter a routing server address. When
+> one is set, the sightings of each trip you open are sent to that
+> server to draw the path, so use a server you run yourself.
 
 ## CLI
 

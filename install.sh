@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 # install.sh - Find+ curl-pipe installer. Env: FINDPLUS_YES/VERSION/WHEEL/PREFIX/BIN/STATE_DIR. Flags: --yes --uninstall --version X.
 # Idempotent, never sudo; --uninstall keeps the state dir; --start runs setup and start after installing.
-# See .github/wiki/Install.md, .github/wiki/Uninstall.md, packaging-and-release.md.
+# See .github/wiki/Install.md, .github/wiki/Uninstall.md, Packaging-and-release.md.
 set -euo pipefail
 YES="${FINDPLUS_YES:-0}"
 UNINSTALL=0
 STARTNOW=0
-VERSION_PIN="${FINDPLUS_VERSION:-1.1.4}"
+VERSION_PIN="${FINDPLUS_VERSION:-1.1.5}"
+usage() { printf '%s\n' "Usage: install.sh [--yes] [--uninstall] [--start] [--version X] [-h|--help]" "Env: FINDPLUS_YES/VERSION/WHEEL/PREFIX/BIN/STATE_DIR. Idempotent, never sudo; --uninstall keeps the state dir; --start runs setup and start." "Afterwards add the Find+ Chrome helper once (.github/wiki/Install.md)."; }
 parse_args() {
   while [ $# -gt 0 ]; do
     case "$1" in
+      -h|--help) usage; exit 0 ;;
       --yes) YES=1; shift ;;
       --uninstall) UNINSTALL=1; shift ;;
       --start) STARTNOW=1; shift ;;

@@ -61,7 +61,7 @@ function pickerGroup(legendText) {
 function buildPlaceFields() {
   const title = document.createElement("h2");
   title.id = "fp-place-dialog-title";
-  const name = field("text", { id: "fp-place-name", required: true, maxLength: 80 });
+  const name = field("text", { id: "fp-place-name", required: true, maxLength: 64 });
   const lat = field("hidden", { id: "fp-place-lat" });
   const lon = field("hidden", { id: "fp-place-lon" });
   const radius = field("range", {
@@ -84,7 +84,21 @@ function buildPlaceFields() {
   const error = document.createElement("p");
   error.className = "fp-dialog-error";
   error.id = "fp-place-dialog-error";
-  return { title, name, lat, lon, radius, color, enter, exit, radiusNumber, error };
+  // UAT #9: where the place will be saved, in words, under the locator.
+  const where = document.createElement("p");
+  where.className = "fp-field-hint";
+  where.id = "fp-place-where";
+  // Edit only: how many alert rules lean on this place (set by showUsage()).
+  // A radius under the recommended minimum says why that is a bad idea.
+  const radiusWarn = document.createElement("p");
+  radiusWarn.className = "fp-field-hint fp-radius-warn";
+  radiusWarn.id = "fp-place-radius-warn";
+  radiusWarn.hidden = true;
+  const usage = document.createElement("p");
+  usage.className = "fp-field-hint fp-place-usage";
+  usage.id = "fp-place-usage";
+  usage.hidden = true;
+  return { title, name, lat, lon, radius, color, enter, exit, radiusNumber, error, where, usage, radiusWarn };
 }
 
 function radiusRow(f) {
@@ -93,8 +107,51 @@ function radiusRow(f) {
   label.textContent = t("places.radiusLabel");
   const wrap = document.createElement("div");
   wrap.className = "fp-dialog-field";
+  const hint = document.createElement("p");
+  hint.className = "fp-field-hint";
+  hint.id = "fp-place-radius-hint";
+  hint.textContent = t("places.radiusHint");
+  f.radius.setAttribute("aria-describedby", hint.id);
   wrap.append(label, f.radius, f.radiusNumber);
-  return wrap;
+  const group = document.createElement("div");
+  group.append(wrap, hint, f.radiusWarn);
+  return group;
+}
+
+/** Smallest radius Find+ recommends (mirrors places/geofence.py's
+ *  RECOMMENDED_MIN_RADIUS_METERS; a test pins the two together). */
+export const RECOMMENDED_MIN_RADIUS = 100;
+
+/** Show the "too small" reason while the radius is under the recommended minimum. */
+export function updateRadiusWarning(f) {
+  const small = Number(f.radius.value) < RECOMMENDED_MIN_RADIUS;
+  f.radiusWarn.hidden = !small;
+  f.radiusWarn.textContent = small ? t("places.radiusSmall", { min: RECOMMENDED_MIN_RADIUS }) : "";
+}
+
+/**
+ * UAT7-N12: the slider and the number box stay in sync both ways. Setting a
+ * range input's `.value` clamps it to its own min/max for free, so the slider
+ * is always valid; the number box is only clamped back on `change` (blur or
+ * Enter) so a value mid-typed (e.g. "5" on the way to "500") is not fought
+ * keystroke by keystroke. `onPreview` redraws the live circle on the map.
+ */
+export function wireRadius(f, onPreview) {
+  const changed = () => {
+    updateRadiusWarning(f);
+    onPreview();
+  };
+  f.radius.addEventListener("input", () => {
+    f.radiusNumber.value = f.radius.value;
+    changed();
+  });
+  f.radiusNumber.addEventListener("input", () => {
+    f.radius.value = f.radiusNumber.value;
+    changed();
+  });
+  f.radiusNumber.addEventListener("change", () => {
+    f.radiusNumber.value = f.radius.value;
+  });
 }
 
 /** Assemble the <dialog>/<form> around the built fields, leaving the locator
@@ -118,7 +175,9 @@ export function buildDialog({ onSave, onCancel }) {
     f.lon,
     f.color,
     locatorHost,
+    f.where,
     radiusRow(f),
+    f.usage,
     colorGroup,
     labeled(t("places.enterConfirmations"), f.enter, f.enter.id),
     labeled(t("places.exitConfirmations"), f.exit, f.exit.id),

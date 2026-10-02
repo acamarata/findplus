@@ -303,6 +303,26 @@ Set or change the PIN. Changing it requires the existing one.
 }
 ```
 
+### POST /api/settings/pin/check
+Say whether `current_pin` is the PIN, changing nothing.
+
+**Request body:**
+```json
+{
+  "properties": {
+    "current_pin": {
+      "type": "string",
+      "title": "Current Pin"
+    }
+  },
+  "type": "object",
+  "required": [
+    "current_pin"
+  ],
+  "title": "Body_check_pin_api_settings_pin_check_post"
+}
+```
+
 ### POST /api/settings/widget.show_map
 Persist whether the widget renders a map snapshot.
 
@@ -526,6 +546,9 @@ Poll Runs
 |---|---|---|---|
 | limit | query | False | integer |
 
+### GET /api/settings/routing.endpoint
+Get Routing Endpoint
+
 ### GET /api/timeline
 One day of history, as one INDEPENDENT track per device.
 
@@ -536,6 +559,28 @@ One day of history, as one INDEPENDENT track per device.
 | group_id | query | False | integer |
 | movement_threshold_meters | query | False | number |
 | gap_threshold_minutes | query | False | number |
+| timezone | query | False | string |
+
+### GET /api/trips
+Stays (with a saved-place label), trips between them, and no-sighting gaps.
+
+| name | in | required | type |
+|---|---|---|---|
+| device_id | query | True | string |
+| date | query | False | string |
+| days | query | False | integer |
+| gap_minutes | query | False | number |
+| timezone | query | False | string |
+
+### GET /api/trips/route
+A likely road route for one trip, or dashed straight segments.
+
+| name | in | required | type |
+|---|---|---|---|
+| device_id | query | True | string |
+| trip_id | query | True | string |
+| date | query | False | string |
+| days | query | False | integer |
 | timezone | query | False | string |
 
 ### POST /api/history/clear
@@ -595,6 +640,30 @@ Delete observations older than a date. Requires explicit confirmation.
 
 ### POST /api/poll-now
 Trigger one immediate Find Hub query. Rate-limited to protect the account.
+
+### POST /api/settings/routing.endpoint
+Set (or clear, with an empty value) the OSRM-compatible routing server.
+
+**Request body:**
+```json
+{
+  "properties": {
+    "value": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Value"
+    }
+  },
+  "type": "object",
+  "title": "Body_set_routing_endpoint_api_settings_routing_endpoint_post"
+}
+```
 
 ## places
 ### DELETE /api/places/{place_id}
@@ -1138,6 +1207,76 @@ Post Rule
 }
 ```
 
+### POST /api/alerts/rules/dry-run
+Post Dry Run
+
+**Request body:**
+```json
+{
+  "properties": {
+    "place_id": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Place Id"
+    },
+    "device_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Device Id"
+    },
+    "group_id": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Group Id"
+    },
+    "on_enter": {
+      "type": "boolean",
+      "title": "On Enter",
+      "default": true
+    },
+    "on_exit": {
+      "type": "boolean",
+      "title": "On Exit",
+      "default": true
+    },
+    "cooldown_minutes": {
+      "type": "integer",
+      "maximum": 1440.0,
+      "minimum": 0.0,
+      "title": "Cooldown Minutes",
+      "default": 30
+    },
+    "hours": {
+      "type": "integer",
+      "maximum": 72.0,
+      "minimum": 1.0,
+      "title": "Hours",
+      "default": 24
+    }
+  },
+  "type": "object",
+  "title": "DryRunBody"
+}
+```
+
 ### POST /api/alerts/test
 Post Test
 
@@ -1446,6 +1585,27 @@ Google Unlock Progress
 ### GET /api/auth/status
 Auth Status
 
+### GET /auth/google/begin
+Begin Page
+
+| name | in | required | type |
+|---|---|---|---|
+| state | query | False | string |
+
+### GET /auth/google/success
+Success Page
+
+| name | in | required | type |
+|---|---|---|---|
+| kind | query | False | string |
+
+### GET /auth/google/unlock/begin
+Unlock Begin Page
+
+| name | in | required | type |
+|---|---|---|---|
+| state | query | False | string |
+
 ### POST /api/apple/accessories
 Apple Accessories
 
@@ -1518,6 +1678,80 @@ UAT6 N23: Cancel while waiting on Chrome. Same Origin guard as start.
   "title": "GoogleCancelBody"
 }
 ```
+
+### POST /api/auth/google/helper/begin
+Helper Begin
+
+### POST /api/auth/google/helper/open-extensions
+Open chrome://extensions in the user's Google Chrome (their explicit ask).
+
+### POST /api/auth/google/helper/reveal
+Copy the extension to a stable folder and reveal it in the file manager.
+
+### POST /api/auth/google/helper/seen
+Helper Seen
+
+**Request body:**
+```json
+{
+  "properties": {
+    "state": {
+      "type": "string",
+      "title": "State",
+      "default": ""
+    }
+  },
+  "type": "object",
+  "title": "HelperSeenBody"
+}
+```
+
+### POST /api/auth/google/helper/token
+Helper Token
+
+**Request body:**
+```json
+{
+  "properties": {
+    "state": {
+      "type": "string",
+      "title": "State",
+      "default": ""
+    },
+    "oauth_token": {
+      "title": "Oauth Token",
+      "default": ""
+    }
+  },
+  "type": "object",
+  "title": "HelperTokenBody"
+}
+```
+
+### POST /api/auth/google/helper/unlock
+Helper Unlock
+
+**Request body:**
+```json
+{
+  "properties": {
+    "state": {
+      "type": "string",
+      "title": "State",
+      "default": ""
+    },
+    "vault_keys": {
+      "title": "Vault Keys",
+      "default": ""
+    }
+  },
+  "type": "object",
+  "title": "HelperUnlockBody"
+}
+```
+
+### POST /api/auth/google/helper/unlock-begin
+Helper Unlock Begin
 
 ### POST /api/auth/google/open
 Open Google's sign-in page (EmbeddedSetup) in the user's own Chrome.

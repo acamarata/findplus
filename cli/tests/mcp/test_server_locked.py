@@ -30,6 +30,7 @@ READ_TOOLS: dict[str, dict] = {
     "list_places": {},
     "get_latest": {},
     "get_timeline": {"day": "2026-09-19"},
+    "get_trips": {"device_id": "TAG-001"},
     "get_place_events": {},
     "get_group_presence": {"group_id": 1},
     "export": {"format": "csv", "start": "2026-09-01", "end": "2026-09-19"},
@@ -142,7 +143,7 @@ async def test_daemon_down_is_an_error_not_a_traceback() -> None:
 async def test_every_tool_has_a_description() -> None:
     async with Client(create_mcp_server(allow_writes=True)) as client:
         tools = (await client.list_tools()).tools
-    assert len(tools) == 16
+    assert len(tools) == 17
     missing = [t.name for t in tools if not (t.description or "").strip()]
     assert not missing, f"tools with no description: {missing}"
 

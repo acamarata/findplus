@@ -13,9 +13,11 @@ import {
   removeWebhook,
   renderWebhookSection,
   saveWebhook,
+  testWebhook,
   wireWebhookStatusClear,
 } from "./alerts_webhook.js";
 import { mappedError } from "./alerts_channel_errors.js";
+import { purgeSummary, setChannelState } from "./alerts_summary.js";
 
 /** Blanks a masked credential field the first time it is focused for editing. */
 function clearMaskedToken(el) {
@@ -69,6 +71,7 @@ function renderTelegramSection(telegram) {
   // connected -- clicking either only ever reached the server's own "not
   // configured" error, same reasoning UAT6 N15 already applied to the
   // targets field/Save/Find chat IDs below.
+  $("fp-tg-steps").hidden = !!telegram.configured;
   $("fp-tg-test").disabled = !telegram.configured;
   $("fp-tg-clear").disabled = !telegram.configured;
   renderTelegramTargets(telegram);
@@ -232,6 +235,7 @@ export async function loadChannels() {
   renderTelegramSection(channels.telegram);
   renderWebhookSection(channels.webhook);
   renderWhatsappSection(channels.whatsapp);
+  setChannelState(channels);
 }
 
 export function wireChannelControls() {
@@ -249,6 +253,7 @@ export function wireChannelControls() {
   // two files never import each other (see alerts_webhook.js's docstring).
   $("fp-webhook-save").addEventListener("click", () => saveWebhook(loadChannels));
   $("fp-webhook-remove").addEventListener("click", () => removeWebhook(loadChannels));
+  $("fp-webhook-test").addEventListener("click", testWebhook);
   wireWebhookStatusClear();
 }
 
@@ -269,4 +274,5 @@ export function purgeChannels() {
   $("fp-tg-status").textContent = "";
   $("fp-wa-status").textContent = "";
   purgeTelegramTargets();
+  purgeSummary();
 }

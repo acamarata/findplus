@@ -17,6 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from findplus.db.models import Device, DeviceGroup, Place, PlaceEvent, PlaceState
+from findplus.device_labels import unique_names
 from findplus.places.staleness import _is_stale, _last_fix_by_device, _stale_before
 
 
@@ -231,9 +232,10 @@ def list_place_events(
     stmt = stmt.order_by(PlaceEvent.observed_at.desc()).limit(min(limit, 1000))
 
     result = []
+    shown = unique_names(session)  # UAT #7: an id tail only where two trackers share a name
     for row in session.execute(stmt).all():
         row.PlaceEvent._place_name = row.place_name
-        row.PlaceEvent._device_name = row.device_name
+        row.PlaceEvent._device_name = shown.get(row.PlaceEvent.device_id, row.device_name)
         result.append(row.PlaceEvent)
     return result
 

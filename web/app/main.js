@@ -25,6 +25,7 @@ import { initTabbar } from "./components/tabbar.js";
 import { wireTabsKeyboard } from "./components/tabs_a11y.js";
 import { openSetupRoute, closeSetupRoute, checkOnboarding } from "./setup_route.js";
 import { loadIconSprite } from "./icon_sprite.js";
+import { startLiveRefresh } from "./live_refresh.js";
 
 // The status chrome (device name, service dot, cards, banner) lives in
 // status_view.js; re-exported so existing `main.js` importers keep working.
@@ -120,30 +121,19 @@ function wireControls() {
 }
 
 /**
- * (Re)arm the local-status auto-refresh timer. Split out of bootDashboard()
- * to keep it under the 50-line function cap (PRI rule 7).
- *
- * Polls the LOCAL API only. Google is queried server-side on its own
- * interval. Guarded so repeated lock/unlock cycles cannot stack duplicate
- * timers.
- */
-function armRefreshTimer(seconds) {
-  if (state.refreshTimer) clearInterval(state.refreshTimer);
-  state.refreshTimer = setInterval(async () => {
-    if (state.locked) return;  // never poll the API from behind the lock screen
-    try {
-      await loadStatus();
-      if (state.day === todayLocal()) await loadDay(state.day);
-    } catch (_) { /* a lock mid-refresh is handled by api() */ }
-  }, seconds * 1000);
-}
-
-/**
  * Load everything the dashboard needs and start its timers.
  *
  * Runs on a normal start AND after unlock -- starting locked used to skip
  * this, leaving `state.config` null and the auto-refresh timer never created.
  */
+function applyResumeFilters(resume) {
+  if (!resume) return;
+  state.deviceFilter = resume.deviceFilter;
+  state.movementOnly = resume.movementOnly;
+  $("device-filter").value = resume.deviceFilter || "";
+  $("toggle-movement").checked = resume.movementOnly;
+}
+
 export async function bootDashboard(resume) {
   // A lock (state.js's lockGeneration, bumped by lock.js's showLock()) that
   // fires mid-boot must stop this call from writing any more DOM or state:
@@ -168,12 +158,7 @@ export async function bootDashboard(resume) {
   await setDefaultView().catch(() => {});
   if (stale()) return;
 
-  if (resume) {
-    state.deviceFilter = resume.deviceFilter;
-    state.movementOnly = resume.movementOnly;
-    $("device-filter").value = resume.deviceFilter || "";
-    $("toggle-movement").checked = resume.movementOnly;
-  }
+  applyResumeFilters(resume);
 
   await loadStatus();
   if (stale()) return;
@@ -187,7 +172,9 @@ export async function bootDashboard(resume) {
   await applyHashRoute({ closeOthers: false });
   if (stale()) return;
 
-  armRefreshTimer(Math.max(30, config.ui_refresh_seconds || 45));
+  // live_refresh.js: one timer chain that follows what is happening (a poll
+  // expected, a problem to fix) and redraws when the poll or account changed.
+  startLiveRefresh(Math.max(30, config.ui_refresh_seconds || 45));
 
   // lock.js's unlock flow fires this unawaited, so a click elsewhere can land
   // before the alert banner or map fit above render. Ready-when-done signal.
@@ -244,5 +231,7 @@ async function main() {
 // trips the browser suite's no-page-errors assertion; the banner at least says
 // what failed.
 main().catch((err) => {
-  showAlert(t("common.apiUnreachable", { message: err.message }), "err");
+  showAlert(t("common.apiUnreachable", { message: err.message }), "err", {
+    action: { label: t("common.retry"), run: () => window.location.reload() },
+  });
 });

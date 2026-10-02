@@ -35,11 +35,19 @@ Constraints: Only the session/login credential is removed.
              sign-out ("Tracked devices and history stay") -- an accessory's
              key is what decrypts its *future* reports, independent of
              whether an Apple ID is currently signed in.
+             - Google also empties `~/.findplus/chrome-profile`, the Chrome profile
+               Find+'s own window (unlock, "own window" sign-in) logs into. It holds
+               Google session cookies for the whole account, so leaving it would
+               make Disconnect a half measure. Only that folder, nothing else.
              Never touches the devices table, sightings, places, groups or
              alert rules: sign-out is a credential operation, not a data one.
 """
 
 from __future__ import annotations
+
+import contextlib
+import shutil
+from pathlib import Path
 
 GOOGLE = "google-find-hub"
 APPLE = "apple-find-my"
@@ -59,6 +67,45 @@ def _credential_path(provider: str, settings):
     raise UnknownProviderError(provider)
 
 
+def _wipe_chrome_profile(settings) -> bool:
+    """Empty Find+'s own Chrome profile: it holds a live Google login for the account.
+
+    Only `<state_dir>/chrome-profile` is touched. A symlink, or a path that does not
+    resolve to a direct child of the state dir, is left alone. The folder itself stays.
+    Returns True when something was removed.
+    """
+    profile = Path(settings.chrome_profile_dir)
+    try:
+        inside = profile.parent.resolve() == Path(settings.state_dir).resolve()
+    except OSError:
+        return False
+    if profile.is_symlink() or not profile.is_dir() or not inside:
+        return False
+    removed = False
+    for child in profile.iterdir():
+        with contextlib.suppress(OSError):
+            if child.is_dir() and not child.is_symlink():
+                shutil.rmtree(child)
+            else:
+                child.unlink()
+            removed = True
+    return removed
+
+
+def _cancel_google_jobs() -> None:
+    """Stop any running sign-in/unlock job and kill unconsumed helper states first.
+
+    A job that finished after Disconnect would otherwise write a fresh token or key
+    for the account the user just signed out of, and Chrome would rewrite its
+    cookies under the profile wipe.
+    """
+    from .google_findhub import browser, helper_state, job_guards, unlock
+
+    job_guards.cancel_active(browser, browser.cancel_google_auth)
+    job_guards.cancel_active(unlock, unlock.cancel_google_unlock)
+    helper_state.drop_all_states()
+
+
 def sign_out(provider: str, settings) -> bool:
     """Remove `provider`'s saved sign-in credential, if any.
 
@@ -67,7 +114,12 @@ def sign_out(provider: str, settings) -> bool:
     404 / a plain error message rather than silently doing nothing.
     """
     path = _credential_path(provider, settings)
+    if provider == GOOGLE:
+        _cancel_google_jobs()
     existed = path.exists()
     if existed:
         path.unlink()
+    if provider == GOOGLE:
+        # Disconnect must not leave a full Google browser login behind.
+        existed = _wipe_chrome_profile(settings) or existed
     return existed

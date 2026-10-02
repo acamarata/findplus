@@ -81,7 +81,13 @@ def test_route_count():
     # +2 for the main-Chrome Google sign-in: POST /auth/google/open and /token.
     # +3 for the Google unlock step: POST /auth/google/unlock/start and /cancel,
     # GET /auth/google/unlock/progress.
-    assert len(routes) == 87
+    # +8 for the Chrome helper: POST helper/{begin,unlock-begin,token,unlock,seen}
+    # and the GET pages /auth/google/{begin,unlock/begin,success}.
+    # +2 for the helper install UX: POST helper/{reveal,open-extensions}.
+    # +4 for trips: GET /trips, GET /trips/route and GET/POST /settings/routing.endpoint.
+    # +1 for POST /settings/pin/check (verify the PIN before the remove question).
+    # +1 for POST /alerts/rules/dry-run (what a rule would have sent).
+    assert len(routes) == 103
 
 
 #: T1 (2026-09-22, PRI rule-7 50-line function cap): pulled out of
@@ -112,6 +118,9 @@ _EXPECTED_PATHS = {
     "/api/icons/custom/{icon_id}.png",
     "/api/icons/custom/{icon_id}",
     "/api/timeline",
+    "/api/trips",
+    "/api/trips/route",
+    "/api/settings/routing.endpoint",
     "/api/days",
     "/api/latest",
     "/api/poll-runs",
@@ -128,6 +137,16 @@ _EXPECTED_PATHS = {
     "/api/auth/google/unlock/start",
     "/api/auth/google/unlock/progress",
     "/api/auth/google/unlock/cancel",
+    "/api/auth/google/helper/begin",
+    "/api/auth/google/helper/unlock-begin",
+    "/api/auth/google/helper/token",
+    "/api/auth/google/helper/unlock",
+    "/api/auth/google/helper/seen",
+    "/api/auth/google/helper/reveal",
+    "/api/auth/google/helper/open-extensions",
+    "/auth/google/begin",
+    "/auth/google/unlock/begin",
+    "/auth/google/success",
     "/api/auth/apple/start",
     "/api/auth/apple/code",
     "/api/auth/apple/progress",

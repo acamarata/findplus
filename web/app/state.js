@@ -65,6 +65,14 @@ export const state = {
    * already live; booting it again would stack a second refresh timer).
    */
   dashboardBooted: false,
+  /** The newest GET /api/status body (status_view.js), or null. Read by the
+   *  empty-state messages and the map overlay; destroyed by the lock purge. */
+  status: null,
+  /** {since, baseId, n} while the dashboard waits for the poll an unlock or
+   *  sign-in just triggered (live_refresh.js); null otherwise. */
+  awaitingPoll: null,
+  /** True while this tab's own Poll Now request is in flight. */
+  pollInFlight: false,
 };
 
 export const $ = (id) => document.getElementById(id);
@@ -220,7 +228,8 @@ export function colorFor(deviceId) {
  * The banner under the cards. `extra` is optional: `action` ({label, run})
  * adds one in-app button after the sentence, and `hint` a smaller secondary
  * line (UAT6-N06/N07: the fix a user can make in the app comes first, a
- * terminal command only ever as that secondary hint).
+ * terminal command only ever as that secondary hint). Kind "info" is the calm
+ * blue banner for work in progress; `busy` adds a spinner to it.
  */
 export function showAlert(message, kind, extra = {}) {
   const el = $("alert");
@@ -243,7 +252,16 @@ export function showAlert(message, kind, extra = {}) {
     hint.textContent = extra.hint;
     el.appendChild(hint);
   }
-  el.className = `alert ${kind === "warn" ? "warn" : ""}`;
+  if (extra.busy) text.prepend(spinner());
+  el.className = `alert ${kind === "warn" || kind === "info" ? kind : ""}`;
+}
+
+/** A small decorative spinner for a banner that reports work in progress. */
+function spinner() {
+  const s = document.createElement("span");
+  s.className = "alert-spinner";
+  s.setAttribute("aria-hidden", "true");
+  return s;
 }
 
 /* ---------------------------------------------------------------- theme */

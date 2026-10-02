@@ -24,3 +24,10 @@ def test_caveats_point_at_setup_not_auth():
 
     assert "`findplus setup` to begin." in text
     assert "`findplus auth` to begin." not in text
+
+
+def test_caveats_mention_the_chrome_helper_step():
+    repo_root = Path(__file__).parents[2]
+    text = (repo_root / "packaging" / "homebrew" / "findplus.rb.tmpl").read_text()
+
+    assert "Chrome helper" in text

@@ -35,7 +35,7 @@ fi
 
 OLD_VER=$(grep -m1 '^version = ' cli/pyproject.toml | sed 's/version = "\(.*\)"/\1/')
 
-echo "Bumping $OLD_VER -> $NEW_VER in:  cli/pyproject.toml  CHANGELOG.md  install.sh"
+echo "Bumping $OLD_VER -> $NEW_VER in:  cli/pyproject.toml  CHANGELOG.md  install.sh  browser-helper/{manifest.json,helper_core.js}"
 if [ "${FINDPLUS_YES:-0}" = 1 ]; then
   echo "FINDPLUS_YES=1; continuing without a prompt."
 else
@@ -48,6 +48,11 @@ else
 fi
 
 sed -i.bak "s/^version = \"$OLD_VER\"/version = \"$NEW_VER\"/" cli/pyproject.toml && rm cli/pyproject.toml.bak
+
+# The Chrome helper carries the release version in two more places; the store
+# zip build (build-chrome-helper.sh) refuses a mismatch.
+sed -i.bak "s/^  \"version\": \"$OLD_VER\"/  \"version\": \"$NEW_VER\"/" browser-helper/manifest.json && rm browser-helper/manifest.json.bak
+sed -i.bak "s/^export const HELPER_VERSION = \"$OLD_VER\"/export const HELPER_VERSION = \"$NEW_VER\"/" browser-helper/helper_core.js && rm browser-helper/helper_core.js.bak
 
 # install.sh's default pin is what the README's `curl ... | bash` one-liner
 # actually installs. Only the release ASSET copy was ever sed-baked, so the

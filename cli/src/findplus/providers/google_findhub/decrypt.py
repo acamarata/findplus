@@ -75,13 +75,21 @@ def decrypt_and_parse(
     decrypt_aes_gcm: Any,
     device_update_pb2: Any,
     status_name: str,
+    skips: dict[str, int] | None = None,
 ) -> Any | None:
     """Decrypt + protobuf-parse one report; None (logged) on decrypt
-    error, malformed protobuf, or implausible coordinates."""
+    error, malformed protobuf, or implausible coordinates.
+
+    `skips`, when given, counts the reports that could not be decrypted or parsed
+    under `"undecryptable"`, so a poll can tell "Google sent nothing" from "Google
+    sent reports Find+ could not read".
+    """
+    counts = skips if skips is not None else {}
     try:
         plaintext = decrypt_report(loc, identity_key, is_mcu, decrypt, decrypt_aes_gcm)
     except Exception as exc:
         log.warning("report_decrypt_failed", error=str(exc), status=status_name)
+        counts["undecryptable"] = counts.get("undecryptable", 0) + 1
         return None
 
     proto_loc = device_update_pb2.Location()
@@ -89,6 +97,7 @@ def decrypt_and_parse(
         proto_loc.ParseFromString(plaintext)
     except Exception:
         log.warning("report_proto_malformed", status=status_name)
+        counts["undecryptable"] = counts.get("undecryptable", 0) + 1
         return None
 
     if not plausible(proto_loc.latitude, proto_loc.longitude):
@@ -110,6 +119,7 @@ def decode_one_report(
     decrypt: Any,
     decrypt_aes_gcm: Any,
     device_update_pb2: Any,
+    skips: dict[str, int] | None = None,
 ) -> RawObservation | None:
     """One (loc, ts) pair to a `RawObservation`, or None if it must be skipped."""
     status_name = STATUS_NAMES.get(int(loc.status), f"status_{int(loc.status)}")
@@ -120,7 +130,7 @@ def decode_one_report(
         return None
 
     proto_loc = decrypt_and_parse(
-        loc, identity_key, is_mcu, decrypt, decrypt_aes_gcm, device_update_pb2, status_name
+        loc, identity_key, is_mcu, decrypt, decrypt_aes_gcm, device_update_pb2, status_name, skips
     )
     if proto_loc is None:
         return None

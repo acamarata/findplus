@@ -149,7 +149,10 @@ export default {
     container.textContent = "";
     const heading = document.createElement("h2");
     heading.textContent = t("setup.notifications.title");
-    container.append(heading);
+    const lead = document.createElement("p");
+    lead.className = "fp-wizard-lead";
+    lead.textContent = t("setup.notifications.lead");
+    container.append(heading, lead);
     host = container;
   },
   async onEnter(ctx) {

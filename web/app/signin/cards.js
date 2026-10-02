@@ -200,11 +200,14 @@ function codeRow(prefix) {
   row.hidden = true;
   const code = field(t("signin.apple.code"), `${prefix}-apple-code`, "text", "one-time-code");
   code.input.inputMode = "numeric";
+  code.input.maxLength = 12; // room for "123 456"; the flow strips spaces and wants 6 digits
+  code.input.classList.add("fp-signin-code");
   const verify = button("btn fp-signin-btn", t("signin.apple.verify"), `${prefix}-apple-code-submit`);
-  const actions = el("div", "fp-signin-actions");
-  actions.append(verify);
+  const startOver = button("btn btn-secondary", t("signin.apple.startOver"), `${prefix}-apple-code-restart`);
+  const actions = el("div", "fp-signin-code-actions");
+  actions.append(verify, startOver);
   row.append(el("p", "fp-signin-how", t("signin.apple.codePrompt")), code.label, actions);
-  return { codeRow: row, code: code.input, verify };
+  return { codeRow: row, code: code.input, verify, codeRestart: startOver };
 }
 
 /** The Apple Find My card: Apple ID + password, then the 2FA code. */

@@ -22,6 +22,7 @@
 
 import { t } from "../i18n.js";
 import { loadIconSprite } from "../icon_sprite.js";
+import { buildNotices } from "./google_card_notices.js";
 import {
   CHROME_URL, button, card, chromeNoticeText, disconnectConfirmRow, el, feedback, field, head,
 } from "./cards.js";
@@ -122,39 +123,113 @@ function unlockBlock(prefix) {
   error.hidden = true;
   const errorDetail = el("p", "fp-signin-error-detail");
   error.append(errorDetail);
+  // Offered only when the Find+ helper is detected: the primary button then
+  // uses the helper, and this runs the separate Chrome window instead.
+  const own = button("btn btn-secondary fp-signin-alt-btn", t("signin.google.unlock.otherWay"),
+    `${prefix}-google-unlock-own`);
+  own.hidden = true;
   wrap.append(el("p", "fp-signin-unlock-head", t("signin.google.unlock.heading")), why, actions,
-    status, error);
+    own, status, error);
   return {
-    unlock: wrap, unlockButton: btn, unlockCancel: cancel, unlockStatus: status,
+    unlock: wrap, unlockWhy: why, unlockOwn: own, unlockButton: btn, unlockCancel: cancel, unlockStatus: status,
     unlockError: error, unlockErrorDetail: errorDetail,
   };
 }
 
-/** The Google Find Hub card (see the header for its two paths). */
+/**
+ * The primary "Sign in with Google" button (google_helper_flow.js) and its own
+ * status/cancel/error line. A neutral white button: no Google "G" artwork,
+ * which is reserved for Google Identity Services. It signs in through the Find+
+ * helper extension in the user's own Chrome.
+ */
+function helloBlock(prefix) {
+  const wrap = el("div", "fp-signin-hello");
+  const actions = el("div", "fp-signin-actions");
+  const hello = button("btn fp-signin-btn fp-google-btn", t("signin.google.hello.button"),
+    `${prefix}-google-hello`);
+  actions.append(hello);
+  const status = el("div", "fp-signin-progress");
+  status.id = `${prefix}-google-hello-status`;
+  status.setAttribute("role", "status");
+  status.hidden = true;
+  const statusText = el("span", "fp-signin-progress-text");
+  const cancel = button("btn btn-secondary", t("signin.cancel"), `${prefix}-google-hello-cancel`);
+  cancel.hidden = true;
+  status.append(el("span", "fp-signin-spinner"), statusText, cancel);
+  const error = el("div", "fp-signin-error");
+  error.id = `${prefix}-google-hello-error`;
+  error.setAttribute("role", "alert");
+  error.hidden = true;
+  const errorDetail = el("p", "fp-signin-error-detail");
+  const retry = button("btn btn-secondary", t("signin.retry"), `${prefix}-google-hello-retry`);
+  error.append(errorDetail, retry);
+  const install = installHint(prefix);
+  wrap.append(actions, status, error, install.installHint);
+  return {
+    helloBlock: wrap, hello, helloStatus: statusText, helloStatusRow: status,
+    helloCancel: cancel, helloError: error, helloErrorDetail: errorDetail, helloRetry: retry,
+    ...install,
+  };
+}
+
+/** The one-time "Add the Find+ helper to Chrome" hint and its two buttons. */
+function installHint(prefix) {
+  const wrap = el("details", "fp-signin-install");
+  const summary = document.createElement("summary");
+  summary.textContent = t("signin.google.helper.addTitle");
+  const how = el("p", "fp-signin-how", t("signin.google.helper.addHow"));
+  const actions = el("div", "fp-signin-actions");
+  const reveal = button("btn btn-secondary", t("signin.google.helper.showFolder"),
+    `${prefix}-google-helper-reveal`);
+  const openExt = button("btn btn-secondary", t("signin.google.helper.openExtensions"),
+    `${prefix}-google-helper-open`);
+  actions.append(reveal, openExt);
+  const installed = el("p", "fp-signin-how fp-signin-installed", t("signin.google.helper.installed"));
+  installed.id = `${prefix}-google-helper-installed`;
+  installed.hidden = true;
+  wrap.append(summary, how, actions, installed);
+  return { installHint: wrap, helperReveal: reveal, helperOpenExt: openExt, helperInstalled: installed };
+}
+
+/** The Google Find Hub card. Primary: "Sign in with Google" (the helper). The
+ * paste flow and the separate-window flow move under an "Other ways" details. */
 export function buildGoogleCard({ prefix, level, notices, withNotices }) {
   loadIconSprite().catch(() => {});
   const root = card(`${prefix}-google-card`, "google");
   const top = head("compass", t("signin.google.heading"), level, `${prefix}-google-status`);
   const how = el("p", "fp-signin-how", t("signin.google.how"));
-  const actions = el("div", "fp-signin-actions");
-  const open = button("btn fp-signin-btn", t("signin.google.openChrome"), `${prefix}-google-open`);
+  const hello = helloBlock(prefix);
   const disconnect = button("btn btn-secondary", t("signin.disconnect"), `${prefix}-google-disconnect`);
   disconnect.hidden = true;
-  actions.append(open, disconnect);
+  const disconnectRow = el("div", "fp-signin-actions");
+  disconnectRow.append(disconnect);
   const disconnectConfirm = disconnectConfirmRow(prefix, "google", t("signin.google.disconnectConfirm"));
-  const panel = tokenPanel(prefix);
   const unlock = unlockBlock(prefix);
+  const states = buildNotices(prefix);
+
+  // "Other ways to sign in": the paste flow and the separate-window flow, in a
+  // native <details> so it collapses with no inline handler (CSP-safe).
+  const other = document.createElement("details");
+  other.className = "fp-signin-other";
+  const summary = document.createElement("summary");
+  summary.textContent = t("signin.google.otherWays");
+  const open = button("btn fp-signin-btn", t("signin.google.openChrome"), `${prefix}-google-open`);
+  const openRow = el("div", "fp-signin-actions");
+  openRow.append(open);
+  const panel = tokenPanel(prefix);
   const alt = el("div", "fp-signin-alt");
   const signin = button("btn btn-secondary fp-signin-alt-btn", t("signin.google.ownWindow"),
     `${prefix}-google-signin`);
   alt.append(signin);
   const fb = feedback(`${prefix}-google`, { withCancel: true });
   const chrome = chromeBlock(prefix, notices);
-  root.append(top.wrap, how, actions, disconnectConfirm.row, unlock.unlock, panel.tokenPanel, alt,
-    fb.progress, fb.error, chrome.chrome);
+  other.append(summary, openRow, panel.tokenPanel, alt, fb.progress, fb.error, chrome.chrome);
+
+  root.append(top.wrap, states.revoked, how, hello.helloBlock, states.switchHint, states.ready,
+    disconnectRow, disconnectConfirm.row, unlock.unlock, other);
   if (withNotices) root.append(el("p", "fp-wizard-footnote", notices.find_hub || ""));
   return {
-    root, account: top.account, open, button: signin, disconnect, disconnectConfirm,
-    ...unlock, ...panel, ...fb, ...chrome,
+    root, account: top.account, open, button: signin, disconnect, disconnectConfirm, other,
+    ...hello, ...unlock, ...panel, ...fb, ...chrome, ...states,
   };
 }

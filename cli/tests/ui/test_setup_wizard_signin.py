@@ -16,6 +16,7 @@ import json
 
 import pytest
 
+from ._signin_helpers import reveal_other_ways
 from .conftest import SEEDED_COMPLETED_AT
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -71,6 +72,7 @@ async def test_step_has_a_heading_and_google_button_reflects_signed_in_state(
         await page.route("**/api/auth/status", status_signed_in)
         await page.goto(base_url + "/#/setup")
         await page.wait_for_selector("#fp-setup-signin-status", timeout=15000)
+        await reveal_other_ways(page)
 
         # text_content(), not inner_text(): h2 is styled text-transform:
         # uppercase, which inner_text() would reflect as "SIGN IN".
@@ -117,6 +119,7 @@ async def test_a_409_rejoins_the_running_sign_in(page, base_url):
         await page.route("**/api/auth/google/progress*", progress)
         await page.goto(base_url + "/#/setup")
         await page.wait_for_selector("#fp-setup-signin-status", timeout=15000)
+        await reveal_other_ways(page)
 
         await page.get_by_role("button", name="Or let Find+ open its own Chrome window").click()
         await page.wait_for_function(
@@ -187,6 +190,7 @@ async def test_signed_in_hides_the_chrome_notice_even_with_a_stale_needs_chrome(
         # surfaces "Cannot read properties of null" instead of a clean
         # timeout -- same ordering test_step_has_a_heading_... above uses.
         await page.wait_for_selector("#fp-setup-signin-status", timeout=15000)
+        await reveal_other_ways(page)
         await page.wait_for_function(
             "() => document.getElementById('fp-setup-signin-status')"
             ".textContent.includes('Signed in as')",
@@ -219,6 +223,7 @@ async def test_signed_out_and_chrome_missing_shows_the_notice(page, base_url) ->
         await page.route("**/api/auth/status", status)
         await page.goto(base_url + "/#/setup")
         await page.wait_for_selector("#fp-setup-signin-status", timeout=15000)
+        await reveal_other_ways(page)
         await page.wait_for_selector("#fp-setup-chrome-notice:not([hidden])", timeout=15000)
 
         assert (await page.locator("#fp-setup-signin-status").inner_text()).strip() == ""
@@ -254,11 +259,12 @@ async def test_signin_step_cards_are_not_stretched_to_equal_height(page, base_ur
         assert await cards.count() == 2
         google_box = await cards.nth(0).bounding_box()
         apple_box = await cards.nth(1).bounding_box()
-        # The two cards' own content naturally differs in height (Apple's
-        # form fields vs Google's single button); which one ends up taller
-        # is not the point here -- forcing them to the SAME height (the old
-        # grid stretch) is the regression this pins.
-        assert abs(google_box["height"] - apple_box["height"]) > 20, (google_box, apple_box)
+        # The two cards' own content naturally differs in height; which one is
+        # taller is not the point (the 1.1.5 primary-button redesign narrowed
+        # the gap). Forcing them to the SAME height (the old grid stretch) is
+        # the regression this pins, so any non-trivial difference proves each
+        # card kept its own height.
+        assert abs(google_box["height"] - apple_box["height"]) > 2, (google_box, apple_box)
     finally:
         await page.set_viewport_size({"width": 1280, "height": 900})
         await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)

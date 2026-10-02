@@ -73,6 +73,12 @@ async function reloadList(ctx) {
   const places = await ctx.api("/api/places");
   els.list.textContent = "";
   places.forEach((place) => els.list.append(placeRow(place)));
+  if (!places.length) {
+    const empty = document.createElement("p");
+    empty.className = "fp-tab-hint";
+    empty.textContent = t("setup.places.empty");
+    els.list.append(empty);
+  }
 }
 
 export default {
@@ -109,7 +115,10 @@ export default {
     mapHost.id = "fp-setup-map-host";
 
     els = { list };
-    container.append(heading, list, add, mapHost);
+    const lead = document.createElement("p");
+    lead.className = "fp-wizard-lead";
+    lead.textContent = t("setup.places.lead");
+    container.append(heading, lead, list, add, mapHost);
     borrowMap(mapHost);
     if (ctx.state.map) ctx.state.map.invalidateSize();
   },

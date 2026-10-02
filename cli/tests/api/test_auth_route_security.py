@@ -113,18 +113,27 @@ def _auth_routes() -> list[tuple[str, str]]:
     )
 
 
+# The two helper ingest routes carry their own gate (extension origin + a
+# single-use state), because the extension has no dashboard cookie; see
+# `_STATE_GATED` in api/__init__.py and the test below.
+_STATE_GATED_ROUTES = {
+    ("POST", "/api/auth/google/helper/token"),
+    ("POST", "/api/auth/google/helper/unlock"),
+    ("POST", "/api/auth/google/helper/seen"),
+}
 _E6_ROUTES = _auth_routes()
 
 
-def test_the_dynamic_sweep_sees_all_fourteen_routes() -> None:
+def test_the_dynamic_sweep_sees_all_twentyone_routes() -> None:
     """7 from E6, plus S11/WP8's `POST /auth/google/cancel` and
-    `DELETE /auth/{provider}` (sign-out), plus the main-Chrome
-    `POST /auth/google/open` and `POST /auth/google/token`, plus the unlock
-    step's start/progress/cancel."""
-    assert len(_E6_ROUTES) == 14, _E6_ROUTES
+    `DELETE /auth/{provider}` (sign-out), the main-Chrome
+    `POST /auth/google/open` and `POST /auth/google/token`, the unlock
+    step's start/progress/cancel, and the Chrome helper's five
+    `POST /auth/google/helper/*` ingest routes."""
+    assert len(_E6_ROUTES) == 21, _E6_ROUTES
 
 
-@pytest.mark.parametrize("method,path", _E6_ROUTES)
+@pytest.mark.parametrize("method,path", [r for r in _E6_ROUTES if r not in _STATE_GATED_ROUTES])
 def test_every_e6_route_401s_while_locked(locked_client, method: str, path: str) -> None:
     """SessionAuthMiddleware runs before any handler body, so the lock wins over
     `_require_origin_signal` — sent WITH the headers, this is still a 401.
@@ -140,6 +149,27 @@ def test_every_e6_route_401s_while_locked(locked_client, method: str, path: str)
     res = locked_client.request(method, concrete, **kwargs)
     assert res.status_code == 401, f"{method} {path} -> {res.status_code}"
     assert res.json() == {"detail": "Locked. Enter your PIN to continue.", "locked": True}
+
+
+@pytest.mark.parametrize(
+    "method,path", sorted(r for r in _STATE_GATED_ROUTES if not r[1].endswith("/seen"))
+)
+def test_helper_ingest_routes_reach_their_own_gate_while_locked(
+    locked_client, method: str, path: str
+) -> None:
+    """No cookie, no extension origin, no state: refused by the handler's own
+    gate (403/422), never by the lock (401) and never accepted (2xx)."""
+    res = locked_client.request(method, path, json={}, headers=SAME_ORIGIN_HEADERS)
+    assert res.status_code in (400, 403, 422), f"{method} {path} -> {res.status_code}"
+
+
+def test_helper_seen_is_reachable_while_locked(locked_client) -> None:
+    """The begin page has no dashboard cookie; under the app lock it must still be
+    able to say "helper detected" (it only sets a hint)."""
+    res = locked_client.post(
+        "/api/auth/google/helper/seen", json={"state": ""}, headers=SAME_ORIGIN_HEADERS
+    )
+    assert res.status_code == 200
 
 
 # --------------------------------------------------------------- the secret

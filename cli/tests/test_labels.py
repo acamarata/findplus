@@ -49,7 +49,7 @@ def test_validate_label_rejects_over_forty_characters() -> None:
 @pytest.mark.parametrize(
     ("label", "name", "device_id", "expected"),
     [
-        ("Omar's backpack", "Pebblebee Clip", "dev1", "Omar's backpack"),
+        ("Noor's backpack", "Pebblebee Clip", "dev1", "Noor's backpack"),
         (None, "Pebblebee Clip", "dev1", "Pebblebee Clip"),
         ("  ", "Pebblebee Clip", "dev1", "Pebblebee Clip"),
         (None, None, "dev1", "dev1"),

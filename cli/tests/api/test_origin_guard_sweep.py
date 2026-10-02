@@ -61,9 +61,27 @@ _REQUIRES_OWN_SIGNAL = {
     ("POST", "/api/auth/google/token"),
     ("POST", "/api/auth/google/unlock/start"),
     ("POST", "/api/auth/google/unlock/cancel"),
+    ("POST", "/api/auth/google/helper/begin"),
+    ("POST", "/api/auth/google/helper/unlock-begin"),
+    ("POST", "/api/auth/google/helper/reveal"),
+    ("POST", "/api/auth/google/helper/open-extensions"),
     ("DELETE", "/api/auth/{provider}"),
 }
-_HEADERLESS_ROUTES = [r for r in _ROUTES if r not in _REQUIRES_OWN_SIGNAL]
+
+#: The Chrome-helper ingest posts accept ONLY the pinned extension origin (plus
+#: a valid single-use state), so a same-origin browser request 403s at the
+#: handler too. They still refuse every cross-site shape (that is tested above),
+#: but they are excluded from the "reaches its handler" checks, which assume a
+#: same-origin or headerless caller is welcome. Pinned by
+#: test_auth_google_helper_routes.py instead.
+_EXTENSION_ONLY = {
+    ("POST", "/api/auth/google/helper/token"),
+    ("POST", "/api/auth/google/helper/unlock"),
+}
+_SAME_ORIGIN_ROUTES = [r for r in _ROUTES if r not in _EXTENSION_ONLY]
+_HEADERLESS_ROUTES = [
+    r for r in _ROUTES if r not in _REQUIRES_OWN_SIGNAL and r not in _EXTENSION_ONLY
+]
 
 
 @pytest.fixture
@@ -101,7 +119,7 @@ def test_every_mutating_route_refuses_all_three_cross_site_shapes(
     assert res.status_code == 403, f"{method} {path} {headers} -> {res.status_code}"
 
 
-@pytest.mark.parametrize("method,path", _ROUTES)
+@pytest.mark.parametrize("method,path", _SAME_ORIGIN_ROUTES)
 def test_every_mutating_route_still_reaches_its_handler_same_origin(
     client: TestClient, method: str, path: str
 ) -> None:

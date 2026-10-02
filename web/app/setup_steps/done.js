@@ -40,12 +40,50 @@ function renderComplete(trackedCount) {
   els.heading.textContent = t("setup.done.title");
   els.summary.textContent = plural("setup.done.summary", trackedCount, { n: trackedCount });
   els.signinBtn.hidden = true;
+  els.facts.hidden = false;
 }
 
 function renderIncomplete() {
   els.heading.textContent = t("setup.done.incomplete_title");
   els.summary.textContent = t("setup.done.incomplete_summary");
   els.signinBtn.hidden = false;
+  els.facts.hidden = true;
+}
+
+function item(text) {
+  const li = document.createElement("li");
+  li.textContent = text;
+  return li;
+}
+
+/** Where things live: the menu bar on the desktop app, the address otherwise. */
+function whereList() {
+  const list = document.createElement("ul");
+  list.className = "fp-wizard-points";
+  list.append(
+    item(
+      window.__findplus_native === true
+        ? t("setup.done.where_native")
+        : t("setup.done.where_web", { url: window.location.origin })
+    ),
+    item(t("setup.done.where_settings"))
+  );
+  return list;
+}
+
+/** What Find+ is doing right now, from the server's own numbers. */
+function paintFacts(accounts, tracked, extras) {
+  const [settings, groups, places, lock] = extras.map((r) => (r.status === "fulfilled" ? r.value : null));
+  els.facts.textContent = "";
+  els.facts.append(
+    item(accounts.length ? t("setup.signin.signed_in_as", { accounts: accounts.join(", ") }) : t("setup.done.no_account"))
+  );
+  const minutes = settings && settings["poll.interval_minutes"];
+  if (!tracked) els.facts.append(item(t("setup.done.not_polling")));
+  else if (minutes) els.facts.append(item(t("setup.done.polling", { n: minutes })));
+  if (groups) els.facts.append(item(plural("setup.done.groups", groups.length, { n: groups.length })));
+  if (places) els.facts.append(item(plural("setup.done.places", places.length, { n: places.length })));
+  if (lock) els.facts.append(item(t(lock.lock_configured ? "setup.done.lock_on" : "setup.done.lock_off")));
 }
 
 export default {
@@ -58,6 +96,10 @@ export default {
     const summary = document.createElement("p");
     summary.setAttribute("aria-live", "polite");
     summary.dataset.ready = "false";
+    const facts = document.createElement("ul");
+    facts.id = "fp-setup-done-facts";
+    facts.className = "fp-wizard-points";
+    facts.hidden = true;
     const signinBtn = document.createElement("button");
     signinBtn.type = "button";
     signinBtn.id = "fp-setup-done-signin";
@@ -65,17 +107,25 @@ export default {
     signinBtn.textContent = t("setup.done.go_to_signin");
     signinBtn.hidden = true;
     signinBtn.addEventListener("click", () => ctx.goToStep("signin"));
-    els = { heading, summary, signinBtn };
-    container.append(heading, summary, signinBtn);
+    const whereHead = document.createElement("h3");
+    whereHead.textContent = t("setup.done.where_title");
+    els = { heading, summary, signinBtn, facts };
+    container.append(heading, summary, facts, signinBtn, whereHead, whereList());
   },
   async onEnter(ctx) {
-    const [{ tracked_count: trackedCount }, authStatus] = await Promise.all([
+    const [{ tracked_count: trackedCount }, authStatus, ...extras] = await Promise.all([
       ctx.api("/api/devices"),
       ctx.api("/api/auth/status"),
+      // Nice to have: a failure here drops that line, never the summary.
+      ...["/api/settings", "/api/groups", "/api/places", "/api/lock/status"].map((url) =>
+        ctx.api(url).then((v) => ({ status: "fulfilled", value: v }), () => ({ status: "rejected" }))
+      ),
     ]);
-    const signedIn = (authStatus.providers || []).some((p) => p.signed_in);
-    if (signedIn || trackedCount) renderComplete(trackedCount);
-    else renderIncomplete();
+    const signedIn = (authStatus.providers || []).filter((p) => p.signed_in);
+    if (signedIn.length || trackedCount) {
+      paintFacts(signedIn.map((p) => p.account || p.id), trackedCount, extras);
+      renderComplete(trackedCount);
+    } else renderIncomplete();
     // Set last, after either branch has painted its own final text: this is
     // what tells a reader (or a test) the async fetch has actually landed.
     els.summary.dataset.ready = "true";

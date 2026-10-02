@@ -28,6 +28,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from findplus import __version__, honesty
+from findplus.api._lock_paths import _PUBLIC, _STATE_GATED
 from findplus.appsettings import load_settings
 from findplus.config import PROJECT_ROOT, get_settings
 from findplus.db.session import session_scope
@@ -47,6 +48,7 @@ from . import (
     routes_places_search,
     routes_providers,
     routes_settings,
+    routes_trips,
 )
 from ._app_instance import new_fastapi_app
 from ._routes_history_export import build_export_router
@@ -71,24 +73,6 @@ STATIC_DIR = _static_dir()
 FIND_HUB_NOTICE = honesty.FIND_HUB
 
 SESSION_COOKIE = "findplus_session"
-
-#: Endpoints reachable while the app is locked. Everything else 401s.
-#: The lock is enforced HERE, server-side — hiding the UI would leave the data
-#: one `curl` away. Corrected to the 8-path set from specs/api-contract.md
-#: (renamed from the legacy 3-entry _UNGATED_PATHS, which was under-enforced).
-#: `/static/*` and `/` were dead entries: this middleware only inspects paths
-#: that start with `/api/`, so neither could ever be compared against, and a
-#: literal `"/static/*"` never equals a real request path anyway.
-_PUBLIC = frozenset(
-    {
-        "/api/health",
-        "/api/version",
-        "/api/lock/status",
-        "/api/lock/unlock",
-        "/api/lock/lock",
-        "/api/lock/requirements",
-    }
-)
 
 
 #: Guards manual polls so the UI cannot be used to hammer Google. Process-wide
@@ -182,7 +166,7 @@ class SessionAuthMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
-        if not path.startswith("/api/") or path in _PUBLIC:
+        if not path.startswith("/api/") or path in _PUBLIC or path in _STATE_GATED:
             return await call_next(request)
 
         try:
@@ -232,6 +216,9 @@ def _register_routers(app: FastAPI, *, settings, sessions, sync_idle_timeout) ->
     app.include_router(routes_icons.build_router())
     app.include_router(routes_providers.build_router())
     app.include_router(routes_auth.build_router())
+    from findplus.api._routes_auth_google_helper import build_pages_router
+
+    app.include_router(build_pages_router())
     app.include_router(routes_places.build_router())
     app.include_router(routes_places_search.build_router())
     app.include_router(routes_groups.build_router())
@@ -240,6 +227,7 @@ def _register_routers(app: FastAPI, *, settings, sessions, sync_idle_timeout) ->
     app.include_router(
         routes_history.build_router(settings=settings, check_poll_cooldown=_check_poll_cooldown)
     )
+    app.include_router(routes_trips.build_router())
     app.include_router(build_export_router())
 
 

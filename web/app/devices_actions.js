@@ -19,11 +19,12 @@
  */
 "use strict";
 
-import { $, showAlert } from "./state.js";
+import { $, state, showAlert } from "./state.js";
 import { postJson } from "./api.js";
 import { reload } from "./main.js";
 import { t } from "./i18n.js";
 import { shortStatus } from "./poll_status.js";
+import { bannerRun, pollingMessage } from "./poll_cycle.js";
 import { loadDevices, renderDeviceModal, closeDevices, providerWording } from "./devices.js";
 
 // N50: mirrors MANUAL_POLL_COOLDOWN in cli/src/findplus/api/__init__.py. Used
@@ -59,6 +60,40 @@ function startCooldown(btn, ms) {
   }, ms);
 }
 
+/** The Devices dialog's own error line: the page banner sits behind the open dialog. */
+function dialogError(text) {
+  const line = $("device-modal-error");
+  if (line) line.textContent = text;
+}
+
+/** Past this many trackers the result is counted by outcome, not listed one by one. */
+const LIST_UP_TO = 4;
+
+/** "12 no recent sighting · 3 not signed in": one count per outcome. */
+function pollTally(results) {
+  const counts = new Map();
+  results.forEach((x) => counts.set(shortStatus(x.status), (counts.get(shortStatus(x.status)) || 0) + 1));
+  return [...counts].map(([status, n]) => t("devices.pollTally", { n, status })).join(" · ");
+}
+
+/** The "N trackers polled" sentence: a line per tracker for a few, counts for many. */
+function pollSummary(r) {
+  if (r.results.length > LIST_UP_TO) {
+    return t("devices.polledMany", { devices: r.devices_polled, observations: r.observations_new, tally: pollTally(r.results) });
+  }
+  const lines = r.results.map(
+    (x) =>
+      // UAT6-N06: plain words, never the raw status code.
+      t("devices.pollResultLine", { device: x.device_name, status: shortStatus(x.status) }) +
+      (x.observations_new ? t("devices.pollResultNew", { n: x.observations_new }) : "")
+  );
+  return t("devices.polled", {
+    devices: r.devices_polled,
+    observations: r.observations_new,
+    lines: lines.join(" · "),
+  });
+}
+
 /** Query every provider once, now, and say what came back.
  *
  * UAT5 N50: a second click within the server's one-per-minute limit used to
@@ -78,26 +113,28 @@ export async function pollNow() {
   // status_view.js resync mid-request must not read "not cooling" and
   // re-enable a button whose own request has not answered yet.
   btn.dataset.cooling = "1";
+  // The API reports a poll only when it ends, so say it is under way from
+  // here, and let status refreshes mid-request keep saying it.
+  state.pollInFlight = true;
+  const gen = state.lockGeneration;
+  showAlert(pollingMessage(state.status), "info", { busy: true, hint: t("live.pollingHint") });
   try {
     const r = await postJson("/api/poll-now");
-    const lines = r.results.map(
-      (x) =>
-        // UAT6-N06: plain words, never the raw status code.
-        t("devices.pollResultLine", { device: x.device_name, status: shortStatus(x.status) }) +
-        (x.observations_new ? t("devices.pollResultNew", { n: x.observations_new }) : "")
-    );
-    showAlert(
-      t("devices.polled", {
-        devices: r.devices_polled,
-        observations: r.observations_new,
-        lines: lines.join(" · "),
-      }),
-      "warn"
-    );
+    state.pollInFlight = false;
+    // The app locked while the request ran: the answer carries tracker names, and
+    // the purge has already cleared the screen. Write nothing behind the lock.
+    if (state.lockGeneration !== gen) return startCooldown(btn, POLL_COOLDOWN_MS);
+    // Reload first: it redraws the banner, and a failure it names (locked,
+    // signed out) must keep its action rather than be covered by this summary.
     await reload();
+    // A lock during reload() has purged the screen again: still write nothing.
+    if (state.lockGeneration === gen && (!state.status || !bannerRun(state.status))) {
+      showAlert(pollSummary(r), "info");
+    }
     startCooldown(btn, POLL_COOLDOWN_MS);
   } catch (err) {
-    showAlert(err.message, "err");
+    state.pollInFlight = false;
+    if (state.lockGeneration === gen) showAlert(err.message, "err");
     if (err.status === 429) {
       const wait = WAIT_SECONDS.exec(err.message);
       startCooldown(btn, (wait ? Number(wait[1]) : 60) * 1000);
@@ -120,16 +157,17 @@ export async function refreshFromProviders() {
   const btn = $("btn-refresh-devices");
   btn.disabled = true;
   btn.textContent = t("devices.askingProvidersLabel");
+  dialogError("");
   try {
     const r = await postJson("/api/devices/refresh");
     await loadDevices();
     renderDeviceModal();
     const failed = Object.keys(r.errors || {});
-    let msg = t("devices.refreshFound", { found: r.found, providers: (r.providers || []).length });
-    if (failed.length) msg += t("devices.refreshUnreachable", { names: failed.join(", ") });
-    showAlert(msg, "warn");
+    const msg = t("devices.refreshFound", { found: r.found, providers: (r.providers || []).length });
+    if (failed.length) dialogError(msg + t("devices.refreshUnreachable", { names: failed.join(", ") }));
+    else showAlert(msg, "warn");
   } catch (err) {
-    showAlert(t("devices.refreshFailed", { message: err.message }), "err");
+    dialogError(t("devices.refreshFailed", { message: err.message }));
   } finally {
     btn.disabled = false;
     btn.textContent = t("devices.refreshProvidersLabel");
@@ -139,6 +177,7 @@ export async function refreshFromProviders() {
 /** Save the ticked set and report the request rate it implies. */
 export async function saveTrackedDevices() {
   const ids = [...document.querySelectorAll("#device-list input:checked")].map((i) => i.value);
+  dialogError("");
   try {
     const r = await postJson("/api/devices/track", { device_ids: ids });
     closeDevices();
@@ -155,6 +194,6 @@ export async function saveTrackedDevices() {
     );
     await reload();
   } catch (err) {
-    showAlert(err.message, "err");
+    dialogError(err.message);
   }
 }

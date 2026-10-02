@@ -8,153 +8,23 @@
  */
 "use strict";
 
-import { $, state, displayName, visibleTracks, fmtTime, fmtDateTime, fmtDuration, fmtDistance, todayLocal, showAlert, esc } from "./state.js";
+import { $, state, fmtDateTime, fmtDuration, todayLocal, showAlert } from "./state.js";
 import { api, postJson } from "./api.js";
-import { renderMap, visiblePoints, deviceForTrack } from "./map.js";
-import { renderBadge } from "./components/badge.js";
+import { renderMap } from "./map.js";
 import { reload } from "./main.js";
 import { providerWording } from "./devices.js";
-import { t, plural } from "./i18n.js";
-import { nothingTrackedEmptyState } from "./dashboard_empty.js";
+import { t } from "./i18n.js";
 import { confirmDialog } from "./components/confirm-dialog.js";
+import { expandFor, highlightSelection, renderTracks } from "./track_blocks.js";
+import { paneError } from "./pane_error.js";
+import { wireTimelineKeys } from "./timeline_keys.js";
+import { hideStory, wireStory } from "./trips_view.js";
 
-const PIN_ICON = `<svg class="tl-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#lucide-map-pin"></use></svg>`;
-
-function statsHtml(stats) {
-  if (!stats || !stats.observation_count) return "";
-  const cells = [
-    [t("timeline.statFirst"), fmtTime(stats.first_observed_at_local)],
-    [t("timeline.statLast"), fmtTime(stats.last_observed_at_local)],
-    [t("timeline.statUnique"), String(stats.observation_count)],
-    [t("timeline.statMovements"), String(stats.movement_count)],
-    [t("timeline.statDistance"), t("timeline.distanceMiles", { miles: stats.approximate_distance_miles.toFixed(2) })],
-    [t("timeline.statLongestGap"), fmtDuration(stats.longest_gap_seconds)],
-    [t("timeline.statTimeSpan"), fmtDuration(stats.time_span_seconds)],
-  ];
-  return `<div class="stats">` +
-    cells.map(([l, v]) => `<div class="stat"><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join("") +
-    `<div class="stat-note">${esc(t("timeline.statNote", { label: stats.distance_label }))}</div>` +
-    `</div>`;
-}
-
-function timelineHtml(track) {
-  const points = visiblePoints(track);
-  if (!points.length) {
-    return `<div class="empty">${esc(t("timeline.emptyDay"))}</div>`;
-  }
-  let html = `<ol class="timeline">`;
-  points.forEach((point) => {
-    if (point.gap_before && point.seconds_since_previous) {
-      const gap = t("timeline.noDetectionsFor", {
-        duration: fmtDuration(point.seconds_since_previous).toUpperCase(),
-      });
-      html += `<li class="tl-gap">${esc(gap)}</li>`;
-    }
-    const dist = fmtDistance(point.meters_from_previous);
-    const meta = [];
-    if (dist) meta.push(t("timeline.fromPrevious", { distance: dist }));
-    if (point.accuracy_meters != null) {
-      meta.push(t("timeline.accuracy", { meters: Math.round(point.accuracy_meters) }));
-    } else {
-      // Apple Find My never reports a metres figure (CF-P2-6): say so plainly
-      // instead of just omitting the line, which could read as "exact".
-      meta.push(t("timeline.accuracyUnknown"));
-    }
-    if (!point.is_movement && point.seconds_since_previous !== null) {
-      meta.push(t("timeline.belowThreshold"));
-    }
-
-    // Coordinates stay in the title attribute for hover even when a place name
-    // is shown in their place (U30b) — the API resolves place_name server-side
-    // (routes_history.py::_annotate_place_names) against every saved place.
-    // UAT6-N30: the sprite's map pin, not an emoji that renders per-OS.
-    const coordsTitle = `${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}`;
-    const coordsLine = point.place_name
-      ? `<div class="tl-coords" title="${esc(coordsTitle)}">${PIN_ICON}${esc(point.place_name)}</div>`
-      : `<div class="tl-coords">${PIN_ICON}${esc(coordsTitle)}</div>`;
-
-    html +=
-      `<li class="tl-item${point.is_movement ? "" : " jitter"}" data-id="${point.id}">` +
-      `<div><span class="tl-seq">${point.sequence}.</span> <span class="tl-time">${fmtTime(point.observed_at_local)}</span></div>` +
-      coordsLine +
-      (meta.length ? `<div class="tl-meta">${esc(meta.join(" · "))}</div>` : "") +
-      `</li>`;
-  });
-  return html + `</ol>`;
-}
-
-/**
- * The sticky header above one track: badge, name, observation count.
- *
- * The name prefers the device's label, so a track reads the way the user named
- * the tracker rather than the way the provider did.
- */
-function trackHead(track) {
-  const device = deviceForTrack(track);
-  const head = document.createElement("div");
-  head.className = "track-head";
-  const swatch = document.createElement("span");
-  swatch.className = "track-swatch";
-  swatch.appendChild(
-    renderBadge({
-      icon: device.icon,
-      color: device.color,
-      label: device.label,
-      name: device.name,
-      size: 20,
-    })
-  );
-  const name = document.createElement("span");
-  name.className = "track-name";
-  name.textContent = displayName(device) || track.device_name || track.device_id;
-  const count = document.createElement("span");
-  count.className = "track-count";
-  count.textContent = plural("timeline.observations", track.points.length, {
-    n: track.points.length,
-  });
-  head.append(swatch, name, count);
-  return head;
-}
-
-export function renderTracks() {
-  const host = $("tracks");
-  host.innerHTML = "";
-  // The dashboard's group select narrows the timeline to one group's
-  // members, matching the same filter renderMap() applies (UAT U8).
-  const tracks = state.timeline ? visibleTracks(state.timeline.tracks) : [];
-  if (!tracks.length) {
-    // Nothing tracked at all is a different problem from a quiet day, and it
-    // has a different answer: pick a device, or run setup again.
-    const nothingTracked = !(state.devices || []).some((d) => d.is_tracked);
-    if (nothingTracked) {
-      host.appendChild(nothingTrackedEmptyState());
-    } else {
-      const empty = document.createElement("div");
-      empty.className = "empty";
-      empty.textContent = t("timeline.emptyDay");
-      host.appendChild(empty);
-    }
-    return;
-  }
-
-  tracks.forEach((track) => {
-    const block = document.createElement("section");
-    block.className = "track-block";
-    block.appendChild(trackHead(track));
-    // statsHtml()/timelineHtml() still return markup strings and carry no label
-    // or icon data, so they are appended to the already-built head, not around it.
-    block.insertAdjacentHTML("beforeend", statsHtml(track.stats) + timelineHtml(track));
-    host.appendChild(block);
-  });
-
-  host.querySelectorAll(".tl-item").forEach((el) => {
-    el.addEventListener("click", () => selectPoint(Number(el.dataset.id), true));
-  });
-  highlightSelection();
-}
+export { renderTracks };
 
 export function selectPoint(id, panTo) {
   state.selectedId = id;
+  expandFor(id);
   highlightSelection();
   const marker = state.markers.get(id);
   if (marker) {
@@ -165,27 +35,98 @@ export function selectPoint(id, panTo) {
   if (li) li.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
-function highlightSelection() {
-  document.querySelectorAll(".tl-item").forEach((el) => {
-    el.classList.toggle("selected", el.dataset.id === String(state.selectedId));
+/** What a loaded timeline is FOR: the day and the device filter it was fetched with. */
+let loadedKey = null;
+let loadSeq = 0;
+const keyFor = (day, filter) => `${day}|${filter || ""}`;
+
+/**
+ * The pane after a failed load. A failure for a NEW selection (another day or
+ * device) clears what was on screen, so the pane never shows device A's rows
+ * under device B's name (UAT #1); a failed background refresh of the SAME
+ * selection keeps its still-correct rows and only raises the banner.
+ */
+function showLoadError(day, err, key) {
+  showAlert(t("timeline.loadFailed", { day, message: err.message }), "err", {
+    action: { label: t("common.retry"), run: () => loadDay(day) },
   });
+  if (key === loadedKey || err.message === "Locked") return;
+  state.timeline = null;
+  state.selectedId = null;
+  hideStory();
+  loadedKey = null;
+  loadedJson = "";
+  renderMap();
+  const host = $("tracks");
+  host.replaceChildren(
+    paneError({ title: t("timeline.loadFailedTitle"), message: err.message, onRetry: () => loadDay(day) })
+  );
+}
+
+/** The pane while a NEW selection loads, so it is never blank (UAT #13). */
+function showPaneLoading(seq) {
+  if (seq !== loadSeq) return;
+  // Grey placeholder rows, not a bare word: the pane keeps its shape while it waits.
+  const note = document.createElement("div");
+  note.className = "skeleton";
+  note.setAttribute("role", "status");
+  note.setAttribute("aria-label", t("common.loading"));
+  for (let i = 0; i < 7; i += 1) note.appendChild(document.createElement("i"));
+  hideStory();
+  $("tracks").replaceChildren(note);
+}
+
+/** JSON of the timeline on screen, so an identical refresh redraws nothing. */
+let loadedJson = "";
+
+/**
+ * Put a fetched timeline on screen.
+ *
+ * A refresh of the SAME day and device (the live timer, a poll finishing) is
+ * not a new view: identical data redraws nothing (no flicker, no map jump),
+ * and changed data keeps the selected row, the pane's scroll position and the
+ * map's own zoom and pan. Only a new selection resets those.
+ */
+function applyTimeline(timeline, key) {
+  // Labels, icons and colours are drawn from the device list, so they count too.
+  const looks = (state.devices || []).map((d) => [d.device_id, d.name, d.label, d.icon, d.color]);
+  const json = JSON.stringify([timeline, looks]);
+  const refresh = key === loadedKey && state.timeline && state.markers.size > 0;
+  if (refresh && json === loadedJson) return;
+  const pane = $("tracks").closest(".timeline-pane");
+  const scroll = refresh && pane ? pane.scrollTop : 0;
+  const kept = refresh ? state.selectedId : null;
+  state.timeline = timeline;
+  loadedKey = key;
+  loadedJson = json;
+  state.selectedId = null;
+  if (timeline.path_disclaimer) $("path-disclaimer").textContent = timeline.path_disclaimer;
+  renderMap({ fit: !refresh });
+  if (kept !== null && state.markers.has(kept)) state.selectedId = kept;
+  renderTracks();
+  if (pane) pane.scrollTop = scroll;
 }
 
 export async function loadDay(day) {
   const lockGenAtFetch = state.lockGeneration; state.day = day; $("day-picker").value = day;
   const params = new URLSearchParams({ day });
   if (state.deviceFilter) params.set("device_id", state.deviceFilter);
+  const key = keyFor(day, state.deviceFilter);
+  const seq = ++loadSeq;
+  // Only a selection that is not on screen yet gets the notice, and only when
+  // the answer is slow, so a quick day change does not flash it.
+  const slow = key === loadedKey ? null : setTimeout(() => showPaneLoading(seq), 250);
   try {
-    state.timeline = await api(`/api/timeline?${params}`);
+    const timeline = await api(`/api/timeline?${params}`);
     if (state.lockGeneration !== lockGenAtFetch) return; // locked mid-fetch: never render it
-    state.selectedId = null;
-    if (state.timeline.path_disclaimer) {
-      $("path-disclaimer").textContent = state.timeline.path_disclaimer;
-    }
-    renderMap();
-    renderTracks();
+    // A newer loadDay() superseded this one while it was in flight.
+    if (seq !== loadSeq) return;
+    applyTimeline(timeline, key);
   } catch (err) {
-    showAlert(t("timeline.loadFailed", { day, message: err.message }), "err");
+    if (state.lockGeneration !== lockGenAtFetch || seq !== loadSeq) return;
+    showLoadError(day, err, key);
+  } finally {
+    clearTimeout(slow);
   }
 }
 
@@ -214,6 +155,8 @@ function startExport() {
 
 /** Wire day navigation, the movement-only toggle, export, and "jump to latest". */
 export function wireTimelineControls() {
+  wireTimelineKeys($("tracks"), (id) => selectPoint(id, true));
+  wireStory();
   $("day-picker").addEventListener("change", (e) => loadDay(e.target.value));
   $("btn-today").addEventListener("click", () => loadDay(todayLocal()));
   $("btn-prev-day").addEventListener("click", () => shiftDay(-1));
@@ -258,23 +201,35 @@ export function wireTimelineControls() {
   });
 }
 const confirmDelete = (body) => confirmDialog({ title: t("common.delete"), body, confirmLabel: t("common.delete"), danger: true }); // UAT6-N21
+/**
+ * One line under the Delete history buttons, inside the Settings dialog.
+ *
+ * A message sent to the page banner sits behind the dialog's backdrop, so an
+ * empty date or a failed delete looked like a button that did nothing (UAT #16).
+ */
+function showDeleteResult(message, kind = "warn") {
+  const el = $("delete-result");
+  el.textContent = message;
+  el.className = kind === "err" ? "fp-dialog-error" : "modal-rate";
+}
+
 /** Wire the delete-before-date and clear-all-history controls. */
 export function wireHistoryControls() {
   $("btn-delete-before").addEventListener("click", async () => {
     const before = $("delete-before-date").value;
-    if (!before) { showAlert(t("timeline.pickDateFirst"), "warn"); return; }
+    if (!before) { showDeleteResult(t("timeline.pickDateFirst")); return; }
     try {
       const dry = await postJson("/api/history/delete-before", { before });
       if (!dry.would_delete) {
-        $("delete-result").textContent = t("timeline.nothingOlderThan", { date: before });
+        showDeleteResult(t("timeline.nothingOlderThan", { date: before }));
         return;
       }
       if (!(await confirmDelete(t("timeline.confirmDeleteBefore", { count: dry.would_delete, date: before })))) return;
       const done = await postJson("/api/history/delete-before", { before, confirm: true });
-      $("delete-result").textContent = done.message;
+      showDeleteResult(done.message);
       await reload();
     } catch (e) {
-      showAlert(e.message, "err");
+      showDeleteResult(e.message, "err");
     }
   });
 
@@ -282,19 +237,19 @@ export function wireHistoryControls() {
     try {
       const dry = await postJson("/api/history/clear", {});
       if (!dry.would_delete) {
-        $("delete-result").textContent = t("timeline.noHistoryToClear");
+        showDeleteResult(t("timeline.noHistoryToClear"));
         return;
       }
       if (!(await confirmDelete(t("timeline.confirmClearAll", { count: dry.would_delete })))) return;
       // window.prompt()'s "type DELETE" step is now confirmDialog()'s input.
       const confirmWord = t("timeline.confirmWord");
       const typed = await confirmDialog({ title: t("common.confirm"), body: "", confirmLabel: t("common.delete"), danger: true, input: { requireText: confirmWord, label: t("timeline.promptTypeDelete", { word: confirmWord }) } });
-      if (!typed) { $("delete-result").textContent = t("timeline.deleteCancelled"); return; }
+      if (!typed) { showDeleteResult(t("timeline.deleteCancelled")); return; }
       const done = await postJson("/api/history/clear", { confirm: true });
-      $("delete-result").textContent = done.message;
+      showDeleteResult(done.message);
       await reload();
     } catch (e) {
-      showAlert(e.message, "err");
+      showDeleteResult(e.message, "err");
     }
   });
 }

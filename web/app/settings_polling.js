@@ -18,6 +18,52 @@
 
 import { $, state } from "./state.js";
 import { postJson } from "./api.js";
+import { t, plural } from "./i18n.js";
+
+const MIN_RETENTION_DAYS = 7;
+
+/** How many devices Find+ polls: the status count, else the device list's tracked rows. */
+function trackedCount() {
+  if (state.status && Number.isInteger(state.status.tracked_count)) return state.status.tracked_count;
+  const devices = state.devices || [];
+  return devices.length ? devices.filter((d) => d.is_tracked).length : null; // null: not loaded yet
+}
+
+/**
+ * The requests-per-hour consequence of the interval in the box (UAT: the
+ * owner should see the cost of "5 minutes" before choosing it). Same formula as
+ * the header's "~N/hr": tracked devices x 60 / minutes.
+ */
+export function renderPollRate() {
+  const el = $("setting-poll-rate");
+  if (!el) return;
+  const n = Number($("setting-poll-interval").value);
+  if (!Number.isInteger(n) || n < 5 || n > 1440) { el.textContent = ""; return; }
+  const count = trackedCount();
+  if (count === null) { el.textContent = ""; return; }
+  if (!count) { el.textContent = t("settings.polling.rateNone"); return; }
+  const rate = Math.round((count * 60 * 10) / n) / 10;
+  const base = plural("settings.polling.rate", count, { rate, count });
+  el.textContent = n < 10 ? `${base} ${t("settings.polling.rateFast")}` : base;
+}
+
+/** What the retention box means right now, in one sentence; blank keeps everything. */
+export function renderRetentionEffect() {
+  const el = $("setting-retention-effect");
+  if (!el) return;
+  const raw = $("setting-retention-days").value;
+  const days = Number(raw);
+  if (raw === "") el.textContent = t("settings.polling.retentionKeepAll");
+  else if (Number.isInteger(days) && days >= MIN_RETENTION_DAYS) {
+    el.textContent = t("settings.polling.retentionDays", { days });
+  } else el.textContent = "";
+}
+
+function showRetentionError(show) {
+  const el = $("setting-retention-error");
+  if (el) el.classList.toggle("hidden", !show);
+  $("setting-retention-days").setAttribute("aria-invalid", String(!!show));
+}
 
 /** The poll-interval field's own error line (UAT U19), next to the input
  * rather than the top-of-dialog #settings-message. `show` false clears it. */
@@ -56,6 +102,9 @@ export function renderPollingSection() {
   showPollIntervalError(false); // never a stale rejection from a previous open
   $("setting-poll-interval").value = state.settings["poll.interval_minutes"];
   $("setting-retention-days").value = state.settings["history.retention_days"] ?? "";
+  showRetentionError(false);
+  renderPollRate();
+  renderRetentionEffect();
   if (window.__findplus_native !== true) return;
   $("setting-native-detail-row").hidden = false;
   $("setting-native-detail-note").hidden = false;
@@ -71,10 +120,11 @@ export function renderPollingSection() {
  * `saveSettings` and `showSettingsMessage` are settings.js's own, passed in
  * rather than imported, so this stays a leaf module.
  */
-export function wirePollingControls(saveSettings, showSettingsMessage) {
+export function wirePollingControls(saveSettings, showSettingsMessage, markSaved) {
   $("setting-start-at-login").addEventListener("change", async (e) => {
     try {
       await postJson("/api/settings/app.start_at_login", { value: e.target.checked });
+      markSaved();
     } catch (err) {
       showSettingsMessage(err.message, "err");
       e.target.checked = !e.target.checked;
@@ -87,6 +137,8 @@ export function wirePollingControls(saveSettings, showSettingsMessage) {
   // the modal backdrop) never sees it either. A server 422 for this field
   // (a stale FINDPLUS_POLL_INTERVAL_MINUTES env var, a second tab) gets the
   // same friendly wording rather than config_keys.py's raw validator text.
+  $("setting-poll-interval").addEventListener("input", renderPollRate);
+  $("setting-retention-days").addEventListener("input", renderRetentionEffect);
   $("setting-poll-interval").addEventListener("change", async (e) => {
     if (!validatePollInterval(e.target.value)) return;
     try {
@@ -98,11 +150,16 @@ export function wirePollingControls(saveSettings, showSettingsMessage) {
   });
 
   $("setting-retention-days").addEventListener("change", async (e) => {
+    const days = e.target.value === "" ? null : Number(e.target.value);
+    const bad = days !== null && !(Number.isInteger(days) && days >= MIN_RETENTION_DAYS);
+    showRetentionError(bad);
+    if (bad) return;
     try {
-      await saveSettings({
-        "history.retention_days": e.target.value === "" ? null : Number(e.target.value),
-      });
-    } catch (err) { showSettingsMessage(err.message, "err"); }
+      await saveSettings({ "history.retention_days": days });
+    } catch (err) {
+      if (err.status === 422) showRetentionError(true);
+      else showSettingsMessage(err.message, "err");
+    }
   });
 
   // Reverted on failure: a stale number in a box is harmless, but a tick box

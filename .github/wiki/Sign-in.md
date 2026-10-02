@@ -7,13 +7,50 @@ terminal. All three write the same credentials to `~/.findplus/`.
 ## Google
 
 Open **Settings**. Sign-in is the first section of the dialog, and the setup
-wizard shows the same two cards. The Google card offers two ways in. The first
-uses the Chrome you already use and is the one to pick; the second lets Find+
-open a Chrome window of its own.
+wizard shows the same card. The Google card leads with one button, **Sign in
+with Google**, which uses the Find+ helper for Chrome. Two fallbacks sit under
+**Other ways to sign in**, for when you cannot or would rather not install the
+helper.
 
-### Sign in with your Chrome
+### Sign in with Google (the helper)
 
-Click **Sign in with your Chrome**. Find+ opens Google's own sign-in page,
+Click **Sign in with Google**. Find+ opens a page on 127.0.0.1 in your own
+Chrome, which the Find+ helper redirects to Google's sign-in. You sign in
+normally, land on a small "Signed in. You can close this tab." page, and Find+
+continues on its own: the card shows your account and, if needed, the unlock
+step appears.
+
+This needs the **Find+ helper for Chrome**, a small open-source extension. The
+first time, add it once:
+
+1. In the sign-in card, use **Show helper folder**. Find+ copies the helper to
+   `~/.findplus/chrome-helper/<version>` and reveals it in your file manager.
+2. Use **Open Chrome extensions** (or open `chrome://extensions` yourself).
+3. Turn on **Developer mode** (top right), click **Load unpacked**, and choose
+   that folder.
+
+Why an extension: Google releases the Find Hub sign-in token and the encryption
+keys only to a browser page, and Chrome no longer lets an outside program drive
+your everyday profile. The helper, inside your own Chrome, passes just those
+values to Find+ on 127.0.0.1. It talks to nothing else, has no analytics and no
+remote code, and never sees your password. Its source is in
+[`browser-helper/`](https://github.com/acamarata/findplus/tree/main/browser-helper),
+and its privacy policy is
+[here](https://github.com/acamarata/findplus/wiki/Chrome-helper-privacy). Once
+it is published on the Chrome Web Store you will be able to add it with one
+click instead.
+
+### Fallbacks: other ways to sign in
+
+The helper is the main route. Under **Other ways to sign in** the card keeps two
+fallback paths that need no extension:
+"Sign in with your Chrome" (you copy one cookie value by hand) and "Or let Find+
+open its own Chrome window" (Find+ drives a separate Chrome window). Both are
+described below.
+
+### Fallback: sign in with your Chrome
+
+This is the manual route. Prefer the helper above. Click **Sign in with your Chrome**. Find+ opens Google's own sign-in page,
 `https://accounts.google.com/EmbeddedSetup`, as a normal tab of your Google
 Chrome, and the card says where it opened it. Without Google Chrome, the page
 opens in your default browser instead and the card says that; the steps below
@@ -47,9 +84,9 @@ disk, never logged and never sent back to the browser. The token field is
 cleared the moment you click Connect. The token expires within minutes, so
 copy it right after you sign in.
 
-### Or let Find+ open its own Chrome window
+### Fallback: let Find+ open its own Chrome window
 
-The smaller button under the steps, **Or let Find+ open its own Chrome
+Also a fallback. The smaller button under the steps, **Or let Find+ open its own Chrome
 window**, runs the older automatic flow. Find+ opens a separate Chrome window
 on Google's sign-in page, waits for you to sign in there and picks the token
 up itself. The card reports each stage as it runs: opening Chrome, waiting for

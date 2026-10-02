@@ -72,3 +72,13 @@
     width: auto;
   }
 }
+
+/* Auto-save model: one status line confirms each save; the space is reserved so
+ * the dialog never jumps when "Saved." appears and goes. */
+.settings-intro { margin: 0 0 2px; }
+.settings-saved {
+  min-height: 1.3em; margin: 0 0 6px; font-size: 12.5px; font-weight: 600; color: var(--ok);
+}
+/* The cost of a choice (requests an hour, what retention deletes) reads as the
+ * answer to the field above it, not as fine print. */
+.fp-setting-consequence { color: var(--text); min-height: 1.3em; }

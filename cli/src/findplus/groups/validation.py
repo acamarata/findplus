@@ -26,6 +26,14 @@ def _valid_quorum(quorum: str) -> bool:
     return quorum.isdigit() and 1 <= int(quorum) <= 20
 
 
+def clean_name(name: str) -> str:
+    """The name as stored: trimmed, 1-64 characters (the column is String(64))."""
+    name = name.strip()
+    if not 1 <= len(name) <= 64:
+        raise ValueError("name must be 1-64 characters")
+    return name
+
+
 def validate_group_fields(
     *,
     quorum: str | None = None,

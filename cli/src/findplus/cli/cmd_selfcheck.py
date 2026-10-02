@@ -95,10 +95,13 @@ def apple_import_error() -> str | None:
 @click.option("--no-apple", is_flag=True, help="Skip the Apple Find My library check.")
 def selfcheck(no_apple: bool) -> None:
     """Check that this install can start sign-in helpers and has Apple support."""
+    from findplus.providers.google_findhub.browser_helper import helper_available
+
     failures = vendor_import_failures()
     results = [
         ("helper process (Google sign-in)", spawn_works()),
         ("Google Find Hub modules", not failures),
+        ("Chrome helper files present", helper_available()[0]),
     ]
     apple_error = None if no_apple else apple_import_error()
     if not no_apple:

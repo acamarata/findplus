@@ -51,7 +51,12 @@ export function mountSignInPanel(host, options) {
     api: options.api,
     postJson: options.postJson,
     notices,
-    onSettled: () => panel.refresh(),
+    // The dashboard (live_refresh.js) listens for this: a sign-in, an unlock or
+    // a disconnect changes what the next poll can do, so it looks right away.
+    onSettled: () => panel.refresh().then((list) => {
+      if (list) window.dispatchEvent(new CustomEvent("findplus:accounts-changed"));
+      return list;
+    }),
   };
   panel.google = new GoogleFlow(googleCard, deps);
   panel.apple = new AppleFlow(appleCard, deps, appleExtra);
@@ -59,10 +64,11 @@ export function mountSignInPanel(host, options) {
   /** Re-read who is signed in and repaint both cards. */
   panel.refresh = async () => {
     const mine = generation;
-    const { providers } = await options.api("/api/auth/status");
+    const status = await options.api("/api/auth/status");
     if (mine !== generation) return null;
-    const list = providers || [];
+    const list = status.providers || [];
     panel.google.render(list.find((p) => p.id === GOOGLE_PROVIDER));
+    panel.google.setHelperInstalled(!!status.google_helper_installed);
     panel.apple.render(list.find((p) => p.id === APPLE_PROVIDER));
     if (onStatus) onStatus(list);
     return list;

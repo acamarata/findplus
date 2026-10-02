@@ -17,18 +17,19 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from findplus.db.models import (
     Device,
     DeviceGroup,
     Group,
-    GroupPlaceEvent,
     LocationObservation,
     Place,
     PlaceState,
 )
+from findplus.device_labels import unique_names
+from findplus.groups.place_event_list import list_group_place_events  # re-exported
 from findplus.groups.presence import (
     Fix,
     GroupPresence,
@@ -37,10 +38,8 @@ from findplus.groups.presence import (
     group_presence,
     member_status,
 )
-from findplus.groups.quorum import group_event_note, stale_note_for_count
 from findplus.groups.timeline import list_group_timeline  # re-exported, see timeline.py
-from findplus.groups.validation import validate_group_fields
-from findplus.labels import display_name
+from findplus.groups.validation import clean_name, validate_group_fields
 
 
 def list_groups(session: Session) -> list[Group]:
@@ -64,6 +63,23 @@ def _members_of(session: Session, group_id: int) -> list[dict]:
     ]
 
 
+def check_member_ids(session: Session, member_ids: list[str]) -> list[str]:
+    """Drop repeats (order kept) and refuse an id that is not a known device."""
+    unique = list(dict.fromkeys(member_ids))
+    for device_id in unique:
+        if session.get(Device, device_id) is None:
+            raise ValueError(f"device {device_id} not found")
+    return unique
+
+
+def _name_taken(session: Session, name: str, *, except_id: int | None = None) -> bool:
+    """Case-insensitive: "kids" and "Kids" are one name to a person reading a list."""
+    stmt = select(Group.id).where(func.lower(Group.name) == name.lower())
+    if except_id is not None:
+        stmt = stmt.where(Group.id != except_id)
+    return session.scalar(stmt) is not None
+
+
 def create_group(
     session: Session,
     *,
@@ -81,6 +97,10 @@ def create_group(
         stale_after_minutes=stale_after_minutes,
         icon=icon,
     )
+    name = clean_name(name)
+    if _name_taken(session, name):
+        raise ValueError(f"group name {name!r} already exists")
+    member_ids = check_member_ids(session, member_ids or [])
     group = Group(
         name=name,
         color=color,
@@ -92,7 +112,7 @@ def create_group(
     )
     session.add(group)
     session.flush()  # IntegrityError on a duplicate name propagates to the caller.
-    for device_id in member_ids or []:
+    for device_id in member_ids:
         session.add(DeviceGroup(device_id=device_id, group_id=group.id))
     session.flush()
     group._members = _members_of(session, group.id)
@@ -109,6 +129,16 @@ def update_group(session: Session, group_id: int, **fields) -> Group:
         stale_after_minutes=fields.get("stale_after_minutes"),
         icon=fields.get("icon"),
     )
+    if fields.get("name") is not None:
+        # Name rules apply only to a name that actually changes: a legacy group
+        # (case-variant twin, over 64 chars) must stay editable when the dialog
+        # resends its stored name unchanged.
+        if fields["name"] == group.name or fields["name"].strip() == group.name:
+            del fields["name"]
+        else:
+            fields["name"] = clean_name(fields["name"])
+            if _name_taken(session, fields["name"], except_id=group_id):
+                raise ValueError(f"group name {fields['name']!r} already exists")
     for key, value in fields.items():
         if value is not None:
             setattr(group, key, value)
@@ -129,9 +159,7 @@ def set_members(session: Session, group_id: int, member_ids: list[str]) -> Group
     group = session.get(Group, group_id)
     if group is None:
         raise ValueError(f"group {group_id} not found")
-    for device_id in member_ids:
-        if session.get(Device, device_id) is None:
-            raise ValueError(f"device {device_id} not found")
+    member_ids = check_member_ids(session, member_ids)
     session.query(DeviceGroup).filter(DeviceGroup.group_id == group_id).delete(
         synchronize_session=False
     )
@@ -144,13 +172,15 @@ def set_members(session: Session, group_id: int, member_ids: list[str]) -> Group
 
 def _member_inputs(session: Session, group: Group) -> list[MemberInput]:
     members: list[MemberInput] = []
-    for device_id, name, label in session.execute(
-        select(Device.device_id, Device.name, Device.label)
+    shown = unique_names(session)
+    for (device_id,) in session.execute(
+        select(Device.device_id)
         .join(DeviceGroup, DeviceGroup.device_id == Device.device_id)
         .where(DeviceGroup.group_id == group.id)
     ).all():
-        # Label-first, like every other surface (UAT2 N2).
-        name = display_name(label, name, device_id)
+        # Label-first, like every other surface (UAT2 N2), with an id tail only
+        # when another visible tracker shares the name (UAT #7).
+        name = shown[device_id]
         # No `observed_at >= cutoff` filter (UAT3 N19): a stale member's last
         # fix is exactly what the UI needs for "no fix for N min", and the old
         # lookback window dropped that row, so member_status() saw last_fix=
@@ -221,67 +251,6 @@ def build_presence(
         window_minutes=window_minutes,
     )
     return presence, statuses
-
-
-def _group_place_events_stmt(
-    group_id: int | None, place_id: int | None, since: datetime | None, until: datetime | None,
-    limit: int,
-):  # fmt: skip
-    stmt = (
-        select(GroupPlaceEvent, Group.name.label("group_name"), Place.name.label("place_name"))
-        .join(Group, GroupPlaceEvent.group_id == Group.id)
-        .join(Place, GroupPlaceEvent.place_id == Place.id)
-    )
-    if group_id is not None:
-        stmt = stmt.where(GroupPlaceEvent.group_id == group_id)
-    if place_id is not None:
-        stmt = stmt.where(GroupPlaceEvent.place_id == place_id)
-    if since is not None:
-        stmt = stmt.where(GroupPlaceEvent.observed_at >= since)
-    if until is not None:
-        stmt = stmt.where(GroupPlaceEvent.observed_at <= until)
-    return stmt.order_by(GroupPlaceEvent.observed_at.desc()).limit(min(limit, 1000))
-
-
-def _group_place_event_dict(e, group_name: str, place_name: str) -> dict:
-    return {
-        "id": e.id,
-        "group_id": e.group_id,
-        "group_name": group_name,
-        "place_id": e.place_id,
-        "place_name": place_name,
-        "event_type": e.event_type,
-        "observed_at": e.observed_at,
-        "members_crossed": e.members_crossed,
-        "members_considered": e.members_considered,
-        "members_stale": e.members_stale,
-        "confidence": e.confidence,
-        # api-contract.md § routes_groups.py pins `note` on this route.
-        "note": group_event_note(
-            crossed=e.members_crossed,
-            considered=e.members_considered,
-            event_type=e.event_type,
-            place=place_name,
-            stale_note=stale_note_for_count(e.members_stale),
-        ),
-        "notified_at": e.notified_at,
-    }
-
-
-def list_group_place_events(
-    session: Session,
-    *,
-    group_id: int | None = None,
-    place_id: int | None = None,
-    since: datetime | None = None,
-    until: datetime | None = None,
-    limit: int = 200,
-) -> list[dict]:
-    stmt = _group_place_events_stmt(group_id, place_id, since, until, limit)
-    return [
-        _group_place_event_dict(row.GroupPlaceEvent, row.group_name, row.place_name)
-        for row in session.execute(stmt).all()
-    ]
 
 
 __all__ = [

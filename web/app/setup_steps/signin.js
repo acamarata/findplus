@@ -35,9 +35,13 @@ let summary = null;
  * (UAT6-N23: each card already says "Not signed in" on its own). */
 function renderSummary(providers) {
   const signedIn = providers.filter((p) => p.signed_in);
-  summary.textContent = signedIn.length
+  const locked = providers.some((p) => p.signed_in && (p.needs || []).includes("shared_key"));
+  const who = signedIn.length
     ? t("setup.signin.signed_in_as", { accounts: signedIn.map((p) => p.account || p.id).join(", ") })
     : "";
+  // A signed-in Google account whose locations are still locked is not done:
+  // say so, because Devices will list trackers that cannot show a position.
+  summary.textContent = locked ? `${who} ${t("setup.signin.locked")}` : who;
 }
 
 export default {

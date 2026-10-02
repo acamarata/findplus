@@ -60,14 +60,31 @@ change time. Tapping the widget opens the dashboard's Places tab.
 Locked and offline states behave exactly like the status widget: no place
 names or badges are shown, only the lock glyph or "Find+ is not running".
 
+## Updating
+
+Finder will not replace an app that is open. Use the update script instead. It
+quits Find+ and its daemon, swaps in the latest release (checking the dmg's
+sha256 first), and starts Find+ again. Your history and settings live in
+`~/.findplus` and are not touched.
+
+```bash
+curl -fsSL https://github.com/acamarata/findplus/releases/latest/download/update-app.sh | bash
+```
+
+`update-app.sh --dmg FindPlus-<version>-aarch64.dmg` installs a dmg you already
+downloaded. Homebrew users run `brew upgrade findplus`.
+
+The sha256 check catches a corrupted download. It does not authenticate the release, so it
+is not protection against a release that was itself tampered with.
+
 ## Gatekeeper
 
 Find+ is distributed outside the Mac App Store. Release builds are signed
 with a Developer ID and notarised by Apple, so they open normally.
 
-A build produced without signing credentials is published with `-UNSIGNED`
-in its filename. For one of those, right-click Find+.app and choose **Open**
-the first time; later launches open normally.
+A build made locally without signing credentials carries `-UNSIGNED` in its
+filename and is never attached to a release. For one of those, right-click
+Find+.app and choose **Open** the first time; later launches open normally.
 
 To check a build yourself, assess it as an executable, not as an installer:
 

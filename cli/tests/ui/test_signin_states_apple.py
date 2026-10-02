@@ -1,6 +1,6 @@
-"""Apple sign-in states, and the same component inside Settings (E14).
+"""Apple sign-in states, and the same component inside Settings (E14, 1.2 sheet).
 
-Purpose    : The Apple card walks Apple ID + password -> a 2FA code -> signed
+Purpose    : The Apple sheet walks Apple ID + password -> a 2FA code -> signed
              in, and every way that can stop: missing fields, a refused start,
              a wrong code, and an install without the Apple extra
              (`needs: ["apple_extra"]`), which now gets a plain explanation in
@@ -28,8 +28,8 @@ from ._signin_helpers import (
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
-CONNECT = "Connect Apple Find My"
 ERROR = "#fp-setup-apple-error"
+SUBMIT = "#fp-setup-apple-sheet-submit"
 
 
 async def _catalog(page, base_url) -> dict:
@@ -37,17 +37,36 @@ async def _catalog(page, base_url) -> dict:
     return (await response.json())["signin"]
 
 
+async def _open_sheet(page) -> None:
+    """1.2: the card's one Connect opens the Apple sheet (a <dialog>)."""
+    await page.click("#fp-setup-apple-signin")
+    await page.wait_for_function("() => document.getElementById('fp-setup-apple-sheet').open")
+
+
 async def _submit_credentials(page) -> None:
+    await _open_sheet(page)
     await page.fill("#fp-setup-apple-id", "a@example.com")
     await page.fill("#fp-setup-apple-password", "not-a-real-password")
-    await page.get_by_role("button", name=CONNECT).click()
+    await page.click(SUBMIT)
 
 
 async def _to_code_step(page) -> None:
     await page.route("**/api/auth/apple/start", reply({"job_id": "apple-1"}, 202))
     await page.route(
-        "**/api/auth/apple/progress*",
-        reply({"state": "needs_2fa", "message": "Enter the code from your trusted device."}),
+        "**/api/auth/apple/status*",
+        reply(
+            {
+                "job_id": "apple-1",
+                "phase": "needs_code",
+                "message": "",
+                "second_factor": {
+                    "kind": "trusted_device",
+                    "phone": None,
+                    "can_text": True,
+                    "sms_options": [],
+                },
+            }
+        ),
     )
     await _submit_credentials(page)
     await page.locator("#fp-setup-apple-2fa").wait_for(state="visible", timeout=15000)
@@ -62,7 +81,8 @@ async def test_missing_fields_are_named_inline_without_failing_the_card(page, ba
         await open_wizard_signin(page, base_url)
         catalog = await _catalog(page, base_url)
         await page.route("**/api/auth/apple/start", reply({"job_id": "x"}, 202, calls))
-        await page.get_by_role("button", name=CONNECT).click()
+        await _open_sheet(page)
+        await page.click(SUBMIT)
         await wait_text(page, "#fp-setup-apple-id-error", catalog["apple"]["missingAppleId"])
         await wait_text(page, "#fp-setup-apple-password-error", catalog["apple"]["missingPassword"])
         assert calls == []
@@ -97,9 +117,10 @@ async def test_the_code_step_then_signed_in(page, base_url):
         await page.fill("#fp-setup-apple-code", "123456")
         await page.get_by_role("button", name="Verify code").click()
 
-        await wait_text(page, "#fp-setup-apple-status", "Signed in as a@example.com")
+        await wait_text(page, "#fp-setup-apple-status", "Connected as a@example.com")
         assert code_bodies == [{"job_id": "apple-1", "code": "123456"}]
         assert await page.locator("#fp-setup-apple-2fa").is_hidden()
+        assert await page.locator("#fp-setup-apple-ready").is_visible()
         assert await page.get_by_role("button", name="Use a different Apple ID").is_visible()
     finally:
         await restore_onboarding(page, base_url)
@@ -127,7 +148,7 @@ async def test_a_failed_apple_job_shows_why_and_retry_goes_back_to_the_form(page
         await open_wizard_signin(page, base_url)
         await page.route("**/api/auth/apple/start", reply({"job_id": "apple-2"}, 202))
         await page.route(
-            "**/api/auth/apple/progress*", reply({"state": "failed", "message": "Bad password."})
+            "**/api/auth/apple/status*", reply({"phase": "error", "message": "Bad password."})
         )
         await _submit_credentials(page)
         await wait_text(page, ERROR, "Bad password.")
@@ -144,7 +165,7 @@ async def test_no_apple_extra_explains_instead_of_a_dead_form(page, base_url):
         catalog = await _catalog(page, base_url)
         await wait_text(page, "#fp-setup-apple-unavailable", catalog["apple"]["unavailable"])
         assert await page.locator("#fp-setup-apple-form").is_hidden()
-        assert await page.get_by_role("button", name=CONNECT).is_hidden()
+        assert await page.locator("#fp-setup-apple-signin").is_hidden()
     finally:
         await restore_onboarding(page, base_url)
 

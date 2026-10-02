@@ -7,7 +7,7 @@
  *              states and the same errors (owner request, E14 UI polish).
  * Inputs     : A host element and options: { prefix, level, withNotices,
  *              api, postJson, notices, appleExtra, onStatus }.
- * Outputs    : { google, apple, refresh(), stop(), purge() }.
+ * Outputs    : { google, apple, refresh(), fix(provider, kind), stop(), purge() }.
  * Constraints: refresh() is generation-guarded: a GET /api/auth/status still
  *              in flight when purge() runs is dropped when it lands, so a lock
  *              can never be followed by "Signed in as ..." reappearing behind
@@ -15,8 +15,10 @@
  */
 "use strict";
 
-import { el, buildAppleCard, notAffiliatedFooter } from "./cards.js";
+import { el, notAffiliatedFooter } from "./cards.js";
+import { buildAppleCard } from "./apple_card.js";
 import { buildGoogleCard } from "./google_card.js";
+import { hasNativeWindow } from "./native_bridge.js";
 import { GoogleFlow } from "./google_flow.js";
 import { AppleFlow } from "./apple_flow.js";
 
@@ -39,25 +41,39 @@ function mountCards(host, shape, appleExtra) {
   return { googleCard, appleCard };
 }
 
+/**
+ * A lost sign-in's one tap (dashboard banner, tray, deep link): start the
+ * fix straight away. `kind` is the daemon's attention word (contract §4).
+ */
+function startFix(panel, provider, kind) {
+  if (provider === APPLE_PROVIDER) return panel.apple.open();
+  if (kind === "unlock") return panel.google.unlockAgain();
+  return panel.google.signInAgain();
+}
+
+/**
+ * After a sign-in, an unlock or a disconnect: re-read and tell the dashboard
+ * (live_refresh.js listens), since that changes what the next poll can do.
+ */
+function settled(panel) {
+  return panel.refresh().then((list) => {
+    if (list) window.dispatchEvent(new CustomEvent("findplus:accounts-changed"));
+    return list;
+  });
+}
+
 export function mountSignInPanel(host, options) {
   const { prefix, level = 3, withNotices = false, appleExtra = null, onStatus = null } = options;
   const notices = () => options.notices() || {};
-  const shape = { prefix, level, withNotices, notices: notices() };
+  // The desktop app's bridge decides the Google card's lead: Connect (the
+  // Find+ window) there, the Chrome helper in a plain browser tab.
+  const shape = { prefix, level, withNotices, notices: notices(), native: hasNativeWindow() };
   const { googleCard, appleCard } = mountCards(host, shape, appleExtra);
 
   let generation = 0;
   const panel = {};
-  const deps = {
-    api: options.api,
-    postJson: options.postJson,
-    notices,
-    // The dashboard (live_refresh.js) listens for this: a sign-in, an unlock or
-    // a disconnect changes what the next poll can do, so it looks right away.
-    onSettled: () => panel.refresh().then((list) => {
-      if (list) window.dispatchEvent(new CustomEvent("findplus:accounts-changed"));
-      return list;
-    }),
-  };
+  const deps = { api: options.api, postJson: options.postJson, notices,
+    onSettled: () => settled(panel) };
   panel.google = new GoogleFlow(googleCard, deps);
   panel.apple = new AppleFlow(appleCard, deps, appleExtra);
 
@@ -69,11 +85,13 @@ export function mountSignInPanel(host, options) {
     const list = status.providers || [];
     panel.google.render(list.find((p) => p.id === GOOGLE_PROVIDER));
     panel.google.setHelperInstalled(!!status.google_helper_installed);
+    panel.google.setNative(status.google_native);
     panel.apple.render(list.find((p) => p.id === APPLE_PROVIDER));
     if (onStatus) onStatus(list);
     return list;
   };
 
+  panel.fix = (provider, kind) => startFix(panel, provider, kind);
   /** Stop both polls; what is on screen stays (Back, a re-render). */
   panel.stop = () => {
     generation++;

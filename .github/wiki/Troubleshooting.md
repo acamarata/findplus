@@ -2,21 +2,31 @@
 
 ## 1. Chrome closed by auth
 
-The terminal's automatic Google flow (`findplus auth` without `--token`) runs
-`pkill -f chrome` before launching its own controlled Chrome window, so any
-Chrome windows you have open will be closed. Save your work first, then rerun
-`findplus auth`. `findplus auth --token` and the dashboard's "Sign in with your
-Chrome" close nothing: they open Google's page as a tab of your own Chrome and
-you paste the token back ([Sign in](Sign-in)).
+Only the terminal's automatic Google flow (`findplus auth` without `--token`)
+does this. It runs `pkill -f chrome` before launching its own controlled Chrome
+window, so any Chrome windows you have open will be closed. Save your work
+first, then rerun `findplus auth`. The dashboard no longer starts that flow
+(the Find+ app signs in inside its own window), and `findplus auth --token` and
+"Sign in with your Chrome" close nothing: they open Google's page as a tab of
+your own Chrome and you paste the token back ([Sign in](Sign-in)).
 
 ## 2. "Locations are locked" after signing in
 
 Google encrypts Find Hub locations end to end, so a fresh sign-in cannot decrypt
 anything until you unlock the key once. Open **Settings > Sign-in** (or the setup
-wizard) and use **Unlock encrypted locations**: Find+ opens a Chrome window of its
-own and Google asks for your Android phone's screen lock in it. From a terminal,
-run `findplus auth --unlock`. The step disappears once the key is stored, and polls
+wizard) and use **Unlock encrypted locations**: Google asks for your Android phone's
+screen lock in the Find+ sign-in window. From a terminal, run
+`findplus auth --unlock`. The step disappears once the key is stored, and polls
 decrypt from then on. Find+ never asks you to paste anything into a console.
+
+## 2b. "This browser or app may not be secure", or a Find+ prompt to sign in again
+
+If the sign-in window shows that message, Google refused it. Use the Chrome
+helper or paste the cookie instead; see [Sign in](Sign-in#if-the-window-is-blocked).
+If the menu bar or a banner says Find+ needs you, Google or Apple ended the
+sign-in (often after a password change). Click the item or the banner's
+**Sign in again** button and finish the window. Your history is kept. More in
+[Sign in](Sign-in#when-a-sign-in-stops-working).
 
 ## 3. 409 on Telegram
 

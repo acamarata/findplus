@@ -7,7 +7,7 @@
  *              token back), then poll /api/auth/status until Google is signed
  *              in and let the card advance on its own. If the helper is not
  *              installed the sign-in never completes, so a gentle timeout points
- *              to the one-time install (the begin page shows the steps too).
+ *              to the one-time install, written out as steps on the card.
  * Inputs     : the Google card from google_card.js; deps from panel.js; a
  *              `settle` callback (re-reads status and repaints).
  * Outputs    : DOM state on the card's hello block only.
@@ -18,6 +18,7 @@
 
 import { t } from "../i18n.js";
 import { describeError } from "./job_poller.js";
+import { wireHelperSteps } from "./helper_steps.js";
 
 const STATUS_ROUTE = "/api/auth/status";
 const PROVIDER_ID = "google-find-hub";
@@ -40,19 +41,9 @@ export class GoogleHelperFlow {
     card.hello.addEventListener("click", () => this.start());
     card.helloRetry.addEventListener("click", () => this.start());
     card.helloCancel.addEventListener("click", () => this.cancel());
-    card.helperReveal.addEventListener("click", () => this.post("/api/auth/google/helper/reveal"));
-    card.helperOpenExt.addEventListener("click", () =>
-      this.post("/api/auth/google/helper/open-extensions")
-    );
-  }
-
-  /** Fire a one-shot install action (reveal folder / open extensions). */
-  async post(route) {
-    try {
-      await this.deps.postJson(route);
-    } catch (_err) {
-      // Best-effort: these open native windows; nothing to show on failure.
-    }
+    // The install steps are text only (helper_steps.js): nothing here opens
+    // Finder or chrome://extensions; the folder path is looked up on open.
+    wireHelperSteps(card, deps.postJson);
   }
 
   /** Reflect status.google_helper_installed on the card. */

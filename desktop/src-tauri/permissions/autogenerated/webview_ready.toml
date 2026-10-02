@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-webview-ready"
+description = "Enables the webview_ready command without any pre-configured scope."
+commands.allow = ["webview_ready"]
+
+[[permission]]
+identifier = "deny-webview-ready"
+description = "Denies the webview_ready command without any pre-configured scope."
+commands.deny = ["webview_ready"]

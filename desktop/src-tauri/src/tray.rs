@@ -13,8 +13,7 @@ use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
 use tauri::tray::{TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Emitter, Listener, Manager};
-use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogResult};
+use tauri::{AppHandle, Listener};
 
 use crate::{daemon, status, windows};
 use status::{DotState, Status};
@@ -30,9 +29,9 @@ mod tray_click;
 mod tray_icon;
 use tray_icon::load_icon;
 
-const QUIT_DIALOG_TEXT: &str =
-    "Polling stops when Find+ quits. Install the background service so it keeps running?";
-const SIGN_IN_URL: &str = "https://github.com/acamarata/findplus/wiki/Google-Sign-In";
+#[path = "tray_actions.rs"]
+mod tray_actions;
+use tray_actions::handle_menu_event;
 
 static LAST_STATUS: OnceLock<Mutex<Status>> = OnceLock::new();
 static CHROME_MISSING: OnceLock<Mutex<bool>> = OnceLock::new();
@@ -115,7 +114,14 @@ fn wire_status_listeners(app: &mut tauri::App, tray_id: tauri::tray::TrayIconId)
     });
 
     let app_handle = app.handle().clone();
+    let id3 = tray_id.clone();
     app.listen("daemon-crashed", move |_event| {
+        let _ = build_menu(&app_handle, &id3, &effective_status());
+    });
+
+    // A provider lost (or regained) its sign-in: show or hide the top item.
+    let app_handle = app.handle().clone();
+    app.listen("auth-attention", move |_event| {
         let _ = build_menu(&app_handle, &tray_id, &effective_status());
     });
 }
@@ -211,75 +217,4 @@ fn apply_menu(
     tray.set_icon(Some(load_icon(app, &status.state)))?;
     tray.set_icon_as_template(true)?;
     Ok(())
-}
-
-fn handle_menu_event(app: &AppHandle, id: &str) {
-    match id {
-        "poll_now" => {
-            let app = app.clone();
-            std::thread::spawn(move || {
-                let url = format!("{}/api/poll-now", crate::daemon::daemon_base());
-                let _ = reqwest::blocking::Client::new().post(url).send();
-                let _ = app.emit("poll-now-triggered", ());
-            });
-        }
-        "lock" => {
-            std::thread::spawn(|| {
-                let url = format!("{}/api/lock/lock", crate::daemon::daemon_base());
-                let _ = reqwest::blocking::Client::new().post(url).send();
-            });
-        }
-        "open_dashboard" => windows::open_main(app),
-        "sign_in" => {
-            let _ = std::process::Command::new("open").arg(SIGN_IN_URL).spawn();
-        }
-        "settings" => windows::open_settings(app),
-        "open_app" => {
-            windows::open_main(app);
-            if let Some(win) = app.get_webview_window("main") {
-                let _ = win.set_focus();
-            }
-        }
-        "restart_daemon" => {
-            let app = app.clone();
-            std::thread::spawn(move || daemon::restart(&app));
-        }
-        "quit" => handle_quit(app),
-        _ => {}
-    }
-}
-
-fn handle_quit(app: &AppHandle) {
-    if !daemon::child_running() {
-        std::process::exit(0);
-    }
-
-    app.dialog()
-        .message(QUIT_DIALOG_TEXT)
-        .title("Find+")
-        .buttons(MessageDialogButtons::YesNoCancelCustom(
-            "Install service".to_string(),
-            "Quit anyway".to_string(),
-            "Cancel".to_string(),
-        ))
-        .show_with_result(move |result| match result {
-            MessageDialogResult::Yes => {
-                // Exit only AFTER the install has run: exiting straight after
-                // the spawn killed the installer before it could finish. Stop
-                // our own sidecar first so the freshly installed LaunchAgent
-                // can bind port 8647.
-                std::thread::spawn(|| {
-                    let _ = std::process::Command::new("findplus-daemon")
-                        .args(["start", "--yes"])
-                        .status();
-                    daemon::stop_child();
-                    std::process::exit(0);
-                });
-            }
-            MessageDialogResult::No => {
-                daemon::stop_child();
-                std::process::exit(0);
-            }
-            _ => {}
-        });
 }

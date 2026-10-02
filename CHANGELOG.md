@@ -6,6 +6,90 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-02
+
+### Added
+- Sign in to Google in a Find+ window. In the app, **Connect** opens a small window with Google's
+  own sign-in page, titled with the page it shows. When Google accepts you the window closes by
+  itself and the card says **Connected**. The window is a throwaway browser store, wiped on close;
+  Find+ keeps the session it gets, never your password or the sign-in cookie. Cancel with
+  Command+W or the card's Cancel; a window left open closes after 10 minutes.
+- Unlock encrypted locations in the same window. After sign-in, the window carries on to Google's
+  unlock page and asks for your Android screen lock; the card then shows **Locations unlocked**.
+  Cancelling at that step keeps the sign-in and shows **Locations locked** with a retry.
+- Apple in one sheet. **Connect** opens a sheet for your Apple ID and password, then the 6-digit
+  code from a trusted device, or by text message with **Use a text message instead**. Start over
+  and Cancel are in the sheet. You can connect Google, Apple or both, in any order; the wizard
+  shows both cards and lets you continue once one is connected.
+- A clear "Sign in again" prompt when a sign-in stops working (a password change, a revoked
+  session). The menu bar icon dims and its top item becomes "Sign in to Google again...",
+  "Unlock Google locations..." or "Sign in to Apple again...". One notification, "Find+ needs
+  you", per loss (only if notifications are allowed), and one dashboard banner with a single
+  **Sign in again** or **Unlock locations** button. Links `findplus://signin/google`,
+  `findplus://unlock/google` and `findplus://signin/apple` open the same sign-ins.
+- If Google refuses the window ("This browser or app may not be secure"), Find+ says so, closes
+  it and falls back to your Chrome helper or pasting the cookie. It remembers the refusal for 7
+  days and leads with your Chrome in that time. **Try the Find+ window again** is on the card.
+- Honesty notice for the sign-in window ("Find+ can sign you in to Google in a window of its own...").
+- Before the window opens the card also says what Find+ keeps and how to take it back: "Find+
+  keeps a long-lived sign-in to your Google account on this Mac so it can read your trackers. You
+  can remove its access any time at myaccount.google.com/security (Third-party access) or with
+  Disconnect."
+- `findplus auth --status` shows a Needs column and, for a blocked window, the next fallback.
+- Manual test checklist for the in-app sign-in: [Desktop manual tests](.github/wiki/Desktop-manual-tests.md).
+
+### Changed
+- The Chrome helper and the pasted cookie are fallbacks, under **More ways to sign in**. In a plain
+  browser tab (no app window) the helper still leads, as in 1.1.
+- The separate Find+ Chrome window is hidden from the dashboard. `findplus auth` and
+  `findplus auth --unlock` still use it from a terminal. `~/.findplus/chrome-profile` may remain
+  from older versions; see the Uninstall page for how to delete it.
+- The account line reads "Connected as ..." and "Not connected" instead of "Signed in as ...".
+- The wizard's sign-in step holds **Next** until one provider is connected (Skip still works).
+
+### Fixed (review of the sign-in, before release)
+- Unlocking on its own no longer stores the keys when Find+ cannot see which Google account the
+  window is signed in to; the card says so and offers **Try again**.
+- A frame from another site inside Google's page, or a Google country page such as
+  `www.google.de`, no longer ends the window as "left Google" or sets the 7-day memory.
+- **Try again** or **Connect** while the window is still open brings that window forward instead
+  of breaking its sign-in. A slow Google (502) or an unusable cookie no longer shows an error
+  while the window keeps going, and a retry that then works shows **Connected**.
+- Cancel while Google checks the sign-in now always ends in "Connected" or "Cancelled", never a
+  stuck spinner; an older window can no longer finish a newer sign-in; a sign-in left by a quit
+  or crashed app expires instead of waiting forever.
+- A poll Google or Apple refused for its sign-in now raises the same menu bar item, banner and
+  link as a revoked sign-in, and the banner shows once per loss also across app restarts.
+- The unlock step gets its own 10 minutes; closing the window while Google checks says
+  "finishing, one moment..." in its title.
+- Apple: Cancel while the code is being checked never saves the account.
+
+### Removed
+- The **Show helper folder** and **Open Chrome extensions** buttons. Nothing in Find+ opens Finder
+  or `chrome://extensions` any more: the card shows written steps with a copyable folder path and
+  address. The legacy `helper/reveal` and `helper/open-extensions` routes remain but nothing calls
+  them.
+
+### Technical
+- Daemon: seven routes under `/api/auth/google/native/` (`begin`, `token`, `unlock`, `event`,
+  `classify`, `progress`, `cancel`); `POST /api/auth/google/helper/folder` (returns the path,
+  opens nothing); `GET /api/auth/apple/status`, `POST /api/auth/apple/cancel`,
+  `POST /api/auth/apple/text`. `GET /api/auth/status` and `provider_health` add `attention`
+  (`reauth`, `unlock`, `none`), `deep_link`, `deep_links` and `google_native`. Contract:
+  `.github/docs/specs/in-app-login-contract.md`.
+- Tauri commands (main window only): `open_signin_window`, `close_signin_window`,
+  `webview_ready`, `request_notification_permission`, granted in `capabilities/remote.json`.
+  Events: `signin-progress`, `signin-result`, `signin-apple-sheet`, `auth-attention`, kept until
+  the page can hear them.
+- The notification button in the wizard works again (the app now declares its own command ACL).
+- Sign-in state has one owner, the daemon's progress record; every begin, progress answer and
+  shell event carries a `flow` id, and the card's begin sends `if_idle` (409 `window_open` while a
+  window still works). The window's allow-list covers Google's sign-in infrastructure, bridge
+  messages carry a per-run key, and a unit test proves no capability reaches the sign-in window.
+  Transition table: `.github/docs/specs/in-app-login-contract.md` §3.8.
+- Package 0 (the owner's real-account spike) has not run yet; the owner checklist is
+  [Desktop manual tests](.github/wiki/Desktop-manual-tests.md), steps 1 to 22.
+
 ## [1.1.6] - 2026-10-02
 
 ### Added

@@ -30,7 +30,7 @@ fn decode(name: &str) -> tauri::image::Image<'static> {
 }
 
 fn max_alpha(img: &tauri::image::Image<'static>) -> u8 {
-    img.rgba().chunks_exact(4).map(|px| px[3]).max().unwrap()
+    img.rgba().as_chunks::<4>().0.iter().map(|px| px[3]).max().unwrap()
 }
 
 #[test]
@@ -54,7 +54,7 @@ fn every_committed_icon_is_alpha_only_black() {
         "tray-fplus-dim@2x.png",
     ] {
         let img = decode(name);
-        for px in img.rgba().chunks_exact(4) {
+        for px in img.rgba().as_chunks::<4>().0.iter() {
             assert_eq!(
                 &px[0..3],
                 &[0, 0, 0],
@@ -69,11 +69,11 @@ fn normal_icon_reaches_full_opacity_over_a_transparent_background() {
     let img = decode("tray-fplus.png");
     let rgba = img.rgba();
     assert!(
-        rgba.chunks_exact(4).any(|px| px[3] == 255),
+        rgba.as_chunks::<4>().0.iter().any(|px| px[3] == 255),
         "the glyph must be fully opaque somewhere, not a washed-out icon"
     );
     assert!(
-        rgba.chunks_exact(4).any(|px| px[3] == 0),
+        rgba.as_chunks::<4>().0.iter().any(|px| px[3] == 0),
         "the background must be fully transparent, not a solid square"
     );
 }
@@ -96,8 +96,8 @@ fn dim_icon_traces_the_same_glyph_as_the_normal_one_only_dimmer() {
     let dim_peak = max_alpha(&dim);
     for (n, d) in normal
         .rgba()
-        .chunks_exact(4)
-        .zip(dim.rgba().chunks_exact(4))
+        .as_chunks::<4>().0.iter()
+        .zip(dim.rgba().as_chunks::<4>().0.iter())
     {
         assert_eq!(
             n[3] > 0,
@@ -147,7 +147,7 @@ fn assert_scales_2x(base: &str, retina: &str) {
 fn the_glyph_is_neither_empty_nor_a_solid_square() {
     let img = decode("tray-fplus.png");
     let total = (img.width() * img.height()) as usize;
-    let opaque = img.rgba().chunks_exact(4).filter(|px| px[3] >= 128).count();
+    let opaque = img.rgba().as_chunks::<4>().0.iter().filter(|px| px[3] >= 128).count();
     assert!(
         opaque > 0 && opaque < total,
         "a blank or fully solid icon is not a glyph (opaque={opaque}/{total})"

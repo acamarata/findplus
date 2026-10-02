@@ -10,13 +10,13 @@ from .test_signin_states_apple import ERROR, _to_code_step
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
-async def test_the_prompt_names_trusted_devices_and_the_text_message_fallback(page, base_url):
+async def test_the_prompt_names_the_trusted_device_and_offers_a_text(page, base_url):
     try:
         await open_wizard_signin(page, base_url)
         await _to_code_step(page)
         text = await page.locator("#fp-setup-apple-2fa").inner_text()
-        assert "trusted Apple devices" in text
-        assert "text message" in text
+        assert "iPhone, iPad or Mac" in text
+        assert await page.get_by_role("button", name="Use a text message instead").is_visible()
     finally:
         await restore_onboarding(page, base_url)
 

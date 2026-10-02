@@ -74,7 +74,7 @@ async def test_google_disconnect_confirmed_calls_delete_and_re_reads_status(page
         await page.click("#fp-setup-google-disconnect")
         await page.click("#fp-setup-google-disconnect-yes")
 
-        await wait_text(page, "#fp-setup-google-status", "Not signed in")
+        await wait_text(page, "#fp-setup-google-status", "Not connected")
         assert len(calls) == 1
         assert calls[0].endswith("/api/auth/google-find-hub")
         assert await page.locator("#fp-setup-google-disconnect-confirm").is_hidden()
@@ -94,7 +94,7 @@ async def test_apple_disconnect_confirmed_calls_delete_and_re_reads_status(page,
         await page.click("#fp-setup-apple-disconnect")
         await page.click("#fp-setup-apple-disconnect-yes")
 
-        await wait_text(page, "#fp-setup-apple-status", "Not signed in")
+        await wait_text(page, "#fp-setup-apple-status", "Not connected")
         assert len(calls) == 1
         assert calls[0].endswith("/api/auth/apple-find-my")
     finally:
@@ -114,7 +114,7 @@ async def test_settings_disconnect_mounts_the_same_control(page, base_url):
         await page.click("#fp-auth-google-disconnect")
         await page.click("#fp-auth-google-disconnect-yes")
 
-        await wait_text(page, "#fp-auth-google-status", "Not signed in")
+        await wait_text(page, "#fp-auth-google-status", "Not connected")
         assert len(calls) == 1
     finally:
         await restore_onboarding(page, base_url)

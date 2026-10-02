@@ -125,8 +125,10 @@ async def test_the_wizard_can_be_walked_on_the_keyboard(page, base_url):
     await page.focus("#fp-wizard-next")
     await page.keyboard.press("Enter")
     await page.wait_for_selector("#fp-setup-signin-status", timeout=15000)
+    # The transition is over once Skip is usable again (Next itself stays held
+    # on the sign-in step until an account is connected, spec in-app-login §7).
     await page.wait_for_function(
-        "() => !document.getElementById('fp-wizard-next').disabled", timeout=15000
+        "() => !document.getElementById('fp-wizard-skip').disabled", timeout=15000
     )
     assert await page.evaluate("() => document.activeElement.tagName") == "H2"
     await page.keyboard.press("Tab")

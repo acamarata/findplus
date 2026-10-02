@@ -7,9 +7,9 @@
  * Inputs     : An id prefix ("fp-setup" in the wizard, "fp-auth" in Settings),
  *              the heading level that fits the surrounding page, and whether
  *              to print each provider's honesty sentence under its card.
- * Outputs    : { root, ...named elements } per card, for the flows in
- *              google_flow.js / apple_flow.js to drive. The Google card itself
- *              is built in google_card.js from the helpers exported here.
+ * Outputs    : DOM helpers. The cards themselves are built in google_card.js
+ *              and apple_card.js from these, for the flows in google_flow.js /
+ *              apple_flow.js to drive.
  * Constraints: textContent only. Every string comes from t() or from the
  *              /api/config notices the caller passes in. The buttons name what
  *              happens ("Sign in with your Chrome"); they deliberately copy no
@@ -28,7 +28,6 @@
 "use strict";
 
 import { t } from "../i18n.js";
-import { loadIconSprite } from "../icon_sprite.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 export const CHROME_URL = "https://www.google.com/chrome/";
@@ -169,6 +168,14 @@ export function disconnectConfirmRow(prefix, key, confirmText) {
   return { row, text, confirm, cancel };
 }
 
+/** A small status chip ("Locations unlocked", "Connected"). */
+export function chip(id, text, tone) {
+  const node = el("p", `fp-signin-chip fp-signin-chip--${tone}`, text);
+  node.id = id;
+  node.hidden = true;
+  return node;
+}
+
 export function card(id, provider) {
   const root = el("section", "fp-signin-card");
   root.id = id;
@@ -191,65 +198,4 @@ const CHROME_INSTALL_SENTENCE = /\s*Install it from https?:\/\/\S+ and try again
  */
 export function chromeNoticeText(full) {
   return (full || "").replace(CHROME_INSTALL_SENTENCE, "");
-}
-
-/** The 2FA row the Apple card reveals once the server asks for a code. */
-function codeRow(prefix) {
-  const row = el("div", "fp-signin-form");
-  row.id = `${prefix}-apple-2fa`;
-  row.hidden = true;
-  const code = field(t("signin.apple.code"), `${prefix}-apple-code`, "text", "one-time-code");
-  code.input.inputMode = "numeric";
-  code.input.maxLength = 12; // room for "123 456"; the flow strips spaces and wants 6 digits
-  code.input.classList.add("fp-signin-code");
-  const verify = button("btn fp-signin-btn", t("signin.apple.verify"), `${prefix}-apple-code-submit`);
-  const startOver = button("btn btn-secondary", t("signin.apple.startOver"), `${prefix}-apple-code-restart`);
-  const actions = el("div", "fp-signin-code-actions");
-  actions.append(verify, startOver);
-  row.append(el("p", "fp-signin-how", t("signin.apple.codePrompt")), code.label, actions);
-  return { codeRow: row, code: code.input, verify, codeRestart: startOver };
-}
-
-/** The Apple Find My card: Apple ID + password, then the 2FA code. */
-export function buildAppleCard({ prefix, level, notices, withNotices }) {
-  loadIconSprite().catch(() => {});
-  const root = card(`${prefix}-apple-card`, "apple");
-  const top = head("key-round", t("signin.apple.heading"), level, `${prefix}-apple-status`);
-  const how = el("p", "fp-signin-how", t("signin.apple.how"));
-  const unavailable = el("p", "fp-signin-note", t("signin.apple.unavailable"));
-  unavailable.id = `${prefix}-apple-unavailable`;
-  unavailable.hidden = true;
-
-  const form = el("div", "fp-signin-form");
-  form.id = `${prefix}-apple-form`;
-  const appleId = field(t("signin.apple.appleId"), `${prefix}-apple-id`, "text", "username", {
-    withError: true,
-  });
-  const password = field(
-    t("signin.apple.password"), `${prefix}-apple-password`, "password", "current-password",
-    { withError: true }
-  );
-  const actions = el("div", "fp-signin-actions");
-  const signin = button("btn fp-signin-btn", t("signin.apple.connect"), `${prefix}-apple-signin`);
-  actions.append(signin);
-  form.append(appleId.label, appleId.error, password.label, password.error, actions);
-
-  const change = button("btn btn-secondary", t("signin.apple.switch"), `${prefix}-apple-switch`);
-  change.hidden = true;
-  const disconnect = button("btn btn-secondary", t("signin.disconnect"), `${prefix}-apple-disconnect`);
-  disconnect.hidden = true;
-  const disconnectConfirm = disconnectConfirmRow(prefix, "apple", t("signin.apple.disconnectConfirm"));
-  const code = codeRow(prefix);
-  const fb = feedback(`${prefix}-apple`);
-  root.append(
-    top.wrap, how, unavailable, form, change, disconnect,
-    disconnectConfirm.row, code.codeRow, fb.progress, fb.error
-  );
-  if (withNotices) root.append(el("p", "fp-wizard-footnote", notices.apple || ""));
-  return {
-    root, account: top.account, how, unavailable, form, change, disconnect, disconnectConfirm,
-    appleId: appleId.input, appleIdError: appleId.error,
-    password: password.input, passwordError: password.error,
-    button: signin, ...code, ...fb,
-  };
 }

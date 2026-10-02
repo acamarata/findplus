@@ -24,6 +24,7 @@ import { api, postJson } from "./api.js";
 import { loadCatalog } from "./i18n.js";
 import { mountAccessoriesPanel, purgeAccessories } from "./auth_accessories.js";
 import { mountSignInPanel } from "./signin/panel.js";
+import { listenForAttention } from "./signin/attention.js";
 
 /** The mounted panel, built once; a reopen only re-reads the status. */
 let panel = null;
@@ -86,6 +87,13 @@ export function purge() {
 export async function init() {
   await loadCatalog();
   mountAuthPanel($("fp-settings-signin"), { refresh: false });
+  // Desktop app: a lost sign-in or the tray's "Sign in to Apple again..."
+  // reaches the page as a shell event (signin/attention.js).
+  listenForAttention(() => {
+    if (state.locked) return;
+    import("./status_view.js").then((m) => m.loadStatus()).catch(() => {});
+    if (panel) panel.refresh().catch(() => {});
+  });
 }
 
 init();

@@ -58,7 +58,7 @@ async def test_the_primary_button_opens_chrome_and_shows_the_steps(page, base_ur
     assert "Option+Command+I" in steps[1] and "oauth2_4/" in steps[3]
     assert await page.locator("#fp-auth-google-email").is_visible()
     assert await page.locator("#fp-auth-google-token").get_attribute("type") == "password"
-    assert await page.get_by_role("button", name="Connect", exact=True).is_enabled()
+    assert await page.locator("#fp-auth-google-connect").is_enabled()
     assert await page.locator("#fp-auth-not-affiliated").is_visible()
 
 
@@ -85,9 +85,9 @@ async def test_connect_posts_the_token_and_the_card_shows_the_account(page, base
     await page.route("**/api/auth/google/token", token_route)
     await page.fill("#fp-auth-google-email", "g@example.com")
     await page.fill("#fp-auth-google-token", TOKEN)
-    await page.get_by_role("button", name="Connect", exact=True).click()
+    await page.locator("#fp-auth-google-connect").click()
 
-    await wait_text(page, "#fp-auth-google-status", "Signed in as g@example.com")
+    await wait_text(page, "#fp-auth-google-status", "Connected as g@example.com")
     assert posted == [{"email": "g@example.com", "oauth_token": TOKEN}]
     assert await page.locator(PANEL).is_hidden()
     assert await page.locator("#fp-auth-google-token").input_value() == ""
@@ -103,7 +103,7 @@ async def test_a_refused_token_is_shown_in_the_card_and_the_field_is_emptied(pag
 
     await wait_text(page, ERROR, detail)
     assert await page.locator("#fp-auth-google-token").input_value() == ""
-    assert await page.get_by_role("button", name="Connect", exact=True).is_enabled()
+    assert await page.locator("#fp-auth-google-connect").is_enabled()
     assert await page.locator(PANEL).is_visible()
 
 
@@ -113,10 +113,10 @@ async def test_empty_fields_are_named_and_nothing_is_sent(page, base_url):
     catalog = (await _catalog(page, base_url))["token"]
     await page.route("**/api/auth/google/token", reply({}, 200, calls))
 
-    await page.get_by_role("button", name="Connect", exact=True).click()
+    await page.locator("#fp-auth-google-connect").click()
     await wait_text(page, "#fp-auth-google-email-error", catalog["missingEmail"])
     await page.fill("#fp-auth-google-email", "g@example.com")
-    await page.get_by_role("button", name="Connect", exact=True).click()
+    await page.locator("#fp-auth-google-connect").click()
     await wait_text(page, "#fp-auth-google-token-error", catalog["missingToken"])
     assert calls == []
 

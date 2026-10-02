@@ -150,8 +150,24 @@ def helper_seen(body: HelperSeenBody) -> dict[str, Any]:
     return {"ok": True}
 
 
+def helper_folder(request: Request) -> dict[str, Any]:
+    """Copy the extension to its stable folder and return the path. Opens nothing:
+    the card shows the path as text with a Copy button (1.2 install steps)."""
+    from findplus.api.routes_auth import _require_origin_signal
+    from findplus.config import get_settings
+    from findplus.providers.google_findhub.browser_helper import install_helper
+
+    _require_origin_signal(request)
+    try:
+        path = install_helper(get_settings())
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from None
+    return {"path": str(path)}
+
+
 def helper_reveal(request: Request) -> dict[str, Any]:
-    """Copy the extension to a stable folder and reveal it in the file manager."""
+    """Legacy (1.1 CLI and older pages): copy the extension and reveal the folder.
+    No 1.2 screen calls it; the card uses helper_folder, which opens nothing."""
     from findplus.api.routes_auth import _require_origin_signal
     from findplus.config import get_settings
     from findplus.providers.google_findhub.browser_helper import reveal_helper
@@ -165,7 +181,8 @@ def helper_reveal(request: Request) -> dict[str, Any]:
 
 
 def helper_open_extensions(request: Request) -> dict[str, Any]:
-    """Open chrome://extensions in the user's Google Chrome (their explicit ask)."""
+    """Legacy: open chrome://extensions in the user's Google Chrome. No 1.2 screen
+    calls it; the card shows chrome://extensions as text to copy instead."""
     from findplus.api.routes_auth import _require_origin_signal
     from findplus.providers.google_findhub.browser_helper import open_chrome_extensions
 
@@ -187,10 +204,16 @@ _BEGIN_TEMPLATE = """<!doctype html>
     browsers cannot use it.</p>
   <section class="fp-helper-install" data-fp-install hidden>
     <h2>Add the Find+ helper to Chrome (one time)</h2>
-    <p>The Find+ helper for Chrome is not installed yet. In Find+, open
-      Settings then Sign-in and use "Show helper folder", then in Chrome open
-      <code>chrome://extensions</code>, turn on Developer mode, click Load
-      unpacked, and choose that folder. Then start again from Find+.</p>
+    <p>The Find+ helper for Chrome is not installed yet. Add it once, by hand:</p>
+    <ol>
+      <li>In Chrome, type <code>chrome://extensions</code> in the address bar
+        and press Return.</li>
+      <li>Turn on Developer mode, at the top right of that page.</li>
+      <li>Click Load unpacked and choose the Find+ helper folder. Find+ shows its
+        path, with a Copy button, in Settings, Sign-in, under "First time? Add the
+        Find+ helper to Chrome".</li>
+      <li>Come back to Find+ and choose Sign in with Google.</li>
+    </ol>
   </section>
 </main>
 <script type="module" src="/static/app/helper-begin.js"></script>
@@ -247,6 +270,7 @@ def register(router) -> None:
     router.add_api_route("/auth/google/helper/token", helper_token, methods=["POST"])
     router.add_api_route("/auth/google/helper/unlock", helper_unlock, methods=["POST"])
     router.add_api_route("/auth/google/helper/seen", helper_seen, methods=["POST"])
+    router.add_api_route("/auth/google/helper/folder", helper_folder, methods=["POST"])
     router.add_api_route("/auth/google/helper/reveal", helper_reveal, methods=["POST"])
     router.add_api_route(
         "/auth/google/helper/open-extensions", helper_open_extensions, methods=["POST"]

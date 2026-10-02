@@ -38,5 +38,12 @@ _STATE_GATED = frozenset(
         # The begin page (also cookie-less, in the user's own Chrome) reports the
         # helper is installed. It only sets a "helper detected" hint.
         "/api/auth/google/helper/seen",
+        # The desktop shell's in-app sign-in window posts these with no cookie.
+        # Each needs the pinned shell Origin and header AND a single-use state
+        # minted by an unlocked session (_routes_auth_google_native.py).
+        "/api/auth/google/native/token",
+        "/api/auth/google/native/unlock",
+        "/api/auth/google/native/event",
+        "/api/auth/google/native/classify",
     }
 )

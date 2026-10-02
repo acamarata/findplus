@@ -220,6 +220,8 @@ pub fn start(app: tauri::AppHandle) {
                 .unwrap_or(5);
             let status = from_api(&json, interval);
             let _ = app.emit("status-update", &status);
+            // Lost sign-in: tray item, one banner, deep-link gate (spec §6).
+            crate::attention::refresh(&app);
 
             let last_poll_at = json
                 .get("last_poll_at")

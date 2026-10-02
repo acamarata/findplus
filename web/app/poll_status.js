@@ -18,6 +18,8 @@
 import { state } from "./state.js";
 import { t } from "./i18n.js";
 import { api } from "./api.js";
+import { hasNativeWindow } from "./signin/native_bridge.js";
+import { GOOGLE, fixSignin } from "./signin/attention.js";
 
 /** Statuses that mean the poll itself worked, found a fix or not. */
 const HEALTHY = new Set(["ok", "no_location"]);
@@ -142,6 +144,9 @@ function whenVisible(id, ms) {
  */
 export async function openUnlock() {
   signedInCache = null;
+  // Desktop app: the same entry the lost-sign-in banner uses, so the unlock
+  // runs in the Find+ window at once (signin/attention.js).
+  if (hasNativeWindow()) return fixSignin(GOOGLE, "unlock");
   const settings = await import("./settings.js");
   await settings.openSettings();
   const block = await whenVisible("fp-auth-google-unlock", 6000);

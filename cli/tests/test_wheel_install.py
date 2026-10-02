@@ -180,7 +180,7 @@ def _assert_wheel_carries_dashboard_and_vendor(wheel_path: Path) -> None:
         )
     assert any(n.startswith("findplus/_vendor/GoogleFindMyTools/") for n in names)
     assert "findplus/browser_helper/manifest.json" in names, (
-        "the Chrome helper is missing from the wheel; Show helper folder would fail"
+        "the Chrome helper is missing from the wheel; the helper folder route would fail"
     )
     assert "findplus/browser_helper/background.js" in names
     for mod in VENDOR_BOOTSTRAP_MODULES:

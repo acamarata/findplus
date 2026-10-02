@@ -225,11 +225,15 @@ def _consecutive_failures(session, limit: int = 50) -> int:
 
 
 def _provider_health() -> list[dict[str, Any]]:
-    """One `{name, available, authenticated}` row per installed provider.
+    """One `{name, available, authenticated, attention}` row per installed provider.
+
+    `attention` ("reauth", "unlock" or "none", providers/attention.py) lets the
+    tray and the MCP `get_status` tool say a sign-in was lost.
 
     Never raises: a broken provider (import error, probe exception) is
     reported unavailable/unauthenticated instead of 500ing the caller.
     """
+    from findplus.providers.attention import attention_for
     from findplus.providers.base import available_providers, get_provider
 
     rows: list[dict[str, Any]] = []
@@ -240,7 +244,14 @@ def _provider_health() -> list[dict[str, Any]]:
             authenticated = provider.is_authenticated() if available else False
         except Exception:
             available, authenticated = False, False
-        rows.append({"name": name, "available": available, "authenticated": authenticated})
+        rows.append(
+            {
+                "name": name,
+                "available": available,
+                "authenticated": authenticated,
+                "attention": attention_for(name),
+            }
+        )
     return rows
 
 

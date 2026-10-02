@@ -58,10 +58,10 @@ brew install acamarata/tap/findplus
 
 **pipx:** Find+ is not on PyPI, so install the wheel from the latest release.
 Download the `findplus-<version>-py3-none-any.whl` from
-[Releases](https://github.com/acamarata/findplus/releases) (for example, v1.1.6):
+[Releases](https://github.com/acamarata/findplus/releases) (for example, v1.2.0):
 
 ```bash
-pipx install https://github.com/acamarata/findplus/releases/download/v1.1.6/findplus-1.1.6-py3-none-any.whl
+pipx install https://github.com/acamarata/findplus/releases/download/v1.2.0/findplus-1.2.0-py3-none-any.whl
 ```
 
 Or install from the latest release directly:
@@ -86,10 +86,10 @@ curl -fsSL https://github.com/acamarata/findplus/releases/latest/download/update
 The updater checks the download against the sha256 published on the same release.
 That catches a corrupted download. It does not prove who published the release.
 
-**Chrome helper (every install route).** Google sign-in runs through the Find+
-helper extension in your own Chrome. Whether you used the dmg, Homebrew, pipx or
-the curl installer, add it once: the sign-in card has **Show helper folder** and
-**Open Chrome extensions** buttons that walk you through Load unpacked. Details:
+**Chrome helper (only if Google blocks the Find+ window).** The Find+ app signs in
+to Google in a window of its own. If Google ever refuses that, or you use Find+ in a
+browser tab instead of the app, the card falls back to the Find+ helper extension
+in your own Chrome, which you add once with written steps. Details:
 [Install](.github/wiki/Install.md#chrome-helper).
 
 ## First run
@@ -111,21 +111,24 @@ findplus start --yes
 
 ## Sign in
 
-**Google Find Hub, with the Find+ helper (recommended).** Click **Sign in with
-Google**. Find+ opens Google's sign-in in the Chrome you already use, and the
-open-source [Find+ helper](browser-helper/) extension passes the sign-in to Find+
-on your computer. You land on a "Signed in. You can close this tab." page and
-Find+ continues on its own. The first time, add the helper once: the card's
-**Show helper folder** and **Open Chrome extensions** buttons walk you through
-Load unpacked. The helper talks only to Google and to Find+ on 127.0.0.1, with no
-analytics and no remote code
-([privacy](https://github.com/acamarata/findplus/wiki/Chrome-helper-privacy)).
+**Google Find Hub, in the Find+ app.** Click **Connect**. A Find+ window opens with
+Google's own sign-in page, titled with the page it shows. Sign in as usual. When Google
+accepts you, the window closes by itself and the card says **Connected**. If Google also
+needs your Android phone's screen lock to unlock your encrypted locations, the same
+window asks for it. You type your password only on Google's page, the window keeps
+nothing, and Find+ never saves a password or a cookie. Cancel any time with Command+W.
 
-**Fallback: copy one value by hand.** Use this only if you cannot or would rather
-not add the helper. Under "Other ways to sign in", **Sign in with your
-Chrome** opens Google's sign-in page as a normal tab of your Chrome. Then:
+**If Google blocks the window.** Google's policy is against sign-in inside apps, so it
+can refuse ("This browser or app may not be secure"). Find+ then says so and offers two
+ways on. Use the open-source [Find+ helper](browser-helper/) extension in your own
+Chrome: the card shows written steps to add it once (Developer mode, Load unpacked), and
+the helper talks only to Google and to Find+ on 127.0.0.1, with no analytics and no
+remote code
+([privacy](https://github.com/acamarata/findplus/wiki/Chrome-helper-privacy)). Or paste
+one cookie value by hand:
 
-1. Sign in to your Google account in that tab. The page may look blank or keep
+1. Under "More ways to sign in", click **Sign in with your Chrome**. Google's sign-in
+   opens as a normal tab of your Chrome. Sign in there. The page may look blank or keep
    spinning after you sign in. That is expected.
 2. Open Chrome's developer tools: Option+Command+I on a Mac, Ctrl+Shift+I on
    Windows or Linux.
@@ -133,24 +136,19 @@ Chrome** opens Google's sign-in page as a normal tab of your Chrome. Then:
 4. Click the `oauth_token` row and copy its Value. It starts with `oauth2_4/`.
 5. Paste it into Find+ with your Google email and click **Connect**.
 
-Why the copy step: Chrome 136 and later refuse to let another program drive your
-everyday Chrome profile, and Google hands the Find Hub token only to a browser, as
-that cookie. Find+ exchanges it with Google right away and never stores it. It
-expires within minutes, so copy it right after you sign in. From a terminal,
-`findplus auth --token` does the same.
+Find+ exchanges that value with Google right away and never stores it. It expires
+within minutes, so copy it right after you sign in. From a terminal,
+`findplus auth --token` does the same, and `findplus auth --unlock` runs the unlock step.
 
-**Fallback: let Find+ open its own Chrome window.** The smaller option on the same card
-opens a separate Chrome window with a profile of its own and picks the token up by
-itself. It needs Google Chrome installed.
+**Apple Find My** opens one sheet for your Apple ID and password, then a 6-digit code
+from a trusted device, or by text message if you choose that. You can connect Google and
+Apple both.
 
-**Unlock encrypted locations.** Google encrypts Find Hub locations end to end, so
-after you sign in the card shows an **Unlock encrypted locations** step. Click it and
-Find+ opens a Chrome window of its own where Google asks for your Android phone's
-screen lock, once. That releases the key; Find+ stores it and never asks you to paste
-anything. From a terminal, `findplus auth --unlock` does the same.
+**When a sign-in stops working** (a password change, a revoked session), the menu bar
+icon dims with a "Sign in again" item, you get one notification, and the dashboard shows
+one **Sign in again** button. Your history is kept.
 
-**Apple Find My** takes your Apple ID, password and verification code on its own
-card. Details for both: [Sign-in](https://github.com/acamarata/findplus/wiki/Sign-in).
+Details for all of this: [Sign-in](https://github.com/acamarata/findplus/wiki/Sign-in).
 
 ## Features
 
@@ -175,7 +173,7 @@ card. Details for both: [Sign-in](https://github.com/acamarata/findplus/wiki/Sig
 - Device and group labels with a 49-icon picker, your own uploaded custom
   icons, or a colored letter badge, and 12 accent colors.
 - Apple Find My accessory key upload from the dashboard, the CLI, or the API.
-- In-dashboard sign-in for Google Find Hub and Apple Find My, no terminal required.
+- Sign in to Google in a Find+ window that closes itself and says Connected, and to Apple in one sheet, no terminal required. A lost sign-in shows a clear "Sign in again" prompt.
 - Guided first-run setup wizard covering sign-in, devices, groups, places, notifications and app lock.
 - Configurable poll interval (5-1440 minutes) and history retention.
 
@@ -274,6 +272,14 @@ see if sign-in cannot find Chrome, not a general statement.
 > Road routes are off unless you enter a routing server address. When
 > one is set, the sightings of each trip you open are sent to that
 > server to draw the path, so use a server you run yourself.
+>
+> Find+ can sign you in to Google in a window of its own. Google's
+> policy is against sign-in inside apps, so it can refuse at any time; if
+> it does, sign in with your own Chrome instead.
+>
+> Find+ keeps a long-lived sign-in to your Google account on this Mac so
+> it can read your trackers. You can remove its access any time at
+> myaccount.google.com/security (Third-party access) or with Disconnect.
 
 ## CLI
 

@@ -41,6 +41,7 @@ export class GoogleUnlockFlow {
     this.helperInstalled = false;
     this.timer = null;
     this.ticks = 0;
+    this.nativeStart = null;
     card.unlockButton.addEventListener("click", () => this.start());
     card.unlockOwn.addEventListener("click", () => this.startOwnWindow());
     card.unlockCancel.addEventListener("click", () => this.cancel());
@@ -50,10 +51,10 @@ export class GoogleUnlockFlow {
    *  window stays available as "other way". */
   setHelperInstalled(installed) {
     this.helperInstalled = !!installed;
-    this.card.unlockOwn.hidden = !this.helperInstalled;
-    this.card.unlockWhy.textContent = t(
-      this.helperInstalled ? "signin.google.unlock.whyHelper" : "signin.google.unlock.why"
-    );
+    this.card.unlockOwn.hidden = !this.helperInstalled || !!this.nativeStart;
+    let why = this.helperInstalled ? "signin.google.unlock.whyHelper" : "signin.google.unlock.why";
+    if (this.nativeStart) why = "signin.native.unlockWhy";
+    this.card.unlockWhy.textContent = t(why);
   }
 
   /** Show the block only for a signed-in account whose key is still locked. */
@@ -102,7 +103,9 @@ export class GoogleUnlockFlow {
     this.timer = null;
   }
 
+  /** The desktop app unlocks in the Find+ window (nativeStart, set by GoogleFlow). */
   start() {
+    if (this.nativeStart) return this.nativeStart();
     return this.helperInstalled ? this.startHelper() : this.startOwnWindow();
   }
 

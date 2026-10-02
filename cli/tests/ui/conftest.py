@@ -267,4 +267,8 @@ async def page(browser_session):
     await _never_open_a_real_browser(ctx)
     pg = await ctx.new_page()
     yield pg
+    # A route handler still awaiting route.fetch() (a status poll) when the
+    # context closes raises TargetClosedError into the NEXT test's setup.
+    await pg.unroute_all(behavior="ignoreErrors")
+    await ctx.unroute_all(behavior="ignoreErrors")
     await ctx.close()

@@ -1,6 +1,9 @@
 //! findplus:// URL scheme handling.
 //!
-//! Purpose    : Route the five findplus:// deep links to their actions.
+//! Purpose    : Route the findplus:// deep links to their actions. The three
+//!              sign-in links (signin/google, unlock/google, signin/apple) open
+//!              a login only while that provider needs attention: any web page
+//!              can fire a findplus:// URL, so otherwise they open Settings.
 //! Inputs     : A URL string from tauri::RunEvent::Opened (wired in lib.rs).
 //! Outputs    : Opens the main/settings/places window, triggers a poll, or logs.
 //! Constraints: refresh-widget must never re-`open` the findplus:// scheme —
@@ -13,7 +16,8 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::windows;
+use crate::attention::{self, Gate, Need, Provider};
+use crate::{signin_window, windows};
 
 /// Derive the reload-widgets helper path from the running app's own
 /// executable: it ships alongside the app binary in Contents/MacOS
@@ -52,6 +56,7 @@ enum Action {
     OpenPlaces,
     Poll,
     RefreshWidget,
+    Login(Provider, Need),
     Unknown,
 }
 
@@ -62,6 +67,9 @@ fn classify(url: &str) -> Action {
         "findplus://places" => Action::OpenPlaces,
         "findplus://poll" => Action::Poll,
         "findplus://refresh-widget" => Action::RefreshWidget,
+        "findplus://signin/google" => Action::Login(Provider::Google, Need::Signin),
+        "findplus://unlock/google" => Action::Login(Provider::Google, Need::Unlock),
+        "findplus://signin/apple" => Action::Login(Provider::Apple, Need::Signin),
         _ => Action::Unknown,
     }
 }
@@ -82,13 +90,40 @@ pub fn handle(app: &tauri::AppHandle, url: &str) {
                 reload_widget_timelines(&reload_widgets_path(&exe));
             }
         }
-        Action::Unknown => log::debug!("urlscheme: unrecognised URL {url}"),
+        Action::Login(provider, link) => {
+            let current = attention::current().get(provider);
+            match attention::gate(provider, link, current, attention::locked()) {
+                Gate::Open(need) => signin_window::open_for(app, provider, need),
+                Gate::Settings => windows::open_settings(app),
+            }
+        }
+        Action::Unknown => log::debug!("urlscheme: unrecognised {}", log_safe(url)),
     }
+}
+
+/// Pure: what the log may say about a link any web page can fire: its scheme
+/// and its length, never its contents (r12 #13).
+fn log_safe(url: &str) -> String {
+    let scheme = url
+        .split_once(':')
+        .map(|(s, _)| s)
+        .filter(|s| s.len() <= 16 && s.bytes().all(|b| b.is_ascii_alphanumeric()))
+        .unwrap_or("?");
+    format!("{scheme} link ({} bytes)", url.len())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_unknown_link_is_logged_without_its_contents() {
+        let line = log_safe("findplus://secret-host/path?token=abc#frag");
+        assert_eq!(line, "findplus link (42 bytes)");
+        assert!(!line.contains("secret") && !line.contains("abc"));
+        assert_eq!(log_safe("no scheme here"), "? link (14 bytes)");
+        assert_eq!(log_safe("x y:rest"), "? link (8 bytes)");
+    }
 
     #[test]
     fn reload_widgets_path_is_sibling_of_app_binary() {
@@ -113,11 +148,18 @@ mod tests {
         assert_eq!(classify("findplus://places"), Action::OpenPlaces);
         assert_eq!(classify("findplus://poll"), Action::Poll);
         assert_eq!(classify("findplus://refresh-widget"), Action::RefreshWidget);
+        let google = |n| Action::Login(Provider::Google, n);
+        assert_eq!(classify("findplus://signin/google"), google(Need::Signin));
+        assert_eq!(classify("findplus://unlock/google"), google(Need::Unlock));
+        let apple = Action::Login(Provider::Apple, Need::Signin);
+        assert_eq!(classify("findplus://signin/apple"), apple);
     }
 
     #[test]
     fn classify_falls_back_to_unknown() {
         assert_eq!(classify("findplus://bogus"), Action::Unknown);
         assert_eq!(classify("not-a-findplus-url"), Action::Unknown);
+        assert_eq!(classify("findplus://signin/google?x=1"), Action::Unknown);
+        assert_eq!(classify("findplus://signin/evil"), Action::Unknown);
     }
 }

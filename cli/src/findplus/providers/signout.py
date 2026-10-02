@@ -104,6 +104,9 @@ def _cancel_google_jobs() -> None:
     job_guards.cancel_active(browser, browser.cancel_google_auth)
     job_guards.cancel_active(unlock, unlock.cancel_google_unlock)
     helper_state.drop_all_states()
+    from .google_findhub import native_progress
+
+    native_progress.reset()  # the in-app window's card goes back to Connect
 
 
 def sign_out(provider: str, settings) -> bool:
@@ -122,4 +125,8 @@ def sign_out(provider: str, settings) -> bool:
     if provider == GOOGLE:
         # Disconnect must not leave a full Google browser login behind.
         existed = _wipe_chrome_profile(settings) or existed
+    else:
+        from .apple_findmy.auth import clear_auth_required
+
+        clear_auth_required(settings)  # signed out is not "needs signing in again"
     return existed

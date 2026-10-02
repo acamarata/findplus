@@ -67,7 +67,7 @@ def test_the_dashboard_itself_still_ships() -> None:
 
 
 def test_the_chrome_helper_ships() -> None:
-    """The sidecar must carry the browser helper so "Show helper folder" works."""
+    """The sidecar must carry the browser helper so the helper install steps can copy it."""
     datas = _expanded_datas()
     assert "findplus/browser_helper/manifest.json" in datas
     assert "findplus/browser_helper/background.js" in datas

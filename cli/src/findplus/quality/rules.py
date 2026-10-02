@@ -144,8 +144,13 @@ def sibling_disagree(fix: Fix, before: Sequence[Fix], near: Sequence[Fix]) -> bo
     `before` is this tracker's own earlier fixes (newest last); `near` is the
     fix of each other tracker closest in time (see `nearest_in_time`). The
     tracker must have shown no motion before `fix`, otherwise it may simply
-    have been carried away.
+    have been carried away, and `fix` itself must be a jump away from where the
+    tracker just was. A tracker that keeps reporting the SAME place while its
+    siblings leave (a bag left at school) is not a bad coordinate: it is the
+    left-behind case the people engine alerts on.
     """
+    if not before or dist(fix, before[-1]) <= max(STILL_RADIUS_M, fix.acc):
+        return False
     if len(before) >= 2 and dist(before[-1], before[-2]) > max(STILL_RADIUS_M, before[-1].acc):
         return False
     close = [s for s in near if seconds(fix, s) <= SIBLING_WINDOW_S]

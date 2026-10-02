@@ -116,3 +116,15 @@ def test_own_reports_get_a_capped_bonus() -> None:
     skewed = fix(1, 0, own_report=True, fetched_at=fix(1, 0).t - timedelta(minutes=10))
     assert score_series([skewed])[1].score == 0.88
     assert score_series([fix(2, 0, own_report=True)])[2].score == 1.0
+
+
+def test_a_bag_that_stays_put_while_siblings_leave_is_not_suspect() -> None:
+    """Left behind is a real event, not a bad coordinate: the bag keeps reporting school."""
+    bag_before = [fix(1, 0, 0.0), fix(2, 20, 5.0)]
+    bag_now = fix(3, 180, 3.0)  # the same place as before, hours later
+    shoes = fix(4, 182, 3200.0)  # its siblings are 3.2 km away and agree with each other
+    watch = fix(5, 183, 3210.0)
+    assert r.sibling_disagree(bag_now, bag_before, [shoes, watch]) is False
+    # ...but a bag that JUMPS 3 km while its siblings agree elsewhere is still flagged.
+    jumped = fix(6, 180, 3000.0)
+    assert r.sibling_disagree(jumped, bag_before, [fix(7, 182, 0.0), fix(8, 183, 5.0)]) is True

@@ -25,12 +25,14 @@ from sqlalchemy.orm import Session
 
 from findplus.db.models import GroupPlaceEvent, LocationObservation, PlaceEvent, PlaceState
 from findplus.db.models_people import PersonPlaceState
+from findplus.geo import haversine_meters
 from findplus.groups.events import _existing_group_event, _insert_group_event
 from findplus.logging_setup import get_logger
 from findplus.people import _quality, left_behind
-from findplus.people.infer import PersonFix
+from findplus.people.infer import PersonFix, PlaceRef
 from findplus.people.inputs import infer_person, person_groups_of
 from findplus.people.notes import event_note
+from findplus.places.geofence import exit_margin
 
 log = get_logger(__name__)
 
@@ -47,14 +49,34 @@ class Step:
     event_type: str | None
 
 
-def person_target(fix: PersonFix, place_id: int, states: dict[tuple[str, int], str]) -> str | None:
-    """inside / outside / None (no change) for one place (spec § 5.1 step 3)."""
+def _near(place: PlaceRef, fix) -> bool:
+    """The sighting itself is not clearly outside the place (geofence's own band)."""
+    if fix is None:
+        return False
+    d = haversine_meters(place.latitude_e7 / 1e7, place.longitude_e7 / 1e7, fix.lat, fix.lon)
+    acc = fix.accuracy_meters if fix.accuracy_meters is not None else 100.0
+    return d <= place.radius_meters + max(acc, exit_margin(place.radius_meters))
+
+
+def person_target(
+    fix: PersonFix, place: PlaceRef, states: dict[tuple[str, int], str]
+) -> str | None:
+    """inside / outside / None (no change) for one place (spec § 5.1 step 3).
+
+    "inside" also needs the supporter's own non-suspect sighting to be at the
+    place: a device state set by a sighting the quality flags later threw out
+    must not put the person there.
+    """
     if fix.confidence not in ("likely", "probably") or not fix.supporters:
         return None
-    sides = [states.get((d, place_id), "unknown") for d in fix.supporters]
-    if "inside" in sides:
+    last = {m.device_id: m.fix for m in fix.members}
+    sides = [states.get((d, place.id), "unknown") for d in fix.supporters]
+    if any(
+        side == "inside" and _near(place, last.get(d))
+        for d, side in zip(fix.supporters, sides, strict=True)
+    ):
         return "inside"
-    if "outside" in sides:
+    if "outside" in sides or "inside" in sides:
         return "outside"
     return None
 
@@ -147,7 +169,7 @@ def evaluate_person(session: Session, group, as_of: datetime) -> list[GroupPlace
         if row is None:
             row = PersonPlaceState(group_id=group.id, place_id=place.id, state="unknown")
             session.add(row)
-        target = person_target(fix, place.id, states)
+        target = person_target(fix, place, states)
         s = step(row.state, row.pending_side, row.pending_since, row.last_transition_at,
                  target, as_of)  # fmt: skip
         row.state, row.pending_side, row.pending_since = s.state, s.pending_side, s.pending_since

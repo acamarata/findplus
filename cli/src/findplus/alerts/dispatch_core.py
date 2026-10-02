@@ -206,6 +206,12 @@ def local_zone() -> datetime.tzinfo:
     return datetime.datetime.now().astimezone().tzinfo
 
 
+def _render_person(event, now):
+    from findplus.alerts.render_person import render_person_message
+
+    return render_person_message(event, now)
+
+
 def render_message(
     event: DeviceEvent | GroupEvent | LeftBehindEvent, now: datetime.datetime
 ) -> str:
@@ -228,13 +234,10 @@ def render_message(
     use) but stays in the signature: dispatch.py/retry.py call every
     render_message() at a fixed instant regardless, and dropping the
     parameter would only churn every call site for no behaviour change.
-    Person events and left-behind episodes have their own wording
-    (alerts/render_person.py, specs/people-and-presence.md § 5.4).
+    Person and left-behind wording: alerts/render_person.py (spec § 5.4).
     """
     if isinstance(event, LeftBehindEvent) or getattr(event, "basis", "") == "person":
-        from findplus.alerts.render_person import render_person_message
-
-        return render_person_message(event, now)
+        return _render_person(event, now)
     subject = event.device_name if isinstance(event, DeviceEvent) else event.group_name
     verb = "arrived at" if event.event_type == "ENTER" else "left"
     observed = as_utc(event.observed_at)

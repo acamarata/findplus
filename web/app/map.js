@@ -241,6 +241,8 @@ function drawTrack(track) {
 }
 
 export function renderMap({ fit = true } = {}) {
+  // The Person page owns the map while it is open (person_route.js).
+  if (state.personView) return;
   state.layer.clearLayers();
   state.markers.clear();
   if (!state.timeline) {

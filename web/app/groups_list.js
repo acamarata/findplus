@@ -20,6 +20,7 @@ import { api } from "./api.js";
 import { uniqueLabel } from "./device_label.js";
 import { t, plural } from "./i18n.js";
 import { renderBadge } from "./components/badge.js";
+import { markForLinks } from "./person_links.js";
 import { showAddDialog, openEditDialog } from "./groups_dialog.js";
 import { loadGroups, selectGroupById, clearGroup, isGroupSelected } from "./groups.js";
 import { verdictLabel, verdictTitle } from "./groups_presence_render.js";
@@ -116,7 +117,7 @@ function memberAvatars(group, devicesById) {
 
 /** Card body (not a button) selects the group and brings its tab forward. */
 function onCardClick(event, group) {
-  if (event.target.closest("button")) return;
+  if (event.target.closest("button, a")) return;
   selectGroupById(group.id);
   const tab = document.querySelector('button.fp-tab[data-tab="groups"]');
   // Reuses main.js's own tab handler rather than reimplementing switchTab.
@@ -146,7 +147,7 @@ function renderCard(group, devicesById) {
   );
   card.append(
     icon,
-    span("fp-card-name", group.name),
+    markForLinks(span("fp-card-name", group.name)),
     memberAvatars(group, devicesById),
     metaLine(group, devicesById),
     span("fp-card-verdict"),

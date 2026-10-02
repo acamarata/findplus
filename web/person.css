@@ -1,0 +1,96 @@
+/* The Person page (#/person/<id>): header, date bar, summary, story, trackers.
+   Own file so style.css and trips.css stay under the 300-line cap. Colours come
+   from the theme tokens only, so light and dark both work. */
+
+.person-view .controls, .person-view .cards-help { display: none; }
+.person { padding: 10px 18px 24px; }
+.person-back { display: inline-block; margin: 2px 0 8px; font-size: 13px; color: var(--accent); text-decoration: none; }
+.person-back:hover { text-decoration: underline; }
+.person-back:focus-visible, .person-link:focus-visible, .person-line-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* header */
+.person-head { display: flex; gap: 12px; align-items: flex-start; min-height: 52px; }
+.person-avatar { flex: 0 0 auto; line-height: 0; }
+.person-head-text { min-width: 0; flex: 1 1 auto; }
+.person-name { margin: 0; font-size: 20px; font-weight: 650; text-transform: none; letter-spacing: 0; color: var(--text); overflow-wrap: anywhere; }
+.person-now { margin: 4px 0 6px; font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+.person-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
+.person-chip {
+  display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 12px; font-weight: 550;
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+}
+.person-kind { margin-left: 8px; vertical-align: middle; font-size: 11px; }
+.person-conf--likely { color: var(--ok); border-color: var(--ok); }
+.person-conf--probably { color: var(--accent); border-color: var(--accent); }
+.person-conf--unsure, .person-chip--pending { color: var(--warn); border-color: var(--warn); }
+.person-conf--unknown, .person-chip--stale { color: var(--muted); border-style: dashed; }
+.person-chip--carried { color: var(--ok); border-color: var(--ok); }
+.person-chip--left, .person-chip--apart { color: var(--warn); border-color: var(--warn); }
+.person-chip--lead { color: var(--accent); border-color: var(--accent); margin-left: 6px; }
+
+/* date bar */
+.person-datebar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 14px 0 2px; }
+.person-datebar .btn-tiny { min-width: 36px; min-height: 32px; }
+.person-datebar input[type=date] { min-height: 32px; flex: 0 1 auto; }
+.person-hint { margin: 2px 0 8px; color: var(--muted); font-size: 12px; }
+.person-status { min-height: 18px; margin: 4px 0; font-size: 13px; }
+.person-status--ok { color: var(--ok); }
+.person-status--err { color: var(--err); }
+
+/* actions */
+.person-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 12px; }
+.person-actions .btn, .person-actions .btn-secondary { min-height: 34px; }
+
+/* cards */
+.person-body { display: flex; flex-direction: column; gap: 12px; }
+.person-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.person-card-title { margin: 0 0 6px; font-size: 14px; font-weight: 650; text-transform: none; letter-spacing: 0; color: var(--text); }
+.person-note { margin: 6px 0 0; color: var(--muted); font-size: 12.5px; }
+.person-partial { margin: 0; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--warn); color: var(--text); font-size: 13px; background: var(--panel-2); }
+.person-honesty { margin: 10px 0 0; font-style: italic; }
+.person-notes { display: flex; flex-direction: column; gap: 4px; }
+.person-map-controls { padding: 0 2px; }
+.suspect-toggle { font-size: 13px; }
+
+/* summary lines */
+.person-lines { list-style: none; margin: 0; padding: 0; }
+.person-line-btn {
+  display: block; width: 100%; text-align: left; background: none; color: inherit; font: inherit; font-size: 14px;
+  border: 1px solid transparent; border-radius: 8px; padding: 7px 9px; cursor: pointer; min-height: 36px;
+}
+.person-line-btn:hover { background: rgba(79,140,247,.08); }
+.person-line-btn.is-picked { background: rgba(79,140,247,.16); border-color: var(--accent); }
+
+/* trackers */
+.person-tracker-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.person-tracker { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.person-tracker-main { display: flex; align-items: center; gap: 10px; }
+.person-role-icon { flex: 0 0 auto; line-height: 0; }
+.person-tracker-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.person-tracker-name { font-weight: 600; overflow-wrap: anywhere; }
+.person-tracker-meta { color: var(--muted); font-size: 12px; }
+.person-tracker .person-chips { margin-top: 6px; }
+.person-tracker .person-chips:empty { display: none; }
+.person-edit { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); display: flex; flex-direction: column; gap: 6px; }
+.person-edit .fp-dialog-field { display: flex; flex-direction: column; gap: 3px; }
+.person-edit-actions { display: flex; gap: 8px; }
+
+/* a name that opens a person */
+.person-link { color: var(--accent); text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; }
+.person-link:hover { text-decoration-style: solid; }
+
+/* sightings that look wrong (dashboard map and day story share these) */
+.marker-num--suspect { opacity: .45; outline: 2px dashed var(--muted); outline-offset: 2px; border-radius: 50%; }
+.tl-item.is-suspect { opacity: .6; }
+.tl-suspect { color: var(--muted); font-size: 12px; font-style: italic; }
+
+@media (max-width: 480px) {
+  .person { padding: 8px 16px 20px; }
+  .person-name { font-size: 18px; }
+  .person-actions .btn, .person-actions .btn-secondary { flex: 1 1 auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .person *, .person *::before { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+.person-name:focus { outline: none; }
+.person-view .map-note, .person-view .map-empty { display: none; }

@@ -13,6 +13,7 @@
  *              module has no top-level side effects of its own.
  */
 "use strict";
+import { markForLinks } from "./person_links.js";
 import { $, showAlert } from "./state.js";
 import { api } from "./api.js";
 import { t, plural } from "./i18n.js";
@@ -74,7 +75,7 @@ function nameCell(rule) {
     exit: !!rule.on_exit,
     place: rule.place_name || "",
   });
-  td.append(name, sentence);
+  td.append(name, markForLinks(sentence));
   return td;
 }
 
@@ -118,7 +119,7 @@ function buildRuleRow(rule) {
   tr.append(
     nameCell(rule),
     cell(rule.place_name || t("common.emptyValue"), t("alerts.colPlace")),
-    cell(ruleTargetLabel(rule), t("alerts.colTarget")),
+    markForLinks(cell(ruleTargetLabel(rule), t("alerts.colTarget"))),
     cell(rule.on_enter ? t("common.yes") : t("common.no"), t("alerts.colOnEnter")),
     cell(rule.on_exit ? t("common.yes") : t("common.no"), t("alerts.colOnExit")),
     cell(

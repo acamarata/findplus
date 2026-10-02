@@ -143,16 +143,11 @@ export async function purgeRenderedData() {
 }
 
 /**
- * Purge the Places, Groups, Alerts tabs' and the setup wizard's own state.
- *
- * Each of those modules keeps a Leaflet overlay layer and/or DOM (place
- * circles, group-member circles, the presence panel, the group legend and
- * select, the alerts rules table) outside anything the code above already
- * clears — reviewer-E10 measured real coordinates and names still present
- * in `.leaflet-overlay-pane` and those elements after a lock. Dynamic
- * import reaches the already-loaded module instances (matching
- * refreshTabsAfterUnlock()'s pattern below); each purge is independent so
- * one module throwing never leaves another module's data behind.
+ * Purge the Places, Groups, Alerts and Person tabs' and the setup wizard's own
+ * state: each keeps a Leaflet layer and/or DOM that the code above does not
+ * clear (reviewer-E10 found real coordinates and names left after a lock).
+ * Dynamic import reaches the already-loaded module instances; each purge is
+ * independent so one throwing never leaves another module's data behind.
  */
 async function purgeTabModules() {
   const results = await Promise.allSettled([
@@ -165,11 +160,10 @@ async function purgeTabModules() {
     // The Settings dialog's sign-in panel holds the signed-in account, a typed
     // Apple ID and an unsent password, and a closed <dialog> keeps them.
     import("./auth.js").then((m) => m.purge()),
-    // #setup-view is a SIBLING of #app-shell, so hiding the shell never
-    // reached it: a lock with the wizard open left an Apple ID, an unsent
-    // password, a bot token, both PIN boxes and every discovered tracker's
-    // name in the document behind the lock screen (CR-C-E11 F1).
+    // #setup-view is a SIBLING of #app-shell: hiding the shell never reached
+    // its Apple ID, password, bot token and tracker names (CR-C-E11 F1).
     import("./setup.js").then((m) => m.purge()),
+    import("./person_page.js").then((m) => m.purge()),
   ]);
   results.forEach((r) => {
     if (r.status === "rejected") console.error("post-lock purge failed", r.reason);

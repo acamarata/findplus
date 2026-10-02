@@ -6,8 +6,8 @@ Inputs     : See each command's options. All act on the configured database.
 Outputs    : Plain-words console output; `--json` where a script may want it.
 Constraints: Restore refuses while the daemon runs (unless --force), always
              takes a pre-restore backup first, and never deletes the file it
-             replaces. Backups never include secrets (they are database copies
-             only). Nothing here talks to the network.
+             replaces. Backups hold the database only: no sign-in tokens or keys, but
+             the PIN hash (a row in `settings`) is included. Nothing here talks to the network.
 """
 
 from __future__ import annotations

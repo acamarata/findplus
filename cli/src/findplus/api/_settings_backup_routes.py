@@ -7,7 +7,8 @@ Outputs    : GET /api/settings/backup -> {directory, count, last_backup_at,
              last_kind, last_size_bytes}; POST /api/settings/backup/now -> the same
              body after a manual backup, or 500 with the plain-words reason.
 Constraints: Gated by the lock like every /api/ path. A backup holds the database
-             only, never secrets (db/backup.py). Nothing here deletes a backup.
+             only: no sign-in tokens or keys, but the PIN hash is included
+             (db/backup.py). Nothing here deletes a backup.
 """
 
 from __future__ import annotations

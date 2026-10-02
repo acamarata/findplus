@@ -1,4 +1,4 @@
-"""Online SQLite backups, verified, rotated, never containing secrets.
+"""Online SQLite backups, verified and rotated, with no sign-in tokens or keys.
 
 Purpose    : Keep recent copies of the history database so a bad disk, a bad
              upgrade or a mistaken delete costs hours, not months.
@@ -11,9 +11,12 @@ Constraints: Uses SQLite's online backup API (`Connection.backup`), a consistent
              WAL database. Each copy is written under a temporary name, verified
              by opening it and running `quick_check`, and only then renamed into
              place. The backup contains the database only: `secrets.json`,
-             `alerts.json` and Apple tokens live outside it and are never copied.
+             `alerts.json` and Apple tokens live outside it and are never copied. The
+             `settings` table is in it, and that holds the app-lock PIN hash and
+             salt: no sign-in tokens or keys, but the PIN hash is included.
              Rotation keeps the newest automatic backup of each of the last N
-             days plus the newest of each of the last K older weeks.
+             days plus the newest of each of the last K older weeks, and the
+             newest KEEP_MANUAL manual and KEEP_PRERESTORE pre-restore backups.
 """
 
 from __future__ import annotations
@@ -29,6 +32,9 @@ from findplus.db.integrity import check_database
 
 #: A new automatic backup is due when the newest one is older than this.
 DUE_AFTER = timedelta(hours=24)
+#: Manual and pre-restore backups are never aged out, but only this many are kept.
+KEEP_MANUAL = 10
+KEEP_PRERESTORE = 5
 _STAMP = "%Y%m%d-%H%M%S"
 _AUTO = re.compile(r"^findplus-(\d{8}-\d{6})\.sqlite$")
 _ALL = re.compile(r"^findplus-(?:(manual|prerestore)-)?(\d{8}-\d{6})\.sqlite$")
@@ -168,10 +174,16 @@ def rotation_keep(backups: list[BackupInfo], keep_daily: int, keep_weekly: int) 
 
 
 def rotate(directory: Path, keep_daily: int = 7, keep_weekly: int = 4) -> list[Path]:
-    """Delete automatic backups outside the keep set; returns the deleted paths."""
+    """Delete backups outside the keep sets; returns the deleted paths.
+
+    Automatic ones follow the daily/weekly rule; manual and pre-restore ones keep
+    only their newest KEEP_MANUAL / KEEP_PRERESTORE so the folder cannot grow forever.
+    """
     backups = list_backups(directory)
     keep = rotation_keep(backups, keep_daily, keep_weekly)
     gone = [b.path for b in backups if b.kind == "auto" and b.path not in keep]
+    for kind, limit in (("manual", KEEP_MANUAL), ("prerestore", KEEP_PRERESTORE)):
+        gone += [b.path for b in [x for x in backups if x.kind == kind][limit:]]
     for path in gone:
         path.unlink(missing_ok=True)
     return gone

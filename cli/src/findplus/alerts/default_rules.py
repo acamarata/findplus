@@ -102,10 +102,41 @@ def rule_preview(rule: AlertRule, place: Place, hint: str | None) -> dict:
     }
 
 
+def covering_rule(session: Session) -> AlertRule | None:
+    """An enabled all-people rule for every place, arrive and leave: it already
+    sends every crossing at any new place, so no per-place rule is added."""
+    stmt = select(AlertRule).where(
+        AlertRule.all_people.is_(True),
+        AlertRule.place_id.is_(None),
+        AlertRule.enabled.is_(True),
+        AlertRule.on_enter.is_(True),
+        AlertRule.on_exit.is_(True),
+    )
+    return session.scalars(stmt.order_by(AlertRule.id).limit(1)).first()
+
+
+def _covered_preview(rule: AlertRule) -> dict:
+    out = {
+        "id": rule.id, "name": rule.name, "place_id": None, "place_name": None,
+        "all_people": True, "on_enter": rule.on_enter, "on_exit": rule.on_exit,
+        "channels": parse_channels(rule.channels), "cooldown_minutes": rule.cooldown_minutes,
+        "enabled": rule.enabled, "hint": None,
+    }  # fmt: skip
+    return {**out, "covered": True}
+
+
 def add_default_rule(
     session: Session, place: Place, channels_cfg=None, channels: list[str] | None = None
 ) -> dict:
-    """Create the place's default rule in the caller's transaction; its preview."""
+    """Create the place's default rule in the caller's transaction; its preview.
+
+    When an any-place all-people rule already covers it, nothing is added and
+    that rule's preview comes back with `covered: true` (review r116 #7). An
+    explicit channel pick still makes a per-place rule: the owner asked for it.
+    """
+    existing = None if channels else covering_rule(session)
+    if existing is not None:
+        return _covered_preview(existing)
     channels, enabled, hint = choose_channels(session, channels_cfg, channels)
     rule = build_rule(place, channels, enabled)
     session.add(rule)

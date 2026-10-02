@@ -114,3 +114,24 @@ def test_left_behind_alerts_once_even_when_the_bag_goes_quiet_and_comes_back(ses
         part.ingest(session)
         sent += _run_dispatch(session, now=at(hour, 1))
     assert len([t for t in sent if "looks left at School" in t]) == 1, sent
+
+
+def test_notify_me_and_the_place_default_send_one_message_per_crossing(session, pinned_tz):
+    """The Person page's "Notify me" (a rule for Sam, any place) and the place's
+    default all-people rule both match Sam arriving: one message, not two."""
+    from .test_dispatch_people import _to_grandmas
+
+    pinned_tz("UTC")
+    places = seed_places(session)
+    sam = seed_person(session)
+    _default_rules(session, places)
+    session.add(
+        AlertRule(name="Sam anywhere", place_id=None, group_id=sam.id, on_enter=True,
+                  on_exit=True, channels="telegram", cooldown_minutes=0, enabled=True,
+                  also_notify_members=False, created_at=at(0))
+    )  # fmt: skip
+    session.commit()
+    _to_grandmas(session)
+    sent = _run_dispatch(session, now=at(9, 50))
+    arrivals = [t for t in sent if "arrived at Grandma's" in t.splitlines()[0]]
+    assert len(arrivals) == 1, sent

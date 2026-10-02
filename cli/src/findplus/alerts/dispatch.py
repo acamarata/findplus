@@ -201,6 +201,9 @@ def process(events: list, session, settings, now: datetime.datetime | None = Non
     channels_cfg = load_alerts()
 
     for event in events:
+        # One crossing, one message per chat: a person's own rule and the
+        # place's all-people rule both match the same group event (r116 #7).
+        sent_to: set[tuple[str, str]] | None = set() if isinstance(event, GroupEvent) else None
         for rule in match(rules, event):
             if isinstance(event, DeviceEvent) and suppressed_by_group(rule, event, rules):
                 continue
@@ -218,6 +221,10 @@ def process(events: list, session, settings, now: datetime.datetime | None = Non
                         deliveries.append(delivered)
                     continue
                 for target in targets:
+                    if sent_to is not None:
+                        if (channel, target) in sent_to:
+                            continue
+                        sent_to.add((channel, target))
                     delivered = _deliver_one(
                         session, rule, channel, event, channels_cfg, now, target
                     )

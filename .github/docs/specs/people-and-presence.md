@@ -241,7 +241,9 @@ Dispatch already picks up `notified_at IS NULL` group rows [Certain]; `_GROUP_EV
 name "Arrivals and departures at <Place>", `place_id`, `all_people=1`, `on_enter=on_exit=1`, cooldown 0.
 Channel choice: exactly one of {telegram, whatsapp, webhook} configured -> that one; several -> telegram if
 present, else all configured external ones; none -> `native` when the desktop app has registered, else the rule
-is saved disabled with the hint "Connect Telegram to get these." The place dialog shows the checkbox ticked with
+is saved disabled with the hint "Connect Telegram to get these." When an enabled any-place all-people rule (arrive
+and leave) already exists, no rule is added and the answer names that rule (`covered: true`). Dispatch sends one
+message per (group event, channel, chat) however many rules match it (review r116 #7). The place dialog shows the checkbox ticked with
 the chosen channel named. Backfill: the Alerts tab shows "3 places have no arrival alerts. Notify me" ->
 `POST /api/places/notify-defaults` with a dry-run preview first (`?dry_run=1` lists the rules it would add).
 

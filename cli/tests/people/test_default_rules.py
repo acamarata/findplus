@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import types
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
@@ -121,3 +122,21 @@ def test_place_api_uses_the_picked_channel_and_rolls_back_on_a_bad_one(client):
     assert bad.status_code == 422
     names = [p["name"] for p in client.get("/api/places").json()]
     assert "Bad Pick Place" not in names, "a refused channel must not leave a half-made place"
+
+
+def test_a_new_place_adds_no_rule_an_any_place_rule_already_covers(client):
+    """An enabled all-people rule for every place already sends arrive and
+    leave everywhere; a second per-place rule would send each crossing twice."""
+    with session_scope() as s:
+        s.add(AlertRule(name="Everyone, everywhere", place_id=None, all_people=True,
+                        on_enter=True, on_exit=True, channels="telegram", cooldown_minutes=0,
+                        enabled=True, also_notify_members=False,
+                        created_at=datetime(2026, 9, 21, tzinfo=UTC)))  # fmt: skip
+        s.commit()
+    with patch("findplus.alerts.store.load_alerts", return_value=_cfg(telegram=_TG)):
+        body = _place(client, "Library").json()
+    rule = body["notify_rule"]
+    assert rule["covered"] is True and rule["name"] == "Everyone, everywhere"
+    assert rule["channels"] == ["telegram"] and rule["place_id"] is None
+    with session_scope() as s:
+        assert s.query(AlertRule).count() == 1

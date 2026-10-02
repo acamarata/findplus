@@ -18,6 +18,7 @@ import { confirmDialog } from "./components/confirm-dialog.js";
 import { expandFor, highlightSelection, renderTracks } from "./track_blocks.js";
 import { paneError } from "./pane_error.js";
 import { wireTimelineKeys } from "./timeline_keys.js";
+import { hideStory, wireStory } from "./trips_view.js";
 
 export { renderTracks };
 
@@ -52,6 +53,7 @@ function showLoadError(day, err, key) {
   if (key === loadedKey || err.message === "Locked") return;
   state.timeline = null;
   state.selectedId = null;
+  hideStory();
   loadedKey = null;
   loadedJson = "";
   renderMap();
@@ -70,6 +72,7 @@ function showPaneLoading(seq) {
   note.setAttribute("role", "status");
   note.setAttribute("aria-label", t("common.loading"));
   for (let i = 0; i < 7; i += 1) note.appendChild(document.createElement("i"));
+  hideStory();
   $("tracks").replaceChildren(note);
 }
 
@@ -153,6 +156,7 @@ function startExport() {
 /** Wire day navigation, the movement-only toggle, export, and "jump to latest". */
 export function wireTimelineControls() {
   wireTimelineKeys($("tracks"), (id) => selectPoint(id, true));
+  wireStory();
   $("day-picker").addEventListener("change", (e) => loadDay(e.target.value));
   $("btn-today").addEventListener("click", () => loadDay(todayLocal()));
   $("btn-prev-day").addEventListener("click", () => shiftDay(-1));

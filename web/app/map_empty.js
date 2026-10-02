@@ -18,6 +18,7 @@
 import { state } from "./state.js";
 import { t } from "./i18n.js";
 import { emptyKind } from "./poll_cycle.js";
+import { storyDrawn } from "./trips_map.js";
 
 const KEYS = { locked: "live.mapLocked", nodata: "live.mapNoData", quiet: "live.mapQuiet" };
 
@@ -26,7 +27,7 @@ export function syncMapOverlay() {
   const pane = document.querySelector(".map-pane");
   if (!pane) return;
   let note = document.getElementById("map-empty");
-  const show = !state.locked && state.status && state.markers.size === 0;
+  const show = !state.locked && state.status && state.markers.size === 0 && !storyDrawn();
   if (!show) {
     if (note) note.hidden = true;
     return;

@@ -1084,6 +1084,67 @@
     "expandAll": "Show all",
     "collapseAll": "Hide all"
   },
+  "trips": {
+    "viewLabel": "Day view",
+    "viewStory": "Day story",
+    "viewRaw": "Every sighting",
+    "storyFor": "Day story for {name}",
+    "pickLabel": "Whose day?",
+    "listLabel": "Stays and trips, in time order",
+    "range": "{from} to {to}",
+    "sightings": {
+      "one": "{n} sighting",
+      "other": "{n} sightings"
+    },
+    "stays": {
+      "one": "{n} stay",
+      "other": "{n} stays"
+    },
+    "trips": {
+      "one": "{n} trip",
+      "other": "{n} trips"
+    },
+    "summary": "{sightings} became {stays} and {trips}.",
+    "unnamedStop": "Unnamed stop",
+    "tripTo": "Trip to {place}",
+    "tripFrom": "Trip from {place}",
+    "tripToUnnamed": "Trip to an unnamed stop",
+    "tripFromUnnamed": "Trip from an unnamed stop",
+    "tripPlain": "Trip",
+    "aboutDistance": "about {distance} (approximate)",
+    "noSightingsAlong": "no sightings along the way",
+    "noStopReached": "no stop reached in these sightings",
+    "stayQuiet": "No new sightings for up to {duration} while here",
+    "gapTitle": "No sightings {from} to {to}",
+    "strays": {
+      "one": "{n} stray fix was left out of the path.",
+      "other": "{n} stray fixes were left out of the path."
+    },
+    "strayTip": "Dropped as a stray fix, seen {time}",
+    "foldNote": "Sightings inside a stay are folded into one row, so a day at home stays one line.",
+    "showInside": "Show the sightings inside stays on the map",
+    "tripTip": "{title}, {range}, about {distance} (approximate)",
+    "tripTipFallback": "Road route unavailable, showing straight lines between sightings.",
+    "stripLabel": "Where the day went, midnight to midnight: {stays} and {trips}",
+    "lanesTitle": "Who was where",
+    "laneFailed": "Could not load.",
+    "legendUnnamed": "Unnamed stop",
+    "legendMoving": "On the move",
+    "emptyToday": "No sightings today",
+    "emptyDay": "No sightings on this day",
+    "emptyLead": "The day story appears once this tracker has been seen.",
+    "sparseTitle": "Too few sightings for a story",
+    "sparseLead": {
+      "one": "Only {n} sighting on this day, not enough to tell a stay from a trip.",
+      "other": "Only {n} sightings on this day, not enough to tell a stay from a trip."
+    },
+    "errorTitle": "Could not load the day story",
+    "offlineTitle": "Find+ is not responding",
+    "offlineLead": "This page cannot reach Find+ on this computer. The service may have stopped or restarted.",
+    "roads": "Draw likely roads",
+    "roadsNeedServer": "Not available yet: no routing server is set.",
+    "roadsSetup": "Set one up in Settings"
+  },
   "units": {
     "unknown": "unknown",
     "minutesShort": "{n} min",

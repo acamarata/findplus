@@ -62,7 +62,7 @@ Alert rule definitions and label configurations are deliberately not exposed ove
 | Tool | Description |
 |---|---|
 | `poll_now` | Trigger an immediate poll |
-| `add_place` | Create a new place |
+| `add_place` | Create a new place. Pass `notify: true` to also create an arrive/leave alert rule; the default is false |
 | `remove_place` | Delete a place |
 | `add_group` | Create a group |
 | `set_group_members` | Replace a group's member list |

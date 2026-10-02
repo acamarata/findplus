@@ -8,7 +8,8 @@ Outputs    : `RestoreResult`; the database file now holds the backup, upgraded
              to the current schema.
 Constraints: Order matters, and every step is reversible until the last:
              1. validate the file (SQLite header, `quick_check`, a known schema
-                revision, not newer than this Find+);
+                revision, not newer than this Find+, every table and column that
+                revision has);
              2. refuse while the daemon runs unless `force`;
              3. take a pre-restore backup of the current database;
              4. build the new file beside the old one, verify it;
@@ -22,6 +23,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -81,7 +83,47 @@ def validate_backup(path: Path) -> str:
         raise RestoreError(
             f"{path.name} was made by a newer Find+ (schema {revision}). Update Find+ first."
         ) from exc
+    problems = schema_problems(path, revision)
+    if problems:
+        raise RestoreError(
+            f"{path.name} claims schema {revision} but is not a complete Find+ database: "
+            + "; ".join(problems[:5])
+        )
     return revision
+
+
+def _tables(path: Path) -> dict[str, set[str]]:
+    """{table: column names} of a database file (read-only)."""
+    conn = open_readonly(path)
+    try:
+        names = [
+            r[0]
+            for r in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            )
+        ]
+        return {n: {r[1] for r in conn.execute(f'PRAGMA table_info("{n}")')} for n in names}
+    finally:
+        conn.close()
+
+
+def schema_problems(path: Path, revision: str) -> list[str]:
+    """Tables or columns a database at `revision` should have but `path` lacks.
+
+    The reference is a scratch database migrated to the same revision, so an older
+    backup is judged against the schema of its own time, not today's.
+    """
+    from findplus.db.migrate import run_migrations
+
+    with tempfile.TemporaryDirectory(prefix="findplus-schema-") as tmp:
+        ref = Path(tmp) / "ref.sqlite"
+        run_migrations(f"sqlite:///{ref}", revision)
+        want = _tables(ref)
+    have = _tables(path)
+    out = [f"table {t} is missing" for t in sorted(want) if t not in have]
+    for table, cols in want.items():
+        out += [f"{table}.{c} is missing" for c in sorted(cols - have.get(table, cols))]
+    return out
 
 
 def _checkpoint(database: Path) -> None:

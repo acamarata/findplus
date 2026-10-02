@@ -95,7 +95,9 @@ Versioning: [Semantic Versioning](https://semver.org/).
   likely places, never named for you ("Home?" for the spot with the most nights, "School or work?"
   for weekday daytime stops, "Regular stop" otherwise). Spots inside a saved place, or marked "Not
   a place", are left out. `GET /api/places/suggestions`, `POST /api/places/suggestions/dismiss` and
-  `findplus places suggest`.
+  `findplus places suggest`. The Places tab and the setup Places step show them as cards with a
+  small map, **Name it** (name, kind, arrive-and-leave box ticked) and **Not a place**; with too
+  little history the step says so.
 
 ### Changed
 - The database now syncs every commit to disk (`synchronous=FULL`, WAL kept) so a power cut cannot

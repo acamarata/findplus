@@ -33,7 +33,9 @@ mark guess: "Home?" for the spot with the most nights, "School or work?" for wee
 data and you choose the name. **Name it** saves a place with the arrive-and-leave box ticked. **Not
 a place** hides that spot for good (`POST /api/places/suggestions/dismiss`). Spots inside a saved
 place are not suggested, and sightings flagged as wrong never count. With fewer than three days of
-history the list is empty and the app says so.
+history the list is empty and the app says so. The Places tab and the setup wizard's Places step
+show each suggestion as a card with a small map. In the wizard, trackers that sit in one spot share
+a single numbered pin on the map instead of a stack.
 
 ## Alert rules
 

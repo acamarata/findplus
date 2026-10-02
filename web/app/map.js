@@ -21,6 +21,7 @@ import { renderLegend, syncDense, watchTiles } from "./map_extras.js";
 import { popupHtml } from "./map_popup.js";
 import { storyMapRender } from "./trips_view.js";
 import { showSuspect } from "./suspect_pref.js";
+import { countIcon, groupNearby } from "./map_pins.js";
 
 // U4 (R-P2-30.2): a US-centred default read as "my child is in Kansas" the
 // first time the map had no data to fit. A neutral world view says nothing
@@ -118,13 +119,22 @@ async function _trackedDeviceFixes() {
  * to show only the place circles places.js (the tab module) draws on its own
  * layer. A no-op once the dashboard HAS booted (state.timeline set):
  * renderMap() already drew the real tracks by then, on the wizard's re-run
- * path, and this must never overwrite them.
+ * path, and this must never overwrite them. The wizard's Places step passes
+ * `force`: one pin per spot (trackers that sit together share one numbered
+ * pin) reads better there than every sighting of every tracker; it calls
+ * renderMap() on the way out to put the real tracks back.
  */
-export async function renderTrackedDeviceMarkers() {
-  if (!state.map || state.timeline) return;
+export async function renderTrackedDeviceMarkers({ force = false } = {}) {
+  if (!state.map || (state.timeline && !force)) return;
   state.layer.clearLayers();
   const entries = await _trackedDeviceLatest();
-  entries.forEach(({ device, fix }) => {
+  groupNearby(entries).forEach((group) => {
+    if (group.items.length > 1) {
+      const names = group.items.map(({ device }) => displayName(device) || device.name).join(", ");
+      L.marker([group.lat, group.lon], { icon: countIcon(group.items.length), title: names, keyboard: false }).addTo(state.layer);
+      return;
+    }
+    const { device, fix } = group.items[0];
     const shown = displayName(device) || device.name;
     const icon = L.divIcon({
       className: "",

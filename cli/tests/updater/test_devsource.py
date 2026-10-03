@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import os
 import plistlib
+import sys
 import time
 from pathlib import Path
 
@@ -118,6 +119,9 @@ def test_a_build_changed_after_staging_is_refused(dev, installed, state_dir) -> 
         prepare(state_dir, s.database_path, s.effective_backup_dir)
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="the updater is macOS-only (POSIX modes and paths)"
+)
 def test_the_env_var_wins_over_the_setting(dev, session, monkeypatch) -> None:
     devsource.set_dev_dir(session, "/somewhere/else")
     assert devsource.dev_dir(session) == Path("/somewhere/else")

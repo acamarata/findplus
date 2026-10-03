@@ -12,6 +12,9 @@ from findplus.updater.status import status
 DMG = b"pretend this is a disk image" * 100
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="the updater is macOS-only (POSIX modes and paths)"
+)
 def test_a_newer_release_is_downloaded_and_verified(github, installed, state_dir) -> None:
     name = github.publish("1.3.0", DMG)
     state = check(state_dir, download=True)

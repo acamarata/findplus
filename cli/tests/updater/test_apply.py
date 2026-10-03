@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sys
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -28,6 +30,9 @@ def _settings():
     return get_settings()
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="the updater is macOS-only (POSIX modes and paths)"
+)
 def test_a_verified_backup_is_taken_before_anything_is_handed_over(staged) -> None:
     from findplus.db.backup import list_backups
 

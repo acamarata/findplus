@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import sys
 from datetime import UTC, datetime, timedelta
+
+import pytest
 
 from findplus.updater import store
 from findplus.updater.check import check

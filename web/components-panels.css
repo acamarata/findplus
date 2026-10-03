@@ -29,6 +29,10 @@ dialog a:hover,
    OSM copyright/zoom chrome does not change with our theme toggle. */
 #setup-view .leaflet-bar a { color: #000; }
 #setup-view .leaflet-control-attribution a { color: #333; }
+/* Every map: a near-opaque white plate and a dark link, so the attribution passes
+   WCAG AA whether or not tiles have loaded behind its translucent default. */
+.leaflet-container .leaflet-control-attribution { background: rgba(255, 255, 255, 0.92); }
+.leaflet-container .leaflet-control-attribution a { color: #0a5b82; }
 
 /* --- add-rule dialog ------------------------------------------------------ */
 /* W3 visual gate finding 1: this <dialog> had no rules at all, so it painted

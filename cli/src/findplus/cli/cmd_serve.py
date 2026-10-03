@@ -213,7 +213,8 @@ def _start_workers(settings, no_poller: bool) -> list[tuple[Any, threading.Threa
     workers.append(_start_worker(RetentionScheduler(settings.state_dir), "retention"))
     digest = DigestScheduler(settings.state_dir)
     workers.append(_start_worker(digest, "digest"))
-    workers.append(_start_worker(UpdateScheduler(settings.state_dir), "updates"))
+    if not no_poller:  # --no-poller means no network at all, so no update check either
+        workers.append(_start_worker(UpdateScheduler(settings.state_dir), "updates"))
     replay.on_start()  # a database from before 1.1.6: fill in past days once, in the background
     return workers
 

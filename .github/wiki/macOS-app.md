@@ -76,7 +76,11 @@ names or badges are shown, only the lock glyph or "Find+ is not running".
 
 ## Updating
 
-Finder will not replace an app that is open. Use the update script instead. It
+The app updates itself: it checks GitHub, downloads and verifies the new version, backs up your
+database and restarts into it while you are not using Find+. The menu bar shows **Restart to
+update (vX)** while it waits. See [Updates](Updates) for the details and the off switch.
+
+To update by hand: Finder will not replace an app that is open. Use the update script instead. It
 quits Find+ and its daemon, swaps in the latest release (checking the dmg's
 sha256 first), and starts Find+ again. Your history and settings live in
 `~/.findplus` and are not touched.
@@ -88,8 +92,9 @@ curl -fsSL https://github.com/acamarata/findplus/releases/latest/download/update
 `update-app.sh --dmg FindPlus-<version>-aarch64.dmg` installs a dmg you already
 downloaded. Homebrew users run `brew upgrade findplus`.
 
-The sha256 check catches a corrupted download. It does not authenticate the release, so it
-is not protection against a release that was itself tampered with.
+The sha256 check catches a corrupted download. It does not authenticate the release on its own;
+the script also refuses a new app signed by a different developer (Team ID) than the one you
+have installed.
 
 ## Backups and restore
 

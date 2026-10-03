@@ -88,6 +88,13 @@ restore](Backup-and-restore).
 Delete observations before a date, or clear everything. Both tell you how many
 rows would go and ask again before removing anything.
 
+## Updates
+
+**Update Find+ automatically** is on by default: Find+ checks GitHub about every six hours,
+downloads and verifies a new version, backs up the database and restarts into it while you are
+not using the app. **Check now** asks straight away; **Update now** (in the app) installs a
+ready update. Off: no update request is made unless you press Check now. See [Updates](Updates).
+
 ## About
 
 Version, schema revision, timezone and poll interval, plus **Run setup again**.

@@ -37,9 +37,7 @@ def _f_plus_mask():
 
 def _rgba_png(pixels: list[list[tuple[int, int, int, int]]]) -> bytes:
     height, width = len(pixels), len(pixels[0])
-    raw = b"".join(
-        b"\x00" + b"".join(bytes(px) for px in row) for row in pixels
-    )
+    raw = b"".join(b"\x00" + b"".join(bytes(px) for px in row) for row in pixels)
 
     def chunk(name: bytes, data: bytes) -> bytes:
         body = struct.pack(">I", len(data)) + name + data
@@ -99,9 +97,16 @@ def capture_screenshots(base_url: str, out_dir: pathlib.Path) -> list[pathlib.Pa
 def main(argv: list[str]) -> int:
     outputs = render()
     if "--check" in argv:
-        stale = [n for n, d in outputs.items() if not (IMAGES_DIR / n).exists() or (IMAGES_DIR / n).read_bytes() != d]
+        stale = [
+            n
+            for n, d in outputs.items()
+            if not (IMAGES_DIR / n).exists() or (IMAGES_DIR / n).read_bytes() != d
+        ]
         if stale:
-            print("store images are stale: run packaging/scripts/gen-store-images.py", file=sys.stderr)
+            print(
+                "store images are stale: run packaging/scripts/gen-store-images.py",
+                file=sys.stderr,
+            )
             print("\n".join(f"  {n}" for n in stale), file=sys.stderr)
             return 1
         return 0

@@ -248,6 +248,25 @@
       </div>
     </section>
 
+    <!-- settings_updates.js fills the status line and wires the buttons. The
+         honesty sentence comes from /api/config.notices (notices.js). -->
+    <section class="setting-group" id="setting-group-updates">
+      <h3 data-i18n="updates.heading">Updates</h3>
+      <label class="setting-row">
+        <span data-i18n="updates.auto">Update Find+ automatically</span>
+        <input type="checkbox" id="setting-updates-auto">
+      </label>
+      <p class="modal-note" data-i18n="updates.autoNote"></p>
+      <p class="modal-note" id="fp-notice-update-check" data-notice="update_check"></p>
+      <p class="modal-note" id="update-status-line" role="status" aria-live="polite"></p>
+      <div class="setting-actions">
+        <button class="btn btn-secondary" id="btn-update-check" type="button"
+                data-i18n="updates.checkNow">Check now</button>
+        <button class="btn" id="btn-update-now" type="button" hidden
+                data-i18n="updates.updateNow">Update now</button>
+      </div>
+    </section>
+
     <section class="setting-group">
       <h3 data-i18n="settings.aboutHeading">About</h3>
       <p class="modal-note" id="settings-about"></p>

@@ -192,6 +192,7 @@ export async function bootDashboard(resume) {
   // live_refresh.js: one timer chain that follows what is happening (a poll
   // expected, a problem to fix) and redraws when the poll or account changed.
   startLiveRefresh(Math.max(30, config.ui_refresh_seconds || 45));
+  import("./update_banner.js").then((m) => m.startUpdateBanner()).catch(() => {});
 
   // lock.js's unlock flow fires this unawaited, so a click elsewhere can land
   // before the alert banner or map fit above render. Ready-when-done signal.

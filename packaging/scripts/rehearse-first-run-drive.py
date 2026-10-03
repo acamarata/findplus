@@ -26,7 +26,16 @@ from playwright.async_api import Page, async_playwright
 
 BASE_URL = os.environ["BASE_URL"]
 OUT_DIR = Path(os.environ["OUT_DIR"])
-STEPS = ("welcome", "signin", "devices", "groups", "places", "notifications", "applock", "done")
+STEPS = (
+    "welcome",
+    "signin",
+    "devices",
+    "groups",
+    "places",
+    "notifications",
+    "applock",
+    "done",
+)
 SKIP_STEPS = {"places", "notifications", "applock"}
 NEXT, SKIP = "#fp-wizard-next", "#fp-wizard-skip"
 
@@ -39,9 +48,9 @@ async def _welcome(page: Page) -> None:
 async def _signin(page: Page) -> None:
     wizard = page.locator("#setup-view")
     await wizard.get_by_role("button", name="Connect Google Find Hub").click()
-    await page.locator("#fp-setup-signin-status", has_text="test@example.invalid").wait_for(
-        timeout=15000
-    )
+    await page.locator(
+        "#fp-setup-signin-status", has_text="test@example.invalid"
+    ).wait_for(timeout=15000)
 
 
 async def _devices(page: Page) -> None:
@@ -69,17 +78,32 @@ async def _devices(page: Page) -> None:
 async def _groups(page: Page) -> None:
     await page.fill("#fp-setup-group-name", "Test Group")
     await page.click("#fp-setup-group-color-btn")
-    await page.click('#fp-setup-group-color-popover .fp-color-swatch[data-color="#37c67a"]')
-    await page.locator("#setup-view").get_by_role("button", name="Add", exact=True).click()
-    await page.locator("#fp-setup-groups-list", has_text="Test Group").wait_for(timeout=15000)
+    await page.click(
+        '#fp-setup-group-color-popover .fp-color-swatch[data-color="#37c67a"]'
+    )
+    await (
+        page.locator("#setup-view")
+        .get_by_role("button", name="Add", exact=True)
+        .click()
+    )
+    await page.locator("#fp-setup-groups-list", has_text="Test Group").wait_for(
+        timeout=15000
+    )
 
 
 async def _done(page: Page) -> None:
-    await page.locator("#setup-view h2", has_text="You're set up").wait_for(timeout=15000)
+    await page.locator("#setup-view h2", has_text="You're set up").wait_for(
+        timeout=15000
+    )
 
 
-STEP_ACTIONS = {"welcome": _welcome, "signin": _signin, "devices": _devices,
-                "groups": _groups, "done": _done}
+STEP_ACTIONS = {
+    "welcome": _welcome,
+    "signin": _signin,
+    "devices": _devices,
+    "groups": _groups,
+    "done": _done,
+}
 
 
 async def verify_dashboard(page: Page) -> None:
@@ -130,7 +154,9 @@ async def main() -> None:
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(headless=True)
         for width, height in ((1280, 800), (375, 812)):
-            context = await browser.new_context(viewport={"width": width, "height": height})
+            context = await browser.new_context(
+                viewport={"width": width, "height": height}
+            )
             page = await context.new_page()
             await drive(page, width, verify=(width == 1280))
             await context.close()

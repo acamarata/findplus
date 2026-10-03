@@ -6,6 +6,33 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-10-02
+
+### Added
+- Automatic updates. About every six hours the app asks GitHub's releases API for the newest Find+,
+  downloads it, checks its sha256, and installs it while you are not using the app: it backs up the
+  database, checks the new app's signature and developer (Team ID), quits, swaps itself and starts
+  again. Your history and settings stay where they are. Turn it off in Settings > Updates; off means
+  no update request at all unless you press Check now.
+- Restart to update. While you are using Find+, a ready update waits: the menu bar shows
+  "Restart to update (vX)" and the dashboard a small corner button. Settings > Updates has Check now
+  and Update now; the CLI has `findplus update status|check|auto`.
+- Updates keep your data: before an update installs, Find+ takes a verified backup of the database,
+  and a new version takes another one before it upgrades the database schema.
+- For developers: `findplus update dev-dir PATH` (or `FINDPLUS_UPDATE_DEV_DIR`) installs your own
+  signed builds from a folder automatically, unless a GitHub release is newer. Off by default.
+- `update-app.sh` refuses a new app signed by a different developer than the installed one, and
+  starts the old app again when an update fails after quitting it.
+
+### Changed
+- New icon. The app icon is a light-blue "F+" on a black-to-navy square, and the menu bar shows the
+  same "F" and "+" glyphs. `packaging/scripts/gen-app-icons.py` draws every size from one description.
+
+### Fixed
+- The dashboard showed "Could not reach the local API: null is not an object" after an update when the
+  window kept an old copy of the page. The page and its scripts are now revalidated on every load, and
+  the sighting filter box no longer assumes it exists.
+
 ## [1.2.0] - 2026-10-02
 
 ### Added

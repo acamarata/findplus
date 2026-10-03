@@ -46,6 +46,7 @@ pub(super) fn handle_menu_event(app: &AppHandle, id: &str) {
                 let _ = win.set_focus();
             }
         }
+        "update_restart" => crate::updater::install_from_tray(app),
         "restart_daemon" => {
             let app = app.clone();
             std::thread::spawn(move || daemon::restart(&app));

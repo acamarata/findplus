@@ -23,6 +23,9 @@ _PUBLIC = frozenset(
         "/api/lock/unlock",
         "/api/lock/lock",
         "/api/lock/requirements",
+        # The desktop shell installs a staged update while the app is locked
+        # (idle is when it is safe to restart). The body names no paths or places.
+        "/api/update/status",
     }
 )
 
@@ -45,5 +48,8 @@ _STATE_GATED = frozenset(
         "/api/auth/google/native/unlock",
         "/api/auth/google/native/event",
         "/api/auth/google/native/classify",
+        # Backs up and gets a staged update ready; needs the shell's own header
+        # (routes_update.py), so no web page can start an install.
+        "/api/update/apply",
     }
 )

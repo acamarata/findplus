@@ -109,6 +109,15 @@ NATIVE_SIGNIN_KEPT = (
     "(Third-party access) or with Disconnect."
 )
 
+#: Settings > Updates: the one request automatic updates make, and what it carries.
+UPDATE_CHECK = (
+    "Automatic updates ask GitHub's releases API for the newest Find+ about every six "
+    "hours and download a new version from the same GitHub release. The request names "
+    "only the Find+ version; nothing about you, your trackers or your history is sent, "
+    "though GitHub sees this computer's IP address. Turn automatic updates off to stop "
+    "these requests."
+)
+
 NOTICES: dict[str, str] = {
     "find_hub": FIND_HUB,
     "apple": APPLE,
@@ -127,4 +136,5 @@ NOTICES: dict[str, str] = {
     "routing_privacy": ROUTING_PRIVACY,
     "native_signin": NATIVE_SIGNIN,
     "native_signin_kept": NATIVE_SIGNIN_KEPT,
+    "update_check": UPDATE_CHECK,
 }

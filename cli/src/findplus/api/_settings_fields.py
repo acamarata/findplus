@@ -23,6 +23,7 @@ from findplus.state import get_setting, set_setting
 from ._settings_backup import backup_fields
 from ._settings_digest import WIRE_KEY as _DIGEST_KEY
 from ._settings_digest import digest_field
+from ._settings_update import update_fields
 
 #: The wire key whose explicit null means "keep history forever".
 _RETENTION_KEY = "history.retention_days"
@@ -88,6 +89,7 @@ def _settings_body(session) -> dict[str, Any]:
         **backup_fields(settings),
         _DIGEST_KEY: digest_field(session),
         "alerts.native_detail": get_setting(session, "alerts.native_detail", "0") == "1",
+        **update_fields(session),
         # Appended after public(), never merged into the AppSettings dataclass,
         # so the PIN hash and salt public() already drops cannot reappear here.
         "onboarding.completed_at": get_setting(session, "onboarding.completed_at"),

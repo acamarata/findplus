@@ -4,7 +4,7 @@
 //!              own edge-case signals (port squatter, crash) and wire every
 //!              item's action.
 //! Inputs     : "status-update" (status::start()), "daemon-another-app" /
-//!              "daemon-crashed" (daemon::start()).
+//!              "daemon-crashed" (daemon::start()), "update-staged" (updater.rs).
 //! Outputs    : A rebuilt tray menu and tray icon on every update.
 //! Constraints: Menu item order and the Quit dialog wording are normative
 //!              (specs/desktop-app.md, PLAN.md § E13-T4/T8) — not paraphrased.
@@ -121,7 +121,14 @@ fn wire_status_listeners(app: &mut tauri::App, tray_id: tauri::tray::TrayIconId)
 
     // A provider lost (or regained) its sign-in: show or hide the top item.
     let app_handle = app.handle().clone();
+    let id4 = tray_id.clone();
     app.listen("auth-attention", move |_event| {
+        let _ = build_menu(&app_handle, &id4, &effective_status());
+    });
+
+    // An update was staged (or installed): show or hide "Restart to update".
+    let app_handle = app.handle().clone();
+    app.listen("update-staged", move |_event| {
         let _ = build_menu(&app_handle, &tray_id, &effective_status());
     });
 }

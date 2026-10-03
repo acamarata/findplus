@@ -39,28 +39,27 @@ DIM_ALPHA = 97
 Grid = list[list[bool]]
 
 
+#: Glyph rectangles (x0, y0, x1, y1 inclusive) on the 22px grid, shared with gen-app-icons.py
+#: so the menu bar, the app icon and the web icon draw the same "F" and "+".
+GLYPH_RECTS = (
+    (2, 4, 4, 17),  # F stem
+    (2, 4, 10, 6),  # F top bar
+    (2, 9, 8, 11),  # F middle bar
+    (15, 4, 17, 17),  # plus, vertical stroke
+    (12, 9, 20, 11),  # plus, horizontal stroke
+)
+
+
 def f_plus_mask() -> Grid:
     """A 22x22 boolean grid: True where the glyph is drawn.
 
-    Two 9x14 glyph cells, 3px stroke width, on a 22px canvas: "F" at columns
-    2-10, a 1px gap, "+" at columns 12-20, both vertically centred (rows
-    4-17), so top/bottom margins match (4px) and both letters read at the
-    same visual weight.
+    An "F" and a "+" side by side, 3px strokes, vertically centred.
     """
     grid = [[False] * 22 for _ in range(22)]
-
-    def fill(x0: int, y0: int, x1: int, y1: int) -> None:
+    for x0, y0, x1, y1 in GLYPH_RECTS:
         for y in range(y0, y1 + 1):
             for x in range(x0, x1 + 1):
                 grid[y][x] = True
-
-    # "F": vertical stroke, top bar (full cell width), shorter middle bar.
-    fill(2, 4, 4, 17)
-    fill(2, 4, 10, 6)
-    fill(2, 9, 8, 11)
-    # "+": vertical stroke, horizontal stroke, centred in its own cell.
-    fill(15, 4, 17, 17)
-    fill(12, 9, 20, 11)
     return grid
 
 
@@ -119,7 +118,8 @@ def main(check: bool) -> int:
         stale = [
             name
             for name, data in outputs.items()
-            if not (ICONS_DIR / name).exists() or (ICONS_DIR / name).read_bytes() != data
+            if not (ICONS_DIR / name).exists()
+            or (ICONS_DIR / name).read_bytes() != data
         ]
         if stale:
             print(

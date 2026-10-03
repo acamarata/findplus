@@ -4,7 +4,8 @@
 //!              plugins, start the daemon supervisor, status poller, native
 //!              alert poller and tray on setup, route findplus:// opens, and
 //!              expose the in-app login commands (main window only):
-//!              `open_signin_window`, `close_signin_window`, `webview_ready`.
+//!              `open_signin_window`, `close_signin_window`, `webview_ready`,
+//!              and `apply_update` (install a staged update, updater.rs).
 //! Constraints: Cargo.toml declares `[lib] name = "findplus_lib"`, so the
 //!              whole tauri::Builder chain lives here; main.rs stays the
 //!              two-line `findplus_lib::run()` shim.
@@ -23,7 +24,8 @@ pub fn run() {
             notify::request_notification_permission,
             signin_window::open_signin_window,
             signin_close::close_signin_window,
-            signin_events::webview_ready
+            signin_events::webview_ready,
+            updater::apply_update
         ])
         .setup(move |app| if special { setup_special(app) } else { on_setup(app) })
         .build(tauri::generate_context!())
@@ -85,6 +87,7 @@ fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     status::start(app.handle().clone());
     first_launch::start(app.handle().clone());
     notify::start(app.handle().clone());
+    updater::start(app.handle().clone());
     Ok(())
 }
 
@@ -142,5 +145,6 @@ mod signin_start;
 mod signin_window;
 mod status;
 mod tray;
+mod updater;
 mod urlscheme;
 mod windows;

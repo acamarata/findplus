@@ -98,7 +98,8 @@ def test_route_count():
     # +1 for POST /auth/google/helper/folder (1.2.0: the path as text, opens nothing).
     # +2 for places we noticed: GET /places/suggestions and POST /places/suggestions/dismiss.
     # +1 for GET /people/replay ("Updating past days...", uat116 #4).
-    assert len(routes) == 136
+    # +3 for automatic updates (1.2.1): GET /update/status, POST /update/check and /apply.
+    assert len(routes) == 139
 
 
 #: T1 (2026-09-22, PRI rule-7 50-line function cap): pulled out of
@@ -213,6 +214,9 @@ _EXPECTED_PATHS = {
     "/api/people/suggestions/accept",
     "/api/people/settings",
     "/api/people/trackers/{device_id}",
+    "/api/update/status",
+    "/api/update/check",
+    "/api/update/apply",
 }
 
 

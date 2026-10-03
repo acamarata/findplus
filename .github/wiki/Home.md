@@ -6,7 +6,8 @@ Find+ polls your Find Hub and Find My accounts on a schedule, stores every
 distinct sighting in a local SQLite database, and serves a map, timeline,
 places, groups, and alerts through a browser dashboard, a CLI, a REST API,
 and an MCP server. Everything runs on this computer. Your location history
-stays on this machine. Map tiles always load from OpenStreetMap; anything
+stays on this machine. Map tiles always load from OpenStreetMap, and Find+ asks
+GitHub for updates unless you turn that off ([Updates](Updates)); anything
 else leaves only when you turn it on: signing in to Google or Apple, address
 search, road routes through a server you name, and any alert channel you connect (Telegram, WhatsApp or a webhook).
 See [Privacy and threat model](Privacy-and-threat-model).
@@ -27,6 +28,7 @@ See [Privacy and threat model](Privacy-and-threat-model).
 - [API reference](API-reference)
 - [MCP](MCP): connect Find+ to Claude Desktop or Claude Code.
 - [macOS app](macOS-app): menu-bar app, widgets, updating.
+- [Updates](Updates): automatic updates, what they send, and how your data stays safe.
 - [App lock](App-lock): the PIN, what it guards and what it does not.
 - [Providers](Providers): the Google and Apple sources.
 - [Troubleshooting](Troubleshooting) and [FAQ](FAQ).

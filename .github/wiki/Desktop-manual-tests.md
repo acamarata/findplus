@@ -110,3 +110,28 @@ only a host and a path, never a token, a cookie or a password. Send back lines t
 22. **Frames and leaving Google.** In the log, `signin: refused a frame from host ...` lines are
     harmless (another site's frame inside Google's page). Report every
     `tried to leave Google for host ...` line with its host: each one ended the window.
+
+## Automatic updates (1.2.1)
+
+Run these on the installed app in `/Applications`. A dev run out of `target/` never installs
+anything. Until a release newer than 1.2.1 exists, steps 3 to 6 use a folder of local builds.
+
+1. **Settings > Updates.** Expect: "Installed: Find+ 1.2.1.", **Update Find+ automatically**
+   ticked, and the sentence about GitHub's releases API. Click **Check now**. Expect "Checking..."
+   then "This is the newest version." and a fresh "Last checked" time. Report the line.
+2. **Off means quiet.** Untick the switch, wait a day, run `findplus update status`. Expect
+   "automatic off" and the same "last check" time as before. Tick it again. Report yes or no.
+3. **A local build.** Build and sign the app the usual way (`packaging/scripts/release-local.sh`),
+   then `findplus update dev-dir <the folder holding Find+.app>`. Close every Find+ window and
+   wait about 8 minutes. Expect: Find+ quits and comes back by itself, `findplus update status`
+   shows nothing staged, `findplus db backups` lists a new "preupdate" backup, and
+   `~/.findplus/updates/update.log` ends with "installed Find+ ...". Report the last 5 log lines.
+4. **Restart to update.** Rebuild, open the dashboard and keep it focused. Expect within a few
+   minutes: the menu bar menu shows **Restart to update (v1.2.1)** and the dashboard shows the
+   corner button. Click either. Expect: Find+ restarts on the new build within a minute, and your
+   map, places and history are all there. Report yes or no.
+5. **A refused build.** Put an unsigned or ad-hoc signed build in the folder (a plain
+   `cargo tauri build` without your signing identity). Expect: Find+ does not restart; Settings >
+   Updates says the last install did not finish; the app you had keeps running. Report the text.
+6. **Back to releases.** `findplus update dev-dir --clear`. When 1.2.2 is published, leave Find+
+   idle and expect the same quiet restart onto 1.2.2. Report the version Settings shows after.

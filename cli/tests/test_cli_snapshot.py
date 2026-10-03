@@ -55,6 +55,7 @@ EXPECTED_COMMANDS = {
     "theme",
     "trips",
     "uninstall",
+    "update",
     "version",
     "watchdog",
     "widget",

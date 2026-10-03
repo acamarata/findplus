@@ -15,6 +15,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from findplus.api import create_app
+from tests.updater.test_update_notice import UPDATE_CHECK_TEXT
 
 REPO_ROOT = Path(__file__).parent.parent.parent
 
@@ -94,6 +95,7 @@ EXPECTED = {
         "your trackers. You can remove its access any time at myaccount.google.com/security "
         "(Third-party access) or with Disconnect."
     ),
+    "update_check": UPDATE_CHECK_TEXT,  # kept beside the updater tests (file cap)
 }
 
 
@@ -218,6 +220,7 @@ README_FRAGMENTS = {
     "routing_privacy": "use a server you run yourself",
     "native_signin": "sign in with your own Chrome instead",
     "native_signin_kept": "You can remove its access any time at",
+    "update_check": "nothing about you, your trackers or your history is sent,",
 }
 
 

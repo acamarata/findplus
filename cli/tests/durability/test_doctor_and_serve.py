@@ -129,4 +129,4 @@ def test_a_damaged_daemon_starts_no_workers(seeded, monkeypatch) -> None:
     assert started == []
     integrity.reset_health()
     cmd_serve._run_server(settings, "127.0.0.1", 8999, False, threading.Event())
-    assert started == ["poller", "retention", "digest"]
+    assert started == ["poller", "retention", "digest", "updates"]

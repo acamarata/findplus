@@ -96,3 +96,12 @@ def test_the_vendor_closure_is_still_complete() -> None:
     ).stdout.split()
     bundled = [d for d in _expanded_datas() if d.startswith("findplus/_vendor/")]
     assert len(bundled) == len(tracked), f"vendor closure {len(bundled)} != {len(tracked)} tracked"
+
+
+def test_the_sidecar_ships_every_data_file_the_wheel_ships() -> None:
+    """hatch_build.py puts packaging/data/* at findplus/_data/ in the wheel; the dmg
+    sidecar left them out, so labels.py raised "icon table missing" and every person
+    or group save in the app was a 500 (found on a live install, 1.2.2)."""
+    datas = _expanded_datas()
+    for src in sorted((ROOT / "packaging" / "data").iterdir()):
+        assert f"findplus/_data/{src.name}" in datas, src.name

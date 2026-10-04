@@ -6,6 +6,8 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-10-04
+
 ### Fixed
 - A person's place no longer holds for ever when the tracker they carry dies. After 12 hours with
   nothing confirming it, the place becomes unknown, so a later report never says "left School"

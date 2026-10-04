@@ -14,6 +14,9 @@
 #              Find+.app and FindPlus-<ver>-<arch>.dmg (+.sha256) at root.
 # Constraints: SKIP_MACOS=1 or non-Darwin skips the macOS block; cargo tauri
 #              build runs from desktop/src-tauri, everything else from root.
+#              FINDPLUS_SKIP_NOTARISE=1 builds a signed but un-notarised dmg
+#              (for when Apple's notary service refuses the team, e.g. an
+#              expired developer agreement); the release notes must say so.
 set -euo pipefail
 
 VERSION=${1:?Usage: release-local.sh <version>  e.g. 1.0.0}
@@ -25,6 +28,11 @@ if [ -f "$HOME/.claude/vault.env" ]; then
   # shellcheck disable=SC1091
   . "$HOME/.claude/vault.env"
   set +a
+fi
+if [ "${FINDPLUS_SKIP_NOTARISE:-0}" = "1" ]; then
+  # embed-widget.sh notarises only when this key is present.
+  echo "FINDPLUS_SKIP_NOTARISE=1: the dmg will be signed but NOT notarised."
+  unset APPLE_API_KEY_P8_BASE64
 fi
 
 # --- ARCH ---------------------------------------------------------------
@@ -113,7 +121,9 @@ macos_step3_widget() {
 
 macos_step4_tauri_build() {
   echo "==> cargo tauri build ($TAURI_TARGET)"
-  ( cd desktop/src-tauri && cargo tauri build --target "$TAURI_TARGET" )
+  # Only the .app: embed-widget.sh signs it again and builds the dmg itself, and
+  # tauri's own dmg step drives Finder over AppleScript, which fails headless.
+  ( cd desktop/src-tauri && cargo tauri build --target "$TAURI_TARGET" --bundles app )
 }
 
 macos_step5_embed_widget() {

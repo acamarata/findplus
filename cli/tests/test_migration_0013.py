@@ -47,9 +47,9 @@ def _scalar(engine: sa.Engine, sql: str):
         return conn.execute(sa.text(sql)).scalar()
 
 
-def test_upgrade_reaches_0013_with_zero_row_loss(upgraded) -> None:
+def test_upgrade_reaches_head_with_zero_row_loss(upgraded) -> None:
     engine, before = upgraded
-    assert seed.revision(engine) == "0013"
+    assert seed.revision(engine) == "0014"
     assert seed.counts(engine) == before["counts"]
     assert seed.counts(engine, seed.NEW_TABLES) == dict.fromkeys(seed.NEW_TABLES, 0)
 

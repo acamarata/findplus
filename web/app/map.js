@@ -239,7 +239,7 @@ function drawTrack(track) {
     // timeline; a keyboard user picks a point from the timeline instead.
     L.polyline(latlngs, { color, weight: 3, opacity: 0.75, dashArray: "6 5", keyboard: false })
       .addTo(state.layer)
-      .bindTooltip(`${esc(shown)}: observed path; actual route between detections may differ.`);
+      .bindTooltip(esc(t("map.pathTip", { name: shown })));
   }
   points.forEach((point, index) => {
     const marker = L.marker([point.latitude, point.longitude], {

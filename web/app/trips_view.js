@@ -27,6 +27,7 @@ import { drawStory, frame, clearStoryDrawn } from "./trips_map.js";
 import { markList, wireStoryKeys } from "./trips_list.js";
 import { markStrip, lanes } from "./trips_strip.js";
 import { storyBody, nameOf } from "./trips_pane.js";
+import { laneLabel } from "./person_links.js";
 import { emptyTitle, failure, skeleton, sparse } from "./trips_states.js";
 import { purgeRoads, queueRoutes, roadsWanted, syncRouteNote, syncRoadsUi, wireRoads } from "./trips_roads.js";
 
@@ -190,7 +191,7 @@ function fillLanes(view, root) {
     if (state.lockGeneration !== gen || !slot.isConnected) return;
     const members = view.list.map((tr) => ({
       device_id: tr.device_id,
-      name: nameOf(tr),
+      name: laneLabel(tr.device_id, nameOf(tr)),
       payload: cachedTrips(tr.device_id, state.day, sigOf(tr)),
       failed: laneFailed.has(tr.device_id),
     }));

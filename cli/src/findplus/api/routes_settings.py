@@ -40,6 +40,7 @@ from ._settings_fields import (
     _write_config_fields,
     _write_onboarding_fields,
 )
+from ._settings_routing import write_routing_field
 from ._settings_update import write_update_fields
 from .middleware import same_origin_problem
 from .routes_settings_keys import register_key_routes
@@ -81,6 +82,7 @@ def _apply_writes(
         _write_onboarding_fields(session, raw_body, completed_at, last_step)
         write_backup_fields(raw_body)
         write_digest_fields(session, raw_body)
+        write_routing_field(session, raw_body)
         write_update_fields(session, raw_body)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

@@ -3935,17 +3935,12 @@ pyobjc-core 12.2.2  (MIT)
 ========================================================================
 ����@b�c@aT����
 P�$&�;f�p Ÿ=�&`:�__TEXT__text__TEXT0
-��__stubs__TEXT�0�__stub_helper__TEXT�n�__objc_methname__TEXTZ
-c__objc_classname__TEXT�
-1__objc_methtype__TEXT�
-H__cstring__TEXT6�__unwind_info__TEXT�pX__DATA
-__got__DATA __la_symbol_ptr__DATA @__objc_classlist__DATA`__objc_protolist__DATAx__objc_imageinfo__DATA�__objc_const__DATA�__objc_selrefs__DATA�(__objc_classrefs__DATA�__objc_superrefs__DATA�__objc_ivar__DATA�__objc_data__DATA��__data__DATA�__bss__DATA�(H__LINKEDIT ��__DWARF0P �B__debug_line__DWARF0] __debug_aranges__DWARF]6�]&__debug_ranges__DWARF-70-'__debug_loc__DWARF]7%]'__debug_info__DWARF�9��)__debug_abbrev__DWARFUQiUA__debug_str__DWARF�T��D__apple_namespac__DWARF�d$�T__apple_names__DWARF�d��T__apple_types__DWARF^g^W__apple_objc__DWARF^r�^b0
+��__stubs__TEXT�0�__stub_helper__TEXT�n�__objc_methname__TEXTZc__objc_classname__TEXT�1__objc_methtype__TEXT�H__cstring__TEXT6�__unwind_info__TEXT�pX__DATA__got__DATA __la_symbol_ptr__DATA @__objc_classlist__DATA`__objc_protolist__DATAx__objc_imageinfo__DATA�__objc_const__DATA�__objc_selrefs__DATA�(__objc_classrefs__DATA�__objc_superrefs__DATA�__objc_ivar__DATA�__objc_data__DATA��__data__DATA�__bss__DATA�(H__LINKEDIT ��__DWARF0P �B__debug_line__DWARF0] __debug_aranges__DWARF]6�]&__debug_ranges__DWARF-70-'__debug_loc__DWARF]7%]'__debug_info__DWARF�9��)__debug_abbrev__DWARFUQiUA__debug_str__DWARF�T��D__apple_namespac__DWARF�d$�T__apple_names__DWARF�d��T__apple_types__DWARF^g^W__apple_objc__DWARF^r�^b0
  �
 C�
 W�
 s� �0�@�P���x&�K�o�P�p�x
-�,�RXz�����H�!�A]0wX��������0����*`+[OC_CopyHelper doCopySetup:]+[OC_CopyHelper newObjectOfClass:]-[OC_CopyBase init]-[OC_CopyBase initWithInt:]-[OC_CopyBase intVal]-[OC_CopyBase setIntVal:]-[OC_CopyBase copyWithZone:]-[OC_CopyFails copy]-[OC_CopyFails copyWithZone:]_mod_exec_module__OBJC_LABEL_PROTOCOL_$_NSCopying__OBJC_$_CLASS_METHODS_OC_CopyHelper__OBJC_METACLASS_RO_$_OC_CopyHelper__OBJC_CLASS_RO_$_OC_CopyHelper__OBJC_$_PROTOCOL_INSTANCE_METHODS_NSCopying__OBJC_$_PROTOCOL_METHOD_TYPES_NSCopying__OBJC_CLASS_PROTOCOLS_$_OC_CopyBase__OBJC_METACLASS_RO_$_OC_CopyBase__OBJC_$_INSTANCE_METHODS_OC_CopyBase__OBJC_$_INSTANCE_VARIABLES_OC_CopyBase__OBJC_CLASS_RO_$_OC_CopyBase__OBJC_METACLASS_RO_$_OC_CopyFails__OBJC_$_INSTANCE_METHODS_OC_CopyFails__OBJC_CLASS_RO_$_OC_CopyFails_OBJC_IVAR_$_OC_CopyBase.intVal_OBJC_METACLASS_$_OC_CopyHelper_OBJC_CLASS_$_OC_CopyHelper_OBJC_CLASS_$_OC_CopyBase_OBJC_METACLASS_$_OC_CopyBase_OBJC_METACLASS_$_OC_CopyFails_OBJC_CLASS_$_OC_CopyFails__OBJC_PROTOCOL_$_NSCopying_mod_module_mod_slots__dyld_private_mod_methods_PyObjC_API_PyInit_copyingY��
-Modules/objc/test/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk/usr/include/i386/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk/usr/include/sys/_types/Library/Frameworks/Python.framework/Versions/3.12/include/python3.12/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk/usr/include/_types/Library/Frameworks/Python.framework/Versions/3.12/include/python3.12/cpythonModules/objc/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk/usr/include/objc/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk/System/Library/Frameworks/Foundation.framework/Headerscopying.m_types.h_ssize_t.hpyport.hobject.h_uint32_t.hobject.hpybuffer.hmethodobject.hpytypedefs.hdescrobject.h_size_t.hmoduleobject.hpyobjc-api.hobjc.hNSObject.hpystate.hNSObject.h	NSObjCRuntime.hNSZone.h	pycapsule.hpyerrors.hmodsupport.h	0
+�,�RXz�����H�!�A]0wX��������0����*`+[OC_CopyHelper doCopySetup:]+[OC_CopyHelper newObjectOfClass:]-[OC_CopyBase init]-[OC_CopyBase initWithInt:]-[OC_CopyBase intVal]-[OC_CopyBase setIntVal:]-[OC_CopyBase copyWithZone:]-[OC_CopyFails copy]-[OC_CopyFails copyWithZone:]_mod_exec_module__OBJC_LABEL_PROTOCOL_$_NSCopying__OBJC_$_CLASS_METHODS_OC_CopyHelper__OBJC_METACLASS_RO_$_OC_CopyHelper__OBJC_CLASS_RO_$_OC_CopyHelper__OBJC_$_PROTOCOL_INSTANCE_METHODS_NSCopying__OBJC_$_PROTOCOL_METHOD_TYPES_NSCopying__OBJC_CLASS_PROTOCOLS_$_OC_CopyBase__OBJC_METACLASS_RO_$_OC_CopyBase__OBJC_$_INSTANCE_METHODS_OC_CopyBase__OBJC_$_INSTANCE_VARIABLES_OC_CopyBase__OBJC_CLASS_RO_$_OC_CopyBase__OBJC_METACLASS_RO_$_OC_CopyFails__OBJC_$_INSTANCE_METHODS_OC_CopyFails__OBJC_CLASS_RO_$_OC_CopyFails_OBJC_IVAR_$_OC_CopyBase.intVal_OBJC_METACLASS_$_OC_CopyHelper_OBJC_CLASS_$_OC_CopyHelper_OBJC_CLASS_$_OC_CopyBase_OBJC_METACLASS_$_OC_CopyBase_OBJC_METACLASS_$_OC_CopyFails_OBJC_CLASS_$_OC_CopyFails__OBJC_PROTOCOL_$_NSCopying_mod_module_mod_slots__dyld_private_mod_methods_PyObjC_API_PyInit_copyingY��Modules/objc/test/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk/usr/include/i386/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk/usr/include/sys/_types/Library/Frameworks/Python.framework/Versions/3.12/include/python3.12/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk/usr/include/_types/Library/Frameworks/Python.framework/Versions/3.12/include/python3.12/cpythonModules/objc/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk/usr/include/objc/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk/System/Library/Frameworks/Foundation.framework/Headerscopying.m_types.h_ssize_t.hpyport.hobject.h_uint32_t.hobject.hpybuffer.hmethodobject.hpytypedefs.hdescrobject.h_size_t.hmoduleobject.hpyobjc-api.hobjc.hNSObject.hpystate.hNSObject.h	NSObjCRuntime.hNSZone.h	pycapsule.hpyerrors.hmodsupport.h	0
 "
 �!Xg�!�<		�
 &
@@ -3967,39 +3962,18 @@ Z�
 9	 	0@P`�9^���
 Q
 U&RSET^`gQglU��U���U���P��Q��S���Q�P^U^�^���U���^^�^��^��R��R�1M��0
-���V�	0
-h
-b�
-c H
-d('H
-e0-T
-f84�
-
-g@>
-
-hHFq
-
-iPQ�
-jXY�
-k`�`
-?`(
-,q
--y
-
-4�T
-9�j
-> �
+���V�	0hb�c Hd('He0-Tf84�
+g@>hHFq
+iPQ�jXY�k`�`?`(,q-y4�T9�j> �
 ��*�	��T��|����_��j�u���
 �:�����
-
-��q �H�"T� /T�(;R�0FT�8[o�@f��Hq��P}u�X���`���h���p�	�x�l���u���F	���R	���^	���j
+��q �H�"T� /T�(;R�0FT�8[o�@f��Hq��P}u�X���`���h���p�	�x�l���u���F	���R	���^	���j
 ���H���q
 ������
 ��T��1�
 ��9�
 ��E�
-��PJ��[���e��mj�u9��E��T� �Q�(�]�0�~�8���@���H�j�P�j�X�j�`���h�j�p�R�x���R���)
-�+4��q�@T�M3^HAcj{SB�jj�3�_D��j�jk��o� �~������#��0jj.�~3HjjpT�l�h���j�F���h ;�K@KAKBKC*KD 4lE(=F0IG8UH@a�IHiJPsKKX}KL`�KMh�KNp�KOx�P���Q��R��KT��KU��KV��KW�lX�KY�&KZ�8K[�GK\�VK]�dK_�tK`��Ka��Kb�d�Kf�KgW�1\jjjx�2}jjjj�3��j��vPj<k$Kl.Xm8Xn@�o Myp(Y�q0j�r8vKt@�XuHH�4MTjd�5ijjT��7��jTj��;��jj���|x�<y�Kz��{	9
+��PJ��[���e��mj�u9��E��T� �Q�(�]�0�~�8���@���H�j�P�j�X�j�`���h�j�p�R�x���R���)�+4��q�@T�M3^HAcj{SB�jj�3�_D��j�jk��o� �~������#��0jj.�~3HjjpT�l�h���j�F���h ;�K@KAKBKC*KD 4lE(=F0IG8UH@a�IHiJPsKKX}KL`�KMh�KNp�KOx�P���Q��R��KT��KU��KV��KW�lX�KY�&KZ�8K[�GK\�VK]�dK_�tK`��Ka��Kb�d�Kf�KgW�1\jjjx�2}jjjj�3��j��vPj<k$Kl.Xm8Xn@�o Myp(Y�q0j�r8vKt@�XuHH�4MTjd�5ijjT��7��jTj��;��jj���|x�<y�Kz��{	9
 	�jjj+	G0	;	jT�W$C	1Ec	n	>��L�	�YN
 ��	j#�	�j�	��	�	x!P���j�T�T�� ��$��(�I
 0�I
@@ -4017,36 +3991,22 @@ k`�`
 *	
 *	 	66	H	7>	?	8F	�	9O	H	;WV		OZb	
 b	()n	H*s	�+x	T,	�-�	H. ���	
-�	(n	H�	�
-�	�	H�	� ��	jj��		$�jj�x�	K	�	L	�	Mi�	Onj�T��	N�j�jj��	@����	R�jj��j�j�
+�	(n	H�	��	�	H�	� ��	jj��		$�jj�x�	K	�	L	�	Mi�	Onj�T��	N�j�jj��	@����	R�jj��j�j�
 2j
 
 o
-
-j
-(
-%
+j(%
 
-
-%
-
-J6
-�
-K;
-�
-LA
-^
-g	�
+%
+J6
+�K;
+�LA
+^g	�
 �
 :M
-
-�	�
-(
-:W
-�
-}	�
-
-b
+�	�
+(:W
+�}	�b
 (?m
 �@y
 �A�
@@ -4058,91 +4018,31 @@ DE(�
 nG8�
 �H@�
 �IH	�KP4LX#�M`/�NhH�Rp_�TxyW��KY��eZ��v[���^���`���a���b���c��e�pf�g�#Cj�.�
-l�CXm�U�n�c
-oomp�}q��s��v u��9��������������jjj����jj��=
-j�#
-
-�9�jI�jYcjsz
-5 
-�8��Hj��jH��!�TH��j��HH
+l�CXm�U�n�coomp�}q��s��v u��9��������������jjj����jj��=
+j�#�9�jI�jYcjsz5 �8��Hj��jH��!�TH��j��HH
 �
-j�&+6
-N"�M#,
-#>
-P�H��j��	{���Hj�I
-p�	�R
-XW
-��jH�T��j�j��	j��HT�j���HjH�]�HHr�	j��j����jHHH$c
--% o
-�.$v
-
-%&0
-ZV�
-z'�
-�'�
-�(�
-�)6�
-z)Y�
-z*^S
+j�&+6N"�M#,#>P�H��j��	{���Hj�I
+p�	�RXW��jH�T��j�j��	j��HT�j���HjH�]�HHr�	j��j����jHHH$c-% o�.$v%&0
+ZV�z'��'��(��)6�z)Y�z*^S
 *^c
 +^r
 ,Q0,Us+`~
 ,Us&�
-V��
-'z'�
-�'�
-�(|�
-'�-`�
+V��'z'��'��(|�'�-`�
 &�
-V�
-8�.U�
-�'�
-�/`�
+V�8�.U��'��/`�
 ,Q0,U�U&�
-9V0&=�0��
-�'�
-�(�;
-=�&	VsOG�.U�
-�'�
-�1 	V�eL.U�
-�'�
-�2Q�L�&0V��T�.U�
-�'�
-�2Q�TI3#7,T0,U�U,Q�Q4�W>Ij
-�NY�
-�&@V{�[�'�
-�'�
-�&PV��`�'�
-�'�
-�5�`I6`V�j7�l4,
-(jV
-
+9V0&=�0���'��(�;
+=�&	VsOG�.U��'��1 	V�eL.U��'��2Q�L�&0V��T�.U��'��2Q�TI3#7,T0,U�U,Q�Q4�W>Ij
+�NY��&@V{�[�'��'��&PV��`�'��'��5�`I6`V�j7�l4,(jV
 8=��5N�j9]p:gpj;j��;u��<�9V�j�(J�jj=l	>�?)
-�@^2A�>AJBw�,T0C��+`&,T*\,B�>,U~+`],T*\cB�u,U~+`�,T*S�B��,U~4�3�H�4��jjHD4�3�jHj���%�|���$>$>4I:;:;
-I:;8I:;
-I:;8	:;
-I!I7I
-:;
-I:;8:;&II:;'II'I:;(
-:;I'I<'
-I8:;� 
-I:;82!&"I:;#($�:;�%I8&.@dz:;'I�'I4(:;I)4:;I*H�}+H�},I~-H���.I4/H���0I41.@dz:;'�2:;I3H��4.:;'I<?�5:;I6.@z:;'I?�7H��8.:;'I� 9.:;'� ::;I;4:;I<.@z:;'I�=1UXYW>1?1XYW@1A41BH}CH}DApple clang version 21.0.0 (clang-2100.1.1.101)Modules/objc/test/copying.m/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdkMacOSX26.5.sdk/Users/ronald/Projects/pyobjc/pyobjc-corechar__ARRAY_SIZE_TYPE__mod_modulePyModuleDefm_basem_namem_docm_sizem_methodsm_slotsm_traversem_clearm_freePyModuleDef_Baseob_basem_initm_indexm_copyPyObject_objectob_refcntob_refcnt_splitob_typePy_ssize_tssize_t__darwin_ssize_tlonguint32_tunsigned intPyTypeObject_typeobjecttp_nametp_basicsizetp_itemsizetp_dealloctp_vectorcall_offsettp_getattrtp_setattrtp_as_asynctp_reprtp_as_numbertp_as_sequencetp_as_mappingtp_hashtp_calltp_strtp_getattrotp_setattrotp_as_buffertp_flagstp_doctp_traversetp_cleartp_richcomparetp_weaklistoffsettp_itertp_iternexttp_methodstp_memberstp_getsettp_basetp_dicttp_descr_gettp_descr_settp_dictoffsettp_inittp_alloctp_newtp_freetp_is_gctp_basestp_mrotp_cachetp_subclassestp_weaklisttp_deltp_version_tagtp_finalizetp_vectorcalltp_watchedPyVarObjectob_sizedestructorgetattrfuncsetattrfuncintPyAsyncMethodsam_awaitam_aiteram_anextam_sendunaryfuncsendfuncPySendResultPYGEN_RETURNPYGEN_ERRORPYGEN_NEXTreprfuncPyNumberMethodsnb_addnb_subtractnb_multiplynb_remaindernb_divmodnb_powernb_negativenb_positivenb_absolutenb_boolnb_invertnb_lshiftnb_rshiftnb_andnb_xornb_ornb_intnb_reservednb_floatnb_inplace_addnb_inplace_subtractnb_inplace_multiplynb_inplace_remaindernb_inplace_powernb_inplace_lshiftnb_inplace_rshiftnb_inplace_andnb_inplace_xornb_inplace_ornb_floor_dividenb_true_dividenb_inplace_floor_dividenb_inplace_true_dividenb_indexnb_matrix_multiplynb_inplace_matrix_multiplybinaryfuncternaryfuncinquiryPySequenceMethodssq_lengthsq_concatsq_repeatsq_itemwas_sq_slicesq_ass_itemwas_sq_ass_slicesq_containssq_inplace_concatsq_inplace_repeatlenfuncssizeargfuncssizeobjargprocobjobjprocPyMappingMethodsmp_lengthmp_subscriptmp_ass_subscriptobjobjargprochashfuncPy_hash_tgetattrofuncsetattrofuncPyBufferProcsbf_getbufferbf_releasebuffergetbufferprocPy_bufferbufobjlenitemsizereadonlyndimformatshapestridessuboffsetsinternalreleasebufferprocunsigned longtraverseprocvisitprocrichcmpfuncgetiterfunciternextfuncPyMethodDefml_nameml_methml_flagsml_docPyCFunctionPyMemberDefnametypeoffsetflagsdocPyGetSetDefgetsetclosuregettersetterdescrgetfuncdescrsetfuncinitprocallocfuncnewfuncfreefuncvectorcallfuncsize_t__darwin_size_tunsigned charPyModuleDef_Slotslotvaluemod_methodsmod_slotsPyObjC_APIpyobjc_apiapi_versionstruct_lenregister_method_mappingobj_get_objectcls_get_classdepythonify_python_objectid_to_pythonerr_objc_to_pythonpy_to_objcobjc_to_pysizeof_typesel_get_classsel_get_selregister_pointer_wrapperunsupported_method_impunsupported_method_callererr_python_to_objc_gilsimplify_sigfree_c_arraypy_to_c_arrayc_array_to_pyimp_typeimp_get_impimp_get_selnewtransientreleasetransientpyobjc_nulldep_c_array_countvarlistnewpyobjcobject_convertregister_id_aliasmemview_checkmemview_newmemview_getbuffercheckargcountchecknokwnamescreateopaquepointertypeRegisterMethodMappingFunctionTypeClassobjc_classSELobjc_selectorIMPidobjc_objectisaNSObjectPyGILState_STATEPyGILState_LOCKEDPyGILState_UNLOCKEDBOOLsigned charOC_CopyBaseintValOC_CopyFails+[OC_CopyHelper doCopySetup:]doCopySetup:OC_CopyHelperself_cmdaClasstmpretval+[OC_CopyHelper newObjectOfClass:]newObjectOfClass:-[OC_CopyBase init]init-[OC_CopyBase initWithInt:]initWithInt:-[OC_CopyBase intVal]-[OC_CopyBase setIntVal:]setIntVal:val-[OC_CopyBase copyWithZone:]copyWithZone:zoneNSCopyObjectNSUIntegerNSZone_NSZone-[OC_CopyFails copy]copy-[OC_CopyFails copyWithZone:]PyInit_copyingPyModuleDef_InitPyObjC_ImportAPIcalling_modulePy_INCREFopcur_refcntnew_refcntmod_exec_modulemPyCapsule_ImportPyErr_FormatPyModule_AddObjectinstancetypeHSAH����HSAH	�����5�D��\ @�|eǟ9��|9�[��9Ng�13�w�J��yҰ�*Ff-a�ܾ�c�7���6��2����L��	���?=��D�
+�@^2A�>AJBw�,T0C��+`&,T*\,B�>,U~+`],T*\cB�u,U~+`�,T*S�B��,U~4�3�H�4��jjHD4�3�jHj���%�|���$>$>4I:;:;I:;8I:;I:;8	:;
+I!I7I:;I:;8:;&II:;'II'I:;(:;I'I<'I8:;� I:;82!&"I:;#($�:;�%I8&.@dz:;'I�'I4(:;I)4:;I*H�}+H�},I~-H���.I4/H���0I41.@dz:;'�2:;I3H��4.:;'I<?�5:;I6.@z:;'I?�7H��8.:;'I� 9.:;'� ::;I;4:;I<.@z:;'I�=1UXYW>1?1XYW@1A41BH}CH}DApple clang version 21.0.0 (clang-2100.1.1.101)Modules/objc/test/copying.m/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdkMacOSX26.5.sdk/Users/ronald/Projects/pyobjc/pyobjc-corechar__ARRAY_SIZE_TYPE__mod_modulePyModuleDefm_basem_namem_docm_sizem_methodsm_slotsm_traversem_clearm_freePyModuleDef_Baseob_basem_initm_indexm_copyPyObject_objectob_refcntob_refcnt_splitob_typePy_ssize_tssize_t__darwin_ssize_tlonguint32_tunsigned intPyTypeObject_typeobjecttp_nametp_basicsizetp_itemsizetp_dealloctp_vectorcall_offsettp_getattrtp_setattrtp_as_asynctp_reprtp_as_numbertp_as_sequencetp_as_mappingtp_hashtp_calltp_strtp_getattrotp_setattrotp_as_buffertp_flagstp_doctp_traversetp_cleartp_richcomparetp_weaklistoffsettp_itertp_iternexttp_methodstp_memberstp_getsettp_basetp_dicttp_descr_gettp_descr_settp_dictoffsettp_inittp_alloctp_newtp_freetp_is_gctp_basestp_mrotp_cachetp_subclassestp_weaklisttp_deltp_version_tagtp_finalizetp_vectorcalltp_watchedPyVarObjectob_sizedestructorgetattrfuncsetattrfuncintPyAsyncMethodsam_awaitam_aiteram_anextam_sendunaryfuncsendfuncPySendResultPYGEN_RETURNPYGEN_ERRORPYGEN_NEXTreprfuncPyNumberMethodsnb_addnb_subtractnb_multiplynb_remaindernb_divmodnb_powernb_negativenb_positivenb_absolutenb_boolnb_invertnb_lshiftnb_rshiftnb_andnb_xornb_ornb_intnb_reservednb_floatnb_inplace_addnb_inplace_subtractnb_inplace_multiplynb_inplace_remaindernb_inplace_powernb_inplace_lshiftnb_inplace_rshiftnb_inplace_andnb_inplace_xornb_inplace_ornb_floor_dividenb_true_dividenb_inplace_floor_dividenb_inplace_true_dividenb_indexnb_matrix_multiplynb_inplace_matrix_multiplybinaryfuncternaryfuncinquiryPySequenceMethodssq_lengthsq_concatsq_repeatsq_itemwas_sq_slicesq_ass_itemwas_sq_ass_slicesq_containssq_inplace_concatsq_inplace_repeatlenfuncssizeargfuncssizeobjargprocobjobjprocPyMappingMethodsmp_lengthmp_subscriptmp_ass_subscriptobjobjargprochashfuncPy_hash_tgetattrofuncsetattrofuncPyBufferProcsbf_getbufferbf_releasebuffergetbufferprocPy_bufferbufobjlenitemsizereadonlyndimformatshapestridessuboffsetsinternalreleasebufferprocunsigned longtraverseprocvisitprocrichcmpfuncgetiterfunciternextfuncPyMethodDefml_nameml_methml_flagsml_docPyCFunctionPyMemberDefnametypeoffsetflagsdocPyGetSetDefgetsetclosuregettersetterdescrgetfuncdescrsetfuncinitprocallocfuncnewfuncfreefuncvectorcallfuncsize_t__darwin_size_tunsigned charPyModuleDef_Slotslotvaluemod_methodsmod_slotsPyObjC_APIpyobjc_apiapi_versionstruct_lenregister_method_mappingobj_get_objectcls_get_classdepythonify_python_objectid_to_pythonerr_objc_to_pythonpy_to_objcobjc_to_pysizeof_typesel_get_classsel_get_selregister_pointer_wrapperunsupported_method_impunsupported_method_callererr_python_to_objc_gilsimplify_sigfree_c_arraypy_to_c_arrayc_array_to_pyimp_typeimp_get_impimp_get_selnewtransientreleasetransientpyobjc_nulldep_c_array_countvarlistnewpyobjcobject_convertregister_id_aliasmemview_checkmemview_newmemview_getbuffercheckargcountchecknokwnamescreateopaquepointertypeRegisterMethodMappingFunctionTypeClassobjc_classSELobjc_selectorIMPidobjc_objectisaNSObjectPyGILState_STATEPyGILState_LOCKEDPyGILState_UNLOCKEDBOOLsigned charOC_CopyBaseintValOC_CopyFails+[OC_CopyHelper doCopySetup:]doCopySetup:OC_CopyHelperself_cmdaClasstmpretval+[OC_CopyHelper newObjectOfClass:]newObjectOfClass:-[OC_CopyBase init]init-[OC_CopyBase initWithInt:]initWithInt:-[OC_CopyBase intVal]-[OC_CopyBase setIntVal:]setIntVal:val-[OC_CopyBase copyWithZone:]copyWithZone:zoneNSCopyObjectNSUIntegerNSZone_NSZone-[OC_CopyFails copy]copy-[OC_CopyFails copyWithZone:]PyInit_copyingPyModuleDef_InitPyObjC_ImportAPIcalling_modulePy_INCREFopcur_refcntnew_refcntmod_exec_modulemPyCapsule_ImportPyErr_FormatPyModule_AddObjectinstancetypeHSAH����HSAH	�����5�D��\ @�|eǟ9��|9�[��9Ng�13�w�J��yҰ�*Ff-a�ܾ�c�7���6��2����L��	���?=��D�
 Q�
 ��g3f(8HXhx��������(<L\l|��]�A
-I
-�^e�!�M
-j
-B�WOV�^=�
-��
-��
-���&���o
-VW
-�
-�
-�A���
-HSAH)R	
-���� "%()+/258:;@A����B����C��������E����F����L��.\C6�ϒ��&�c �|K���ە��*��%)�5�������](�N�*�H	�A�=,	���De3��s����jڥf��wΒ�I��nx/��ɻ�=�T,���r��7�(�0��u�Ps�p�~>�Ԝ����\wt�F�H�.����LgU�יs��{4����r��P���%㊰d�ȹhv�2xY����K�:ɰ��p{H�[s�ܶ��J䥮�\,8ډ�4�3�N��8�͓<�r�����|��8)5/�|�����ұ���]�S�^B��yq�觟��Sؠ���܆��M�q�s� ;�;���qy�`w�����:Qh�����+BYp������(?Vm�����
-$;Ri�����	 7Ne|�����		4	K	b	y	�	�	�	�	�	
+I�^e�!�M
+jB�WOV�^=��������&���oVW
+���A���HSAH)R	���� "%()+/258:;@A����B����C��������E����F����L��.\C6�ϒ��&�c �|K���ە��*��%)�5�������](�N�*�H	�A�=,	���De3��s����jڥf��wΒ�I��nx/��ɻ�=�T,���r��7�(�0��u�Ps�p�~>�Ԝ����\wt�F�H�.����LgU�יs��{4����r��P���%㊰d�ȹhv�2xY����K�:ɰ��p{H�[s�ܶ��J䥮�\,8ډ�4�3�N��8�͓<�r�����|��8)5/�|�����ұ���]�S�^B��yq�觟��Sؠ���܆��M�q�s� ;�;���qy�`w�����:Qh�����+BYp������(?Vm�����$;Ri�����	 7Ne|�����		4	K	b	y	�	�	�	�	�	
 
 1
 H
@@ -4154,40 +4054,21 @@ v
 �
 �
 ���9��"!Y�l�s'
-�)פ��3$W�{�
-+?`Ű�T��M�	9�_0
-Vw`�w`�����9	)����_Z����N
+�)פ��3$W�{�+?`Ű�T��M�	9�_0Vw`�w`�����9	)����_Z����N
 �2���/��u��%�	�}^~D�}^~D��F��	]pt_�q
 Y�s�j�	�s�;o��b�Mb
-�
-��a�{�>c	cA�)��x}4 �T=�	�
-+�O]�	~/���
-1��4���1R	�܈V	?��ebk�$�(:b	O飍Z飍
-#mM�*	�
+���a�{�>c	cA�)��x}4 �T=�	�
++�O]�	~/���1��4���1R	�܈V	?��ebk�$�(:b	O飍Z飍#mM�*	�
 ��1��1�	E9�˯yP��^HRh�_E�j<Mk�
 ��6A�	�
 ط?q�	Q��*|�=�a˶u�ǧP`��7���7쟥	�D��j	�
 ���D%
-
-X���(
-X����X��N��&�}|�Nv�R/�������<$cJ$F	o| ��:$σH��K����;	X�a���P���	��L��H˞�j�J��x��$����j
-$���R
-�Ri�W
-�$1u��u$)怓�`tO_��F�#��s��Q����
-��6Soz�c
-�@��3�	�����
-
-$q���	������^�zx�	��Ŝv
-��Ű���*x�>ݏ�HSAH�����觟1�7 ;�Ddxc
-�V���
-�v
-^�����
+X���(X����X��N��&�}|�Nv�R/�������<$cJ$F	o| ��:$σH��K����;	X�a���P���	��L��H˞�j�J��x��$����j
+$���R�Ri�W�$1u��u$)怓�`tO_��F�#��s��Q����
+��6Soz�c�@��3�	�����
+$q���	������^�zx�	��Ŝv��Ű���*x�>ݏ�HSAH�����觟1�7 ;�Ddxc�V����v^�����
 P[)��6D�y +���2+��h__TEXT@
-__text__TEXT0P�__stubs__TEXT�
-l�__stub_helper__TEXT�
-��__objc_stubs__TEXT���__objc_methlist__TEXT �__objc_classname__TEXT�1__objc_methname__TEXT�c__objc_methtype__TEXTPH__cstring__TEXT��__unwind_info__TEXTDx�__DATA_CONST@@__got__DATA_CONST@	__objc_classlist__DATA_CONST@__objc_protolist__DATA_CONST0@__objc_imageinfo__DATA_CONST8@__DATA�@	__la_symbol_ptr__DATA�H__objc_const__DATAH��__objc_selrefs__DATA@�P__objc_classrefs__DATA��__objc_superrefs__DATA��__objc_ivar__DATA��__objc_data__DATA���__data__DATA��__bss__DATA��(H__LINKEDIT�]�__DWARF�P TA__debug_line__DWARFТ __debug_aranges__DWARF��0�%__debug_ranges__DWARF��0�%__debug_loc__DWARFև&__debug_info__DWARF��=�(__debug_abbrev__DWARF��h�?__debug_str__DWARF.��.C__apple_namespac__DWARF�$�R__apple_names__DWARF�S__apple_types__DWARF��U__apple_objc__DWARF���`0 xC�W�s�����������4�G�bw �@����
-�0@8H�\��|؀�������@�h�2��U��t�����������0�X�'��B���^�jp�u������Ȅ�+[OC_CopyHelper doCopySetup:]+[OC_CopyHelper newObjectOfClass:]-[OC_CopyBase init]-[OC_CopyBase initWithInt:]-[OC_CopyBase intVal]-[OC_CopyBase setIntVal:]-[OC_CopyBase copyWithZone:]-[OC_CopyFails copy]-[OC_CopyFails copyWithZone:]_mod_exec_module_objc_msgSend$class_objc_msgSend$copyWithZone:_objc_msgSend$init_objc_msgSend$initWithInt:_objc_msgSend$modify__OBJC_$_CLASS_METHODS_OC_CopyHelper__OBJC_$_INSTANCE_METHODS_OC_CopyBase__OBJC_$_INSTANCE_METHODS_OC_CopyFails__OBJC_$_PROTOCOL_INSTANCE_METHODS_NSCopying__OBJC_LABEL_PROTOCOL_$_NSCopying__OBJC_METACLASS_RO_$_OC_CopyHelper__OBJC_CLASS_RO_$_OC_CopyHelper__OBJC_$_PROTOCOL_METHOD_TYPES_NSCopying__OBJC_CLASS_PROTOCOLS_$_OC_CopyBase__OBJC_METACLASS_RO_$_OC_CopyBase__OBJC_$_INSTANCE_VARIABLES_OC_CopyBase__OBJC_CLASS_RO_$_OC_CopyBase__OBJC_METACLASS_RO_$_OC_CopyFails__OBJC_CLASS_RO_$_OC_CopyFails_OBJC_IVAR_$_OC_CopyBase.intVal_OBJC_METACLASS_$_OC_CopyHelper_OBJC_CLASS_$_OC_CopyHelper_OBJC_CLASS_$_OC_CopyBase_OBJC_METACLASS_$_OC_CopyBase_OBJC_METACLASS_$_OC_CopyFails_OBJC_CLASS_$_OC_CopyFails__OBJC_PROTOCOL_$_NSCopying_mod_module_mod_slots__dyld_private_mod_methods_PyObjC_API_PyInit_copying���
-Modules/objc/test/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk/usr/include/arm/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk/usr/include/sys/_types/Library/Frameworks/Python.framework/Versions/3.12/include/python3.12/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk/usr/include/_types/Library/Frameworks/Python.framework/Versions/3.12/include/python3.12/cpythonModules/objc/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk/usr/include/objc/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk/System/Library/Frameworks/Foundation.framework/Headerscopying.m_types.h_ssize_t.hpyport.hobject.h_uint32_t.hobject.hpybuffer.hmethodobject.hpytypedefs.hdescrobject.h_size_t.hmoduleobject.hpyobjc-api.hobjc.hNSObject.hpystate.hNSObject.h	NSObjCRuntime.hNSZone.h	pycapsule.hpyerrors.hmodsupport.h	0"
+__text__TEXT0P�__stubs__TEXT�l�__stub_helper__TEXT���__objc_stubs__TEXT���__objc_methlist__TEXT �__objc_classname__TEXT�1__objc_methname__TEXT�c__objc_methtype__TEXTPH__cstring__TEXT��__unwind_info__TEXTDx�__DATA_CONST@@__got__DATA_CONST@	__objc_classlist__DATA_CONST@__objc_protolist__DATA_CONST0@__objc_imageinfo__DATA_CONST8@__DATA�@	__la_symbol_ptr__DATA�H__objc_const__DATAH��__objc_selrefs__DATA@�P__objc_classrefs__DATA��__objc_superrefs__DATA��__objc_ivar__DATA��__objc_data__DATA���__data__DATA��__bss__DATA��(H__LINKEDIT�]�__DWARF�P TA__debug_line__DWARFТ __debug_aranges__DWARF��0�%__debug_ranges__DWARF��0�%__debug_loc__DWARFև&__debug_info__DWARF��=�(__debug_abbrev__DWARF��h�?__debug_str__DWARF.��.C__apple_namespac__DWARF�$�R__apple_names__DWARF�S__apple_types__DWARF��U__apple_objc__DWARF���`0 xC�W�s�����������4�G�bw �@�����0@8H�\��|؀�������@�h�2��U��t�����������0�X�'��B���^�jp�u������Ȅ�+[OC_CopyHelper doCopySetup:]+[OC_CopyHelper newObjectOfClass:]-[OC_CopyBase init]-[OC_CopyBase initWithInt:]-[OC_CopyBase intVal]-[OC_CopyBase setIntVal:]-[OC_CopyBase copyWithZone:]-[OC_CopyFails copy]-[OC_CopyFails copyWithZone:]_mod_exec_module_objc_msgSend$class_objc_msgSend$copyWithZone:_objc_msgSend$init_objc_msgSend$initWithInt:_objc_msgSend$modify__OBJC_$_CLASS_METHODS_OC_CopyHelper__OBJC_$_INSTANCE_METHODS_OC_CopyBase__OBJC_$_INSTANCE_METHODS_OC_CopyFails__OBJC_$_PROTOCOL_INSTANCE_METHODS_NSCopying__OBJC_LABEL_PROTOCOL_$_NSCopying__OBJC_METACLASS_RO_$_OC_CopyHelper__OBJC_CLASS_RO_$_OC_CopyHelper__OBJC_$_PROTOCOL_METHOD_TYPES_NSCopying__OBJC_CLASS_PROTOCOLS_$_OC_CopyBase__OBJC_METACLASS_RO_$_OC_CopyBase__OBJC_$_INSTANCE_VARIABLES_OC_CopyBase__OBJC_CLASS_RO_$_OC_CopyBase__OBJC_METACLASS_RO_$_OC_CopyFails__OBJC_CLASS_RO_$_OC_CopyFails_OBJC_IVAR_$_OC_CopyBase.intVal_OBJC_METACLASS_$_OC_CopyHelper_OBJC_CLASS_$_OC_CopyHelper_OBJC_CLASS_$_OC_CopyBase_OBJC_METACLASS_$_OC_CopyBase_OBJC_METACLASS_$_OC_CopyFails_OBJC_CLASS_$_OC_CopyFails__OBJC_PROTOCOL_$_NSCopying_mod_module_mod_slots__dyld_private_mod_methods_PyObjC_API_PyInit_copying���Modules/objc/test/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk/usr/include/arm/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk/usr/include/sys/_types/Library/Frameworks/Python.framework/Versions/3.12/include/python3.12/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk/usr/include/_types/Library/Frameworks/Python.framework/Versions/3.12/include/python3.12/cpythonModules/objc/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk/usr/include/objc/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk/System/Library/Frameworks/Foundation.framework/Headerscopying.m_types.h_ssize_t.hpyport.hobject.h_uint32_t.hobject.hpybuffer.hmethodobject.hpytypedefs.hdescrobject.h_size_t.hmoduleobject.hpyobjc-api.hobjc.hNSObject.hpystate.hNSObject.h	NSObjCRuntime.hNSZone.h	pycapsule.hpyerrors.hmodsupport.h	0"
 �!J�L��J�
 �J
 ��
@@ -4198,39 +4079,18 @@ Q
 �
 �
 ĂD�&
-�t��M!J� J�	�y�	��~����<)KK(M-�{J?J-�	��+N=�+�	��,N>�,�	����J�<�J,0P�t��RPDc0DdHTRTXPh�P���P���Ph|R|�c��P���P���P�|c|��P��,c,8�P�8DcDP�P��|c��c��X��X91M��0P��V�	�
-h
-b�
-c H
-d('H
-e0-T
-f84�
-
-g@>
-
-hHFq
-
-iPQ�
-jXY�
-k`�`
-?`(
-,q
--y
-
-4�T
-9�j
-> �
+�t��M!J� J�	�y�	��~����<)KK(M-�{J?J-�	��+N=�+�	��,N>�,�	����J�<�J,0P�t��RPDc0DdHTRTXPh�P���P���Ph|R|�c��P���P���P�|c|��P��,c,8�P�8DcDP�P��|c��c��X��X91M��0P��V�	�hb�c Hd('He0-Tf84�
+g@>hHFq
+iPQ�jXY�k`�`?`(,q-y4�T9�j> �
 ��*�	��T��|����_��j�u�v�
 �:�����
-
-��q �H�"T� /T�(;R�0FT�8[o�@f��Hq��P}u�X���`���h���p�	�x�l���u���F	���R	���^	���j
+��q �H�"T� /T�(;R�0FT�8[o�@f��Hq��P}u�X���`���h���p�	�x�l���u���F	���R	���^	���j
 ���H���q
 ������
 ��T��1�
 ��9�
 ��E�
-��PJ��[���e��mj�u9��E��T� �Q�(�]�0�~�8���@���H�j�P�j�X�j�`���h�j�p�R�x���R���)
-�+4��q�@T�M3^HAcj{SB�jj�3�_D��j�jk��o� �~������#��0jj.�~3HjjpT�l�h���j�F���h ;�K@KAKBKC*KD 4lE(=F0IG8UH@a�IHiJPsKKX}KL`�KMh�KNp�KOx�P���Q��R��KT��KU��KV��KW�lX�KY�&KZ�8K[�GK\�VK]�dK_�tK`��Ka��Kb�d�Kf�KgW�1\jjjx�2}jjjj�3��j��vPj<k$Kl.Xm8Xn@�o Myp(Y�q0j�r8vKt@�XuHH�4MTjd�5ijjT��7��jTj��;��jj���|x�<y�Kz��{	9
+��PJ��[���e��mj�u9��E��T� �Q�(�]�0�~�8���@���H�j�P�j�X�j�`���h�j�p�R�x���R���)�+4��q�@T�M3^HAcj{SB�jj�3�_D��j�jk��o� �~������#��0jj.�~3HjjpT�l�h���j�F���h ;�K@KAKBKC*KD 4lE(=F0IG8UH@a�IHiJPsKKX}KL`�KMh�KNp�KOx�P���Q��R��KT��KU��KV��KW�lX�KY�&KZ�8K[�GK\�VK]�dK_�tK`��Ka��Kb�d�Kf�KgW�1\jjjx�2}jjjj�3��j��vPj<k$Kl.Xm8Xn@�o Myp(Y�q0j�r8vKt@�XuHH�4MTjd�5ijjT��7��jTj��;��jj���|x�<y�Kz��{	9
 	�jjj+	G0	;	jT�W$C	1Ec	n	>��L�	�YN
 ��	j#�	�j�	��	�	x!P���j�T�T�� ��$��(�I
 0�I
@@ -4248,36 +4108,22 @@ k`�`
 *	
 *	 	66	H	7>	?	8F	�	9O	H	;WV		OZb	
 b	()n	H*s	�+x	T,	�-�	H. ���	
-�	(n	H�	�
-�	�	H�	� ��	jj��		$�jj�x�	K	�	L	�	Mi�	Onj�T��	N�j�jj��	@����	R�jj��j�j�
+�	(n	H�	��	�	H�	� ��	jj��		$�jj�x�	K	�	L	�	Mi�	Onj�T��	N�j�jj��	@����	R�jj��j�j�
 2j
 
 W
-
-j
-(
-%
+j(%
 
-
-%
-
-J6
-�
-K;
-�
-LA
-^
-g	��
+%
+J6
+�K;
+�LA
+^g	��
 �
 :M
-
-�	p�
-(
-:W
-�
-}	Ȅ�
-
-b
+�	p�
+(:W
+�}	Ȅ�b
 (?m
 �@y
 �A�
@@ -4289,82 +4135,20 @@ DE(�
 nG8�
 �H@�
 �IH	�KP4LX#�M`/�NhH�Rp_�TxyW��KY��eZ��v[���^���`���a���b���c��e�pf�g�#Cj�.�
-l�CXm�U�n�c
-oomp�}q��s��v u��9��������������jjj����jj��=
-j�#
-
-�9�jI�jYcjsz
-5 
-�8��Hj��jH��!�TH��j��HH
+l�CXm�U�n�coomp�}q��s��v u��9��������������jjj����jj��=
+j�#�9�jI�jYcjsz5 �8��Hj��jH��!�TH��j��HH
 �
-j�&+6
-N"�M#,
-#>
-P�H��j��	{���Hj�I
-p�	�R
-UW
-��jH�T��j�j��	j��HT�j���HjH�]�HHr�	j��j����jHHH$]
--% i
-�.$p
-
-%&0Hm}
-z'�
-�'�
-�(�
-�)6�
-z)Y�
-z&xm]�
-'z'�
-�'�
-�(|�
-'�*�o�8)+P�
-)'�
-�&�Hm� =),��
-)'�
-�(�;
-=�*�oIG�,4�
-)'�
-�-�oA_L+P�
-)'�
-�.R�L�*�o��T)+P�
-)'�
-�.R�T�/��0Q00P�P0R�R1�W��j
-����
-�*�o�[.'�
-7'�
-�*oK�`.'�
-7'�
-�2�`�3o�j4�1&
-(j��V
-
-57��2H�j6Wp7apj8d��8o��9lmzj�(m�jj:�l	;�<���=c�>A�>d�?�<0Q0@��Ae�?�0P�Ae
-? 
-0P�Ad<
-?P
-0P�1�3�H�1��jjHB1�3�jHj���%�|���$>$>4I:;:;
-I:;8I:;
-I:;8	:;
-I!I7I
-:;
-I:;8:;&II:;'II'I:;(
-:;I'I<'
-I8:;� 
-I:;82!&"I:;#($�:;�%I8&.@dz:;'I�'I4(:;I)4:;I*.�@dz:;'I�+I4,I4-.�@dz:;'�.:;I/H��0I~1.:;'I<?�2:;I3.�@z:;'I?�4H��5.:;'I� 6.:;'� 7:;I84:;I9.@z:;'I�:1UXYW;1<1XYW=1>41?H}@H}AH�}BApple clang version 21.0.0 (clang-2100.1.1.101)Modules/objc/test/copying.m/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdkMacOSX26.5.sdk/Users/ronald/Projects/pyobjc/pyobjc-corechar__ARRAY_SIZE_TYPE__mod_modulePyModuleDefm_basem_namem_docm_sizem_methodsm_slotsm_traversem_clearm_freePyModuleDef_Baseob_basem_initm_indexm_copyPyObject_objectob_refcntob_refcnt_splitob_typePy_ssize_tssize_t__darwin_ssize_tlonguint32_tunsigned intPyTypeObject_typeobjecttp_nametp_basicsizetp_itemsizetp_dealloctp_vectorcall_offsettp_getattrtp_setattrtp_as_asynctp_reprtp_as_numbertp_as_sequencetp_as_mappingtp_hashtp_calltp_strtp_getattrotp_setattrotp_as_buffertp_flagstp_doctp_traversetp_cleartp_richcomparetp_weaklistoffsettp_itertp_iternexttp_methodstp_memberstp_getsettp_basetp_dicttp_descr_gettp_descr_settp_dictoffsettp_inittp_alloctp_newtp_freetp_is_gctp_basestp_mrotp_cachetp_subclassestp_weaklisttp_deltp_version_tagtp_finalizetp_vectorcalltp_watchedPyVarObjectob_sizedestructorgetattrfuncsetattrfuncintPyAsyncMethodsam_awaitam_aiteram_anextam_sendunaryfuncsendfuncPySendResultPYGEN_RETURNPYGEN_ERRORPYGEN_NEXTreprfuncPyNumberMethodsnb_addnb_subtractnb_multiplynb_remaindernb_divmodnb_powernb_negativenb_positivenb_absolutenb_boolnb_invertnb_lshiftnb_rshiftnb_andnb_xornb_ornb_intnb_reservednb_floatnb_inplace_addnb_inplace_subtractnb_inplace_multiplynb_inplace_remaindernb_inplace_powernb_inplace_lshiftnb_inplace_rshiftnb_inplace_andnb_inplace_xornb_inplace_ornb_floor_dividenb_true_dividenb_inplace_floor_dividenb_inplace_true_dividenb_indexnb_matrix_multiplynb_inplace_matrix_multiplybinaryfuncternaryfuncinquiryPySequenceMethodssq_lengthsq_concatsq_repeatsq_itemwas_sq_slicesq_ass_itemwas_sq_ass_slicesq_containssq_inplace_concatsq_inplace_repeatlenfuncssizeargfuncssizeobjargprocobjobjprocPyMappingMethodsmp_lengthmp_subscriptmp_ass_subscriptobjobjargprochashfuncPy_hash_tgetattrofuncsetattrofuncPyBufferProcsbf_getbufferbf_releasebuffergetbufferprocPy_bufferbufobjlenitemsizereadonlyndimformatshapestridessuboffsetsinternalreleasebufferprocunsigned longtraverseprocvisitprocrichcmpfuncgetiterfunciternextfuncPyMethodDefml_nameml_methml_flagsml_docPyCFunctionPyMemberDefnametypeoffsetflagsdocPyGetSetDefgetsetclosuregettersetterdescrgetfuncdescrsetfuncinitprocallocfuncnewfuncfreefuncvectorcallfuncsize_t__darwin_size_tunsigned charPyModuleDef_Slotslotvaluemod_methodsmod_slotsPyObjC_APIpyobjc_apiapi_versionstruct_lenregister_method_mappingobj_get_objectcls_get_classdepythonify_python_objectid_to_pythonerr_objc_to_pythonpy_to_objcobjc_to_pysizeof_typesel_get_classsel_get_selregister_pointer_wrapperunsupported_method_impunsupported_method_callererr_python_to_objc_gilsimplify_sigfree_c_arraypy_to_c_arrayc_array_to_pyimp_typeimp_get_impimp_get_selnewtransientreleasetransientpyobjc_nulldep_c_array_countvarlistnewpyobjcobject_convertregister_id_aliasmemview_checkmemview_newmemview_getbuffercheckargcountchecknokwnamescreateopaquepointertypeRegisterMethodMappingFunctionTypeClassobjc_classSELobjc_selectorIMPidobjc_objectisaNSObjectPyGILState_STATEPyGILState_LOCKEDPyGILState_UNLOCKEDBOOL_BoolOC_CopyBaseintValOC_CopyFails+[OC_CopyHelper doCopySetup:]doCopySetup:OC_CopyHelperself_cmdaClasstmpretval+[OC_CopyHelper newObjectOfClass:]newObjectOfClass:-[OC_CopyBase init]init-[OC_CopyBase initWithInt:]initWithInt:-[OC_CopyBase intVal]-[OC_CopyBase setIntVal:]setIntVal:val-[OC_CopyBase copyWithZone:]copyWithZone:zoneNSCopyObjectNSUIntegerNSZone_NSZone-[OC_CopyFails copy]copy-[OC_CopyFails copyWithZone:]PyInit_copyingPyModuleDef_InitPyObjC_ImportAPIcalling_modulePy_INCREFopcur_refcntnew_refcntmod_exec_modulemPyCapsule_ImportPyErr_FormatPyModule_AddObjectinstancetypeHSAH����HSAH	�����5�D��\ @�|eǟ9��|9�[��9Ng�13�w�J��yҰ�*Ff-a�ܾ�c�7���6��2����L��	���?=��D�
+j�&+6N"�M#,#>P�H��j��	{���Hj�I
+p�	�RUW��jH�T��j�j��	j��HT�j���HjH�]�HHr�	j��j����jHHH$]-% i�.$p%&0Hm}z'��'��(��)6�z)Y�z&xm]�'z'��'��(|�'�*�o�8)+P�)'��&�Hm� =),��)'��(�;
+=�*�oIG�,4�)'��-�oA_L+P�)'��.R�L�*�o��T)+P�)'��.R�T�/��0Q00P�P0R�R1�W��j
+�����*�o�[.'�7'��*oK�`.'�7'��2�`�3o�j4�1&(j��V
+57��2H�j6Wp7apj8d��8o��9lmzj�(m�jj:�l	;�<���=c�>A�>d�?�<0Q0@��Ae�?�0P�Ae? 0P�Ad<?P0P�1�3�H�1��jjHB1�3�jHj���%�|���$>$>4I:;:;I:;8I:;I:;8	:;
+I!I7I:;I:;8:;&II:;'II'I:;(:;I'I<'I8:;� I:;82!&"I:;#($�:;�%I8&.@dz:;'I�'I4(:;I)4:;I*.�@dz:;'I�+I4,I4-.�@dz:;'�.:;I/H��0I~1.:;'I<?�2:;I3.�@z:;'I?�4H��5.:;'I� 6.:;'� 7:;I84:;I9.@z:;'I�:1UXYW;1<1XYW=1>41?H}@H}AH�}BApple clang version 21.0.0 (clang-2100.1.1.101)Modules/objc/test/copying.m/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdkMacOSX26.5.sdk/Users/ronald/Projects/pyobjc/pyobjc-corechar__ARRAY_SIZE_TYPE__mod_modulePyModuleDefm_basem_namem_docm_sizem_methodsm_slotsm_traversem_clearm_freePyModuleDef_Baseob_basem_initm_indexm_copyPyObject_objectob_refcntob_refcnt_splitob_typePy_ssize_tssize_t__darwin_ssize_tlonguint32_tunsigned intPyTypeObject_typeobjecttp_nametp_basicsizetp_itemsizetp_dealloctp_vectorcall_offsettp_getattrtp_setattrtp_as_asynctp_reprtp_as_numbertp_as_sequencetp_as_mappingtp_hashtp_calltp_strtp_getattrotp_setattrotp_as_buffertp_flagstp_doctp_traversetp_cleartp_richcomparetp_weaklistoffsettp_itertp_iternexttp_methodstp_memberstp_getsettp_basetp_dicttp_descr_gettp_descr_settp_dictoffsettp_inittp_alloctp_newtp_freetp_is_gctp_basestp_mrotp_cachetp_subclassestp_weaklisttp_deltp_version_tagtp_finalizetp_vectorcalltp_watchedPyVarObjectob_sizedestructorgetattrfuncsetattrfuncintPyAsyncMethodsam_awaitam_aiteram_anextam_sendunaryfuncsendfuncPySendResultPYGEN_RETURNPYGEN_ERRORPYGEN_NEXTreprfuncPyNumberMethodsnb_addnb_subtractnb_multiplynb_remaindernb_divmodnb_powernb_negativenb_positivenb_absolutenb_boolnb_invertnb_lshiftnb_rshiftnb_andnb_xornb_ornb_intnb_reservednb_floatnb_inplace_addnb_inplace_subtractnb_inplace_multiplynb_inplace_remaindernb_inplace_powernb_inplace_lshiftnb_inplace_rshiftnb_inplace_andnb_inplace_xornb_inplace_ornb_floor_dividenb_true_dividenb_inplace_floor_dividenb_inplace_true_dividenb_indexnb_matrix_multiplynb_inplace_matrix_multiplybinaryfuncternaryfuncinquiryPySequenceMethodssq_lengthsq_concatsq_repeatsq_itemwas_sq_slicesq_ass_itemwas_sq_ass_slicesq_containssq_inplace_concatsq_inplace_repeatlenfuncssizeargfuncssizeobjargprocobjobjprocPyMappingMethodsmp_lengthmp_subscriptmp_ass_subscriptobjobjargprochashfuncPy_hash_tgetattrofuncsetattrofuncPyBufferProcsbf_getbufferbf_releasebuffergetbufferprocPy_bufferbufobjlenitemsizereadonlyndimformatshapestridessuboffsetsinternalreleasebufferprocunsigned longtraverseprocvisitprocrichcmpfuncgetiterfunciternextfuncPyMethodDefml_nameml_methml_flagsml_docPyCFunctionPyMemberDefnametypeoffsetflagsdocPyGetSetDefgetsetclosuregettersetterdescrgetfuncdescrsetfuncinitprocallocfuncnewfuncfreefuncvectorcallfuncsize_t__darwin_size_tunsigned charPyModuleDef_Slotslotvaluemod_methodsmod_slotsPyObjC_APIpyobjc_apiapi_versionstruct_lenregister_method_mappingobj_get_objectcls_get_classdepythonify_python_objectid_to_pythonerr_objc_to_pythonpy_to_objcobjc_to_pysizeof_typesel_get_classsel_get_selregister_pointer_wrapperunsupported_method_impunsupported_method_callererr_python_to_objc_gilsimplify_sigfree_c_arraypy_to_c_arrayc_array_to_pyimp_typeimp_get_impimp_get_selnewtransientreleasetransientpyobjc_nulldep_c_array_countvarlistnewpyobjcobject_convertregister_id_aliasmemview_checkmemview_newmemview_getbuffercheckargcountchecknokwnamescreateopaquepointertypeRegisterMethodMappingFunctionTypeClassobjc_classSELobjc_selectorIMPidobjc_objectisaNSObjectPyGILState_STATEPyGILState_LOCKEDPyGILState_UNLOCKEDBOOL_BoolOC_CopyBaseintValOC_CopyFails+[OC_CopyHelper doCopySetup:]doCopySetup:OC_CopyHelperself_cmdaClasstmpretval+[OC_CopyHelper newObjectOfClass:]newObjectOfClass:-[OC_CopyBase init]init-[OC_CopyBase initWithInt:]initWithInt:-[OC_CopyBase intVal]-[OC_CopyBase setIntVal:]setIntVal:val-[OC_CopyBase copyWithZone:]copyWithZone:zoneNSCopyObjectNSUIntegerNSZone_NSZone-[OC_CopyFails copy]copy-[OC_CopyFails copyWithZone:]PyInit_copyingPyModuleDef_InitPyObjC_ImportAPIcalling_modulePy_INCREFopcur_refcntnew_refcntmod_exec_modulemPyCapsule_ImportPyErr_FormatPyModule_AddObjectinstancetypeHSAH����HSAH	�����5�D��\ @�|eǟ9��|9�[��9Ng�13�w�J��yҰ�*Ff-a�ܾ�c�7���6��2����L��	���?=��D�
 Q�
 ��g3f(8HXhx��������(<L\l|��W4A
-I
-��_(M
-j
-<�z�I���7y(}
-��
-��. ��c.i
-�W
-�
-�
-@iA�c�
-@HSAH)R	
-����!#&)*,0369;<A��������B����C��������E����F����L��.\C6�ϒ��&�c �|K���ە��*��%)�5�������](�N�*�H	�A�=,	���De3��s����jڥf��wΒ�I��nx/��ɻ�=�T,���r���/�7�(�0��u�Ps�p�~>�Ԝ����\wt�F�H�.����LgU�יs��{4����r��P���%㊰d�ȹhv�2xY����K�:ɰ��p{H�[s�ܶ��J䥮�\,8ډ�4�3�N��8�͓<�r�����|5/�|�����ұ���]�S�^B��yq�觟��Sؠ���܆��M�q�s� ;�;���qy�`w�����:Qh�����+BYp������(?Vm�����
-$;Ri������ 7Ne|�����		4	K	b	y	�	�	�	�	�	
+I��_(M
+j<�z�I���7y(}����. ��c.i�W
+��@iA�c�@HSAH)R	����!#&)*,0369;<A��������B����C��������E����F����L��.\C6�ϒ��&�c �|K���ە��*��%)�5�������](�N�*�H	�A�=,	���De3��s����jڥf��wΒ�I��nx/��ɻ�=�T,���r���/�7�(�0��u�Ps�p�~>�Ԝ����\wt�F�H�.����LgU�יs��{4����r��P���%㊰d�ȹhv�2xY����K�:ɰ��p{H�[s�ܶ��J䥮�\,8ډ�4�3�N��8�͓<�r�����|5/�|�����ұ���]�S�^B��yq�觟��Sؠ���܆��M�q�s� ;�;���qy�`w�����:Qh�����+BYp������(?Vm�����$;Ri������ 7Ne|�����		4	K	b	y	�	�	�	�	�	
 
 1
 H
@@ -4376,34 +4160,19 @@ v
 �
 �
 ���9��"!Y�l�s'
-�)פ��3$W�{�
-+?`Ű�T��M�	9�_0
-Vw`��w`�����9	)����_Z����N
+�)פ��3$W�{�+?`Ű�T��M�	9�_0Vw`��w`�����9	)����_Z����N
 �2���/��u��%�	�}^~D�}^~D��F��	]pt_�q
 Y�s�j�	�s�;o��b�Mb
-�
-��a�{�>c	cA�)��x}4 �T=�	�
-+�O]�	~/���
-1��4���1R	�܈W
-�$dřV	?��ebk�$�(:b	O飍Z飍
-#mM�*	�
+���a�{�>c	cA�)��x}4 �T=�	�
++�O]�	~/���1��4���1R	�܈W�$dřV	?��ebk�$�(:b	O飍Z飍#mM�*	�
 ��1��1�	E9�˯yP��^HRh�_E�j<Mk�
 ��6A�	�
 ط?q�	Q��*|�=�a˶u�ǧP`��7���7쟥	�D��j	�
 ���D%
-
-X���(
-X����X��N��&�}|��v�R/�������<$cJ$F	o| ��:$σH��K����;	X�a��.P���	��L��H˞�j�J��x��$����j
-$���R
-�Ri��u$)怓�`tO_��F�#��s��Q����
-��6Soz�]
-�@��3�	�����
-
-$q���	������^�zx�	��Ŝp
-��Ű���*x��ݏ�HSAH�����觟1�7 ;�Ddx]
-��(c�
-�@p
-�.
+X���(X����X��N��&�}|��v�R/�������<$cJ$F	o| ��:$σH��K����;	X�a��.P���	��L��H˞�j�J��x��$����j
+$���R�Ri��u$)怓�`tO_��F�#��s��Q����
+��6Soz�]�@��3�	�����
+$q���	������^�zx�	��Ŝp��Ű���*x��ݏ�HSAH�����觟1�7 ;�Ddx]��(c��@p�.
 
 ========================================================================
 pyobjc-framework-Cocoa 12.2.2  (MIT)

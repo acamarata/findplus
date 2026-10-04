@@ -128,7 +128,6 @@ def test_the_lock_is_reentrant_in_one_thread(tmp_path: Path) -> None:
 def test_the_patched_vendor_hook_goes_through_the_atomic_store(tmp_path: Path, monkeypatch) -> None:
     """set_cached_value (what the vendor calls) lands in the state dir via set_value."""
     monkeypatch.setenv("FINDPLUS_STATE_DIR", str(tmp_path))
-    from findplus.config import get_settings
     from findplus.providers.google_findhub import bootstrap
 
     calls: list[tuple[str, object]] = []

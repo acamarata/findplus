@@ -6,6 +6,8 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.3] - 2026-10-04
+
 ### Fixed
 - The Mac app could not save a person or a group: every save failed with a server error because
   the app's background service shipped without its icon table. Accepting suggested people, the

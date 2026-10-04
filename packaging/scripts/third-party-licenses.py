@@ -28,6 +28,8 @@ ROOT_DIST = "findplus"
 EXTRAS = ("bundle", "apple")
 LICENSE_FILE = re.compile(r"(^|/)(LICEN[CS]E|COPYING|NOTICE)[^/]*$", re.IGNORECASE)
 DEFAULT_OUT = "desktop/src-tauri/notices/THIRD-PARTY-NOTICES.txt"
+# Upstream licence texts for packages whose wheels ship none (packaging/licenses/<name>.txt).
+OVERRIDES = Path(__file__).resolve().parent.parent / "licenses"
 
 HEADER = """Find+ third-party notices
 =========================
@@ -101,6 +103,9 @@ def licence_text(dist: metadata.Distribution) -> str:
             if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
                 return raw.decode("utf-16", errors="replace").strip()
             return raw.replace(b"\x00", b"").decode("utf-8", errors="replace").strip()
+    override = OVERRIDES / f"{dist.metadata['Name']}.txt"
+    if override.is_file():
+        return override.read_text(encoding="utf-8").strip()
     return "(no licence file in the installed package; see the project page)"
 
 

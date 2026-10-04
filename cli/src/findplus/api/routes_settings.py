@@ -88,13 +88,33 @@ def _apply_writes(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
-def _pin_change_allowed(request: Request, session, current_pin: str | None) -> None:
+def _prove_current_pin(sessions: SessionStore, existing, pin: str | None) -> None:
+    """The throttled current-PIN proof every PIN route shares (pin/check, change, remove).
+
+    Same escalating lockout as POST /api/unlock (security.SessionStore): five wrong
+    PINs open a 60 s lockout that doubles each time, answered 429 with the wait.
+    A right PIN clears the count. Raises 429 or 403; returns nothing on success.
+    """
+    wait = sessions.seconds_until_retry()
+    if wait > 0:
+        raise HTTPException(
+            status_code=429, detail=f"Too many incorrect attempts. Try again in {wait:.0f} seconds."
+        )
+    if verify_pin(pin or "", existing.pin_salt or "", existing.pin_hash or ""):
+        sessions.clear_failures()
+        return
+    sessions.record_failure()
+    raise HTTPException(status_code=403, detail="Current PIN is incorrect.")
+
+
+def _pin_change_allowed(
+    request: Request, session, current_pin: str | None, sessions: SessionStore
+) -> None:
     """Prove the caller may rewrite the PIN: the current PIN, or a first-time
-    same-origin POST. Raises 403; returns nothing on success."""
+    same-origin POST. Raises 403 (429 when throttled); returns nothing on success."""
     existing = load_settings(session)
     if existing.pin_configured:
-        if not verify_pin(current_pin or "", existing.pin_salt or "", existing.pin_hash or ""):
-            raise HTTPException(status_code=403, detail="Current PIN is incorrect.")
+        _prove_current_pin(sessions, existing, current_pin)
     else:
         problem = same_origin_problem(request)
         if problem is not None:
@@ -199,7 +219,7 @@ def _register_set_pin_route(
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         with session_scope() as session:
-            _pin_change_allowed(request, session, current_pin)
+            _pin_change_allowed(request, session, current_pin, sessions)
             try:
                 salt, digest = hash_pin(new_pin)
             except ValueError as exc:
@@ -235,8 +255,7 @@ def _register_remove_pin_route(router: APIRouter, *, sessions: SessionStore) -> 
             existing = load_settings(session)
             if not existing.pin_configured:
                 return existing.public()
-            if not verify_pin(current_pin, existing.pin_salt or "", existing.pin_hash or ""):
-                raise HTTPException(status_code=403, detail="Current PIN is incorrect.")
+            _prove_current_pin(sessions, existing, current_pin)
             clear_pin(session)
             updated = load_settings(session)
         sessions.revoke_all()
@@ -244,7 +263,7 @@ def _register_remove_pin_route(router: APIRouter, *, sessions: SessionStore) -> 
         return updated.public()
 
 
-def _register_check_pin_route(router: APIRouter) -> None:
+def _register_check_pin_route(router: APIRouter, *, sessions: SessionStore) -> None:
     @router.post("/pin/check")
     def check_pin(current_pin: str = Body(..., embed=True)) -> dict[str, bool]:
         """Say whether `current_pin` is the PIN, changing nothing.
@@ -259,10 +278,8 @@ def _register_check_pin_route(router: APIRouter) -> None:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         with session_scope() as session:
             existing = load_settings(session)
-            if existing.pin_configured and not verify_pin(
-                current_pin, existing.pin_salt or "", existing.pin_hash or ""
-            ):
-                raise HTTPException(status_code=403, detail="Current PIN is incorrect.")
+            if existing.pin_configured:
+                _prove_current_pin(sessions, existing, current_pin)
         return {"ok": True}
 
 
@@ -276,7 +293,7 @@ def build_router(*, sessions: SessionStore, session_cookie: str, sync_idle_timeo
         sync_idle_timeout=sync_idle_timeout,
     )
     _register_remove_pin_route(router, sessions=sessions)
-    _register_check_pin_route(router)
+    _register_check_pin_route(router, sessions=sessions)
     register_key_routes(router)
     register_backup_routes(router)
     return router

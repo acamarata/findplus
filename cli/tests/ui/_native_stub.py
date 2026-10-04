@@ -41,6 +41,7 @@ BRIDGE_JS = """
         return args && args.provider === "apple" ? "apple_sheet" : shell.result;
       }
       if (cmd === "close_signin_window") return "closed";
+      if (cmd === "webview_ready") return null;
       if (cmd === "request_notification_permission") return "granted";
       throw new Error("unknown command " + cmd);
     },

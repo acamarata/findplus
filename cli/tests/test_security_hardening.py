@@ -235,12 +235,14 @@ def test_the_token_store_is_created_private(
 
 
 def test_set_and_harden_precreates_the_store() -> None:
-    """The shipped hook must create the store before delegating upstream.
+    """The shipped hook must write through the atomic store, never the vendor's in-place write.
 
     Behaviour of _ensure_secrets_file itself (valid JSON, 0600, repair of an
-    empty file) lives in providers/test_google_secrets_store.py.
+    empty file) lives in providers/test_google_secrets_store.py; the atomic write
+    and the cross-process lock in providers/test_google_secrets_atomic.py.
     """
     from findplus.providers.google_findhub import bootstrap
 
     hook = Path(bootstrap.__file__).read_text(encoding="utf-8").split("def _set_and_harden")[1]
-    assert hook.index("_ensure_secrets_file(") < hook.index("_original_set(")
+    assert "secrets_store.set_value(" in hook
+    assert "_original_set" not in hook

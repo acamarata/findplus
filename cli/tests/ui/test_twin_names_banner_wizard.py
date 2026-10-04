@@ -21,8 +21,13 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 async def test_poll_banner_names_the_twins_apart(page, base_url, ui_db, ui_env):
     with roster17(ui_db, ui_env, tracked=10):
         feed = await feed_for(page, base_url)
+        # Every device gets a run in this cycle: a real failed run an earlier test
+        # left on another tracker would otherwise win the banner (CI order).
+        statuses = {"R17-00": ("no_location", 0), "R17-01": ("no_location", 0)}
+        for device in feed.real["devices"]:
+            statuses.setdefault(device["device_id"], ("ok", 0))
         feed.cycle(
-            {"R17-00": ("no_location", 0), "R17-01": ("no_location", 0), "R17-05": ("ok", 0)},
+            statuses,
             400,
             observations_today=0,
             observations_total=0,

@@ -6,6 +6,20 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- The Mac app could not save a person or a group: every save failed with a server error because
+  the app's background service shipped without its icon table. Accepting suggested people, the
+  setup wizard's group step and the group dialog all work again.
+- Polling no longer stops for good after a few failed connections to Google's push service.
+  Find+ starts the push connection again on the next poll; before, every poll waited 90 seconds
+  and failed until the app was restarted.
+- Each poll used to leave a listener behind, so a long-running app slowly did more work for
+  every location answer. Each poll now removes its own.
+
+### Technical
+- `findplus selfcheck` checks the icon table, and `release-local.sh` runs selfcheck on the frozen
+  sidecar, so a dmg missing bundled data fails the build instead of shipping.
+
 ## [1.2.2] - 2026-10-04
 
 ### Fixed

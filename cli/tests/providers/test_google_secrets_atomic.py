@@ -107,8 +107,8 @@ def test_two_processes_never_drop_a_key_and_a_reader_never_sees_a_partial_file(
     partial = 0
     while any(p.poll() is None for p in procs):
         try:
-            json.loads(path.read_text())
-        except json.JSONDecodeError:
+            secrets_store.read_object(path)  # retries Windows' mid-replace refusal
+        except ValueError:  # JSONDecodeError or not an object: a partial file
             partial += 1
     for p in procs:
         assert p.wait(timeout=60) == 0

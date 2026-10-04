@@ -137,10 +137,22 @@ def _replace(src: Path, dst: Path) -> None:
             time.sleep(0.05)
 
 
+def _read_text(path: Path) -> str:
+    """read_text, retried briefly: Windows refuses to open a file mid-os.replace."""
+    for attempt in range(20):
+        try:
+            return path.read_text(encoding="utf-8")
+        except PermissionError:
+            if os.name != "nt" or attempt == 19:
+                raise
+            time.sleep(0.05)
+    raise AssertionError("unreachable")  # pragma: no cover
+
+
 def read_object(path: Path) -> dict[str, object]:
     """The stored JSON object. Missing -> {}. Corrupt or non-object -> raises ValueError."""
     try:
-        text = path.read_text(encoding="utf-8")
+        text = _read_text(path)
     except FileNotFoundError:
         return {}
     if not text.strip():

@@ -36,7 +36,7 @@ MSG_OPEN_FAILED = (
 
 
 MSG_NO_CHROME = (
-    "Google Chrome was not found on this computer, and the Find+ helper works in Chrome "
+    "Chrome is not installed on this computer, and the Find+ helper works in Chrome "
     'only. Open "More ways to sign in" below and use the Find+ window or the paste steps.'
 )
 

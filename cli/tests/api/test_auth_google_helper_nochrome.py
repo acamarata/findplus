@@ -38,7 +38,7 @@ def test_begin_without_chrome_is_a_409_with_plain_words(
     res = auth_client.post(f"/api/auth/google/helper/{route}", headers=SAME_ORIGIN_HEADERS)
     assert res.status_code == 409
     detail = res.json()["detail"]
-    assert "Chrome was not found" in detail
+    assert "Chrome is not installed" in detail
     assert "More ways to sign in" in detail
     assert no_real_browser == []  # nothing was opened, not even the default browser
     assert not hs.has_states_of(frozenset({hs.KIND_SIGNIN, hs.KIND_UNLOCK}))

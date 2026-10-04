@@ -60,6 +60,9 @@ class GroupUpdate(BaseModel):
     cluster_radius_meters: int | None = None
     stale_after_minutes: int | None = None
     kind: str | None = None
+    #: Optional full replace, applied in the same transaction so a quorum change and
+    #: a member change are checked against each other, not one at a time.
+    member_ids: list[str] | None = None
 
 
 class MembersBody(BaseModel):

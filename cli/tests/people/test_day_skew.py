@@ -7,13 +7,11 @@ summary must not draw a stay or a story line from it either.
 
 from __future__ import annotations
 
-from datetime import timedelta
-
 from findplus.db.models import LocationObservation
 from findplus.db.models_people import ObservationQuality
 
 from ._day_helpers import ALL, summary, texts
-from ._helpers import DAY0, GRANDMA, HOME, Timeline, at, seed_person, seed_places
+from ._helpers import GRANDMA, HOME, Timeline, at, seed_person, seed_places
 
 
 def _quiet_home_day(session):

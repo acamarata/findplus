@@ -9,9 +9,8 @@
  * Inputs     : The dialog's `fields` object (groups_dialog_dom.js's shape)
  *              for groupBody(); a save mode, an edit id and a body dict for
  *              saveGroup().
- * Outputs    : POST /api/groups, PUT /api/groups/{id} and
- *              PUT /api/groups/{id}/members. No module state — the caller
- *              (groups_dialog.js) owns dialogEl/fields/onSaved and decides
+ * Outputs    : POST /api/groups and PUT /api/groups/{id} (members included).
+ *              No module state — the caller (groups_dialog.js) owns dialogEl/fields/onSaved and decides
  *              what to do with a resolved or rejected save.
  * Constraints: groupBody() reads fields, never writes them. saveGroup() never
  *              catches: groups_dialog.js's onSave() is the single place that
@@ -38,19 +37,16 @@ function jsonOpts(method, body) {
 }
 
 /**
- * Save, as one call on add and two on edit.
+ * Save, as one call on add and one on edit.
  *
- * GroupUpdate carries no member_ids and set_members carries nothing else, so an
- * edit is a PUT of the group followed by a PUT of its membership. The second
- * only runs if the first succeeded: a half-applied save with the error still on
- * screen beats silently writing one of the two.
+ * The edit PUT carries the member list too, so the server checks the quorum
+ * against the members that will stand after the save (a quorum of 3 with one
+ * member must not pass just because the members are written in a second call).
  */
 export async function saveGroup(mode, editId, body) {
   if (mode !== "edit") {
     await api("/api/groups", jsonOpts("POST", body));
     return;
   }
-  const { member_ids: memberIds, ...groupFields } = body;
-  await api(`/api/groups/${editId}`, jsonOpts("PUT", groupFields));
-  await api(`/api/groups/${editId}/members`, jsonOpts("PUT", { member_ids: memberIds }));
+  await api(`/api/groups/${editId}`, jsonOpts("PUT", body));
 }

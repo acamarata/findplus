@@ -8,7 +8,8 @@
  *              refresh callback to run after the edit dialog closes, and
  *              defaultChecked (UAT U15: devices.js's "nobody tracked yet"
  *              flag, so a fresh account starts every row ticked instead of
- *              every row silently unticked).
+ *              every row silently unticked) and `shown`, the row's name from
+ *              device_label.labelMap so same-named trackers differ (O11).
  * Outputs    : An Element; PATCH /api/devices/{id} on a debounced label edit.
  * Constraints: createElement and textContent only — a tracker's name comes
  *              from the provider account, so it is never written as markup.
@@ -59,7 +60,7 @@ function editButton(ctx, device, onClosed) {
   return btn;
 }
 
-function trackBox(device, defaultChecked) {
+function trackBox(device, defaultChecked, shown) {
   const track = document.createElement("input");
   track.type = "checkbox";
   // UAT U15: a device already tracked (e.g. re-entering this step) keeps its
@@ -72,7 +73,7 @@ function trackBox(device, defaultChecked) {
   // UAT7-N02: every other surface's aria-label reads the label the user
   // gave the tracker, not the raw provider name -- displayName() is the one
   // shared fallback chain (label, then name, then device_id).
-  track.setAttribute("aria-label", t("setup.devices.trackFor", { name: displayName(device) || device.device_id }));
+  track.setAttribute("aria-label", t("setup.devices.trackFor", { name: shown }));
   return track;
 }
 
@@ -87,7 +88,7 @@ function rowError() {
   return error;
 }
 
-function labelInput(ctx, device, error) {
+function labelInput(ctx, device, error, shown) {
   const label = document.createElement("input");
   label.type = "text";
   label.value = device.label || "";
@@ -97,7 +98,7 @@ function labelInput(ctx, device, error) {
   // input read as two distinct controls rather than "text field" x N.
   label.setAttribute(
     "aria-label",
-    t("setup.devices.labelFor", { name: displayName(device) || device.device_id })
+    t("setup.devices.labelFor", { name: shown })
   );
   label.addEventListener(
     "input",
@@ -114,7 +115,8 @@ function labelInput(ctx, device, error) {
   return label;
 }
 
-export function deviceRow(ctx, device, onClosed, defaultChecked) {
+export function deviceRow(ctx, device, onClosed, defaultChecked, shownName) {
+  const shown = shownName || displayName(device) || device.device_id;
   const row = document.createElement("div");
   // fp-setup-device-row: this row has five children (track, badge, name,
   // label input, edit button), not the simple label+control pair the
@@ -137,13 +139,13 @@ export function deviceRow(ctx, device, onClosed, defaultChecked) {
     })
   );
   const name = document.createElement("span");
-  name.textContent = displayName(device) || device.device_id;
+  name.textContent = shown;
   const error = rowError();
   row.append(
-    trackBox(device, defaultChecked),
+    trackBox(device, defaultChecked, shown),
     badge,
     name,
-    labelInput(ctx, device, error),
+    labelInput(ctx, device, error, shown),
     editButton(ctx, device, onClosed)
   );
   // N45: the error sits below the row (its own line), not inside the flex

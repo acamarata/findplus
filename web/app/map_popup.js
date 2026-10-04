@@ -21,22 +21,24 @@ export function popupHtml(point, deviceName) {
     `<div>${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}</div>`,
   ];
   if (point.accuracy_meters != null) {
-    const rough = point.accuracy_meters >= 100 ? ` (${esc(t("timeline.roughFix"))})` : "";
-    rows.push(`<div>Accuracy ~${Math.round(point.accuracy_meters)} m${rough}</div>`);
+    const meters = Math.round(point.accuracy_meters);
+    const rough = point.accuracy_meters >= 100;
+    const text = rough ? t("map.popup.accuracyRough", { meters, rough: t("timeline.roughFix") }) : t("map.popup.accuracy", { meters });
+    rows.push(`<div>${esc(text)}</div>`);
   } else {
     // Apple Find My never reports a metres figure (CF-P2-6): say so plainly
     // instead of just omitting the line, which could read as "exact".
     rows.push(`<div>${esc(t("timeline.accuracyUnknown"))}</div>`);
   }
   if (point.seconds_since_previous !== null) {
-    rows.push(`<div>${fmtDuration(point.seconds_since_previous)} since previous observation</div>`);
+    rows.push(`<div>${esc(t("map.popup.sincePrevious", { duration: fmtDuration(point.seconds_since_previous) }))}</div>`);
   }
   const dist = fmtDistance(point.meters_from_previous);
-  if (dist) rows.push(`<div>${dist} from previous observation</div>`);
-  if (point.source) rows.push(`<div class="fp-popup-meta">Report: ${esc(point.source)}</div>`);
+  if (dist) rows.push(`<div>${esc(t("map.popup.fromPrevious", { distance: dist }))}</div>`);
+  if (point.source) rows.push(`<div class="fp-popup-meta">${esc(t("map.popup.report", { source: point.source }))}</div>`);
   if (!point.is_movement && point.seconds_since_previous !== null) {
-    rows.push(`<div class="fp-popup-meta">Below movement threshold</div>`);
+    rows.push(`<div class="fp-popup-meta">${esc(t("map.popup.belowThreshold"))}</div>`);
   }
-  rows.push(`<div class="fp-popup-retrieved">Retrieved ${fmtDateTime(point.fetched_at)}</div>`);
+  rows.push(`<div class="fp-popup-retrieved">${esc(t("map.popup.retrieved", { time: fmtDateTime(point.fetched_at) }))}</div>`);
   return rows.join("");
 }

@@ -20,6 +20,7 @@ import datetime
 from sqlalchemy import text
 
 from findplus.alerts.dispatch_core import DeviceEvent, GroupEvent, Rule, as_utc, match
+from findplus.device_labels import unique_names
 from findplus.groups.quorum import group_event_note, stale_note_for_count
 
 _DEVICE_SQL = """SELECT pe.id, pe.place_id, p.name AS place_name, pe.device_id,
@@ -38,13 +39,14 @@ WHERE gpe.observed_at >= :since"""
 
 
 def _device_events(session, since: datetime.datetime) -> list[DeviceEvent]:
+    shown = unique_names(session)
     return [
         DeviceEvent(
             place_event_id=r.id,
             place_id=r.place_id,
             place_name=r.place_name,
             device_id=r.device_id,
-            device_name=r.device_name,
+            device_name=shown.get(r.device_id, r.device_name),
             event_type=r.event_type,
             observed_at=as_utc(r.observed_at),
             fetched_at=as_utc(r.fetched_at),

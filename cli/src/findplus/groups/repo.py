@@ -40,7 +40,7 @@ from findplus.groups.presence import (
     member_status,
 )
 from findplus.groups.timeline import list_group_timeline  # re-exported, see timeline.py
-from findplus.groups.validation import clean_name, validate_group_fields
+from findplus.groups.validation import check_quorum_fits, clean_name, validate_group_fields
 
 
 def list_groups(session: Session) -> list[Group]:
@@ -104,6 +104,7 @@ def create_group(
     if _name_taken(session, name):
         raise ValueError(f"group name {name!r} already exists")
     member_ids = check_member_ids(session, member_ids or [])
+    check_quorum_fits(quorum, len(member_ids))
     check_one_person(session, None, kind, member_ids)
     group = Group(
         name=name,
@@ -134,9 +135,19 @@ def update_group(session: Session, group_id: int, **fields) -> Group:
         stale_after_minutes=fields.get("stale_after_minutes"),
         icon=fields.get("icon"),
     )
-    if validate_kind(fields.get("kind")) is not None:
+    new_members = fields.pop("member_ids", None)
+    if new_members is not None:
+        new_members = check_member_ids(session, new_members)
+    members = new_members
+    if members is None:
         members = [m["device_id"] for m in _members_of(session, group_id)]
-        check_one_person(session, group_id, fields["kind"], members)
+    kind = validate_kind(fields.get("kind"))
+    if kind is not None or new_members is not None:
+        check_one_person(session, group_id, kind or group.kind, members)
+    # The quorum that will stand after this save, against the members that will stand.
+    # A legacy row that already breaks it stays editable until quorum or members change.
+    if fields.get("quorum") is not None or new_members is not None:
+        check_quorum_fits(fields.get("quorum") or group.quorum, len(members))
     if fields.get("name") is not None:
         # Name rules apply only to a name that actually changes: a legacy group
         # (case-variant twin, over 64 chars) must stay editable when the dialog
@@ -150,6 +161,8 @@ def update_group(session: Session, group_id: int, **fields) -> Group:
     for key, value in fields.items():
         if value is not None:
             setattr(group, key, value)
+    if new_members is not None:
+        _replace_members(session, group_id, new_members)
     flush_checked(session)
     group._members = _members_of(session, group.id)
     return group
@@ -163,17 +176,22 @@ def delete_group(session: Session, group_id: int) -> None:
     session.flush()
 
 
-def set_members(session: Session, group_id: int, member_ids: list[str]) -> Group:
-    group = session.get(Group, group_id)
-    if group is None:
-        raise ValueError(f"group {group_id} not found")
-    member_ids = check_member_ids(session, member_ids)
-    check_one_person(session, group_id, group.kind, member_ids)
+def _replace_members(session: Session, group_id: int, member_ids: list[str]) -> None:
     session.query(DeviceGroup).filter(DeviceGroup.group_id == group_id).delete(
         synchronize_session=False
     )
     for device_id in member_ids:
         session.add(DeviceGroup(device_id=device_id, group_id=group_id))
+
+
+def set_members(session: Session, group_id: int, member_ids: list[str]) -> Group:
+    group = session.get(Group, group_id)
+    if group is None:
+        raise ValueError(f"group {group_id} not found")
+    member_ids = check_member_ids(session, member_ids)
+    check_quorum_fits(group.quorum, len(member_ids))
+    check_one_person(session, group_id, group.kind, member_ids)
+    _replace_members(session, group_id, member_ids)
     flush_checked(session)
     group._members = _members_of(session, group.id)
     return group

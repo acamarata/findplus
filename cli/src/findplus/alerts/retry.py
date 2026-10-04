@@ -86,12 +86,15 @@ def _load_event(session, kind: str, event_id: int):
     row = session.execute(text(_DEVICE_EVENT_SQL), {"id": event_id}).first()
     if row is None:
         return None
+    from findplus.device_labels import unique_names
+
+    shown = unique_names(session)
     return DeviceEvent(
         place_event_id=row.id,
         place_id=row.place_id,
         place_name=row.place_name,
         device_id=row.device_id,
-        device_name=row.device_name,
+        device_name=shown.get(row.device_id, row.device_name),
         event_type=row.event_type,
         observed_at=as_utc(row.observed_at),
         fetched_at=as_utc(row.fetched_at),

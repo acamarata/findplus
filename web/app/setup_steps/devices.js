@@ -27,6 +27,7 @@
 
 import { plural, t } from "../i18n.js";
 import { deviceRow } from "./_device_row.js";
+import { labelMap } from "../device_label.js";
 import { confirmDialog } from "../components/confirm-dialog.js";
 import { anyProviderSignedIn } from "../poll_status.js";
 
@@ -82,8 +83,10 @@ function renderRows(ctx, devices) {
   // already has some devices tracked keeps each row's own state instead.
   const noneTrackedYet = !devices.some((d) => d.is_tracked);
   const reload = () => refresh(ctx).catch(() => {});
+  // O11: every row of this list is shown, so same-named trackers get an id tail.
+  const labels = labelMap(devices);
   devices.forEach((device) =>
-    els.list.append(deviceRow(ctx, device, reload, noneTrackedYet))
+    els.list.append(deviceRow(ctx, device, reload, noneTrackedYet, labels.get(device.device_id)))
   );
   updateCount();
 }

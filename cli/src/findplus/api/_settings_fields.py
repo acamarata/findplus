@@ -23,6 +23,8 @@ from findplus.state import get_setting, set_setting
 from ._settings_backup import backup_fields
 from ._settings_digest import WIRE_KEY as _DIGEST_KEY
 from ._settings_digest import digest_field
+from ._settings_routing import WIRE_KEY as _ROUTING_KEY
+from ._settings_routing import routing_field
 from ._settings_update import update_fields
 
 #: The wire key whose explicit null means "keep history forever".
@@ -88,6 +90,7 @@ def _settings_body(session) -> dict[str, Any]:
         "history.retention_days": None if settings.retention_days == 0 else settings.retention_days,
         **backup_fields(settings),
         _DIGEST_KEY: digest_field(session),
+        _ROUTING_KEY: routing_field(session),
         "alerts.native_detail": get_setting(session, "alerts.native_detail", "0") == "1",
         **update_fields(session),
         # Appended after public(), never merged into the AppSettings dataclass,

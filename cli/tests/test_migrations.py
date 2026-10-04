@@ -75,14 +75,16 @@ def test_unique_constraint_on_observation_identity_exists(tmp_path: Path) -> Non
 def test_downgrade_removes_tables(tmp_path: Path) -> None:
     from alembic import command
 
-    from findplus.db.migrate import _config
+    from findplus.db.migrate import _config, fk_disabled
 
     get_engine.cache_clear()
     url = _url(tmp_path)
     upgrade_to_head(url)
     cfg = _config(url)
     engine = get_engine(url)
-    with engine.begin() as conn:
+    # Like the upgrade runner: foreign keys off before the transaction starts (0013's
+    # downgrade rebuilds alert_rules and refuses to run with them on).
+    with engine.connect() as conn, fk_disabled(conn), conn.begin():
         cfg.attributes["connection"] = conn
         command.downgrade(cfg, "base")
     tables = _names(tmp_path / "m.sqlite", "table")

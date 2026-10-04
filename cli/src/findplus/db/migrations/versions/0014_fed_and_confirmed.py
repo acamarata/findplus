@@ -39,7 +39,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    with op.batch_alter_table("person_place_states") as batch:
-        batch.drop_column("confirmed_at")
-    with op.batch_alter_table("observation_quality") as batch:
-        batch.drop_column("fed_at")
+    # Plain DROP COLUMN (SQLite 3.35+), not a batch rebuild: a rebuild opens a
+    # transaction, and 0013's downgrade must still be able to turn foreign keys off.
+    op.drop_column("person_place_states", "confirmed_at")
+    op.drop_column("observation_quality", "fed_at")

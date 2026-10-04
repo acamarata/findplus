@@ -143,3 +143,11 @@ def test_the_patched_vendor_hook_goes_through_the_atomic_store(tmp_path: Path, m
     bootstrap._patch_token_cache(fake)
     fake.set_cached_value("aas_token", "tok")
     assert calls == [("aas_token", "tok")]
+    assert json.loads((tmp_path / "secrets.json").read_text()) == {"aas_token": "tok"}
+
+    # Whatever rebinds the module's own path resolver is honoured, as upstream's
+    # write was: the hook follows `_get_secrets_file`, not a fixed settings path.
+    elsewhere = tmp_path / "elsewhere.json"
+    fake._get_secrets_file = lambda: str(elsewhere)
+    fake.set_cached_value("username", "kid@example.com")
+    assert json.loads(elsewhere.read_text()) == {"username": "kid@example.com"}

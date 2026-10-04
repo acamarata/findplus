@@ -71,7 +71,9 @@ def _patch_token_cache(token_cache: Any) -> None:
         # temp file in the 0700 dir at 0600, fsync, os.replace, under a cross-process
         # lock (see secrets_store). A CLI `auth` run and the daemon can no longer
         # drop each other's key, and a reader never sees half a file.
-        path = get_settings().secrets_file
+        # The path comes from the module's own resolver (ours above), not straight
+        # from settings, so anything that rebinds it (a test, a tool) is honoured.
+        path = Path(token_cache._get_secrets_file())
         with _store_lock:
             secrets_store.set_value(path, name, value)
 

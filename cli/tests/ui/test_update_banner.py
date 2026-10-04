@@ -68,7 +68,8 @@ async def test_the_app_offers_restart_to_update_and_asks_the_shell(page, base_ur
     assert "Find+ 1.3.0 is ready." in await banner.inner_text()
     await page.click("#fp-update-restart")
     await page.get_by_text("Installing. Find+ restarts in a moment.").wait_for()
-    assert await page.evaluate("window.__fpCalls") == ["apply_update"]
+    calls = await page.evaluate("window.__fpCalls")
+    assert [c for c in calls if c != "webview_ready"] == ["apply_update"]
 
 
 async def test_later_hides_it(page, base_url):

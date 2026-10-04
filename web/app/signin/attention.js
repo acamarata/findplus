@@ -11,7 +11,8 @@
  *              sheet). It also follows the shell's `auth-attention` and
  *              `signin-apple-sheet` events.
  * Inputs     : provider_health rows; the shell's events (native_bridge.js).
- * Outputs    : attentionNotice(), fixSignin(), listenForAttention().
+ * Outputs    : attentionNotice(), fixSignin(), listenForAttention(),
+ *              normalizeAttention() (daemon and shell vocabularies in one).
  * Constraints: Never acts while the app is locked: the lock screen comes
  *              first, and the banner is purged with everything else.
  */
@@ -19,16 +20,34 @@
 
 import { t } from "../i18n.js";
 import { state } from "../state.js";
-import { listenNative } from "./native_bridge.js";
+import { listenNative, webviewReady } from "./native_bridge.js";
 
 export const GOOGLE = "google-find-hub";
 export const APPLE = "apple-find-my";
 
+/**
+ * One vocabulary for "this provider needs the person". The daemon says
+ * "reauth" / "unlock" / "none"; the desktop shell's `auth-attention` event says
+ * "signin" / "unlock" / null. Both come out as "reauth", "unlock" or "none".
+ * Anything else (including a missing value) is "none".
+ */
+export function normalizeAttention(value) {
+  if (value === "signin" || value === "reauth") return "reauth";
+  if (value === "unlock") return "unlock";
+  return "none";
+}
+
+/** A shell `auth-attention` payload ({google, apple}) in the daemon's words. */
+export function normalizeAttentionPayload(payload) {
+  const body = payload && typeof payload === "object" ? payload : {};
+  return { google: normalizeAttention(body.google), apple: normalizeAttention(body.apple) };
+}
+
 /** The banner for the first provider that needs the person, or null. */
 export function attentionNotice(rows) {
   for (const row of rows || []) {
-    const kind = row && row.attention;
-    if (!kind || kind === "none") continue;
+    const kind = normalizeAttention(row && row.attention);
+    if (kind === "none") continue;
     const provider = row.name || row.id;
     if (provider === GOOGLE && kind === "unlock") {
       return { provider, kind, message: t("signin.attention.googleUnlock"),
@@ -65,7 +84,12 @@ export async function fixSignin(provider, kind) {
  * Follow the shell: the tray or a deep link asked for the Apple sheet, or a
  * provider's attention changed (`onChange` re-reads the status banner).
  */
-export function listenForAttention(onChange) {
-  listenNative("signin-apple-sheet", () => fixSignin(APPLE, "reauth"));
-  listenNative("auth-attention", () => onChange());
+export async function listenForAttention(onChange) {
+  await Promise.all([
+    listenNative("signin-apple-sheet", () => fixSignin(APPLE, "reauth")),
+    // onChange gets the payload in the daemon's words (normalizeAttentionPayload).
+    listenNative("auth-attention", (payload) => onChange(normalizeAttentionPayload(payload))),
+  ]);
+  // Both listeners are in: let the shell replay what it kept while the page loaded.
+  await webviewReady();
 }

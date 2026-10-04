@@ -44,6 +44,13 @@ findplus config set port 8648
 findplus restart
 ```
 
+Port 8647 is part of two trust checks, so a different port has limits. The
+Find+ app only lets the dashboard on 127.0.0.1:8647 call it, so the in-app
+Google sign-in window and Restart to update stop working. The Chrome helper
+only talks to port 8647, so its one-click sign-in stops working too. Paste
+sign-in and everything else in the dashboard keep working. Free port 8647 when
+you can and switch back.
+
 ## 5. Gatekeeper blocks Find+.app
 
 macOS refuses to open the app because it is not notarised through the Mac

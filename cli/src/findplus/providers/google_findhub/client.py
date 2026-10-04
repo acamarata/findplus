@@ -29,6 +29,7 @@ from findplus.logging_setup import get_logger
 
 from .bootstrap import ensure_gfmt_importable, has_google_session
 from .decrypt import decode_one_report, maybe_battery
+from .push_watch import ensure_listening, forget_callback
 from .revoked import revoked_as_auth_error
 from .types import (
     AuthRequiredError,
@@ -184,24 +185,30 @@ class FindHubClient:
 
         # FcmReceiver is an upstream singleton holding one long-lived push
         # connection; serialise registration so concurrent polls cannot race it.
-        with self._fcm_lock, revoked_as_auth_error():
-            fcm_token = FcmReceiver().register_for_location_updates(_on_response)
-            payload = create_location_request(device_id, fcm_token, request_uuid)
-            response = nova_request(NOVA_ACTION_API_SCOPE, payload)
+        receiver = FcmReceiver()
+        try:
+            with self._fcm_lock, revoked_as_auth_error():
+                ensure_listening(receiver)  # restarts a push client that gave up
+                fcm_token = receiver.register_for_location_updates(_on_response)
+                payload = create_location_request(device_id, fcm_token, request_uuid)
+                response = nova_request(NOVA_ACTION_API_SCOPE, payload)
+            self._await_push(response, received)
+        finally:
+            forget_callback(receiver, _on_response)
+        return self._extract_observations(holder["update"], device_id, device_name)
 
+    def _await_push(self, response: Any, received: threading.Event) -> None:
+        """Raise unless Nova accepted the request and the push answer arrived in time."""
         if response is None:
             raise FindHubError(
                 "Find Hub rejected the location request (Nova API returned no body). "
                 "This is usually an expired session or a transient Google error."
             )
-
         if not received.wait(timeout=self.settings.poll_timeout_seconds):
             raise LocationTimeoutError(
                 f"No Find Hub push response within {self.settings.poll_timeout_seconds:.0f}s. "
                 "The tag may be out of range of any participating Android device."
             )
-
-        return self._extract_observations(holder["update"], device_id, device_name)
 
     # ------------------------------------------------------------ decryption
     def _extract_observations(

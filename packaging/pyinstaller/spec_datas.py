@@ -41,7 +41,7 @@ def tree_datas(src_dir, dest_root: str, keep_dotted: bool = False):
 
 
 def daemon_datas(root):
-    """The three trees the sidecar ships, filtered."""
+    """The data trees the sidecar ships, filtered."""
     root = Path(root)
     return [
         *tree_datas(root / "web", "findplus/web/static"),
@@ -52,6 +52,9 @@ def daemon_datas(root):
             keep_dotted=True,
         ),
         *tree_datas(root / "browser-helper", "findplus/browser_helper"),
+        # labels.py reads findplus/_data/lucide-subset.json (the wheel force-includes
+        # it via hatch_build.py); without it every person/group save was a 500.
+        *tree_datas(root / "packaging/data", "findplus/_data"),
     ]
 
 

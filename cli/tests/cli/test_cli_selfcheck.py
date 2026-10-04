@@ -61,3 +61,25 @@ def test_a_vendor_import_failure_is_named(monkeypatch) -> None:
     assert result.exit_code == 1
     assert "FAIL  Google Find Hub modules" in result.output
     assert "selenium.webdriver.support.ui" in result.output
+
+
+def test_a_missing_icon_table_fails(monkeypatch) -> None:
+    """The 1.2.2 dmg sidecar lacked findplus/_data/lucide-subset.json (person saves 500)."""
+    from findplus import labels
+
+    def missing():
+        raise RuntimeError("icon table missing; reinstall findplus")
+
+    monkeypatch.setattr(cmd_selfcheck, "spawn_works", lambda: True)
+    monkeypatch.setattr(cmd_selfcheck, "apple_import_error", lambda: None)
+    monkeypatch.setattr(labels, "lucide_subset", missing)
+    result = CliRunner().invoke(main, ["selfcheck"])
+    assert result.exit_code == 1
+    assert "FAIL  bundled data (icon table)" in result.output
+
+
+def test_the_icon_table_passes_from_source(monkeypatch) -> None:
+    monkeypatch.setattr(cmd_selfcheck, "spawn_works", lambda: True)
+    monkeypatch.setattr(cmd_selfcheck, "apple_import_error", lambda: None)
+    result = CliRunner().invoke(main, ["selfcheck"])
+    assert "PASS  bundled data (icon table)" in result.output

@@ -91,6 +91,17 @@ def apple_import_error() -> str | None:
     return None
 
 
+def bundled_data_ok() -> bool:
+    """The icon table loads. Earlier dmg sidecars shipped without it, so
+    every person or group save in the app failed with a 500."""
+    from findplus import labels
+
+    try:
+        return bool(labels.lucide_subset())
+    except (OSError, RuntimeError, ValueError):
+        return False
+
+
 @click.command()
 @click.option("--no-apple", is_flag=True, help="Skip the Apple Find My library check.")
 def selfcheck(no_apple: bool) -> None:
@@ -102,6 +113,7 @@ def selfcheck(no_apple: bool) -> None:
         ("helper process (Google sign-in)", spawn_works()),
         ("Google Find Hub modules", not failures),
         ("Chrome helper files present", helper_available()[0]),
+        ("bundled data (icon table)", bundled_data_ok()),
     ]
     apple_error = None if no_apple else apple_import_error()
     if not no_apple:

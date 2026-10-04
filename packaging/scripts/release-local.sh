@@ -109,6 +109,13 @@ macos_step1_sidecar() {
     echo "FAIL: the sidecar's findplus metadata is not ${VERSION}" >&2
     return 1
   fi
+  # The frozen build, not the source tree, must pass: 1.2.2 shipped a sidecar
+  # without its icon table and every person or group save was a 500.
+  local smoke_state
+  smoke_state=$(mktemp -d)
+  FINDPLUS_STATE_DIR="$smoke_state" FINDPLUS_NO_LAUNCH=1 \
+    dist/findplus-daemon/findplus-daemon selfcheck
+  rm -rf "$smoke_state"
 }
 
 macos_step2_sign_sidecar() {

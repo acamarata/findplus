@@ -27,10 +27,10 @@ broken by an OS upgrade or a removed Python, re-running rebuilds it.
 
 Find+ is not published to PyPI. Install the wheel from the latest release
 instead. Download the `findplus-<version>-py3-none-any.whl` from the
-[Releases](https://github.com/acamarata/findplus/releases) page (for example, v1.2.2):
+[Releases](https://github.com/acamarata/findplus/releases) page (for example, v1.2.3):
 
 ```bash
-pipx install https://github.com/acamarata/findplus/releases/download/v1.2.2/findplus-1.2.2-py3-none-any.whl
+pipx install https://github.com/acamarata/findplus/releases/download/v1.2.3/findplus-1.2.3-py3-none-any.whl
 ```
 
 Or install from the latest release directly:

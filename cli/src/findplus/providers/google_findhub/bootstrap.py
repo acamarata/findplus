@@ -24,6 +24,7 @@ from typing import Any
 
 from findplus.config import get_settings
 from findplus.providers.findhub.bootstrap import ensure_gfmt_importable as _resolve_path
+from findplus.providers.google_findhub import secrets_store
 
 _lock = threading.Lock()
 #: Serialises every read and write of secrets.json inside this process. The vendored
@@ -63,19 +64,18 @@ def _patch_token_cache(token_cache: Any) -> None:
         return str(get_settings().secrets_file)
 
     token_cache._get_secrets_file = _our_secrets_file
-    _original_set = token_cache.set_cached_value
     _original_get = token_cache.get_cached_value
 
     def _set_and_harden(name: str, value: object) -> None:
-        # Create the file 0600 BEFORE upstream writes it. Chmod-after left a window
-        # in which the tokens sat on disk at the process umask.
-        path = get_settings().secrets_file
+        # Our own merge-and-replace instead of the vendor's truncate-in-place write:
+        # temp file in the 0700 dir at 0600, fsync, os.replace, under a cross-process
+        # lock (see secrets_store). A CLI `auth` run and the daemon can no longer
+        # drop each other's key, and a reader never sees half a file.
+        # The path comes from the module's own resolver (ours above), not straight
+        # from settings, so anything that rebinds it (a test, a tool) is honoured.
+        path = Path(token_cache._get_secrets_file())
         with _store_lock:
-            with contextlib.suppress(OSError):
-                _ensure_secrets_file(path)
-            _original_set(name, value)
-            with contextlib.suppress(OSError):
-                os.chmod(path, 0o600)
+            secrets_store.set_value(path, name, value)
 
     def _get_locked(name: str) -> object:
         with _store_lock:

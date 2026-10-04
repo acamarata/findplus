@@ -29,9 +29,12 @@ from findplus.providers.google_findhub import helper_state
 from findplus.providers.google_findhub.open_signin import (
     EMBEDDED_SETUP_URL,
     BrowserOpenError,
+    ChromeNotFoundError,
     open_sign_in_page,
+    require_chrome,
 )
 from findplus.providers.google_findhub.token_signin import (
+    InvalidInputError,
     TokenRejectedError,
     TokenSignInError,
     sign_in_with_oauth_token,
@@ -67,6 +70,10 @@ def _open(request: Request, path: str, kind: str) -> dict[str, Any]:
     from findplus.api.routes_auth import _require_origin_signal
 
     _require_origin_signal(request)
+    try:
+        require_chrome()  # the helper is Chrome-only: say so now, not after a timeout
+    except ChromeNotFoundError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
     state = helper_state.create_state(kind)
     try:
         browser = open_sign_in_page(_begin_url(request, path, state))
@@ -120,6 +127,8 @@ def helper_token(body: HelperTokenBody, request: Request) -> dict[str, Any]:
         account = sign_in_with_oauth_token("", body.oauth_token, require_email=False)
     except TokenRejectedError as exc:
         raise _fail(kind, body.state, 400, exc) from None
+    except InvalidInputError as exc:  # the user's/helper's input, not a server fault
+        raise _fail(kind, body.state, 422, exc) from None
     except Exception as exc:
         raise _fail(kind, body.state, 502, exc) from None
     helper_state.end_exchange(body.state, ok=True)

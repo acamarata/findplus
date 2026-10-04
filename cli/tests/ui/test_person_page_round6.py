@@ -37,12 +37,12 @@ async def test_first_tab_stop_is_back_then_the_header_buttons_then_the_day_contr
 ):
     await open_person(trips_page, trips_server, pid)
     p = trips_page
-    assert await p.evaluate("document.activeElement.id") == "person-back"
+    assert await p.evaluate("document.activeElement.id") == "person-page"
     seen = []
-    for _ in range(6):
+    for _ in range(7):
         await p.keyboard.press("Tab")
         seen.append(await p.evaluate("document.activeElement.id || document.activeElement.tagName"))
-    assert seen[0] == "person-send", seen
+    assert seen[:2] == ["person-back", "person-send"], seen
     assert seen.index("person-prev") > seen.index("person-send"), seen
     assert "BODY" not in seen, seen
 

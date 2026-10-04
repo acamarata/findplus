@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 import pytest
 from axe_playwright_python.async_playwright import Axe
@@ -73,7 +74,8 @@ async def test_group_shows_family_lanes(trips_page, trips_server):
     await trips_page.wait_for_selector(".lane .strip-bar")
     assert await trips_page.locator(".lane").count() == 2
     assert await trips_page.locator(".lane-legend").count() == 1
-    await trips_page.locator(".lane-name", has_text="Mia").click()
+    # A tracker that belongs to a person is named for the person (O13): "Sam (bag)".
+    await trips_page.locator(".lane-name", has_text=re.compile("Mia|bag")).click()
     await trips_page.get_by_role("heading", name="Day story for Mia").wait_for()
 
 

@@ -127,4 +127,6 @@ async def test_the_card_says_what_find_keeps_before_the_window_opens(page, base_
     assert await kept.inner_text() == honesty.NATIVE_SIGNIN_KEPT
     refuse = page.locator("#fp-auth-google-native-honesty")
     assert await refuse.inner_text() == honesty.NATIVE_SIGNIN
-    assert await page.evaluate("() => window.__fpShell.calls.length") == 0  # nothing opened yet
+    # Nothing opened yet. (webview_ready is only the page saying its listeners are in.)
+    calls = await page.evaluate("() => window.__fpShell.calls.map((c) => c.cmd)")
+    assert [c for c in calls if c != "webview_ready"] == []

@@ -26,6 +26,22 @@ def _valid_quorum(quorum: str) -> bool:
     return quorum.isdigit() and 1 <= int(quorum) <= 20
 
 
+def check_quorum_fits(quorum: str | None, member_count: int) -> None:
+    """Refuse a numeric quorum above the member count (the group could never fire).
+
+    A group with no members yet is exempt: the dialog lets a group be saved first and
+    its members added later. The words any / majority / all always fit.
+    """
+    if quorum is None or not quorum.isdigit() or member_count == 0:
+        return
+    if int(quorum) > member_count:
+        noun = "member" if member_count == 1 else "members"
+        raise ValueError(
+            f"quorum {int(quorum)} is more than the {member_count} {noun}: "
+            "lower the quorum or add members"
+        )
+
+
 def clean_name(name: str) -> str:
     """The name as stored: trimmed, 1-64 characters (the column is String(64))."""
     name = name.strip()

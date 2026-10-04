@@ -153,7 +153,7 @@ def test_downgrade_then_upgrade_round_trips(head) -> None:
     get_engine.cache_clear()
     upgrade_to_head(url)
     get_engine.cache_clear()
-    assert seed.revision(engine) == "0013"
+    assert seed.revision(engine) == "0014"
     assert seed.counts(engine) == before
     assert seed.dump(engine, "alert_deliveries", seed.DELIVERY_COLS) == deliveries
     assert seed.health(engine) == ([], "ok")
@@ -172,7 +172,7 @@ def test_findplus_db_upgrade_is_idempotent_at_head(tmp_path: Path, monkeypatch) 
         for _ in range(2):
             result = runner.invoke(db_cmd, ["upgrade"], catch_exceptions=False)
             assert result.exit_code == 0
-        assert runner.invoke(db_cmd, ["current"]).output.strip().startswith("0013")
+        assert runner.invoke(db_cmd, ["current"]).output.strip().startswith("0014")
         engine = seed.fk_engine(f"sqlite:///{tmp_path / 'state' / 'findplus.sqlite'}")
         assert seed.health(engine) == ([], "ok")
     finally:

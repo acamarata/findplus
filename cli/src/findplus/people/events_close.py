@@ -63,6 +63,7 @@ def close_left_places(
             since = row.last_transition_at
             row.state, row.pending_side, row.pending_since = "outside", None, None
             row.last_transition_at, row.since_observed_at = as_of, as_of
+            row.confirmed_at = as_of
             event = write_exit(place, since, arrival.observed_at)
             if event is not None:
                 out.append(event)

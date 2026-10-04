@@ -85,6 +85,9 @@ class PersonPlaceState(Base):
     pending_side: Mapped[str | None] = mapped_column(String(8), nullable=True)
     pending_since: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     last_transition_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    #: The last evaluation whose evidence agreed with `state` (0014): past 12 h
+    #: without one the state becomes unknown (people/expiry.py).
+    confirmed_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
 
 
@@ -137,6 +140,8 @@ class ObservationQuality(Base):
     )
     algo_version: Mapped[int] = mapped_column(Integer, nullable=False)
     computed_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+    #: When the geofence hooks were handed this fix (0014); a fix is fed once.
+    fed_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
 
 class DigestRun(Base):

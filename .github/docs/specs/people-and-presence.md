@@ -216,7 +216,10 @@ person/pet group the observation's device belongs to:
    cluster's members have all left that place; otherwise no change (`unsure` never moves state).
    Trackers that never moved cannot move state: a change needs a supporter whose motion is not `parked`, or one
    with its own device ENTER/EXIT at that place since the person's last transition there. When the carried
-   tracker goes quiet, the person holds where they were and the quiet tracker reads "no recent sighting".
+   tracker goes quiet, the person holds where they were and the quiet tracker reads "no recent sighting". The hold is not for ever: a
+   place state that no evaluation has confirmed for 12 hours (a move target, or parked trackers saying the same side)
+   becomes `unknown` and is reseeded silently from whatever reports, so a tracker that died at School never
+   yields a "left School" days later (`people/expiry.py`, `person_place_states.confirmed_at`).
    Likewise `infer()` answers `unsure` when its best cluster is all parked while another tracker (reporting or
    stale) moved within the window.
    `outside` comes only from a supporter's own device state `outside`: a supporter whose geofence still says

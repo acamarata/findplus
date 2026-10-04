@@ -9,8 +9,9 @@
  *              the page is open (map.js's renderMap() stands aside meanwhile).
  * Constraints: The page has no tab button, so the tab that was active stays the
  *              one Tab stop of the tab bar. Leaving restores it. First open moves
- *              keyboard focus to "Back to dashboard", the first control, which is
- *              described by the person's name so a screen reader still hears it.
+ *              keyboard focus to the page itself (a programmatic stop, tabindex -1),
+ *              so the first Tab lands on "Back to dashboard", then the header
+ *              buttons, the day controls and the story, in reading order (O22).
  */
 "use strict";
 
@@ -65,8 +66,8 @@ export async function showPerson(route) {
   const done = loadPerson(route.id, route.date || todayLocal());
   await done;
   if (first) {
-    // First stop of the page: "Back to dashboard" (described by the person's name).
-    $("person-back")?.focus({ preventScroll: true });
+    // Focus the page, not its first control: Tab then reaches "Back to dashboard" first.
+    $("person-page")?.focus({ preventScroll: true });
     showPageOnPhone();
   }
 }

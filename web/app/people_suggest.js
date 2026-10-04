@@ -128,7 +128,9 @@ function fill(host, wizard) {
       show.type = "button"; show.addEventListener("click", () => { writeHidden(null); render(); });
       section.appendChild(show);
     } else {
-      const note = el("p", "person-hint", said ? message.text : t("people.panel.empty"));
+      // O22: once people exist, "nothing new" is a success, not a miss.
+      const idle = people.length ? t("people.panel.allAdded") : t("people.panel.empty");
+      const note = el("p", "person-hint", said ? message.text : idle);
       if (said) note.setAttribute("role", "status");
       section.appendChild(note);
     }

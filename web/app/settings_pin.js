@@ -55,9 +55,10 @@ function showChangePinError(message, field) {
   if (message) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
-/** Route a change/remove failure: a 403 is the current PIN, 400/422 the new one. */
+/** Route a change/remove failure: a 403 is the current PIN (a 429 is the same
+ * field, too many tries: say it beside the field), 400/422 the new one. */
 function changeFailure(e, showSettingsMessage) {
-  if (e.status === 403) showChangePinError(e.message, "current");
+  if (e.status === 403 || e.status === 429) showChangePinError(e.message, "current");
   else if (e.status === 400 || e.status === 422) showChangePinError(e.message, "new");
   else showSettingsMessage(e.message, "err");
 }

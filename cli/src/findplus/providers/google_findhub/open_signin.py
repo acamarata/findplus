@@ -35,8 +35,18 @@ MSG_OPEN_FAILED = (
 )
 
 
+MSG_NO_CHROME = (
+    "Chrome is not installed on this computer, and the Find+ helper works in Chrome "
+    'only. Open "More ways to sign in" below and use the Find+ window or the paste steps.'
+)
+
+
 class BrowserOpenError(Exception):
     """No browser could be opened; `str(exc)` is written for a person."""
+
+
+class ChromeNotFoundError(BrowserOpenError):
+    """The Chrome-only helper flow was asked for but Google Chrome is not installed."""
 
 
 def chrome_argv(chrome: str, url: str) -> list[str]:
@@ -79,3 +89,14 @@ def open_sign_in_page(url: str = EMBEDDED_SETUP_URL) -> str:
     if opened:
         return "default"
     raise BrowserOpenError(MSG_OPEN_FAILED)
+
+
+def require_chrome() -> None:
+    """Raise ChromeNotFoundError unless Google Chrome is installed.
+
+    The helper extension runs in Chrome only, so falling back to the default
+    browser would open a page that can never finish and the card would wait out
+    its whole timeout. Fail at once, in plain words, instead.
+    """
+    if not find_google_chrome():
+        raise ChromeNotFoundError(MSG_NO_CHROME)

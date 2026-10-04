@@ -18,9 +18,10 @@
  */
 "use strict";
 
-import { state, displayName, fmtTime } from "./state.js";
+import { state, fmtTime } from "./state.js";
 import { t, plural } from "./i18n.js";
 import { isFailedPoll } from "./poll_status.js";
+import { uniqueLabel } from "./device_label.js";
 
 /** Runs this close together (ms) belong to one poll cycle. */
 const CYCLE_WINDOW_MS = 10 * 60 * 1000;
@@ -28,6 +29,8 @@ const CYCLE_WINDOW_MS = 10 * 60 * 1000;
 const NAMES_SHOWN = 5;
 /** Longest the dashboard waits for a poll it expects (ms). */
 export const AWAIT_MAX_MS = 120000;
+
+const GOOGLE_ID = "google-find-hub";
 
 /** Failures that mean the whole account is stuck, worst first. */
 const ACCOUNT_WIDE = ["needs_shared_key", "provider_unauthenticated", "auth_error"];
@@ -41,10 +44,11 @@ export function cycleRuns(s) {
   return rows.filter((r) => newest - r.at <= CYCLE_WINDOW_MS);
 }
 
-/** A tracker's label, else the provider's name for it. */
+/** A tracker's label, else the provider's name for it, with an id tail when another
+ * visible tracker shares the name (O11: two "Tag" lines in a banner read as one). */
 function nameOf(device) {
   const own = (state.devices || []).find((d) => d.device_id === device.device_id);
-  return displayName(own) || device.name || device.device_id;
+  return (own && uniqueLabel(own)) || device.name || device.device_id;
 }
 
 /**
@@ -55,12 +59,28 @@ function nameOf(device) {
  * when the newest run itself failed, as before.
  */
 export function bannerRun(s) {
-  const failing = cycleRuns(s).map((r) => r.run).filter(isFailedPoll);
+  const failing = cycleRuns(s)
+    .map((r) => r.run)
+    .filter((run) => isFailedPoll(run) && !staleLock(s, run));
   for (const status of ACCOUNT_WIDE) {
     const hit = failing.find((run) => run.status === status);
     if (hit) return hit;
   }
-  return isFailedPoll(s.last_poll) ? s.last_poll : null;
+  const last = s.last_poll;
+  return isFailedPoll(last) && !staleLock(s, last) ? last : null;
+}
+
+/**
+ * True for a "locked" run whose cause is already fixed: the daemon's own
+ * provider_health no longer asks Google to be unlocked, though the account is
+ * signed in (shared key present). The run is history; the next poll replaces it.
+ * Without a Google row in provider_health nothing is known, so the run stays.
+ */
+export function staleLock(s, run) {
+  if (!run || run.status !== "needs_shared_key") return false;
+  const rows = s.provider_health || [];
+  const google = rows.find((row) => (row.name || row.id) === GOOGLE_ID);
+  return Boolean(google) && google.authenticated === true && google.attention === "none";
 }
 
 /** True when the account's own failure is the locked end-to-end key. */

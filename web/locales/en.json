@@ -1328,7 +1328,17 @@
     "legendLabel": "Trackers on the map",
     "legendFrame": "Show {name} on the map",
     "tilesFailed": "The map background could not load, so you may be offline. Your points and paths are still drawn.",
-    "legendHead": "Trackers ({n})"
+    "legendHead": "Trackers ({n})",
+    "popup": {
+      "accuracy": "Accuracy ~{meters} m",
+      "accuracyRough": "Accuracy ~{meters} m ({rough})",
+      "sincePrevious": "{duration} since previous observation",
+      "fromPrevious": "{distance} from previous observation",
+      "report": "Report: {source}",
+      "belowThreshold": "Below movement threshold",
+      "retrieved": "Retrieved {time}"
+    },
+    "pathTip": "{name}: observed path; actual route between detections may differ."
   },
   "quality": {
     "reason": {
@@ -1453,6 +1463,7 @@
       "hide": "Not now",
       "show": "Show suggestions ({n})",
       "empty": "No new people found in your trackers.",
+      "allAdded": "All suggested people added.",
       "loading": "Looking at your tracker names",
       "recheck": "Check again",
       "rechecking": "Checking",

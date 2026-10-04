@@ -6,6 +6,52 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-10-04
+
+### Fixed
+- The app's daemon reported version 1.1.5 in 1.2.0 and 1.2.1, so the 1.2.1 updater took its own
+  release for a newer one and could install it again every few hours. The daemon inside Find+.app
+  now reports the app's own version, and the release build stops if the bundled version is wrong.
+  1.2.1 moves to 1.2.2 once, and the loop ends there.
+- A person's place no longer holds for ever when the tracker they carry dies. After 12 hours with
+  nothing confirming it, the place becomes unknown, so a later report never says "left School"
+  from a day-old state.
+- The person day summary leaves out sightings from devices whose clock runs fast, as the live
+  engine already did.
+- A sighting that was flagged and then cleared is checked against your places once, not twice.
+- A daily summary skipped because nothing had reported yet is checked again every 15 minutes that
+  evening and until noon the next day, so a late first sighting still gets its summary. A day is
+  never sent twice.
+- Saving Google sign-in data is atomic and locked across processes: `findplus auth` can no longer
+  race the running app or leave a half-written `secrets.json`.
+- Without Google Chrome, "Sign in with Google" says so at once and points to the other ways in,
+  instead of waiting for a timeout. A malformed helper token is a bad request, not a server error.
+- The "locations are locked" banner no longer lingers after you unlock.
+- Wrong current-PIN guesses in Settings are rate limited like the lock screen, and the wait shows
+  beside the PIN field.
+- The app and the dashboard agree on the sign-in attention words, and the page tells the app when
+  it is ready.
+- A group quorum larger than its member count is refused when you create or edit a group, with a
+  plain message. The group dialog saves quorum and members in one checked step.
+- Alert messages, wizard device rows and the poll banner tell same-named trackers apart.
+- After everything suggested is added, the people panel says "All suggested people added."
+- The person page puts "Back to dashboard" first in the Tab order.
+- Map popups and the path tooltip use the language catalogue.
+- The app's third-party notices now carry the real licence texts for http_ece, pyobjc's libdispatch
+  framework and unicorn.
+
+### Changed
+- The database moves to schema 0014 (two small markers). The upgrade is automatic, and updates
+  back up the database first.
+- Day-story lanes show the person's name for a person's trackers.
+- `GET` and `PATCH /api/settings` include `routing.endpoint`.
+- Troubleshooting explains what stops working if Find+ runs on a port other than 8647.
+
+### Technical
+- Third-party GitHub Actions are pinned to commit SHAs.
+- `release-local.sh` takes `FINDPLUS_SKIP_NOTARISE=1` for a signed, un-notarised build, and builds
+  only the .app with tauri (the widget step makes the dmg).
+
 ## [1.2.1] - 2026-10-02
 
 ### Added

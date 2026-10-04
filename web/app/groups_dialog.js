@@ -6,8 +6,7 @@
  *              the tracked-device member checklist.
  * Inputs     : GET /api/devices for the member rows; the group object handed in
  *              per call by groups_list.js, which owns the card registry.
- * Outputs    : POST /api/groups, PUT /api/groups/{id} and
- *              PUT /api/groups/{id}/members on save.
+ * Outputs    : POST /api/groups, or PUT /api/groups/{id} with the members, on save.
  * Constraints: The dialog's elements are built by groups_dialog_dom.js, never
  *              from raw markup, and every badge through components/badge.js.
  *              Every static string comes from the catalog through t().

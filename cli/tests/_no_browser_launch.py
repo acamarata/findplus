@@ -28,6 +28,9 @@ def no_real_browser(monkeypatch: pytest.MonkeyPatch) -> list[str]:
         opened.append(str(args[-1]) if args else "")
         return True
 
+    # Pretend Chrome is installed (a CI box has none); a test that wants "no Chrome"
+    # patches find_google_chrome back to None itself.
+    monkeypatch.setattr(open_signin, "find_google_chrome", lambda: "/x/chrome")
     monkeypatch.setattr(open_signin, "_launch_chrome", _record)
     monkeypatch.setattr(open_signin.webbrowser, "open", _record)
     return opened

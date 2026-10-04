@@ -1136,6 +1136,20 @@ Put Group
         }
       ],
       "title": "Kind"
+    },
+    "member_ids": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Member Ids"
     }
   },
   "type": "object",

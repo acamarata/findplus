@@ -7,7 +7,8 @@
  *              turns a name inside a piece of text into a real link.
  * Inputs     : The people list; a DOM node whose text may name a person.
  * Outputs    : linkPeople(node), personLink(name, id), personFor(id),
- *              refreshPeopleCache(), purgePeopleCache().
+ *              laneLabel(deviceId, trackerName), refreshPeopleCache(),
+ *              purgePeopleCache().
  * Constraints: Only whole-word names link, and "Sam" inside a tracker name such
  *              as "Sam Bag" never does (that is a tracker, not the person). Text
  *              is split into text nodes and anchors, never parsed as markup.
@@ -28,6 +29,23 @@ const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const SKIP = "a, button, input, textarea, select, script, style, option, summary";
 
 export const personFor = (id) => people.get(Number(id)) || null;
+
+const ROLES = ["phone", "watch", "collar", "wallet", "keys", "shoes", "bag", "jacket", "bike", "scooter", "tablet", "laptop", "car", "luggage"];
+
+/**
+ * The text of a day-story lane: the person's name where the tracker belongs to a
+ * person or pet ("Sam", or "Sam (shoes)" when that person has several trackers),
+ * else the tracker's own name. A tracker with no known role keeps its own name in
+ * brackets, so two lanes of one person never read the same.
+ */
+export function laneLabel(deviceId, trackerName) {
+  const person = [...people.values()].find((p) => (p.trackers || []).some((tr) => tr.device_id === deviceId));
+  if (!person) return trackerName;
+  if (person.trackers.length < 2) return person.name;
+  const own = person.trackers.find((tr) => tr.device_id === deviceId);
+  const word = ROLES.includes(own.role) ? t(`people.role.${own.role}`) : trackerName;
+  return `${person.name} (${word})`;
+}
 
 /** An anchor to a person's page. */
 export function personLink(name, id) {

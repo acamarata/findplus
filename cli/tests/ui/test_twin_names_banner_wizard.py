@@ -4,8 +4,6 @@ Roster (`_roster17.py`): R17-00 and R17-01 are both "Ali Pixel 8a" and tracked. 
 server half (alert texts) is pinned in tests/alerts/test_dispatch_twin_names.py.
 """
 
-# ruff: noqa: E501
-
 from __future__ import annotations
 
 import json
@@ -35,7 +33,7 @@ async def test_poll_banner_names_the_twins_apart(page, base_url, ui_db, ui_env):
         assert "Tag 5" not in text
 
 
-async def test_wizard_device_rows_name_the_twins_apart(page, base_url):
+def _twin_devices() -> list[dict]:
     twins = [
         {
             "device_id": f"{c}-{c}{c}{c}{c}",
@@ -48,21 +46,31 @@ async def test_wizard_device_rows_name_the_twins_apart(page, base_url):
         }
         for c in "ab"
     ]
-    twins.append({**twins[0], "device_id": "solo", "name": "Solo Tag"})
+    return [*twins, {**twins[0], "device_id": "solo", "name": "Solo Tag"}]
 
+
+async def _setting(page, base_url, key, value) -> None:
+    await page.request.post(
+        f"{base_url}/api/settings/{key}",
+        data=json.dumps({"value": value}),
+        headers={"Content-Type": "application/json"},
+    )
+
+
+async def _stub_wizard_devices(page, devices) -> None:
     async def handler(route):
-        body = {"devices": twins, "tracked_count": 3}
+        body = {"devices": devices, "tracked_count": len(devices)}
         await route.fulfill(json=body if route.request.method == "GET" else {})
 
     await page.route("**/api/auth/status", reply(status_body(google=True)))
     await page.route("**/api/devices", handler)
     await page.route("**/api/devices/refresh", reply({}))
-    for key, value in (("onboarding.completed_at", None), ("onboarding.last_step", "devices")):
-        await page.request.post(
-            f"{base_url}/api/settings/{key}",
-            data=json.dumps({"value": value}),
-            headers={"Content-Type": "application/json"},
-        )
+
+
+async def test_wizard_device_rows_name_the_twins_apart(page, base_url):
+    await _stub_wizard_devices(page, _twin_devices())
+    await _setting(page, base_url, "onboarding.completed_at", None)
+    await _setting(page, base_url, "onboarding.last_step", "devices")
     try:
         await page.goto(base_url + "/#/setup")
         await page.wait_for_selector("#fp-setup-devices-list [data-track]", timeout=15000)
@@ -77,13 +85,5 @@ async def test_wizard_device_rows_name_the_twins_apart(page, base_url):
         ).all_inner_texts()
         assert "Twin Tag (aaaa)" in rows and "Solo Tag" in rows
     finally:
-        await page.request.post(
-            f"{base_url}/api/settings/onboarding.completed_at",
-            data=json.dumps({"value": SEEDED_COMPLETED_AT}),
-            headers={"Content-Type": "application/json"},
-        )
-        await page.request.post(
-            f"{base_url}/api/settings/onboarding.last_step",
-            data=json.dumps({"value": None}),
-            headers={"Content-Type": "application/json"},
-        )
+        await _setting(page, base_url, "onboarding.completed_at", SEEDED_COMPLETED_AT)
+        await _setting(page, base_url, "onboarding.last_step", None)

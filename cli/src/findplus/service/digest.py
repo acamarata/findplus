@@ -16,8 +16,11 @@ Constraints: Sends while the app is locked, like alerts do: the lock protects
              failed send is retried once on the next tick, then recorded as
              failed. A crash mid-send is never resent: the claim row stays.
              Statuses: sending, sent, skipped, retry, failed. `sent_at` is the
-             time of the last attempt. By default the whole family goes in one
-             message per chat (service/digest_combined.py).
+             time of the last attempt. A day skipped for having no data is
+             looked at again every SKIP_RECHECK that evening and, until noon,
+             the next morning, so a first sighting that arrives after the send
+             time still gets its summary; a sent day is never sent twice.
+             By default the whole family goes in one message per chat (service/digest_combined.py).
 """
 
 from __future__ import annotations
@@ -48,6 +51,10 @@ TICK_SECONDS = 60.0
 RETRY_AFTER = timedelta(seconds=55)
 #: A claim older than this with no result means the process died mid-send.
 STALE_CLAIM = timedelta(minutes=15)
+#: A day skipped as "nothing tracked" is looked at again no sooner than this.
+SKIP_RECHECK = timedelta(minutes=15)
+#: Until this local hour the day before is still re-checked for a late first sighting.
+MORNING_RETRY_UNTIL_HOUR = 12
 DONE = ("sent", "skipped", "failed", "sending")
 
 
@@ -118,12 +125,20 @@ class DigestScheduler:
             self._expire_claims(s, now)
         local = now.astimezone(tz)
         hour, minute = digest_prefs.hour_minute(prefs)
-        if local < local.replace(hour=hour, minute=minute, second=0, microsecond=0):
+        due = local >= local.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        morning = local.hour < MORNING_RETRY_UNTIL_HOUR
+        if not due and not morning:
             return []
         creds = telegram_creds(prefs["channel"], self._channels() if self._channels else None)
+        out: list[Outcome] = []
+        if creds is not None and morning:
+            yesterday = local.date() - timedelta(days=1)
+            out += self._run_people(prefs, creds, yesterday, tz, now, retry_only=True)
+        if not due:
+            return out
         if creds is None:
             return [Outcome(None, "", "no_channel")]
-        return self._run_people(prefs, creds, local.date(), tz, now)
+        return out + self._run_people(prefs, creds, local.date(), tz, now)
 
     @staticmethod
     def _expire_claims(session: Session, now: datetime) -> None:
@@ -133,19 +148,23 @@ class DigestScheduler:
                 row.status, row.error = "failed", "interrupted before it finished"
                 log.warning("digest_claim_expired", group_id=row.group_id, date=row.local_date)
 
-    def _run_people(self, prefs, creds, day, tz, now) -> list[Outcome]:
+    def _run_people(self, prefs, creds, day, tz, now, retry_only: bool = False) -> list[Outcome]:
         with session_scope() as s:
             ids = [(g.id, g.name) for g in _people(s, prefs)]
         if prefs.get("combined", True):
             from findplus.service.digest_combined import run_combined
 
-            return run_combined(self, [i for i, _ in ids], prefs, creds, day, tz, now)
+            return run_combined(self, [i for i, _ in ids], prefs, creds, day, tz, now, retry_only)
         out: list[Outcome] = []
         for group_id, _name in ids:
-            out += self._one_person(group_id, prefs, creds, day, tz, now)
+            out += self._one_person(group_id, prefs, creds, day, tz, now, retry_only)
         return out
 
-    def _pending_targets(self, group_id: int, day, creds, now) -> list[str]:
+    def _pending_targets(
+        self, group_id: int, day, creds, now, retry_only: bool = False
+    ) -> list[str]:
+        """Chats still owed this day. A skipped (no data) day comes back after SKIP_RECHECK;
+        `retry_only` (the morning pass over yesterday) never starts a day, only reopens one."""
         with session_scope() as s:
             rows = {
                 r.target: r
@@ -160,14 +179,18 @@ class DigestScheduler:
         todo = []
         for chat in creds.chat_ids:
             row = rows.get(chat)
-            if row is None or (
-                row.status == "retry" and row.sent_at and now - row.sent_at >= RETRY_AFTER
+            if row is None:
+                if not retry_only:
+                    todo.append(chat)
+            elif row.sent_at and (
+                (row.status == "retry" and now - row.sent_at >= RETRY_AFTER)
+                or (row.status == "skipped" and now - row.sent_at >= SKIP_RECHECK)
             ):
                 todo.append(chat)
         return todo
 
-    def _one_person(self, group_id, prefs, creds, day, tz, now) -> list[Outcome]:
-        targets = self._pending_targets(group_id, day, creds, now)
+    def _one_person(self, group_id, prefs, creds, day, tz, now, retry_only=False) -> list[Outcome]:
+        targets = self._pending_targets(group_id, day, creds, now, retry_only)
         if not targets:
             return []
         with session_scope() as s:
@@ -209,22 +232,35 @@ class DigestScheduler:
                     )
                 )
             else:
+                if row.status == "skipped":
+                    row.error = None  # a first real attempt: a failure still gets its one retry
                 row.status, row.sent_at = "sending", now
 
     @staticmethod
     def _record(group_id, day, target, status, now, error=None) -> Outcome:
         with session_scope() as s:
-            s.add(
-                DigestRun(
-                    group_id=group_id,
-                    local_date=day.isoformat(),
-                    channel="telegram",
-                    target=target,
-                    status=status,
-                    sent_at=now,
-                    error=error,
+            row = s.scalar(
+                select(DigestRun).where(
+                    DigestRun.group_id == group_id,
+                    DigestRun.local_date == day.isoformat(),
+                    DigestRun.channel == "telegram",
+                    DigestRun.target == target,
                 )
             )
+            if row is None:
+                s.add(
+                    DigestRun(
+                        group_id=group_id,
+                        local_date=day.isoformat(),
+                        channel="telegram",
+                        target=target,
+                        status=status,
+                        sent_at=now,
+                        error=error,
+                    )
+                )
+            else:  # a skipped day looked at again and still empty
+                row.status, row.sent_at, row.error = status, now, error
         return Outcome(group_id, target, status, error)
 
     @staticmethod

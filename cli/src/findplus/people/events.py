@@ -13,7 +13,10 @@ Constraints: Never commits; ingest.py runs this in its own SAVEPOINT. Suspect
           since_observed_at never moves it (late reports cannot rewrite the
           past); one at the same instant may (carried trackers report
           together, uat116 #2). `unsure` never moves state. First evaluation
-          seeds silently. An arrival closes every place it cannot overlap.
+          seeds silently. An arrival closes every place it cannot overlap. A
+          state nothing has confirmed for 12 h becomes unknown first, so a
+          tracker that died at School never produces a later "left School"
+          (people/expiry.py).
 """
 
 from __future__ import annotations
@@ -31,6 +34,7 @@ from findplus.groups.events import _existing_group_event, _insert_group_event
 from findplus.logging_setup import get_logger
 from findplus.people import _quality, left_behind
 from findplus.people.crossing import crossing, near
+from findplus.people.expiry import expired
 from findplus.people.infer import PersonFix, PlaceRef
 from findplus.people.inputs import infer_person, person_groups_of
 from findplus.people.notes import event_note
@@ -91,6 +95,16 @@ def person_target(
     if "inside" in sides:
         return None  # its own geofence has not confirmed the exit yet (D17: 2 fixes)
     return "outside" if "outside" in sides else None
+
+
+def confirms(
+    fix: PersonFix, place: PlaceRef, states, crossed, state: str, target: str | None
+) -> bool:
+    """Does this evaluation back the stored side? A move target does; so does
+    parked evidence that says the same (a sleeping household), though it cannot move state."""
+    if target is not None:
+        return True
+    return person_target(fix, place, states, crossed, seeding=True) == state
 
 
 def step(
@@ -214,7 +228,12 @@ def evaluate_person(session: Session, group, as_of: datetime) -> list[GroupPlace
             row = PersonPlaceState(group_id=group.id, place_id=place.id, state="unknown")
             session.add(row)
         crossed = _crossed_since(crossings, place.id, row.last_transition_at)
+        if row.state != "unknown" and expired(row.confirmed_at or row.since_observed_at, as_of):
+            log.info("person_state_expired", group_id=group.id, place_id=place.id, state=row.state)
+            row.state, row.pending_side, row.pending_since = "unknown", None, None
         target = person_target(fix, place, states, crossed, seeding=row.state == "unknown")
+        if confirms(fix, place, states, crossed, row.state, target):
+            row.confirmed_at = as_of
         since = row.last_transition_at
         s = step(row.state, row.pending_side, row.pending_since, since, target, as_of)
         row.state, row.pending_side, row.pending_since = s.state, s.pending_side, s.pending_since

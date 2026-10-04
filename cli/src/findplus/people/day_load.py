@@ -37,8 +37,11 @@ ANCHOR_HOURS = 12
 
 
 def _fixes(session: Session, device_ids: list[str], start: datetime, end: datetime):
-    """(fixes by device without suspect ones, wrong count inside the day, the
-    day's sightings held for a second sighting, oldest first)."""
+    """(fixes by device without suspect or clock-skewed ones, wrong count inside the
+    day, the day's sightings held for a second sighting, oldest first).
+
+    A sighting claiming a time after its first fetch + 5 min comes from a fast
+    clock: left out silently, as the person engine does (people/_quality.py)."""
     lo = start - timedelta(hours=ANCHOR_HOURS)
     rows = session.scalars(
         select(LocationObservation)
@@ -52,8 +55,8 @@ def _fixes(session: Session, device_ids: list[str], start: datetime, end: dateti
     suspect = _quality.suspect_ids(session, device_ids, lo, end)
     by_dev: dict[str, list[Fix]] = {d: [] for d in device_ids}
     for o in rows:
-        if o.id in suspect:
-            continue
+        if o.id in suspect or _quality.skewed(o.observed_at, o.first_fetched_at):
+            continue  # flagged, or from a fast clock: the engine ignores both, so does the day
         by_dev[o.device_id].append(
             Fix(o.id, o.observed_at, o.latitude, o.longitude, o.accuracy_meters)
         )

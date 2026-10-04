@@ -14,9 +14,9 @@ Constraints: A fix that is suspect when first scored is not fed. Whenever a
              runs out; the poller calls it every cycle, so a quiet tracker is
              not stuck waiting for an ingest. Rows are rewritten only when the
              verdict changed. Raw rows are untouched; only `observation_quality`
-             is written. A fix that was fed, later flagged and then cleared
-             again would be fed twice; the geofence ignores fixes older than its
-             last crossing, so the effect is at most one extra streak count.
+             is written. Every fix handed to the hooks is stamped `fed_at`, so
+             a fix that was fed, later flagged and then cleared again is not
+             fed a second time (migration 0014).
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ from collections import defaultdict
 from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import exists, select, true
+from sqlalchemy import exists, select, true, update
 from sqlalchemy.orm import Session, aliased
 
 from findplus.db.models import LocationObservation
@@ -120,6 +120,32 @@ def _rows(session: Session, ids: set[int]) -> list[LocationObservation]:
     return list(session.scalars(select(LocationObservation).where(LocationObservation.id.in_(ids))))
 
 
+def _unfed(session: Session, rows: list[LocationObservation]) -> list[LocationObservation]:
+    """The rows no earlier feed has handed to the hooks (no `fed_at` stamp)."""
+    if not rows:
+        return []
+    done = set(
+        session.scalars(
+            select(ObservationQuality.observation_id).where(
+                ObservationQuality.observation_id.in_([r.id for r in rows]),
+                ObservationQuality.fed_at.is_not(None),
+            )
+        )
+    )
+    return [r for r in rows if r.id not in done]
+
+
+def _mark_fed(session: Session, rows: list[LocationObservation], now: datetime) -> None:
+    """Stamp these fixes as handed to the hooks, so no later feed repeats them."""
+    ids = [r.id for r in rows]
+    for i in range(0, len(ids), 500):
+        session.execute(
+            update(ObservationQuality)
+            .where(ObservationQuality.observation_id.in_(ids[i : i + 500]))
+            .values(fed_at=now)
+        )
+
+
 def plan_geofence_feed(
     session: Session, new_rows: list[LocationObservation], now: datetime | None = None
 ) -> list[LocationObservation]:
@@ -131,8 +157,13 @@ def plan_geofence_feed(
     now = now or datetime.now(UTC)
     held = held_by_device(session, exclude=[r.id for r in new_rows])
     suspect_new, released = rescore(session, new_rows, held, now)
-    feed = [r for r in new_rows if r.id not in suspect_new] + _rows(session, released)
-    return sorted(feed, key=lambda o: (o.observed_at, o.id))
+    again = _unfed(session, _rows(session, released))
+    feed = sorted(
+        [r for r in new_rows if r.id not in suspect_new] + again,
+        key=lambda o: (o.observed_at, o.id),
+    )
+    _mark_fed(session, feed, now)
+    return feed
 
 
 def release_due(session: Session, now: datetime | None = None) -> list[LocationObservation]:
@@ -144,4 +175,6 @@ def release_due(session: Session, now: datetime | None = None) -> list[LocationO
     """
     now = now or datetime.now(UTC)
     _, released = rescore(session, [], held_by_device(session), now)
-    return sorted(_rows(session, released), key=lambda o: (o.observed_at, o.id))
+    feed = sorted(_unfed(session, _rows(session, released)), key=lambda o: (o.observed_at, o.id))
+    _mark_fed(session, feed, now)
+    return feed

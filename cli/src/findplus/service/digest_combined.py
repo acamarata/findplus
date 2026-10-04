@@ -22,11 +22,11 @@ from findplus.people.day_render import render_combined
 from findplus.service.digest_send import send_to_targets
 
 
-def _payloads(sched, ids, prefs, creds, day, tz, now):
+def _payloads(sched, ids, prefs, creds, day, tz, now, retry_only=False):
     """(pending targets per person, payloads to send, outcomes of skipped people)."""
     pending, payloads, skipped = {}, {}, []
     for group_id in ids:
-        targets = sched._pending_targets(group_id, day, creds, now)
+        targets = sched._pending_targets(group_id, day, creds, now, retry_only)
         if not targets:
             continue
         with session_scope() as s:
@@ -42,9 +42,9 @@ def _payloads(sched, ids, prefs, creds, day, tz, now):
     return pending, payloads, skipped
 
 
-def run_combined(sched, ids: list[int], prefs, creds, day, tz, now) -> list:
+def run_combined(sched, ids: list[int], prefs, creds, day, tz, now, retry_only=False) -> list:
     """Send one message per chat covering every person still due there."""
-    pending, payloads, out = _payloads(sched, ids, prefs, creds, day, tz, now)
+    pending, payloads, out = _payloads(sched, ids, prefs, creds, day, tz, now, retry_only)
     for chat in creds.chat_ids:
         people = [g for g in ids if chat in pending.get(g, ())]
         if not people:

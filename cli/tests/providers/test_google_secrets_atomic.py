@@ -131,7 +131,6 @@ def test_the_patched_vendor_hook_goes_through_the_atomic_store(tmp_path: Path, m
     from findplus.config import get_settings
     from findplus.providers.google_findhub import bootstrap
 
-    get_settings.cache_clear() if hasattr(get_settings, "cache_clear") else None
     calls: list[tuple[str, object]] = []
     real = secrets_store.set_value
     monkeypatch.setattr(

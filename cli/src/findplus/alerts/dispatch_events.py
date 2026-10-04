@@ -14,8 +14,10 @@ from __future__ import annotations
 
 from findplus.alerts.dispatch_core import DeviceEvent, GroupEvent, LeftBehindEvent, as_utc
 from findplus.alerts.group_event_rows import pending_group_events
+from findplus.device_labels import unique_names
 
-#: COALESCE(d.label, d.name): an alert names the tracker by its label (UAT U7).
+#: COALESCE(d.label, d.name): an alert names the tracker by its label (UAT U7); the loader
+#: then swaps in device_labels.unique_names so same-named trackers differ (O11).
 _DEVICE_EVENTS_SQL = """SELECT pe.id, pe.place_id, p.name AS place_name, pe.device_id,
        COALESCE(d.label, d.name) AS device_name, pe.event_type, pe.observed_at, pe.fetched_at,
        pe.confidence
@@ -65,6 +67,7 @@ def _load_device_events(session) -> list[DeviceEvent]:
     from sqlalchemy import text
 
     events: list[DeviceEvent] = []
+    shown = unique_names(session)
     for row in session.execute(text(_DEVICE_EVENTS_SQL)).all():
         memberships = session.execute(text(_MEMBERSHIP_SQL), {"device_id": row.device_id}).all()
         events.append(
@@ -73,7 +76,7 @@ def _load_device_events(session) -> list[DeviceEvent]:
                 place_id=row.place_id,
                 place_name=row.place_name,
                 device_id=row.device_id,
-                device_name=row.device_name,
+                device_name=shown.get(row.device_id, row.device_name),
                 event_type=row.event_type,
                 observed_at=as_utc(row.observed_at),
                 fetched_at=as_utc(row.fetched_at),

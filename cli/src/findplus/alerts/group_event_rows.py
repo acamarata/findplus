@@ -19,6 +19,7 @@ from __future__ import annotations
 from sqlalchemy import bindparam, text
 
 from findplus.alerts.dispatch_core import GroupEvent, as_utc
+from findplus.device_labels import unique_names
 from findplus.groups.quorum import group_event_note, stale_note_for_count
 
 _SQL = """SELECT gpe.id, gpe.group_id, g.name AS group_name, g.kind AS group_kind, gpe.place_id,
@@ -34,7 +35,7 @@ LEFT JOIN devices d ON d.device_id = gpe.lead_device_id
 WHERE {where} ORDER BY gpe.observed_at ASC"""
 
 
-def _to_event(row) -> GroupEvent:
+def _to_event(row, shown: dict[str, str]) -> GroupEvent:
     person = row.basis == "person"
     note = (
         (row.note or "")
@@ -63,7 +64,7 @@ def _to_event(row) -> GroupEvent:
         basis=row.basis or "quorum",
         group_kind=row.group_kind or "set",
         lead_device_id=row.lead_device_id,
-        lead_name=row.lead_name,
+        lead_name=shown.get(row.lead_device_id, row.lead_name),
         fetched_at=as_utc(row.lead_fetched_at) if person else None,
     )
 
@@ -71,7 +72,8 @@ def _to_event(row) -> GroupEvent:
 def pending_group_events(session) -> list[GroupEvent]:
     """Every group_place_events row not yet notified."""
     rows = session.execute(text(_SQL.format(where="gpe.notified_at IS NULL"))).all()
-    return [_to_event(r) for r in rows]
+    shown = unique_names(session) if rows else {}
+    return [_to_event(r, shown) for r in rows]
 
 
 def group_events_by_ids(session, ids: list[int]) -> dict[int, GroupEvent]:
@@ -79,4 +81,6 @@ def group_events_by_ids(session, ids: list[int]) -> dict[int, GroupEvent]:
     if not ids:
         return {}
     stmt = text(_SQL.format(where="gpe.id IN :ids")).bindparams(bindparam("ids", expanding=True))
-    return {r.id: _to_event(r) for r in session.execute(stmt, {"ids": list(ids)}).all()}
+    rows = session.execute(stmt, {"ids": list(ids)}).all()
+    shown = unique_names(session) if rows else {}
+    return {r.id: _to_event(r, shown) for r in rows}

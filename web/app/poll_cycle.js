@@ -18,9 +18,10 @@
  */
 "use strict";
 
-import { state, displayName, fmtTime } from "./state.js";
+import { state, fmtTime } from "./state.js";
 import { t, plural } from "./i18n.js";
 import { isFailedPoll } from "./poll_status.js";
+import { uniqueLabel } from "./device_label.js";
 
 /** Runs this close together (ms) belong to one poll cycle. */
 const CYCLE_WINDOW_MS = 10 * 60 * 1000;
@@ -41,10 +42,11 @@ export function cycleRuns(s) {
   return rows.filter((r) => newest - r.at <= CYCLE_WINDOW_MS);
 }
 
-/** A tracker's label, else the provider's name for it. */
+/** A tracker's label, else the provider's name for it, with an id tail when another
+ * visible tracker shares the name (O11: two "Tag" lines in a banner read as one). */
 function nameOf(device) {
   const own = (state.devices || []).find((d) => d.device_id === device.device_id);
-  return displayName(own) || device.name || device.device_id;
+  return (own && uniqueLabel(own)) || device.name || device.device_id;
 }
 
 /**

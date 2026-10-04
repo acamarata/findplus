@@ -23,8 +23,8 @@ from pathlib import Path
 from typing import Any
 
 from findplus.config import get_settings
-from findplus.providers.google_findhub import secrets_store
 from findplus.providers.findhub.bootstrap import ensure_gfmt_importable as _resolve_path
+from findplus.providers.google_findhub import secrets_store
 
 _lock = threading.Lock()
 #: Serialises every read and write of secrets.json inside this process. The vendored

@@ -9,6 +9,10 @@ Versioning: [Semantic Versioning](https://semver.org/).
 ## [1.2.2] - 2026-10-04
 
 ### Fixed
+- The app's daemon reported version 1.1.5 in 1.2.0 and 1.2.1, so the 1.2.1 updater took its own
+  release for a newer one and could install it again every few hours. The daemon inside Find+.app
+  now reports the app's own version, and the release build stops if the bundled version is wrong.
+  1.2.1 moves to 1.2.2 once, and the loop ends there.
 - A person's place no longer holds for ever when the tracker they carry dies. After 12 hours with
   nothing confirming it, the place becomes unknown, so a later report never says "left School"
   from a day-old state.

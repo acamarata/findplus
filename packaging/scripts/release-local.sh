@@ -101,7 +101,14 @@ gen_formula() {
 # ------------------------------------------------- macOS desktop app (E13-T6)
 macos_step1_sidecar() {
   echo "==> PyInstaller sidecar ($ARCH)"
+  # PyInstaller copies the installed dist-info, so stale metadata ships a sidecar
+  # that reports an old version (1.2.0 and 1.2.1 said 1.1.5). Refresh it first.
+  "$PY" -m pip install --quiet --no-deps -e cli
   "$PYINSTALLER" "$PI_SPEC"
+  if ! find dist/findplus-daemon -maxdepth 2 -type d -name "findplus-${VERSION}.dist-info" | grep -q .; then
+    echo "FAIL: the sidecar's findplus metadata is not ${VERSION}" >&2
+    return 1
+  fi
 }
 
 macos_step2_sign_sidecar() {

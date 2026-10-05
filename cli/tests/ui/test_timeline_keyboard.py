@@ -11,13 +11,15 @@ from __future__ import annotations
 import pytest
 import pytest_asyncio
 
+from ._latest_helpers import PARK_BODY
+
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
 @pytest_asyncio.fixture(autouse=True, loop_scope="session")
 async def _activity_body(page):
-    """The all-trackers day body lives in the Activity tab now (dashboard 1.3)."""
-    await page.add_init_script("localStorage.setItem('findplus.panelTab','activity')")
+    """The all-trackers day body is no pane of its own in 1.3: show the legacy body in Latest."""
+    await page.add_init_script(PARK_BODY)
 
 
 async def _boot(page, base_url):
@@ -27,6 +29,7 @@ async def _boot(page, base_url):
 
 async def test_rows_form_one_roving_tab_stop(page, base_url):
     await _boot(page, base_url)
+    await page.wait_for_selector(".tl-item")
     stops = await page.evaluate(
         "() => [...document.querySelectorAll('.tl-item')].filter((e) => e.tabIndex === 0).length"
     )

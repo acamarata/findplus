@@ -64,3 +64,12 @@ async def dispatch_focus(page, device_id: str, point_id: int | None = None) -> N
 
 async def active_tab(page) -> str:
     return await page.evaluate("document.querySelector('.fp-tabs .fp-tab.active').dataset.tab")
+
+
+#: Init script: once the dashboard is ready, show the legacy all-trackers day body in Latest
+#: (the old tests of tracker blocks, legends and the raw list read it; no 1.3 pane owns it).
+PARK_BODY = (
+    "const t = setInterval(() => { if (document.querySelector('#app-shell[data-fp-ready]')) {"
+    " clearInterval(t); import('/static/app/legacy_day_host.js')"
+    ".then((m) => m.parkDayHost(document.getElementById('tab-latest'), null)); } }, 50);"
+)

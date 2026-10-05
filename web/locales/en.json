@@ -62,6 +62,7 @@
     "rangeEnd": "Range end",
     "rangeSeparator": "to",
     "download": "Download",
+    "exportFormat": "Format",
     "tabPlaces": "Places",
     "tabAlerts": "Alerts",
     "more": "More",
@@ -1645,7 +1646,8 @@
       "uncertain": "Find+ cannot be sure. A tracker can sit still because it was parked on purpose.",
       "dismissFailed": "Could not save that: {message}"
     },
-    "back": "Back to dashboard",
+    "back": "‹ All",
+    "backAria": "Back to dashboard",
     "pageLabel": "Person page",
     "loading": "Loading {name}'s day",
     "conf": {

@@ -16,6 +16,9 @@
      tint those two draw over --panel: --accent itself measured 4.05:1 there
      (CR-C-E4 CF-P2-E4-5), so a separate token, not a reused pinned one. */
   --badge-text: #c7ddff;
+  /* 1.3 type, radius tokens: new and touched rules use these, no global sweep. */
+  --fs-xs: 12px; --fs-sm: 13px; --fs-md: 14px; --fs-lg: 16px; --fs-xl: 20px;
+  --r-sm: 6px; --r-md: 10px; --r-lg: 14px;
   color-scheme: dark;  /* native pickers, scrollbars and checkboxes follow the theme */
 }
 * { box-sizing: border-box; }
@@ -268,3 +271,9 @@ html[data-theme="light"] .alert.warn { color: #6b4a00; }
 .setting-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 .danger-zone { border-top-color: var(--err); }
 
+
+/* 1.3 polish: checkboxes and radios (U37), footer notices (U33). */
+input[type=checkbox]:not([role=switch]), input[type=radio] {
+  accent-color: var(--accent); width: 16px; height: 16px; margin: 0 6px 0 0; flex: none; vertical-align: middle;
+}
+.footer .notice, .footer .notice.small { font-size: var(--fs-xs); color: var(--muted); max-width: 72ch; }

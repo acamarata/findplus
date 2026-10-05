@@ -147,7 +147,7 @@ export async function loadPlaces() {
   placesById = new Map(places.map((p) => [String(p.id), p]));
   places.forEach((place) => {
     const circle = L.circle([place.latitude, place.longitude], {
-      radius: place.radius_meters, color: place.color, fillOpacity: 0.15, keyboard: false,
+      radius: place.radius_meters, color: place.color, fillOpacity: 0.15, keyboard: false, className: "fp-place-circle",
     })
       // N26: an unlabelled circle only says which one is which through its
       // colour, which two places can share (or look alike in dark mode) --

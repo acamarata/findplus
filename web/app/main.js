@@ -72,6 +72,9 @@ export function closeModals() {
 export async function applyHashRoute({ closeOthers = true } = {}) {
   if (state.locked) return;
   const hash = window.location.hash;
+  // Route classes (phone CSS hides the status strip on these pages).
+  document.body.classList.toggle("fp-route-person", hash.startsWith("#/person/"));
+  document.body.classList.toggle("fp-route-tracker", hash.startsWith("#/tracker/"));
   if (hash === "#/setup") {
     await openSetupRoute();
     return;

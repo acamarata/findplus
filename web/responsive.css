@@ -255,3 +255,8 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
     scroll-margin-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* 1.3 polish U15: on a person or tracker page the phone shows the page, not the status strip. */
+@media (max-width: 768px) {
+  .fp-route-person .status-region, .fp-route-tracker .status-region { display: none; }
+}

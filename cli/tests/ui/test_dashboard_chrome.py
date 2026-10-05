@@ -55,7 +55,7 @@ async def test_a_long_tracker_name_never_widens_the_controls(page, base_url, ui_
             """() => ({
                 scroll: document.documentElement.scrollWidth,
                 filter: document.getElementById('device-filter').getBoundingClientRect().top,
-                exportBtn: document.getElementById('btn-export').getBoundingClientRect().top,
+                exportBtn: document.getElementById('btn-export-open').getBoundingClientRect().top,
                 option: document.querySelector("#device-filter [value='TAG-AWAY']").textContent,
             })"""
         )

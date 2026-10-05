@@ -58,7 +58,7 @@ export function notFoundNode() {
   const node = message("notfound", t("person.state.notFoundTitle"), t("person.state.notFoundLead"));
   const link = document.createElement("a");
   link.href = "#";
-  link.className = "btn";
+  link.className = "fp-btn fp-btn--secondary";
   link.textContent = t("person.back");
   node.appendChild(link);
   return node;

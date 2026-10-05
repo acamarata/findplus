@@ -19,6 +19,10 @@ PIN = "864213"
 async def _open_settings(page, base_url) -> None:
     await page.goto(base_url + "/")
     await page.wait_for_selector("#map.leaflet-container")
+    # Boot's own requests must land first: one answered after Set PIN lacks the new
+    # session, gets a 401 and puts the lock screen over Settings (slow CI runners).
+    await page.wait_for_selector("#app-shell[data-fp-ready='dashboard']")
+    await page.wait_for_load_state("networkidle")
     await page.click("#btn-settings")
     await page.wait_for_selector("#settings-modal[data-loaded='true']")
 

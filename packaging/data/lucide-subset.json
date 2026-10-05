@@ -47,5 +47,16 @@
   { "id": "lucide:plane", "group": "places" },
   { "id": "lucide:train-front", "group": "places" },
   { "id": "lucide:bus", "group": "places" },
-  { "id": "lucide:sailboat", "group": "places" }
+  { "id": "lucide:sailboat", "group": "places" },
+  { "id": "lucide:plus", "group": "ui" },
+  { "id": "lucide:refresh-cw", "group": "ui" },
+  { "id": "lucide:settings", "group": "ui" },
+  { "id": "lucide:tag", "group": "ui" },
+  { "id": "lucide:pencil", "group": "ui" },
+  { "id": "lucide:trash-2", "group": "ui" },
+  { "id": "lucide:crosshair", "group": "ui" },
+  { "id": "lucide:chevron-left", "group": "ui" },
+  { "id": "lucide:chevron-down", "group": "ui" },
+  { "id": "lucide:list", "group": "ui" },
+  { "id": "lucide:clock", "group": "ui" }
 ]

@@ -28,7 +28,8 @@ import { t } from "../i18n.js";
 import { createCustomIconsSection } from "./custom-icons.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
-const SPRITE_SELECTOR = '#fp-icon-sprite symbol[id^="lucide-"]';
+/** The "ui" group (1.3 button-system icons) is never offered as a badge icon. */
+const SPRITE_SELECTOR = '#fp-icon-sprite symbol[id^="lucide-"]:not([data-group="ui"])';
 
 /** The sprite is static once loaded, so this is a fresh read per dialog open. */
 export function readSpriteSymbols() {

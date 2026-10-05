@@ -21,6 +21,7 @@ import { purgePersonColours } from "./person_colours.js";
 import { stopLiveRefresh } from "./live_refresh.js";
 import { unlockErrorText } from "./lock_errors.js";
 import { purgeStory } from "./trips_view.js";
+import { purgeLatest } from "./latest_pane.js";
 import { purgeMapPanes } from "./trips_map.js";
 
 /**
@@ -100,6 +101,7 @@ export async function purgeRenderedData() {
   state.pollInFlight = false;
   stopLiveRefresh();
   purgeMapOverlay();
+  purgeLatest(); // the Latest list and any tracker focus
   purgeStory(); // the day story: its list, strip, lanes, map layers and cached trips
   // Both footer sentences are device-derived: leaving either up behind the
   // lock screen would tell a passer-by which networks this person tracks on.

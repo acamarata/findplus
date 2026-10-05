@@ -11,7 +11,7 @@ import pytest
 
 from ._person_helpers import ensure_person
 from ._suggest_helpers import serve
-from ._trips_helpers import open_day
+from ._trips_helpers import open_day, show_legacy_story
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -84,7 +84,7 @@ async def test_day_story_lanes_name_the_person_not_the_tracker(trips_page, trips
         "#fp-group-select option[value]:nth-child(2)", state="attached"
     )
     await trips_page.select_option("#fp-group-select", label="Family")
-    await trips_page.click("#view-story")
+    await show_legacy_story(trips_page)
     await trips_page.wait_for_selector(".lane .strip-bar")
     await trips_page.wait_for_function(
         "() => [...document.querySelectorAll('.lane-name')].every((e) => e.textContent.startsWith('Sam ('))"

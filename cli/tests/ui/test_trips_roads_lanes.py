@@ -8,7 +8,7 @@ import re
 import pytest
 from axe_playwright_python.async_playwright import Axe
 
-from ._trips_helpers import open_day, start_fake_osrm
+from ._trips_helpers import open_day, show_legacy_story, start_fake_osrm
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -70,7 +70,7 @@ async def test_group_shows_family_lanes(trips_page, trips_server):
         "#fp-group-select option[value]:nth-child(2)", state="attached"
     )
     await trips_page.select_option("#fp-group-select", label="Family")
-    await trips_page.click("#view-story")
+    await show_legacy_story(trips_page)
     await trips_page.wait_for_selector(".lane .strip-bar")
     assert await trips_page.locator(".lane").count() == 2
     assert await trips_page.locator(".lane-legend").count() == 1

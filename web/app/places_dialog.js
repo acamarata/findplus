@@ -24,7 +24,7 @@
 import { t } from "./i18n.js";
 import { createColorPicker } from "./components/color-picker.js";
 import { createPlaceLocator } from "./components/place_locator.js";
-import { startMapPick } from "./components/place_map_pick.js";
+import { openMapCard, startMapPick } from "./components/place_map_pick.js";
 import { duplicateNameMessage, placeValidationMessage } from "./dialog_errors.js";
 import { buildDialog, radiusOf, setRadius, updateRadiusWarning, wireRadius } from "./places_dialog_dom.js";
 import { showWhere, clearWhere, showUsage } from "./places_dialog_where.js";
@@ -126,6 +126,7 @@ function beginMapPick() {
   // that the dialog's backdrop is gone, so the topright pick control never
   // needs a scroll to find.
   map.getContainer().scrollIntoView({ block: "nearest" });
+  openMapCard();
   activePick = startMapPick(map, {
     latlng: initial,
     radiusMeters: radiusOf(fields),

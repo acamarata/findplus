@@ -1719,6 +1719,18 @@
     "bannerLater": "Later",
     "bannerLabel": "Update"
   },
+  "shell": {
+    "btnAdd": "Add",
+    "addMenuLabel": "Add to Find+",
+    "addPlace": "Place",
+    "addPerson": "Person",
+    "addGroup": "Group",
+    "fitLatest": "Fit to latest",
+    "fitLatestTitle": "Zoom the map to the most recent sighting",
+    "mapToggle": "Map",
+    "filtersToggle": "Filters",
+    "showOnlyThis": "Show only this"
+  },
   "honesty": {
     "findHub": "This history consists of locations reported through Google's Find Hub network. Your trackers use nearby participating Android devices to report their location. Location updates can therefore be delayed, sparse, or unavailable, and this application should not be treated as real-time emergency or child-safety GPS tracking.",
     "apple": "Apple Find My locations come from nearby Apple devices and can be delayed, sparse or unavailable. Find+ can only query accessories whose keys you hold; genuine AirTags require extracting pairing keys, which most users cannot do.",
@@ -1738,17 +1750,5 @@
     "nativeSignin": "Find+ can sign you in to Google in a window of its own. Google's policy is against sign-in inside apps, so it can refuse at any time; if it does, sign in with your own Chrome instead.",
     "nativeSigninKept": "Find+ keeps a long-lived sign-in to your Google account on this Mac so it can read your trackers. You can remove its access any time at myaccount.google.com/security (Third-party access) or with Disconnect.",
     "updateCheck": "Automatic updates ask GitHub's releases API for the newest Find+ about every six hours and download a new version from the same GitHub release. The request names only the Find+ version; nothing about you, your trackers or your history is sent, though GitHub sees this computer's IP address. Turn automatic updates off to stop these requests."
-  },
-  "shell": {
-    "btnAdd": "Add",
-    "addMenuLabel": "Add to Find+",
-    "addPlace": "Place",
-    "addPerson": "Person",
-    "addGroup": "Group",
-    "fitLatest": "Fit to latest",
-    "fitLatestTitle": "Zoom the map to the most recent sighting",
-    "mapToggle": "Map",
-    "filtersToggle": "Filters",
-    "showOnlyThis": "Show only this"
   }
 }

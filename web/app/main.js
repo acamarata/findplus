@@ -128,6 +128,7 @@ function wireControls() {
  * this, leaving `state.config` null and the auto-refresh timer never created.
  */
 function applyResumeFilters(resume) {
+  restoreTab(); // hash tab, else the remembered one (findplus.panelTab), else Latest
   if (!resume) return;
   state.deviceFilter = resume.deviceFilter;
   state.movementOnly = resume.movementOnly;
@@ -160,7 +161,6 @@ export async function bootDashboard(resume) {
   if (stale()) return;
 
   applyResumeFilters(resume);
-  restoreTab(); // hash tab, else the remembered one (findplus.panelTab), else Latest
 
   await loadStatus();
   if (stale()) return;

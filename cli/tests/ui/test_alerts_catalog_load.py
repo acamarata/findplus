@@ -32,9 +32,9 @@ chain -- a step that always runs, and always sits downstream of the awaited
 could not fail on the regression it claimed to guard, because the static
 heading is translated on a code path the regression never touches.
 
-This version instead asserts a table cell that `alerts.js`'s own
-`init() -> refreshAll() -> loadRules() -> renderRulesTable()` chain renders
-through `t()` (alerts_rules.js's `buildRuleRow`, the "On enter" cell) -- a
+This version instead asserts a rule card label that `alerts.js`'s own
+`init() -> refreshAll() -> loadRules() -> renderRulesList()` chain renders
+through `t()` (alerts_rules.js's rule card, its on/off switch label) -- a
 path that only runs once `alerts.js` has actually been imported and called,
 which is exactly the code CR-C's finding is about. A rule is created via
 the API first (same pattern as `test_delete_rule_removes_row` in
@@ -52,7 +52,7 @@ the two-line mutation alone did not turn this test red here. Adding one
 more change on top -- an artificial delay on the `/static/locales/en.json`
 route response, forcing the fetch to lose the race it would otherwise win
 by sheer local speed -- did turn it red, with a clean value mismatch on the
-"On enter" cell (served sentinel vs. the bundled fallback's plain "yes").
+switch label (served sentinel vs. the bundled fallback's plain "On").
 That confirms this assertion target is genuinely downstream of the race
 this test exists to catch; the two-line mutation not tripping it by itself
 is a property of this dev server's timing, not of the assertion. The
@@ -79,8 +79,8 @@ SENTINEL = "ZZZ-SERVED-CATALOG-SENTINEL-ZZZ"
 
 async def test_alerts_tab_shows_the_served_catalog_not_the_bundled_fallback(page, base_url):
     data = json.loads(CATALOG.read_text(encoding="utf-8"))
-    assert data["common"]["yes"] != SENTINEL, "sentinel already in en.json?"
-    data["common"]["yes"] = SENTINEL
+    assert data["alerts"]["cards"]["on"] != SENTINEL, "sentinel already in en.json?"
+    data["alerts"]["cards"]["on"] = SENTINEL
     body = json.dumps(data)
 
     async def serve_patched_catalog(route):
@@ -106,10 +106,10 @@ async def test_alerts_tab_shows_the_served_catalog_not_the_bundled_fallback(page
 
     try:
         await open_alerts_tab(page, base_url)
-        row = page.locator("#fp-rules-tbody tr", has_text="Catalog race rule")
+        row = page.locator("#fp-rules-list .fp-rule-card", has_text="Catalog race rule")
         await row.wait_for(state="visible")
-        on_enter_cell = row.locator("td").nth(3)
-        cell_text = await on_enter_cell.text_content()
+        # The rule card's on/off switch label reads alerts.cards.on.
+        cell_text = await row.locator(".fp-switch-text").text_content()
     finally:
         await page.unroute("**/static/locales/en.json", serve_patched_catalog)
 

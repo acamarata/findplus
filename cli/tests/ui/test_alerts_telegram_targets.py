@@ -229,17 +229,24 @@ async def test_send_test_reports_per_target_results(page, base_url, configured_t
     assert "22222" in status and "blocked" in status
 
 
-async def test_targets_disabled_until_a_bot_is_connected(page, base_url, ui_env):
-    """UAT6 N15: Add chats/Find chat IDs used to be live before a bot was
-    ever connected, only answering "Telegram not configured" once clicked --
-    disabled here instead, with a one-line reason in their place."""
+async def test_targets_hidden_until_a_bot_is_connected(page, base_url, ui_env):
+    """UAT6 N15 / U31: Add chats, Find chat IDs, Send test and Clear do nothing
+    before a bot is connected. They stay disabled and are now hidden too (no
+    greyed-out buttons); only the token field and Connect show."""
     Path(ui_env["FINDPLUS_STATE_DIR"], "alerts.json").write_text(json.dumps({"channels": {}}))
     await open_alerts_tab(page, base_url)
     for control_id in ("fp-tg-targets", "fp-tg-save-targets", "fp-tg-find-chats"):
         assert await page.is_disabled(f"#{control_id}"), control_id
-    reason = page.locator("#fp-tg-targets-disabled-reason")
-    assert await reason.is_visible()
-    assert (await reason.inner_text()).strip() != ""
+    for control_id in (
+        "fp-tg-targets",
+        "fp-tg-save-targets",
+        "fp-tg-find-chats",
+        "fp-tg-test",
+        "fp-tg-clear",
+    ):
+        assert await page.locator(f"#{control_id}").is_hidden(), control_id
+    assert await page.locator("#fp-tg-connect").is_visible()
+    assert await page.locator("#fp-tg-token").is_visible()
 
 
 # test_current_targets_render_as_chips and

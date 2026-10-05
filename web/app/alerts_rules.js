@@ -1,16 +1,17 @@
 /*
- * Alerts tab: the rules table. Split out of alerts.js at the PRI rule-7
+ * Alerts tab: the rule cards. Split out of alerts.js at the PRI rule-7
  * 300-line file cap; the add/edit-rule dialog itself lives in
- * alerts_rule_dialog.js (split again at the same cap, UAT2 U11/U32/N7).
+ * alerts_rule_dialog.js.
  *
- * Purpose    : List and delete alert rules; open the shared dialog for
- *              add/edit.
- * Inputs     : GET/DELETE under /api/alerts/rules.
- * Outputs    : The rules table inside #tab-alerts.
- * Constraints: textContent only, never raw markup. alerts.js owns wiring
- *              the static buttons/dialog controls to these functions and
- *              re-exports `purge()`/`refreshAll()` for lock.js — this
- *              module has no top-level side effects of its own.
+ * Purpose    : List the alert rules, one compact card each: the rule's name, the
+ *              rule in one plain sentence, an on/off switch, Edit and Delete.
+ *              (The old nine-row table said the same thing nine times.)
+ * Inputs     : GET/PUT/DELETE under /api/alerts/rules.
+ * Outputs    : `li.fp-rule-card` rows inside #fp-rules-list.
+ * Constraints: textContent only, never raw markup. alerts.js owns wiring the
+ *              static buttons/dialog controls to these functions and re-exports
+ *              `purge()`/`refreshAll()` for lock.js; this module has no top-level
+ *              side effects of its own.
  */
 "use strict";
 import { markForLinks } from "./person_links.js";
@@ -18,7 +19,6 @@ import { $, showAlert } from "./state.js";
 import { api } from "./api.js";
 import { t, plural } from "./i18n.js";
 import { openRuleDialog } from "./alerts_rule_dialog.js";
-import { setRuleCount } from "./alerts_summary.js";
 import { ruleSentence } from "./alerts_rule_sentence.js";
 import { confirmDialog } from "./components/confirm-dialog.js";
 
@@ -31,17 +31,17 @@ export {
 } from "./alerts_rule_dialog.js";
 
 export async function loadRules() {
-  renderRulesTable(await api("/api/alerts/rules"));
+  renderRulesList(await api("/api/alerts/rules"));
 }
 function ruleTargetLabel(rule) {
   if (rule.all_people) return t("alerts.everyone");
   if (rule.group_id) return rule.group_name || t("alerts.groupFallback", { id: rule.group_id });
   return rule.device_name || rule.device_id || t("common.emptyValue");
 }
-/** WP10 (gap-audit P13): the Channels cell shows the Telegram subset, not
- *  just the bare channel name -- null (every saved target) reads exactly
- *  like before this feature existed; a non-null list says how many chats,
- *  or that none are picked (dispatch.py skips Telegram for that rule). */
+/** WP10 (gap-audit P13): the sentence names the Telegram subset, not just the
+ *  bare channel -- null (every saved target) reads as plain "Telegram"; a list
+ *  says how many chats, or that none are picked (dispatch.py skips Telegram
+ *  for that rule). */
 function channelDisplayLabel(rule, channelId) {
   const base = t("alerts.channels." + channelId);
   if (channelId !== "telegram" || rule.telegram_targets == null) return base;
@@ -50,48 +50,51 @@ function channelDisplayLabel(rule, channelId) {
     ? t("alerts.telegramNoChatsSelected", { channel: base })
     : plural("alerts.telegramTargetsCount", count, { channel: base, count });
 }
-/** A labelled `<td>` for the phone-tier/narrow-pane card layout (components.css
- *  turns data-label into the row's own heading below a 500px container,
- *  UAT3 N16 -- the same convention alerts_deliveries.js's cell() uses). */
-function cell(text, label) {
-  const td = document.createElement("td");
-  td.textContent = text;
-  td.dataset.label = label;
-  return td;
-}
-/** The rule's name, with the rule in plain words under it ("Tell me on Telegram
- *  when Sam Bag leaves School."), so the table reads without decoding ticks. */
-function nameCell(rule) {
-  const td = document.createElement("td");
-  td.dataset.label = t("alerts.colName");
-  const name = document.createElement("strong");
-  name.textContent = rule.name;
-  const sentence = document.createElement("span");
-  sentence.className = "fp-rule-row-sentence";
-  sentence.textContent = ruleSentence({
-    channels: rule.channels.map((c) => t("alerts.channels." + c)),
+/** The rule in plain words ("Tell me on Telegram when Sam Bag leaves School."). */
+function sentenceFor(rule) {
+  return ruleSentence({
+    channels: rule.channels.map((c) => channelDisplayLabel(rule, c)),
     who: rule.all_people ? t("alerts.anyone") : ruleTargetLabel(rule),
     isGroup: rule.group_id != null,
     enter: rule.on_enter,
     exit: !!rule.on_exit,
     place: rule.place_name || "",
   });
-  td.append(name, markForLinks(sentence));
-  return td;
+}
+function textBlock(rule) {
+  const box = document.createElement("div");
+  box.className = "fp-rule-card-text";
+  const name = document.createElement("strong");
+  name.className = "fp-rule-card-title";
+  name.textContent = rule.name;
+  const sentence = document.createElement("span");
+  sentence.className = "fp-rule-row-sentence";
+  sentence.textContent = sentenceFor(rule);
+  box.append(name, markForLinks(sentence));
+  return box;
 }
 
-/** UAT U13: enabled/disabled toggle, PUT-ing the single field. Dispatch
- *  already filters on `enabled` server-side (dispatch.py); this is the only
- *  piece that was missing. */
-function enabledToggleCell(rule) {
-  const td = document.createElement("td");
-  td.dataset.label = t("alerts.colEnabled");
+/** UAT U13: the on/off switch, PUT-ing the single field. Dispatch already
+ *  filters on `enabled` server-side (dispatch.py). A real checkbox drawn as a
+ *  switch (alerts.css), so keyboard and screen readers get it for free. */
+function enabledSwitch(rule, card) {
+  const label = document.createElement("label");
+  label.className = "fp-switch";
   const input = document.createElement("input");
   input.type = "checkbox";
+  input.setAttribute("role", "switch");
   input.checked = rule.enabled;
   input.setAttribute("aria-label", t("alerts.ruleEnabledLabel", { name: rule.name }));
+  const text = document.createElement("span");
+  text.className = "fp-switch-text";
+  const paint = () => {
+    text.textContent = t(input.checked ? "alerts.cards.on" : "alerts.cards.off");
+    card.dataset.enabled = String(input.checked);
+  };
+  paint();
   input.addEventListener("change", async () => {
     const next = input.checked;
+    paint();
     try {
       await api(`/api/alerts/rules/${rule.id}`, {
         method: "PUT",
@@ -100,60 +103,49 @@ function enabledToggleCell(rule) {
       });
     } catch (err) {
       input.checked = !next;
+      paint();
       if (err.message !== "Locked") {
         showAlert(t("alerts.ruleUpdateFailed", { name: rule.name, status: err.message }), "err");
       }
     }
   });
-  td.appendChild(input);
-  return td;
+  label.append(input, text);
+  return label;
 }
-/** UAT3 N16: at 1280 the table renders inside the ~348px side pane, and at
- *  375 the phone-tier pane is ~307px -- both already under the 500px
- *  `@container` gate components.css keys the delivery-log's card layout off
- *  (#tab-alerts sets container-type: inline-size), so the same data-label
- *  convention turns each row into a card there instead of an 8-column table
- *  wider than either box. Edit/Delete get their own labelled cell like every
- *  other column, rather than sitting unlabelled at the end of the card. */
-function buildRuleRow(rule) {
-  const tr = document.createElement("tr");
-  tr.append(
-    nameCell(rule),
-    cell(rule.place_name || t("common.emptyValue"), t("alerts.colPlace")),
-    markForLinks(cell(ruleTargetLabel(rule), t("alerts.colTarget"))),
-    cell(rule.on_enter ? t("common.yes") : t("common.no"), t("alerts.colOnEnter")),
-    cell(rule.on_exit ? t("common.yes") : t("common.no"), t("alerts.colOnExit")),
-    cell(
-      rule.channels.map((c) => channelDisplayLabel(rule, c)).join(", "),
-      t("alerts.rules.channelsHeader"),
-    ),
-    enabledToggleCell(rule),
+
+function actionButton(label, ariaKey, rule, danger, onClick) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = danger ? "btn btn-tiny btn-danger" : "btn btn-tiny btn-secondary";
+  btn.textContent = label;
+  btn.setAttribute("aria-label", t(ariaKey, { name: rule.name }));
+  btn.addEventListener("click", onClick);
+  return btn;
+}
+
+function buildRuleCard(rule) {
+  const card = document.createElement("li");
+  card.className = "fp-rule-card";
+  card.dataset.ruleId = String(rule.id);
+  const controls = document.createElement("div");
+  controls.className = "fp-rule-card-controls";
+  controls.append(
+    enabledSwitch(rule, card),
+    actionButton(t("common.edit"), "alerts.cards.editAria", rule, false, () => openRuleDialog(rule)),
+    actionButton(t("common.delete"), "alerts.cards.deleteAria", rule, true, () => deleteRule(rule.id, rule.name)),
   );
-  const actions = document.createElement("td");
-  actions.dataset.label = t("alerts.colActions");
-  const editBtn = document.createElement("button");
-  editBtn.type = "button";
-  editBtn.className = "btn btn-tiny";
-  editBtn.textContent = t("common.edit");
-  editBtn.addEventListener("click", () => openRuleDialog(rule));
-  const delBtn = document.createElement("button");
-  delBtn.type = "button";
-  delBtn.className = "btn btn-tiny";
-  delBtn.textContent = t("common.delete");
-  delBtn.addEventListener("click", () => deleteRule(rule.id, rule.name));
-  actions.append(editBtn, delBtn);
-  tr.appendChild(actions);
-  return tr;
+  card.append(textBlock(rule), controls);
+  return card;
 }
-export function renderRulesTable(rules) {
-  const tbody = $("fp-rules-tbody");
-  if (!tbody) return;
-  while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
-  rules.forEach((rule) => tbody.appendChild(buildRuleRow(rule)));
+
+export function renderRulesList(rules) {
+  const list = $("fp-rules-list");
+  if (!list) return;
+  list.replaceChildren(...rules.map(buildRuleCard));
   const empty = $("fp-rules-empty");
   if (empty) empty.hidden = rules.length > 0;
-  setRuleCount(rules.length);
 }
+
 async function deleteRule(id, name) {
   const confirmed = await confirmDialog({
     title: t("common.delete"),

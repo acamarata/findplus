@@ -1,5 +1,5 @@
 /*
- * Colour picker: the 12 palette swatches plus (optionally) a custom hex input.
+ * Colour picker: the 12 palette swatches plus a custom hex input.
  *
  * Purpose    : Let a dialog pick the colour a device or group badge is drawn
  *              in, always as the lowercase "#rrggbb" string labels.py's
@@ -19,7 +19,7 @@
 
 import { t } from "../i18n.js";
 
-export const DEVICE_PALETTE = [
+const DEVICE_PALETTE = [
   "#4f8cf7",
   "#e7663f",
   "#37c67a",
@@ -65,10 +65,7 @@ function customInput(customLabel) {
   input.setAttribute("aria-label", customLabel);
   return input;
 }
-/**
- * `allowCustom: false` leaves out the native colour input, so the picker is
- * exactly the 12 palette swatches (the device editor uses this, U13).
- */
+/** `allowCustom: false` is the places' palette-only picker (U6): the 12 swatches and nothing else. */
 export function createColorPicker(host, { value, onChange, customLabel = t("field.customColor"), allowCustom = true } = {}) {
   const root = document.createElement("div");
   root.className = "fp-color-picker";

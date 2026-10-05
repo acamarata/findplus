@@ -41,6 +41,8 @@ async def test_places_failure_has_an_error_and_retry(page, base_url):
     await page.click('button[data-tab="places"]')
     pane = page.locator("#fp-places-list [data-pane-error]")
     await pane.wait_for()
+    assert "Find+ could not load your places. Try again." in await pane.inner_text()
+    await pane.locator("summary").click()
     assert "places broke" in await pane.inner_text()
     assert await page.locator("#fp-places-tab-hint").is_hidden()
     await page.unroute("**/api/places", fail)

@@ -23,6 +23,7 @@ async def _open_add(page, base_url):
     await page.click("#fp-add-group-btn")
     await page.wait_for_selector("#fp-group-dialog[open]")
     await page.wait_for_selector(f"{MEMBERS} input[data-device-id]:not([disabled])")
+    await page.click("#fp-group-advanced summary")
 
 
 async def test_warns_when_quorum_exceeds_the_ticked_members(page, base_url):

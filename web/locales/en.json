@@ -87,6 +87,7 @@
     "statusRegionLabel": "Status and filters",
     "skipMap": "Skip map, go to timeline",
     "retry": "Retry",
+    "errorDetails": "Details",
     "networkDown": "Find+ is not answering. Check that it is still running, then try again.",
     "wrongPinLeft": {
       "one": "Wrong PIN. 1 try left before Find+ makes you wait.",
@@ -217,20 +218,23 @@
       "name": "Name",
       "icon": "Icon",
       "color": "Color",
+      "advanced": "Advanced",
       "quorum": "Alert when",
       "quorum_any": "Any member arrives",
       "quorum_majority": "Most members arrive",
       "quorum_all": "Every member arrives",
       "quorum_custom": "Custom number of members",
       "quorum_hint": "How many members have to be at a place before the group counts as arrived.",
-      "radius": "Cluster radius (m)",
+      "radius": "Members count as together within (m)",
       "radius_hint": "How close together members' locations must be to count as \"in the same place\".",
-      "stale": "Stale after (minutes)",
+      "stale": "Ignore a tracker with no location for (minutes)",
       "stale_hint": "A tag with no recent fix is stale, not at home and not left behind. Find+ reports it as unknown.",
       "members": "Members"
     },
     "error": {
       "name_required": "Name is required.",
+      "saveFailed": "Find+ could not save this group. Try again.",
+      "membersLoadFailed": "Find+ could not load your trackers. Close this and try again.",
       "members_required": "Select at least one member.",
       "duplicate_name": "A group named {name} already exists."
     },
@@ -294,7 +298,7 @@
     "verdictNoRecentLocation": "No recent location",
     "verdictUnavailable": "Status unavailable",
     "verdictUnavailableHint": "Could not load this group's status. Reload the page to try again.",
-    "loadFailedTitle": "Could not load your groups",
+    "loadFailedTitle": "Find+ could not load your groups. Try again.",
     "loadFailed": "Could not load groups: {message}",
     "presenceFailedTitle": "Could not load this group's presence",
     "quorumRange": "Use a whole number from {min} to {max}.",
@@ -346,6 +350,10 @@
     "colorLabel": "Color",
     "enterConfirmations": "Enter confirmations",
     "exitConfirmations": "Exit confirmations",
+    "sheet": {
+      "locationLegend": "Location",
+      "advanced": "Alert timing"
+    },
     "dialog": {
       "title_add": "Add place",
       "title_edit": "Edit {name}"
@@ -360,12 +368,14 @@
       "locationSet": "Location set from {name}.",
       "locationSetAt": "Location: {lat}, {lon} (from the map).",
       "pickOnMap": "Pick on map",
+      "pickingOnMap": "Click the map…",
+      "useMapCentre": "Use map centre",
       "map": "the map"
     },
     "mapPick": {
       "instructions": "Click or tap the map to move the pin, or use the arrow keys.",
       "setLocation": "Set location",
-      "markerLabel": "Place location. Drag it, or use arrow keys, then press Enter."
+      "markerLabel": "Place location. Drag it, or use the arrow keys."
     },
     "error": {
       "nameLength": "Name must be 1-64 characters.",
@@ -414,11 +424,13 @@
       "delete": "Delete {name}"
     },
     "where": {
-      "centre": "Location: the centre of the map ({lat}, {lon}). Choose a tracker, a point on the map or an address above to move it.",
+      "centre": "Location: {lat}, {lon}, the centre of the map. Drag the pin, or use the options below to move it.",
       "current": "Location: {lat}, {lon}.",
-      "picked": "Location: {lat}, {lon}, as chosen above."
+      "picked": "Location: {lat}, {lon}."
     },
-    "loadFailedTitle": "Could not load your places",
+    "loadFailedTitle": "Find+ could not load your places. Try again.",
+    "addDisabledLoadFailed": "Add place is off until your places load. Press Retry.",
+    "saveFailed": "Find+ could not save this place. Try again.",
     "tools": {
       "searchPlaceholder": "Search places",
       "searchLabel": "Search your places by name",

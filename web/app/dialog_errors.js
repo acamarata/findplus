@@ -64,3 +64,12 @@ export function placeValidationMessage(err) {
   }
   return null;
 }
+
+/**
+ * U29: the one line a failed save or load shows. A network failure already has
+ * its own plain sentence (api.js sets `err.offline`); anything else becomes
+ * `fallbackKey`'s catalog sentence. Raw server text never reaches the dialog.
+ */
+export function plainFailure(err, fallbackKey) {
+  return err && err.offline ? err.message : t(fallbackKey);
+}

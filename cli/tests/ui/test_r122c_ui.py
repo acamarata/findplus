@@ -33,7 +33,7 @@ async def test_place_dialog_fits_a_720px_viewport_with_save_in_view(trips_page, 
         " saveTop: b.top, vh: innerHeight }; }"
     )
     assert box["top"] >= 0 and box["bottom"] <= box["vh"], box
-    assert box["height"] < 720, box
+    assert box["height"] <= 720, box
     assert box["saveTop"] >= 0 and box["saveBottom"] <= box["vh"], box
 
 

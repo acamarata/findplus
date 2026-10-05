@@ -19,6 +19,7 @@
 "use strict";
 
 import { forceDayView } from "./trips_view.js";
+import { syncRoving } from "./timeline_keys.js";
 
 /** Put the shared body in `container`; `activity` shows it as the raw feed. */
 export function attachDayHost(container, { activity }) {
@@ -42,4 +43,7 @@ export function parkDayHost(container, view) {
   host.classList.remove("fp-day-host--activity");
   host.classList.add("fp-day-host--focus");
   forceDayView(view);
+  // Rows drawn while the body was hidden have no Tab stop; give the visible ones one.
+  const tracks = document.getElementById("tracks");
+  if (tracks) syncRoving(tracks);
 }

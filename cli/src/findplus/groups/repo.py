@@ -31,6 +31,7 @@ from findplus.db.models import (
 from findplus.db.models_people import PERSON_KINDS
 from findplus.device_labels import unique_names
 from findplus.groups.membership import check_one_person, flush_checked, validate_kind
+from findplus.groups.palette import next_person_color
 from findplus.groups.place_event_list import list_group_place_events  # re-exported
 from findplus.groups.presence import (
     Fix,
@@ -40,7 +41,6 @@ from findplus.groups.presence import (
     group_presence,
     member_status,
 )
-from findplus.groups.palette import next_person_color
 from findplus.groups.timeline import list_group_timeline  # re-exported, see timeline.py
 from findplus.groups.validation import check_quorum_fits, clean_name, validate_group_fields
 

@@ -6,6 +6,13 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Filling in past days (after accepting people, saving a place, or `findplus db rebuild-derived`)
+  no longer skips sightings when the app writes to the database at the same time. Each batch now
+  takes the write lock up front and is replayed if it still meets a lock. Any sighting the engines
+  could not process is counted and reported (`failed` in GET /api/people/replay, a warning from
+  the command) instead of only being logged.
+
 ## [1.2.3] - 2026-10-04
 
 ### Fixed

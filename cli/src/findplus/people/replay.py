@@ -5,8 +5,10 @@ Purpose : History polled before a person or a place existed has no arrive or
           people are accepted, a place is saved (or moved), or a database from
           before 1.1.6 is first served, this runs the same replay as
           `findplus db rebuild-derived` on a background thread, so every past
-          day reads right. GET /api/people/replay reports {state, done, total}
-          so the dashboard can say "Updating past days...".
+          day reads right. GET /api/people/replay reports {state, done, total,
+          failed} so the dashboard can say "Updating past days..."; `failed`
+          counts engine runs that raised, whose events are missing until the
+          next replay.
 Inputs  : `request(reason)` from the routes and the serve start-up; Settings.
 Outputs : Rebuilt derived tables (db/rebuild.py); the status dict.
 Constraints: Nothing is sent: every rebuilt event is stamped notified (and the
@@ -38,13 +40,13 @@ UPGRADE_VERSION = "1.1.6"
 SYNC_ENV = "FINDPLUS_REPLAY_SYNC"
 
 _guard = threading.Lock()
-_status: dict[str, Any] = {"state": "idle", "done": 0, "total": 0, "reason": None}
+_status: dict[str, Any] = {"state": "idle", "done": 0, "total": 0, "failed": 0, "reason": None}
 _thread: threading.Thread | None = None
 _again: str | None = None
 
 
 def status() -> dict[str, Any]:
-    """{state: idle|running|done|failed, done, total, reason}."""
+    """{state: idle|running|done|failed, done, total, failed, reason}."""
     with _guard:
         return dict(_status)
 
@@ -73,14 +75,14 @@ def request(reason: str) -> dict[str, Any]:
             return status()
     if os.environ.get(SYNC_ENV) == "1":  # tests: the same work, on this thread
         with _guard:
-            _status.update(state="running", done=0, total=0, reason=reason)
+            _status.update(state="running", done=0, total=0, failed=0, reason=reason)
         _run(reason)
         return status()
     with _guard:
         if _thread is not None and _thread.is_alive():
             _again = reason
             return dict(_status)
-        _status.update(state="running", done=0, total=0, reason=reason)
+        _status.update(state="running", done=0, total=0, failed=0, reason=reason)
         _thread = threading.Thread(target=_run, args=(reason,), name="replay", daemon=True)
         _thread.start()
         return dict(_status)
@@ -113,7 +115,7 @@ def _run(reason: str) -> None:
                 _status.update(state=state)
                 return
             reason, _again = _again, None
-            _status.update(state="running", done=0, total=0, reason=reason)
+            _status.update(state="running", done=0, total=0, failed=0, reason=reason)
 
 
 def _replay_once() -> None:
@@ -128,7 +130,14 @@ def _replay_once() -> None:
         dispatch.process(dispatch.load_pending_events(s), s, settings)
     with session_scope() as s:
         result = rebuild_derived(s, settings, progress=_progress)
-    log.info("replay_done", observations=result.observations, group_events=result.group_events)
+    with _guard:
+        _status.update(failed=result.failed)
+    log.info(
+        "replay_done",
+        observations=result.observations,
+        group_events=result.group_events,
+        failed=result.failed,
+    )
 
 
 def on_start() -> None:

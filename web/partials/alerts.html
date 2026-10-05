@@ -2,7 +2,7 @@
       <section class="fp-alerts-section" id="fp-rules-section">
         <div class="fp-section-head">
           <h3 id="fp-rules-heading" data-i18n="alerts.rulesHeading">Rules</h3>
-          <button id="fp-add-rule-btn" type="button" class="btn" data-i18n="alerts.addRule">Add rule</button>
+          <button id="fp-add-rule-btn" type="button" class="fp-btn fp-btn--primary" data-i18n="alerts.addRule">Add rule</button>
         </div>
         <!-- alerts_rules.js: one compact card per rule (name, plain sentence, on/off switch, Edit, Delete). -->
         <ul id="fp-rules-list" class="fp-rule-list" aria-labelledby="fp-rules-heading"></ul>
@@ -16,7 +16,7 @@
         <div class="fp-channel-row">
           <h4 class="fp-channel-name" data-i18n="alerts.telegramHeading">Telegram</h4>
           <span class="fp-channel-state" data-channel-state></span>
-          <button type="button" class="btn btn-secondary btn-tiny fp-channel-toggle" data-channel-toggle aria-expanded="false" aria-controls="fp-telegram-body"></button>
+          <button type="button" class="fp-btn fp-btn--secondary fp-btn--sm fp-channel-toggle" data-channel-toggle aria-expanded="false" aria-controls="fp-telegram-body"></button>
         </div>
         <div class="fp-channel-body" id="fp-telegram-body" hidden>
         <p id="fp-tg-connected" class="fp-tab-hint hidden"></p>
@@ -33,9 +33,9 @@
                  data-i18n-attr="placeholder:alerts.botToken">
         </label>
         <div class="fp-alerts-actions">
-          <button class="btn" id="fp-tg-connect" type="button" data-i18n="alerts.connect">Connect</button>
-          <button class="btn btn-secondary" id="fp-tg-test" data-needs-connection type="button" data-i18n="alerts.sendTest">Send test</button>
-          <button class="btn btn-secondary" id="fp-tg-clear" data-needs-connection type="button" data-i18n="common.clear">Clear</button>
+          <button class="fp-btn fp-btn--primary" id="fp-tg-connect" type="button" data-i18n="alerts.connect">Connect</button>
+          <button class="fp-btn fp-btn--secondary" id="fp-tg-test" data-needs-connection type="button" data-i18n="alerts.sendTest">Send test</button>
+          <button class="fp-btn fp-btn--secondary" id="fp-tg-clear" data-needs-connection type="button" data-i18n="common.clear">Clear</button>
         </div>
         <p id="fp-tg-status"></p>
         <!-- UAT6 N15/UAT7 N04: every currently-saved target as a real chip
@@ -62,8 +62,8 @@
              surfaces can never drift again. -->
         <p class="fp-tab-hint" data-i18n="alerts.telegramTargetsHelp"></p>
         <div class="fp-alerts-actions">
-          <button class="btn btn-secondary" id="fp-tg-save-targets" type="button" data-i18n="alerts.addChats">Add chats</button>
-          <button class="btn btn-secondary" id="fp-tg-find-chats" type="button" data-i18n="alerts.findChatIds">Find chat IDs</button>
+          <button class="fp-btn fp-btn--secondary" id="fp-tg-save-targets" type="button" data-i18n="alerts.addChats">Add chats</button>
+          <button class="fp-btn fp-btn--secondary" id="fp-tg-find-chats" type="button" data-i18n="alerts.findChatIds">Find chat IDs</button>
         </div>
         <p id="fp-tg-targets-status"></p>
         <ul id="fp-tg-chats-list" class="hidden" aria-label="Chats found for this bot"
@@ -76,7 +76,7 @@
         <div class="fp-channel-row">
           <h4 class="fp-channel-name" data-i18n="alerts.webhookHeading">Webhook</h4>
           <span class="fp-channel-state" data-channel-state></span>
-          <button type="button" class="btn btn-secondary btn-tiny fp-channel-toggle" data-channel-toggle aria-expanded="false" aria-controls="fp-webhook-body"></button>
+          <button type="button" class="fp-btn fp-btn--secondary fp-btn--sm fp-channel-toggle" data-channel-toggle aria-expanded="false" aria-controls="fp-webhook-body"></button>
         </div>
         <div class="fp-channel-body" id="fp-webhook-body" hidden>
         <p id="fp-webhook-current" class="fp-tab-hint hidden"></p>
@@ -95,9 +95,9 @@
                  data-i18n-attr="placeholder:alerts.secretPlaceholder">
         </label>
         <div class="fp-alerts-actions">
-          <button class="btn" id="fp-webhook-save" type="button" data-i18n="common.save">Save</button>
-          <button class="btn btn-secondary" id="fp-webhook-test" data-needs-connection type="button" data-i18n="alerts.sendTest">Send a test message now</button>
-          <button class="btn btn-secondary" id="fp-webhook-remove" data-needs-connection type="button" data-i18n="common.remove">Remove</button>
+          <button class="fp-btn fp-btn--primary" id="fp-webhook-save" type="button" data-i18n="common.save">Save</button>
+          <button class="fp-btn fp-btn--secondary" id="fp-webhook-test" data-needs-connection type="button" data-i18n="alerts.sendTest">Send a test message now</button>
+          <button class="fp-btn fp-btn--secondary" id="fp-webhook-remove" data-needs-connection type="button" data-i18n="common.remove">Remove</button>
         </div>
         <p id="fp-webhook-status"></p>
         </div>
@@ -112,7 +112,7 @@
         <div class="fp-channel-row">
           <h4 class="fp-channel-name" data-i18n="alerts.whatsapp.heading">WhatsApp</h4>
           <span class="fp-channel-state" data-channel-state></span>
-          <button type="button" class="btn btn-secondary btn-tiny fp-channel-toggle" data-channel-toggle aria-expanded="false" aria-controls="fp-whatsapp-body"></button>
+          <button type="button" class="fp-btn fp-btn--secondary fp-btn--sm fp-channel-toggle" data-channel-toggle aria-expanded="false" aria-controls="fp-whatsapp-body"></button>
         </div>
         <div class="fp-channel-body" id="fp-whatsapp-body" hidden>
         <p id="fp-wa-connected" class="fp-tab-hint hidden"></p>
@@ -129,9 +129,9 @@
           <input type="password" id="fp-wa-apikey" placeholder="API key"
                  data-i18n-attr="placeholder:alerts.whatsapp.apikey"></label>
         <div class="fp-alerts-actions">
-          <button class="btn" id="fp-wa-save" type="button" data-i18n="alerts.whatsapp.save">Save</button>
-          <button class="btn btn-secondary" id="fp-wa-test" data-needs-connection type="button" data-i18n="alerts.whatsapp.test">Send test</button>
-          <button class="btn btn-secondary" id="fp-wa-clear" data-needs-connection type="button" data-i18n="alerts.whatsapp.clear">Clear</button>
+          <button class="fp-btn fp-btn--primary" id="fp-wa-save" type="button" data-i18n="alerts.whatsapp.save">Save</button>
+          <button class="fp-btn fp-btn--secondary" id="fp-wa-test" data-needs-connection type="button" data-i18n="alerts.whatsapp.test">Send test</button>
+          <button class="fp-btn fp-btn--secondary" id="fp-wa-clear" data-needs-connection type="button" data-i18n="alerts.whatsapp.clear">Clear</button>
         </div>
         <p id="fp-wa-status"></p>
         </div>
@@ -172,9 +172,9 @@
           </table>
         </div>
         <p id="fp-deliveries-empty" class="fp-empty-state" data-i18n="alerts.deliveriesEmpty">No alerts have been sent yet. Each one that fires appears here.</p>
-        <button id="fp-deliveries-clear" type="button" class="btn-secondary btn-tiny" hidden data-i18n="alerts.filters.clear">Clear filters</button>
+        <button id="fp-deliveries-clear" type="button" class="fp-btn fp-btn--secondary fp-btn--sm" hidden data-i18n="alerts.filters.clear">Clear filters</button>
         <p id="fp-deliveries-count" class="fp-field-hint" hidden></p>
-        <button id="fp-deliveries-more" type="button" class="btn-secondary btn-tiny" hidden data-i18n="alerts.deliveriesMore">Show more</button>
+        <button id="fp-deliveries-more" type="button" class="fp-btn fp-btn--secondary fp-btn--sm" hidden data-i18n="alerts.deliveriesMore">Show more</button>
       </section>
 
       <!-- Hidden in a plain browser (U27): the widget is a macOS-only surface;
@@ -237,7 +237,7 @@
             <legend data-i18n="alerts.rules.channels">Channels</legend>
             <div id="fp-rule-channels" class="fp-channel-picker"></div>
             <p id="fp-rule-channels-help" class="fp-field-hint" hidden></p>
-            <button type="button" id="fp-rule-connect-btn" class="btn btn-secondary" hidden data-i18n="alerts.ruleChannelsConnect">Connect a channel</button>
+            <button type="button" id="fp-rule-connect-btn" class="fp-btn fp-btn--secondary" hidden data-i18n="alerts.ruleChannelsConnect">Connect a channel</button>
           </fieldset>
           <!-- WP10 (gap-audit P13): optional per-rule Telegram target subset.
                Hidden until "telegram" is ticked above (alerts_rule_dialog.js's
@@ -269,8 +269,8 @@
           </div>
           <!-- Check it works before trusting it: a dry run over recorded events, and a real test send. -->
           <div class="fp-rule-tools">
-            <button type="button" id="fp-rule-dryrun-btn" class="btn-secondary" data-i18n="alerts.dryRun.button">Show what this would have sent in the last 24 hours</button>
-            <button type="button" id="fp-rule-test-btn" class="btn-secondary" data-i18n="alerts.ruleTest.button">Send a test message now</button>
+            <button type="button" id="fp-rule-dryrun-btn" class="fp-btn fp-btn--secondary" data-i18n="alerts.dryRun.button">Show what this would have sent in the last 24 hours</button>
+            <button type="button" id="fp-rule-test-btn" class="fp-btn fp-btn--secondary" data-i18n="alerts.ruleTest.button">Send a test message now</button>
           </div>
           <div id="fp-rule-dryrun" class="fp-rule-dryrun" aria-live="polite"></div>
           <p id="fp-rule-test-status" class="fp-rule-test-status" aria-live="polite"></p>
@@ -278,8 +278,8 @@
           </div>
           <p id="fp-rule-error" class="fp-dialog-error"></p>
           <footer>
-            <button type="button" id="fp-rule-save" class="btn" data-i18n="common.save">Save</button>
-            <button type="button" id="fp-rule-cancel" class="btn-secondary" data-i18n="common.cancel">Cancel</button>
+            <button type="button" id="fp-rule-save" class="fp-btn fp-btn--primary" data-i18n="common.save">Save</button>
+            <button type="button" id="fp-rule-cancel" class="fp-btn fp-btn--secondary" data-i18n="common.cancel">Cancel</button>
           </footer>
         </form>
       </dialog>

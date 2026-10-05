@@ -106,9 +106,9 @@ async def test_setting_rows_stack_label_above_input_at_phone_width(page, base_ur
     assert direction == "column"
 
 
-async def test_rules_table_scrolls_within_its_own_wrapper(page, base_url):
-    """The rules table overflows a 375px viewport; .fp-table-scroll should
-    absorb that overflow itself rather than growing the page."""
+async def test_rule_cards_fit_the_phone_width(page, base_url):
+    """The rule cards (dashboard 1.3 replaced the rules table) wrap inside a
+    375px viewport; nothing makes the list wider than the screen."""
     await page.set_viewport_size({"width": PHONE_WIDTH, "height": PHONE_HEIGHT})
     await page.goto(base_url + "/")
     await page.wait_for_selector("#app-shell:not(.hidden)")
@@ -116,11 +116,12 @@ async def test_rules_table_scrolls_within_its_own_wrapper(page, base_url):
 
     sizes = await page.evaluate(
         """() => {
-            const wrap = document.querySelector('#fp-rules-table').closest('.fp-table-scroll');
+            const wrap = document.querySelector('#fp-rules-list');
             return {scrollWidth: wrap.scrollWidth, clientWidth: wrap.clientWidth};
         }"""
     )
     assert sizes["clientWidth"] <= PHONE_WIDTH
+    assert sizes["scrollWidth"] <= sizes["clientWidth"]
 
 
 async def test_export_download_button_joins_the_export_row(page, base_url):

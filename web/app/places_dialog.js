@@ -35,7 +35,14 @@ import { fillNotify } from "./places_notify.js";
 // N26: a same-default-blue place after another already existed made a new
 // one hard to tell apart on the map circles' colour alone; showAddDialog()
 // picks the next entry for a place that does not exist yet instead.
-const PLACE_PALETTE = ["#3b82f6", "#e7663f", "#37c67a", "#c77ae6", "#e7b53f", "#3fc9d6", "#e64f7a", "#8fb43f"];
+const PLACE_PALETTE = ["#4f8cf7", "#e7663f", "#37c67a", "#c77ae6", "#e7b53f", "#3fc9d6", "#e64f7a", "#8fb43f", "#f2994a", "#9b6bd6", "#4fd6a8", "#d65f5f"];
+
+/** A new place's colour: the first palette colour not in `used` (an array of hex strings), else cycle by count. */
+function defaultPlaceColour(used) {
+  if (!Array.isArray(used)) return PLACE_PALETTE[(used || 0) % PLACE_PALETTE.length];
+  const taken = new Set(used.map((c) => String(c).toLowerCase()));
+  return PLACE_PALETTE.find((c) => !taken.has(c)) || PLACE_PALETTE[used.length % PLACE_PALETTE.length];
+}
 // UAT 11: a new place starts at the recommended 100 m, not 200 m.
 const DEFAULT_RADIUS = "100";
 const PREVIEW_COLOR = "#94a3b8";
@@ -195,7 +202,7 @@ function fillDialog(mode, id, place, latlng, existingCount, ruleCount = 0) {
   const radius = place ? place.radius_meters : Number(DEFAULT_RADIUS);
   setRadius(fields, radius);
   updateRadiusWarning(fields);
-  const color = place ? place.color : PLACE_PALETTE[(existingCount || 0) % PLACE_PALETTE.length];
+  const color = place ? place.color : defaultPlaceColour(existingCount);
   fields.color.value = color;
   colorPicker.setValue(color);
   fields.enter.value = place ? String(place.enter_confirmations) : DEFAULT_ENTER_CONFIRMATIONS;

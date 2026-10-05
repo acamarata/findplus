@@ -16,9 +16,18 @@
 
 import { api } from "./api.js";
 import { plural, t } from "./i18n.js";
+import { personAvatarButton } from "./person_avatar.js";
 
 /** True for the cards that are people or pets, not groups. */
 export const isPerson = (group) => group.kind === "person" || group.kind === "pet";
+
+/** The card's icon slot for a person: their avatar, as a button that opens the editor at the icon picker. */
+export function personCardIcon(group, onSaved) {
+  const slot = document.createElement("span");
+  slot.className = "fp-card-icon";
+  slot.appendChild(personAvatarButton(group, { size: 24, onSaved }));
+  return slot;
+}
 
 /** "4 trackers", with "Pet" in front for a pet. */
 export function personMeta(group) {

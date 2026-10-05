@@ -41,7 +41,8 @@ class PlaceCreate(BaseModel):
     latitude: float
     longitude: float
     radius_meters: int
-    color: str = "#2f80ed"
+    #: None = the first palette colour no other place uses.
+    color: str | None = None
     enter_confirmations: int = 1
     exit_confirmations: int = 2
     #: home | school | work | family | shop | other; omitted = guessed from the name.

@@ -14,6 +14,7 @@ import json
 
 import pytest
 
+from ._alerts_helpers import open_channel_forms
 from .test_lock import PIN
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -52,7 +53,9 @@ async def _populate_places_groups_alerts(page, base_url):
     await page.select_option("#fp-group-select", label="Family")
     await page.wait_for_selector("#fp-presence-panel .fp-verdict")
     await page.click('button[data-tab="alerts"]')
-    await page.locator("#fp-rules-tbody tr", has_text="Lock purge rule").wait_for(state="visible")
+    await page.locator("#fp-rules-list .fp-rule-card", has_text="Lock purge rule").wait_for(
+        state="visible"
+    )
     html = await page.content()
     for leaked in LEAKED_STRINGS:
         assert leaked in html, f"fixture setup did not render {leaked!r}"
@@ -63,7 +66,7 @@ async def _assert_dom_purged(page):
     assert (await page.locator("#fp-presence-panel").inner_text()).strip() == ""
     assert (await page.locator("#fp-group-legend").inner_text()).strip() == ""
     assert await page.locator("#fp-group-select option").count() == 0
-    assert await page.locator("#fp-rules-tbody tr").count() == 0
+    assert await page.locator("#fp-rules-list .fp-rule-card").count() == 0
     html = await page.content()
     for leaked in LEAKED_STRINGS:
         assert leaked not in html, f"{leaked!r} survived the lock"
@@ -164,7 +167,7 @@ async def test_lock_purges_places_groups_and_alerts_from_the_dom(
         await page.click('button[data-tab="places"]')
         await page.wait_for_selector("#map svg path.leaflet-interactive")
         await page.click('button[data-tab="alerts"]')
-        row = page.locator("#fp-rules-tbody tr", has_text="Lock purge rule")
+        row = page.locator("#fp-rules-list .fp-rule-card", has_text="Lock purge rule")
         await row.wait_for(state="visible")
     finally:
         await _teardown_purge_fixture(page, base_url)
@@ -230,6 +233,7 @@ async def test_lock_purges_the_place_dialog_and_the_webhook_secret(page, base_ur
         assert before["lat"], "fixture did not fill the hidden coordinate inputs"
 
         await page.click('button[data-tab="alerts"]')
+        await open_channel_forms(page)
         await page.fill("#fp-webhook-secret", "hunter2-not-a-real-secret")
 
         await page.click("#btn-lock")

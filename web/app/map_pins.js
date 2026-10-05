@@ -10,6 +10,8 @@
  */
 "use strict";
 
+import { plural } from "./i18n.js";
+
 const CELL_DEG = 0.0003;
 
 export function groupNearby(entries) {
@@ -26,11 +28,16 @@ export function groupNearby(entries) {
   }));
 }
 
-/** A round pin with the number of trackers in it. */
+/** "3 trackers here": the spoken and hover name of a cluster pin. */
+export function clusterLabel(count) {
+  return plural("personColours.trackersHere", count, { count });
+}
+
+/** A round pin with the number of trackers in it (a real cluster, so the count stays). */
 export function countIcon(count) {
   return L.divIcon({
     className: "",
-    html: `<div class="marker-num marker-count"><span class="marker-num-glyph">${count}</span></div>`,
+    html: `<div class="marker-num marker-count" role="img" aria-label="${clusterLabel(count)}"><span class="marker-num-glyph">${count}</span></div>`,
     iconSize: [30, 30],
     iconAnchor: [15, 15],
   });

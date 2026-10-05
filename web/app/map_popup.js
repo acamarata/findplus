@@ -11,12 +11,13 @@
 import { fmtTime, fmtDateTime, fmtDuration, fmtDistance, esc } from "./state.js";
 import { t } from "./i18n.js";
 
-export function popupHtml(point, deviceName, deviceId) {
+export function popupHtml(point, deviceName, person = null, deviceId = null) {
   // UAT2 N14: the tracker's name is the heading, not a subtitle under the
   // time -- a popup with several tracks open at once otherwise reads as a
   // bare timestamp with no way to tell whose fix it is.
   const rows = [
     `<b>${esc(deviceName)}</b>`,
+    ...(person ? [`<div class="fp-popup-sub">${esc(t("personColours.popupOwner", { name: person.name }))}</div>`] : []),
     `<div class="fp-popup-sub">${fmtTime(point.observed_at_local)}</div>`,
     `<div>${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}</div>`,
   ];

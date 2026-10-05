@@ -2,7 +2,7 @@
  * The member list inside the person editor: tick a tracker, then say what it is.
  *
  * Purpose    : One row per tracker. A ticked row shows a role (shoes, bag, keys,
- *              or "Guess from the name") and how much to trust it (0 to 1).
+ *              or "Fill in from the tracker name") and how often the person carries it (always, usually, sometimes).
  *              A tracker that already belongs to another person is listed
  *              switched off with that person's name, because a tracker has one
  *              owner.
@@ -40,13 +40,22 @@ function roleSelect(current) {
   return select;
 }
 
+/** How often the person carries a tracker, in words; the stored value is still the 0 to 1 weight. */
+const WEIGHTS = [[1, "always"], [0.7, "usually"], [0.4, "sometimes"]];
+
 function weightInput(current) {
-  const input = el("input", "pe-weight");
-  input.type = "number"; input.min = "0"; input.max = "1"; input.step = "0.05";
-  input.value = current == null ? "" : String(current);
-  input.placeholder = t("person.trackers.noWeight");
-  input.setAttribute("aria-label", t("person.trackers.weightLabel"));
-  return input;
+  const select = el("select", "pe-weight");
+  select.setAttribute("aria-label", t("person.trackers.weightLabel"));
+  const options = [["", t("person.trackers.noWeight")], ...WEIGHTS.map(([v, key]) => [String(v), t(`personColours.weight.${key}`)])];
+  // A weight set earlier outside the three words (CLI, API) is kept and shown as it is.
+  if (current != null && !WEIGHTS.some(([v]) => v === current)) options.push([String(current), t("personColours.weight.custom", { value: current })]);
+  options.forEach(([value, text]) => {
+    const opt = el("option", "", text);
+    opt.value = value;
+    opt.selected = value === (current == null ? "" : String(current));
+    select.appendChild(opt);
+  });
+  return select;
 }
 
 /** One row: checkbox, badge, name; role and weight once ticked. */

@@ -1,9 +1,24 @@
       <p class="fp-disclaimer" id="fp-alerts-latency-notice"></p>
-      <!-- alerts_summary.js: which channels are connected and how many rules exist; each chip jumps to its section. -->
-      <div id="fp-alerts-summary" class="fp-alerts-summary" role="group" aria-label="Where alerts go" data-i18n-attr="aria-label:alerts.summary.heading"></div>
+      <section class="fp-alerts-section" id="fp-rules-section">
+        <div class="fp-section-head">
+          <h3 id="fp-rules-heading" data-i18n="alerts.rulesHeading">Rules</h3>
+          <button id="fp-add-rule-btn" type="button" class="btn" data-i18n="alerts.addRule">Add rule</button>
+        </div>
+        <!-- alerts_rules.js: one compact card per rule (name, plain sentence, on/off switch, Edit, Delete). -->
+        <ul id="fp-rules-list" class="fp-rule-list" aria-labelledby="fp-rules-heading"></ul>
+        <p id="fp-rules-empty" class="fp-empty-state" data-i18n="alerts.rulesEmpty">No rules yet. Use Add rule to be told when a tracker arrives or leaves a place.</p>
+      </section>
 
-      <section id="fp-telegram-section" class="fp-alerts-section">
-        <h3 data-i18n="alerts.telegramHeading">Telegram</h3>
+      <section class="fp-alerts-section" id="fp-channels-section">
+        <h3 data-i18n="alerts.rules.channels">Channels</h3>
+        <!-- alerts_channel_rows.js: each row says connected or not and opens its own set-up form. -->
+      <section id="fp-telegram-section" class="fp-channel" data-channel="telegram" data-connected="false">
+        <div class="fp-channel-row">
+          <h4 class="fp-channel-name" data-i18n="alerts.telegramHeading">Telegram</h4>
+          <span class="fp-channel-state" data-channel-state></span>
+          <button type="button" class="btn btn-secondary btn-tiny fp-channel-toggle" data-channel-toggle aria-expanded="false" aria-controls="fp-telegram-body"></button>
+        </div>
+        <div class="fp-channel-body" id="fp-telegram-body" hidden>
         <p id="fp-tg-connected" class="fp-tab-hint hidden"></p>
         <!-- Shown until a bot is connected (alerts_channels.js's renderTelegramSection()). -->
         <ol id="fp-tg-steps" class="fp-steps">
@@ -19,8 +34,8 @@
         </label>
         <div class="fp-alerts-actions">
           <button class="btn" id="fp-tg-connect" type="button" data-i18n="alerts.connect">Connect</button>
-          <button class="btn btn-secondary" id="fp-tg-test" type="button" data-i18n="alerts.sendTest">Send test</button>
-          <button class="btn btn-secondary" id="fp-tg-clear" type="button" data-i18n="common.clear">Clear</button>
+          <button class="btn btn-secondary" id="fp-tg-test" data-needs-connection type="button" data-i18n="alerts.sendTest">Send test</button>
+          <button class="btn btn-secondary" id="fp-tg-clear" data-needs-connection type="button" data-i18n="common.clear">Clear</button>
         </div>
         <p id="fp-tg-status"></p>
         <!-- UAT6 N15/UAT7 N04: every currently-saved target as a real chip
@@ -30,11 +45,8 @@
              renderCurrentTargetsChips(). Hidden with nothing saved. -->
         <ul id="fp-tg-current-targets" class="fp-chip-list hidden" aria-label="Current targets"
             data-i18n-attr="aria-label:alerts.currentTargetsLabel"></ul>
-        <!-- UAT6 N15: Targets/Add chats/Find chat IDs are disabled until a
-             bot is connected (nothing to send a target to otherwise) -- this
-             is the one-line reason shown in their place. -->
-        <p id="fp-tg-targets-disabled-reason" class="fp-tab-hint hidden"
-           data-i18n="alerts.connectBotFirst">Connect a bot first.</p>
+        <!-- Needs a connected bot: hidden (not greyed out) until then. -->
+        <div data-needs-connection>
         <!-- UAT7 N04: add-only now -- always empty, even with targets already
              saved, so adding one chat never means retyping every other one
              (alerts_telegram_targets.js's addTelegramTargets() merges this
@@ -56,10 +68,17 @@
         <p id="fp-tg-targets-status"></p>
         <ul id="fp-tg-chats-list" class="hidden" aria-label="Chats found for this bot"
             data-i18n-attr="aria-label:alerts.foundChatsLabel"></ul>
+        </div>
+        </div>
       </section>
 
-      <section id="fp-webhook-section" class="fp-alerts-section">
-        <h3 data-i18n="alerts.webhookHeading">Webhook</h3>
+      <section id="fp-webhook-section" class="fp-channel" data-channel="webhook" data-connected="false">
+        <div class="fp-channel-row">
+          <h4 class="fp-channel-name" data-i18n="alerts.webhookHeading">Webhook</h4>
+          <span class="fp-channel-state" data-channel-state></span>
+          <button type="button" class="btn btn-secondary btn-tiny fp-channel-toggle" data-channel-toggle aria-expanded="false" aria-controls="fp-webhook-body"></button>
+        </div>
+        <div class="fp-channel-body" id="fp-webhook-body" hidden>
         <p id="fp-webhook-current" class="fp-tab-hint hidden"></p>
         <label class="setting-row">
           <span data-i18n="alerts.url">URL</span>
@@ -77,10 +96,11 @@
         </label>
         <div class="fp-alerts-actions">
           <button class="btn" id="fp-webhook-save" type="button" data-i18n="common.save">Save</button>
-          <button class="btn btn-secondary" id="fp-webhook-test" type="button" data-i18n="alerts.sendTest">Send a test message now</button>
-          <button class="btn btn-secondary" id="fp-webhook-remove" type="button" data-i18n="common.remove">Remove</button>
+          <button class="btn btn-secondary" id="fp-webhook-test" data-needs-connection type="button" data-i18n="alerts.sendTest">Send a test message now</button>
+          <button class="btn btn-secondary" id="fp-webhook-remove" data-needs-connection type="button" data-i18n="common.remove">Remove</button>
         </div>
         <p id="fp-webhook-status"></p>
+        </div>
       </section>
 
       <!-- honesty.WHATSAPP_RELAY and honesty.WHATSAPP_SETUP land in the two
@@ -88,8 +108,13 @@
            Never typed here: one source for every honesty sentence
            (PROMPT.md §2 invariant 4). The CallMeBot number and site are
            identifiers, not copy, so they stay literal. -->
-      <section id="fp-whatsapp-section" class="fp-alerts-section">
-        <h3 data-i18n="alerts.whatsapp.heading">WhatsApp</h3>
+      <section id="fp-whatsapp-section" class="fp-channel" data-channel="whatsapp" data-connected="false">
+        <div class="fp-channel-row">
+          <h4 class="fp-channel-name" data-i18n="alerts.whatsapp.heading">WhatsApp</h4>
+          <span class="fp-channel-state" data-channel-state></span>
+          <button type="button" class="btn btn-secondary btn-tiny fp-channel-toggle" data-channel-toggle aria-expanded="false" aria-controls="fp-whatsapp-body"></button>
+        </div>
+        <div class="fp-channel-body" id="fp-whatsapp-body" hidden>
         <p id="fp-wa-connected" class="fp-tab-hint hidden"></p>
         <p id="fp-wa-relay-notice" class="fp-disclaimer"></p>
         <p id="fp-wa-instructions" class="fp-tab-hint"></p>
@@ -105,34 +130,12 @@
                  data-i18n-attr="placeholder:alerts.whatsapp.apikey"></label>
         <div class="fp-alerts-actions">
           <button class="btn" id="fp-wa-save" type="button" data-i18n="alerts.whatsapp.save">Save</button>
-          <button class="btn btn-secondary" id="fp-wa-test" type="button" data-i18n="alerts.whatsapp.test">Send test</button>
-          <button class="btn btn-secondary" id="fp-wa-clear" type="button" data-i18n="alerts.whatsapp.clear">Clear</button>
+          <button class="btn btn-secondary" id="fp-wa-test" data-needs-connection type="button" data-i18n="alerts.whatsapp.test">Send test</button>
+          <button class="btn btn-secondary" id="fp-wa-clear" data-needs-connection type="button" data-i18n="alerts.whatsapp.clear">Clear</button>
         </div>
         <p id="fp-wa-status"></p>
-      </section>
-
-      <section class="fp-alerts-section" id="fp-rules-section">
-        <h3 data-i18n="alerts.rulesHeading">Rules</h3>
-        <button id="fp-add-rule-btn" type="button" class="btn" data-i18n="alerts.addRule">Add rule</button>
-        <!-- The rules table has 7 columns and does not fit a phone-width
-             viewport; scrolling the wrapper (not the page) keeps the row
-             text readable instead of squeezing it (visual gate W2 finding).
-             tabindex: a scrollable region has to be reachable by keyboard
-             (axe scrollable-region-focusable, WCAG 2.1.1) -- same pattern as
-             .timeline-pane in web/index.html. -->
-        <div class="fp-table-scroll" role="region" tabindex="0" aria-label="Rules table, scrollable"
-             data-i18n-attr="aria-label:alerts.rulesTableScrollLabel">
-          <table id="fp-rules-table">
-            <thead>
-              <tr>
-                <th data-i18n="alerts.colName">Name</th><th data-i18n="alerts.colPlace">Place</th><th data-i18n="alerts.colTarget">Device or Group</th>
-                <th data-i18n="alerts.colOnEnter">On enter</th><th data-i18n="alerts.colOnExit">On exit</th><th data-i18n="alerts.rules.channelsHeader">Channels</th><th data-i18n="alerts.colEnabled">Enabled</th><th data-i18n="alerts.colActions">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="fp-rules-tbody"></tbody>
-          </table>
         </div>
-        <p id="fp-rules-empty" class="fp-empty-state" data-i18n="alerts.rulesEmpty">No rules yet. Use Add rule to be told when a tracker arrives or leaves a place.</p>
+      </section>
       </section>
 
       <section class="fp-alerts-section" id="fp-deliveries-section">
@@ -184,18 +187,13 @@
         <p class="fp-disclaimer" data-i18n="alerts.widgetMapDisclaimer">The map preview sends the coordinate region to Apple Maps.</p>
       </section>
 
-      <!-- UAT2 U32/N7: this dialog had no title and no `.fp-dialog-field`
-           wrappers, so it painted as a bare white form at 375 with inline
-           labels -- the same chrome the place/group/device editors already
-           got (places_dialog.js's buildPlaceForm(), same title+aria-
-           labelledby pattern). aria-labelledby replaces the static
-           aria-label: alerts_rule_dialog.js's openRuleDialog() sets the
-           <h2>'s own text to "New rule"/"Edit rule", which is also now the
-           dialog's accessible name -- one string to keep in sync instead of
-           a title and a separate aria-label saying the same thing twice. -->
+      <!-- The rule dialog: title, a scrolling body, and a footer that stays in view (U12).
+           The <h2> text is the dialog's accessible name (aria-labelledby); alerts_rule_dialog.js
+           sets it to "New rule" or "Edit rule". -->
       <dialog id="fp-add-rule-dialog" role="dialog" aria-labelledby="fp-add-rule-dialog-title">
         <form method="dialog" id="fp-add-rule-form">
           <h2 id="fp-add-rule-dialog-title" data-i18n="alerts.newRule">New rule</h2>
+          <div class="fp-dialog-body">
           <!-- Shown after "Add place": the place is saved but says nothing on its own. -->
           <p id="fp-rule-intro" class="fp-field-hint" hidden></p>
           <!-- alerts_rule_preview.js: the rule in one plain sentence, and what Save still needs. -->
@@ -216,7 +214,7 @@
               <input type="radio" name="fp-rule-target" id="fp-rule-target-device" value="device" checked>
               <span data-i18n="alerts.targetDevice">Device</span>
             </label>
-            <select id="fp-rule-device"></select>
+            <select id="fp-rule-device" aria-label="Device" data-i18n-attr="aria-label:alerts.targetDevice"></select>
           </div>
           <div class="fp-rule-target-row">
             <label>
@@ -227,12 +225,14 @@
                  dialog opens -- alerts_rule_dialog.js's updateRuleTargetVisibility()
                  toggles `disabled`, never `hidden`, so the row never grows a
                  dropdown into existence the instant Group is picked. -->
-            <select id="fp-rule-group" disabled></select>
+            <select id="fp-rule-group" disabled aria-label="Group" data-i18n-attr="aria-label:alerts.targetGroup"></select>
           </div>
           <!-- How the chosen group decides "arrived" (quorum, stale members). -->
           <p id="fp-rule-group-note" class="fp-field-hint" hidden></p>
-          <label><input type="checkbox" id="fp-rule-on-enter" checked> <span data-i18n="alerts.colOnEnter">On enter</span></label>
-          <label><input type="checkbox" id="fp-rule-on-exit"> <span data-i18n="alerts.colOnExit">On exit</span></label>
+          <div class="fp-rule-events">
+            <label><input type="checkbox" id="fp-rule-on-enter" checked> <span data-i18n="alerts.colOnEnter">On enter</span></label>
+            <label><input type="checkbox" id="fp-rule-on-exit"> <span data-i18n="alerts.colOnExit">On exit</span></label>
+          </div>
           <fieldset id="fp-rule-channels-fieldset" class="fp-channel-picker-field fp-dialog-group">
             <legend data-i18n="alerts.rules.channels">Channels</legend>
             <div id="fp-rule-channels" class="fp-channel-picker"></div>
@@ -275,6 +275,7 @@
           <div id="fp-rule-dryrun" class="fp-rule-dryrun" aria-live="polite"></div>
           <p id="fp-rule-test-status" class="fp-rule-test-status" aria-live="polite"></p>
           <p id="fp-rule-latency" class="fp-disclaimer"></p>
+          </div>
           <p id="fp-rule-error" class="fp-dialog-error"></p>
           <footer>
             <button type="button" id="fp-rule-save" class="btn" data-i18n="common.save">Save</button>

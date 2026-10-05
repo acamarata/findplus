@@ -62,7 +62,7 @@ async def test_rule_sentence_links_the_person(trips_page, trips_server):
     try:
         await _boot(trips_page, trips_server)
         await trips_page.click('button[data-tab="alerts"]')
-        row = trips_page.locator("#fp-rules-tbody tr", has_text="Sam at School")
+        row = trips_page.locator("#fp-rules-list .fp-rule-card", has_text="Sam at School")
         await row.wait_for()
         link = row.locator(".fp-rule-row-sentence a.person-link")
         await link.wait_for()

@@ -135,7 +135,13 @@ export function highlightSelection() {
   });
 }
 
+/** Redraw the timeline pane, then tell the Activity feed the day or filters moved. */
 export function renderTracks() {
+  drawTracks();
+  window.dispatchEvent(new CustomEvent("findplus:tracks-rendered"));
+}
+
+function drawTracks() {
   const host = $("tracks");
   host.innerHTML = "";
   // The day story (trips_view.js) takes the pane over when it is the chosen view.

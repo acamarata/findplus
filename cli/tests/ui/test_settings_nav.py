@@ -13,7 +13,7 @@ ORDER = ["general", "signin", "people", "alerts", "lock", "updates", "backups", 
 async def _open(page, base_url, width=1400, height=900):
     await page.set_viewport_size({"width": width, "height": height})
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map.leaflet-container")
+    await page.wait_for_selector("#map.leaflet-container", state="attached")
     await page.evaluate("document.getElementById('btn-settings').click()")
     await page.wait_for_selector("#settings-modal[data-loaded='true']")
     await page.wait_for_selector("#person-backup-line:not(:empty)")

@@ -19,7 +19,7 @@
 
 import { t } from "../i18n.js";
 
-const DEVICE_PALETTE = [
+export const DEVICE_PALETTE = [
   "#4f8cf7",
   "#e7663f",
   "#37c67a",

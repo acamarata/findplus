@@ -144,9 +144,8 @@
 /* Refresh is a side action, not a peer of Save: a text link, not a button. */
 #btn-refresh-devices {
   background: transparent; border: 0; padding: 4px 6px; min-height: 32px;
-  color: var(--accent); text-decoration: underline; font-weight: 500;
+  color: var(--accent-text); text-decoration: underline; font-weight: 500;
 }
-html[data-theme="light"] #btn-refresh-devices { color: var(--accent); }
 
 .device-row.is-editing { cursor: default; border-color: var(--accent); }
 .device-edit {

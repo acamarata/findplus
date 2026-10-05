@@ -53,7 +53,7 @@
 .fp-section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 18px 0; }
 .fp-section-head h2 { margin: 0; font-size: 1rem; font-weight: 650; }
 #fp-people-list { padding: 0 18px; margin-top: 10px; }
-.fp-person-card { grid-template-areas: "icon name members" "meta meta meta" "explain explain explain" "chips chips chips" "actions actions actions"; }
+.fp-person-card { grid-template-areas: "icon name members" "meta meta meta" "verdict verdict verdict" "explain explain explain" "chips chips chips" "actions actions actions"; }
 .fp-person-card > .fp-card-chips { grid-area: chips; display: flex; flex-wrap: wrap; gap: 4px 6px; }
 .fp-card-chip { font-size: .75rem; padding: 2px 8px; border-radius: 9999px; background: var(--panel); border: 1px solid var(--line); color: var(--text); }
 .fp-card-chips[hidden] { display: none; }

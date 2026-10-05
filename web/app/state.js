@@ -238,8 +238,7 @@ const dismissedAlerts = new Set();
  */
 export function showAlert(message, kind, extra = {}) {
   const el = $("alert");
-  if (extra.dismissKey && dismissedAlerts.has(extra.dismissKey)) { el.classList.add("hidden"); el.textContent = ""; return; }
-  if (!message) { el.classList.add("hidden"); el.textContent = ""; return; }
+  if (!message || dismissedAlerts.has(extra.dismissKey)) { el.classList.add("hidden"); el.textContent = ""; return; }
   const text = document.createElement("span");
   text.className = "alert-text";
   text.textContent = message;
@@ -248,19 +247,17 @@ export function showAlert(message, kind, extra = {}) {
     el.appendChild(button({ label: extra.action.label, size: "sm", onClick: extra.action.run, attrs: { class: "fp-btn fp-btn--secondary fp-btn--sm alert-action" } }));
   }
   if (extra.dismissKey) {
-    el.appendChild(button({
-      label: t("common.dismiss"), iconOnly: true, variant: "ghost", size: "sm",
+    const close = button({ label: t("common.dismiss"), iconOnly: true, variant: "ghost", size: "sm",
       attrs: { class: "fp-btn fp-btn--ghost fp-btn--sm fp-btn--icon alert-dismiss" },
-      onClick: () => { dismissedAlerts.add(extra.dismissKey); el.classList.add("hidden"); },
-    }));
-    el.lastChild.textContent = "\u00d7";
+      onClick: () => { dismissedAlerts.add(extra.dismissKey); el.classList.add("hidden"); } });
+    close.textContent = "\u00d7";
+    el.appendChild(close);
   }
   if (extra.details) {
     const box = document.createElement("details");
     box.className = "alert-details";
-    const sum = document.createElement("summary");
+    const [sum, body] = ["summary", "p"].map((tag) => document.createElement(tag));
     sum.textContent = t("common.details");
-    const body = document.createElement("p");
     body.textContent = extra.details;
     box.append(sum, body);
     el.appendChild(box);

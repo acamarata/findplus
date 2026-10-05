@@ -103,10 +103,11 @@ async def test_the_empty_state_offers_setup(trips_page, trips_server):
         ),
     )
     await boot(trips_page, trips_server)
-    await trips_page.wait_for_selector(".fp-latest-empty")
-    assert await trips_page.inner_text(".fp-latest-empty .empty-title") == "No trackers yet"
-    link = trips_page.locator(".fp-latest-empty a")
-    assert await link.get_attribute("href") == "#/setup"
+    await trips_page.wait_for_selector("#fp-latest-list .empty-actions[data-ready]")
+    title = await trips_page.inner_text("#fp-latest-list .empty-title")
+    assert title == "No devices tracked yet."
+    rerun = trips_page.locator("#fp-latest-list button", has_text="Run setup again")
+    assert await rerun.count() == 1
     assert await active_tab(trips_page) == "latest"
 
 

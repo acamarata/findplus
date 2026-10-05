@@ -17,8 +17,8 @@ from playwright.sync_api import Page
 
 
 def _empty_state_buttons(page: Page):
-    page.wait_for_selector("#tracks .empty-actions[data-ready]", timeout=10000)
-    buttons = page.locator("#tracks .empty-actions button")
+    page.wait_for_selector("#fp-latest-list .empty-actions[data-ready]", timeout=10000)
+    buttons = page.locator("#fp-latest-list .empty-actions button")
     assert buttons.count() == 2
     return buttons
 
@@ -28,7 +28,7 @@ def test_dashboard_empty_state_has_one_message_and_working_buttons(page: Page) -
     actions named as plain text. UAT6-N32: with no account signed in (this
     fixture never signs in) the primary action is "Connect an account", and
     it opens Settings on its Sign-in section."""
-    tracks = page.locator("#tracks")
+    tracks = page.locator("#fp-latest-list")
     assert tracks.locator("p", has_text="No devices tracked yet.").count() == 1
 
     buttons = _empty_state_buttons(page)
@@ -64,7 +64,7 @@ def test_dashboard_empty_state_run_setup_button_navigates(page: Page) -> None:
     pseudo-class is true for it even before the wizard mounts. Wait on the
     real signal instead: `#app-shell` gaining the "hidden" class, and the
     wizard actually rendering a step into `#setup-view`."""
-    page.locator("#tracks button", has_text="Run setup again").click()
+    page.locator("#fp-latest-list button", has_text="Run setup again").click()
     page.wait_for_function(
         "() => document.getElementById('app-shell').classList.contains('hidden')",
         timeout=10000,

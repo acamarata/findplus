@@ -128,10 +128,10 @@ async def test_map_marker_embeds_device_icon(page, base_url):
 
 async def test_timeline_swatch_shows_icon_and_label(page, base_url):
     await page.goto(base_url + "/")
-    await page.wait_for_selector(".track-swatch svg")
-    block = page.locator(".track-block", has_text=LABEL)
-    assert await block.locator('.track-swatch use[href="#lucide-key"]').count() == 1
-    assert LABEL in await block.locator(".track-name").first.inner_text()
+    row = page.locator(".fp-latest-row--tracker", has_text=LABEL)
+    await row.locator("svg").first.wait_for()
+    assert await row.locator('use[href="#lucide-key"]').count() == 1
+    assert LABEL in await row.locator(".fp-latest-name").inner_text()
 
 
 async def test_map_marker_and_popup_render_with_no_csp_violation(page, base_url):
@@ -162,8 +162,8 @@ async def test_edit_label_updates_the_dashboard_without_a_reload(page, base_url)
         await page.wait_for_selector(".device-edit", state="detached")
         # No page.reload() / page.goto() here: the dashboard behind the
         # dialog must have refreshed itself.
-        track_name = page.locator(".track-block", has_text="Sara's Keys").locator(".track-name")
-        await track_name.wait_for(state="visible")
+        row = page.locator(".fp-latest-row--tracker", has_text="Sara's Keys")
+        await row.locator(".fp-latest-name").wait_for(state="attached")
         title = page.locator('.leaflet-marker-icon[title^="Sara\'s Keys"]')
         await title.first.wait_for(state="attached")
     finally:

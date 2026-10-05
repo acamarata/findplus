@@ -1802,9 +1802,6 @@
   },
   "latest": {
     "listLabel": "Latest locations",
-    "emptyTitle": "No trackers yet",
-    "emptyLead": "Add a tracker to see where it was last seen.",
-    "emptyAction": "Set up trackers",
     "atPlace": "At {place}",
     "noPlace": "Not at a saved place",
     "seen": "seen {age} ago",

@@ -20,14 +20,14 @@ async def test_past_day_header_says_on_date_and_hides_now(trips_page, trips_serv
     text = await p.inner_text("#person-now")
     assert text.startswith("On ") and "At Home from 3:40 PM" in text
     assert str(int(day[:4])) in text
-    assert await p.locator(".person-conf, .person-seen").count() == 0
+    assert await p.locator("#tab-person .person-conf, #tab-person .person-seen").count() == 0
 
 
 async def test_today_header_keeps_now(trips_page, trips_server, pid):
     await open_person(trips_page, trips_server, pid)
     p = trips_page
     await p.click("#person-today")
-    await p.wait_for_selector(".person-conf")
+    await p.wait_for_selector("#tab-person .person-conf")
     assert not (await p.inner_text("#person-now")).startswith("On ")
     assert await p.locator(".person-seen").count() == 1
 

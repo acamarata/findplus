@@ -30,7 +30,7 @@ import { personRoute } from "./person_hash.js";
 import { mountAppBar } from "./appbar.js";
 import { addFitLatestControl } from "./map_fit_latest.js";
 import { wireFocusButton } from "./map_popup.js";
-import { switchTab, tabFromHash, restoreTab, wirePaneRefresh } from "./panel_tabs.js";
+import { switchTab, tabFromHash, restoreTab, wirePaneRefresh, announceDataRefreshed } from "./panel_tabs.js";
 import { refreshPeopleCache } from "./person_links.js";
 import { focusTracker, trackerRoute, wireTrackerFocus } from "./tracker_focus.js";
 
@@ -51,9 +51,11 @@ export function loadConfig() {
   return configLoad;
 }
 
+/** Refetch status and the day, then let the visible pane redraw (a renamed tracker shows at once, U14). */
 export async function reload() {
   await loadStatus();
   await loadDay(state.day);
+  announceDataRefreshed();
 }
 
 export function closeModals() {

@@ -19,6 +19,7 @@
  */
 "use strict";
 
+import { nothingTrackedEmptyState } from "./dashboard_empty.js";
 import { t } from "./i18n.js";
 import { state } from "./state.js";
 import { personHref } from "./person_hash.js";
@@ -30,22 +31,6 @@ import { dropFocus, focusTracker, showFocusIfActive } from "./tracker_focus.js";
 let seq = 0;
 let wired = false;
 
-function emptyState() {
-  const wrap = document.createElement("div");
-  wrap.className = "empty empty-state fp-latest-empty";
-  const title = document.createElement("p");
-  title.className = "empty-title";
-  title.textContent = t("latest.emptyTitle");
-  const lead = document.createElement("p");
-  lead.className = "empty-lead";
-  lead.textContent = t("latest.emptyLead");
-  const link = document.createElement("a");
-  link.className = "fp-btn fp-btn--primary";
-  link.href = "#/setup";
-  link.textContent = t("latest.emptyAction");
-  wrap.append(title, lead, link);
-  return wrap;
-}
 
 const refreshSoon = () => { refreshLatest(); };
 
@@ -81,7 +66,7 @@ async function draw(container) {
   const { list } = structure(container);
   const empty = !data.people.length && !data.trackers.length;
   list.setAttribute("aria-label", t("latest.listLabel"));
-  list.replaceChildren(empty ? emptyState() : build(data));
+  list.replaceChildren(empty ? nothingTrackedEmptyState() : build(data));
 }
 
 /** Left-behind chips sit above the list; the suggestions banner belongs to People (spec). */

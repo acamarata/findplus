@@ -27,7 +27,7 @@ async def test_page_draws_every_part(trips_page, trips_server, pid):
     assert await p.locator("#tab-person").is_visible()
     assert (await p.inner_text(".person-name")).startswith("Sam")
     assert (await p.locator("#person-now").inner_text()).startswith("On ")
-    assert await p.locator(".person-conf").count() == 0, "NOW is for today only"
+    assert await p.locator("#tab-person .person-conf").count() == 0, "NOW is for today only"
     assert await p.input_value("#person-date") == day
     assert await p.locator(".person-line-btn").count() == 5
     assert await p.inner_text(".person-summary h3") == "Sam's day"

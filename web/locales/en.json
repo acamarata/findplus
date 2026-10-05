@@ -783,6 +783,22 @@
     "confirmRemovePin": "Remove the PIN and turn off the app lock? Anyone who opens Find+ on this computer will then see your locations without a PIN.",
     "pinRemoved": "PIN removed. The app no longer locks.",
     "signInHeading": "Sign-in",
+    "nav": {
+      "general": "General",
+      "signin": "Sign-in",
+      "people": "People",
+      "alerts": "Alerts",
+      "lock": "App lock",
+      "updates": "Updates",
+      "backups": "Backups",
+      "about": "About and notices",
+      "danger": "Danger zone"
+    },
+    "peopleHeading": "People and daily summary",
+    "alertsHeading": "Alerts and notifications",
+    "alertsNoticesLink": "How late alerts can be, and what a stale tracker means, is explained under About and notices.",
+    "backupsHeading": "Backups",
+    "backupFileTitle": "Settings file",
     "polling": {
       "title": "Polling and retention",
       "interval_label": "Poll every",

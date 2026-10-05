@@ -48,12 +48,17 @@ function statusLine(now, past) {
   return p;
 }
 
+/** The "Likely" / "Probably" / "Unsure" / "Unknown" pill; the Latest rows reuse it. */
+export function confidenceChip(confidence) {
+  const level = CONFIDENCE.includes(confidence) ? confidence : "unknown";
+  return chip(`person-conf person-conf--${level}`, t(`person.conf.${level}`));
+}
+
 function chips(now) {
   const row = document.createElement("p");
   row.className = "person-chips";
   if (!now) return row;
-  const level = CONFIDENCE.includes(now.confidence) ? now.confidence : "unknown";
-  row.appendChild(chip(`person-conf person-conf--${level}`, t(`person.conf.${level}`)));
+  row.appendChild(confidenceChip(now.confidence));
   const age = now.age_minutes;
   const seen = typeof age === "number" ? t("person.seenAgo", { age: fmtAgeMinutes(age) }) : t("person.neverSeen");
   row.appendChild(chip("person-seen", seen));

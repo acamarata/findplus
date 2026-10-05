@@ -1781,6 +1781,27 @@
     "bannerLater": "Later",
     "bannerLabel": "Update"
   },
+  "latest": {
+    "listLabel": "Latest locations",
+    "emptyTitle": "No trackers yet",
+    "emptyLead": "Add a tracker to see where it was last seen.",
+    "emptyAction": "Set up trackers",
+    "atPlace": "At {place}",
+    "noPlace": "Not at a saved place",
+    "seen": "seen {age} ago",
+    "noSighting": "no recent sighting",
+    "trackersLabel": "Trackers: {names}",
+    "editPerson": "Edit {name}",
+    "editTracker": "Edit {name}",
+    "openPerson": "Open {name}",
+    "focusTracker": "Show only {name}",
+    "otherTrackers": "Trackers",
+    "focusBack": "All",
+    "focusBackTitle": "Back to all trackers",
+    "focusSwitchLabel": "Tracker view",
+    "focusStory": "Story",
+    "focusSightings": "Sightings"
+  },
   "shell": {
     "btnAdd": "Add",
     "addMenuLabel": "Add to Find+",

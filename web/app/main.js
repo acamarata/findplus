@@ -32,6 +32,7 @@ import { addFitLatestControl } from "./map_fit_latest.js";
 import { wireFocusButton } from "./map_popup.js";
 import { switchTab, tabFromHash, restoreTab, wirePaneRefresh } from "./panel_tabs.js";
 import { refreshPeopleCache } from "./person_links.js";
+import { focusTracker, trackerRoute, wireTrackerFocus } from "./tracker_focus.js";
 
 // The status chrome (device name, service dot, cards, banner) lives in
 // status_view.js; re-exported so existing `main.js` importers keep working.
@@ -81,6 +82,11 @@ export async function applyHashRoute({ closeOthers = true } = {}) {
   await closeSetupRoute();
   // The Person page (`#/person/<id>?date=...`) borrows the side pane and the map;
   // any other hash gives them back first.
+  const tracker = trackerRoute(hash);
+  if (tracker) {
+    await focusTracker(tracker.deviceId, { pointId: tracker.pointId });
+    return;
+  }
   const person = personRoute(hash);
   if (person) {
     import("./person_route.js").then((m) => m.showPerson(person)).catch(reportRouteFailure);
@@ -202,6 +208,7 @@ async function main() {
   wireFocusButton();
   wireControls();
   wirePaneRefresh();
+  wireTrackerFocus();
 
   // One walk over the document (the daemon composed the shell and all five
   // partials into this page already) renders every data-i18n element.

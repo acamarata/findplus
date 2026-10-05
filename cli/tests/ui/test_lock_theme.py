@@ -57,7 +57,9 @@ async def test_lock_screen_follows_the_saved_theme_with_no_cache(page, base_url,
         await page.wait_for_function(
             "(want) => document.documentElement.getAttribute('data-theme') === want", arg=saved
         )
-        bg = await page.evaluate("getComputedStyle(document.getElementById('lock-screen')).backgroundColor")
+        bg = await page.evaluate(
+            "getComputedStyle(document.getElementById('lock-screen')).backgroundColor"
+        )
         light_bg = "rgb(244, 246, 250)"
         assert (bg == light_bg) is (saved == "light"), (saved, bg)
     finally:

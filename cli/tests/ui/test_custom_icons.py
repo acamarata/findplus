@@ -138,9 +138,7 @@ async def test_upload_assign_render_and_purge(page, base_url, tmp_path):
         await page.click(f'.device-edit [data-icon-id="{icon_id}"] + .fp-icon-delete')
         await page.wait_for_selector("#fp-confirm-dialog[open]")
         await page.locator("#fp-confirm-dialog").get_by_role("button", name="Delete").click()
-        await page.locator(f'.device-edit [data-icon-id="{icon_id}"]').wait_for(
-            state="detached"
-        )
+        await page.locator(f'.device-edit [data-icon-id="{icon_id}"]').wait_for(state="detached")
         listed = await page.request.get(f"{base_url}/api/icons/custom")
         assert icon_id not in await listed.json()
     finally:

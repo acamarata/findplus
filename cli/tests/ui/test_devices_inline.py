@@ -85,7 +85,7 @@ async def test_the_footer_stays_on_screen_while_a_row_is_editing(page, base_url,
     await _open_editor(page)
     for sel in ("#btn-save-devices", "#btn-track-all", "#btn-refresh-devices"):
         box = await page.locator(sel).bounding_box()
-        assert box is not None and 0 <= box["y"] and box["y"] + box["height"] <= height, (sel, box)
+        assert box is not None and box["y"] >= 0 and box["y"] + box["height"] <= height, (sel, box)
 
 
 async def test_saving_a_label_keeps_unsaved_ticks(page, base_url):

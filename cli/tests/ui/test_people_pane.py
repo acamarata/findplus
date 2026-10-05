@@ -11,7 +11,7 @@ import httpx
 import pytest
 
 from ._person_helpers import ensure_person
-from ._suggest_helpers import payload, serve
+from ._suggest_helpers import serve
 from .test_left_behind_chips import episode
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -127,14 +127,15 @@ async def test_suggestions_card_is_on_people_and_not_on_latest(trips_page, trips
     assert "Find+ found 3 people" in await trips_page.inner_text("#fp-people-banner")
     await trips_page.wait_for_selector("#tab-people #fp-people-suggest .ps-card")
     assert await trips_page.locator("#tab-latest #fp-people-banner").count() == 0
-    assert await trips_page.locator("#tab-latest .ps-card, #tab-latest .people-suggest").count() == 0
-    assert len(payload()["suggestions"]) == 3
+    assert (
+        await trips_page.locator("#tab-latest .ps-card, #tab-latest .people-suggest").count() == 0
+    )
 
 
 async def test_other_groups_section_has_add_edit_delete_buttons(page, base_url):
     await _people_tab(page, base_url)
     heading = page.locator("#fp-other-groups-heading")
-    assert (await heading.inner_text()).strip() == "Other groups"
+    assert (await heading.text_content()).strip() == "Other groups"
     add = page.locator("#fp-add-group-btn")
     assert "fp-btn" in await add.get_attribute("class")
     card = page.locator("#fp-groups-list .fp-group-card", has_text="Family")

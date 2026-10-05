@@ -30,7 +30,9 @@ PHONE_HEIGHT = 812
 LONG_NAME = "W" * 40
 
 _ACTION_BOXES = """(groupId) => {
-  const sel = groupId === null ? ".fp-group-card" : `.fp-group-card[data-group-id="${groupId}"]`;
+  // "Other groups" cards only: person cards (1.3) carry three buttons.
+  const base = "#fp-groups-list .fp-group-card";
+  const sel = groupId === null ? base : `${base}[data-group-id="${groupId}"]`;
   const card = document.querySelector(sel);
   const box = (cls) => card.querySelector(cls).getBoundingClientRect().toJSON();
   return { card: card.getBoundingClientRect().toJSON(), edit: box(".fp-card-edit"),
@@ -38,8 +40,8 @@ _ACTION_BOXES = """(groupId) => {
 }"""
 
 _VERDICTS_SETTLED = """() => {
-  const cards = document.querySelectorAll(".fp-group-card");
-  const settled = document.querySelectorAll(".fp-group-card .fp-verdict");
+  const cards = document.querySelectorAll("#fp-groups-list .fp-group-card");
+  const settled = document.querySelectorAll("#fp-groups-list .fp-group-card .fp-verdict");
   return cards.length > 0 && settled.length === cards.length;
 }"""
 
@@ -50,7 +52,7 @@ async def _open_groups_at_phone_width(page, base_url) -> None:
     await page.wait_for_selector("#app-shell:not(.hidden)")
     await page.click('.fp-tabbar [data-tabbar-tab="people"]')
     await page.wait_for_selector("#tab-people:not([hidden])")
-    await page.wait_for_selector(".fp-group-card", state="visible")
+    await page.wait_for_selector("#fp-groups-list .fp-group-card", state="visible")
 
 
 def _assert_pair_on_one_row(boxes: dict) -> None:
@@ -118,5 +120,7 @@ async def test_group_card_actions_do_not_move_when_the_verdict_arrives(page, bas
     release.set()
     await page.wait_for_function(_VERDICTS_SETTLED, timeout=15000)
     after = await page.evaluate(_ACTION_BOXES, None)
-    assert after["edit"]["y"] == before["edit"]["y"], (before, after)
-    assert after["del"]["y"] == before["del"]["y"], (before, after)
+    # Offsets inside the card: People above may still load and move the card.
+    for key in ("edit", "del"):
+        moved = (after[key]["y"] - after["card"]["y"]) - (before[key]["y"] - before["card"]["y"])
+        assert moved == 0, (before, after)

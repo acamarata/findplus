@@ -7,6 +7,7 @@
   --text: #e7ecf3;
   --muted: #94a3b8;
   --accent: #4274cd;  /* 4.55:1 with white button text; #4f8cf7 was 3.27:1 */
+  --accent-text: #8fb3ff;  /* accent used as text on --panel/--bg (7:1+ dark) */
   --ok: #37c67a;
   --warn: #e7b53f;
   --err: #ef5f5f;
@@ -227,6 +228,7 @@ html[data-theme="light"] {
   --text: #171d26;
   --muted: #5d6b7e;
   --accent: #2f6fe6;
+  --accent-text: #2f6fe6;
   --ok: #148150;  /* 4.53:1 on --bg; #16915a was 3.71:1 */
   --warn: #956800;  /* 4.56:1 on --bg; #9a6b00 was 4.34:1 */
   --err: #c53232;

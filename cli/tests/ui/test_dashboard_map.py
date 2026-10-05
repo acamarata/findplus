@@ -50,6 +50,13 @@ async def test_no_legend_for_a_single_tracker(page, base_url):
 
 async def test_dense_map_shrinks_middle_markers_until_zoomed_in(page, base_url):
     await _boot(page, base_url)
+    # Zoomed out the middle markers shrink (the fitted zoom depends on the map's size).
+    await page.evaluate(
+        "() => import('/static/app/state.js').then((m) => m.state.map.setZoom(8, { animate: false }))"
+    )
+    await page.wait_for_selector(
+        "#map.map--dense", state="attached"
+    )  # markers draw just after boot
     assert await page.locator("#map.map--dense").count() == 1
     await page.evaluate(
         "() => import('/static/app/state.js').then((m) => m.state.map.setZoom(16, { animate: false }))"

@@ -23,7 +23,7 @@ async def test_landmarks_are_unique(page, base_url, width):
     both carried the name, so landmark-unique failed."""
     await page.set_viewport_size({"width": width, "height": 800})
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map.leaflet-container")
+    await page.wait_for_selector("#map.leaflet-container", state="attached")
     await page.wait_for_selector("#tracks > *", state="attached")
     results = await Axe().run(page, options=LANDMARK_OPTIONS)
     violations = results.response["violations"]

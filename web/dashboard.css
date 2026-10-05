@@ -137,8 +137,8 @@
 /* Phone and small tablet: status, then the panel, then the map as a collapsed card. */
 @media (max-width: 768px) {
   .layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "status" "panel" "map"; padding: 8px 12px 16px; }
-  .map-pane, .timeline-pane { position: static; }
-  .timeline-pane { max-height: none; overflow-y: visible; }
+  .fp-topnav, .map-pane, .timeline-pane { position: static; }
+  .timeline-pane { max-height: none; overflow-y: visible; background: var(--panel); }
   .fp-map-toggle, .fp-filters-toggle { display: inline-flex; align-self: flex-start; }
   .map-pane > #map, .map-pane > .disclaimer { display: none; }
   .map-pane.is-open > #map { display: block; height: 40vh; min-height: 240px; }
@@ -148,3 +148,5 @@
   .person-view .map-pane > #map { display: block; }
   .person-view .fp-map-toggle { display: none; }
 }
+/* Light theme: the suggestion warning sits on --panel-2, where --warn is just under 4.5:1. */
+html[data-theme="light"] .ps-warn { color: #7a5600; }

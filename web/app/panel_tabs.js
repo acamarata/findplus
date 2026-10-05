@@ -53,8 +53,10 @@ export const normalizeTab = (tab) => ALIAS[tab] || tab;
 
 /** `#/people` or the legacy `#places` -> "people" / "places"; anything else -> null. */
 export function tabFromHash(hash) {
-  const m = /^#\/?([a-z]+)$/.exec(hash || "");
-  const tab = m ? normalizeTab(m[1]) : null;
+  // `#/name` selects a tab; the bare legacy `#places` (the widget's tap target) still does.
+  // Any other bare hash (`#dashboard`, `#settings`, `#devices`) is not a tab link.
+  const m = /^#\/([a-z]+)$/.exec(hash || "");
+  const tab = m ? normalizeTab(m[1]) : hash === "#places" ? "places" : null;
   return tab && TABS.includes(tab) ? tab : null;
 }
 

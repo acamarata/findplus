@@ -54,7 +54,7 @@ async def test_popover_swatches_fit_viewport_and_dialog(page, base_url, width, k
     await page.wait_for_selector("#fp-add-group-btn", state="attached")
     # `.fp-tabs` is CSS-hidden under 600px (test_a11y.py's own reason for the
     # same evaluate-click); the tab's content is unaffected by that rule.
-    await page.evaluate("document.querySelector('.fp-tabs [data-tab=\"groups\"]').click()")
+    await page.evaluate("document.querySelector('.fp-tabs [data-tab=\"people\"]').click()")
     # NOT ".fp-group-card, .fp-empty-state" -- see test_groups_dialog.py's
     # _open_groups_tab() docstring: places.html's own empty-state element
     # shares that class and is attached before groups.js has even run.

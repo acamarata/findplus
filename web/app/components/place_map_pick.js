@@ -182,6 +182,9 @@ function focusWithKeyboard(marker, { onNudge, onConfirm, onCancel }) {
  * whatever dialog was covering it -- see places_dialog.js's beginMapPick().
  */
 export function startMapPick(map, { latlng, radiusMeters, color, onConfirm, onCancel }) {
+  // Phone layout keeps the map in a collapsed card; picking needs it open (1.3 shell).
+  document.getElementById("map-pane")?.classList.add("is-open");
+  document.getElementById("btn-map-toggle")?.setAttribute("aria-expanded", "true");
   let current = latlng ? L.latLng(latlng) : map.getCenter();
   const marker = L.marker(current, { draggable: true, keyboard: false }).addTo(map);
   const circle = L.circle(current, { radius: radiusMeters, color, keyboard: false }).addTo(map);

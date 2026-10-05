@@ -26,7 +26,7 @@ import { loadGroups, selectGroupById, clearGroup, isGroupSelected } from "./grou
 import { verdictLabel, verdictTitle } from "./groups_presence_render.js";
 import { confirmDialog, alertDialog } from "./components/confirm-dialog.js";
 import { metaLine, explainSlot, fillExplanation } from "./groups_card_meta.js";
-import { fillWhereNow, isPerson, personMeta } from "./groups_person_card.js";
+import { fillWhereNow, isPerson, personCardIcon, personMeta } from "./groups_person_card.js";
 import { openPersonEditor } from "./person_editor.js";
 
 /** Avatars shown before the grid collapses the rest into a "+N" chip. */
@@ -131,10 +131,12 @@ function renderCard(group, devicesById) {
   card.className = "fp-group-card";
   card.setAttribute("data-group-id", String(group.id));
 
-  const icon = span("fp-card-icon");
-  icon.appendChild(
-    renderBadge({ icon: group.icon, color: group.color, label: null, name: group.name, size: 24 }),
-  );
+  const icon = isPerson(group) ? personCardIcon(group, loadGroups) : span("fp-card-icon");
+  if (!isPerson(group)) {
+    icon.appendChild(
+      renderBadge({ icon: group.icon, color: group.color, label: null, name: group.name, size: 24 }),
+    );
+  }
   // UAT3 N24: Edit and Delete were two separate flex-wrap items, so a narrow
   // card could wrap between them (Edit alone on one line, Delete on the
   // next) instead of together. One wrapper makes them a single item: they

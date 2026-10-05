@@ -1306,6 +1306,11 @@
     "roadsNeedServer": "Not available yet: no routing server is set.",
     "roadsSetup": "Set one up in Settings"
   },
+  "personColours": {
+    "markerTitle": "{tracker} (belongs to {name})",
+    "popupOwner": "Belongs to {name}",
+    "avatarButton": "Change {name}'s icon and colour"
+  },
   "units": {
     "unknown": "unknown",
     "minutesShort": "{n} min",

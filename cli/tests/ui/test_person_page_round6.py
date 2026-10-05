@@ -42,7 +42,8 @@ async def test_first_tab_stop_is_back_then_the_header_buttons_then_the_day_contr
     for _ in range(7):
         await p.keyboard.press("Tab")
         seen.append(await p.evaluate("document.activeElement.id || document.activeElement.tagName"))
-    assert seen[:2] == ["person-back", "person-send"], seen
+    # Back, then the avatar button (opens the editor at the icon picker), then the header buttons.
+    assert seen[:3] == ["person-back", "person-avatar", "person-send"], seen
     assert seen.index("person-prev") > seen.index("person-send"), seen
     assert "BODY" not in seen, seen
 

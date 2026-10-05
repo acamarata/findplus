@@ -196,6 +196,17 @@
     "polledMany": "Polled {devices} trackers, {observations} new. {tally}.",
     "pollTally": "{n} {status}"
   },
+  "peoplePane": {
+    "heading": "People",
+    "otherGroups": "Other groups",
+    "addPerson": "Add person",
+    "open": "Open",
+    "openFor": "Open {name}'s page",
+    "empty": "No people yet. Add one, or let Find+ suggest people from your trackers.",
+    "noGroups": "No other groups. Add a group to get a together or apart verdict for a set of trackers.",
+    "leftChip": "{tracker} looks left at {place}",
+    "leftChipSpot": "{tracker} looks left behind"
+  },
   "groups": {
     "tabHint": "Pick a group in the selector above the map to see it.",
     "allDevices": "All devices",

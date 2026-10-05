@@ -155,9 +155,9 @@ async def test_a_lock_forgets_which_suggestions_were_hidden(trips_page, trips_se
     assert await p.evaluate("localStorage.getItem('findplus.peopleHidden')") is None
 
 
-async def test_dashboard_banner_counts_and_opens_the_panel(trips_page, trips_server):
+async def test_people_banner_counts_and_opens_the_panel(trips_page, trips_server):
     await serve(trips_page)
-    await trips_page.goto(trips_server["base"] + "/")
+    await trips_page.goto(trips_server["base"] + "/#/people")
     await trips_page.wait_for_selector("#fp-people-banner:not([hidden])")
     assert "Find+ found 3 people in your trackers." in await trips_page.inner_text(
         "#fp-people-banner"

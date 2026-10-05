@@ -8,6 +8,7 @@
  */
 "use strict";
 
+import { wireExportPopover } from "./export_popover.js";
 import { $, state, fmtDateTime, fmtDuration, todayLocal, showAlert } from "./state.js";
 import { api, postJson } from "./api.js";
 import { renderMap } from "./map.js";
@@ -181,6 +182,7 @@ export function wireTimelineControls() {
   });
 
   $("btn-export").addEventListener("click", startExport);
+  wireExportPopover();
 
   $("btn-latest").addEventListener("click", async () => {
     try {

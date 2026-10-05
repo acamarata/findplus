@@ -234,7 +234,7 @@ function renderChatsList(chats) {
     const alreadyAdded = currentTargetIds.includes(String(chat.id));
     const addBtn = document.createElement("button");
     addBtn.type = "button";
-    addBtn.className = "btn btn-secondary";
+    addBtn.className = "fp-btn fp-btn--secondary";
     addBtn.textContent = alreadyAdded ? t("alerts.chatAlreadyAdded") : t("alerts.addTarget");
     addBtn.disabled = alreadyAdded;
     if (!alreadyAdded) addBtn.addEventListener("click", () => addTargetToField(chat.id));

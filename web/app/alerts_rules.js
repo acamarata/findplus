@@ -20,6 +20,7 @@ import { api } from "./api.js";
 import { t, plural } from "./i18n.js";
 import { openRuleDialog } from "./alerts_rule_dialog.js";
 import { ruleSentence } from "./alerts_rule_sentence.js";
+import { button } from "./components/button.js";
 import { confirmDialog } from "./components/confirm-dialog.js";
 
 export {
@@ -114,13 +115,11 @@ function enabledSwitch(rule, card) {
 }
 
 function actionButton(label, ariaKey, rule, danger, onClick) {
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = danger ? "btn btn-tiny btn-danger" : "btn btn-tiny btn-secondary";
-  btn.textContent = label;
-  btn.setAttribute("aria-label", t(ariaKey, { name: rule.name }));
-  btn.addEventListener("click", onClick);
-  return btn;
+  return button({
+    label, size: "sm", variant: danger ? "danger" : "secondary",
+    icon: danger ? undefined : "pencil", onClick,
+    attrs: { "aria-label": t(ariaKey, { name: rule.name }) },
+  });
 }
 
 function buildRuleCard(rule) {

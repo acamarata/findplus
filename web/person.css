@@ -5,8 +5,7 @@
 .person-view .controls, .person-view .cards-help { display: none; }
 .person { padding: 10px 18px 24px; }
 .person:focus { outline: none; }
-.person-back { display: inline-block; margin: 2px 0 8px; font-size: 13px; color: var(--badge-text); text-decoration: none; }
-.person-back:hover { text-decoration: underline; }
+.person-back { margin: 2px 0 8px; }
 .person-back:focus-visible, .person-link:focus-visible, .person-line-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* header */

@@ -99,9 +99,9 @@ async def test_each_rule_is_one_compact_card(page, base_url):
         assert "Tell me" in await card.locator(".fp-rule-row-sentence").inner_text()
         switch = card.locator("input[role=switch]")
         assert await switch.is_checked()
-        assert await card.get_by_text("Edit", exact=True).is_visible()
-        delete = card.get_by_text("Delete", exact=True)
-        assert "btn-danger" in (await delete.get_attribute("class") or "")
+        assert await card.get_by_role("button", name="Edit").is_visible()
+        delete = card.get_by_role("button", name="Delete")
+        assert "fp-btn--danger" in (await delete.get_attribute("class") or "")
         box = await card.bounding_box()
         assert box and box["height"] < 130, box
     finally:

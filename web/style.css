@@ -16,6 +16,9 @@
      tint those two draw over --panel: --accent itself measured 4.05:1 there
      (CR-C-E4 CF-P2-E4-5), so a separate token, not a reused pinned one. */
   --badge-text: #c7ddff;
+  /* 1.3 type, radius tokens: new and touched rules use these, no global sweep. */
+  --fs-xs: 12px; --fs-sm: 13px; --fs-md: 14px; --fs-lg: 16px; --fs-xl: 20px;
+  --r-sm: 6px; --r-md: 10px; --r-lg: 14px;
   color-scheme: dark;  /* native pickers, scrollbars and checkboxes follow the theme */
 }
 * { box-sizing: border-box; }
@@ -41,27 +44,8 @@ h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .07em; color: v
 .dot.idle { background: var(--muted); box-shadow: none; }
 .topbar-actions { display: flex; gap: 8px; }
 
-.btn {
-  background: var(--accent); color: #fff; border: 0; border-radius: 7px;
-  padding: 7px 13px; font-size: 13px; font-weight: 550; cursor: pointer;
-}
-.btn:hover { filter: brightness(1.1); }
-.btn:disabled { opacity: .5; cursor: not-allowed; }
-/* UAT2 U32: several callers (places_dialog.js, devices_dialog.js,
-   groups_dialog_dom.js, the add-rule dialog's own Cancel) set only
-   `className = "btn-secondary"`, never "btn btn-secondary" -- a pattern
-   place_locator_dom.js's own V1 comment already worked around locally by
-   adding "btn" alongside it. Carrying the full base here (not just the
-   colour/border override) fixes every one of those buttons at the source,
-   the same shape as .btn, rather than requiring "btn btn-secondary" at
-   every call site. */
-.btn-secondary {
-  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
-  border-radius: 7px; padding: 7px 13px; font-size: 13px; font-weight: 550; cursor: pointer;
-}
-.btn-secondary:hover { filter: brightness(1.1); }
-.btn-secondary:disabled { opacity: .5; cursor: not-allowed; }
-.btn-tiny { padding: 5px 9px; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); }
+/* Buttons: .btn, .btn-primary, .btn-secondary, .btn-danger and .btn-tiny are
+   aliases of the .fp-btn system and are styled in components.css. */
 
 /* UAT6-N12: one look for every text-like control in both themes. Per-surface
    rules only ever added the types they had met, so Telegram's targets and the
@@ -285,6 +269,11 @@ html[data-theme="light"] .alert.warn { color: #6b4a00; }
 .setting-row :where(input:not([type=checkbox], [type=radio], [type=file])),
 .setting-row select { min-width: 190px; }
 .setting-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-.btn-danger { background: var(--err); color: #fff; }
 .danger-zone { border-top-color: var(--err); }
 
+
+/* 1.3 polish: checkboxes and radios (U37), footer notices (U33). */
+input[type=checkbox]:not([role=switch]), input[type=radio] {
+  accent-color: var(--accent); width: 16px; height: 16px; margin: 0 6px 0 0; flex: none; vertical-align: middle;
+}
+.footer .notice, .footer .notice.small { font-size: var(--fs-xs); color: var(--muted); max-width: 72ch; }

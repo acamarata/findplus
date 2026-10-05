@@ -88,6 +88,7 @@
   <div class="brand">
     <span class="dot" id="live-dot" title="Polling service status"
           data-i18n-attr="title:common.liveDotTitle"></span>
+    <span class="live-word" id="live-word"></span>
     <h1 data-i18n="common.appName">Find+</h1>
     <span class="device" id="device-name" data-i18n="common.deviceNamePlaceholder">no tracker selected</span>
   </div>
@@ -225,8 +226,10 @@
   <!-- Grouped so the phone tier wraps Export as one unit: without this the
        "Download" button could wrap onto a row of its own, isolated from the
        format/scope controls it belongs with (visual gate W2 finding). -->
-  <span class="export-group">
-    <label for="export-format" data-i18n="common.export">Export</label>
+  <span class="export-wrap">
+  <button type="button" class="fp-btn fp-btn--ghost" id="btn-export-open" aria-haspopup="true" aria-expanded="false" aria-controls="export-pop" data-i18n="common.export">Export</button>
+  <span class="export-group" id="export-pop" hidden>
+    <label for="export-format" data-i18n="common.exportFormat">Format</label>
     <select id="export-format">
       <option value="csv" data-i18n="common.exportFormatCsv">CSV</option>
       <option value="gpx" data-i18n="common.exportFormatGpx">GPX</option>
@@ -244,7 +247,8 @@
       <span class="range-sep" data-i18n="common.rangeSeparator">to</span>
       <input type="date" id="range-end" title="Range end" data-i18n-attr="title:common.rangeEnd">
     </span>
-    <button class="btn btn-secondary" id="btn-export" data-i18n="common.download">Download</button>
+    <button class="fp-btn fp-btn--primary" id="btn-export" data-i18n="common.download">Download</button>
+  </span>
   </span>
   <p class="roads-note" id="roads-note" hidden></p>
 </section>

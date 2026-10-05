@@ -590,7 +590,6 @@
     "selectAtLeastOneChannel": "Select at least one channel.",
     "invalidWebhookUrl": "Enter a valid http(s) webhook URL.",
     "webhookMaskedUrl": "That's the saved URL's masked placeholder, not a new one. Enter the real URL, or leave it blank to keep the current one.",
-    "connectBotFirst": "Connect a bot first.",
     "currentTargetsLabel": "Current targets",
     "removeTargetLabel": "Remove {target}",
     "confirmRemoveTarget": "Remove {label}?",
@@ -709,17 +708,23 @@
       "native": "Desktop notifications cannot be tested from here."
     },
     "webhookTestNeedsSave": "Save a webhook URL first.",
-    "summary": {
-      "heading": "Where alerts go",
-      "rules": {
-        "one": "1 rule",
-        "other": "{count} rules"
-      },
-      "connected": "{channel}: connected",
-      "notConnected": "{channel}: not connected",
-      "jumpRules": "Rules",
-      "jumpLog": "Delivery log"
+    "cards": {
+      "on": "On",
+      "off": "Off",
+      "editAria": "Edit rule {name}",
+      "deleteAria": "Delete rule {name}"
     },
+    "channelRow": {
+      "connected": "Connected",
+      "notConnected": "Not connected",
+      "connect": "Connect",
+      "edit": "Edit",
+      "hide": "Hide",
+      "connectAria": "Connect {channel}",
+      "editAria": "Edit {channel}",
+      "hideAria": "Hide {channel} settings"
+    },
+    "autoName": "{who} at {place}",
     "filters": {
       "statusLabel": "Show deliveries with this status",
       "channelLabel": "Show deliveries for this channel",

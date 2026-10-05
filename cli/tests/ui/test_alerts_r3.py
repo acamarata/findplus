@@ -28,8 +28,8 @@ async def _disconnect_all(page, base_url):
         await page.request.delete(f"{base_url}/api/alerts/channels/{name}")
 
 
-async def _open_rule_dialog(page, base_url):
-    await open_alerts_tab(page, base_url)
+async def _open_rule_dialog(page, base_url, *, open_channels=True):
+    await open_alerts_tab(page, base_url, open_channels=open_channels)
     await page.click("#fp-add-rule-btn")
     await page.wait_for_selector('#fp-add-rule-dialog[data-fp-ready="true"]')
 
@@ -84,12 +84,14 @@ async def test_group_choice_explains_the_quorum(page, base_url):
 
 async def test_no_channel_says_why_and_offers_the_way_to_connect(page, base_url):
     await _disconnect_all(page, base_url)
-    await _open_rule_dialog(page, base_url)
+    await _open_rule_dialog(page, base_url, open_channels=False)
+    assert await page.locator("#fp-telegram-body").is_hidden()
     help_text = await page.locator("#fp-rule-channels-help").inner_text()
     assert "nowhere to send" in help_text
     button = page.locator("#fp-rule-connect-btn")
     await button.click()
     assert not await page.locator("#fp-add-rule-dialog").evaluate("(el) => el.open")
+    assert await page.locator("#fp-telegram-body").is_visible(), "the form unfolds"
     assert await page.evaluate("document.activeElement.id") == "fp-tg-token"
 
 
@@ -184,26 +186,6 @@ async def test_webhook_section_has_its_own_test_button(page, base_url):
         await page.wait_for_function(
             "document.getElementById('fp-webhook-status').textContent.includes('Test message sent')"
         )
-    finally:
-        await _disconnect_all(page, base_url)
-
-
-async def test_summary_strip_shows_channels_and_rule_count(page, base_url):
-    await _disconnect_all(page, base_url)
-    await open_alerts_tab(page, base_url)
-    strip = page.locator("#fp-alerts-summary")
-    await strip.locator("button").first.wait_for()
-    text = await strip.inner_text()
-    assert "Telegram: not connected" in text and "Webhook: not connected" in text
-    await _connect_webhook(page, base_url)
-    try:
-        await open_alerts_tab(page, base_url)
-        await page.wait_for_function(
-            "document.getElementById('fp-alerts-summary').textContent"
-            ".includes('Webhook: connected')"
-        )
-        await page.click("#fp-alerts-summary button:has-text('Webhook')")
-        assert await page.evaluate("document.activeElement.id") == "fp-webhook-url"
     finally:
         await _disconnect_all(page, base_url)
 

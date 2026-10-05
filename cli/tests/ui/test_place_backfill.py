@@ -68,10 +68,12 @@ async def test_confirming_adds_one_rule_per_place_and_clears_the_banner(page, ba
             home = [r for r in rules if r["place_name"] == "Home" and r["all_people"]]
             assert len(home) == 1 and home[0]["channels"] == ["webhook"] and home[0]["enabled"]
             await page.click('button[data-tab="alerts"]')
-            row = page.locator("#fp-rules-tbody tr", has_text="Arrivals and departures at Home")
+            row = page.locator(
+                "#fp-rules-list .fp-rule-card", has_text="Arrivals and departures at Home"
+            )
             await row.wait_for()
             text = await row.inner_text()
-            assert "Everyone" in text and "anyone" in text, "an all-people rule names its subject"
+            assert "anyone" in text, "an all-people rule names its subject in its sentence"
         finally:
             await _drop_default_rules(page, base_url)
 

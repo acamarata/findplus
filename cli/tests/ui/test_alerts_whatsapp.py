@@ -15,6 +15,7 @@ import pytest
 
 from findplus.honesty import ALERTS_LOCKED, WHATSAPP_RELAY, WHATSAPP_SETUP
 
+from ._alerts_helpers import open_channel_forms
 from .conftest import assert_dialog_has_real_chrome
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
@@ -58,6 +59,7 @@ async def _open_alerts_tab(page, base_url) -> None:
     await page.click('button[data-tab="alerts"]')
     await page.wait_for_selector("#fp-whatsapp-section")
     await page.wait_for_selector('[data-fp-ready="alerts"]')
+    await open_channel_forms(page)
 
 
 async def _open_add_rule_dialog(page, base_url) -> None:

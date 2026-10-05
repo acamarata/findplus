@@ -29,6 +29,8 @@ import { groupNote, ruleSentence, stillNeeded } from "./alerts_rule_sentence.js"
 import { friendlyErrorText } from "./alerts_delivery_errors.js";
 import { formatTelegramTestResults } from "./alerts_telegram_targets.js";
 import { relativeTime, absoluteTime } from "./rel_time.js";
+import { openChannel } from "./alerts_channel_rows.js";
+import { syncAutoName, wireAutoName } from "./alerts_rule_autoname.js";
 
 /** Set<channel id> of connected channels, or null when unknown (dialog open). */
 let connected = null;
@@ -43,10 +45,14 @@ function selectedText(select) {
   return opt && select.value !== "" ? opt.textContent : "";
 }
 
+function currentTarget() {
+  return $("fp-rule-target-group").checked ? $("fp-rule-group") : $("fp-rule-device");
+}
+
 /** Everything the sentence, the checklist and the dry run read off the form. */
 function readForm() {
   const isGroup = $("fp-rule-target-group").checked;
-  const targetSelect = isGroup ? $("fp-rule-group") : $("fp-rule-device");
+  const targetSelect = currentTarget();
   return {
     name: $("fp-rule-name").value,
     isGroup,
@@ -82,7 +88,9 @@ function updateChannelHelp() {
 }
 
 /** Re-draw the sentence, the checklist and the group note from the form. */
-export function refreshPreview() {
+export function refreshPreview(ev) {
+  // The name follows "who at where" until the person types their own (U12).
+  syncAutoName({ who: selectedText(currentTarget()), place: selectedText($("fp-rule-place")), ev });
   const f = readForm();
   const channelLabels = f.channelIds.map((id) => t(`alerts.channels.${id}`));
   setText("fp-rule-sentence", ruleSentence({ ...f, channels: channelLabels }));
@@ -176,15 +184,13 @@ function goConnect() {
   $("fp-add-rule-dialog").close();
   const tab = document.querySelector('button[data-tab="alerts"]');
   if (tab) tab.click();
-  const section = $("fp-telegram-section");
-  if (section) section.scrollIntoView({ block: "start" });
-  const token = $("fp-tg-token");
-  if (token) token.focus({ preventScroll: true });
+  openChannel("telegram");
 }
 
 /** Wire the dialog once (alerts.js's wireStaticControls()). */
 export function wirePreview() {
   const form = $("fp-add-rule-form");
+  wireAutoName();
   form.addEventListener("input", refreshPreview);
   form.addEventListener("change", refreshPreview);
   $("fp-rule-dryrun-btn").addEventListener("click", runDryRun);

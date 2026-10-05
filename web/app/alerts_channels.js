@@ -17,7 +17,7 @@ import {
   wireWebhookStatusClear,
 } from "./alerts_webhook.js";
 import { mappedError } from "./alerts_channel_errors.js";
-import { purgeSummary, setChannelState } from "./alerts_summary.js";
+import { purgeChannelRows, setChannelState } from "./alerts_channel_rows.js";
 
 /** Blanks a masked credential field the first time it is focused for editing. */
 function clearMaskedToken(el) {
@@ -274,5 +274,5 @@ export function purgeChannels() {
   $("fp-tg-status").textContent = "";
   $("fp-wa-status").textContent = "";
   purgeTelegramTargets();
-  purgeSummary();
+  purgeChannelRows();
 }

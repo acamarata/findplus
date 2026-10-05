@@ -23,7 +23,7 @@ async def test_group_card_name_links_to_the_person(trips_page, trips_server):
     pid = ensure_person(trips_server)
     p = trips_page
     await _boot(p, trips_server)
-    await p.click('button[data-tab="groups"]')
+    await p.click('button[data-tab="people"]')
     link = p.locator(f'.fp-group-card[data-group-id="{pid}"] a.person-link')
     await link.wait_for()
     assert await link.get_attribute("href") == f"#/person/{pid}"
@@ -36,7 +36,7 @@ async def test_group_card_name_links_to_the_person(trips_page, trips_server):
 async def test_a_set_group_name_is_not_a_link(trips_page, trips_server):
     ensure_person(trips_server)
     await _boot(trips_page, trips_server)
-    await trips_page.click('button[data-tab="groups"]')
+    await trips_page.click('button[data-tab="people"]')
     card = trips_page.locator(".fp-group-card", has_text="Family")
     await card.wait_for()
     assert await card.locator("a.person-link").count() == 0
@@ -105,7 +105,7 @@ async def test_text_linker_rules(trips_page, trips_server):
 async def test_links_are_keyboard_reachable(trips_page, trips_server):
     pid = ensure_person(trips_server)
     await _boot(trips_page, trips_server)
-    await trips_page.click('button[data-tab="groups"]')
+    await trips_page.click('button[data-tab="people"]')
     link = trips_page.locator(f'.fp-group-card[data-group-id="{pid}"] a.person-link')
     await link.focus()
     await trips_page.keyboard.press("Enter")

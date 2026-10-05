@@ -91,28 +91,75 @@
     <h1 data-i18n="common.appName">Find+</h1>
     <span class="device" id="device-name" data-i18n="common.deviceNamePlaceholder">no tracker selected</span>
   </div>
-  <div class="topbar-actions">
-    <button id="btn-devices" class="btn btn-secondary" data-i18n="common.btnDevices">Devices</button>
-    <button id="btn-settings" class="btn btn-secondary" title="Settings"
-            data-i18n="common.btnSettings" data-i18n-attr="title:common.btnSettings">Settings</button>
-    <button id="btn-lock" class="btn btn-secondary hidden" title="Lock now"
-            data-i18n="common.btnLock" data-i18n-attr="title:common.btnLockTitle">Lock</button>
-    <button id="btn-latest" class="btn" data-i18n="common.btnLatest">Latest Location</button>
-    <button id="btn-poll" class="btn btn-secondary" title="Queries your providers once, now"
-            data-i18n="common.btnPoll" data-i18n-attr="title:common.btnPollTitle">Poll Now</button>
-    <!-- Phone tier only (CSS hides it above 600px). components/tabbar.js wires
-         it to the menu below, whose items click the buttons above. -->
-    <button id="btn-more" class="btn btn-secondary" type="button"
+  <!-- app/appbar.js mounts Poll now, Add, Devices, Settings and Lock here with
+       components/button.js, ids unchanged (#btn-poll, #btn-add, #btn-devices,
+       #btn-settings, #btn-lock). #btn-more is phone tier only (CSS hides it
+       above 600px); components/tabbar.js wires it to the menu below, whose
+       items click the real buttons. -->
+  <div class="topbar-actions" id="fp-appbar-actions">
+    <button id="btn-more" class="fp-btn fp-btn--secondary" type="button"
             aria-haspopup="true" aria-expanded="false" data-i18n="common.more">More</button>
   </div>
   <div id="fp-more-menu" class="hidden">
-    <button class="btn btn-secondary" type="button" data-relays-to="btn-devices" data-i18n="common.btnDevices">Devices</button>
-    <button class="btn btn-secondary" type="button" data-relays-to="btn-settings" data-i18n="common.btnSettings">Settings</button>
-    <button class="btn btn-secondary" type="button" data-relays-to="btn-lock" data-i18n="common.btnLock">Lock</button>
-    <button class="btn btn-secondary" type="button" data-relays-to="btn-poll" data-i18n="common.btnPoll">Poll Now</button>
-    <button class="btn btn-secondary" type="button" data-relays-to="btn-latest" data-i18n="common.btnLatest">Latest Location</button>
+    <button class="fp-btn fp-btn--secondary" type="button" data-relays-to="btn-poll" data-i18n="common.btnPoll">Poll Now</button>
+    <button class="fp-btn fp-btn--secondary" type="button" data-relays-to="fp-add-place"><span data-i18n="shell.btnAdd">Add</span>&nbsp;<span data-i18n="shell.addPlace">Place</span></button>
+    <button class="fp-btn fp-btn--secondary" type="button" data-relays-to="fp-add-person"><span data-i18n="shell.btnAdd">Add</span>&nbsp;<span data-i18n="shell.addPerson">Person</span></button>
+    <button class="fp-btn fp-btn--secondary" type="button" data-relays-to="fp-add-group"><span data-i18n="shell.btnAdd">Add</span>&nbsp;<span data-i18n="shell.addGroup">Group</span></button>
+    <button class="fp-btn fp-btn--secondary" type="button" data-relays-to="btn-devices" data-i18n="common.btnDevices">Devices</button>
+    <button class="fp-btn fp-btn--secondary" type="button" data-relays-to="btn-settings" data-i18n="common.btnSettings">Settings</button>
+    <button class="fp-btn fp-btn--secondary" type="button" data-relays-to="btn-lock" data-i18n="common.btnLock">Lock</button>
   </div>
 </header>
+
+
+<!-- axe "region": a role="tablist" on the <nav> itself overrides its implicit
+     navigation-landmark role, so the tabs sat in no landmark at all. The
+     landmark now lives on the outer <nav>; role="tablist"/"tab" (U31's
+     WAI-ARIA tabs pattern, arrow-key roving tabindex in main.js's
+     wireTabs()) moves to the inner div -- `.fp-tabs` stays on that div
+     unchanged, so main.js/tabs_a11y.js's `.fp-tabs` selectors still resolve
+     the same element set. Only the active tab is a Tab stop; ArrowLeft/
+     Right/Home/End move focus between the other three. -->
+<nav class="fp-topnav" aria-label="Sections" data-i18n-attr="aria-label:common.sectionsNavLabel">
+  <div class="fp-tabs" role="tablist">
+    <button class="fp-tab active" role="tab" id="fp-tab-latest" aria-selected="true" aria-controls="tab-latest" tabindex="0" data-tab="latest" data-i18n="common.tabLatest">Latest</button>
+    <button class="fp-tab" role="tab" id="fp-tab-people" aria-selected="false" aria-controls="tab-people" tabindex="-1" data-tab="people" data-i18n="common.tabPeople">People</button>
+    <button class="fp-tab" role="tab" id="fp-tab-activity" aria-selected="false" aria-controls="tab-activity" tabindex="-1" data-tab="activity" data-i18n="common.tabActivity">Activity</button>
+    <button class="fp-tab" role="tab" id="fp-tab-places" aria-selected="false" aria-controls="tab-places" tabindex="-1" data-tab="places" data-i18n="common.tabPlaces">Places</button>
+    <button class="fp-tab" role="tab" id="fp-tab-alerts" aria-selected="false" aria-controls="tab-alerts" tabindex="-1" data-tab="alerts" data-i18n="common.tabAlerts">Alerts</button>
+  </div>
+</nav>
+
+<!-- U31: a visible-on-focus link past the map, so a keyboard user reaches the timeline in one Tab. -->
+<a href="#timeline-pane" class="fp-skip-map" data-i18n="common.skipMap">Skip map, go to timeline</a>
+
+<main class="layout">
+
+  <!-- The map below is shared by every tab (Places crosshair-clicks it,
+       Groups draws member overlays on it); only this side pane switches. -->
+  <!-- tabindex: the pane scrolls its own content above 600px, and a
+       scrollable region has to be reachable by keyboard (axe
+       scrollable-region-focusable, WCAG 2.1.1). -->
+  <aside id="timeline-pane" class="timeline-pane" tabindex="0" aria-label="Details" data-i18n-attr="aria-label:common.detailsLandmarkLabel">
+    <div class="fp-tab-panel" id="tab-latest" role="tabpanel" aria-labelledby="fp-tab-latest">
+      <div id="fp-day-host"><!-- @partial: dashboard --></div>
+    </div>
+    <div id="tab-activity" class="fp-tab-panel" role="tabpanel" aria-labelledby="fp-tab-activity" hidden>
+      <!-- app/activity_pane.js mounts into this container. -->
+    </div>
+    <div class="fp-tab-panel" id="tab-places" role="tabpanel" aria-labelledby="fp-tab-places" hidden>
+      <!-- @partial: places -->
+    </div>
+    <div id="tab-people" class="fp-tab-panel" role="tabpanel" aria-labelledby="fp-tab-people" hidden>
+      <!-- @partial: groups -->
+    </div>
+    <div id="tab-alerts" class="fp-tab-panel" role="tabpanel" aria-labelledby="fp-tab-alerts" hidden>
+      <!-- @partial: alerts -->
+    </div>
+    <div id="tab-person" class="fp-tab-panel" hidden>
+      <!-- @partial: person -->
+    </div>
+  </aside>
 
 <!-- CF-P2-E9-2: an untagged axe scan found this block's content (summary
      cards, the status banner, the day/export filters) sitting outside any
@@ -122,7 +169,7 @@
      .cards/.layout grid CSS, which assumes exactly its own children. -->
 <div class="status-region" role="region" aria-label="Status and filters"
      data-i18n-attr="aria-label:common.statusRegionLabel">
-<section class="cards" id="cards">
+<section class="cards cards--strip" id="cards">
   <div class="card"><span class="label" id="card-observed-label" data-i18n="common.cardObservedLabel">Last observed</span><strong id="card-observed">—</strong><span class="sub" id="card-observed-ago">—</span></div>
   <div class="card"><span class="label" data-i18n="common.cardFetchedLabel">Retrieved by this computer</span><strong id="card-fetched">—</strong><span class="sub" id="card-lag">—</span></div>
   <div class="card"><span class="label" data-i18n="common.cardPollLabel">Last successful poll</span><strong id="card-poll">—</strong><span class="sub" id="card-poll-status">—</span></div>
@@ -140,7 +187,8 @@
 
 <div id="alert" class="alert hidden" role="status" aria-live="polite"></div>
 
-<section class="controls">
+<button type="button" class="fp-btn fp-btn--secondary fp-btn--sm fp-filters-toggle" id="btn-filters-toggle" aria-expanded="false" aria-controls="fp-controls" data-i18n="shell.filtersToggle">Filters</button>
+<section class="controls" id="fp-controls">
   <span class="fp-control-group fp-show-group">
     <label for="device-filter" data-i18n="common.show">Show</label>
     <select id="device-filter">
@@ -202,54 +250,12 @@
 </section>
 </div><!-- /status-region -->
 
-<!-- axe "region": a role="tablist" on the <nav> itself overrides its implicit
-     navigation-landmark role, so the tabs sat in no landmark at all. The
-     landmark now lives on the outer <nav>; role="tablist"/"tab" (U31's
-     WAI-ARIA tabs pattern, arrow-key roving tabindex in main.js's
-     wireTabs()) moves to the inner div -- `.fp-tabs` stays on that div
-     unchanged, so main.js/tabs_a11y.js's `.fp-tabs` selectors still resolve
-     the same element set. Only the active tab is a Tab stop; ArrowLeft/
-     Right/Home/End move focus between the other three. -->
-<nav class="fp-topnav" aria-label="Sections" data-i18n-attr="aria-label:common.sectionsNavLabel">
-  <div class="fp-tabs" role="tablist">
-    <button class="fp-tab active" role="tab" id="fp-tab-dashboard" aria-selected="true" aria-controls="tab-dashboard" tabindex="0" data-tab="dashboard" data-i18n="common.tabDashboard">Dashboard</button>
-    <button class="fp-tab" role="tab" id="fp-tab-places" aria-selected="false" aria-controls="tab-places" tabindex="-1" data-tab="places" data-i18n="common.tabPlaces">Places</button>
-    <button class="fp-tab" role="tab" id="fp-tab-groups" aria-selected="false" aria-controls="tab-groups" tabindex="-1" data-tab="groups" data-i18n="common.tabGroups">Groups</button>
-    <button class="fp-tab" role="tab" id="fp-tab-alerts" aria-selected="false" aria-controls="tab-alerts" tabindex="-1" data-tab="alerts" data-i18n="common.tabAlerts">Alerts</button>
-  </div>
-</nav>
-
-<!-- U31: a visible-on-focus link past the map, so a keyboard user reaches the timeline in one Tab. -->
-<a href="#timeline-pane" class="fp-skip-map" data-i18n="common.skipMap">Skip map, go to timeline</a>
-
-<main class="layout">
-  <div class="map-pane">
+  <div class="map-pane" id="map-pane">
+    <!-- Phone only (CSS hides it above 768px): the map is a collapsible card under the panel. -->
+    <button type="button" class="fp-btn fp-btn--secondary fp-map-toggle" id="btn-map-toggle" aria-expanded="false" aria-controls="map" data-i18n="shell.mapToggle">Map</button>
     <div id="map"></div>
     <p class="disclaimer" id="path-disclaimer" data-i18n="notices.pathDisclaimer">Observed path. The actual route between detections may differ.</p>
   </div>
-
-  <!-- The map above is shared by every tab (Places crosshair-clicks it,
-       Groups draws member overlays on it); only this side pane switches. -->
-  <!-- tabindex: the pane scrolls its own content above 600px, and a
-       scrollable region has to be reachable by keyboard (axe
-       scrollable-region-focusable, WCAG 2.1.1). -->
-  <aside id="timeline-pane" class="timeline-pane" tabindex="0" aria-label="Details" data-i18n-attr="aria-label:common.detailsLandmarkLabel">
-    <div class="fp-tab-panel" id="tab-dashboard" role="tabpanel" aria-labelledby="fp-tab-dashboard">
-      <!-- @partial: dashboard -->
-    </div>
-    <div class="fp-tab-panel" id="tab-places" role="tabpanel" aria-labelledby="fp-tab-places" hidden>
-      <!-- @partial: places -->
-    </div>
-    <div id="tab-groups" class="fp-tab-panel" role="tabpanel" aria-labelledby="fp-tab-groups" hidden>
-      <!-- @partial: groups -->
-    </div>
-    <div id="tab-alerts" class="fp-tab-panel" role="tabpanel" aria-labelledby="fp-tab-alerts" hidden>
-      <!-- @partial: alerts -->
-    </div>
-    <div id="tab-person" class="fp-tab-panel" hidden>
-      <!-- @partial: person -->
-    </div>
-  </aside>
 </main>
 
 <footer class="footer">

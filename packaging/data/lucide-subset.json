@@ -58,5 +58,6 @@
   { "id": "lucide:chevron-left", "group": "ui" },
   { "id": "lucide:chevron-down", "group": "ui" },
   { "id": "lucide:list", "group": "ui" },
-  { "id": "lucide:clock", "group": "ui" }
+  { "id": "lucide:clock", "group": "ui" },
+  { "id": "lucide:lock", "group": "ui" }
 ]

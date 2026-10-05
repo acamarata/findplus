@@ -27,11 +27,18 @@ import { openSetupRoute, closeSetupRoute, checkOnboarding } from "./setup_route.
 import { loadIconSprite } from "./icon_sprite.js";
 import { startLiveRefresh } from "./live_refresh.js";
 import { personRoute } from "./person_hash.js";
+import { mountAppBar } from "./appbar.js";
+import { addFitLatestControl } from "./map_fit_latest.js";
+import { wireFocusButton } from "./map_popup.js";
+import { switchTab, tabFromHash, restoreTab, wirePaneRefresh } from "./panel_tabs.js";
 import { refreshPeopleCache } from "./person_links.js";
 
 // The status chrome (device name, service dot, cards, banner) lives in
 // status_view.js; re-exported so existing `main.js` importers keep working.
 export { loadStatus };
+// Tab switching lives in panel_tabs.js (Latest, People, Activity, Places, Alerts);
+// re-exported so the modules that already import it from here keep working.
+export { switchTab };
 
 let configLoad = null;
 
@@ -82,10 +89,10 @@ export async function applyHashRoute({ closeOthers = true } = {}) {
   if (state.personView) await import("./person_route.js").then((m) => m.hidePerson());
   if (hash === "#settings") await openSettings();
   else if (hash === "#devices") await openDevices();
-  // The Places widget's tap target (findplus://places -> windows::open_places
-  // -> this hash): switch to the tab the widget promises, rather than leaving
-  // the dashboard on whatever tab was last active.
-  else if (hash === "#places") switchTab("places");
+  // Tab deep links: #/latest #/people #/activity #/places #/alerts (and the
+  // old #/groups, which is People). The Places widget's tap target
+  // (findplus://places -> windows::open_places) still sends the bare #places.
+  else if (tabFromHash(hash)) switchTab(tabFromHash(hash), { remember: false });
   // The wizard's Notifications step "configure later" webhook link (UAT
   // U17): it used to point at "#settings", a dead end since webhook setup
   // lives in the Alerts tab, not Settings.
@@ -97,26 +104,6 @@ export async function applyHashRoute({ closeOthers = true } = {}) {
 
 function reportRouteFailure(err) {
   showAlert(t("common.apiUnreachable", { message: err.message }), "err");
-}
-
-/**
- * Switch the active `.fp-tab` / `.fp-tab-panel` pair.
- *
- * The one place tab switching happens: the top nav's buttons and the phone
- * tier's bottom tab bar (components/tabbar.js) both call this rather than
- * keeping two copies of the toggling.
- */
-export function switchTab(tab) {
-  document.querySelectorAll(".fp-tabs .fp-tab").forEach((b) => {
-    const active = b.dataset.tab === tab;
-    b.classList.toggle("active", active);
-    // WAI-ARIA tabs (U31): only the active tab is a Tab stop (tabs_a11y.js).
-    b.setAttribute("aria-selected", String(active));
-    b.tabIndex = active ? 0 : -1;
-  });
-  document.querySelectorAll(".fp-tab-panel").forEach((p) => {
-    p.hidden = p.id !== "tab-" + tab;
-  });
 }
 
 function wireTabs() {
@@ -173,6 +160,7 @@ export async function bootDashboard(resume) {
   if (stale()) return;
 
   applyResumeFilters(resume);
+  restoreTab(); // hash tab, else the remembered one (findplus.panelTab), else Latest
 
   await loadStatus();
   if (stale()) return;
@@ -209,7 +197,11 @@ async function main() {
   // Before the first await on purpose: after `await loadCatalog()`, an early
   // click on #btn-settings landed unwired and was lost (CI run 36250697463).
   initMap();
+  addFitLatestControl(state.map);
+  mountAppBar();
+  wireFocusButton();
   wireControls();
+  wirePaneRefresh();
 
   // One walk over the document (the daemon composed the shell and all five
   // partials into this page already) renders every data-i18n element.
@@ -233,7 +225,7 @@ async function main() {
   // Groups tab: coloured member overlays and the presence panel. Wired here
   // (not in P1-E10-W6-S1-T2's own file list) — without a real map instance
   // the Groups tab has nothing to bind its selector or overlay layer to.
-  await import("./groups.js").then((m) => m.init(state.map, deviceList));
+  await import("./people_pane.js").then((m) => m.mountPeople($("tab-people")));
   await import("./alerts.js").then((m) => m.init());
   if (locked) return;
 

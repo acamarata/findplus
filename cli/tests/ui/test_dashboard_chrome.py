@@ -79,7 +79,7 @@ async def test_a_tab_bar_tap_brings_its_pane_into_view(page, base_url):
     )
     assert state["y"] > 0, "the tap left the page at the top"
     assert state["paneTop"] < 812 - 56, "the Alerts pane is still below the fold"
-    await page.click('.fp-tabbar [data-tabbar-tab="dashboard"]')
+    await page.click('.fp-tabbar [data-tabbar-tab="latest"]')
     assert await page.evaluate("window.scrollY") == 0
 
 

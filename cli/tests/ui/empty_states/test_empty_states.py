@@ -76,8 +76,8 @@ def test_groups_empty_state_has_one_message_pointing_at_add_group(page: Page) ->
     """U12: up to three overlapping messages used to show at once. With zero
     groups there must be exactly one, and it has to mention the Add group
     button that sits right there."""
-    page.click("#fp-tab-groups")
-    page.wait_for_selector("#tab-groups:not([hidden])")
+    page.click("#fp-tab-people")
+    page.wait_for_selector("#tab-people:not([hidden])")
     # Not the bare ".fp-empty-state": places.html's own #fp-places-events-empty
     # shares that class and, sitting first in DOM order, is what Playwright
     # would poll for visibility forever (it never becomes visible on the
@@ -108,7 +108,7 @@ def test_groups_tab_hint_appears_once_a_group_exists(page: Page, server: str) ->
         # a fresh load before the selector and card grid know about it.
         page.reload(wait_until="networkidle")
         page.wait_for_selector("#app-shell:visible", timeout=20000)
-        page.click("#fp-tab-groups")
+        page.click("#fp-tab-people")
         page.wait_for_selector(".fp-group-card", timeout=10000)
         assert page.is_visible("#fp-groups-tab-hint")
         assert page.locator("#fp-groups-list .fp-empty-state").count() == 0

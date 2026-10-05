@@ -41,13 +41,13 @@ def _write_into(module: ModuleType, tmp_path: Path, monkeypatch) -> Path:
     return out
 
 
-def test_gen_icons_produces_60_symbols(tmp_path, monkeypatch) -> None:
-    """48 badge icons, `bell` (phone tab bar) and 11 "ui" icons for the 1.3 buttons."""
+def test_gen_icons_produces_61_symbols(tmp_path, monkeypatch) -> None:
+    """48 badge icons, `bell` (phone tab bar) and 12 "ui" icons for the 1.3 buttons."""
     module = _load()
     text = _write_into(module, tmp_path, monkeypatch).read_text(encoding="utf-8")
     assert text.startswith('<svg id="fp-icon-sprite"')
     assert 'id="fp-icon-sprite"' in text
-    assert text.count('<symbol id="lucide-') == 60
+    assert text.count('<symbol id="lucide-') == 61
 
 
 def test_gen_icons_check_mode_detects_drift(tmp_path, monkeypatch) -> None:
@@ -61,7 +61,7 @@ def test_gen_icons_check_mode_detects_drift(tmp_path, monkeypatch) -> None:
 def test_every_subset_id_has_a_vendored_svg() -> None:
     module = _load()
     entries = _subset(module)
-    assert len(entries) == 60
+    assert len(entries) == 61
     for entry in entries:
         name = entry["id"].split(":", 1)[1]
         assert (module.VENDOR_DIR / f"{name}.svg").exists(), name
@@ -70,7 +70,7 @@ def test_every_subset_id_has_a_vendored_svg() -> None:
 def test_every_symbol_carries_its_subset_group(tmp_path, monkeypatch) -> None:
     module = _load()
     text = _write_into(module, tmp_path, monkeypatch).read_text(encoding="utf-8")
-    assert text.count('data-group="') == 60
+    assert text.count('data-group="') == 61
     for entry in _subset(module):
         name = entry["id"].split(":", 1)[1]
         assert f'id="lucide-{name}" data-group="{entry["group"]}"' in text

@@ -54,7 +54,7 @@ async def test_map_is_named_for_the_person_and_renamed_on_leaving(trips_page, tr
     p = trips_page
     assert await p.get_attribute("#map", "aria-label") == "Map of Sam's day, one line per tracker"
     await p.click("#person-back")
-    await p.wait_for_selector("#tab-dashboard", state="visible")
+    await p.wait_for_selector("#tab-latest", state="visible")
     assert "Sam" not in await p.get_attribute("#map", "aria-label")
 
 
@@ -150,10 +150,10 @@ async def test_person_view_hides_dashboard_filters_and_leaving_restores(
     p = trips_page
     assert not await p.locator("section.controls").is_visible()
     await p.click("#person-back")
-    await p.wait_for_selector("#tab-dashboard", state="visible")
+    await p.wait_for_selector("#tab-latest", state="visible")
     assert await p.locator("section.controls").is_visible()
     assert await p.locator("#tab-person").is_hidden()
-    assert await p.locator(".fp-tabs .fp-tab.active").get_attribute("data-tab") == "dashboard"
+    assert await p.locator(".fp-tabs .fp-tab.active").get_attribute("data-tab") == "latest"
 
 
 async def test_phone_width_has_no_sideways_scroll(trips_page, trips_server, pid):

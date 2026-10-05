@@ -263,3 +263,17 @@ input[type="file"]::file-selector-button:hover { filter: brightness(1.1); }
 .fp-btn--icon { padding: 4px; min-width: 32px; }
 .fp-btn--icon.fp-btn--sm { min-width: 24px; padding: 2px; }
 .fp-btn-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fp-btn.hidden, .fp-btn[hidden] { display: none; }
+/* App bar: the Add menu hangs under its button. */
+.fp-add-wrap { position: relative; display: inline-flex; }
+.fp-add-menu {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 1100; min-width: 160px;
+  display: flex; flex-direction: column; gap: 2px; padding: 4px;
+  background: var(--panel); border: 1px solid var(--line-strong); border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.35);
+}
+.fp-add-menu.hidden { display: none; }
+.fp-add-menu .fp-btn { justify-content: flex-start; }
+/* Small buttons stay 32px (Edit, Delete); 28px only for dense list rows. */
+.fp-btn--sm { min-height: 32px; }
+.fp-btn--xs { min-height: 28px; padding: 2px 8px; font-size: 12px; }

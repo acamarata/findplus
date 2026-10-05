@@ -89,8 +89,8 @@ async def test_tab_hint_reads_present_tense_while_a_group_exists(page, base_url)
     the hint is always the shown branch on this suite's install -- the wrong
     half of UAT7-N07 (future-tense copy on a per-group, present-tense hint)."""
     await page.goto(base_url + "/")
-    await page.wait_for_selector('button[data-tab="groups"]')
-    await page.click('button[data-tab="groups"]')
+    await page.wait_for_selector('button[data-tab="people"]')
+    await page.click('button[data-tab="people"]')
     hint = page.locator("#fp-groups-tab-hint")
     await hint.wait_for(state="visible")
     text = await hint.inner_text()
@@ -108,7 +108,7 @@ async def test_tab_hint_hidden_with_zero_groups(page, base_url):
     show/hide branch, which is what keeps the copy from ever being wrong."""
     await page.route("**/api/groups", _empty_groups)
     await page.goto(base_url + "/")
-    await page.wait_for_selector('button[data-tab="groups"]')
+    await page.wait_for_selector('button[data-tab="people"]')
     await page.evaluate(
         """async () => {
             const groups = await import('/static/app/groups.js');

@@ -79,7 +79,7 @@ async def test_unknown_person_has_its_own_state(trips_page, trips_server):
     await trips_page.goto(f"{trips_server['base']}/#/person/9999")
     await trips_page.get_by_text("This person is not here any more").wait_for()
     await trips_page.click("[data-person-state=notfound] a")
-    await trips_page.wait_for_selector("#tab-dashboard", state="visible")
+    await trips_page.wait_for_selector("#tab-latest", state="visible")
 
 
 async def test_loading_state_is_announced(trips_page, trips_server, pid):

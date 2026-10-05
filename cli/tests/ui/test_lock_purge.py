@@ -48,7 +48,7 @@ async def _populate_places_groups_alerts(page, base_url):
     # this function's own final check needs -- page.content() reads markup,
     # not paint state.
     await page.wait_for_selector(".tl-coords", state="attached")
-    await page.click('button[data-tab="groups"]')
+    await page.click('button[data-tab="people"]')
     await page.select_option("#fp-group-select", label="Family")
     await page.wait_for_selector("#fp-presence-panel .fp-verdict")
     await page.click('button[data-tab="alerts"]')

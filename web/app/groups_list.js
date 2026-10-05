@@ -20,6 +20,7 @@ import { api } from "./api.js";
 import { uniqueLabel } from "./device_label.js";
 import { t, plural } from "./i18n.js";
 import { renderBadge } from "./components/badge.js";
+import { styleAsButton } from "./components/button.js";
 import { markForLinks } from "./person_links.js";
 import { showAddDialog, openEditDialog } from "./groups_dialog.js";
 import { loadGroups, selectGroupById, clearGroup, isGroupSelected } from "./groups.js";
@@ -39,6 +40,7 @@ export async function init(container) {
   const addBtn = document.getElementById("fp-add-group-btn");
   if (addBtn) {
     addBtn.textContent = t("groups.add_button");
+    styleAsButton(addBtn, { icon: "plus", variant: "secondary" });
     addBtn.addEventListener("click", showAddDialog);
   }
   // No loadCards() here: groups.js's init() calls loadGroups() immediately
@@ -121,7 +123,7 @@ function memberAvatars(group, devicesById) {
 function onCardClick(event, group) {
   if (event.target.closest("button, a")) return;
   selectGroupById(group.id);
-  const tab = document.querySelector('button.fp-tab[data-tab="groups"]');
+  const tab = document.querySelector('button.fp-tab[data-tab="people"]');
   // Reuses main.js's own tab handler rather than reimplementing switchTab.
   if (tab && !tab.classList.contains("active")) tab.click();
 }

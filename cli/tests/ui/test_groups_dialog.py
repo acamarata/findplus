@@ -20,11 +20,11 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 async def _open_groups_tab(page, base_url):
     await page.goto(base_url + "/")
-    # #tab-groups is `hidden` until its tab is clicked, so everything inside it
+    # #tab-people is `hidden` until its tab is clicked, so everything inside it
     # is attached long before it is visible; waiting for visibility first can
     # never resolve (matches test_groups.py's own note about the panel).
     await page.wait_for_selector("#fp-add-group-btn", state="attached")
-    await page.click('button[data-tab="groups"]')
+    await page.click('button[data-tab="people"]')
     await page.wait_for_selector("#fp-add-group-btn", state="visible")
     # Not ".fp-group-card, .fp-empty-state": places.html's own shares that class.
     await page.wait_for_selector('[data-fp-ready="groups"]')

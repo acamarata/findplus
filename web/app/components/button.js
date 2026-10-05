@@ -74,6 +74,12 @@ export function styleAsButton(el, { icon, variant = "secondary", size } = {}) {
   el.classList.remove("btn", "btn-secondary", "btn-tiny", "btn-danger");
   el.classList.add("fp-btn", `fp-btn--${VARIANTS.includes(variant) ? variant : "secondary"}`);
   if (size === "sm") el.classList.add("fp-btn--sm");
+  if (!el.querySelector(".fp-btn-label")) {
+    const label = document.createElement("span");
+    label.className = "fp-btn-label";
+    label.textContent = el.textContent;
+    el.replaceChildren(label);
+  }
   if (icon && !el.querySelector(".fp-btn-icon")) el.prepend(buttonIcon(icon));
   return el;
 }

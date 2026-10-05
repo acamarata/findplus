@@ -26,7 +26,7 @@ from .conftest import SEEDED_COMPLETED_AT, set_theme
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
-TABS = ("dashboard", "places", "groups", "alerts")
+TABS = ("latest", "people", "activity", "places", "alerts")
 THEMES = ("dark", "light")
 #: 1280 = desktop, 375 = the iPhone SE/Mini class width, inside the <600px tier.
 WIDTHS = (1280, 375)
@@ -65,7 +65,7 @@ def _describe(violation: dict, tab: str, theme: str, width: int) -> str:
 async def test_no_serious_axe_violations(page, base_url, tab, theme, width):
     await page.set_viewport_size({"width": width, "height": 800})
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map.leaflet-container")
+    await page.wait_for_selector("#map.leaflet-container", state="attached")
     # The timeline pane only overflows once its rows are in, and "is this
     # scrollable region keyboard reachable" is one of the rules being scanned:
     # scanning before then made the verdict depend on load timing.
@@ -101,7 +101,7 @@ async def test_no_region_violations_on_dashboard(page, base_url, width):
     """
     await page.set_viewport_size({"width": width, "height": 800})
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map.leaflet-container")
+    await page.wait_for_selector("#map.leaflet-container", state="attached")
     await page.wait_for_selector("#tracks > *", state="attached")
 
     results = await Axe().run(page, options=REGION_OPTIONS)
@@ -133,7 +133,7 @@ async def _open_dialog(page, base_url, dialog: str, width: int) -> None:
     await page.goto(base_url + "/")
     await page.wait_for_selector("svg#fp-icon-sprite symbol[id='lucide-dog']", state="attached")
     if dialog == "devices":
-        await page.wait_for_selector("#map.leaflet-container")
+        await page.wait_for_selector("#map.leaflet-container", state="attached")
         if width < 600:
             # #btn-devices lives in .topbar-actions, CSS-hidden below 600px;
             # the phone tier's own path is the "More" menu, whose relay
@@ -149,13 +149,13 @@ async def _open_dialog(page, base_url, dialog: str, width: int) -> None:
         await page.wait_for_selector("#fp-device-label", state="visible")
     else:
         tab_selector = (
-            '.fp-tabbar [data-tabbar-tab="groups"]'
+            '.fp-tabbar [data-tabbar-tab="people"]'
             if width < 600
-            else '.fp-tabs [data-tab="groups"]'
+            else '.fp-tabs [data-tab="people"]'
         )
         await page.wait_for_selector("#fp-add-group-btn", state="attached")
         await page.click(tab_selector)
-        await page.wait_for_selector("#tab-groups:not([hidden])")
+        await page.wait_for_selector("#tab-people:not([hidden])")
         # Not ".fp-group-card, .fp-empty-state": see _open_groups_tab() in
         # test_groups_dialog.py.
         await page.wait_for_selector('[data-fp-ready="groups"]')

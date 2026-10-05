@@ -30,7 +30,7 @@
     "btnLock": "Lock",
     "btnLockTitle": "Lock now",
     "btnLatest": "Latest Location",
-    "btnPoll": "Poll Now",
+    "btnPoll": "Poll now",
     "btnPollTitle": "Queries your providers once, now",
     "cardObservedLabel": "Last observed",
     "cardFetchedLabel": "Retrieved by this computer",
@@ -56,9 +56,7 @@
     "rangeEnd": "Range end",
     "rangeSeparator": "to",
     "download": "Download",
-    "tabDashboard": "Dashboard",
     "tabPlaces": "Places",
-    "tabGroups": "Groups",
     "tabAlerts": "Alerts",
     "more": "More",
     "footerPrivacy": "Runs entirely on this computer and binds to 127.0.0.1. No analytics, telemetry or third-party scripts. Map tiles are fetched from OpenStreetMap, which necessarily sees the tile coordinates being viewed. Update checks ask GitHub for the newest version and send nothing about you.",
@@ -104,7 +102,10 @@
     "cardsHelpPollTerm": "Last successful poll",
     "cardsHelpPollBody": "The last time Find+ asked your account for locations and got an answer, even if the answer held nothing new.",
     "cardsHelpTodayTerm": "Observations today",
-    "cardsHelpTodayBody": "Locations recorded today, with the total Find+ keeps on this computer underneath."
+    "cardsHelpTodayBody": "Locations recorded today, with the total Find+ keeps on this computer underneath.",
+    "tabLatest": "Latest",
+    "tabPeople": "People",
+    "tabActivity": "Activity"
   },
   "field": {
     "customColor": "Custom color",
@@ -1671,7 +1672,8 @@
       "membersHint": "Tick the trackers that travel with this one. Say what each one is, and how much to trust it.",
       "belongsTo": "With {name}",
       "noDevices": "No tracked devices yet.",
-      "needOne": "Pick at least one tracker."
+      "needOne": "Pick at least one tracker.",
+      "createTitle": "Add a person"
     },
     "notify": {
       "title": "Tell me when {name} arrives or leaves?",
@@ -1736,5 +1738,17 @@
     "nativeSignin": "Find+ can sign you in to Google in a window of its own. Google's policy is against sign-in inside apps, so it can refuse at any time; if it does, sign in with your own Chrome instead.",
     "nativeSigninKept": "Find+ keeps a long-lived sign-in to your Google account on this Mac so it can read your trackers. You can remove its access any time at myaccount.google.com/security (Third-party access) or with Disconnect.",
     "updateCheck": "Automatic updates ask GitHub's releases API for the newest Find+ about every six hours and download a new version from the same GitHub release. The request names only the Find+ version; nothing about you, your trackers or your history is sent, though GitHub sees this computer's IP address. Turn automatic updates off to stop these requests."
+  },
+  "shell": {
+    "btnAdd": "Add",
+    "addMenuLabel": "Add to Find+",
+    "addPlace": "Place",
+    "addPerson": "Person",
+    "addGroup": "Group",
+    "fitLatest": "Fit to latest",
+    "fitLatestTitle": "Zoom the map to the most recent sighting",
+    "mapToggle": "Map",
+    "filtersToggle": "Filters",
+    "showOnlyThis": "Show only this"
   }
 }

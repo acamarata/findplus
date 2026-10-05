@@ -247,7 +247,7 @@ function drawTrack(track) {
       title: `${shown} · ${fmtTime(point.observed_at_local)}${point.suspect ? ` · ${point.suspect_reason}` : ""}`,
       keyboard: false,
     }).addTo(state.layer);
-    marker.bindPopup(popupHtml(point, shown));
+    marker.bindPopup(popupHtml(point, shown, track.device_id));
     marker.on("click", () => selectPoint(point.id, false));
     state.markers.set(point.id, marker);
   });

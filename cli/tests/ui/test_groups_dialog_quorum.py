@@ -18,7 +18,7 @@ MEMBERS = "#fp-group-members"
 async def _open_add(page, base_url):
     await page.goto(base_url + "/")
     await page.wait_for_selector("#fp-add-group-btn", state="attached")
-    await page.click('button[data-tab="groups"]')
+    await page.click('button[data-tab="people"]')
     await page.wait_for_selector('[data-fp-ready="groups"]')
     await page.click("#fp-add-group-btn")
     await page.wait_for_selector("#fp-group-dialog[open]")

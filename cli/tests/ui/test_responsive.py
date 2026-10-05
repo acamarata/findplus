@@ -42,7 +42,7 @@ async def _open_settings(page) -> None:
 # avatars and two buttons onto one non-wrapping line and grew the page past
 # the viewport. Fixed in P2-E5-W3-S1-T2 by letting the card and its avatar
 # strip wrap, and covered here rather than in a second overflow test.
-@pytest.mark.parametrize("surface", ("dashboard", "alerts", "settings", "groups"))
+@pytest.mark.parametrize("surface", ("dashboard", "alerts", "settings", "people"))
 async def test_no_horizontal_overflow_at_phone_width(page, base_url, surface):
     """No element pushes the page wider than the viewport at 375px.
 
@@ -53,9 +53,9 @@ async def test_no_horizontal_overflow_at_phone_width(page, base_url, surface):
     await page.set_viewport_size({"width": PHONE_WIDTH, "height": PHONE_HEIGHT})
     await page.goto(base_url + "/")
     await page.wait_for_selector("#app-shell:not(.hidden)")
-    if surface in ("alerts", "groups"):
+    if surface in ("alerts", "people"):
         await _open_tab(page, surface)
-        if surface == "groups":
+        if surface == "people":
             # Not ".fp-group-card, .fp-empty-state": places.html's own empty
             # state shares that class (see test_groups_dialog.py's
             # _open_groups_tab()); this marker is set once groups.js is wired.
@@ -138,18 +138,26 @@ async def test_export_download_button_joins_the_export_row(page, base_url):
     assert same_group
 
 
-async def test_map_top_within_first_viewport_at_phone_width(page, base_url):
-    """UAT U26: the map used to sit entirely below a full 812px screen of
-    stacked cards and wrapped filters. The compact 2-column cards and
-    tighter filter spacing (responsive.css) bring its top edge back inside
-    the first screen instead of a full scroll down."""
+async def test_panel_top_within_first_viewport_at_phone_width(page, base_url):
+    """1.3 (U1): the side panel (not the map) is what a phone user comes for, so
+    its top edge sits inside the first screen; the map is a collapsed card
+    under it that the Map button opens."""
     await page.set_viewport_size({"width": PHONE_WIDTH, "height": PHONE_HEIGHT})
     await page.goto(base_url + "/")
     await page.wait_for_selector("#app-shell:not(.hidden)")
 
-    box = await page.locator("#map").bounding_box()
+    box = await page.locator("#timeline-pane").bounding_box()
     assert box is not None
-    assert box["y"] < PHONE_HEIGHT * 0.75, f"#map top at y={box['y']}, not within the first screen"
+    assert box["y"] < PHONE_HEIGHT * 0.5, f"panel top at y={box['y']}, not within the first screen"
+    assert await page.is_hidden("#map")
+    await page.click("#btn-map-toggle")
+    await page.wait_for_selector("#map", state="visible")
+    assert await page.get_attribute("#btn-map-toggle", "aria-expanded") == "true"
+
+
+async def _open_filters(page):
+    await page.click("#btn-filters-toggle")
+    await page.wait_for_selector("#fp-controls", state="visible")
 
 
 async def test_group_label_stays_with_its_select_at_phone_width(page, base_url):
@@ -158,6 +166,7 @@ async def test_group_label_stays_with_its_select_at_phone_width(page, base_url):
     await page.set_viewport_size({"width": PHONE_WIDTH, "height": PHONE_HEIGHT})
     await page.goto(base_url + "/")
     await page.wait_for_selector("#app-shell:not(.hidden)")
+    await _open_filters(page)
 
     label_box = await page.locator('label[for="fp-group-select"]').bounding_box()
     select_box = await page.locator("#fp-group-select").bounding_box()
@@ -174,6 +183,7 @@ async def test_day_label_stays_with_its_date_input_at_phone_width(page, base_url
     await page.set_viewport_size({"width": PHONE_WIDTH, "height": PHONE_HEIGHT})
     await page.goto(base_url + "/")
     await page.wait_for_selector("#app-shell:not(.hidden)")
+    await _open_filters(page)
 
     label_box = await page.locator('label[for="day-picker"]').bounding_box()
     input_box = await page.locator("#day-picker").bounding_box()
@@ -232,7 +242,7 @@ async def test_tabbar_icons_are_svg_not_emoji(page, base_url):
     await page.wait_for_selector("#app-shell:not(.hidden)")
 
     buttons = page.locator(".fp-tabbar button")
-    assert await buttons.count() == 4
+    assert await buttons.count() == 5
     for i in range(await buttons.count()):
         btn = buttons.nth(i)
         assert await btn.locator("svg.fp-tabbar-icon use").count() == 1

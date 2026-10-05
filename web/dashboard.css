@@ -150,3 +150,16 @@
 }
 /* Light theme: the suggestion warning sits on --panel-2, where --warn is just under 4.5:1. */
 html[data-theme="light"] .ps-warn { color: #7a5600; }
+
+/* All Activity feed (activity_pane.js): one line per sighting or arrival. */
+.fp-act-list { list-style: none; margin: 0; padding: 0; }
+.fp-act-line { padding: 2px 0; border-bottom: 1px solid var(--border); }
+.fp-act-btn.fp-btn { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 0; width: 100%; height: auto; justify-content: flex-start; text-align: left; font-weight: 400; color: var(--text); }
+.fp-act-label, .fp-act-person { display: inline-flex; align-items: center; gap: 4px; }
+.fp-act-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; margin-right: 4px; }
+.fp-act-person .fp-act-dot { margin-right: 0; }
+.fp-act-meta { color: var(--muted); font-size: 12px; }
+.fp-act-event { padding: 6px 8px; font-weight: 500; }
+.fp-act-note { display: block; padding: 0 8px 4px; }
+.fp-act-more { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; }
+.fp-act-count, .fp-act-empty { color: var(--muted); font-size: 13px; }

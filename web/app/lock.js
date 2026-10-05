@@ -161,6 +161,7 @@ async function purgeTabModules() {
     // its Apple ID, password, bot token and tracker names (CR-C-E11 F1).
     import("./setup.js").then((m) => m.purge()),
     import("./person_page.js").then((m) => m.purge()),
+    import("./activity_pane.js").then((m) => m.purgeActivity()), // the All Activity feed
   ]);
   results.forEach((r) => {
     if (r.status === "rejected") console.error("post-lock purge failed", r.reason);

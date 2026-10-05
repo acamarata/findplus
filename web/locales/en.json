@@ -1812,5 +1812,18 @@
     "nativeSignin": "Find+ can sign you in to Google in a window of its own. Google's policy is against sign-in inside apps, so it can refuse at any time; if it does, sign in with your own Chrome instead.",
     "nativeSigninKept": "Find+ keeps a long-lived sign-in to your Google account on this Mac so it can read your trackers. You can remove its access any time at myaccount.google.com/security (Third-party access) or with Disconnect.",
     "updateCheck": "Automatic updates ask GitHub's releases API for the newest Find+ about every six hours and download a new version from the same GitHub release. The request names only the Find+ version; nothing about you, your trackers or your history is sent, though GitHub sees this computer's IP address. Turn automatic updates off to stop these requests."
+  },
+  "activity": {
+    "empty": "No sightings on this day.",
+    "emptyFiltered": "Nothing matches the filters for this day.",
+    "loadFailedTitle": "Could not load the activity for this day.",
+    "showMore": "Show more",
+    "listLabel": "All activity, newest first",
+    "accuracy": "±{meters} m",
+    "arrived": "{name} arrived at {place}",
+    "left": "{name} left {place}",
+    "openLine": "{time}, {label}. Show this sighting.",
+    "suspectNote": "This sighting looks wrong. Left out of stays, trips and alerts.",
+    "more": "Showing {shown} of {total}"
   }
 }

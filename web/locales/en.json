@@ -127,6 +127,9 @@
     "colorGroupLabel": "Colour choices"
   },
   "devices": {
+    "inline": {
+      "save": "Save changes"
+    },
     "title": "Your trackers",
     "note": "Tick every tracker you want Find+ to poll. Each one adds a request to its provider every poll cycle. Untracking keeps a tracker's history; it just stops being polled.",
     "allTracked": "All tracked devices",
@@ -308,11 +311,16 @@
       "sectionLabel": "Your icons",
       "label": "Custom icon",
       "upload": "Upload",
+      "uploadButton": "Upload your own",
       "deleteIcon": "Delete icon {id}",
       "deleteConfirm": "Delete this icon?",
       "deleteInUse": "This icon is in use and cannot be deleted.",
       "badFile": "Choose a PNG image first.",
       "uploadFailed": "Could not upload icon: {message}"
+    },
+    "search": {
+      "label": "Search icons",
+      "none": "No icon matches \"{query}\"."
     },
     "category": {
       "people": "People",
@@ -789,6 +797,22 @@
     "confirmRemovePin": "Remove the PIN and turn off the app lock? Anyone who opens Find+ on this computer will then see your locations without a PIN.",
     "pinRemoved": "PIN removed. The app no longer locks.",
     "signInHeading": "Sign-in",
+    "nav": {
+      "general": "General",
+      "signin": "Sign-in",
+      "people": "People",
+      "alerts": "Alerts",
+      "lock": "App lock",
+      "updates": "Updates",
+      "backups": "Backups",
+      "about": "About and notices",
+      "danger": "Danger zone"
+    },
+    "peopleHeading": "People and daily summary",
+    "alertsHeading": "Alerts and notifications",
+    "alertsNoticesLink": "How late alerts can be, and what a stale tracker means, is explained under About and notices.",
+    "backupsHeading": "Backups",
+    "backupFileTitle": "Settings file",
     "polling": {
       "title": "Polling and retention",
       "interval_label": "Poll every",
@@ -914,7 +938,13 @@
       "add": "Add",
       "no_devices": "No tracked devices to add yet. Go back to Devices to track one first.",
       "skip_hint": "Most people skip this. You can make groups any time from the Groups tab.",
-      "groups_title": "Groups (optional)"
+      "groups_title": "Groups (optional)",
+      "people_lead": "Say who carries which trackers, so the map and alerts can use a name instead of a tag name. You can skip this and do it later from the People tab.",
+      "person_title": "Add a person",
+      "person_placeholder": "Name, for example Sam",
+      "person_add": "Add person",
+      "person_added": "Added {name}.",
+      "group_instead": "Add a group instead"
     },
     "places": {
       "title": "Places (optional)",

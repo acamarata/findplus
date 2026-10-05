@@ -1,6 +1,9 @@
 /*
  * Device edit dialog: one device's label, icon, colour and tracked flag.
  *
+ * Since 1.3 the Devices dialog edits a row in place (devices_inline.js); this
+ * <dialog> is what the setup wizard's device step still opens.
+ *
  * Purpose    : Build and drive the reused <dialog> that edits one device, and
  *              send the result as PATCH /api/devices/{device_id}.
  * Inputs     : A device row (the shape GET /api/devices returns) handed in per
@@ -20,6 +23,7 @@ import { t } from "./i18n.js";
 import { displayName } from "./state.js";
 import { createIconPicker } from "./components/icon-picker.js";
 import { createColorPicker } from "./components/color-picker.js";
+import { purgeInlineEditor } from "./devices_inline.js";
 
 const DEFAULT_ICON = "letter";
 const DEFAULT_COLOR = "#4f8cf7";
@@ -125,6 +129,7 @@ function ensurePickers() {
       fields.icon.value = value;
     },
     letterLabel: t("devices.field.letter"),
+    search: true,
   });
   colorPicker = createColorPicker(colorGroup, {
     value: DEFAULT_COLOR,
@@ -132,6 +137,7 @@ function ensurePickers() {
       fields.color.value = value;
     },
     customLabel: t("devices.field.customColor"),
+    allowCustom: false,
   });
 }
 
@@ -232,6 +238,7 @@ export function openEditDialog(id, device) {
  * pickers into the same, still-in-the-page group elements.
  */
 export function purgeDialog() {
+  purgeInlineEditor();
   if (!dialogEl) return;
   if (dialogEl.open) dialogEl.close();
   if (iconPicker) iconPicker.destroy();

@@ -140,6 +140,7 @@ export function wireTrackerFocus() {
     const d = (e.detail || {});
     focusTracker(d.device_id, { pointId: d.point_id || null }).catch((err) => console.warn("focus failed", err));
   });
+  window.addEventListener("findplus:day-view", (e) => { if (focus && e.detail) render(e.detail.view); });
   window.addEventListener("findplus:tab-changed", (e) => {
     if (focus && e.detail && e.detail.tab !== "latest") {
       if (trackerRoute(window.location.hash)) setHash(`#/${e.detail.tab}`);

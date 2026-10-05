@@ -78,9 +78,9 @@ async def test_hash_change_switches_tab_after_boot(page, base_url):
     await page.evaluate("localStorage.removeItem('findplus.panelTab')")
 
 
-async def test_latest_keeps_day_story_and_every_sighting_switch(page, base_url):
+async def test_latest_no_longer_shows_the_day_body(page, base_url):
     await _boot(page, base_url)
-    assert await page.is_visible("#view-switch")
+    assert await page.is_hidden("#view-switch")
     await page.wait_for_selector("#tracks > *", state="attached")
 
 
@@ -94,7 +94,7 @@ async def test_activity_shows_every_sighting_without_the_switch(page, base_url):
     # Back on Latest the one shared body returns to its own panel.
     await page.click('.fp-tabs [data-tab="latest"]')
     await page.wait_for_selector("#tab-latest #tracks", state="attached")
-    assert await page.is_visible("#view-switch")
+    assert await page.is_hidden("#view-switch")
     await page.evaluate("localStorage.removeItem('findplus.panelTab')")
 
 

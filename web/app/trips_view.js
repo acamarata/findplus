@@ -263,6 +263,10 @@ export function forceDayView(value) {
 
 function setView(value) {
   writePref(value);
+  if (forced !== null) { // a forced view (the focus switch) follows the choice; its header is told
+    forced = value;
+    window.dispatchEvent(new CustomEvent("findplus:day-view", { detail: { view: value } }));
+  }
   redraw(true);
 }
 

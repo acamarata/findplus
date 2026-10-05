@@ -39,7 +39,9 @@ async def test_a_tracker_row_focuses_it(trips_page, trips_server):
     assert (await p.inner_text("#fp-focus-name")) == "Mia"
     assert await p.is_visible("#fp-focus-back")
     assert await p.locator("#fp-latest-focus [data-act=edit]").count() == 1
-    await p.wait_for_function("() => import('/static/app/state.js').then((m) => m.state.deviceFilter === 'TAG-MOM')")
+    await p.wait_for_function(
+        "() => import('/static/app/state.js').then((m) => m.state.deviceFilter === 'TAG-MOM')"
+    )
     st = await focus_state(p)
     assert st["hash"] == "#/tracker/TAG-MOM"
     assert st["tracks"] in ([], ["TAG-MOM"]), "the map shows only that tracker"
@@ -53,7 +55,9 @@ async def test_the_event_focuses_and_switches_to_latest(trips_page, trips_server
     await p.wait_for_selector("#fp-latest-focus:not([hidden])")
     assert await active_tab(p) == "latest"
     assert await p.inner_text("#fp-focus-name") == "Sam"
-    await p.wait_for_function("() => import('/static/app/state.js').then((m) => m.state.timeline && m.state.timeline.tracks.every((t) => t.device_id === 'TAG-SON'))")
+    await p.wait_for_function(
+        "() => import('/static/app/state.js').then((m) => m.state.timeline && m.state.timeline.tracks.every((t) => t.device_id === 'TAG-SON'))"
+    )
 
 
 async def test_back_restores_the_previous_tab_filter_and_map(trips_page, trips_server):
@@ -118,13 +122,20 @@ async def test_a_sighting_is_selected_when_the_event_names_one(trips_page, trips
     p = trips_page
     await boot(p, trips_server)
     day = trips_server["days"]["school"]
-    body = httpx.get(f"{trips_server['base']}/api/timeline", params={"day": day, "device_id": "TAG-SON"}).json()
+    body = httpx.get(
+        f"{trips_server['base']}/api/timeline", params={"day": day, "device_id": "TAG-SON"}
+    ).json()
     point = body["tracks"][0]["points"][3]["id"]
     await _load_day(p, day)
     await dispatch_focus(p, "TAG-SON", point)
     await p.wait_for_selector(f'#tracks .tl-item[data-id="{point}"]')
-    await p.wait_for_function(f"() => import('/static/app/state.js').then((m) => m.state.selectedId === {point})")
-    assert await p.locator('#fp-latest-focus [data-view="raw"]').get_attribute("aria-pressed") == "true"
+    await p.wait_for_function(
+        f"() => import('/static/app/state.js').then((m) => m.state.selectedId === {point})"
+    )
+    assert (
+        await p.locator('#fp-latest-focus [data-view="raw"]').get_attribute("aria-pressed")
+        == "true"
+    )
 
 
 async def test_leaving_latest_by_another_tab_ends_the_focus(trips_page, trips_server):
@@ -133,7 +144,9 @@ async def test_leaving_latest_by_another_tab_ends_the_focus(trips_page, trips_se
     await dispatch_focus(p, "TAG-MOM")
     await p.wait_for_selector("#fp-latest-focus:not([hidden])")
     await p.click('.fp-tabs [data-tab="places"]')
-    await p.wait_for_function("() => import('/static/app/state.js').then((m) => m.state.deviceFilter === '')")
+    await p.wait_for_function(
+        "() => import('/static/app/state.js').then((m) => m.state.deviceFilter === '')"
+    )
     assert not (await focus_state(p))["hash"].startswith("#/tracker")
     await p.click('.fp-tabs [data-tab="latest"]')
     await p.wait_for_selector("#fp-latest-list .fp-latest-row")

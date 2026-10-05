@@ -16,12 +16,20 @@ Constraints: Status is stubbed; timeline/devices are the real seeded server, so
 from __future__ import annotations
 
 import pytest
+import pytest_asyncio
 from axe_playwright_python.async_playwright import Axe
 
 from ._live_helpers import feed_for, open_dashboard, reload_status, show_day, stub_google_locked
 from .conftest import set_theme
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
+
+
+@pytest_asyncio.fixture(autouse=True, loop_scope="session")
+async def _activity_body(page):
+    """The all-trackers day body lives in the Activity tab now (dashboard 1.3)."""
+    await page.add_init_script("localStorage.setItem('findplus.panelTab','activity')")
+
 
 LOCKED = {t: ("needs_shared_key", 0) for t in ("TAG-HOME", "TAG-AWAY", "TAG-STALE")}
 GOOD = {t: ("ok", 1) for t in ("TAG-HOME", "TAG-AWAY", "TAG-STALE")}

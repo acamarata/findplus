@@ -27,7 +27,9 @@ async def test_people_come_first_then_trackers_with_no_person(trips_page, trips_
     await boot(trips_page, trips_server)
     rows = trips_page.locator("#fp-latest-list .fp-latest-row")
     await rows.first.wait_for()
-    kinds = await rows.evaluate_all("els => els.map((e) => e.classList.contains('fp-latest-row--person') ? 'person' : 'tracker')")
+    kinds = await rows.evaluate_all(
+        "els => els.map((e) => e.classList.contains('fp-latest-row--person') ? 'person' : 'tracker')"
+    )
     assert kinds == ["person", "tracker"]
     person, tracker = rows.nth(0), rows.nth(1)
     assert await person.locator(".fp-latest-name").inner_text() == "Alex"
@@ -36,7 +38,13 @@ async def test_people_come_first_then_trackers_with_no_person(trips_page, trips_
     assert await person.locator(".fp-latest-badges svg").count() == 1, "one tracker badge"
     assert await person.locator(".fp-latest-main svg").count() >= 2, "avatar plus badge"
     assert await tracker.locator(".fp-latest-name").inner_text() == "Mia"
-    assert await tracker.locator(".fp-latest-where").inner_text() in ("Not at a saved place", "At Home", "At School", "At Work", "At Grandma's")
+    assert await tracker.locator(".fp-latest-where").inner_text() in (
+        "Not at a saved place",
+        "At Home",
+        "At School",
+        "At Work",
+        "At Grandma's",
+    )
     seen = await tracker.locator(".fp-latest-seen").inner_text()
     assert seen.startswith("seen ") or seen == "no recent sighting"
 
@@ -83,7 +91,14 @@ async def test_the_empty_state_offers_setup(trips_page, trips_server):
     await trips_page.route("**/api/people", lambda r: r.fulfill(json=[]))
     await trips_page.route(
         "**/api/devices",
-        lambda r: r.fulfill(json={"default_device_id": None, "tracked_count": 0, "requests_per_hour": 0, "devices": []}),
+        lambda r: r.fulfill(
+            json={
+                "default_device_id": None,
+                "tracked_count": 0,
+                "requests_per_hour": 0,
+                "devices": [],
+            }
+        ),
     )
     await boot(trips_page, trips_server)
     await trips_page.wait_for_selector(".fp-latest-empty")
@@ -95,10 +110,29 @@ async def test_the_empty_state_offers_setup(trips_page, trips_server):
 
 async def test_people_are_alphabetical_and_stale_people_are_dimmed(trips_page, trips_server):
     people = [
-        {"id": 2, "name": "Zoe", "kind": "person", "color": "#e7663f", "icon": "lucide:user", "trackers": []},
-        {"id": 1, "name": "Alex", "kind": "person", "color": "#4f8cf7", "icon": "lucide:user", "trackers": []},
+        {
+            "id": 2,
+            "name": "Zoe",
+            "kind": "person",
+            "color": "#e7663f",
+            "icon": "lucide:user",
+            "trackers": [],
+        },
+        {
+            "id": 1,
+            "name": "Alex",
+            "kind": "person",
+            "color": "#4f8cf7",
+            "icon": "lucide:user",
+            "trackers": [],
+        },
     ]
-    now = {"confidence": "unknown", "text": "Not sure where Zoe is.", "age_minutes": None, "stale": []}
+    now = {
+        "confidence": "unknown",
+        "text": "Not sure where Zoe is.",
+        "age_minutes": None,
+        "stale": [],
+    }
     await trips_page.route("**/api/people", lambda r: r.fulfill(json=people))
     await trips_page.route("**/api/people/*/now", lambda r: r.fulfill(json=now))
     await boot(trips_page, trips_server)

@@ -8,7 +8,6 @@ Outputs    : `ensure_alex`, `boot`, `focus_state`, `FOCUS_EVENT`.
 Constraints: Neutral names only. Nothing here touches ~/.findplus or the network.
 """
 
-# ruff: noqa: E501  (inline JS snippets)
 from __future__ import annotations
 
 import httpx

@@ -7,7 +7,9 @@
   border-radius: 10px; padding: 2px 4px 2px 2px;
 }
 .fp-latest-row:hover { background: var(--panel-2); }
-.fp-latest-row.is-stale .fp-latest-main { opacity: 0.62; }
+/* Dimmed without lowering text contrast: muted text, faded avatar. */
+.fp-latest-row.is-stale .fp-latest-main > svg { opacity: 0.5; }
+.fp-latest-row.is-stale .fp-latest-name, .fp-latest-row.is-stale .fp-latest-where { color: var(--muted); }
 .fp-latest-main {
   flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 8px 8px;
   background: none; border: 0; color: var(--text); font: inherit; text-align: left; cursor: pointer; border-radius: 8px;

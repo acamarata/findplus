@@ -10,8 +10,15 @@ from __future__ import annotations
 import asyncio
 
 import pytest
+import pytest_asyncio
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
+
+
+@pytest_asyncio.fixture(autouse=True, loop_scope="session")
+async def _activity_body(page):
+    """The all-trackers day body lives in the Activity tab now (dashboard 1.3)."""
+    await page.add_init_script("localStorage.setItem('findplus.panelTab','activity')")
 
 
 async def test_places_tab_loads_before_it_claims_there_are_none(page, base_url):

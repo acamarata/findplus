@@ -231,7 +231,7 @@ async def test_the_devices_dialog_opens_even_when_a_decoration_fails(page, base_
                 parent.insertBefore(rate, next);
             }
             const modal = document.getElementById('device-modal');
-            const row = document.querySelector('[data-device-id="TAG-HOME"]');
+            const row = document.querySelector('#device-modal [data-device-id="TAG-HOME"]');
             return {
                 hidden: modal.classList.contains('hidden'),
                 rows: document.querySelectorAll('#device-list .device-row').length,
@@ -269,7 +269,7 @@ async def test_booting_does_not_close_a_dialog_the_user_opened(page, base_url):
             await devices.openDevices();          // the user clicks Devices
             await main.applyHashRoute({ closeOthers: false });   // boot catches up
             const modal = document.getElementById('device-modal');
-            const row = document.querySelector('[data-device-id="TAG-HOME"]');
+            const row = document.querySelector('#device-modal [data-device-id="TAG-HOME"]');
             return {
                 hidden: modal.classList.contains('hidden'),
                 rowVisible: row ? row.offsetParent !== null : false,
@@ -295,6 +295,6 @@ async def test_the_devices_dialog_opens_normally(page, base_url):
     """The control: nothing failing, the dialog still opens with visible rows."""
     await _open_dashboard(page, base_url)
     await page.click("#btn-devices")
-    await page.wait_for_selector('[data-device-id="TAG-HOME"]', state="visible")
+    await page.wait_for_selector('#device-modal [data-device-id="TAG-HOME"]', state="visible")
 
     assert await page.locator("#device-modal").is_visible()

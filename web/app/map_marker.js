@@ -26,8 +26,11 @@ const HEX = /^#[0-9a-f]{6}$/;
 export function ringHtml(person) {
   if (!person || !HEX.test(person.color || "")) return "";
   return (
+    // 2 px surface-coloured gap (class, so the theme picks the colour) then a 3 px person-colour
+    // ring: when the person's colour equals the tracker's the gap still keeps the ring readable.
     '<svg class="marker-ring" width="36" height="36" viewBox="0 0 36 36" aria-hidden="true" focusable="false">' +
-    `<circle cx="18" cy="18" r="16" fill="none" stroke="${person.color}" stroke-width="3"/></svg>`
+    '<circle class="marker-ring-gap" cx="18" cy="18" r="14" fill="none" stroke-width="2"/>' +
+    `<circle class="marker-ring-person" cx="18" cy="18" r="16.5" fill="none" stroke="${person.color}" stroke-width="3"/></svg>`
   );
 }
 
@@ -40,6 +43,15 @@ function badgeHtml(device) {
 /** The hover title: the tracker's name, plus whose it is when it belongs to a person. */
 export function markerTitle(shown, person) {
   return person ? t("personColours.markerTitle", { tracker: shown, name: person.name }) : shown;
+}
+
+/**
+ * Show or hide the sighting numbers on the markers. They mean "order of this
+ * tracker's sightings", so they are off by default (a marker shows its tracker's
+ * badge) and a focused Every-sighting view turns them on.
+ */
+export function setSightingNumbers(map, on) {
+  map.getContainer().classList.toggle("map--numbered", Boolean(on));
 }
 
 /** One tracker's latest-position marker (no number, no track). */

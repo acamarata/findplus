@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from findplus.db.models import Device, DeviceGroup, Place, PlaceEvent, PlaceState
 from findplus.device_labels import unique_names
+from findplus.groups.palette import next_place_color
 from findplus.places.kinds import validate_place_kind
 from findplus.places.staleness import _is_stale, _last_fix_by_device, _stale_before
 
@@ -79,12 +80,13 @@ def create_place(
     latitude_e7: int,
     longitude_e7: int,
     radius_meters: int,
-    color: str = "#2f80ed",
+    color: str | None = None,
     enter_confirmations: int = 1,
     exit_confirmations: int = 2,
     kind: str = "other",
     kind_guessed: bool = False,
 ) -> Place:
+    """A new place. `color=None` picks the first unused of the 12 palette colours."""
     validate_place_kind(kind)
     _validate_place_fields(
         name=name,
@@ -97,6 +99,8 @@ def create_place(
     if session.scalar(select(Place.id).where(Place.name == name)) is not None:
         raise ValueError(f"place name {name!r} already exists")
     now = datetime.now(UTC)
+    if color is None:
+        color = next_place_color(session)
     place = Place(
         name=name,
         latitude_e7=latitude_e7,

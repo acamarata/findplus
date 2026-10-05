@@ -20,7 +20,7 @@ import { renderLegend, syncDense, watchTiles } from "./map_extras.js";
 import { popupHtml } from "./map_popup.js";
 import { storyMapRender } from "./trips_view.js";
 import { showSuspect } from "./suspect_pref.js";
-import { countIcon, groupNearby } from "./map_pins.js";
+import { clusterLabel, countIcon, groupNearby } from "./map_pins.js";
 import { markerTitle, numberedIcon, trackerIcon } from "./map_marker.js";
 import { PERSON_COLOURS_EVENT, maybeRefreshPersonColours, personForDevice } from "./person_colours.js";
 
@@ -132,7 +132,7 @@ export async function renderTrackedDeviceMarkers({ force = false } = {}) {
   groupNearby(entries).forEach((group) => {
     if (group.items.length > 1) {
       const names = group.items.map(({ device }) => displayName(device) || device.name).join(", ");
-      L.marker([group.lat, group.lon], { icon: countIcon(group.items.length), title: names, keyboard: false }).addTo(state.layer);
+      L.marker([group.lat, group.lon], { icon: countIcon(group.items.length), title: `${clusterLabel(group.items.length)}: ${names}`, keyboard: false }).addTo(state.layer);
       return;
     }
     const { device, fix } = group.items[0];

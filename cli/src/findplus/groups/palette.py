@@ -19,15 +19,22 @@ from collections import Counter
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from findplus.db.models import Group
+from findplus.db.models import Group, Place
 from findplus.db.models_people import PERSON_KINDS
 from findplus.labels import DEVICE_PALETTE
 
 
+def first_unused(colours) -> str:
+    """First palette colour not in `colours`; when all 12 are used, the least used."""
+    used = Counter((c or "").lower() for c in colours)
+    return min(DEVICE_PALETTE, key=lambda c: used[c.lower()])
+
+
 def next_person_color(session: Session) -> str:
     """First palette colour not used by another person or pet; else the least used."""
-    used = Counter(
-        (c or "").lower()
-        for c in session.scalars(select(Group.color).where(Group.kind.in_(PERSON_KINDS)))
-    )
-    return min(DEVICE_PALETTE, key=lambda c: used[c.lower()])
+    return first_unused(session.scalars(select(Group.color).where(Group.kind.in_(PERSON_KINDS))))
+
+
+def next_place_color(session: Session) -> str:
+    """First palette colour not used by another place; else the least used."""
+    return first_unused(session.scalars(select(Place.color)))

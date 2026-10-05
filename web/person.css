@@ -194,3 +194,19 @@ input[type=time] {
   pointer-events: none; filter: drop-shadow(0 0 1px rgba(0, 0, 0, .45));
 }
 #map.map--dense .marker-num--ringed:not(.marker-num--first):not(.marker-num--last) .marker-ring { display: none; }
+
+.marker-ring .marker-ring-gap { stroke: var(--panel); }
+/* sighting numbers: off unless a focused Every-sighting view asks (setSightingNumbers) */
+.marker-num-seq { display: none; }
+#map.map--numbered .marker-num-seq { display: inline; }
+
+/* person editor: swatch targets of at least 40 px (people pick these by touch) */
+#fp-person-dialog .fp-color-swatch { width: 40px; height: 40px; }
+#fp-person-dialog .fp-icon-swatch { min-width: 40px; min-height: 40px; }
+#fp-person-dialog .fp-color-picker, #fp-person-dialog .fp-icon-grid { gap: 8px; }
+#fp-person-dialog .fp-popover { max-width: calc(100vw - 48px); }
+#fp-person-dialog form { position: relative; }
+#fp-person-dialog .fp-picker-control { position: static; }
+#fp-person-dialog .fp-popover { top: auto; left: 0; right: 0; width: auto; max-width: none; }
+#fp-person-dialog .pe-extra { display: flex; flex-wrap: wrap; gap: 8px; }
+#fp-person-dialog .pe-extra select { flex: 1 1 200px; min-width: 0; }

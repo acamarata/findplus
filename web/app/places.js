@@ -55,7 +55,7 @@ export function init(mapArg, _deviceListEl) {
   // colour instead of every place starting the same blue -- placesById is
   // already current here, loadPlaces() having run at boot before a user can
   // click this at all.
-  if (addBtn) addBtn.addEventListener("click", () => showAddDialog(map.getCenter(), placesById.size));
+  if (addBtn) addBtn.addEventListener("click", () => showAddDialog(map.getCenter(), [...placesById.values()].map((p) => p.color)));
   // UAT2 N12: main.js awaits refreshLockState() before calling init(), so
   // state.locked is already known here -- skip the fetch rather than fire it
   // and swallow a 401. lock.js's refreshTabsAfterUnlock() calls refreshAll()

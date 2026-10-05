@@ -92,3 +92,9 @@ export function purgePersonColours() {
   byDevice = new Map();
   loadedAt = 0;
 }
+
+/** The person (or pet) whose id is `id`, from the same cache; null when unknown. */
+export function personById(id) {
+  for (const person of byDevice.values()) if (person.id === id) return person;
+  return null;
+}

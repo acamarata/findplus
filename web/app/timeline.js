@@ -62,6 +62,7 @@ function showLoadError(day, err, key) {
   host.replaceChildren(
     paneError({ title: t("timeline.loadFailedTitle"), message: err.message, onRetry: () => loadDay(day) })
   );
+  window.dispatchEvent(new CustomEvent("findplus:tracks-rendered"));
 }
 
 /** The pane while a NEW selection loads, so it is never blank (UAT #13). */

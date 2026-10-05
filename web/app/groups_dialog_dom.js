@@ -158,6 +158,18 @@ export function clampPopoverToViewport(host) {
   const dialogLimit = dlg ? dlg.getBoundingClientRect().right - 1 : viewportLimit;
   const overflow = host.getBoundingClientRect().right - Math.min(viewportLimit, dialogLimit);
   if (overflow > 0) host.style.left = `-${overflow}px`;
+  flipIfShortBelow(host, dlg);
+}
+
+/** A trigger near the dialog's foot (Advanced is open) opens the panel upward instead. */
+function flipIfShortBelow(host, dlg) {
+  host.style.top = "";
+  host.style.bottom = "";
+  const box = host.getBoundingClientRect();
+  const floor = Math.min(window.innerHeight, dlg ? dlg.getBoundingClientRect().bottom : window.innerHeight) - 1;
+  if (box.bottom <= floor) return;
+  host.style.top = "auto";
+  host.style.bottom = "calc(100% + 6px)";
 }
 
 /** A click outside both the open popover's host and its own trigger closes

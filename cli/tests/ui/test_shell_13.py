@@ -84,14 +84,13 @@ async def test_latest_no_longer_shows_the_day_body(page, base_url):
     await page.wait_for_selector("#tracks > *", state="attached")
 
 
-async def test_activity_shows_every_sighting_without_the_switch(page, base_url):
+async def test_activity_is_its_own_feed_and_leaves_the_latest_body_alone(page, base_url):
     await _boot(page, base_url)
     await page.click('.fp-tabs [data-tab="activity"]')
     await page.wait_for_selector("#tab-activity:not([hidden])")
-    await page.wait_for_selector("#tab-activity #tracks .track-block", state="attached")
-    assert await page.is_hidden("#view-switch")
-    assert await page.is_hidden("#story")
-    # Back on Latest the one shared body returns to its own panel.
+    await page.wait_for_selector("#tab-activity .fp-act-list, #tab-activity .fp-act-empty")
+    assert await page.locator("#tab-activity #tracks").count() == 0
+    # The shared day body stays in the Latest panel.
     await page.click('.fp-tabs [data-tab="latest"]')
     await page.wait_for_selector("#tab-latest #tracks", state="attached")
     assert await page.is_hidden("#view-switch")

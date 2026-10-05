@@ -27,15 +27,23 @@ async def _assert_swatches_in_dialog(page, popover_id, swatch_class):
     """Every swatch's box must sit inside both the viewport and
     #fp-group-dialog's padding box (its border box inset by its own 1px
     border) -- the popover is a `position: absolute` overlay that can drift
-    outside either without changing the dialog's own size."""
+    outside either without changing the dialog's own size. The popover box
+    itself is checked; swatches scrolled out of its own scroll area are not."""
     viewport = page.viewport_size
     dialog = await page.locator("#fp-group-dialog").bounding_box()
+    host = await page.locator(f"#{popover_id}").bounding_box()
+    assert (
+        host["y"] >= dialog["y"] + 1
+        and host["y"] + host["height"] <= dialog["y"] + dialog["height"] - 1
+    ), host
     swatches = page.locator(f"#{popover_id} {swatch_class}")
     count = await swatches.count()
     assert count > 0
     for i in range(count):
         box = await swatches.nth(i).bounding_box()
         assert box is not None
+        if box["y"] + box["height"] > host["y"] + host["height"] or box["y"] < host["y"]:
+            continue  # scrolled out of the popover's own scroll area
         assert box["x"] >= 0 and box["y"] >= 0, box
         assert box["x"] + box["width"] <= viewport["width"], box
         assert box["y"] + box["height"] <= viewport["height"], box

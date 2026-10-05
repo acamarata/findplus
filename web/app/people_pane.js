@@ -1,11 +1,12 @@
 /*
  * People pane adapter (People tab).
  *
- * Purpose    : The mount point the People builder rewrites. TODAY it is the old
- *              Groups panel: people cards, the groups list (#fp-groups-list),
- *              the "Find+ found people" suggestions card, the presence panel
- *              and the Add group button, all in the static markup of
- *              #tab-people (web/partials/groups.html), driven by groups.js.
+ * Purpose    : The People tab: a "People" section (one card per person or pet,
+ *              people_cards.js, with Add person and the suggestions banner and
+ *              panel, people_suggest.js) and an "Other groups" section (the
+ *              non-person groups list, groups_list.js, with Add group). The
+ *              suggestions no longer render on Latest. Static markup is
+ *              web/partials/groups.html; groups.js drives the data.
  * Inputs     : mountPeople(container): container is #tab-people.
  * Outputs    : First call: groups.js init() (selector, overlay layer, cards,
  *              dialog wiring). Later calls return the same promise.

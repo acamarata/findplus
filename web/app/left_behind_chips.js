@@ -29,7 +29,7 @@ export function mountLeftBehind(el) {
 const clock = (iso) => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
 /** The tracker as a person would say it: "bag", or its own name when its role says nothing. */
-function thing(person, episode) {
+export function thing(person, episode) {
   const tracker = person.trackers.find((x) => x.device_id === episode.device_id);
   const role = tracker && tracker.role;
   return role && role !== "other" ? t(`people.role.${role}`) : episode.device_name;

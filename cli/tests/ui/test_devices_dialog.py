@@ -39,7 +39,7 @@ async def _open_devices(page, base_url):
 async def _open_edit_dialog(page, base_url):
     await _open_devices(page, base_url)
     await page.click('.device-row[data-device-id="TAG-HOME"] .fp-device-edit')
-    await page.wait_for_selector("#fp-device-dialog[open]")
+    await page.wait_for_selector(".device-row.is-editing .device-edit")
 
 
 async def _set_label(page, base_url, label):
@@ -69,20 +69,28 @@ async def test_device_row_shows_badge_and_label(page, base_url):
 
 async def test_edit_button_opens_dialog_prefilled(page, base_url):
     await _open_edit_dialog(page, base_url)
-    assert await page.input_value("#fp-device-label") == LABEL
-    assert await page.input_value("#fp-device-icon") == "lucide:key"
-    assert await page.input_value("#fp-device-color") == "#4f8cf7"
-    assert await page.is_checked("#fp-device-tracked")
+    assert await page.input_value("#fp-device-inline-label") == LABEL
+    icon = page.locator('.device-edit .fp-icon-swatch[aria-pressed="true"]')
+    assert await icon.get_attribute("data-icon-id") == "lucide:key"
+    color = page.locator('.device-edit .fp-color-swatch[aria-pressed="true"]')
+    assert await color.get_attribute("data-color") == "#4f8cf7"
+    # Tracking is the row's own checkbox now; the editor does not repeat it.
+    assert await page.is_checked('.device-row[data-device-id="TAG-HOME"] input[type=checkbox]')
+    # U13: exactly the 12 palette swatches (no 13th custom colour input), and
+    # the file input is not the visible control.
+    assert await page.locator(".device-edit .fp-color-swatch").count() == 12
+    assert await page.locator(".device-edit .fp-color-custom").count() == 0
+    assert await page.get_by_role("button", name="Upload your own").is_visible()
 
 
 async def test_edit_label_saves_and_updates_row(page, base_url):
     await _open_edit_dialog(page, base_url)
     try:
-        await page.fill("#fp-device-label", "Renamed Keys")
-        await page.click("#fp-device-dialog button:has-text('Save')")
+        await page.fill("#fp-device-inline-label", "Renamed Keys")
+        await page.click(".device-edit button:has-text('Save')")
         # A closed <dialog> is display:none, so the default "visible" wait never
         # resolves; "attached" is the state that means "in the DOM, closed".
-        await page.wait_for_selector("#fp-device-dialog:not([open])", state="attached")
+        await page.wait_for_selector(".device-edit", state="detached")
         # onSave() (devices_dialog.js) closes the dialog as soon as the PATCH
         # resolves, then awaits its onSaved callback (loadDevices +
         # renderDeviceModal) -- so the row above can still read the OLD label
@@ -150,9 +158,9 @@ async def test_edit_label_updates_the_dashboard_without_a_reload(page, base_url)
     user manually reloaded the page."""
     await _open_edit_dialog(page, base_url)
     try:
-        await page.fill("#fp-device-label", "Sara's Keys")
-        await page.click("#fp-device-dialog button:has-text('Save')")
-        await page.wait_for_selector("#fp-device-dialog:not([open])", state="attached")
+        await page.fill("#fp-device-inline-label", "Sara's Keys")
+        await page.click(".device-edit button:has-text('Save')")
+        await page.wait_for_selector(".device-edit", state="detached")
         # No page.reload() / page.goto() here: the dashboard behind the
         # dialog must have refreshed itself.
         track_name = page.locator(".track-block", has_text="Sara's Keys").locator(".track-name")
@@ -163,13 +171,12 @@ async def test_edit_label_updates_the_dashboard_without_a_reload(page, base_url)
         await _set_label(page, base_url, LABEL)
 
 
-async def test_purge_on_lock_clears_the_dialog(page, base_url):
-    """The dialog holds a device id and a label; a lock has to destroy both.
+async def test_purge_on_lock_clears_the_editor(page, base_url):
+    """The editor holds a device id and a label; a lock has to destroy both.
 
-    `lockNow()` is invoked directly rather than through #btn-lock because an
-    open native <dialog> puts the page in the top layer and its backdrop eats
-    the click. It is the exact function the button is wired to (lock.js:245),
-    not a synthetic event.
+    `lockNow()` is invoked directly rather than through #btn-lock because the
+    open Devices modal's backdrop eats the click. It is the exact function the
+    button is wired to (lock.js:245), not a synthetic event.
     """
     set_pin = await page.request.post(
         base_url + "/api/settings/pin", data=json.dumps({"new_pin": PIN}), headers=JSON_HEADERS
@@ -179,14 +186,10 @@ async def test_purge_on_lock_clears_the_dialog(page, base_url):
         await _open_edit_dialog(page, base_url)
         await page.evaluate("import('/static/app/lock.js').then((m) => m.lockNow())")
         await page.wait_for_selector("#lock-screen:not(.hidden)")
-        # A closed <dialog> is display:none, so the default "visible" wait never
-        # resolves; "attached" is the state that means "in the DOM, closed".
-        await page.wait_for_selector("#fp-device-dialog:not([open])", state="attached")
-        assert await page.input_value("#fp-device-label") == ""
-        assert await page.input_value("#fp-device-icon") == ""
-        assert await page.evaluate(
-            "document.getElementById('fp-device-dialog').dataset.editId === undefined"
-        )
+        # The inline editor (name field, both pickers) is destroyed, not hidden.
+        await page.wait_for_selector(".device-edit", state="detached")
+        assert await page.locator("#fp-device-inline-label").count() == 0
+        assert await page.locator(".device-edit .fp-icon-swatch").count() == 0
         assert LABEL not in await page.content()
     finally:
         with contextlib.suppress(Exception):

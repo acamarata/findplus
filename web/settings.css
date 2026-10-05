@@ -127,3 +127,50 @@
   .settings-nav-item[aria-current="true"] { border-color: var(--accent); }
   .settings-body { padding-right: 0; padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
 }
+
+/* ---------------------------------------------------------------------------
+ * Devices dialog (1.3, U13). The frame is fixed-height: header and note on top,
+ * the list scrolls, the footer is always visible. An Edit press expands the row
+ * into an inline editor (devices_inline.js) instead of opening a second dialog.
+ * ------------------------------------------------------------------------- */
+#device-modal .modal-box { display: flex; flex-direction: column; overflow: hidden; width: min(720px, 94vw); max-height: 90vh; }
+#device-modal .device-tools { flex: 0 0 auto; }
+#device-list { flex: 1 1 auto; min-height: 120px; overflow-y: auto; padding-right: 4px; }
+#device-modal .modal-rate, #device-modal .fp-dialog-error { flex: 0 0 auto; }
+#device-modal .modal-foot {
+  flex: 0 0 auto; flex-wrap: wrap; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--line);
+}
+#device-modal .modal-foot .spacer { flex: 1 1 0; }
+/* Refresh is a side action, not a peer of Save: a text link, not a button. */
+#btn-refresh-devices {
+  background: transparent; border: 0; padding: 4px 6px; min-height: 32px;
+  color: var(--accent); text-decoration: underline; font-weight: 500;
+}
+html[data-theme="light"] #btn-refresh-devices { color: var(--accent); }
+
+.device-row.is-editing { cursor: default; border-color: var(--accent); }
+.device-edit {
+  order: 5; flex: 1 1 100%; display: flex; flex-direction: column; gap: 12px;
+  margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--line); cursor: default;
+}
+.device-edit .fp-dialog-field { display: flex; align-items: center; gap: 12px; }
+.device-edit .fp-dialog-field > label { flex: 0 0 64px; font-size: 13px; }
+.device-edit .fp-dialog-field input { flex: 1 1 auto; min-width: 0; }
+.device-edit .fp-dialog-group { margin: 0; }
+.device-edit .fp-icon-picker { max-height: 220px; overflow-y: auto; padding-right: 4px; }
+.device-edit-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Icon picker search and the "Upload your own" button. */
+.fp-icon-picker [hidden] { display: none !important; }
+.fp-icon-search { position: sticky; top: 0; z-index: 1; background: var(--panel-2); padding: 0 0 8px; }
+.fp-icon-search input { width: 100%; box-sizing: border-box; }
+.fp-icon-search-empty { margin: 6px 0 0; font-size: 12.5px; color: var(--muted); }
+.fp-custom-icon-upload-btn { min-height: 32px; }
+
+@media (max-width: 599px) {
+  #device-modal .modal-box { width: 100%; height: 100%; max-height: none; border-radius: 0; }
+  .device-edit .fp-dialog-field { flex-direction: column; align-items: stretch; gap: 4px; }
+  .device-edit .fp-dialog-field > label { flex: none; }
+  .device-edit .fp-icon-picker { max-height: 200px; }
+  #device-modal .modal-foot { padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+}

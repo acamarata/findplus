@@ -145,8 +145,8 @@ async def _open_dialog(page, base_url, dialog: str, width: int) -> None:
         await page.wait_for_selector("#device-modal:not(.hidden)")
         await page.wait_for_selector(".device-row")
         await page.click('.device-row[data-device-id="TAG-HOME"] .fp-device-edit')
-        await page.wait_for_selector("#fp-device-dialog[open]")
-        await page.wait_for_selector("#fp-device-label", state="visible")
+        await page.wait_for_selector(".device-row.is-editing .device-edit")
+        await page.wait_for_selector("#fp-device-inline-label", state="visible")
     else:
         tab_selector = (
             '.fp-tabbar [data-tabbar-tab="groups"]'

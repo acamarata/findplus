@@ -126,6 +126,9 @@
     "colorGroupLabel": "Colour choices"
   },
   "devices": {
+    "inline": {
+      "save": "Save changes"
+    },
     "title": "Your trackers",
     "note": "Tick every tracker you want Find+ to poll. Each one adds a request to its provider every poll cycle. Untracking keeps a tracker's history; it just stops being polled.",
     "allTracked": "All tracked devices",
@@ -307,11 +310,16 @@
       "sectionLabel": "Your icons",
       "label": "Custom icon",
       "upload": "Upload",
+      "uploadButton": "Upload your own",
       "deleteIcon": "Delete icon {id}",
       "deleteConfirm": "Delete this icon?",
       "deleteInUse": "This icon is in use and cannot be deleted.",
       "badFile": "Choose a PNG image first.",
       "uploadFailed": "Could not upload icon: {message}"
+    },
+    "search": {
+      "label": "Search icons",
+      "none": "No icon matches \"{query}\"."
     },
     "category": {
       "people": "People",

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Find+ helper",
-  "version": "1.2.3",
+  "version": "1.3.0",
   "description": "Connects your Google Find Hub account to Find+ running on this same computer. Talks only to Google's sign-in page and to Find+ on 127.0.0.1. Open source, no analytics, no remote code.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApQuIg+1cUgNIbwAFYEORlXROxMnxLBEzC8mkOJYVxTj2mZLfEbHYuo2+UwwpaYyJty4Cml9sB0y6UMQKLYxzOUoUx4K4TsJWI+kDw8Cir2hFebu+pB/VkvgN1YOwxbEn90nYq9CpO95g+6Jsi6AMN7HBmuqVz+fH40kAmANTo+OrgCu2R8DPW+ixqoP2VqbP07v2zch2asw2I0GVDTnVNIg5p/6UaL9VjQTq6oZwgQhEDXKztN4UoPMhUulUhfgBmeV5B/PKYTylrtCXBPMCQvx4OovB9W/k4UEqO0iHtZlR1AxyVVegxQVlhkjFmP8wNSQoqIJXZIX/+Zy9vhTW2QIDAQAB",
   "permissions": ["cookies", "storage"],

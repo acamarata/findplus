@@ -6,6 +6,8 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-05
+
 ### Added
 - The dashboard's side panel has new tabs: Latest, People, Activity, Places and Alerts. It
   remembers the last one you used, and `#/latest`, `#/people` and similar links open a tab

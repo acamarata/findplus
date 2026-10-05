@@ -206,10 +206,8 @@ async def test_lock_purges_the_place_dialog_and_the_webhook_secret(page, base_ur
     name input kept the place name — both readable from DevTools with the
     lock screen up. The webhook secret input had nothing clearing it at all.
 
-    "Add place" opens the dialog directly at the map's current centre (U4/U10,
-    commit eff581d) rather than arming a map-click crosshair, so the dialog is
-    already open and modal by the time this test would otherwise click the
-    map underneath it — no map click is needed to fill the coordinates.
+    "Add place" opens the dialog at the map centre (U4/U10), so no map click
+    is needed to fill the coordinates.
     """
     await _setup_purge_fixture(page, base_url)
     try:

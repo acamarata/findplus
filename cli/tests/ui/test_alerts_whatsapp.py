@@ -294,8 +294,7 @@ async def test_the_rule_dialog_populates_its_selects_on_a_cold_page(page, base_u
             "(id) => document.getElementById(id).options.length > 1", arg=select_id
         )
 
-    # TAG-HOME's option text is its label ("Ali's Keys"), not the raw provider
-    # name "Home Tag" -- the U6 labels fix made displayName() (state.js) the
-    # source for every device select, including this one.
+    # TAG-HOME shows its label, not the provider name "Home Tag": displayName()
+    # (state.js) feeds every device select (U6).
     devices = await page.locator("#fp-rule-device option").all_text_contents()
     assert "Ali's Keys" in devices, devices

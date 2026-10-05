@@ -62,14 +62,14 @@ async def _open_notifications_step(page, base_url, *, telegram_configured=True):
     await _set_completed_at(page, base_url, None)
     await _set_last_step(page, base_url, "notifications")
     await page.goto(base_url + "/#/setup")
-    await page.wait_for_selector("[data-channel='telegram']", timeout=15000)
+    await page.wait_for_selector("#setup-view [data-channel='telegram']", timeout=15000)
 
 
 async def test_wizard_has_a_targets_field_and_help_text(page, base_url):
     try:
         await _open_notifications_step(page, base_url)
         assert await page.locator("#fp-setup-tg-targets").count() == 1
-        section_text = await page.locator("[data-channel='telegram']").inner_text()
+        section_text = await page.locator("#setup-view [data-channel='telegram']").inner_text()
         assert "comma" in section_text.lower()
     finally:
         await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)
@@ -148,7 +148,7 @@ async def test_targets_are_disabled_until_a_bot_is_connected(page, base_url):
         assert not await page.locator("#fp-setup-tg-targets").is_enabled()
         assert not await page.locator("#fp-setup-tg-save-targets").is_enabled()
         assert not await page.locator("#fp-setup-tg-find-chats").is_enabled()
-        section_text = await page.locator("[data-channel='telegram']").inner_text()
+        section_text = await page.locator("#setup-view [data-channel='telegram']").inner_text()
         assert "connect the bot" in section_text.lower(), section_text
     finally:
         await _set_completed_at(page, base_url, SEEDED_COMPLETED_AT)

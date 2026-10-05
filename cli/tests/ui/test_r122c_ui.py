@@ -44,7 +44,7 @@ async def test_nothing_new_after_everyone_is_added_reads_as_success(trips_page, 
     p = trips_page
     await p.goto(trips_server["base"] + "/")
     await p.wait_for_selector("#app-shell[data-fp-ready]")
-    await p.click('button[data-tab="groups"]')
+    await p.click('button[data-tab="people"]')
     await p.get_by_text("All suggested people added.").wait_for()
     assert "No new people found" not in await p.inner_text("#fp-people-suggest")
 

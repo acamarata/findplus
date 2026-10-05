@@ -152,7 +152,7 @@ async def _one_pass(page, out_dir: Path, scheme: str, width: int) -> None:
     await _shoot(page, out_dir, "places-dialog", scheme, width)
     await page.keyboard.press("Escape")
 
-    await page.click(_tab(width, "groups"))
+    await page.click(_tab(width, "people"))
     await page.select_option("#fp-group-select", label="Family")
     await page.wait_for_selector("#fp-presence-panel .fp-verdict")
     await _shoot(page, out_dir, "group-presence", scheme, width)

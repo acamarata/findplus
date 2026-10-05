@@ -48,8 +48,8 @@ async def _open_groups_at_phone_width(page, base_url) -> None:
     await page.set_viewport_size({"width": PHONE_WIDTH, "height": PHONE_HEIGHT})
     await page.goto(base_url + "/")
     await page.wait_for_selector("#app-shell:not(.hidden)")
-    await page.click('.fp-tabbar [data-tabbar-tab="groups"]')
-    await page.wait_for_selector("#tab-groups:not([hidden])")
+    await page.click('.fp-tabbar [data-tabbar-tab="people"]')
+    await page.wait_for_selector("#tab-people:not([hidden])")
     await page.wait_for_selector(".fp-group-card", state="visible")
 
 

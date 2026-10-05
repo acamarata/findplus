@@ -17,6 +17,7 @@ import { $, state, visibleTracks, fmtTime } from "./state.js";
 import { deviceForTrack } from "./map.js";
 import { selectPoint } from "./timeline.js";
 import { renderBadge } from "./components/badge.js";
+import { button } from "./components/button.js";
 import { plural, t } from "./i18n.js";
 import { nothingTrackedEmptyState, emptyDayState } from "./dashboard_empty.js";
 import { statsHtml, timelineHtml } from "./timeline_list.js";
@@ -117,15 +118,13 @@ function foldAllRow(host) {
   const row = document.createElement("div");
   row.className = "track-foldall";
   for (const [key, open] of [["timeline.expandAll", true], ["timeline.collapseAll", false]]) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "btn btn-tiny btn-secondary";
-    btn.textContent = t(key);
-    btn.addEventListener("click", () => {
-      host.querySelectorAll(".track-block").forEach((b) => { openState.set(b.dataset.deviceId, open); setOpen(b, open); });
-      syncRoving(host);
-    });
-    row.appendChild(btn);
+    row.appendChild(button({
+      label: t(key), variant: "secondary", size: "sm",
+      onClick: () => {
+        host.querySelectorAll(".track-block").forEach((b) => { openState.set(b.dataset.deviceId, open); setOpen(b, open); });
+        syncRoving(host);
+      },
+    }));
   }
   return row;
 }

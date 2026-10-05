@@ -17,7 +17,7 @@
 import { api } from "./api.js";
 import { t } from "./i18n.js";
 import { createIconPicker } from "./components/icon-picker.js";
-import { createColorPicker } from "./components/color-picker.js";
+import { createColorPicker, DEVICE_PALETTE } from "./components/color-picker.js";
 import { pickerRow, renderIconPreview, renderColorPreview } from "./groups_dialog_dom.js";
 import { labeled } from "./groups_dialog_fields.js";
 import { buildMembers } from "./person_editor_members.js";
@@ -109,7 +109,7 @@ function mountPickers() {
 }
 
 function fill(person, devices, people) {
-  ui.title.textContent = t("person.edit.title", { name: person.name });
+  ui.title.textContent = person.id ? t("person.edit.title", { name: person.name }) : t("person.edit.createTitle");
   ui.name.value = person.name;
   ui.icon.value = person.icon || "lucide:user";
   ui.color.value = person.color || "#27ae60";
@@ -124,7 +124,15 @@ function fill(person, devices, people) {
   ui.holder.replaceChildren(members.fieldset);
 }
 
+async function createAll(picked) {
+  const kind = ui.kind.pet.checked ? "pet" : "person";
+  const roles = Object.fromEntries(picked.map((x) => [x.device_id, x.role]));
+  await send("POST", "/api/people", { name: ui.name.value.trim(), kind, color: ui.color.value, icon: ui.icon.value, member_ids: picked.map((x) => x.device_id), roles });
+  for (const x of picked.filter((p) => p.carry_weight != null)) await saveTracker(x.device_id, { role: x.role, carry_weight: x.carry_weight });
+}
+
 async function writeAll(picked) {
+  if (!current.id) return createAll(picked);
   const id = current.id;
   const kind = ui.kind.pet.checked ? "pet" : "person";
   await send("PATCH", `/api/people/${id}`, { name: ui.name.value.trim(), kind, color: ui.color.value, icon: ui.icon.value });
@@ -167,6 +175,31 @@ export async function openPersonEditor(id, onSaved, opts = {}) {
     fill(person, devices.devices || [], people);
     dlg.showModal();
     focusStart(opts.focus);
+  } catch (err) {
+    if (err.message !== "Locked") throw err;
+  }
+}
+
+/** Palette colour no person uses yet (the first one when all twelve are taken). */
+function unusedColor(people) {
+  const used = new Set(people.map((p) => (p.color || "").toLowerCase()));
+  return DEVICE_PALETTE.find((c) => !used.has(c)) || DEVICE_PALETTE[0];
+}
+
+/**
+ * Open the editor empty, to add a person or pet (the app bar's Add > Person).
+ * The new person starts with the first palette colour no one has; `onSaved`
+ * runs after the POST succeeds.
+ */
+export async function openPersonCreate(onSaved) {
+  saved = onSaved || null;
+  try {
+    const [devices, people] = await Promise.all([api("/api/devices"), api("/api/people")]);
+    current = { id: null, name: "", kind: "person", icon: "lucide:user", color: unusedColor(people), trackers: [] };
+    if (!dlg) dlg = build();
+    fill(current, devices.devices || [], people);
+    dlg.showModal();
+    ui.name.focus();
   } catch (err) {
     if (err.message !== "Locked") throw err;
   }

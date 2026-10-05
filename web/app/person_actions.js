@@ -59,7 +59,7 @@ async function fullMap(person) {
   window.location.hash = "";
   const groups = await import("./groups.js");
   groups.selectGroupById(person.id);
-  (await import("./main.js")).switchTab("dashboard");
+  (await import("./main.js")).switchTab("latest");
 }
 
 /** Fill the action row for `person` on `date`. */

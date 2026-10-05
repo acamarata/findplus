@@ -181,6 +181,12 @@ function focusWithKeyboard(marker, { onNudge, onConfirm, onCancel }) {
  * Start crosshair mode on `map`. The caller must already have closed
  * whatever dialog was covering it -- see places_dialog.js's beginMapPick().
  */
+/** Phone layout keeps the map in a collapsed card (1.3 shell); picking needs it open. */
+export function openMapCard() {
+  document.getElementById("map-pane")?.classList.add("is-open");
+  document.getElementById("btn-map-toggle")?.setAttribute("aria-expanded", "true");
+}
+
 export function startMapPick(map, { latlng, radiusMeters, color, onConfirm, onCancel }) {
   let current = latlng ? L.latLng(latlng) : map.getCenter();
   const marker = L.marker(current, { draggable: true, keyboard: false }).addTo(map);

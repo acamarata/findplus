@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from ._many_tracks import install_busy_day
+from ._many_tracks import install_busy_day, settle_map
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -14,6 +14,7 @@ async def _boot(page, base_url, **kw):
     await install_busy_day(page, **kw)
     await page.goto(base_url + "/")
     await page.wait_for_selector("#tracks .track-block")
+    await settle_map(page)
 
 
 async def test_legend_lists_each_tracker_and_frames_it(page, base_url):
@@ -50,6 +51,13 @@ async def test_no_legend_for_a_single_tracker(page, base_url):
 
 async def test_dense_map_shrinks_middle_markers_until_zoomed_in(page, base_url):
     await _boot(page, base_url)
+    # Zoomed out the middle markers shrink (the fitted zoom depends on the map's size).
+    await page.evaluate(
+        "() => import('/static/app/state.js').then((m) => m.state.map.setZoom(8, { animate: false }))"
+    )
+    await page.wait_for_selector(
+        "#map.map--dense", state="attached"
+    )  # markers draw just after boot
     assert await page.locator("#map.map--dense").count() == 1
     await page.evaluate(
         "() => import('/static/app/state.js').then((m) => m.state.map.setZoom(16, { animate: false }))"

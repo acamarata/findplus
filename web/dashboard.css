@@ -87,3 +87,66 @@
 .device-row[hidden] { display: none; }
 .device-tools { position: sticky; top: 0; z-index: 3; background: var(--panel); padding: 4px 0 8px; }
 @media (max-width: 599px) { .cards-help { margin-inline: 12px; } }
+
+/* --- 1.3 compact status strip: four cells in one row, same texts ------------ */
+.cards--strip { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 8px 18px 0; }
+.cards--strip .card { padding: 6px 10px; border-radius: 8px; gap: 0; min-width: 0; }
+.cards--strip .card .label { font-size: 10px; }
+.cards--strip .card strong { font-size: 14px; overflow-wrap: anywhere; }
+.cards--strip .card .sub { font-size: 11px; }
+@media (max-width: 899px) { .cards--strip { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 599px) { .cards--strip { padding: 8px 12px 0; gap: 6px; } }
+
+/* --- 1.3 side panel: Activity borrows the day body as a plain feed ----------- */
+.fp-day-host--activity #view-switch, .fp-day-host--activity #fp-left-behind,
+.fp-day-host--activity #fp-people-banner, .fp-day-host--activity #story { display: none; }
+.fp-map-control.leaflet-control { margin: 10px 10px 0 0; }
+.fp-tabs { flex-wrap: wrap; }
+
+/* --- 1.3 layout: tabs, then panel, then filters, then map (keyboard order) ---- */
+/* Desktop: the map and the panel are two sticky full-height columns beside each
+   other; the page scrolls under them. The tab row is sticky above both. */
+.fp-topnav { position: sticky; top: 0; z-index: 30; background: var(--bg); }
+.layout {
+  grid-template-columns: minmax(0, 1fr) 400px; grid-template-areas: "status status" "map panel";
+  align-items: start; gap: 8px 16px; padding: 8px 16px 16px;
+}
+.status-region { grid-area: status; }
+.status-region .cards, .status-region .controls { padding-inline: 0; }
+.status-region .alert { margin-inline: 0; }
+.status-region .cards-help { margin-inline: 0; }
+.map-pane { grid-area: map; position: sticky; top: 48px; }
+#map { height: calc(100dvh - 120px); min-height: 360px; }
+.timeline-pane {
+  grid-area: panel; position: sticky; top: 48px; max-height: calc(100dvh - 56px); overflow-y: auto;
+  background:
+    linear-gradient(var(--panel) 30%, transparent) top / 100% 24px no-repeat local,
+    linear-gradient(transparent, var(--panel) 70%) bottom / 100% 24px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, rgba(0, 0, 0, .25), transparent) top / 100% 8px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, .25), transparent) bottom / 100% 8px no-repeat scroll,
+    var(--panel);
+}
+.fp-map-toggle, .fp-filters-toggle { display: none; }
+
+/* The status line: the four cells read as one wrapped line of plain text. */
+.cards--strip { display: flex; flex-wrap: wrap; gap: 2px 18px; padding: 4px 0 0; }
+.cards--strip .card {
+  flex-direction: row; align-items: baseline; gap: 6px; padding: 0; background: none; border: 0; min-width: 0;
+}
+
+/* Phone and small tablet: status, then the panel, then the map as a collapsed card. */
+@media (max-width: 768px) {
+  .layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "status" "panel" "map"; padding: 8px 12px 16px; }
+  .fp-topnav, .map-pane, .timeline-pane { position: static; }
+  .timeline-pane { max-height: none; overflow-y: visible; background: var(--panel); }
+  .fp-map-toggle, .fp-filters-toggle { display: inline-flex; align-self: flex-start; }
+  .map-pane > #map, .map-pane > .disclaimer { display: none; }
+  .map-pane.is-open > #map { display: block; height: 40vh; min-height: 240px; }
+  .map-pane.is-open > .disclaimer { display: block; }
+  #fp-controls:not(.is-open) { display: none; }
+  #fp-controls { padding-top: 8px; }
+  .person-view .map-pane > #map { display: block; }
+  .person-view .fp-map-toggle { display: none; }
+}
+/* Light theme: the suggestion warning sits on --panel-2, where --warn is just under 4.5:1. */
+html[data-theme="light"] .ps-warn { color: #7a5600; }

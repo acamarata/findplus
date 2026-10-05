@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from ._many_tracks import install_busy_day
+from ._many_tracks import install_busy_day, settle_map
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -20,6 +20,7 @@ async def _boot(page, base_url, **kw):
     holder = await install_busy_day(page, **kw)
     await page.goto(base_url + "/")
     await page.wait_for_selector("#tracks .track-block")
+    await settle_map(page)
     return holder
 
 

@@ -115,7 +115,7 @@ async def test_people_card_avatar_opens_the_editor_on_the_icon_picker(
     p = trips_page
     await p.goto(trips_server["base"] + "/")
     await p.wait_for_selector("#app-shell:not(.hidden)")
-    await p.click('button.fp-tab[data-tab="groups"]')
+    await p.click('button.fp-tab[data-tab="people"]')
     avatar = p.locator(f".fp-group-card[data-group-id='{sam}'] button.person-avatar-btn")
     await avatar.wait_for()
     assert await avatar.get_attribute("aria-label") == "Change Sam's icon and colour"

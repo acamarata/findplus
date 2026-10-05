@@ -13,7 +13,6 @@
 import { uniqueLabel } from "./device_label.js";
 import { state, colorFor, displayName, visibleTracks, fmtTime, esc } from "./state.js";
 import { selectPoint } from "./timeline.js";
-import { renderBadge } from "./components/badge.js";
 import { t } from "./i18n.js";
 import { api } from "./api.js";
 import { syncMapOverlay } from "./map_empty.js";
@@ -21,7 +20,9 @@ import { renderLegend, syncDense, watchTiles } from "./map_extras.js";
 import { popupHtml } from "./map_popup.js";
 import { storyMapRender } from "./trips_view.js";
 import { showSuspect } from "./suspect_pref.js";
-import { countIcon, groupNearby } from "./map_pins.js";
+import { clusterLabel, countIcon, groupNearby } from "./map_pins.js";
+import { markerTitle, numberedIcon, trackerIcon } from "./map_marker.js";
+import { PERSON_COLOURS_EVENT, maybeRefreshPersonColours, personForDevice } from "./person_colours.js";
 
 // U4 (R-P2-30.2): a US-centred default read as "my child is in Kansas" the
 // first time the map had no data to fit. A neutral world view says nothing
@@ -131,63 +132,14 @@ export async function renderTrackedDeviceMarkers({ force = false } = {}) {
   groupNearby(entries).forEach((group) => {
     if (group.items.length > 1) {
       const names = group.items.map(({ device }) => displayName(device) || device.name).join(", ");
-      L.marker([group.lat, group.lon], { icon: countIcon(group.items.length), title: names, keyboard: false }).addTo(state.layer);
+      L.marker([group.lat, group.lon], { icon: countIcon(group.items.length), title: `${clusterLabel(group.items.length)}: ${names}`, keyboard: false }).addTo(state.layer);
       return;
     }
     const { device, fix } = group.items[0];
     const shown = displayName(device) || device.name;
-    const icon = L.divIcon({
-      className: "",
-      html:
-        `<div class="marker-num"><span class="marker-num-glyph">${
-          renderBadge({ icon: device.icon, color: device.color, label: device.label, name: device.name, size: 26 }).outerHTML
-        }</span></div>`,
-      iconSize: [26, 26],
-      iconAnchor: [13, 13],
-    });
-    L.marker([fix.latitude, fix.longitude], { icon, title: shown, keyboard: false }).addTo(state.layer);
-  });
-}
-
-/**
- * The numbered marker for one point, in its device's colour and icon.
- *
- * The number is the point's order within its track, not its identity, so it
- * stays; the flat background behind it becomes the device's badge. `device` is
- * resolved by the caller, which keeps this function free of any state lookup.
- *
- * This is the one place in the app that reads a badge as markup:
- * `L.divIcon({ html })` takes a string, not a node (specs/labels-and-icons.md
- * § Rendering). Every other caller appends the live SVGElement.
- */
-function numberedIcon(point, index, total, device) {
-  const classes = ["marker-num"];
-  if (!point.is_movement) classes.push("jitter");
-  if (point.suspect) classes.push("marker-num--suspect");
-  // The ring colour used to be a per-marker inline style="border-color:…",
-  // which CSP's default `style-src 'self'` (no unsafe-inline) silently drops
-  // -- every marker rendered with a plain white ring and the console filled
-  // with CSP violation warnings (UAT U25). first/last are the only two
-  // non-default rings; components.css owns the actual colours.
-  if (index === 0) classes.push("marker-num--first");
-  else if (index === total - 1) classes.push("marker-num--last");
-  const glyph = point.is_movement
-    ? renderBadge({
-        icon: device.icon,
-        color: device.color,
-        label: device.label,
-        name: device.name,
-        size: 26,
-      }).outerHTML
-    : "";
-  return L.divIcon({
-    className: "",
-    html:
-      `<div class="${classes.join(" ")}">` +
-      `<span class="marker-num-glyph">${glyph}</span>` +
-      `<span class="marker-num-seq">${point.sequence}</span></div>`,
-    iconSize: [26, 26],
-    iconAnchor: [13, 13],
+    const person = personForDevice(device.device_id);
+    const icon = trackerIcon(device, person);
+    L.marker([fix.latitude, fix.longitude], { icon, title: markerTitle(shown, person), keyboard: false }).addTo(state.layer);
   });
 }
 
@@ -241,22 +193,27 @@ function drawTrack(track) {
       .addTo(state.layer)
       .bindTooltip(esc(t("map.pathTip", { name: shown })));
   }
+  const person = personForDevice(track.device_id);
   points.forEach((point, index) => {
     const marker = L.marker([point.latitude, point.longitude], {
-      icon: numberedIcon(point, index, points.length, device),
-      title: `${shown} · ${fmtTime(point.observed_at_local)}${point.suspect ? ` · ${point.suspect_reason}` : ""}`,
+      icon: numberedIcon(point, index, points.length, device, person),
+      title: `${markerTitle(shown, person)} · ${fmtTime(point.observed_at_local)}${point.suspect ? ` · ${point.suspect_reason}` : ""}`,
       keyboard: false,
     }).addTo(state.layer);
-    marker.bindPopup(popupHtml(point, shown));
+    marker.bindPopup(popupHtml(point, shown, person));
     marker.on("click", () => selectPoint(point.id, false));
     state.markers.set(point.id, marker);
   });
   return { name: shown, color, latlngs };
 }
 
+// A person's colour or a tracker's membership changed: redraw the rings, keep the view.
+document.addEventListener(PERSON_COLOURS_EVENT, () => renderMap({ fit: false }));
+
 export function renderMap({ fit = true } = {}) {
   // The Person page owns the map while it is open (person_route.js).
   if (state.personView) return;
+  maybeRefreshPersonColours(); // async; a changed answer fires PERSON_COLOURS_EVENT
   state.layer.clearLayers();
   state.markers.clear();
   if (!state.timeline) {

@@ -15,7 +15,7 @@
 
 import { $, fmtAgeMinutes } from "./state.js";
 import { t } from "./i18n.js";
-import { renderBadge } from "./components/badge.js";
+import { personAvatarButton } from "./person_avatar.js";
 
 const CONFIDENCE = ["likely", "probably", "unsure", "unknown"];
 
@@ -30,6 +30,9 @@ function chip(cls, text) {
 function dayLabel(date) {
   return new Date(`${date}T12:00:00Z`).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 }
+
+/** After an edit from the avatar: reload the page in place (dynamic import: person_page imports this file). */
+const reloadPage = async () => (await import("./person_page.js")).reload();
 
 /** For a past day: "On Sep 30, 2026: At Home from 3:40 PM." Never the live "now" answer. */
 function pastText(past) {
@@ -66,7 +69,10 @@ export function renderHead(person, now, past = null) {
   const head = $("person-head");
   const badge = document.createElement("span");
   badge.className = "person-avatar";
-  badge.appendChild(renderBadge({ icon: person.icon, color: person.color, label: null, name: person.name, size: 44 }));
+  // The avatar is a button: Edit person opens at the icon and colour pickers (dashboard 1.3).
+  const avatar = personAvatarButton(person, { size: 44, onSaved: reloadPage });
+  avatar.id = "person-avatar";
+  badge.appendChild(avatar);
   const name = document.createElement("h2");
   name.className = "person-name";
   name.id = "person-name";

@@ -17,6 +17,7 @@ import { t } from "./i18n.js";
 import { closeModals, bootDashboard } from "./main.js";
 import { WORLD_VIEW_CENTER, WORLD_VIEW_ZOOM } from "./map.js";
 import { purgeMapOverlay } from "./map_empty.js";
+import { purgePersonColours } from "./person_colours.js";
 import { stopLiveRefresh } from "./live_refresh.js";
 import { unlockErrorText } from "./lock_errors.js";
 import { purgeStory } from "./trips_view.js";
@@ -111,6 +112,7 @@ export async function purgeRenderedData() {
   }
   state.selectedId = null;
   state.markers.clear();
+  purgePersonColours(); // person names and colours behind the map rings
   if (state.layer) state.layer.clearLayers();
   if (state.legend) { state.legend.remove(); state.legend = null; }  // names of trackers
   // U4: the same neutral world view initMap() starts at, not the old US

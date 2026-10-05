@@ -1306,6 +1306,21 @@
     "roadsNeedServer": "Not available yet: no routing server is set.",
     "roadsSetup": "Set one up in Settings"
   },
+  "personColours": {
+    "markerTitle": "{tracker} (belongs to {name})",
+    "popupOwner": "Belongs to {name}",
+    "avatarButton": "Change {name}'s icon and colour",
+    "trackersHere": {
+      "one": "1 tracker here",
+      "other": "{count} trackers here"
+    },
+    "weight": {
+      "always": "Always carries it",
+      "usually": "Usually carries it",
+      "sometimes": "Sometimes carries it",
+      "custom": "Custom ({value})"
+    }
+  },
   "units": {
     "unknown": "unknown",
     "minutesShort": "{n} min",
@@ -1556,17 +1571,17 @@
       "title": "Trackers",
       "none": "No trackers yet. Use Edit to add some.",
       "weight": "weight {weight}",
-      "noWeight": "default weight",
+      "noWeight": "How often: let Find+ decide",
       "lead": "Best sighting",
       "edit": "Edit {tracker}",
       "role": "Role",
-      "weightLabel": "How much to trust it",
+      "weightLabel": "How often this person carries it",
       "weightHelp": "1 means it nearly always travels with {name}. 0 means it is never used to place {name}.",
       "save": "Save",
       "saved": "Saved {tracker}.",
       "saveFailed": "Could not save {tracker}: {message}",
       "cancel": "Cancel",
-      "roleAuto": "Guess from the name"
+      "roleAuto": "Fill in from the tracker name"
     },
     "leftBehind": {
       "seeDay": "See {name}'s day",

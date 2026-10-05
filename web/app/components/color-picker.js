@@ -65,14 +65,15 @@ function customInput(customLabel) {
   input.setAttribute("aria-label", customLabel);
   return input;
 }
-export function createColorPicker(host, { value, onChange, customLabel = t("field.customColor") } = {}) {
+/** `allowCustom: false` is the places' palette-only picker (U6): the 12 swatches and nothing else. */
+export function createColorPicker(host, { value, onChange, customLabel = t("field.customColor"), allowCustom = true } = {}) {
   const root = document.createElement("div");
   root.className = "fp-color-picker";
   root.setAttribute("role", "group");
   root.setAttribute("aria-label", t("field.colorGroupLabel"));
   DEVICE_PALETTE.forEach((hex, index) => root.appendChild(paletteSwatch(hex, index)));
   const custom = customInput(customLabel);
-  root.appendChild(custom);
+  if (allowCustom) root.appendChild(custom);
   host.appendChild(root);
 
   let current = (value || DEVICE_PALETTE[0]).toLowerCase();

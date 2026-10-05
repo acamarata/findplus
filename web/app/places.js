@@ -25,6 +25,7 @@ import { api } from "./api.js";
 import { state, showAlert, fmtAgeMinutes, esc } from "./state.js";
 import { t, plural } from "./i18n.js";
 import { initDialog, openEditDialog, purgeDialog, showAddDialog } from "./places_dialog.js";
+import { gateAddOnLoadError } from "./places_error_gate.js";
 import * as placesList from "./places_list.js";
 import * as placesEvents from "./places_events.js";
 import { mountNoticed } from "./places_noticed.js";
@@ -55,7 +56,8 @@ export function init(mapArg, _deviceListEl) {
   // colour instead of every place starting the same blue -- placesById is
   // already current here, loadPlaces() having run at boot before a user can
   // click this at all.
-  if (addBtn) addBtn.addEventListener("click", () => showAddDialog(map.getCenter(), [...placesById.values()].map((p) => p.color)));
+  if (addBtn) addBtn.addEventListener("click", () => openPlaceSheet({ mode: "add" }));
+  gateAddOnLoadError(document.getElementById("fp-places-list"), addBtn);
   // UAT2 N12: main.js awaits refreshLockState() before calling init(), so
   // state.locked is already known here -- skip the fetch rather than fire it
   // and swallow a 401. lock.js's refreshTabsAfterUnlock() calls refreshAll()
@@ -201,6 +203,18 @@ function buildPlacePopup(place) {
   box.appendChild(button(t("common.edit"), () => editPlace(place.id)));
   box.appendChild(button(t("common.delete"), () => deletePlace(place.id)));
   return box;
+}
+
+/**
+ * The one stable way to open the place sheet from anywhere (the App bar's
+ * "Add > Place", the setup wizard): `{ mode: "add" }` opens it at the map's
+ * centre with the first unused palette colour; `{ mode: "edit", placeId }`
+ * opens that place. Resolves once the sheet is open.
+ */
+export async function openPlaceSheet({ mode = "add", placeId } = {}) {
+  if (mode === "edit") return editPlace(placeId);
+  if (!map) return undefined;
+  return showAddDialog(map.getCenter(), [...placesById.values()].map((p) => p.color));
 }
 
 /** Exported so places_list.js's own Edit button reuses this instead of a

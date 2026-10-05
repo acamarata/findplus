@@ -20,6 +20,7 @@
 "use strict";
 
 import { api } from "./api.js";
+import { state } from "./state.js";
 
 export const PERSON_COLOURS_EVENT = "fp:person-colours";
 
@@ -63,6 +64,8 @@ function sameIndex(a, b) {
 
 /** Fetch /api/people now. Resolves true when the answer changed (an event also fires). */
 export function refreshPersonColours() {
+  // Locked: skip the request (a 401 shows as a console error on the lock screen).
+  if (state.locked) return Promise.resolve(false);
   if (inFlight) return inFlight;
   inFlight = api("/api/people")
     .then((people) => {
@@ -80,7 +83,7 @@ export function refreshPersonColours() {
 
 /** Refresh unless a recent answer is already held; safe to call on every map draw. */
 export function maybeRefreshPersonColours() {
-  if (inFlight || Date.now() - loadedAt < FRESH_MS) return;
+  if (state.locked || inFlight || Date.now() - loadedAt < FRESH_MS) return;
   refreshPersonColours();
 }
 

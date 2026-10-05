@@ -25,14 +25,14 @@ import { showPageOnPhone } from "./person_map.js";
 import { refreshPeopleCache } from "./person_links.js";
 
 let wired = false;
-let previousTab = "dashboard";
+let previousTab = "latest";
 let seenGroups = null;
 
 const activeTab = () => document.querySelector(".fp-tabs .fp-tab.active");
 
 function enter() {
   const active = activeTab();
-  previousTab = active ? active.dataset.tab : "dashboard";
+  previousTab = active ? active.dataset.tab : "latest";
   state.personView = true;
   $("app-shell").classList.add("person-view");
   if (state.layer) state.layer.remove();

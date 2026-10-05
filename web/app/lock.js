@@ -17,9 +17,11 @@ import { t } from "./i18n.js";
 import { closeModals, bootDashboard } from "./main.js";
 import { WORLD_VIEW_CENTER, WORLD_VIEW_ZOOM } from "./map.js";
 import { purgeMapOverlay } from "./map_empty.js";
+import { purgePersonColours } from "./person_colours.js";
 import { stopLiveRefresh } from "./live_refresh.js";
 import { unlockErrorText } from "./lock_errors.js";
 import { purgeStory } from "./trips_view.js";
+import { purgeLatest } from "./latest_pane.js";
 import { purgeMapPanes } from "./trips_map.js";
 
 /**
@@ -99,6 +101,7 @@ export async function purgeRenderedData() {
   state.pollInFlight = false;
   stopLiveRefresh();
   purgeMapOverlay();
+  purgeLatest(); // the Latest list and any tracker focus
   purgeStory(); // the day story: its list, strip, lanes, map layers and cached trips
   // Both footer sentences are device-derived: leaving either up behind the
   // lock screen would tell a passer-by which networks this person tracks on.
@@ -111,6 +114,7 @@ export async function purgeRenderedData() {
   }
   state.selectedId = null;
   state.markers.clear();
+  purgePersonColours(); // person names and colours behind the map rings
   if (state.layer) state.layer.clearLayers();
   if (state.legend) { state.legend.remove(); state.legend = null; }  // names of trackers
   // U4: the same neutral world view initMap() starts at, not the old US
@@ -159,6 +163,7 @@ async function purgeTabModules() {
     // its Apple ID, password, bot token and tracker names (CR-C-E11 F1).
     import("./setup.js").then((m) => m.purge()),
     import("./person_page.js").then((m) => m.purge()),
+    import("./activity_pane.js").then((m) => m.purgeActivity()), // the All Activity feed
   ]);
   results.forEach((r) => {
     if (r.status === "rejected") console.error("post-lock purge failed", r.reason);

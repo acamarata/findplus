@@ -28,8 +28,10 @@ from findplus.db.models import (
     Place,
     PlaceState,
 )
+from findplus.db.models_people import PERSON_KINDS
 from findplus.device_labels import unique_names
 from findplus.groups.membership import check_one_person, flush_checked, validate_kind
+from findplus.groups.palette import next_person_color
 from findplus.groups.place_event_list import list_group_place_events  # re-exported
 from findplus.groups.presence import (
     Fix,
@@ -41,6 +43,8 @@ from findplus.groups.presence import (
 )
 from findplus.groups.timeline import list_group_timeline  # re-exported, see timeline.py
 from findplus.groups.validation import check_quorum_fits, clean_name, validate_group_fields
+
+DEFAULT_SET_COLOR = "#27ae60"
 
 
 def list_groups(session: Session) -> list[Group]:
@@ -85,7 +89,7 @@ def create_group(
     session: Session,
     *,
     name: str,
-    color: str = "#27ae60",
+    color: str | None = None,
     icon: str = "lucide:users",
     quorum: str = "majority",
     cluster_radius_meters: int = 150,
@@ -93,7 +97,11 @@ def create_group(
     member_ids: list[str] | None = None,
     kind: str = "set",
 ) -> Group:
+    """A new group. `color=None` means "pick for me": a person or pet gets the first
+    unused palette colour (groups/palette.py), a plain set keeps the old green."""
     validate_kind(kind)
+    if color is None:
+        color = next_person_color(session) if kind in PERSON_KINDS else DEFAULT_SET_COLOR
     validate_group_fields(
         quorum=quorum,
         cluster_radius_meters=cluster_radius_meters,

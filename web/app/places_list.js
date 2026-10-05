@@ -25,6 +25,7 @@ import { t, plural } from "./i18n.js";
 import { uniqueLabel } from "./device_label.js";
 import { editPlace, deletePlace, centerOnPlace, refreshAll, offerRuleFor } from "./places.js";
 import { paneError } from "./pane_error.js";
+import { button } from "./components/button.js";
 import { showAlert } from "./state.js";
 import { activeQuery, applyTools, buildTools, reset as resetTools, toolsVisible } from "./places_list_tools.js";
 
@@ -42,13 +43,11 @@ function clearList() {
   while (listEl.firstChild) listEl.removeChild(listEl.firstChild);
 }
 
-function cardButton(className, label, ariaLabel, onClick) {
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = className;
-  btn.textContent = label;
-  btn.setAttribute("aria-label", ariaLabel);
-  btn.addEventListener("click", onClick);
+/** A card button on the 1.3 button system; the legacy `fp-*` hook classes stay on it. */
+function cardButton(className, label, ariaLabel, onClick, { icon, variant = "secondary" } = {}) {
+  const hooks = className.split(" ").filter((c) => c && c !== "btn" && c !== "btn-tiny");
+  const btn = button({ label, icon, variant, size: "sm", onClick, attrs: { "aria-label": ariaLabel } });
+  btn.classList.add(...hooks);
   return btn;
 }
 
@@ -84,7 +83,7 @@ function notifyRow(place) {
   const text = document.createElement("span");
   text.textContent = t("places.list.notNotifying");
   row.append(text, cardButton("btn btn-tiny fp-place-notify-btn", t("places.list.setUpAlert"),
-    t("places.list.setUpAlertFor", { name: place.name }), () => offerRuleFor(place.id)));
+    t("places.list.setUpAlertFor", { name: place.name }), () => offerRuleFor(place.id), { icon: "bell" }));
   return row;
 }
 
@@ -146,10 +145,10 @@ function renderCard(place, presenceByPlace, devicesById, ruleCount) {
     ...(ruleCount === 0 ? [notifyRow(place)] : []),
     // V1: these had no button class at all (fully browser-default); devices.js's
     // own row-edit button is the precedent for this exact "btn btn-tiny" pairing.
-    cardButton("fp-card-edit btn btn-tiny", t("common.edit"), t("places.card.edit", { name: place.name }),
-      () => editPlace(place.id)),
-    cardButton("fp-card-delete btn btn-tiny", t("common.delete"), t("places.card.delete", { name: place.name }),
-      () => deletePlace(place.id)),
+    cardButton("fp-card-edit", t("common.edit"), t("places.card.edit", { name: place.name }),
+      () => editPlace(place.id), { icon: "pencil" }),
+    cardButton("fp-card-delete", t("common.delete"), t("places.card.delete", { name: place.name }),
+      () => deletePlace(place.id), { icon: "trash-2", variant: "danger" }),
   );
   card.addEventListener("click", (event) => onCardClick(event, place));
   return card;

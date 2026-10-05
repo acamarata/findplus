@@ -17,6 +17,7 @@ import { renderPollingSection, renderPollRate, wirePollingControls } from "./set
 import { showNewPinError, wirePinActions } from "./settings_pin.js";
 import { markSaved, clearSaved, wireBackup } from "./settings_saved.js";
 import { loadUpdateSettings, wireUpdateSettings } from "./settings_updates.js";
+import { wireSettingsNav, resetSettingsNav } from "./settings_nav.js";
 
 /** The focus trap for #settings-modal while it is open, or null. */
 let settingsTrap = null;
@@ -117,7 +118,7 @@ export async function openSettings() {
   $("settings-modal").classList.remove("hidden");
   settingsTrap = trapFocus($("settings-modal"), closeSettings);
   showSettingsMessage(null); // never a stale message from the previous open
-  clearSaved();
+  clearSaved(); resetSettingsNav();
   try {
     await loadSettings();
     import("./settings_people.js").then((m) => m.loadPeopleSettings()).catch(() => {});
@@ -212,6 +213,7 @@ function wirePinControls() {
 /** Wire the settings dialog: toggle it open/closed, theme/idle/lock-enabled, PIN set/change/remove. */
 export function wireSettingsControls() {
   wireModalToggle();
+  wireSettingsNav();
   wireThemeAndLockControls();
   wirePollingControls(saveSettings, showSettingsMessage, markSaved);
   wireBackup(showSettingsMessage);

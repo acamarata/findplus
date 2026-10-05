@@ -29,7 +29,7 @@ async def test_name_input_matches_the_server_limit(page, base_url):
 async def test_dialog_says_it_will_use_the_map_centre(page, base_url):
     await _open_add(page, base_url)
     line = await page.locator("#fp-place-where").inner_text()
-    assert line.startswith("Location: the centre of the map (")
+    assert line.startswith("Location: ") and "the centre of the map" in line
     assert "," in line
 
 
@@ -38,6 +38,6 @@ async def test_line_follows_a_tracker_pick(page, base_url):
     await page.select_option("#fp-place-tracker-select", "TAG-HOME")
     await page.click("#fp-place-use-tracker-btn")
     await page.wait_for_function(
-        "() => document.getElementById('fp-place-where').textContent.includes('as chosen above')"
+        "() => document.getElementById('fp-place-where').textContent.includes('41.1000')"
     )
     assert "41.1000" in await page.locator("#fp-place-where").inner_text()

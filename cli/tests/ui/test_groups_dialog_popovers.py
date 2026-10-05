@@ -27,15 +27,23 @@ async def _assert_swatches_in_dialog(page, popover_id, swatch_class):
     """Every swatch's box must sit inside both the viewport and
     #fp-group-dialog's padding box (its border box inset by its own 1px
     border) -- the popover is a `position: absolute` overlay that can drift
-    outside either without changing the dialog's own size."""
+    outside either without changing the dialog's own size. The popover box
+    itself is checked; swatches scrolled out of its own scroll area are not."""
     viewport = page.viewport_size
     dialog = await page.locator("#fp-group-dialog").bounding_box()
+    host = await page.locator(f"#{popover_id}").bounding_box()
+    assert (
+        host["y"] >= dialog["y"] + 1
+        and host["y"] + host["height"] <= dialog["y"] + dialog["height"] - 1
+    ), host
     swatches = page.locator(f"#{popover_id} {swatch_class}")
     count = await swatches.count()
     assert count > 0
     for i in range(count):
         box = await swatches.nth(i).bounding_box()
         assert box is not None
+        if box["y"] + box["height"] > host["y"] + host["height"] or box["y"] < host["y"]:
+            continue  # scrolled out of the popover's own scroll area
         assert box["x"] >= 0 and box["y"] >= 0, box
         assert box["x"] + box["width"] <= viewport["width"], box
         assert box["y"] + box["height"] <= viewport["height"], box
@@ -54,7 +62,7 @@ async def test_popover_swatches_fit_viewport_and_dialog(page, base_url, width, k
     await page.wait_for_selector("#fp-add-group-btn", state="attached")
     # `.fp-tabs` is CSS-hidden under 600px (test_a11y.py's own reason for the
     # same evaluate-click); the tab's content is unaffected by that rule.
-    await page.evaluate("document.querySelector('.fp-tabs [data-tab=\"groups\"]').click()")
+    await page.evaluate("document.querySelector('.fp-tabs [data-tab=\"people\"]').click()")
     # NOT ".fp-group-card, .fp-empty-state" -- see test_groups_dialog.py's
     # _open_groups_tab() docstring: places.html's own empty-state element
     # shares that class and is attached before groups.js has even run.

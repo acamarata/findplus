@@ -38,7 +38,7 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 #: simpler than enumerating every directive name.
 _CSP_VIOLATION_MARKER = "Content Security Policy"
 
-_TABS = ("dashboard", "places", "groups", "alerts")
+_TABS = ("latest", "people", "activity", "places", "alerts")
 
 #: Leaflet's own vendored, unmodified code (web/vendor/leaflet/leaflet.js)
 #: positions tiles and markers with `el.style.transform`/`.left`/`.top` --
@@ -89,7 +89,7 @@ async def test_every_tab_loads_with_zero_csp_console_errors(csp_page, base_url) 
     violations = _watch_csp_console(csp_page)
 
     await csp_page.goto(base_url + "/")
-    await csp_page.wait_for_selector('button[data-tab="dashboard"]', state="attached")
+    await csp_page.wait_for_selector('button[data-tab="latest"]', state="attached")
     # The dashboard's initial map render happens on this same page load, before
     # the tab loop below ever clicks "dashboard" again -- wait for at least one
     # numbered marker so the assertions after the loop aren't racing an empty

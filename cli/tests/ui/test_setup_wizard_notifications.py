@@ -72,13 +72,13 @@ async def test_notifications_step_whatsapp_save_and_test(page, base_url):
         await page.route("**/api/alerts/channels/whatsapp", _make_save_route(saved))
         await page.route("**/api/alerts/test", _make_test_route(tested))
         await _open_step(page, base_url, "notifications")
-        await page.wait_for_selector("[data-channel='whatsapp']", timeout=15000)
+        await page.wait_for_selector("#setup-view [data-channel='whatsapp']", timeout=15000)
 
         assert await page.locator("#fp-setup-wa-phone").count() == 1
         assert await page.locator("#fp-setup-wa-apikey").count() == 1
 
         # T0 addendum B3: both honesty sentences render above the fields.
-        section_text = await page.locator("[data-channel='whatsapp']").inner_text()
+        section_text = await page.locator("#setup-view [data-channel='whatsapp']").inner_text()
         assert WHATSAPP_RELAY in section_text
         assert WHATSAPP_SETUP in section_text
 
@@ -102,7 +102,7 @@ async def test_notifications_step_whatsapp_save_and_test(page, base_url):
 
         # UAT6-N33: Webhook now offers a button, not a link (a plain sentence
         # explains why: following the old link left the wizard unfinished).
-        assert await page.locator("[data-channel='webhook'] a").count() == 0
+        assert await page.locator("#setup-view [data-channel='webhook'] a").count() == 0
         button = page.get_by_role("button", name="Finish setup and open Alerts")
         assert await button.count() == 1
     finally:
@@ -173,7 +173,7 @@ async def test_notifications_step_latency_honesty_shown_once(page, base_url):
     them, instead of once per channel."""
     try:
         await _open_step(page, base_url, "notifications")
-        await page.wait_for_selector("[data-channel='telegram']", timeout=15000)
+        await page.wait_for_selector("#setup-view [data-channel='telegram']", timeout=15000)
         step_text = await page.locator("#setup-view .fp-wizard-step").inner_text()
         assert step_text.count(ALERTS_LATENCY) == 1, step_text
     finally:
@@ -187,7 +187,7 @@ async def test_notifications_step_token_field_is_not_squeezed_against_connect(pa
     try:
         await _open_step(page, base_url, "notifications")
         token = page.locator("#fp-setup-tg-token")
-        # A specific id, not "[data-channel='telegram'] button": the Targets
+        # A specific id, not "#setup-view [data-channel='telegram'] button": the Targets
         # field's own Save/Find-chat-IDs buttons (multi-target Telegram
         # support) made that selector match more than one button.
         connect = page.locator("#fp-setup-tg-connect")
@@ -206,8 +206,8 @@ async def test_notifications_step_telegram_help_lines(page, base_url):
     chat id — the same two things `findplus alerts telegram-setup` explains."""
     try:
         await _open_step(page, base_url, "notifications")
-        await page.wait_for_selector("[data-channel='telegram']", timeout=15000)
-        section_text = await page.locator("[data-channel='telegram']").inner_text()
+        await page.wait_for_selector("#setup-view [data-channel='telegram']", timeout=15000)
+        section_text = await page.locator("#setup-view [data-channel='telegram']").inner_text()
         assert "BotFather" in section_text
         assert "chat id" in section_text
     finally:

@@ -28,7 +28,8 @@ import { t } from "../i18n.js";
 import { createCustomIconsSection } from "./custom-icons.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
-const SPRITE_SELECTOR = '#fp-icon-sprite symbol[id^="lucide-"]';
+/** The "ui" group (1.3 button-system icons) is never offered as a badge icon. */
+const SPRITE_SELECTOR = '#fp-icon-sprite symbol[id^="lucide-"]:not([data-group="ui"])';
 
 /** The sprite is static once loaded, so this is a fresh read per dialog open. */
 export function readSpriteSymbols() {
@@ -215,9 +216,52 @@ function wireIconPicker(host, root, letterInput, initial, onChange, onPressedExt
   };
 }
 
-export function createIconPicker(host, { value, onChange, letterLabel = "Letter" } = {}) {
+/** Hide every icon swatch whose name misses `needle`, and a group left empty. */
+function filterIcons(root, needle, empty) {
+  let shown = 0;
+  root.querySelectorAll("section[data-group]").forEach((section) => {
+    if (section.classList.contains("fp-custom-icons")) {
+      section.hidden = Boolean(needle);
+      return;
+    }
+    let any = false;
+    section.querySelectorAll(".fp-icon-swatch").forEach((btn) => {
+      const name = (btn.getAttribute("aria-label") || btn.dataset.iconId || "").toLowerCase();
+      btn.hidden = Boolean(needle) && !name.includes(needle);
+      if (!btn.hidden) any = true;
+    });
+    section.hidden = !any;
+    if (any) shown += 1;
+  });
+  empty.hidden = !needle || shown > 0;
+  empty.textContent = empty.hidden ? "" : t("icons.search.none", { query: needle });
+}
+
+/** The search box above the grid (opt-in: `search: true`). */
+function createSearch(root) {
+  const wrap = document.createElement("div");
+  wrap.className = "fp-icon-search";
+  const input = document.createElement("input");
+  input.type = "search";
+  input.setAttribute("aria-label", t("icons.search.label"));
+  input.placeholder = t("icons.search.label");
+  const empty = document.createElement("p");
+  empty.className = "fp-icon-search-empty";
+  empty.setAttribute("role", "status");
+  empty.hidden = true;
+  input.addEventListener("input", () => filterIcons(root, input.value.trim().toLowerCase(), empty));
+  wrap.append(input, empty);
+  return wrap;
+}
+
+/**
+ * `search: true` adds a filter box above the groups (the device editor uses it,
+ * U13); every other caller keeps the plain grid.
+ */
+export function createIconPicker(host, { value, onChange, letterLabel = "Letter", search = false } = {}) {
   const root = document.createElement("div");
   root.className = "fp-icon-picker";
+  if (search) root.appendChild(createSearch(root));
   for (const [group, names] of groupSymbols(readSpriteSymbols())) {
     root.appendChild(groupSection(group, names));
   }

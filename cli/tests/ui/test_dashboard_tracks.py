@@ -10,16 +10,25 @@ the map. These tests drive a synthetic busy day through the real dashboard.
 from __future__ import annotations
 
 import pytest
+import pytest_asyncio
 
-from ._many_tracks import install_busy_day
+from ._latest_helpers import PARK_BODY
+from ._many_tracks import install_busy_day, settle_map
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
+
+
+@pytest_asyncio.fixture(autouse=True, loop_scope="session")
+async def _activity_body(page):
+    """The all-trackers day body is no pane of its own in 1.3: show the legacy body in Latest."""
+    await page.add_init_script(PARK_BODY)
 
 
 async def _boot(page, base_url, **kw):
     holder = await install_busy_day(page, **kw)
     await page.goto(base_url + "/")
     await page.wait_for_selector("#tracks .track-block")
+    await settle_map(page)
     return holder
 
 

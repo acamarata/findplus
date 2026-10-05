@@ -69,7 +69,7 @@ async def test_add_rule_creates_row(page, base_url):
         await page.check("#fp-rule-on-enter")
         await page.click("#fp-rule-save")
         await page.wait_for_function("() => !document.getElementById('fp-add-rule-dialog').open")
-        row = page.locator("#fp-rules-tbody tr", has_text="Home arrival test")
+        row = page.locator("#fp-rules-list .fp-rule-card", has_text="Home arrival test")
         await row.wait_for(state="visible")
     finally:
         await page.request.delete(base_url + "/api/alerts/channels/webhook")
@@ -92,7 +92,7 @@ async def test_delete_rule_removes_row(page, base_url):
     assert create_resp.ok, await create_resp.text()
 
     await open_alerts_tab(page, base_url)
-    row = page.locator("#fp-rules-tbody tr", has_text="Delete me rule")
+    row = page.locator("#fp-rules-list .fp-rule-card", has_text="Delete me rule")
     await row.wait_for(state="visible")
     await row.get_by_text("Delete", exact=True).click()
     await page.wait_for_selector("#fp-confirm-dialog[open]")
@@ -213,7 +213,7 @@ async def test_rule_actions_visible_within_pane_at_1280_and_375(page, base_url):
         await page.click(tab_selector)
         await page.wait_for_selector("#fp-telegram-section")
         await page.wait_for_selector('[data-fp-ready="alerts"]')
-        row = page.locator("#fp-rules-tbody tr", has_text="N16 visible rule")
+        row = page.locator("#fp-rules-list .fp-rule-card", has_text="N16 visible rule")
         await row.wait_for(state="visible")
         await _assert_actions_and_no_overflow(page, row, width)
 
@@ -241,8 +241,7 @@ async def _assert_actions_and_no_overflow(page, row, width: int) -> None:
     # nothing visibly overflowing to explain it (309px of content in a
     # 307px pane at 375).
     scroll_box = await page.evaluate(
-        "() => { const s = document.getElementById('fp-rules-table')"
-        ".closest('.fp-table-scroll');"
+        "() => { const s = document.getElementById('fp-rules-list');"
         " return {scrollWidth: s.scrollWidth, clientWidth: s.clientWidth}; }"
     )
     assert scroll_box["scrollWidth"] <= scroll_box["clientWidth"], (
@@ -267,7 +266,7 @@ async def test_the_enabled_toggle_disables_a_rule_without_deleting_it(page, base
     rule_id = (await create_resp.json())["id"]
 
     await open_alerts_tab(page, base_url)
-    row = page.locator("#fp-rules-tbody tr", has_text="U13 toggle rule")
+    row = page.locator("#fp-rules-list .fp-rule-card", has_text="U13 toggle rule")
     await row.wait_for(state="visible")
     toggle = row.locator("input[type=checkbox]")
     await toggle.wait_for(state="visible")

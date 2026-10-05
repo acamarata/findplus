@@ -142,5 +142,5 @@ async def test_edit_person_opens_the_person_editor_not_the_group_dialog(
     assert await p.locator("#fp-person-dialog input[name=pe-kind]").count() == 2
     await p.keyboard.press("Escape")
     await p.get_by_role("button", name="Full map").click()
-    await p.wait_for_selector("#tab-dashboard", state="visible")
+    await p.wait_for_selector("#tab-latest", state="visible")
     assert await p.input_value("#fp-group-select") == str(pid)

@@ -33,6 +33,8 @@ import { purgeRoads, queueRoutes, roadsWanted, syncRouteNote, syncRoadsUi, wireR
 
 const PREF_KEY = "findplus.dayView";
 let pref = readPref();
+/** A view the shell imposes without touching the remembered choice (the Activity tab forces "raw"). */
+let forced = null;
 let pickDevice = null;
 let selectedId = null;
 let showInside = false;
@@ -70,8 +72,9 @@ function resolve() {
   if (state.locked || !state.timeline) return { shown: "raw" };
   const list = withPoints();
   const track = focusTrack(list);
-  const auto = pref === null;
-  if (pref === "raw" || (auto && !(track && state.deviceFilter))) return { shown: "raw", list, track };
+  const mode = forced ?? pref;
+  const auto = mode === null;
+  if (mode === "raw" || (auto && !(track && state.deviceFilter))) return { shown: "raw", list, track };
   if (!track) return { shown: auto ? "raw" : "empty", list, track };
   const sig = sigOf(track);
   const fresh = cachedTrips(track.device_id, state.day, sig);
@@ -248,8 +251,22 @@ export function storyMapRender({ fit }) {
   return true;
 }
 
+/**
+ * Impose "raw" (or null to release) without changing the remembered Day story /
+ * Every sighting choice. Used by the shell's Activity adapter; redraws on change.
+ */
+export function forceDayView(value) {
+  if (forced === value) return;
+  forced = value;
+  if (state.timeline) redraw(true);
+}
+
 function setView(value) {
   writePref(value);
+  if (forced !== null) { // a forced view (the focus switch) follows the choice; its header is told
+    forced = value;
+    window.dispatchEvent(new CustomEvent("findplus:day-view", { detail: { view: value } }));
+  }
   redraw(true);
 }
 

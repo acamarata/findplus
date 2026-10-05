@@ -11,12 +11,13 @@
 import { fmtTime, fmtDateTime, fmtDuration, fmtDistance, esc } from "./state.js";
 import { t } from "./i18n.js";
 
-export function popupHtml(point, deviceName) {
+export function popupHtml(point, deviceName, person = null, deviceId = null) {
   // UAT2 N14: the tracker's name is the heading, not a subtitle under the
   // time -- a popup with several tracks open at once otherwise reads as a
   // bare timestamp with no way to tell whose fix it is.
   const rows = [
     `<b>${esc(deviceName)}</b>`,
+    ...(person ? [`<div class="fp-popup-sub">${esc(t("personColours.popupOwner", { name: person.name }))}</div>`] : []),
     `<div class="fp-popup-sub">${fmtTime(point.observed_at_local)}</div>`,
     `<div>${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}</div>`,
   ];
@@ -40,5 +41,16 @@ export function popupHtml(point, deviceName) {
     rows.push(`<div class="fp-popup-meta">${esc(t("map.popup.belowThreshold"))}</div>`);
   }
   rows.push(`<div class="fp-popup-retrieved">${esc(t("map.popup.retrieved", { time: fmtDateTime(point.fetched_at) }))}</div>`);
+  // Focus contract: the button dispatches `findplus:focus-tracker` {device_id} on window
+  // (see wireFocusButton); the Latest pane handles it.
+  if (deviceId) rows.push(`<button type="button" class="fp-btn fp-btn--secondary fp-btn--sm fp-popup-focus" data-device-id="${esc(deviceId)}">${esc(t("shell.showOnlyThis"))}</button>`);
   return rows.join("");
+}
+
+/** One delegated listener: a popup's "Show only this" asks the side panel to focus that tracker. */
+export function wireFocusButton() {
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest && e.target.closest(".fp-popup-focus");
+    if (btn) window.dispatchEvent(new CustomEvent("findplus:focus-tracker", { detail: { device_id: btn.dataset.deviceId } }));
+  });
 }

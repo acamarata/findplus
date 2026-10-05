@@ -106,10 +106,13 @@ async def test_welcome_leads_with_purpose_and_a_start_button(page, base_url):
 async def test_group_name_survives_back_and_skip(page, base_url):
     await _stub_devices(page)
     await _open(page, base_url, "groups")
+    await page.click("#fp-setup-groups-more > summary")
     await page.fill("#fp-setup-group-name", "Road trip")
     await page.click("#fp-wizard-back")
     await page.wait_for_selector("#fp-setup-devices-list", timeout=15000)
     await page.click("#fp-wizard-skip")
+    await page.wait_for_selector("#fp-setup-group-name", state="attached", timeout=15000)
+    await page.click("#fp-setup-groups-more > summary")
     await page.wait_for_selector("#fp-setup-group-name", timeout=15000)
     assert await page.input_value("#fp-setup-group-name") == "Road trip"
 
@@ -192,7 +195,10 @@ async def test_rerun_close_keeps_the_original_completed_date(page, base_url):
     await page.wait_for_selector("#setup-view .fp-wizard-step", timeout=15000)
     assert await page.locator(".fp-wizard-rerun").is_visible()
     button = page.locator("#fp-wizard-skip-all")
-    assert (await button.inner_text()).strip() == "Close setup"
+    # U38: an icon-only X button, 32 px, named by its aria-label.
+    assert await button.get_attribute("aria-label") == "Close setup"
+    box = await button.bounding_box()
+    assert box is not None and box["width"] >= 32 and box["height"] >= 32
     await button.click()
     await page.wait_for_function(
         "() => document.getElementById('setup-view').hidden === true", timeout=15000

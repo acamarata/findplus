@@ -6,6 +6,46 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-05
+
+### Added
+- The dashboard's side panel has new tabs: Latest, People, Activity, Places and Alerts. It
+  remembers the last one you used, and `#/latest`, `#/people` and similar links open a tab
+  directly.
+- Latest is one list. People come first, each with where Find+ thinks they are and how sure it
+  is. Trackers that belong to nobody follow.
+- Click a tracker to focus it. Story or Sightings shows just that tracker for the day, and the
+  map shows only it. "All" takes you back. The link is `#/tracker/<id>`, and "Show only this" in a
+  map popup opens the same view.
+- Activity is one newest-first feed of every sighting for the day. People's arrivals and
+  departures are mixed in, and each line shows the tracker, the person's colour and name, the
+  place and the accuracy. Long days load 200 lines at a time.
+- People has a card for each person, with Open, Edit and Delete, plus Add person. Suggested
+  people now appear here. Groups that are not people sit under "Other groups".
+- A new person or pet gets their own colour from the palette. Trackers that belong to a person
+  get a ring in that person's colour on the map. Click a person's avatar to change their icon
+  and colour.
+- New places also get their own colour from the palette instead of all starting blue.
+- An app bar with Poll now, Add (Place, Person, Group), Devices, Settings and Lock. Latest
+  Location became "Fit to latest" on the map.
+
+### Changed
+- Buttons share one style with icons. Delete is always red and still asks first.
+- Adding or editing a place opens a sheet beside the live map. You can drag the pin and the
+  circle's edge, and use the map centre.
+- The group dialog asks for a name and members first. Everything else is under Advanced.
+- Alerts list rules first, as compact cards. Each channel is one folded row. The rule dialog
+  keeps Save in view and suggests a name.
+- Settings has a section list. Devices edit inside their row with a searchable icon grid.
+- The setup wizard puts Google first and has a people step.
+- The status cards are one compact line. On a phone the panel comes first and the map is a
+  card you can open.
+- The polling banner is one line, with the Terminal hint under Details. The live dot has a word
+  next to it.
+- Export is one button that opens its options.
+- The dark theme draws place labels and circles to suit dark map tiles.
+- Load errors say what failed in plain words and offer Retry.
+
 ## [1.2.3] - 2026-10-04
 
 ### Fixed

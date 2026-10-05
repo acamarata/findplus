@@ -14,7 +14,7 @@ async def _open_groups(page, server):
     page.fp_errors = errors_of(page)
     await page.goto(server["base"] + "/")
     await page.wait_for_selector("#app-shell[data-fp-ready]")
-    await page.click('button[data-tab="groups"]')
+    await page.click('button[data-tab="people"]')
     await page.wait_for_selector("#fp-people-suggest .ps-card")
 
 
@@ -135,7 +135,7 @@ async def test_hide_remembers_until_new_suggestions_and_recheck_refetches(trips_
     await p.get_by_role("button", name="Show suggestions (3)").wait_for()
     await p.reload()
     await p.wait_for_selector("#app-shell[data-fp-ready]")
-    await p.click('button[data-tab="groups"]')
+    await p.click('button[data-tab="people"]')
     await p.get_by_role("button", name="Show suggestions (3)").wait_for()
     before = len(gets)
     await p.get_by_role("button", name="Check again").click()
@@ -155,15 +155,15 @@ async def test_a_lock_forgets_which_suggestions_were_hidden(trips_page, trips_se
     assert await p.evaluate("localStorage.getItem('findplus.peopleHidden')") is None
 
 
-async def test_dashboard_banner_counts_and_opens_the_panel(trips_page, trips_server):
+async def test_people_banner_counts_and_opens_the_panel(trips_page, trips_server):
     await serve(trips_page)
-    await trips_page.goto(trips_server["base"] + "/")
+    await trips_page.goto(trips_server["base"] + "/#/people")
     await trips_page.wait_for_selector("#fp-people-banner:not([hidden])")
     assert "Find+ found 3 people in your trackers." in await trips_page.inner_text(
         "#fp-people-banner"
     )
     await trips_page.get_by_role("button", name="Review").click()
-    await trips_page.wait_for_selector("#tab-groups:not([hidden]) .ps-card")
+    await trips_page.wait_for_selector("#tab-people:not([hidden]) .ps-card")
 
 
 async def test_error_state_retries(trips_page, trips_server):
@@ -178,7 +178,7 @@ async def test_error_state_retries(trips_page, trips_server):
     await trips_page.route("**/api/people/suggestions", suggestions)
     await trips_page.goto(trips_server["base"] + "/")
     await trips_page.wait_for_selector("#app-shell[data-fp-ready]")
-    await trips_page.click('button[data-tab="groups"]')
+    await trips_page.click('button[data-tab="people"]')
     await trips_page.get_by_text("Could not look for people").wait_for()
     state["fail"] = False
     await trips_page.locator("#fp-people-suggest").get_by_role("button", name="Retry").click()
@@ -189,7 +189,7 @@ async def test_real_server_round_trip_creates_the_person(trips_page, trips_serve
     p = trips_page
     await p.goto(trips_server["base"] + "/")
     await p.wait_for_selector("#app-shell[data-fp-ready]")
-    await p.click('button[data-tab="groups"]')
+    await p.click('button[data-tab="people"]')
     card = p.locator(".ps-card", has_text="Sam")
     await card.wait_for()
     await card.get_by_role("button", name="It's a person").click()

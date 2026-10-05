@@ -84,3 +84,10 @@
   .story-item { padding: 10px; }
   .story-item, .lane-name, .view-switch .btn { min-height: 44px; }
 }
+
+/* 1.3 polish U32: on dark tiles map labels follow the panel colours and place
+   circles keep a quieter fill, so they stop glowing over the tiles. */
+html:not([data-theme="light"]) .leaflet-tooltip { background: var(--panel); color: var(--text); border-color: var(--line); }
+html:not([data-theme="light"]) .leaflet-tooltip-top::before { border-top-color: var(--line); }
+html:not([data-theme="light"]) .leaflet-tooltip-bottom::before { border-bottom-color: var(--line); }
+html:not([data-theme="light"]) path.fp-place-circle { fill-opacity: .07; }

@@ -61,8 +61,12 @@ async def test_digest_is_off_by_default_and_says_where_it_goes(trips_page, trips
     assert "no coordinates" in text and "off until you turn it on" in text
     assert "Summaries are sent even while Find+ is locked, like Telegram alerts." in text
     assert "The lock protects what is shown on this computer." in text
-    assert "Alerts inherit the network's delay." in text
-    assert "A tag with no recent fix is stale" in text
+    # 1.3 (U34): the two honesty sentences live once in the dialog, under
+    # About and notices, not again inside the People section.
+    assert "Alerts inherit" not in text and "A tag with no recent fix" not in text
+    notices = await p.inner_text("#settings-sec-about")
+    assert "Alerts inherit the network's delay." in notices
+    assert "A tag with no recent fix is stale" in notices
 
 
 async def test_each_control_saves_as_it_changes(trips_page, trips_server):
@@ -137,7 +141,7 @@ async def test_backup_line_and_back_up_now(trips_page, trips_server):
     await p.get_by_text("Backup saved.").wait_for()
     line = await p.inner_text("#person-backup-line")
     assert "(manual)" in line and "2 kept" in line
-    assert "never your sign-ins or tokens" in await p.inner_text("#fp-settings-people")
+    assert "never your sign-ins or tokens" in await p.inner_text("#fp-settings-backups")
     assert p.fp_errors == []
 
 

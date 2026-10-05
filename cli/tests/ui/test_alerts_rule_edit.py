@@ -65,7 +65,7 @@ async def test_edit_rule_prefills_and_updates_the_row(page, base_url):
     rule_id = (await create_resp.json())["id"]
 
     await open_alerts_tab(page, base_url)
-    row = page.locator("#fp-rules-tbody tr", has_text="U13 edit rule")
+    row = page.locator("#fp-rules-list .fp-rule-card", has_text="U13 edit rule")
     await row.wait_for(state="visible")
     await row.get_by_text("Edit", exact=True).click()
     await page.wait_for_selector("#fp-add-rule-dialog[open]")

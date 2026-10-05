@@ -10,8 +10,17 @@ from __future__ import annotations
 import asyncio
 
 import pytest
+import pytest_asyncio
+
+from ._latest_helpers import PARK_BODY
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
+
+
+@pytest_asyncio.fixture(autouse=True, loop_scope="session")
+async def _activity_body(page):
+    """The all-trackers day body is no pane of its own in 1.3: show the legacy body in Latest."""
+    await page.add_init_script(PARK_BODY)
 
 
 async def test_places_tab_loads_before_it_claims_there_are_none(page, base_url):
@@ -41,6 +50,8 @@ async def test_places_failure_has_an_error_and_retry(page, base_url):
     await page.click('button[data-tab="places"]')
     pane = page.locator("#fp-places-list [data-pane-error]")
     await pane.wait_for()
+    assert "Find+ could not load your places. Try again." in await pane.inner_text()
+    await pane.locator("summary").click()
     assert "places broke" in await pane.inner_text()
     assert await page.locator("#fp-places-tab-hint").is_hidden()
     await page.unroute("**/api/places", fail)

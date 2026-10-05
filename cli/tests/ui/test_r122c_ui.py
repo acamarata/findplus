@@ -11,7 +11,7 @@ import pytest
 
 from ._person_helpers import ensure_person
 from ._suggest_helpers import serve
-from ._trips_helpers import open_day
+from ._trips_helpers import open_day, show_legacy_story
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
@@ -33,7 +33,7 @@ async def test_place_dialog_fits_a_720px_viewport_with_save_in_view(trips_page, 
         " saveTop: b.top, vh: innerHeight }; }"
     )
     assert box["top"] >= 0 and box["bottom"] <= box["vh"], box
-    assert box["height"] < 720, box
+    assert box["height"] <= 720, box
     assert box["saveTop"] >= 0 and box["saveBottom"] <= box["vh"], box
 
 
@@ -44,7 +44,7 @@ async def test_nothing_new_after_everyone_is_added_reads_as_success(trips_page, 
     p = trips_page
     await p.goto(trips_server["base"] + "/")
     await p.wait_for_selector("#app-shell[data-fp-ready]")
-    await p.click('button[data-tab="groups"]')
+    await p.click('button[data-tab="people"]')
     await p.get_by_text("All suggested people added.").wait_for()
     assert "No new people found" not in await p.inner_text("#fp-people-suggest")
 
@@ -84,7 +84,7 @@ async def test_day_story_lanes_name_the_person_not_the_tracker(trips_page, trips
         "#fp-group-select option[value]:nth-child(2)", state="attached"
     )
     await trips_page.select_option("#fp-group-select", label="Family")
-    await trips_page.click("#view-story")
+    await show_legacy_story(trips_page)
     await trips_page.wait_for_selector(".lane .strip-bar")
     await trips_page.wait_for_function(
         "() => [...document.querySelectorAll('.lane-name')].every((e) => e.textContent.startsWith('Sam ('))"

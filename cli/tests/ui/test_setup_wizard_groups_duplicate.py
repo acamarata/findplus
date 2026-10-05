@@ -99,6 +99,8 @@ async def test_groups_step_duplicate_name_shows_inline_error(page, base_url):
 
     await _set_last_step(page, base_url, "groups")
     await page.goto(base_url + "/#/setup")
+    await page.wait_for_selector("#fp-setup-group-name", state="attached", timeout=15000)
+    await page.click("#fp-setup-groups-more > summary")
     await page.wait_for_selector("#fp-setup-group-name", timeout=15000)
 
     await page.fill("#fp-setup-group-name", "Pets")

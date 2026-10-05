@@ -97,4 +97,12 @@ async def install_busy_day(page, tracks: int = 6, points: int = 12) -> dict:
     return holder
 
 
-__all__ = ["busy_body", "install_busy_day"]
+async def settle_map(page):
+    """Wait out the boot fit's zoom animation: a setZoom made during it is overwritten."""
+    idle = "() => import('/static/app/state.js').then((m) => !m.state.map?._animatingZoom)"
+    await page.wait_for_function(idle)
+    await page.wait_for_timeout(300)
+    await page.wait_for_function(idle)
+
+
+__all__ = ["busy_body", "install_busy_day", "settle_map"]

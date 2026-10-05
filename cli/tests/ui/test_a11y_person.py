@@ -49,11 +49,11 @@ async def test_suggestions_and_notices(trips_page, trips_server, theme, width):
     await trips_page.set_viewport_size({"width": width, "height": 900})
     await trips_page.goto(trips_server["base"] + "/")
     await trips_page.wait_for_selector("#fp-left-behind:not([hidden])")
-    await trips_page.wait_for_selector("#fp-people-banner:not([hidden])")
     await _scan(trips_page, "dashboard-notices", theme, width)
-    tab = '.fp-tabbar [data-tabbar-tab="groups"]' if width < 600 else '.fp-tabs [data-tab="groups"]'
+    tab = '.fp-tabbar [data-tabbar-tab="people"]' if width < 600 else '.fp-tabs [data-tab="people"]'
     await trips_page.click(tab)
-    await trips_page.wait_for_selector("#tab-groups .ps-card")
+    await trips_page.wait_for_selector("#tab-people .ps-card")
+    await trips_page.wait_for_selector("#fp-people-banner:not([hidden])")
     await _scan(trips_page, "suggestions", theme, width)
 
 

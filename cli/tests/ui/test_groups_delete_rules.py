@@ -21,7 +21,7 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 async def _open_groups_tab(page, base_url):
     await page.goto(base_url + "/")
     await page.wait_for_selector("#fp-add-group-btn", state="attached")
-    await page.click('button[data-tab="groups"]')
+    await page.click('button[data-tab="people"]')
     await page.wait_for_selector('[data-fp-ready="groups"]')
 
 

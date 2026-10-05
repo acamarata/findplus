@@ -23,6 +23,12 @@
     "lockForgotBody": "Find+ cannot recover a forgotten PIN for you. If you remember it later, you can change or remove it in Settings, under App lock. If you cannot, the PIN can only be removed on this computer itself.",
     "lockForgotAdvanced": "Advanced: open Terminal and run findplus lock reset, then reload this page.",
     "pin": "PIN",
+    "dismiss": "Dismiss",
+    "details": "Details",
+    "liveWordLive": "Polling",
+    "liveWordStopped": "Stopped",
+    "liveWordProblem": "Problem",
+    "liveWordIdle": "Idle",
     "liveDotTitle": "Polling service status",
     "deviceNamePlaceholder": "no tracker selected",
     "btnDevices": "Devices",
@@ -30,7 +36,7 @@
     "btnLock": "Lock",
     "btnLockTitle": "Lock now",
     "btnLatest": "Latest Location",
-    "btnPoll": "Poll Now",
+    "btnPoll": "Poll now",
     "btnPollTitle": "Queries your providers once, now",
     "cardObservedLabel": "Last observed",
     "cardFetchedLabel": "Retrieved by this computer",
@@ -56,9 +62,8 @@
     "rangeEnd": "Range end",
     "rangeSeparator": "to",
     "download": "Download",
-    "tabDashboard": "Dashboard",
+    "exportFormat": "Format",
     "tabPlaces": "Places",
-    "tabGroups": "Groups",
     "tabAlerts": "Alerts",
     "more": "More",
     "footerPrivacy": "Runs entirely on this computer and binds to 127.0.0.1. No analytics, telemetry or third-party scripts. Map tiles are fetched from OpenStreetMap, which necessarily sees the tile coordinates being viewed. Update checks ask GitHub for the newest version and send nothing about you.",
@@ -89,6 +94,7 @@
     "statusRegionLabel": "Status and filters",
     "skipMap": "Skip map, go to timeline",
     "retry": "Retry",
+    "errorDetails": "Details",
     "networkDown": "Find+ is not answering. Check that it is still running, then try again.",
     "wrongPinLeft": {
       "one": "Wrong PIN. 1 try left before Find+ makes you wait.",
@@ -104,7 +110,10 @@
     "cardsHelpPollTerm": "Last successful poll",
     "cardsHelpPollBody": "The last time Find+ asked your account for locations and got an answer, even if the answer held nothing new.",
     "cardsHelpTodayTerm": "Observations today",
-    "cardsHelpTodayBody": "Locations recorded today, with the total Find+ keeps on this computer underneath."
+    "cardsHelpTodayBody": "Locations recorded today, with the total Find+ keeps on this computer underneath.",
+    "tabLatest": "Latest",
+    "tabPeople": "People",
+    "tabActivity": "Activity"
   },
   "field": {
     "customColor": "Custom color",
@@ -126,6 +135,9 @@
     "colorGroupLabel": "Colour choices"
   },
   "devices": {
+    "inline": {
+      "save": "Save changes"
+    },
     "title": "Your trackers",
     "note": "Tick every tracker you want Find+ to poll. Each one adds a request to its provider every poll cycle. Untracking keeps a tracker's history; it just stops being polled.",
     "allTracked": "All tracked devices",
@@ -191,6 +203,17 @@
     "polledMany": "Polled {devices} trackers, {observations} new. {tally}.",
     "pollTally": "{n} {status}"
   },
+  "peoplePane": {
+    "heading": "People",
+    "otherGroups": "Other groups",
+    "addPerson": "Add person",
+    "open": "Open",
+    "openFor": "Open {name}'s page",
+    "empty": "No people yet. Add one, or let Find+ suggest people from your trackers.",
+    "noGroups": "No other groups. Add a group to get a together or apart verdict for a set of trackers.",
+    "leftChip": "{tracker} looks left at {place}",
+    "leftChipSpot": "{tracker} looks left behind"
+  },
   "groups": {
     "tabHint": "Pick a group in the selector above the map to see it.",
     "allDevices": "All devices",
@@ -213,20 +236,23 @@
       "name": "Name",
       "icon": "Icon",
       "color": "Color",
+      "advanced": "Advanced",
       "quorum": "Alert when",
       "quorum_any": "Any member arrives",
       "quorum_majority": "Most members arrive",
       "quorum_all": "Every member arrives",
       "quorum_custom": "Custom number of members",
       "quorum_hint": "How many members have to be at a place before the group counts as arrived.",
-      "radius": "Cluster radius (m)",
+      "radius": "Members count as together within (m)",
       "radius_hint": "How close together members' locations must be to count as \"in the same place\".",
-      "stale": "Stale after (minutes)",
+      "stale": "Ignore a tracker with no location for (minutes)",
       "stale_hint": "A tag with no recent fix is stale, not at home and not left behind. Find+ reports it as unknown.",
       "members": "Members"
     },
     "error": {
       "name_required": "Name is required.",
+      "saveFailed": "Find+ could not save this group. Try again.",
+      "membersLoadFailed": "Find+ could not load your trackers. Close this and try again.",
       "members_required": "Select at least one member.",
       "duplicate_name": "A group named {name} already exists."
     },
@@ -290,7 +316,7 @@
     "verdictNoRecentLocation": "No recent location",
     "verdictUnavailable": "Status unavailable",
     "verdictUnavailableHint": "Could not load this group's status. Reload the page to try again.",
-    "loadFailedTitle": "Could not load your groups",
+    "loadFailedTitle": "Find+ could not load your groups. Try again.",
     "loadFailed": "Could not load groups: {message}",
     "presenceFailedTitle": "Could not load this group's presence",
     "quorumRange": "Use a whole number from {min} to {max}.",
@@ -307,11 +333,16 @@
       "sectionLabel": "Your icons",
       "label": "Custom icon",
       "upload": "Upload",
+      "uploadButton": "Upload your own",
       "deleteIcon": "Delete icon {id}",
       "deleteConfirm": "Delete this icon?",
       "deleteInUse": "This icon is in use and cannot be deleted.",
       "badFile": "Choose a PNG image first.",
       "uploadFailed": "Could not upload icon: {message}"
+    },
+    "search": {
+      "label": "Search icons",
+      "none": "No icon matches \"{query}\"."
     },
     "category": {
       "people": "People",
@@ -337,6 +368,10 @@
     "colorLabel": "Color",
     "enterConfirmations": "Enter confirmations",
     "exitConfirmations": "Exit confirmations",
+    "sheet": {
+      "locationLegend": "Location",
+      "advanced": "Alert timing"
+    },
     "dialog": {
       "title_add": "Add place",
       "title_edit": "Edit {name}"
@@ -351,12 +386,14 @@
       "locationSet": "Location set from {name}.",
       "locationSetAt": "Location: {lat}, {lon} (from the map).",
       "pickOnMap": "Pick on map",
+      "pickingOnMap": "Click the map…",
+      "useMapCentre": "Use map centre",
       "map": "the map"
     },
     "mapPick": {
       "instructions": "Click or tap the map to move the pin, or use the arrow keys.",
       "setLocation": "Set location",
-      "markerLabel": "Place location. Drag it, or use arrow keys, then press Enter."
+      "markerLabel": "Place location. Drag it, or use the arrow keys."
     },
     "error": {
       "nameLength": "Name must be 1-64 characters.",
@@ -405,11 +442,13 @@
       "delete": "Delete {name}"
     },
     "where": {
-      "centre": "Location: the centre of the map ({lat}, {lon}). Choose a tracker, a point on the map or an address above to move it.",
+      "centre": "Location: {lat}, {lon}, the centre of the map. Drag the pin, or use the options below to move it.",
       "current": "Location: {lat}, {lon}.",
-      "picked": "Location: {lat}, {lon}, as chosen above."
+      "picked": "Location: {lat}, {lon}."
     },
-    "loadFailedTitle": "Could not load your places",
+    "loadFailedTitle": "Find+ could not load your places. Try again.",
+    "addDisabledLoadFailed": "Add place is off until your places load. Press Retry.",
+    "saveFailed": "Find+ could not save this place. Try again.",
     "tools": {
       "searchPlaceholder": "Search places",
       "searchLabel": "Search your places by name",
@@ -590,7 +629,6 @@
     "selectAtLeastOneChannel": "Select at least one channel.",
     "invalidWebhookUrl": "Enter a valid http(s) webhook URL.",
     "webhookMaskedUrl": "That's the saved URL's masked placeholder, not a new one. Enter the real URL, or leave it blank to keep the current one.",
-    "connectBotFirst": "Connect a bot first.",
     "currentTargetsLabel": "Current targets",
     "removeTargetLabel": "Remove {target}",
     "confirmRemoveTarget": "Remove {label}?",
@@ -709,17 +747,23 @@
       "native": "Desktop notifications cannot be tested from here."
     },
     "webhookTestNeedsSave": "Save a webhook URL first.",
-    "summary": {
-      "heading": "Where alerts go",
-      "rules": {
-        "one": "1 rule",
-        "other": "{count} rules"
-      },
-      "connected": "{channel}: connected",
-      "notConnected": "{channel}: not connected",
-      "jumpRules": "Rules",
-      "jumpLog": "Delivery log"
+    "cards": {
+      "on": "On",
+      "off": "Off",
+      "editAria": "Edit rule {name}",
+      "deleteAria": "Delete rule {name}"
     },
+    "channelRow": {
+      "connected": "Connected",
+      "notConnected": "Not connected",
+      "connect": "Connect",
+      "edit": "Edit",
+      "hide": "Hide",
+      "connectAria": "Connect {channel}",
+      "editAria": "Edit {channel}",
+      "hideAria": "Hide {channel} settings"
+    },
+    "autoName": "{who} at {place}",
     "filters": {
       "statusLabel": "Show deliveries with this status",
       "channelLabel": "Show deliveries for this channel",
@@ -783,6 +827,22 @@
     "confirmRemovePin": "Remove the PIN and turn off the app lock? Anyone who opens Find+ on this computer will then see your locations without a PIN.",
     "pinRemoved": "PIN removed. The app no longer locks.",
     "signInHeading": "Sign-in",
+    "nav": {
+      "general": "General",
+      "signin": "Sign-in",
+      "people": "People",
+      "alerts": "Alerts",
+      "lock": "App lock",
+      "updates": "Updates",
+      "backups": "Backups",
+      "about": "About and notices",
+      "danger": "Danger zone"
+    },
+    "peopleHeading": "People and daily summary",
+    "alertsHeading": "Alerts and notifications",
+    "alertsNoticesLink": "How late alerts can be, and what a stale tracker means, is explained under About and notices.",
+    "backupsHeading": "Backups",
+    "backupFileTitle": "Settings file",
     "polling": {
       "title": "Polling and retention",
       "interval_label": "Poll every",
@@ -908,7 +968,13 @@
       "add": "Add",
       "no_devices": "No tracked devices to add yet. Go back to Devices to track one first.",
       "skip_hint": "Most people skip this. You can make groups any time from the Groups tab.",
-      "groups_title": "Groups (optional)"
+      "groups_title": "Groups (optional)",
+      "people_lead": "Say who carries which trackers, so the map and alerts can use a name instead of a tag name. You can skip this and do it later from the People tab.",
+      "person_title": "Add a person",
+      "person_placeholder": "Name, for example Sam",
+      "person_add": "Add person",
+      "person_added": "Added {name}.",
+      "group_instead": "Add a group instead"
     },
     "places": {
       "title": "Places (optional)",
@@ -1306,6 +1372,21 @@
     "roadsNeedServer": "Not available yet: no routing server is set.",
     "roadsSetup": "Set one up in Settings"
   },
+  "personColours": {
+    "markerTitle": "{tracker} (belongs to {name})",
+    "popupOwner": "Belongs to {name}",
+    "avatarButton": "Change {name}'s icon and colour",
+    "trackersHere": {
+      "one": "1 tracker here",
+      "other": "{count} trackers here"
+    },
+    "weight": {
+      "always": "Always carries it",
+      "usually": "Usually carries it",
+      "sometimes": "Sometimes carries it",
+      "custom": "Custom ({value})"
+    }
+  },
   "units": {
     "unknown": "unknown",
     "minutesShort": "{n} min",
@@ -1556,17 +1637,17 @@
       "title": "Trackers",
       "none": "No trackers yet. Use Edit to add some.",
       "weight": "weight {weight}",
-      "noWeight": "default weight",
+      "noWeight": "How often: let Find+ decide",
       "lead": "Best sighting",
       "edit": "Edit {tracker}",
       "role": "Role",
-      "weightLabel": "How much to trust it",
+      "weightLabel": "How often this person carries it",
       "weightHelp": "1 means it nearly always travels with {name}. 0 means it is never used to place {name}.",
       "save": "Save",
       "saved": "Saved {tracker}.",
       "saveFailed": "Could not save {tracker}: {message}",
       "cancel": "Cancel",
-      "roleAuto": "Guess from the name"
+      "roleAuto": "Fill in from the tracker name"
     },
     "leftBehind": {
       "seeDay": "See {name}'s day",
@@ -1576,7 +1657,8 @@
       "uncertain": "Find+ cannot be sure. A tracker can sit still because it was parked on purpose.",
       "dismissFailed": "Could not save that: {message}"
     },
-    "back": "Back to dashboard",
+    "back": "‹ All",
+    "backAria": "Back to dashboard",
     "pageLabel": "Person page",
     "loading": "Loading {name}'s day",
     "conf": {
@@ -1671,7 +1753,8 @@
       "membersHint": "Tick the trackers that travel with this one. Say what each one is, and how much to trust it.",
       "belongsTo": "With {name}",
       "noDevices": "No tracked devices yet.",
-      "needOne": "Pick at least one tracker."
+      "needOne": "Pick at least one tracker.",
+      "createTitle": "Add a person"
     },
     "notify": {
       "title": "Tell me when {name} arrives or leaves?",
@@ -1716,6 +1799,49 @@
     "bannerRelease": "Release notes",
     "bannerLater": "Later",
     "bannerLabel": "Update"
+  },
+  "latest": {
+    "listLabel": "Latest locations",
+    "atPlace": "At {place}",
+    "noPlace": "Not at a saved place",
+    "seen": "seen {age} ago",
+    "noSighting": "no recent sighting",
+    "trackersLabel": "Trackers: {names}",
+    "editPerson": "Edit {name}",
+    "editTracker": "Edit {name}",
+    "openPerson": "Open {name}",
+    "focusTracker": "Show only {name}",
+    "otherTrackers": "Trackers",
+    "focusBack": "All",
+    "focusBackTitle": "Back to all trackers",
+    "focusSwitchLabel": "Tracker view",
+    "focusStory": "Story",
+    "focusSightings": "Sightings"
+  },
+  "shell": {
+    "btnAdd": "Add",
+    "addMenuLabel": "Add to Find+",
+    "addPlace": "Place",
+    "addPerson": "Person",
+    "addGroup": "Group",
+    "fitLatest": "Fit to latest",
+    "fitLatestTitle": "Zoom the map to the most recent sighting",
+    "mapToggle": "Map",
+    "filtersToggle": "Filters",
+    "showOnlyThis": "Show only this"
+  },
+  "activity": {
+    "empty": "No sightings on this day.",
+    "emptyFiltered": "Nothing matches the filters for this day.",
+    "loadFailedTitle": "Could not load the activity for this day.",
+    "showMore": "Show more",
+    "listLabel": "All activity, newest first",
+    "accuracy": "±{meters} m",
+    "arrived": "{name} arrived at {place}",
+    "left": "{name} left {place}",
+    "openLine": "{time}, {label}. Show this sighting.",
+    "suspectNote": "This sighting looks wrong. Left out of stays, trips and alerts.",
+    "more": "Showing {shown} of {total}"
   },
   "honesty": {
     "findHub": "This history consists of locations reported through Google's Find Hub network. Your trackers use nearby participating Android devices to report their location. Location updates can therefore be delayed, sparse, or unavailable, and this application should not be treated as real-time emergency or child-safety GPS tracking.",

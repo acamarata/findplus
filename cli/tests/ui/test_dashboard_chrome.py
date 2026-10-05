@@ -55,7 +55,7 @@ async def test_a_long_tracker_name_never_widens_the_controls(page, base_url, ui_
             """() => ({
                 scroll: document.documentElement.scrollWidth,
                 filter: document.getElementById('device-filter').getBoundingClientRect().top,
-                exportBtn: document.getElementById('btn-export').getBoundingClientRect().top,
+                exportBtn: document.getElementById('btn-export-open').getBoundingClientRect().top,
                 option: document.querySelector("#device-filter [value='TAG-AWAY']").textContent,
             })"""
         )
@@ -79,7 +79,7 @@ async def test_a_tab_bar_tap_brings_its_pane_into_view(page, base_url):
     )
     assert state["y"] > 0, "the tap left the page at the top"
     assert state["paneTop"] < 812 - 56, "the Alerts pane is still below the fold"
-    await page.click('.fp-tabbar [data-tabbar-tab="dashboard"]')
+    await page.click('.fp-tabbar [data-tabbar-tab="latest"]')
     assert await page.evaluate("window.scrollY") == 0
 
 

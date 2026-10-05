@@ -16,7 +16,7 @@ async def _open_groups(page, server):
     page.on("pageerror", lambda e: page.fp_errors.append(str(e)))
     await page.goto(server["base"] + "/")
     await page.wait_for_selector("#app-shell[data-fp-ready]")
-    await page.click('button[data-tab="groups"]')
+    await page.click('button[data-tab="people"]')
     await page.wait_for_selector("#fp-people-suggest .ps-card")
 
 

@@ -19,6 +19,7 @@ import { postJson } from "./api.js";
 import { plural, t } from "./i18n.js";
 import { showAlert } from "./state.js";
 import { confirmDialog } from "./components/confirm-dialog.js";
+import { button } from "./components/button.js";
 
 let host = null;
 let onDone = null;
@@ -79,13 +80,9 @@ async function onNotifyMe(button) {
 function draw(count) {
   const text = document.createElement("span");
   text.textContent = plural("places.backfill.text", count, { n: count });
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "btn btn-tiny";
-  button.id = "fp-places-backfill-btn";
-  button.textContent = t("places.backfill.button");
-  button.addEventListener("click", () => onNotifyMe(button));
-  host.replaceChildren(text, button);
+  const notify = button({ label: t("places.backfill.button"), icon: "bell", variant: "secondary", size: "sm", id: "fp-places-backfill-btn" });
+  notify.addEventListener("click", () => onNotifyMe(notify));
+  host.replaceChildren(text, notify);
   host.hidden = false;
 }
 

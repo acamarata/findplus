@@ -37,8 +37,12 @@ async def test_export_is_one_ghost_button_with_a_popover(page, base_url):
 async def test_checkboxes_and_radios_are_16px(page, base_url):
     await _boot(page, base_url)
     sizes = await page.evaluate(
-        """() => [...document.querySelectorAll('input[type=checkbox]:not([role=switch]), input[type=radio]')]
-            .map((el) => { const cs = getComputedStyle(el); return [cs.width, cs.height, cs.accentColor]; })"""
+        """() => [...document.querySelectorAll(
+              'input[type=checkbox]:not([role=switch]), input[type=radio]')]
+            .map((el) => {
+              const cs = getComputedStyle(el);
+              return [cs.width, cs.height, cs.accentColor];
+            })"""
     )
     assert sizes
     for width, height, accent in sizes:
@@ -87,8 +91,7 @@ async def test_footer_notices_are_small_muted_and_narrow(page, base_url):
         """() => {
           const n = document.querySelector('.footer .notice.small');
           const cs = getComputedStyle(n);
-          return [cs.fontSize, cs.color, getComputedStyle(document.documentElement).getPropertyValue('--muted').trim(),
-                  n.getBoundingClientRect().width, parseFloat(cs.fontSize)];
+          return [cs.fontSize, cs.color, 0, n.getBoundingClientRect().width];
         }"""
     )
     assert info[0] == "12px"
@@ -100,7 +103,7 @@ async def test_person_header_back_is_ghost_and_send_is_secondary(trips_page, tri
     await open_person(trips_page, trips_server, pid)
     back = trips_page.locator("#person-back")
     assert "fp-btn--ghost" in await back.get_attribute("class")
-    assert (await back.inner_text()).strip() == "‹ All"
+    assert (await back.inner_text()).strip() == "\u2039 All"
     assert await back.get_attribute("aria-label") == "Back to dashboard"
     send = trips_page.locator("#person-send")
     cls = await send.get_attribute("class")

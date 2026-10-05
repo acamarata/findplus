@@ -12,7 +12,15 @@ from .conftest import set_theme
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 
-PROPS = ["backgroundColor", "color", "borderTopColor", "borderRadius", "minHeight", "fontSize", "paddingLeft"]
+PROPS = [
+    "backgroundColor",
+    "color",
+    "borderTopColor",
+    "borderRadius",
+    "minHeight",
+    "fontSize",
+    "paddingLeft",
+]
 
 PAIRS = [
     ("btn", "fp-btn fp-btn--primary"),

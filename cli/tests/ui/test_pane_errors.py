@@ -25,6 +25,7 @@ async def test_failed_timeline_load_clears_the_old_rows_and_retries(page, base_u
     pane = page.locator("#tracks [data-pane-error]")
     await pane.wait_for()
     assert await page.locator("#tracks .track-block").count() == 0
+    await pane.locator("summary").click()
     assert "boom" in await pane.inner_text()
     await page.unroute("**/api/timeline*", _fail)
     await pane.get_by_role("button", name="Retry").click()
@@ -49,6 +50,8 @@ async def test_groups_tab_shows_error_and_retry(page, base_url):
     await page.click('button[data-tab="groups"]')
     pane = page.locator("#fp-groups-list [data-pane-error]")
     await pane.wait_for()
+    assert "Find+ could not load your groups. Try again." in await pane.inner_text()
+    await pane.locator("summary").click()
     assert "boom" in await pane.inner_text()
     assert await page.locator("#fp-groups-tab-hint").is_hidden()
     await page.unroute("**/api/groups", _fail)

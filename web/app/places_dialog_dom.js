@@ -171,6 +171,29 @@ export function wireRadius(f, onPreview) {
   });
 }
 
+/** The "Location" fieldset: the where-line over the locator (map buttons, search, tracker). */
+function locationGroup(f, locatorHost) {
+  const where = pickerGroup(t("places.sheet.locationLegend"));
+  where.classList.add("fp-place-where-group");
+  where.append(f.where, locatorHost);
+  return where;
+}
+
+/** The collapsed "Alert timing" disclosure holding the enter/exit confirmation counts. */
+function timingDisclosure(f) {
+  const advanced = document.createElement("details");
+  advanced.className = "fp-place-advanced";
+  advanced.id = "fp-place-advanced";
+  const summary = document.createElement("summary");
+  summary.textContent = t("places.sheet.advanced");
+  advanced.append(
+    summary,
+    labeled(t("places.enterConfirmations"), f.enter, f.enter.id),
+    labeled(t("places.exitConfirmations"), f.exit, f.exit.id),
+  );
+  return advanced;
+}
+
 /** Assemble the <dialog>/<form> around the built fields, leaving the locator
  * section and the colour picker as empty mount points for the caller. */
 export function buildDialog({ onSave, onCancel }) {
@@ -188,19 +211,8 @@ export function buildDialog({ onSave, onCancel }) {
   // U5: one column, in the order people think: who, where, how big, what colour,
   // who to tell. The confirmation counts are rarely changed, so they sit in a
   // collapsed "Alert timing" disclosure. The sheet's footer stays in view.
-  const where = pickerGroup(t("places.sheet.locationLegend"));
-  where.classList.add("fp-place-where-group");
-  where.append(f.where, locatorHost);
-  const advanced = document.createElement("details");
-  advanced.className = "fp-place-advanced";
-  advanced.id = "fp-place-advanced";
-  const summary = document.createElement("summary");
-  summary.textContent = t("places.sheet.advanced");
-  advanced.append(
-    summary,
-    labeled(t("places.enterConfirmations"), f.enter, f.enter.id),
-    labeled(t("places.exitConfirmations"), f.exit, f.exit.id),
-  );
+  const where = locationGroup(f, locatorHost);
+  const advanced = timingDisclosure(f);
   const cols = document.createElement("div");
   cols.className = "fp-place-cols";
   cols.append(

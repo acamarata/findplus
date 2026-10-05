@@ -181,6 +181,17 @@ function quorumSentenceEl() {
   return sentence;
 }
 
+/** The collapsed "Advanced" disclosure (U11) that holds how a group decides to alert. */
+function advancedDisclosure(rows) {
+  const advanced = document.createElement("details");
+  advanced.id = "fp-group-advanced";
+  advanced.className = "fp-group-advanced";
+  const summary = document.createElement("summary");
+  summary.textContent = t("groups.field.advanced");
+  advanced.append(summary, ...rows);
+  return advanced;
+}
+
 export function buildDialog({ onSave, onCancel }) {
   const dlg = document.createElement("dialog");
   dlg.id = "fp-group-dialog";
@@ -212,12 +223,7 @@ export function buildDialog({ onSave, onCancel }) {
 
   // U11: the two things every group needs (name, members) come first; how it
   // decides to alert sits in a collapsed "Advanced" disclosure.
-  const advanced = document.createElement("details");
-  advanced.id = "fp-group-advanced";
-  advanced.className = "fp-group-advanced";
-  const summary = document.createElement("summary");
-  summary.textContent = t("groups.field.advanced");
-  advanced.append(summary, quorum.wrap, radius.wrap, sentence, stale.wrap);
+  const advanced = advancedDisclosure([quorum.wrap, radius.wrap, sentence, stale.wrap]);
   const body = document.createElement("div");
   body.className = "fp-group-body";
   body.append(labeled(t("groups.field.name"), name, name.id), members.fieldset, icon.wrap, color.wrap, advanced);

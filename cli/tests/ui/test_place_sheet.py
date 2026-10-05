@@ -114,7 +114,7 @@ async def test_escape_and_cancel_remove_the_preview(page, base_url):
     await page.locator("#fp-place-name").focus()
     await page.keyboard.press("Escape")
     await page.wait_for_function("() => !document.getElementById('fp-place-dialog').open")
-    assert await page.locator(".fp-map-pick-marker").count() == 0
+    await page.wait_for_function("() => !document.querySelector('.fp-map-pick-marker')")
     assert await page.locator(PREVIEW).count() == 0
     assert await page.evaluate("!document.body.classList.contains('fp-place-sheet-open')")
 

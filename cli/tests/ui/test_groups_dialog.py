@@ -206,6 +206,7 @@ async def test_duplicate_name_shows_409_on_name_field(page, base_url):
 async def test_quorum_custom_reveals_number_input(page, base_url):
     await _open_add_dialog(page, base_url)
     assert await page.locator("#fp-group-quorum-n").get_attribute("hidden") is not None
+    await page.click("#fp-group-advanced summary")
     await page.select_option("#fp-group-quorum", "custom")
     assert await page.locator("#fp-group-quorum-n").get_attribute("hidden") is None
 
@@ -288,3 +289,24 @@ async def test_icon_and_color_pickers_populate_on_a_cold_open(page, base_url):
     await page.click("#fp-group-color-btn")
     color_count = await page.locator("#fp-group-color-popover .fp-color-swatch").count()
     assert color_count == 12, color_count
+
+
+async def test_name_and_members_first_the_rest_under_advanced(page, base_url):
+    """U11: Name and Members first; quorum, radius and stale sit in a collapsed Advanced."""
+    await _open_add_dialog(page, base_url)
+    advanced = page.locator("#fp-group-advanced")
+    assert await advanced.get_attribute("open") is None
+    assert not await page.locator("#fp-group-quorum").is_visible()
+    name_y = (await page.locator("#fp-group-name").bounding_box())["y"]
+    members_y = (await page.locator("#fp-group-members").bounding_box())["y"]
+    advanced_y = (await advanced.bounding_box())["y"]
+    assert name_y < members_y < advanced_y
+    await page.click("#fp-group-advanced summary")
+    for field in ("#fp-group-quorum", "#fp-group-radius", "#fp-group-stale"):
+        assert await page.locator(field).is_visible()
+    assert "Ignore a tracker" in await page.locator("label[for=fp-group-stale]").inner_text()
+    # No inner scroller on the member list.
+    overflow = await page.locator("#fp-group-members").evaluate(
+        "(e) => getComputedStyle(e).overflowY"
+    )
+    assert overflow in ("visible", "")

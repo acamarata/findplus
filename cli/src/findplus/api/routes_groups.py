@@ -42,7 +42,8 @@ from findplus.groups.repo import (
 
 class GroupCreate(BaseModel):
     name: str
-    color: str = "#27ae60"
+    #: None = pick: a person/pet gets the first unused palette colour, a set stays green.
+    color: str | None = None
     icon: str = "lucide:users"
     quorum: str = "majority"
     cluster_radius_meters: int = 150

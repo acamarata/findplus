@@ -19,7 +19,7 @@ HOME = '.device-row[data-device-id="TAG-HOME"]'
 async def _open_devices(page, base_url, width=1400, height=900):
     await page.set_viewport_size({"width": width, "height": height})
     await page.goto(base_url + "/")
-    await page.wait_for_selector("#map.leaflet-container")
+    await page.wait_for_selector("#map.leaflet-container", state="attached")
     await page.evaluate("document.getElementById('btn-devices').click()")
     await page.wait_for_selector("#device-modal:not(.hidden)")
     await page.wait_for_selector(".device-row")

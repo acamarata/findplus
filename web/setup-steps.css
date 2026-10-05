@@ -45,3 +45,40 @@
 @media (prefers-reduced-motion: reduce) {
   #setup-view * { transition: none !important; animation: none !important; }
 }
+
+/* --- 1.3 wizard polish (U16, U30, U38) ------------------------------------ */
+/* Close: a 32 px icon button (an X) in the card's top-right corner. */
+#setup-view > .fp-wizard-close {
+  width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center;
+  justify-content: center; border: 1px solid var(--line); border-radius: 8px;
+  background: transparent; color: var(--muted); text-decoration: none; font-size: 0;
+}
+#setup-view > .fp-wizard-close:hover { background: var(--panel-2); color: var(--text); }
+#setup-view > .fp-wizard-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#setup-view > .fp-wizard-close:disabled { opacity: .5; cursor: not-allowed; }
+
+/* A held Next still reads as a button, with a 3:1 edge and text that is not
+   washed out; the line above it says why it is held. */
+.fp-wizard-footer #fp-wizard-next:disabled {
+  opacity: 1; cursor: not-allowed; background: var(--panel-2); color: var(--muted);
+  border: 1px solid var(--line-strong);
+}
+
+/* Google is the main sign-in: its button is the primary one. Apple's Connect is
+   a secondary button until a Google account is connected. */
+.fp-google-btn,
+.fp-google-btn:hover:not(:disabled) { background: var(--accent); color: #fff; border-color: transparent; }
+.fp-google-btn:hover:not(:disabled) { filter: brightness(1.1); }
+.fp-signin-cards:has(.fp-signin-card[data-provider="google"]:not([data-state="signed-in"]))
+  .fp-signin-card[data-provider="apple"]:not([data-state="signed-in"]) .fp-signin-btn {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+}
+
+/* People step: the optional group form folds behind "Add a group instead". */
+.fp-setup-person { margin: 18px 0 8px; }
+.fp-setup-person #fp-setup-person-name { width: min(320px, 100%); }
+.fp-setup-groups-more { margin: 18px 0 4px; border-top: 1px solid var(--line); padding-top: 8px; }
+.fp-setup-groups-more > summary {
+  cursor: pointer; min-height: 32px; display: flex; align-items: center; font-size: 14px; color: var(--accent);
+}
+.fp-setup-groups-more[open] > summary { margin-bottom: 8px; }

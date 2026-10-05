@@ -94,6 +94,8 @@ async def test_groups_step_uses_popover_pickers_not_a_bare_grid(page, base_url):
     buttons, like the group dialog's own fields, closed until clicked."""
     try:
         await _open_step(page, base_url, "groups")
+        await page.wait_for_selector("#fp-setup-group-icon-btn", state="attached", timeout=15000)
+        await page.click("#fp-setup-groups-more > summary")
         await page.wait_for_selector("#fp-setup-group-icon-btn", timeout=15000)
 
         assert await page.locator("#fp-setup-group-icon-popover").is_hidden()

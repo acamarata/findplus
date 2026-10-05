@@ -87,6 +87,8 @@ async def test_groups_step_add_with_no_members_blocks_save(page, base_url):
 
     await _set_last_step(page, base_url, "groups")
     await page.goto(base_url + "/#/setup")
+    await page.wait_for_selector("#fp-setup-group-name", state="attached", timeout=15000)
+    await page.click("#fp-setup-groups-more > summary")
     await page.wait_for_selector("#fp-setup-group-name", timeout=15000)
 
     await page.fill("#fp-setup-group-name", "No Members")
@@ -107,6 +109,8 @@ async def test_groups_step_name_field_has_an_accessible_name(page, base_url):
 
     await _set_last_step(page, base_url, "groups")
     await page.goto(base_url + "/#/setup")
+    await page.wait_for_selector("#fp-setup-group-name", state="attached", timeout=15000)
+    await page.click("#fp-setup-groups-more > summary")
     await page.wait_for_selector("#fp-setup-group-name", timeout=15000)
 
     label = await page.get_attribute("#fp-setup-group-name", "aria-label")
@@ -128,6 +132,8 @@ async def test_groups_step_empty_name_shows_inline_error(page, base_url):
 
     await _set_last_step(page, base_url, "groups")
     await page.goto(base_url + "/#/setup")
+    await page.wait_for_selector("#fp-setup-group-name", state="attached", timeout=15000)
+    await page.click("#fp-setup-groups-more > summary")
     await page.wait_for_selector("#fp-setup-group-name", timeout=15000)
 
     await page.click("#fp-setup-group-add")
@@ -149,6 +155,8 @@ async def test_groups_step_lead_and_untracked_device_not_selectable(page, base_u
 
     await _set_last_step(page, base_url, "groups")
     await page.goto(base_url + "/#/setup")
+    await page.wait_for_selector("#fp-setup-group-name", state="attached", timeout=15000)
+    await page.click("#fp-setup-groups-more > summary")
     await page.wait_for_selector("#fp-setup-group-name", timeout=15000)
 
     step_text = await page.locator("#setup-view .fp-wizard-step").inner_text()
@@ -168,6 +176,8 @@ async def test_groups_step_no_tracked_devices_explains_why_the_list_is_empty(pag
 
     await _set_last_step(page, base_url, "groups")
     await page.goto(base_url + "/#/setup")
+    await page.wait_for_selector("#fp-setup-group-name", state="attached", timeout=15000)
+    await page.click("#fp-setup-groups-more > summary")
     await page.wait_for_selector("#fp-setup-group-name", timeout=15000)
 
     members = page.locator("#fp-setup-group-members")

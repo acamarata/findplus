@@ -932,7 +932,13 @@
       "add": "Add",
       "no_devices": "No tracked devices to add yet. Go back to Devices to track one first.",
       "skip_hint": "Most people skip this. You can make groups any time from the Groups tab.",
-      "groups_title": "Groups (optional)"
+      "groups_title": "Groups (optional)",
+      "people_lead": "Say who carries which trackers, so the map and alerts can use a name instead of a tag name. You can skip this and do it later from the People tab.",
+      "person_title": "Add a person",
+      "person_placeholder": "Name, for example Sam",
+      "person_add": "Add person",
+      "person_added": "Added {name}.",
+      "group_instead": "Add a group instead"
     },
     "places": {
       "title": "Places (optional)",

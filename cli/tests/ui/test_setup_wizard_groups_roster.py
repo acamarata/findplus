@@ -46,6 +46,8 @@ async def _unfinished(page, base_url):
 
 async def _open_step(page, base_url):
     await page.goto(base_url + "/#/setup")
+    await page.wait_for_selector("#fp-setup-group-name", state="attached", timeout=15000)
+    await page.click("#fp-setup-groups-more > summary")
     await page.wait_for_selector("#fp-setup-group-name", timeout=15000)
     await page.wait_for_selector(f"{MEMBERS} .fp-member-row, {MEMBERS} .fp-members-hint")
 

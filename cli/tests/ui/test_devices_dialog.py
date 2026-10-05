@@ -76,8 +76,7 @@ async def test_edit_button_opens_dialog_prefilled(page, base_url):
     assert await color.get_attribute("data-color") == "#4f8cf7"
     # Tracking is the row's own checkbox now; the editor does not repeat it.
     assert await page.is_checked('.device-row[data-device-id="TAG-HOME"] input[type=checkbox]')
-    # U13: exactly the 12 palette swatches (no 13th custom colour input), and
-    # the file input is not the visible control.
+    # U13: exactly the 12 palette swatches, and a real Upload button.
     assert await page.locator(".device-edit .fp-color-swatch").count() == 12
     assert await page.locator(".device-edit .fp-color-custom").count() == 0
     assert await page.get_by_role("button", name="Upload your own").is_visible()

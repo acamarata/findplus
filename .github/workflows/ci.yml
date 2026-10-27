@@ -58,12 +58,12 @@ jobs:
         working-directory: cli
         continue-on-error: ${{ matrix.experimental == true }}
       - if: ${{ !matrix.cov }}
-        run: python -m pytest cli/tests -q -m "not browser and not slow"
+        run: python -m pytest cli/tests -q -n auto -m "not browser and not slow"
         continue-on-error: ${{ matrix.experimental == true }}
       # Coverage is measured on the same run as the tests, not a second serial
       # pass over the whole suite.
       - if: ${{ matrix.cov }}
-        run: python -m pytest cli/tests -q -m "not browser and not slow" --cov=findplus --cov-report=lcov:coverage/lcov.info --cov-report=term
+        run: python -m pytest cli/tests -q -n auto -m "not browser and not slow" --cov=findplus --cov-report=lcov:coverage/lcov.info --cov-report=term
       - if: ${{ matrix.cov }}
         run: coverage report --fail-under=95 --include='*/findplus/places/geofence.py,*/findplus/groups/presence.py,*/findplus/groups/quorum.py,*/findplus/alerts/dispatch.py,*/findplus/alerts/dispatch_core.py,*/findplus/alerts/dispatch_events.py,*/findplus/alerts/dispatch_send.py,*/findplus/alerts/dispatch_targets.py,*/findplus/alerts/rule_telegram_targets.py,*/findplus/alerts/channels_field.py,*/findplus/alerts/targets.py,*/findplus/alerts/retry.py,*/findplus/alerts/retry_classify.py,*/findplus/alerts/dryrun.py,*/findplus/alerts/default_rules.py,*/findplus/alerts/dispatch_left_behind.py,*/findplus/alerts/dispatch_types.py,*/findplus/alerts/group_event_rows.py,*/findplus/alerts/render_person.py,*/findplus/alerts/dispatch_gate.py'
       - if: ${{ matrix.cov }}
@@ -82,7 +82,7 @@ jobs:
           python-version: "3.12"
       - run: pip install '.[dev]'
         working-directory: cli
-      - run: python -m pytest cli/tests -q -m "not browser and not slow"
+      - run: python -m pytest cli/tests -q -n auto -m "not browser and not slow"
 
   browser:
     runs-on: macos-latest

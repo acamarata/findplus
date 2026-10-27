@@ -20,7 +20,14 @@ from tests._autouse_isolation import (  # noqa: F401 (autouse guards)
 from tests._no_browser_launch import no_real_browser  # noqa: F401 (autouse guard)
 
 # Point every setting at a throwaway location BEFORE findplus.config is imported.
-os.environ.setdefault("FINDPLUS_STATE_DIR", "/tmp/findplus-tests-state")
+# One state dir per pytest-xdist worker: the poller wake/reset flag files live there, and a
+# directory shared by parallel workers lets one worker consume or delete another's flag.
+# A serial run (no PYTEST_XDIST_WORKER) keeps the original path.
+_worker = os.environ.get("PYTEST_XDIST_WORKER")
+os.environ.setdefault(
+    "FINDPLUS_STATE_DIR",
+    "/tmp/findplus-tests-state" + (f"-{_worker}" if _worker else ""),
+)
 # Fixture servers started as subprocesses inherit this: nothing may open a real program.
 os.environ.setdefault("FINDPLUS_NO_LAUNCH", "1")
 # A daemon started by a test (a UI live server) checks for updates at start. Point that

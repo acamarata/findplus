@@ -13,26 +13,25 @@ from fastapi.testclient import TestClient
 
 from findplus.ingest import ingest_observations, upsert_device
 from tests._autouse_isolation import (  # noqa: F401 (autouse guards)
+    DEFAULT_STATE_DIR,
     _clear_poller_flag_files,
     _isolate_bind_env_vars,
     _replay_on_this_thread,
+    per_worker_state_dir,
 )
 from tests._no_browser_launch import no_real_browser  # noqa: F401 (autouse guard)
 
 # Point every setting at a throwaway location BEFORE findplus.config is imported.
-# One state dir per pytest-xdist worker: the poller wake/reset flag files live there, and a
-# directory shared by parallel workers lets one worker consume or delete another's flag.
-# A serial run (no PYTEST_XDIST_WORKER) keeps the original path.
-_worker = os.environ.get("PYTEST_XDIST_WORKER")
-os.environ.setdefault(
-    "FINDPLUS_STATE_DIR",
-    "/tmp/findplus-tests-state" + (f"-{_worker}" if _worker else ""),
-)
+os.environ.setdefault("FINDPLUS_STATE_DIR", DEFAULT_STATE_DIR)
 # Fixture servers started as subprocesses inherit this: nothing may open a real program.
 os.environ.setdefault("FINDPLUS_NO_LAUNCH", "1")
 # A daemon started by a test (a UI live server) checks for updates at start. Point that
 # check at a closed loopback port so no test, in this process or a child, reaches GitHub.
 os.environ.setdefault("FINDPLUS_UPDATE_API", "http://127.0.0.1:9")
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    per_worker_state_dir(config)
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:

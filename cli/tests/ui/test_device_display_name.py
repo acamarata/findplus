@@ -35,15 +35,15 @@ async def test_edit_button_aria_label_uses_the_display_name(page, base_url):
     assert "Home Tag" not in aria_label
 
 
-async def test_edit_dialog_title_uses_the_display_name_in_normal_case(page, base_url):
-    """The dialog title read the raw provider name, upper-cased by the
-    shared dialog `h2` rule ("EDIT HOME TAG"). It must read the label, and
-    components.css now exempts these three dialogs from the uppercase rule."""
+async def test_inline_editor_is_named_after_the_display_name(page, base_url):
+    """The editor group was named after the raw provider name ("Edit Home Tag")
+    even for a labelled tag. It must read the label, like every other surface,
+    and the Edit button reports that it expanded the row."""
     await _open_devices(page, base_url)
-    await page.click('.device-row[data-device-id="TAG-HOME"] .fp-device-edit')
-    dialog = page.locator("#fp-device-dialog")
-    await dialog.wait_for(state="visible")
-    title = page.locator("#fp-device-dialog-title")
-    assert await title.text_content() == f"Edit {LABEL}"
-    transform = await title.evaluate("(el) => getComputedStyle(el).textTransform")
-    assert transform == "none", transform
+    edit = page.locator('.device-row[data-device-id="TAG-HOME"] .fp-device-edit')
+    assert await edit.get_attribute("aria-expanded") == "false"
+    await edit.click()
+    editor = page.locator(".device-row.is-editing .device-edit")
+    await editor.wait_for(state="visible")
+    assert await editor.get_attribute("aria-label") == f"Edit {LABEL}"
+    assert await edit.get_attribute("aria-expanded") == "true"

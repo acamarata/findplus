@@ -17,6 +17,7 @@ SENTENCE = "#fp-group-quorum-sentence"
 
 async def test_the_sentence_follows_the_quorum_the_members_and_the_radius(page, base_url):
     await _open_add_dialog(page, base_url)
+    await page.click("#fp-group-advanced summary")
     sentence = page.locator(SENTENCE)
     assert "Tick members" in await sentence.inner_text()
     boxes = page.locator(f"{MEMBERS} input[data-device-id]:not([disabled])")

@@ -160,7 +160,7 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
 
   /* Touch targets. The checkbox and radio hit box is drawn around the
      control rather than resizing the control itself. */
-  .btn, .btn-tiny, .fp-tab { min-height: 44px; min-width: 44px; }
+  .btn, .btn-tiny, .fp-btn, .fp-tab { min-height: 44px; min-width: 44px; }
   input[type=checkbox], input[type=radio] { position: relative; }
   input[type=checkbox]::before, input[type=radio]::before {
     content: ""; position: absolute; left: 50%; top: 50%;
@@ -254,4 +254,9 @@ input:focus-visible, select:focus-visible, .fp-tab:focus-visible,
     scroll-margin-top: 8px;
     scroll-margin-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
   }
+}
+
+/* 1.3 polish U15: on a person or tracker page the phone shows the page, not the status strip. */
+@media (max-width: 768px) {
+  .fp-route-person .status-region, .fp-route-tracker .status-region { display: none; }
 }

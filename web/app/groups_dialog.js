@@ -27,7 +27,7 @@ import {
 } from "./groups_dialog_dom.js";
 import { groupBody, saveGroup } from "./groups_dialog_save.js";
 import { renderMemberList, applyMemberSelection } from "./groups_members.js";
-import { duplicateNameMessage } from "./dialog_errors.js";
+import { duplicateNameMessage, plainFailure } from "./dialog_errors.js";
 import { refreshQuorumWarning, quorumProblem, wireQuorumGuard } from "./groups_dialog_quorum.js";
 
 const DEFAULT_ICON = "lucide:users";
@@ -162,6 +162,7 @@ async function fillDialog(mode, id, group) {
   else delete dlg.dataset.editId;
   fields.title.textContent = mode === "edit" ? t("groups.dialog.title_edit") : t("groups.dialog.title_add");
   fields.error.textContent = "";
+  fields.advanced.open = false;
   // The member rows are fetched before anything is ticked: applyGroup would
   // otherwise look for checkboxes that do not exist yet. A 401 here means the
   // lock screen has taken the page, so there is nothing left to open; any
@@ -171,7 +172,7 @@ async function fillDialog(mode, id, group) {
     await populateMembers();
   } catch (err) {
     if (err.message === "Locked") return;
-    fields.error.textContent = err.message;
+    fields.error.textContent = plainFailure(err, "groups.error.membersLoadFailed");
   }
   applyGroup(group);
   dlg.showModal();
@@ -186,7 +187,7 @@ async function fillDialog(mode, id, group) {
  * earlier in fillDialog, surfaced the same way when the dialog exists.
  */
 function reportFillFailure(err) {
-  if (fields) fields.error.textContent = err.message;
+  if (fields) fields.error.textContent = plainFailure(err, "groups.error.membersLoadFailed");
 }
 
 export function showAddDialog() {
@@ -211,7 +212,7 @@ function handleSaveError(err) {
   // repr style ("group name 'Pets' already exists") -- a catalog sentence
   // when that is what happened, the raw message for anything else.
   const duplicate = duplicateNameMessage(err, "groups.error.duplicate_name", fields.name.value.trim());
-  fields.error.textContent = duplicate || err.message;
+  fields.error.textContent = duplicate || plainFailure(err, "groups.error.saveFailed");
   if (duplicate) fields.name.focus();
 }
 
@@ -233,6 +234,7 @@ async function onSave() {
   const quorumProblemText = quorumProblem(fields);
   if (quorumProblemText) {
     fields.error.textContent = quorumProblemText;
+    fields.advanced.open = true;
     fields.quorumN.focus();
     return;
   }

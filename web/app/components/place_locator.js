@@ -147,7 +147,7 @@ function createAddressSearch(searchInput, searchBtn, results, { onPick, setStatu
  * calls `refreshTrackers()`/`reset()` on it rather than rebuilding the DOM
  * every time the dialog opens.
  */
-export function createPlaceLocator(host, { onPick, onPickOnMap }) {
+export function createPlaceLocator(host, { onPick, onPickOnMap, onUseCentre }) {
   const dom = buildPlaceLocatorDom(host);
 
   function setStatus(text) {
@@ -157,6 +157,7 @@ export function createPlaceLocator(host, { onPick, onPickOnMap }) {
   const tracker = createTrackerPicker(dom.select, dom.useBtn, { onPick, setStatus });
   createAddressSearch(dom.searchInput, dom.searchBtn, dom.results, { onPick, setStatus });
   if (onPickOnMap) dom.pickMapBtn.addEventListener("click", onPickOnMap);
+  if (onUseCentre) dom.centreBtn.addEventListener("click", onUseCentre);
 
   function reset() {
     dom.select.value = "";
@@ -164,9 +165,16 @@ export function createPlaceLocator(host, { onPick, onPickOnMap }) {
     dom.results.hidden = true;
     dom.results.textContent = "";
     setStatus("");
+    setPicking(false);
   }
 
   tracker.refreshTrackers();
 
-  return { refreshTrackers: tracker.refreshTrackers, reset, showStatus: setStatus };
+  /** Reflect pick mode on the button (aria-pressed + the label that says what happens next). */
+  function setPicking(on) {
+    dom.pickMapBtn.setAttribute("aria-pressed", String(on));
+    dom.pickMapBtn.textContent = on ? t("places.field.pickingOnMap") : t("places.field.pickOnMap");
+  }
+
+  return { refreshTrackers: tracker.refreshTrackers, reset, showStatus: setStatus, setPicking };
 }

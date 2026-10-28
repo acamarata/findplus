@@ -70,7 +70,9 @@ async def test_icon_picker_renders_grouped_sections(page, base_url) -> None:
     assert await other.count() == 1
     # Every vendored Lucide icon plus the two non-glyph swatches (letter, none);
     # derived from the subset so adding an icon never silently breaks this.
-    expected = len(json.loads(SUBSET.read_text(encoding="utf-8"))) + 2
+    expected = (
+        len([e for e in json.loads(SUBSET.read_text(encoding="utf-8")) if e["group"] != "ui"]) + 2
+    )
     assert await page.locator("#picker-host .fp-icon-swatch").count() == expected
 
 

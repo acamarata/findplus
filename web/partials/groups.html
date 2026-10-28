@@ -1,10 +1,24 @@
-      <!-- The selector only helps once a group exists to pick; groups.js
-           shows it exactly then, so it never overlaps groups.empty below. -->
-      <p class="fp-tab-hint" id="fp-groups-tab-hint" hidden data-i18n="groups.tabHint">Once you have a group, use the selector above the map to pick it.</p>
-      <button id="fp-add-group-btn" type="button" class="btn"></button>
-      <div id="fp-groups-list"></div>
-      <!-- people_suggest.js: "We found people in your trackers" (never applied without a click). Below the cards, so
-           it never moves them when it loads. -->
-      <div id="fp-people-suggest" class="people-suggest"></div>
-      <div id="fp-group-legend"></div>
-      <div id="fp-presence-panel"></div>
+      <!-- People tab (people_pane.js + people_cards.js): People section, then "Other groups". -->
+      <section class="fp-people-section" aria-labelledby="fp-people-heading">
+        <header class="fp-section-head">
+          <h2 id="fp-people-heading" data-i18n="peoplePane.heading">People</h2>
+          <span id="fp-add-person-slot"></span>
+        </header>
+        <!-- people_suggest.js: "Find+ found 2 people in your trackers" + Review (never applied without a click). -->
+        <div id="fp-people-banner" class="people-banner" role="status" hidden></div>
+        <div id="fp-people-list"></div>
+        <!-- The full suggestions panel. Below the cards, so it never moves them when it loads. -->
+        <div id="fp-people-suggest" class="people-suggest"></div>
+      </section>
+      <section class="fp-people-section" aria-labelledby="fp-other-groups-heading">
+        <header class="fp-section-head">
+          <h2 id="fp-other-groups-heading" data-i18n="peoplePane.otherGroups">Other groups</h2>
+          <button id="fp-add-group-btn" type="button" class="btn"></button>
+        </header>
+        <!-- The selector only helps once a group exists to pick; groups.js
+             shows it exactly then, so it never overlaps groups.empty below. -->
+        <p class="fp-tab-hint" id="fp-groups-tab-hint" hidden data-i18n="groups.tabHint">Once you have a group, use the selector above the map to pick it.</p>
+        <div id="fp-groups-list"></div>
+        <div id="fp-group-legend"></div>
+        <div id="fp-presence-panel"></div>
+      </section>

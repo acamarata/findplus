@@ -28,7 +28,7 @@ async def test_only_the_active_tab_is_a_tab_stop(page, base_url):
     await page.goto(base_url + "/")
     await page.wait_for_selector("#map.leaflet-container")
     tabs = await _tabs(page)
-    assert [t["tab"] for t in tabs] == ["dashboard", "places", "groups", "alerts"]
+    assert [t["tab"] for t in tabs] == ["latest", "people", "activity", "places", "alerts"]
     assert tabs[0]["selected"] == "true" and tabs[0]["tabindex"] == 0
     for t in tabs[1:]:
         assert t["selected"] == "false" and t["tabindex"] == -1
@@ -37,19 +37,19 @@ async def test_only_the_active_tab_is_a_tab_stop(page, base_url):
 async def test_arrow_right_moves_focus_and_activates_the_next_tab(page, base_url):
     await page.goto(base_url + "/")
     await page.wait_for_selector("#map.leaflet-container")
-    await page.focus('.fp-tabs [data-tab="dashboard"]')
+    await page.focus('.fp-tabs [data-tab="latest"]')
     await page.keyboard.press("ArrowRight")
-    await page.wait_for_selector("#tab-places:not([hidden])")
+    await page.wait_for_selector("#tab-people:not([hidden])")
     focused = await page.evaluate("document.activeElement.dataset.tab")
-    assert focused == "places"
+    assert focused == "people"
     tabs = await _tabs(page)
-    assert next(t for t in tabs if t["tab"] == "places")["selected"] == "true"
+    assert next(t for t in tabs if t["tab"] == "people")["selected"] == "true"
 
 
 async def test_arrow_left_wraps_to_the_last_tab(page, base_url):
     await page.goto(base_url + "/")
     await page.wait_for_selector("#map.leaflet-container")
-    await page.focus('.fp-tabs [data-tab="dashboard"]')
+    await page.focus('.fp-tabs [data-tab="latest"]')
     await page.keyboard.press("ArrowLeft")
     await page.wait_for_selector("#tab-alerts:not([hidden])")
     focused = await page.evaluate("document.activeElement.dataset.tab")
@@ -59,7 +59,7 @@ async def test_arrow_left_wraps_to_the_last_tab(page, base_url):
 async def test_end_key_jumps_to_the_last_tab(page, base_url):
     await page.goto(base_url + "/")
     await page.wait_for_selector("#map.leaflet-container")
-    await page.focus('.fp-tabs [data-tab="dashboard"]')
+    await page.focus('.fp-tabs [data-tab="latest"]')
     await page.keyboard.press("End")
     focused = await page.evaluate("document.activeElement.dataset.tab")
     assert focused == "alerts"

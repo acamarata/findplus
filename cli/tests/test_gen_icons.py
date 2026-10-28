@@ -41,13 +41,13 @@ def _write_into(module: ModuleType, tmp_path: Path, monkeypatch) -> Path:
     return out
 
 
-def test_gen_icons_produces_49_symbols(tmp_path, monkeypatch) -> None:
-    """48 badge icons plus UAT2 U26's `bell` (the phone-tier tab bar)."""
+def test_gen_icons_produces_61_symbols(tmp_path, monkeypatch) -> None:
+    """48 badge icons, `bell` (phone tab bar) and 12 "ui" icons for the 1.3 buttons."""
     module = _load()
     text = _write_into(module, tmp_path, monkeypatch).read_text(encoding="utf-8")
     assert text.startswith('<svg id="fp-icon-sprite"')
     assert 'id="fp-icon-sprite"' in text
-    assert text.count('<symbol id="lucide-') == 49
+    assert text.count('<symbol id="lucide-') == 61
 
 
 def test_gen_icons_check_mode_detects_drift(tmp_path, monkeypatch) -> None:
@@ -70,7 +70,12 @@ def test_every_subset_id_has_a_vendored_svg() -> None:
 def test_every_symbol_carries_its_subset_group(tmp_path, monkeypatch) -> None:
     module = _load()
     text = _write_into(module, tmp_path, monkeypatch).read_text(encoding="utf-8")
-    assert text.count('data-group="') == 49
+    assert text.count('data-group="') == 61
     for entry in _subset(module):
         name = entry["id"].split(":", 1)[1]
         assert f'id="lucide-{name}" data-group="{entry["group"]}"' in text
+    ui = json.loads(module.UI_ICONS.read_text(encoding="utf-8"))
+    assert len(ui) == 12
+    for name in ui:
+        assert f'id="lucide-{name}" data-group="ui"' in text
+        assert (module.VENDOR_DIR / f"{name}.svg").exists(), name

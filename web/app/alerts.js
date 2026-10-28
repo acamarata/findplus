@@ -23,13 +23,14 @@ import {
   fillOptions,
   loadRules,
   openAddRuleDialog,
-  renderRulesTable,
+  renderRulesList,
   saveRule,
   updateRuleTargetVisibility,
   updateTelegramTargetsVisibility,
 } from "./alerts_rules.js";
 import { loadDeliveries, purgeDeliveries, wireDeliveryControls } from "./alerts_deliveries.js";
 import { wirePreview, resetPreview } from "./alerts_rule_preview.js";
+import { openChannel, wireChannelRows } from "./alerts_channel_rows.js";
 import {
   loadChannels,
   wireChannelControls,
@@ -69,6 +70,13 @@ function injectLatencyFallback() {
     el.textContent = t("honesty.alertsLatency");
   }
 }
+/** The wizard's "configure later" link (#alerts-webhook): main.js switches to this tab
+ *  and scrolls to the Webhook row; this unfolds its form too. */
+function wireWebhookHash() {
+  const open = () => { if (window.location.hash === "#alerts-webhook") openChannel("webhook"); };
+  window.addEventListener("hashchange", open);
+  open();
+}
 function wireStaticControls() {
   // Telegram/WhatsApp/webhook buttons are wired by alerts_channels.js itself
   // (loop1 split, findplus#238): this used to inline the same wiring against
@@ -76,6 +84,7 @@ function wireStaticControls() {
   // defined" on every boot and aborted main() before bootDashboard() ran
   // (loop1 regression, #tracks never rendered).
   wireChannelControls();
+  wireChannelRows();
   $("fp-add-rule-btn").addEventListener("click", openAddRuleDialog);
   $("fp-rule-save").addEventListener("click", saveRule);
   wirePreview();
@@ -94,6 +103,7 @@ function wireStaticControls() {
   $("fp-rule-channels").addEventListener("change", updateTelegramTargetsVisibility);
   $("fp-rule-telegram-all-chats").addEventListener("change", updateTelegramTargetsVisibility);
   wireWidgetToggle();
+  wireWebhookHash();
 }
 /* channels */
 /* widget toggle */
@@ -123,7 +133,7 @@ function wireWidgetToggle() {
 }
 /** lock.js purgeRenderedData() hook: device/place names must not survive the lock screen. */
 export function purge() {
-  renderRulesTable([]);
+  renderRulesList([]);
   purgeDeliveries();
   purgeChannels();
   ["fp-rule-place", "fp-rule-device", "fp-rule-group"].forEach((id) => fillOptions($(id), [], () => []));

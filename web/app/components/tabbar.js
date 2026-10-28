@@ -28,9 +28,10 @@ const SVG_NS = "http://www.w3.org/2000/svg";
  * own Lucide sprite (main.js's loadIconSprite(), same symbols icon-picker.js
  * and badge.js draw from) is already bundled and in the page at boot. */
 const TABS = [
-  { tab: "dashboard", icon: "lucide-house", labelKey: "common.tabDashboard" },
+  { tab: "latest", icon: "lucide-crosshair", labelKey: "common.tabLatest" },
+  { tab: "people", icon: "lucide-users", labelKey: "common.tabPeople" },
+  { tab: "activity", icon: "lucide-list", labelKey: "common.tabActivity" },
   { tab: "places", icon: "lucide-map-pin", labelKey: "common.tabPlaces" },
-  { tab: "groups", icon: "lucide-users", labelKey: "common.tabGroups" },
   { tab: "alerts", icon: "lucide-bell", labelKey: "common.tabAlerts" },
 ];
 
@@ -74,7 +75,7 @@ function tabButton(entry) {
  * back to the top (cards and filters); the others bring the map and their
  * pane into view. */
 function revealTab(tab) {
-  if (tab === "dashboard") {
+  if (tab === "latest") {
     window.scrollTo({ top: 0 });
     return;
   }
@@ -188,7 +189,9 @@ export function initTabbar() {
   // After the outer <nav>, not inside it: that <nav> is hidden at phone width
   // (UAT #18), and the bar must stay visible there.
   (tabs.closest("nav") || tabs).insertAdjacentElement("afterend", tabbarEl);
-  markCurrent("dashboard");
+  markCurrent("latest");
+  // Hash links, remembered tabs and other modules switch tabs too: follow them.
+  window.addEventListener("findplus:tab-changed", (e) => markCurrent(e.detail.tab));
 
   const menu = wireMoreMenu();
   const query = window.matchMedia(PHONE);

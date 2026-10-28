@@ -14,7 +14,8 @@ import { applyHashRoute, reload } from "./main.js";
 import { loadPresence } from "./places.js";
 import { plural, t } from "./i18n.js";
 import { renderBadge } from "./components/badge.js";
-import { initDialog, openEditDialog } from "./devices_dialog.js";
+import { initDialog } from "./devices_dialog.js";
+import { closeInlineEditor, toggleInlineEditor } from "./devices_inline.js";
 import { trapFocus } from "./components/dialog-trap.js";
 import { providerWording, syncProviderChrome, syncProviderNotice } from "./provider_chrome.js";
 import { loadStatus } from "./status_view.js";
@@ -96,16 +97,17 @@ function nameCell(d) {
   return cell;
 }
 
-/** The Edit button. The row is a <label>, so the click must not also tick it. */
+/** The row's Edit button: expands the row into its editor (devices_inline.js). */
 function editButton(d) {
   const edit = el("button", "fp-device-edit btn btn-tiny", t("common.edit"));
   edit.type = "button";
   // UAT2 N11: this read "Edit Moto Tag 1" (the raw provider name) even when
   // the tag had a label -- every other surface reads displayName() first.
   edit.setAttribute("aria-label", t("devices.card.edit", { name: displayName(d) }));
+  edit.setAttribute("aria-expanded", "false");
   edit.addEventListener("click", (e) => {
     e.preventDefault();
-    openEditDialog(d.device_id, d);
+    toggleInlineEditor(edit.closest(".device-row"), d, edit, afterInlineSave);
   });
   return edit;
 }
@@ -139,7 +141,31 @@ function deviceRow(d) {
   return row;
 }
 
+/** Which rows are ticked, by device id (a re-render must not lose unsaved ticks). */
+function tickedRows() {
+  const ticks = new Map();
+  document.querySelectorAll("#device-list .device-row").forEach((row) => {
+    ticks.set(row.dataset.deviceId, row.querySelector("input[type=checkbox]").checked);
+  });
+  return ticks;
+}
+
+/** After an inline save: reload the list, keep unsaved ticks, catch the dashboard up (U14). */
+async function afterInlineSave(deviceId) {
+  const ticks = tickedRows();
+  await loadDevices();
+  renderDeviceModal();
+  document.querySelectorAll("#device-list .device-row").forEach((row) => {
+    if (ticks.has(row.dataset.deviceId)) row.querySelector("input[type=checkbox]").checked = ticks.get(row.dataset.deviceId);
+  });
+  updateModalRate();
+  const again = document.querySelector(`#device-list .device-row[data-device-id="${CSS.escape(deviceId)}"] .fp-device-edit`);
+  if (again) again.focus();
+  await reload();
+}
+
 export function renderDeviceModal() {
+  closeInlineEditor();
   const host = $("device-list");
   while (host.firstChild) host.removeChild(host.firstChild);
   if (!state.devices.length) {
@@ -222,6 +248,7 @@ export async function openDevices() {
 
 /** Hide the dialog and hand focus back to whatever opened it. */
 export function closeDevices() {
+  closeInlineEditor();
   $("device-modal").classList.add("hidden");
   if (deviceTrap) {
     deviceTrap.release();

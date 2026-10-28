@@ -114,18 +114,21 @@ async function uploadFile(file, status, onUploaded) {
 /**
  * The file input row, wired to POST /api/icons/custom.
  *
- * UAT2 N10: a separate unstyled "Upload" button used to sit beside a raw
- * file input -- two steps for one action. Choosing a file now starts the
- * upload itself (there is nothing else to fill in first, unlike the Apple
- * accessory panel's name+file pair), and components.css styles the input's
- * own picker button (`::file-selector-button`) like `.btn-secondary`.
+ * UAT2 N10: choosing a file starts the upload itself (there is nothing else
+ * to fill in first, unlike the Apple accessory panel's name+file pair). 1.3
+ * (U13): the visible control is an "Upload your own" button that opens the
+ * hidden input, not the browser's bare file input.
  */
 function uploadRow(status, onUploaded) {
   const row = document.createElement("div");
   row.className = "fp-custom-icon-upload";
+  // The native input stays in the DOM (tests and assistive tech can reach it)
+  // but is visually hidden; a real button opens it (U13: no bare file input).
   const input = document.createElement("input");
   input.type = "file";
   input.accept = "image/png";
+  input.className = "sr-only";
+  input.tabIndex = -1;
   input.setAttribute("aria-label", t("icons.custom.upload"));
   input.addEventListener("change", () => {
     uploadFile(input.files[0], status, (id) => {
@@ -133,7 +136,12 @@ function uploadRow(status, onUploaded) {
       onUploaded(id);
     });
   });
-  row.append(input);
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "btn-secondary fp-custom-icon-upload-btn";
+  button.textContent = t("icons.custom.uploadButton");
+  button.addEventListener("click", () => input.click());
+  row.append(button, input);
   return row;
 }
 

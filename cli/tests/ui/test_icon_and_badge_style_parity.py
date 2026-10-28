@@ -20,7 +20,7 @@ async def _open_device_edit_dialog(page, base_url):
     await page.click("#btn-devices")
     await page.wait_for_selector("#device-modal:not(.hidden)")
     await page.click('.device-row[data-device-id="TAG-HOME"] .fp-device-edit')
-    await page.wait_for_selector("#fp-device-dialog[open]")
+    await page.wait_for_selector(".device-row.is-editing .device-edit")
     await page.wait_for_selector(".fp-custom-icons .fp-icon-grid", state="attached")
 
 
@@ -41,10 +41,10 @@ async def test_your_icons_heading_matches_the_lucide_category_headings(page, bas
     text-transform/weight/size rather than two different looks in the same
     picker."""
     await _open_device_edit_dialog(page, base_url)
-    your_icons_heading = page.locator("#fp-device-dialog .fp-custom-icons h4")
+    your_icons_heading = page.locator(".device-edit .fp-custom-icons h4")
     assert "fp-icon-group-heading" in (await your_icons_heading.get_attribute("class") or "")
-    category_style = await _style_of(page, "#fp-device-dialog .fp-icon-group-heading")
-    your_icons_style = await _style_of(page, "#fp-device-dialog .fp-custom-icons h4")
+    category_style = await _style_of(page, ".device-edit .fp-icon-group-heading")
+    your_icons_style = await _style_of(page, ".device-edit .fp-custom-icons h4")
     assert your_icons_style == category_style
 
 

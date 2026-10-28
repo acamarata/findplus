@@ -158,6 +158,18 @@ export function clampPopoverToViewport(host) {
   const dialogLimit = dlg ? dlg.getBoundingClientRect().right - 1 : viewportLimit;
   const overflow = host.getBoundingClientRect().right - Math.min(viewportLimit, dialogLimit);
   if (overflow > 0) host.style.left = `-${overflow}px`;
+  flipIfShortBelow(host, dlg);
+}
+
+/** A trigger near the dialog's foot (Advanced is open) opens the panel upward instead. */
+function flipIfShortBelow(host, dlg) {
+  host.style.top = "";
+  host.style.bottom = "";
+  const box = host.getBoundingClientRect();
+  const floor = Math.min(window.innerHeight, dlg ? dlg.getBoundingClientRect().bottom : window.innerHeight) - 1;
+  if (box.bottom <= floor) return;
+  host.style.top = "auto";
+  host.style.bottom = "calc(100% + 6px)";
 }
 
 /** A click outside both the open popover's host and its own trigger closes
@@ -179,6 +191,17 @@ function quorumSentenceEl() {
   sentence.setAttribute("role", "status");
   sentence.setAttribute("aria-live", "polite");
   return sentence;
+}
+
+/** The collapsed "Advanced" disclosure (U11) that holds how a group decides to alert. */
+function advancedDisclosure(rows) {
+  const advanced = document.createElement("details");
+  advanced.id = "fp-group-advanced";
+  advanced.className = "fp-group-advanced";
+  const summary = document.createElement("summary");
+  summary.textContent = t("groups.field.advanced");
+  advanced.append(summary, ...rows);
+  return advanced;
 }
 
 export function buildDialog({ onSave, onCancel }) {
@@ -210,14 +233,17 @@ export function buildDialog({ onSave, onCancel }) {
   const footer = document.createElement("footer");
   footer.append(button(t("common.save"), onSave, "btn"), button(t("common.cancel"), onCancel, "btn-secondary"));
 
-  form.append(
-    title, labeled(t("groups.field.name"), name, name.id), icon.wrap, color.wrap,
-    quorum.wrap, radius.wrap, sentence, stale.wrap, members.fieldset, error, footer,
-  );
+  // U11: the two things every group needs (name, members) come first; how it
+  // decides to alert sits in a collapsed "Advanced" disclosure.
+  const advanced = advancedDisclosure([quorum.wrap, radius.wrap, sentence, stale.wrap]);
+  const body = document.createElement("div");
+  body.className = "fp-group-body";
+  body.append(labeled(t("groups.field.name"), name, name.id), members.fieldset, icon.wrap, color.wrap, advanced);
+  form.append(title, body, error, footer);
   dlg.appendChild(form);
 
   const fields = {
-    title, name, error,
+    title, name, error, advanced,
     icon: iconValue, iconBtn: icon.btn, iconHost: icon.host,
     color: colorValue, colorBtn: color.btn, colorHost: color.host,
     quorum: quorum.select, quorumN: quorum.n, quorumWarn: quorum.warn, quorumSentence: sentence,

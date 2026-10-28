@@ -45,6 +45,9 @@ async def test_add_rule_requires_a_name(page, base_url):
     try:
         await _open_dialog_with_a_connected_channel(page, base_url)
         await page.select_option("#fp-rule-device", label="Ali's Keys")
+        # U12: the name fills itself in once a tracker and a place are chosen;
+        # it stays required, so an emptied field still refuses to save.
+        await page.fill("#fp-rule-name", "")
         # ruleFormIsValid()'s reportValidity() call runs synchronously at the
         # very top of saveRule(), before any await -- by the time click()
         # resolves (Playwright waits for the dispatched event to finish

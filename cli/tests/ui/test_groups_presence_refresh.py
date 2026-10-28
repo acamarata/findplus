@@ -45,6 +45,7 @@ async def test_stale_after_edit_refreshes_presence_panel_without_reselect(page, 
     await card.locator(".fp-card-edit").click()
     await page.wait_for_selector("#fp-group-dialog[open]")
     try:
+        await page.click("#fp-group-advanced summary")
         await page.fill("#fp-group-stale", "75")
         async with page.expect_response(
             lambda r: f"/api/groups/{family_id}/presence" in r.url and r.request.method == "GET"

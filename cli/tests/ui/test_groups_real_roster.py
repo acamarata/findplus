@@ -28,7 +28,7 @@ async def _open_add(page, base_url, width=1280, height=900):
     await page.set_viewport_size({"width": width, "height": height})
     await page.goto(base_url + "/")
     await page.wait_for_selector("#fp-add-group-btn", state="attached")
-    tab = page.locator('button[data-tab="groups"], .fp-tabbar [data-tabbar-tab="groups"]')
+    tab = page.locator('button[data-tab="people"], .fp-tabbar [data-tabbar-tab="people"]')
     await tab.locator("visible=true").first.click()
     await page.wait_for_selector('[data-fp-ready="groups"]')
     await page.click("#fp-add-group-btn")

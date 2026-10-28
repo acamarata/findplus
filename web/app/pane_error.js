@@ -5,6 +5,7 @@
  *              keep (or show nothing but) the previous content, so a failure
  *              looked like a quiet day or an empty list. This builds the one
  *              "error" state of the seven UI states, shared by both panes.
+ *              The raw `message` (server text) is kept in a collapsed Details, never the lead.
  * Inputs     : `title` and `message` (already translated), `retryLabel` and the
  *              `onRetry` callback.
  * Outputs    : A <div class="empty empty-state" data-pane-error role="alert">.
@@ -24,9 +25,19 @@ export function paneError({ title, message, onRetry }) {
   const heading = document.createElement("p");
   heading.className = "empty-title";
   heading.textContent = title;
+  // U29: the title is the plain sentence; the raw server text, if any, waits in a
+  // collapsed "Details" so nobody has to read "boom" to know to press Retry.
+  const plain = Boolean(message) && message.includes(t("common.networkDown"));
+  const detail = document.createElement("details");
+  detail.className = "empty-detail";
+  detail.hidden = plain || !message;
+  const summary = document.createElement("summary");
+  summary.textContent = t("common.errorDetails");
   const lead = document.createElement("p");
-  lead.className = "empty-lead";
-  lead.textContent = message;
+  lead.className = plain ? "empty-lead" : "empty-lead empty-lead--raw";
+  lead.textContent = message || "";
+  if (plain) wrap.append(lead);
+  else detail.append(summary, lead);
   const row = document.createElement("div");
   row.className = "empty-actions";
   const retry = document.createElement("button");
@@ -35,6 +46,7 @@ export function paneError({ title, message, onRetry }) {
   retry.textContent = t("common.retry");
   retry.addEventListener("click", () => onRetry());
   row.appendChild(retry);
-  wrap.append(heading, lead, row);
+  wrap.prepend(heading);
+  wrap.append(row, detail);
   return wrap;
 }

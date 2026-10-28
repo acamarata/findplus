@@ -740,9 +740,15 @@ Post Place
       "title": "Radius Meters"
     },
     "color": {
-      "type": "string",
-      "title": "Color",
-      "default": "#2f80ed"
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Color"
     },
     "enter_confirmations": {
       "type": "integer",
@@ -1003,9 +1009,15 @@ Post Group
       "title": "Name"
     },
     "color": {
-      "type": "string",
-      "title": "Color",
-      "default": "#27ae60"
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Color"
     },
     "icon": {
       "type": "string",

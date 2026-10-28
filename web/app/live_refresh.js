@@ -29,6 +29,7 @@ import { loadDevices } from "./devices.js";
 import { setDefaultView } from "./map.js";
 import { anyProviderSignedIn, resetSignedInCache } from "./poll_status.js";
 import { bannerRun } from "./poll_cycle.js";
+import { announceDataRefreshed } from "./panel_tabs.js";
 
 /** Cadences (ms). SLOW is replaced by ui_refresh_seconds at start. */
 export const WAITING_MS = 3000;
@@ -66,6 +67,7 @@ async function refreshData(gen) {
   if (state.lockGeneration !== gen) return false;
   if (!state.markers.size) await setDefaultView().catch(() => {});
   import("./left_behind_chips.js").then((m) => m.refreshLeftBehind()).catch(() => {});
+  announceDataRefreshed(); // the visible side-panel pane redraws (panel_tabs.js contract)
   return true;
 }
 

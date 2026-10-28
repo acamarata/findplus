@@ -1,8 +1,10 @@
 /*
- * Onboarding step 4 — Groups (optional).
+ * Onboarding step 4 — People and groups (optional).
  *
- * Purpose    : Show the groups that already exist and offer one inline form to
- *              create another from the devices picked a step earlier
+ * Purpose    : Offer Find+'s "we found people" suggestions and a compact "Add a
+ *              person" form (_person_add.js). The optional group form, which used
+ *              to lead the step, now sits behind "Add a group instead" (1.3, U30);
+ *              it creates a group from the devices picked a step earlier
  *              (specs/onboarding.md § 4 row 4).
  * Inputs     : ctx.api / ctx.postJson / ctx.state, handed down by the Wizard.
  * Outputs    : POST /api/groups, once per Add click.
@@ -32,10 +34,12 @@ import { renderMemberList } from "../groups_members.js";
 import { labeled } from "../groups_dialog_fields.js";
 import { duplicateNameMessage } from "../dialog_errors.js";
 import { createGroupPickers, DEFAULT_ICON } from "./_group_pickers.js";
+import { buildPersonAdd } from "./_person_add.js";
 
 /** The live step's elements and picker handle, replaced on every render. */
 let els = null;
 let pickers = null;
+let person = null;
 
 /** N45: a duplicate name (409) used to only log to the console -- ctx.showAlert
  * writes into #alert inside #app-shell, hidden for the whole time the wizard
@@ -134,6 +138,7 @@ async function refresh(ctx) {
   let devices = ctx.state.devices || [];
   if (!devices.length) devices = (await ctx.api("/api/devices")).devices || [];
   renderMembers(els.members, devices);
+  if (person) person.setDevices(devices);
 }
 
 /** The "Add group" button: a failed add shows its reason (a duplicate name quotes the typed name). */
@@ -152,6 +157,38 @@ function buildAddButton(ctx) {
   return add;
 }
 
+/** The optional group form, folded behind "Add a group instead" (U30). */
+function buildGroupForm(ctx) {
+  const details = document.createElement("details");
+  details.id = "fp-setup-groups-more";
+  details.className = "fp-setup-groups-more";
+  const summary = document.createElement("summary");
+  summary.textContent = t("setup.groups.group_instead");
+  const groupsHead = document.createElement("h3");
+  groupsHead.className = "fp-wizard-subhead";
+  groupsHead.textContent = t("setup.groups.groups_title");
+  const groupsLead = document.createElement("p");
+  groupsLead.className = "fp-wizard-lead";
+  groupsLead.textContent = `${t("setup.groups.lead")} ${t("setup.groups.skip_hint")}`;
+  const list = document.createElement("div");
+  list.id = "fp-setup-groups-list";
+  const { name, nameField } = buildNameField();
+  // Built after `name` exists: the icon preview reads it live for the
+  // bare-"letter" fallback initial.
+  pickers = createGroupPickers(name);
+  const members = document.createElement("div");
+  members.id = "fp-setup-group-members";
+  const error = groupErrorEl();
+  els = { list, name, members, error };
+  // nameField already carries `name` (labeled() moved it into its own
+  // wrapper) -- appending `name` again here would rip it back out.
+  details.append(
+    summary, groupsHead, groupsLead, list, nameField, pickers.iconWrap, pickers.colorWrap,
+    members, error, buildAddButton(ctx)
+  );
+  return details;
+}
+
 export default {
   id: "groups",
   canSkip: true,
@@ -159,41 +196,16 @@ export default {
     container.textContent = "";
     const heading = document.createElement("h2");
     heading.textContent = t("setup.groups.title");
-    const groupsHead = document.createElement("h3");
-    groupsHead.className = "fp-wizard-subhead";
-    groupsHead.textContent = t("setup.groups.groups_title");
-
-    const groupsLead = document.createElement("p");
-    groupsLead.className = "fp-wizard-lead";
-    groupsLead.textContent = `${t("setup.groups.lead")} ${t("setup.groups.skip_hint")}`;
-
-    const list = document.createElement("div");
-    list.id = "fp-setup-groups-list";
-
-    const { name, nameField } = buildNameField();
-
-    // Built after `name` exists: the icon preview reads it live for the
-    // bare-"letter" fallback initial.
-    pickers = createGroupPickers(name);
-
-    const members = document.createElement("div");
-    members.id = "fp-setup-group-members";
-
-    const add = buildAddButton(ctx);
-
-    const error = groupErrorEl();
-
-    els = { list, name, members, error };
-    // nameField already carries `name` (labeled() moved it into its own
-    // wrapper) -- appending `name` again here would rip it back out.
-    container.append(
-      heading, groupsHead, groupsLead, list, nameField, pickers.iconWrap, pickers.colorWrap, members, error, add
-    );
-    container.addEventListener("click", (e) => pickers.closeIfOutside(e.target));
+    const lead = document.createElement("p");
+    lead.className = "fp-wizard-lead";
+    lead.textContent = t("setup.groups.people_lead");
     // Find+'s guesses from tracker names ("Sam Bag", "Sam Bike"): one click makes a person.
     const people = document.createElement("div");
     people.id = "fp-setup-people-suggest";
-    heading.after(people);
+    const reloadSuggestions = () => import("../people_suggest.js").then((m) => m.load());
+    person = buildPersonAdd(ctx, { onAdded: reloadSuggestions });
+    container.append(heading, lead, people, person.root, buildGroupForm(ctx));
+    container.addEventListener("click", (e) => pickers.closeIfOutside(e.target));
     import("../people_suggest.js").then((m) => m.mountSuggestions(people, { wizard: true, onChange: () => refresh(ctx) }));
   },
   async onEnter(ctx) {

@@ -20,13 +20,13 @@ async def _open_group(page, base_url):
     # while hidden (loadGroups/selectGroup run regardless of the active
     # tab), but a "visible" wait needs the panel actually shown, same as a
     # real user clicking the tab.
-    await page.click('button[data-tab="groups"]')
+    await page.click('button[data-tab="people"]')
     await page.wait_for_selector("#fp-presence-panel .fp-verdict")
 
 
 async def test_groups_tab_visible(page, base_url):
     await page.goto(base_url + "/")
-    await page.wait_for_selector('button[data-tab="groups"]')
+    await page.wait_for_selector('button[data-tab="people"]')
 
 
 async def test_group_selector_populated(page, base_url):
@@ -225,7 +225,7 @@ async def test_tab_hint_goes_away_once_a_group_is_picked(page, base_url):
     after Family was picked. It shows again when the selection is cleared."""
     await page.goto(base_url + "/")
     await page.wait_for_selector('#fp-group-select option[value]:not([value=""])', state="attached")
-    await page.click('button[data-tab="groups"]')
+    await page.click('button[data-tab="people"]')
     hint = page.locator("#fp-groups-tab-hint")
     await hint.wait_for(state="visible")
     await page.select_option("#fp-group-select", label="Family")

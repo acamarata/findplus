@@ -19,10 +19,15 @@ def pid(trips_server):
     return ensure_person(trips_server)
 
 
-async def _send_route(page, reply, seen):
+async def _send_route(page, reply, seen, release=None):
     async def handler(route):
         seen.append(json.loads(route.request.post_data or "{}"))
-        await asyncio.sleep(0.25)
+        # A test that checks the in-flight state passes `release` so the reply
+        # waits for it; a fixed sleep races a loaded runner.
+        if release is None:
+            await asyncio.sleep(0.25)
+        else:
+            await release.wait()
         await route.fulfill(**reply)
 
     await page.route("**/api/people/*/day/send", handler)
@@ -30,6 +35,7 @@ async def _send_route(page, reply, seen):
 
 async def test_send_reports_where_it_went_and_posts_once(trips_page, trips_server, pid):
     seen: list = []
+    release = asyncio.Event()
     await _send_route(
         trips_page,
         {
@@ -40,12 +46,14 @@ async def test_send_reports_where_it_went_and_posts_once(trips_page, trips_serve
             }
         },
         seen,
+        release,
     )
     day = await open_person(trips_page, trips_server, pid)
     p = trips_page
     assert "Send this day's summary" in await p.inner_text("#person-send")
     await p.click("#person-send")
     assert await p.is_disabled("#person-send"), "no second click while the first is out"
+    release.set()
     await p.get_by_text("Sent to Telegram.").wait_for()
     assert seen == [{"date": day}]
     assert await p.is_enabled("#person-send")
@@ -142,5 +150,5 @@ async def test_edit_person_opens_the_person_editor_not_the_group_dialog(
     assert await p.locator("#fp-person-dialog input[name=pe-kind]").count() == 2
     await p.keyboard.press("Escape")
     await p.get_by_role("button", name="Full map").click()
-    await p.wait_for_selector("#tab-dashboard", state="visible")
+    await p.wait_for_selector("#tab-latest", state="visible")
     assert await p.input_value("#fp-group-select") == str(pid)

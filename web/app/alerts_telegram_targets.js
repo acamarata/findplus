@@ -98,8 +98,8 @@ function renderCurrentTargetsChips(telegram) {
  *
  * UAT6 N15: Targets/Save targets/Find chat IDs used to be live before a bot
  * was ever connected, answering "Telegram not configured" only once clicked
- * -- disabled here instead, with the one-line reason
- * (#fp-tg-targets-disabled-reason, static markup) shown in its place.
+ * -- disabled here instead, and hidden by alerts.css until
+ * the channel is connected (U31: no greyed-out controls).
  *
  * UAT7 N04: the field itself is add-only -- it always renders empty, never
  * the stored comma list, so adding one chat never means retyping every
@@ -113,7 +113,6 @@ export function renderTelegramTargets(telegram) {
   $("fp-tg-save-targets").disabled = !configured;
   $("fp-tg-find-chats").disabled = !configured;
   el.disabled = !configured;
-  $("fp-tg-targets-disabled-reason").classList.toggle("hidden", configured);
   currentTargetIds = configured ? telegram.target_ids || [] : [];
   renderCurrentTargetsChips(telegram);
   if (document.activeElement === el) return;
@@ -235,7 +234,7 @@ function renderChatsList(chats) {
     const alreadyAdded = currentTargetIds.includes(String(chat.id));
     const addBtn = document.createElement("button");
     addBtn.type = "button";
-    addBtn.className = "btn btn-secondary";
+    addBtn.className = "fp-btn fp-btn--secondary";
     addBtn.textContent = alreadyAdded ? t("alerts.chatAlreadyAdded") : t("alerts.addTarget");
     addBtn.disabled = alreadyAdded;
     if (!alreadyAdded) addBtn.addEventListener("click", () => addTargetToField(chat.id));
@@ -272,7 +271,6 @@ export function purgeTelegramTargets() {
   $("fp-tg-targets").disabled = true;
   $("fp-tg-save-targets").disabled = true;
   $("fp-tg-find-chats").disabled = true;
-  $("fp-tg-targets-disabled-reason").classList.remove("hidden");
   $("fp-tg-targets-status").textContent = "";
   currentTargetIds = [];
   renderChatsList([]);

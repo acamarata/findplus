@@ -63,12 +63,14 @@ async def test_gap_day_has_silent_trip_and_stray(trips_page, trips_server):
 async def test_switch_to_raw_and_back(trips_page, trips_server):
     await open_day(trips_page, trips_server, "school")
     await trips_page.wait_for_selector(".story-item")
-    await trips_page.click("#view-raw")
+    await trips_page.click("#fp-latest-focus [data-view=raw]")
     await trips_page.wait_for_selector(".tl-item")
     assert await trips_page.locator("#story").is_hidden()
     assert await trips_page.locator(".marker-num").count() > 0
-    assert await trips_page.get_attribute("#view-raw", "aria-pressed") == "true"
-    await trips_page.click("#view-story")
+    assert (
+        await trips_page.get_attribute("#fp-latest-focus [data-view=raw]", "aria-pressed") == "true"
+    )
+    await trips_page.click("#fp-latest-focus [data-view=story]")
     await trips_page.wait_for_selector(".story-item")
     assert await trips_page.locator(".tl-item").count() == 0
 

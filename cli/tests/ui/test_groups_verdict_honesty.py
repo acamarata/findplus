@@ -30,7 +30,7 @@ async def _open_group(page, base_url):
     await page.goto(base_url + "/")
     await page.wait_for_selector("#fp-group-select")
     await page.select_option("#fp-group-select", label="Family")
-    await page.click('button[data-tab="groups"]')
+    await page.click('button[data-tab="people"]')
     await page.wait_for_selector("#fp-presence-panel .fp-verdict")
 
 

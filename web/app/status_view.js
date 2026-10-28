@@ -55,6 +55,8 @@ function renderPollerDot(s) {
     kind = "warn";
     title = t("common.pollerFailing");
   }
+  const word = $("live-word");
+  if (word) word.textContent = t({ live: "common.liveWordLive", stale: "common.liveWordStopped", warn: "common.liveWordProblem", idle: "common.liveWordIdle" }[kind]);
   dot.className = "dot " + kind;
   dot.title = title;
   dot.dataset.health = kind;
@@ -171,7 +173,8 @@ async function renderStatusAlert(s) {
   } else if (!s.poller_running) {
     showAlert(t("pollStatus.bannerServiceStale"), "warn", {
       action: { label: t("pollStatus.actionPollNow"), run: () => $("btn-poll").click() },
-      hint: t("pollStatus.serviceStaleHint"),
+      details: t("pollStatus.serviceStaleHint"),
+      dismissKey: "service-stale",
     });
   } else {
     const why = zeroNewMessage(s);

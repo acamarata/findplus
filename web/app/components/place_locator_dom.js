@@ -79,20 +79,26 @@ function buildTrackerRow() {
   return { row, select, useBtn };
 }
 
-/** N13: "click/tap the map to set the center" -- place_locator.js wires this
- * to a caller-supplied callback (places_dialog.js's beginMapPick()) rather
- * than owning the map itself, the same separation the tracker row keeps
- * between "pick a coordinate" and "apply it". */
+/** U5: "Use map centre" and "Pick on map" work on the live map beside the sheet.
+ * place_locator.js wires both to callbacks the place sheet supplies (it owns the
+ * map and the fields); both rows are hidden when the map is not on screen
+ * (the sheet then opens as a plain dialog: `.fp-map-only`). */
 function buildMapPickRow() {
+  const centreBtn = document.createElement("button");
+  centreBtn.type = "button";
+  centreBtn.className = "btn btn-tiny";
+  centreBtn.id = "fp-place-use-centre-btn";
+  centreBtn.textContent = t("places.field.useMapCentre");
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "btn btn-tiny";
   btn.id = "fp-place-pick-map-btn";
+  btn.setAttribute("aria-pressed", "false");
   btn.textContent = t("places.field.pickOnMap");
   const row = document.createElement("div");
-  row.className = "fp-dialog-field";
-  row.append(btn);
-  return { row, btn };
+  row.className = "fp-dialog-field fp-map-only fp-place-mapbtns";
+  row.append(centreBtn, btn);
+  return { row, btn, centreBtn };
 }
 
 function buildSearchGroup() {
@@ -143,12 +149,13 @@ export function buildPlaceLocatorDom(host) {
   status.className = "fp-field-hint";
   status.id = "fp-place-locator-status";
 
-  host.append(tracker.row, mapPick.row, search.group, status);
+  host.append(mapPick.row, search.group, tracker.row, status);
 
   return {
     select: tracker.select,
     useBtn: tracker.useBtn,
     pickMapBtn: mapPick.btn,
+    centreBtn: mapPick.centreBtn,
     searchInput: search.searchInput,
     searchBtn: search.searchBtn,
     results: search.results,

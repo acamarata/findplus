@@ -161,7 +161,7 @@ async def test_editing_a_narrowed_rule_reopens_with_its_subset_ticked(
     rule_id = (await create_resp.json())["id"]
     try:
         await open_alerts_tab(page, base_url)
-        row = page.locator("#fp-rules-tbody tr", has_text="narrowed")
+        row = page.locator("#fp-rules-list .fp-rule-card", has_text="narrowed")
         await row.wait_for(state="visible")
         await row.get_by_text("Edit", exact=True).click()
         await page.wait_for_selector("#fp-add-rule-dialog[open]")

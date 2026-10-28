@@ -49,8 +49,8 @@ async def _wait_for_map_settled(page):
 async def test_presence_chip_appears(page, base_url):
     await _open_dashboard(page, base_url)
     await page.click("#btn-devices")
-    await page.wait_for_selector('[data-device-id="TAG-HOME"]')
-    chip = page.locator('[data-device-id="TAG-HOME"] .fp-presence-chip')
+    await page.wait_for_selector('#device-modal [data-device-id="TAG-HOME"]')
+    chip = page.locator('#device-modal [data-device-id="TAG-HOME"] .fp-presence-chip')
     await chip.wait_for(state="visible")
     assert "Home" in await chip.inner_text()
 

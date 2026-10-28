@@ -59,18 +59,18 @@ async function fullMap(person) {
   window.location.hash = "";
   const groups = await import("./groups.js");
   groups.selectGroupById(person.id);
-  (await import("./main.js")).switchTab("dashboard");
+  (await import("./main.js")).switchTab("latest");
 }
 
 /** Fill the action row for `person` on `date`. */
 export function renderActions(person, date, setStatus) {
-  const send_ = button(date === todayLocal() ? t("person.act.send") : t("person.act.sendDay"), "btn", () => send(send_, person, date, setStatus));
+  const send_ = button(date === todayLocal() ? t("person.act.send") : t("person.act.sendDay"), "fp-btn fp-btn--secondary", () => send(send_, person, date, setStatus));
   send_.id = "person-send";
   $("person-actions").replaceChildren(
     send_,
-    button(t("person.act.notifyMe"), "btn-secondary", () => notifyMe(person, setStatus)),
-    button(t("person.act.edit"), "btn-secondary", () => editPerson(person)),
-    button(t("person.act.fullMap"), "btn-secondary", () => fullMap(person)),
+    button(t("person.act.notifyMe"), "fp-btn fp-btn--secondary", () => notifyMe(person, setStatus)),
+    button(t("person.act.edit"), "fp-btn fp-btn--secondary", () => editPerson(person)),
+    button(t("person.act.fullMap"), "fp-btn fp-btn--secondary", () => fullMap(person)),
   );
 }
 

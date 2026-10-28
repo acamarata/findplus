@@ -8,6 +8,7 @@
  */
 "use strict";
 
+import { wireExportPopover } from "./export_popover.js";
 import { $, state, fmtDateTime, fmtDuration, todayLocal, showAlert } from "./state.js";
 import { api, postJson } from "./api.js";
 import { renderMap } from "./map.js";
@@ -62,6 +63,7 @@ function showLoadError(day, err, key) {
   host.replaceChildren(
     paneError({ title: t("timeline.loadFailedTitle"), message: err.message, onRetry: () => loadDay(day) })
   );
+  window.dispatchEvent(new CustomEvent("findplus:tracks-rendered"));
 }
 
 /** The pane while a NEW selection loads, so it is never blank (UAT #13). */
@@ -180,6 +182,7 @@ export function wireTimelineControls() {
   });
 
   $("btn-export").addEventListener("click", startExport);
+  wireExportPopover();
 
   $("btn-latest").addEventListener("click", async () => {
     try {

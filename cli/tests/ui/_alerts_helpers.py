@@ -24,7 +24,16 @@ import json
 import sqlite3
 
 
-async def open_alerts_tab(page, base_url) -> None:
+async def open_channel_forms(page) -> None:
+    """Unfold every channel row's form (dashboard 1.3 folds them by default).
+    Tests that type into the Telegram/webhook/WhatsApp fields call this, or let
+    open_alerts_tab() do it; the folding itself is tested in test_alerts_channel_rows.py."""
+    toggles = page.locator('[data-channel-toggle][aria-expanded="false"]')
+    while await toggles.count():
+        await toggles.first.click()
+
+
+async def open_alerts_tab(page, base_url, *, open_channels: bool = True) -> None:
     """Navigate to `/` and switch to the Alerts tab; shared by every
     test_alerts_*.py file (split from test_alerts.py, E13 loop3 L3-4).
 
@@ -58,6 +67,8 @@ async def open_alerts_tab(page, base_url) -> None:
     await page.click('button[data-tab="alerts"]')
     await page.wait_for_selector("#fp-telegram-section")
     await page.wait_for_selector('[data-fp-ready="alerts"]')
+    if open_channels:
+        await open_channel_forms(page)
 
 
 async def _create_rule(page, base_url: str, name: str, channels: list[str]) -> int:

@@ -104,17 +104,26 @@ async def test_save_is_in_view_on_a_phone(page, base_url):
     assert await page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
 
 
-async def test_two_columns_on_a_wide_screen_one_on_a_phone(page, base_url):
+async def test_right_hand_sheet_on_desktop_bottom_sheet_on_a_phone(page, base_url):
     await page.set_viewport_size({"width": 1280, "height": 900})
     await open_add_dialog(page, base_url)
-    cols = await page.locator(".fp-place-col").evaluate_all(
-        "(els) => els.map((e) => e.getBoundingClientRect().left)"
+    dlg = page.locator("#fp-place-dialog")
+    assert await dlg.get_attribute("data-sheet") == "1"
+    box = await dlg.bounding_box()
+    assert box["x"] + box["width"] == 1280 and box["width"] <= 400
+    assert (
+        await page.locator(".fp-place-cols").evaluate("(e) => getComputedStyle(e).display")
+        == "block"
     )
-    assert cols[0] < cols[1]
-    await page.set_viewport_size({"width": 375, "height": 900})
-    await page.locator("#fp-place-dialog").get_by_role("button", name="Cancel").click()
+    # The map stays visible and un-dimmed to the sheet's left.
+    map_box = await page.locator("#map").bounding_box()
+    assert map_box["x"] + map_box["width"] <= box["x"] + 1
+    await dlg.get_by_role("button", name="Cancel").click()
+    await page.set_viewport_size({"width": 375, "height": 800})
     await _open_on_phone(page, base_url)
-    cols = await page.locator(".fp-place-col").evaluate_all(
-        "(els) => els.map((e) => e.getBoundingClientRect().left)"
+    box = await dlg.bounding_box()
+    assert box["y"] + box["height"] == 800 and box["width"] == 375
+    map_box = await page.locator("#map").bounding_box()
+    assert map_box["y"] + map_box["height"] <= box["y"] + 1, (
+        "the map is visible above the bottom sheet"
     )
-    assert cols[0] == cols[1]

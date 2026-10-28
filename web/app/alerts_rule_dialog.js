@@ -27,6 +27,7 @@ import { BASE_CHANNELS, availableChannels, connectedChannels, channelLabels, tel
 import { fillLoading, fillOptions, populateRuleSelects } from "./alerts_rule_selects.js";
 import { seedTelegramTargetsFields, updateTelegramTargetsVisibility } from "./alerts_rule_telegram_targets.js";
 import { saveRuleWith } from "./alerts_rule_save.js";
+import { resetAutoName } from "./alerts_rule_autoname.js";
 import { refreshPreview, resetPreview, setPreviewContext } from "./alerts_rule_preview.js";
 
 // Re-exported: alerts_rules.js's own `export { fillOptions, ... } from
@@ -94,6 +95,7 @@ function defaultSelectedChannels(rule, initialChannels, available, connected) {
  *  long as one created with `findplus alerts add` (E1 honesty round 3 F9). */
 function seedRuleFields(rule) {
   $("fp-rule-name").value = rule ? rule.name : "";
+  resetAutoName(!rule);
   $("fp-rule-on-enter").checked = rule ? rule.on_enter : true;
   $("fp-rule-on-exit").checked = rule ? !!rule.on_exit : false;
   $("fp-rule-cooldown").value = String(rule ? rule.cooldown_minutes : 30);

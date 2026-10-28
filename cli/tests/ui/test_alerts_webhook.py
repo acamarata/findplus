@@ -50,6 +50,10 @@ async def test_webhook_remove_disabled_until_configured(page, base_url):
     assert clear.ok, await clear.text()
     await open_alerts_tab(page, base_url)
     assert await page.is_disabled("#fp-webhook-remove")
+    # U31: nothing to remove or test yet, so neither shows (only Save does).
+    assert await page.locator("#fp-webhook-remove").is_hidden()
+    assert await page.locator("#fp-webhook-test").is_hidden()
+    assert await page.locator("#fp-webhook-save").is_visible()
 
     save = await page.request.put(
         base_url + "/api/alerts/channels/webhook",
@@ -60,6 +64,7 @@ async def test_webhook_remove_disabled_until_configured(page, base_url):
     try:
         await open_alerts_tab(page, base_url)
         assert not await page.is_disabled("#fp-webhook-remove")
+        assert await page.locator("#fp-webhook-remove").is_visible()
     finally:
         await page.request.delete(base_url + "/api/alerts/channels/webhook")
 

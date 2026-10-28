@@ -161,7 +161,7 @@ function renderBanner() {
   const review = el("button", "btn btn-tiny", t("people.panel.review"));
   review.type = "button";
   review.addEventListener("click", async () => {
-    (await import("./main.js")).switchTab("groups");
+    (await import("./main.js")).switchTab("people");
     document.getElementById("fp-people-suggest")?.scrollIntoView({ block: "start" });
   });
   banner.replaceChildren(text, review);

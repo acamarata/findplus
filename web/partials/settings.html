@@ -19,32 +19,10 @@
     </p>
     <p id="settings-saved" class="settings-saved" role="status" aria-live="polite"></p>
 
-    <!-- The sign-in panel is the FIRST section of this dialog (ruling R-P2-8).
-         auth.js mounts the shared sign-in component (web/app/signin/panel.js)
-         into #fp-auth-cards at boot: the same Google Find Hub and Apple Find
-         My cards the setup wizard shows. They are built in JS from the
-         catalog, so no provider name sits in the served markup
-         (test_honesty_notices.py). The accessory-keys block below is moved
-         into the Apple card when the panel mounts. -->
-    <section id="fp-settings-signin" class="setting-group">
-      <h3 data-i18n="settings.signInHeading">Sign-in</h3>
-      <div id="fp-auth-cards"></div>
-      <!-- Accessory keys work without an Apple ID sign-in (extracted pairing
-           keys, same as `findplus apple add-accessory`), so this stays visible
-           regardless of fp-auth-apple-form's signed-in state (CF-P2-19). -->
-      <div id="fp-auth-apple-accessories">
-        <h4 class="fp-auth-subheading" data-i18n="auth.apple.accessories.heading">Accessory keys</h4>
-        <p class="modal-note" id="fp-auth-apple-accessory-notice"></p>
-        <label class="setting-row"><span data-i18n="auth.apple.accessories.name">Accessory name</span>
-          <input type="text" id="fp-auth-accessory-name"></label>
-        <label class="setting-row"><span data-i18n="auth.apple.accessories.file">Key file (.plist or .json)</span>
-          <input type="file" id="fp-auth-accessory-file" accept=".plist,.json"></label>
-        <button class="btn" id="fp-auth-accessory-add" type="button"
-                data-i18n="auth.apple.accessories.add">Add accessory</button>
-        <p id="fp-auth-accessory-status"></p>
-      </div>
-    </section>
-
+    <div class="settings-shell">
+      <nav class="settings-nav" id="settings-nav" aria-label="Settings sections"></nav>
+      <div class="settings-body" id="settings-body" tabindex="-1">
+    <div class="settings-section" id="settings-sec-general">
     <section class="setting-group">
       <h3 data-i18n="settings.appearanceHeading">Appearance</h3>
       <label class="setting-row">
@@ -120,18 +98,7 @@
         Older observations, place visits and group events are deleted automatically once a day.
         Leave blank to keep everything.
       </p>
-      <label class="setting-row" id="setting-native-detail-row" hidden>
-        <input type="checkbox" id="setting-native-detail">
-        <span data-i18n="settings.native_detail.label">Show who and where in notifications</span>
-      </label>
-      <!-- Bootstrap text only: applyStaticI18n() fills it at boot and
-           settings.js replaces it with the live /api/config.notices value, so
-           the sentence has exactly one source (honesty.py). -->
-      <p class="modal-note" id="setting-native-detail-note" data-i18n="settings.native_detail.note" hidden></p>
     </section>
-
-    <!-- settings_people.js fills this: daily summary, left-behind alerts, backup. -->
-    <section class="setting-group" id="fp-settings-people"></section>
 
     <!-- Hidden in a plain browser (U27): unhidden only when
          window.__findplus_native is true, see settings.js loadSettings(). -->
@@ -142,7 +109,59 @@
         <input type="checkbox" id="setting-start-at-login">
       </label>
     </section>
+    </div>
 
+    <div class="settings-section" id="settings-sec-signin">
+    <!-- The sign-in panel sits in its own nav section (ruling R-P2-8, reordered
+         in 1.3: General first, then this).
+         auth.js mounts the shared sign-in component (web/app/signin/panel.js)
+         into #fp-auth-cards at boot: the same Google Find Hub and Apple Find
+         My cards the setup wizard shows. They are built in JS from the
+         catalog, so no provider name sits in the served markup
+         (test_honesty_notices.py). The accessory-keys block below is moved
+         into the Apple card when the panel mounts. -->
+    <section id="fp-settings-signin" class="setting-group">
+      <h3 data-i18n="settings.signInHeading">Sign-in</h3>
+      <div id="fp-auth-cards"></div>
+      <!-- Accessory keys work without an Apple ID sign-in (extracted pairing
+           keys, same as `findplus apple add-accessory`), so this stays visible
+           regardless of fp-auth-apple-form's signed-in state (CF-P2-19). -->
+      <div id="fp-auth-apple-accessories">
+        <h4 class="fp-auth-subheading" data-i18n="auth.apple.accessories.heading">Accessory keys</h4>
+        <p class="modal-note" id="fp-auth-apple-accessory-notice"></p>
+        <label class="setting-row"><span data-i18n="auth.apple.accessories.name">Accessory name</span>
+          <input type="text" id="fp-auth-accessory-name"></label>
+        <label class="setting-row"><span data-i18n="auth.apple.accessories.file">Key file (.plist or .json)</span>
+          <input type="file" id="fp-auth-accessory-file" accept=".plist,.json"></label>
+        <button class="btn" id="fp-auth-accessory-add" type="button"
+                data-i18n="auth.apple.accessories.add">Add accessory</button>
+        <p id="fp-auth-accessory-status"></p>
+      </div>
+    </section>
+    </div>
+
+    <div class="settings-section" id="settings-sec-people">
+    <!-- settings_people.js fills this: daily summary, left-behind alerts, backup. -->
+    <section class="setting-group" id="fp-settings-people"></section>
+    </div>
+
+    <div class="settings-section" id="settings-sec-alerts">
+      <section class="setting-group" id="fp-settings-alerts">
+        <h3 data-i18n="settings.alertsHeading">Alerts and notifications</h3>
+        <div id="fp-settings-alerts-left"></div>
+      <label class="setting-row" id="setting-native-detail-row" hidden>
+        <input type="checkbox" id="setting-native-detail">
+        <span data-i18n="settings.native_detail.label">Show who and where in notifications</span>
+      </label>
+      <!-- Bootstrap text only: applyStaticI18n() fills it at boot and
+           settings.js replaces it with the live /api/config.notices value, so
+           the sentence has exactly one source (honesty.py). -->
+      <p class="modal-note" id="setting-native-detail-note" data-i18n="settings.native_detail.note" hidden></p>
+        <p class="modal-note" data-i18n="settings.alertsNoticesLink">The sentences about alert delay and stale trackers are under About and notices below.</p>
+      </section>
+    </div>
+
+    <div class="settings-section" id="settings-sec-lock">
     <section class="setting-group">
       <h3 data-i18n="settings.appLockHeading">App lock</h3>
       <!-- honesty.LOCK_NOT_ENCRYPTION is rendered once per screen: here, where
@@ -217,37 +236,9 @@
         </div>
       </div>
     </section>
+    </div>
 
-    <section class="setting-group danger-zone">
-      <h3 data-i18n="settings.deleteHistoryHeading">Delete history</h3>
-      <p class="modal-note" data-i18n="settings.deleteHistoryNote">
-        History is never deleted silently. Both actions show you exactly how many
-        observations would go, and ask again before anything is removed.
-      </p>
-      <label class="setting-row">
-        <span data-i18n="settings.deleteBefore">Delete observations before</span>
-        <input type="date" id="delete-before-date">
-      </label>
-      <div class="setting-actions">
-        <button class="btn btn-secondary" id="btn-delete-before" data-i18n="settings.deleteOlder">Delete older than…</button>
-        <button class="btn btn-danger" id="btn-clear-all" data-i18n="settings.clearAll">Clear ALL history</button>
-      </div>
-      <p id="delete-result" class="modal-rate" role="status"></p>
-    </section>
-
-    <section class="setting-group">
-      <h3 data-i18n="settings.backupHeading">Back up your settings</h3>
-      <p class="modal-note" data-i18n="settings.backupNote">
-        Saves your settings as a JSON file: theme, polling interval, how long history is kept
-        and the lock timeout. It leaves out your PIN, your sign-ins, your trackers and your
-        history. Export history with the Export control on the dashboard.
-      </p>
-      <div class="setting-actions">
-        <button class="btn btn-secondary" id="btn-export-settings" type="button"
-                data-i18n="settings.backupButton">Download settings</button>
-      </div>
-    </section>
-
+    <div class="settings-section" id="settings-sec-updates">
     <!-- settings_updates.js fills the status line and wires the buttons. The
          honesty sentence comes from /api/config.notices (notices.js). -->
     <section class="setting-group" id="setting-group-updates">
@@ -266,7 +257,26 @@
                 data-i18n="updates.updateNow">Update now</button>
       </div>
     </section>
+    </div>
 
+    <div class="settings-section" id="settings-sec-backups">
+    <section class="setting-group" id="fp-settings-backups">
+      <h3 data-i18n="settings.backupsHeading">Backups</h3>
+      <h4 class="ps-sub" data-i18n="settings.backupFileTitle">Settings file</h4>
+      <p class="modal-note" data-i18n="settings.backupNote">
+        Saves your settings as a JSON file: theme, polling interval, how long history is kept
+        and the lock timeout. It leaves out your PIN, your sign-ins, your trackers and your
+        history. Export history with the Export control on the dashboard.
+      </p>
+      <div class="setting-actions">
+        <button class="btn btn-secondary" id="btn-export-settings" type="button"
+                data-i18n="settings.backupButton">Download settings</button>
+      </div>
+      <div id="fp-settings-backup-db"></div>
+    </section>
+    </div>
+
+    <div class="settings-section" id="settings-sec-about">
     <section class="setting-group">
       <h3 data-i18n="settings.aboutHeading">About</h3>
       <p class="modal-note" id="settings-about"></p>
@@ -281,3 +291,26 @@
       <p class="modal-note" data-notice="presence_stale" id="fp-notice-presence-stale"></p>
       <p class="modal-note" data-notice="not_affiliated" id="fp-notice-not-affiliated"></p>
     </section>
+    </div>
+
+    <div class="settings-section" id="settings-sec-danger">
+    <section class="setting-group danger-zone">
+      <h3 data-i18n="settings.deleteHistoryHeading">Delete history</h3>
+      <p class="modal-note" data-i18n="settings.deleteHistoryNote">
+        History is never deleted silently. Both actions show you exactly how many
+        observations would go, and ask again before anything is removed.
+      </p>
+      <label class="setting-row">
+        <span data-i18n="settings.deleteBefore">Delete observations before</span>
+        <input type="date" id="delete-before-date">
+      </label>
+      <div class="setting-actions">
+        <button class="btn btn-secondary" id="btn-delete-before" data-i18n="settings.deleteOlder">Delete older than…</button>
+        <button class="btn btn-danger" id="btn-clear-all" data-i18n="settings.clearAll">Clear ALL history</button>
+      </div>
+      <p id="delete-result" class="modal-rate" role="status"></p>
+    </section>
+    </div>
+
+      </div>
+    </div>

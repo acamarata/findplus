@@ -236,3 +236,55 @@ input[type="file"]::file-selector-button:hover { filter: brightness(1.1); }
   margin: 2px 8px 6px 0;
 }
 
+
+/* --- 1.3 button system (web/app/components/button.js) ------------------ */
+/* One look for every action: primary (the one thing to do), secondary,
+   ghost (quiet, in-row), danger (outlined red; Delete, always confirms).
+   Colours are theme tokens only, so dark and light both hold contrast. */
+.fp-btn, .btn, .btn-primary, .btn-secondary, .btn-danger, .btn-tiny {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 32px; padding: 4px 12px; border: 1px solid transparent; border-radius: 8px;
+  font: inherit; font-size: 13px; font-weight: 550; line-height: 1.2; cursor: pointer;
+  background: var(--panel-2); color: var(--text); border-color: var(--line);
+  text-decoration: none; white-space: nowrap;
+}
+.fp-btn:hover:not(:disabled), .btn:hover:not(:disabled), .btn-secondary:hover:not(:disabled), .btn-tiny:hover:not(:disabled) { filter: brightness(1.12); }
+.fp-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.fp-btn:disabled, .fp-btn[aria-disabled="true"], .btn:disabled, .btn-secondary:disabled, .btn-tiny:disabled { opacity: .5; cursor: not-allowed; }
+.fp-btn .fp-btn-icon { width: 16px; height: 16px; flex: none; }
+.fp-btn--primary, .btn, .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.fp-btn--secondary, .btn-secondary, .btn-tiny:not(.btn-primary):not(.btn-danger) { background: var(--panel-2); border-color: var(--line-strong); color: var(--text); }
+.fp-btn--ghost { background: transparent; border-color: transparent; color: var(--text); }
+.fp-btn--ghost:hover:not(:disabled) { background: var(--panel-2); filter: none; }
+.fp-btn--danger, .btn-danger { background: transparent; border-color: var(--err); color: var(--err); }
+.fp-btn--danger:hover:not(:disabled), .btn-danger:hover:not(:disabled) { background: var(--err); color: var(--bg); filter: none; }
+.fp-btn--sm, .btn-tiny { min-height: 24px; padding: 2px 8px; font-size: 12px; border-radius: 6px; }
+.fp-btn--sm .fp-btn-icon { width: 14px; height: 14px; }
+.fp-btn--icon { padding: 4px; min-width: 32px; }
+.fp-btn--icon.fp-btn--sm { min-width: 24px; padding: 2px; }
+.fp-btn-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fp-btn.hidden, .fp-btn[hidden] { display: none; }
+/* App bar: the Add menu hangs under its button. */
+.fp-add-wrap { position: relative; display: inline-flex; }
+.fp-add-menu {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 1100; min-width: 160px;
+  display: flex; flex-direction: column; gap: 2px; padding: 4px;
+  background: var(--panel); border: 1px solid var(--line-strong); border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.35);
+}
+.fp-add-menu.hidden { display: none; }
+.fp-add-menu .fp-btn { justify-content: flex-start; }
+/* Small buttons stay 32px (Edit, Delete); 28px only for dense list rows. */
+.fp-btn--sm, .btn-tiny { min-height: 32px; }
+.fp-btn--xs { min-height: 28px; padding: 2px 8px; font-size: 12px; }
+
+/* 1.3 polish U35: Export is one ghost button; its controls sit in a popover. */
+.export-wrap { position: relative; display: inline-flex; }
+.export-wrap .export-group {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 1100; width: max-content; max-width: 90vw;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px;
+  background: var(--panel); border: 1px solid var(--line-strong); border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.35);
+}
+.export-wrap .export-group[hidden] { display: none; }
+.btn[hidden], .btn-secondary[hidden], .btn-danger[hidden], .btn-tiny[hidden], .btn-primary[hidden] { display: none; }

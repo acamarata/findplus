@@ -96,27 +96,96 @@
 /* The dialog grows as the sentence and help text change; anchoring it to the top
    (not the centre) and reserving two lines for the sentence and the checklist
    stops the form from jumping under the pointer while it is filled in. */
-#fp-add-rule-dialog { margin-top: 4vh; margin-bottom: auto; max-height: 92vh; overflow-y: auto; }
 .fp-rule-sentence { min-height: 2.9em; box-sizing: content-box; }
 #fp-rule-missing { min-height: 3em; }
+
+/* --- Rule dialog: title, a scrolling body, a footer that never leaves (U12) -- */
+#fp-add-rule-dialog { margin-top: 4vh; margin-bottom: auto; max-height: 92dvh; }
+#fp-add-rule-dialog[open] { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+#fp-add-rule-dialog form { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; margin: 0; }
+#fp-add-rule-dialog h2 { margin: 0; padding: 16px 20px 8px; }
+#fp-add-rule-dialog .fp-dialog-body { overflow-y: auto; min-height: 0; flex: 1 1 auto; padding: 0 20px 8px; }
+#fp-add-rule-dialog .fp-dialog-error { margin: 0; padding: 6px 20px 0; }
+#fp-add-rule-dialog .fp-dialog-error:empty { display: none; }
+#fp-add-rule-dialog footer {
+  margin: 0; padding: 12px 20px; border-top: 1px solid var(--line); background: var(--panel);
+}
+
+/* --- Checkboxes and radios: one size, one colour, aligned (U37) ------------ */
+#tab-alerts input[type="checkbox"]:not([role="switch"]),
+#fp-add-rule-dialog input[type="checkbox"],
+#fp-add-rule-dialog input[type="radio"] {
+  accent-color: var(--accent); width: 16px; height: 16px; margin: 0; flex: none;
+}
+#fp-add-rule-dialog .fp-rule-events label,
+#fp-add-rule-dialog .fp-channel-picker-option {
+  display: flex; align-items: center; gap: 8px; margin: 0; min-height: 28px;
+}
+.fp-rule-events { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; margin: 8px 0; }
+#fp-add-rule-dialog .fp-rule-target-row { grid-template-columns: 108px minmax(0, 1fr); }
+#fp-add-rule-dialog .fp-rule-target-row label { gap: 8px; }
+@media (max-width: 420px) {
+  #fp-add-rule-dialog .fp-rule-target-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}
+
+/* --- Rules: one compact card each (U4) ------------------------------------ */
+.fp-section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.fp-section-head h3 { margin: 0; }
+.fp-rule-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.fp-rule-card {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 12px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2);
+}
+.fp-rule-card[data-enabled="false"] .fp-rule-card-title { color: var(--muted); }
+.fp-rule-card-text { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.fp-rule-card-title { font-size: 14px; overflow-wrap: anywhere; }
+.fp-rule-row-sentence { display: block; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.fp-rule-card-controls { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.fp-rule-list[hidden], #fp-rules-empty[hidden] { display: none; }
+
+/* The on/off switch: a real checkbox, drawn as a switch. */
+.fp-switch { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); cursor: pointer; }
+.fp-switch input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none; position: relative; flex: none; cursor: pointer;
+  width: 36px; height: 20px; margin: 0 4px 0 0; border-radius: 10px; background: var(--line-strong);
+  transition: background .15s;
+}
+.fp-switch input[type="checkbox"]::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+  border-radius: 50%; background: #fff; transition: transform .15s;
+}
+.fp-switch input[type="checkbox"]:checked { background: var(--accent); }
+.fp-switch input[type="checkbox"]:checked::after { transform: translateX(16px); }
+.fp-switch input[type="checkbox"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.fp-switch-text { min-width: 2.2em; }
+@media (prefers-reduced-motion: reduce) {
+  .fp-switch input[type="checkbox"], .fp-switch input[type="checkbox"]::after { transition: none; }
+}
+
+/* --- Channels: one compact row each; the form folds away (U3, U31) ---------- */
+#fp-channels-section h3 { margin-bottom: 8px; }
+.fp-channel { margin-top: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); }
+.fp-channel-row { display: flex; align-items: center; gap: 12px; padding: 8px 12px; }
+.fp-channel-name {
+  flex: 1 1 auto; margin: 0; font-size: 14px; font-weight: 600; letter-spacing: 0;
+  text-transform: none; color: var(--text);
+}
+.fp-channel-state { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.fp-channel-state::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong); }
+.fp-channel[data-connected="true"] .fp-channel-state { color: var(--text); }
+.fp-channel[data-connected="true"] .fp-channel-state::before { background: var(--ok); }
+.fp-channel-body { padding: 4px 12px 12px; border-top: 1px solid var(--line); }
+.fp-channel-body[hidden] { display: none; }
+.fp-channel a { color: var(--badge-text); text-decoration: none; }
+.fp-channel a:hover { text-decoration: underline; }
+/* Send test, Clear, Add chats and the like do nothing before a connection:
+   hidden, not greyed out. The Connect (or Save) button is all that shows. */
+.fp-channel[data-connected="false"] [data-needs-connection] { display: none; }
 
 /* --- Delivery log filters ------------------------------------------------- */
 .fp-deliveries-tools { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
 .fp-deliveries-tools[hidden], #fp-deliveries-clear[hidden], #fp-deliveries-more[hidden],
 #fp-deliveries-count[hidden] { display: none; }
-
-/* --- "Where alerts go" strip ---------------------------------------------- */
-.fp-alerts-summary { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px; }
-.fp-alerts-summary:empty { display: none; }
-.fp-summary-chip {
-  font: inherit; font-size: 12px; padding: 3px 10px; border-radius: 9999px; cursor: pointer;
-  border: 1px solid var(--line); background: var(--panel-2); color: var(--text);
-}
-.fp-summary-chip[data-tone="on"] { border-color: var(--ok); }
-.fp-summary-chip[data-tone="off"] { color: var(--muted); }
-.fp-summary-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
-.fp-rule-row-sentence { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
 
 .fp-steps { margin: 4px 0 10px; padding-left: 20px; font-size: 13px; color: var(--muted); }
 .fp-steps li { margin: 2px 0; }

@@ -1,5 +1,5 @@
 /*
- * Settings: the people section (daily summary, left-behind alerts, backup).
+ * Settings: the People, Alerts and Backups sections' live controls.
  *
  * Purpose    : One place for what the people features send and keep: the evening
  *              summary (on or off, when, where, for whom, send now), whether a
@@ -7,11 +7,12 @@
  * Inputs     : state.settings["people.digest"] (GET /api/settings), PATCH
  *              /api/settings {"people.digest": {...}}, GET/PUT /api/people/settings,
  *              POST /api/people/{id}/day/send; backups in settings_backup.js.
- * Outputs    : The #fp-settings-people section. Every control saves as it changes,
+ * Outputs    : #fp-settings-people (summary), #fp-settings-alerts-left (left-behind alert)
+ *              and #fp-settings-backup-db (database backup). Every control saves as it changes,
  *              like the rest of the dialog, and says "Saved." or why not.
  * Constraints: createElement/textContent only. Turning the last person off turns the
- *              summary off rather than meaning "everyone". The summary and alert
- *              honesty sentences are shown verbatim. purge() empties the section.
+ *              summary off rather than meaning "everyone". The alert-delay and stale
+ *              sentences live once, in the Notices section. purge() empties all three.
  */
 "use strict";
 
@@ -27,7 +28,7 @@ const JSON_HEADERS = { "Content-Type": "application/json" };
 
 let digest = { ...DEFAULTS };
 let people = [];
-let status = null;
+let hosts = [];
 
 function el(tag, cls, text) {
   const node = document.createElement(tag);
@@ -36,7 +37,15 @@ function el(tag, cls, text) {
   return node;
 }
 
-const say = (text, kind) => { if (status) { status.textContent = text; status.className = `person-status${kind ? ` person-status--${kind}` : ""}`; } };
+/** A polite status line plus the function that writes to it. */
+function statusLine() {
+  const node = el("p", "person-status");
+  node.setAttribute("role", "status");
+  const write = (text, kind) => { node.textContent = text; node.className = `person-status${kind ? ` person-status--${kind}` : ""}`; };
+  return [node, write];
+}
+
+let say = () => {};
 
 async function patchDigest(change, undo) {
   try {
@@ -131,7 +140,7 @@ function digestControls() {
   return box;
 }
 
-async function leftBehindControls() {
+async function leftBehindControls(sayLeft) {
   const box = el("div", "person-left");
   let on = true;
   try { on = Boolean((await api("/api/people/settings")).left_behind_alerts); } catch (_) { /* default on */ }
@@ -141,40 +150,48 @@ async function leftBehindControls() {
       markSaved();
     } catch (err) {
       b.checked = !b.checked;
-      if (err.message !== "Locked") say(t("person.settings.leftFailed", { message: err.message }), "err");
+      if (err.message !== "Locked") sayLeft(t("person.settings.leftFailed", { message: err.message }), "err");
     }
   });
   box.append(row.row, el("p", "modal-note", t("person.settings.leftNote")));
   return box;
 }
 
-/** Fill the section (called each time the Settings dialog opens). */
+/** Fill the People, Alerts and Backups sections (called each time the Settings dialog opens). */
 export async function loadPeopleSettings() {
   const host = $("fp-settings-people");
+  const alertsHost = $("fp-settings-alerts-left");
+  const backupHost = $("fp-settings-backup-db");
   if (!host) return;
   digest = { ...DEFAULTS, ...((state.settings && state.settings["people.digest"]) || {}) };
   try { people = await fetchPeople(); } catch (_) { people = []; }
-  status = el("p", "person-status");
-  status.setAttribute("role", "status");
+  const [peopleStatus, sayPeople] = statusLine();
+  const [alertsStatus, sayAlerts] = statusLine();
+  const [backupStatus, sayBackup] = statusLine();
+  say = sayPeople;
+  hosts = [host, alertsHost, backupHost];
   host.replaceChildren(
-    el("h3", "", t("person.settings.heading")),
+    el("h3", "", t("settings.peopleHeading")),
     el("h4", "ps-sub", t("person.settings.digestTitle")),
     el("p", "modal-note", t("person.settings.digestNote")),
     el("p", "modal-note", t("person.settings.digestLocked")),
     digestControls(),
-    el("h4", "ps-sub", t("person.settings.leftTitle")),
-    await leftBehindControls(),
-    await backupSection(say),
-    status,
-    el("p", "modal-note", t("honesty.alertsLatency")),
-    el("p", "modal-note", t("honesty.presenceStale")),
+    peopleStatus,
   );
+  if (alertsHost) {
+    alertsHost.replaceChildren(
+      el("h4", "ps-sub", t("person.settings.leftTitle")),
+      await leftBehindControls(sayAlerts),
+      alertsStatus,
+    );
+  }
+  if (backupHost) backupHost.replaceChildren(await backupSection(sayBackup), backupStatus);
 }
 
 /** Lock purge: person names must not stay in the closed dialog. */
 export function purgePeopleSettings() {
-  const host = $("fp-settings-people");
-  if (host) host.replaceChildren();
+  for (const host of hosts) if (host) host.replaceChildren();
+  hosts = [];
   people = [];
-  status = null;
+  say = () => {};
 }

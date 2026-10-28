@@ -29,6 +29,7 @@ import { api, postJson } from "../api.js";
 import { state, showAlert } from "../state.js";
 import { t } from "../i18n.js";
 import { saveDraft, restoreDraft } from "./wizard_drafts.js";
+import { closeButton } from "./wizard_close.js";
 
 const LAST_STEP_ROUTE = "/api/settings/onboarding.last_step";
 const COMPLETED_ROUTE = "/api/settings/onboarding.completed_at";
@@ -70,12 +71,10 @@ export class Wizard {
   buildChrome() {
     this.mount.textContent = "";
 
-    this.skipAll = document.createElement("button");
-    this.skipAll.type = "button";
-    this.skipAll.id = "fp-wizard-skip-all";
-    this.skipAll.className = "fp-wizard-skip";
-    this.skipAll.textContent = t(this.rerun ? "setup.close_rerun" : "setup.skip_all");
-    this.skipAll.addEventListener("click", () => this.guard(() => this.complete()));
+    // U38: an icon button (X); the words ride on its aria-label and tooltip.
+    this.skipAll = closeButton(t(this.rerun ? "setup.close_rerun" : "setup.skip_all"), () =>
+      this.guard(() => this.complete())
+    );
 
     this.buildProgress();
 

@@ -41,6 +41,12 @@ function renderSummary(providers, ctx) {
   // say so, because Devices will list trackers that cannot show a position.
   summary.textContent = locked ? `${who} ${t("setup.signin.locked")}` : who;
   hint.hidden = signedIn.length > 0;
+  // U38: a held Next names its reason for assistive tech, not only on screen.
+  const next = document.getElementById("fp-wizard-next");
+  if (next) {
+    if (signedIn.length) next.removeAttribute("aria-describedby");
+    else next.setAttribute("aria-describedby", hint.id);
+  }
   if (ctx.setNextEnabled) ctx.setNextEnabled(signedIn.length > 0);
 }
 

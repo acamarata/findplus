@@ -20,14 +20,15 @@ import { api } from "./api.js";
 import { uniqueLabel } from "./device_label.js";
 import { t, plural } from "./i18n.js";
 import { renderBadge } from "./components/badge.js";
+import { button, styleAsButton } from "./components/button.js";
 import { markForLinks } from "./person_links.js";
 import { showAddDialog, openEditDialog } from "./groups_dialog.js";
 import { loadGroups, selectGroupById, clearGroup, isGroupSelected } from "./groups.js";
 import { verdictLabel, verdictTitle } from "./groups_presence_render.js";
 import { confirmDialog, alertDialog } from "./components/confirm-dialog.js";
 import { metaLine, explainSlot, fillExplanation } from "./groups_card_meta.js";
-import { fillWhereNow, isPerson, personMeta } from "./groups_person_card.js";
-import { openPersonEditor } from "./person_editor.js";
+import { isPerson } from "./groups_person_card.js";
+import { mountPeopleCards, renderPeopleCards, purgePeopleCards } from "./people_cards.js";
 
 /** Avatars shown before the grid collapses the rest into a "+N" chip. */
 const MAX_AVATARS = 6;
@@ -36,9 +37,11 @@ let listEl = null;
 
 export async function init(container) {
   listEl = container;
+  mountPeopleCards();
   const addBtn = document.getElementById("fp-add-group-btn");
   if (addBtn) {
     addBtn.textContent = t("groups.add_button");
+    styleAsButton(addBtn, { icon: "plus", variant: "secondary" });
     addBtn.addEventListener("click", showAddDialog);
   }
   // No loadCards() here: groups.js's init() calls loadGroups() immediately
@@ -65,13 +68,10 @@ function span(className, text) {
   return el;
 }
 
-function cardButton(className, label, ariaLabel, onClick) {
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = className;
-  btn.textContent = label;
-  btn.setAttribute("aria-label", ariaLabel);
-  btn.addEventListener("click", onClick);
+/** A card button on the 1.3 button system; `hook` keeps the legacy class tests and CSS use. */
+function cardButton(hook, label, ariaLabel, onClick, { icon, variant = "secondary" } = {}) {
+  const btn = button({ label, icon, variant, size: "sm", onClick, attrs: { "aria-label": ariaLabel } });
+  btn.classList.add(hook);
   return btn;
 }
 
@@ -83,7 +83,7 @@ function cardButton(className, label, ariaLabel, onClick) {
  * between the two fetches) still renders: the badge falls back rather than
  * throwing and taking the whole grid with it.
  */
-function memberAvatars(group, devicesById) {
+export function memberAvatars(group, devicesById) {
   const wrap = span("fp-card-members");
   group.members.slice(0, MAX_AVATARS).forEach((member) => {
     const device = devicesById.get(member.device_id);
@@ -121,7 +121,7 @@ function memberAvatars(group, devicesById) {
 function onCardClick(event, group) {
   if (event.target.closest("button, a")) return;
   selectGroupById(group.id);
-  const tab = document.querySelector('button.fp-tab[data-tab="groups"]');
+  const tab = document.querySelector('button.fp-tab[data-tab="people"]');
   // Reuses main.js's own tab handler rather than reimplementing switchTab.
   if (tab && !tab.classList.contains("active")) tab.click();
 }
@@ -135,24 +135,21 @@ function renderCard(group, devicesById) {
   icon.appendChild(
     renderBadge({ icon: group.icon, color: group.color, label: null, name: group.name, size: 24 }),
   );
-  // UAT3 N24: Edit and Delete were two separate flex-wrap items, so a narrow
-  // card could wrap between them (Edit alone on one line, Delete on the
-  // next) instead of together. One wrapper makes them a single item: they
-  // wrap as a pair or not at all, like the dashboard's .export-group (U26).
+  // UAT3 N24: Edit and Delete are one flex item, so they wrap as a pair or not at all.
   const actions = document.createElement("div");
   actions.className = "fp-card-actions";
   actions.append(
-    cardButton("fp-card-edit btn-tiny btn-secondary", t("common.edit"), t("groups.card.edit", { name: group.name }),
-      () => (isPerson(group) ? openPersonEditor(group.id, loadGroups) : openEditDialog(group.id, group))),
-    cardButton("fp-card-delete btn-tiny btn-secondary", t("common.delete"), t("groups.card.delete", { name: group.name }),
-      () => onDelete(group)),
+    cardButton("fp-card-edit", t("common.edit"), t("groups.card.edit", { name: group.name }),
+      () => openEditDialog(group.id, group), { icon: "pencil" }),
+    cardButton("fp-card-delete", t("common.delete"), t("groups.card.delete", { name: group.name }),
+      () => onDelete(group), { icon: "trash-2", variant: "danger" }),
   );
   card.append(
     icon,
     markForLinks(span("fp-card-name", group.name)),
     memberAvatars(group, devicesById),
-    isPerson(group) ? personMeta(group) : metaLine(group, devicesById),
-    ...(isPerson(group) ? [] : [span("fp-card-verdict")]),
+    metaLine(group, devicesById),
+    span("fp-card-verdict"),
     actions,
     explainSlot(),
   );
@@ -200,7 +197,7 @@ async function countGroupRules(id) {
   }
 }
 
-async function onDelete(group) {
+export async function onDelete(group) {
   const ruleCount = await countGroupRules(group.id);
   const confirmed = await confirmDialog({
     title: t("groups.confirm.delete", { name: group.name }),
@@ -229,19 +226,21 @@ export async function loadCards() {
   if (!listEl) return;
   const [groups, devicesResp] = await Promise.all([api("/api/groups"), api("/api/devices")]);
   const devicesById = new Map(devicesResp.devices.map((d) => [d.device_id, d]));
+  // People and pets draw in the People section (people_cards.js); this list is the other groups.
+  renderPeopleCards(groups.filter(isPerson), devicesById);
+  const others = groups.filter((g) => !isPerson(g));
   clearList();
-  if (groups.length === 0) {
+  if (others.length === 0) {
     const empty = document.createElement("p");
     empty.className = "fp-empty-state";
-    empty.textContent = t("groups.empty");
+    empty.textContent = t(groups.length === 0 ? "groups.empty" : "peoplePane.noGroups");
     listEl.appendChild(empty);
     return;
   }
-  groups.forEach((group) => {
+  others.forEach((group) => {
     const card = renderCard(group, devicesById);
     listEl.appendChild(card);
-    if (isPerson(group)) fillWhereNow(card, group);
-    else fetchVerdict(card, group.id).catch(() => showVerdictUnavailable(card));
+    fetchVerdict(card, group.id).catch(() => showVerdictUnavailable(card));
   });
 }
 
@@ -254,4 +253,5 @@ export async function loadCards() {
  */
 export function purgeCards() {
   if (listEl) clearList();
+  purgePeopleCards();
 }

@@ -17,12 +17,13 @@
 import { api } from "./api.js";
 import { t } from "./i18n.js";
 import { createIconPicker } from "./components/icon-picker.js";
-import { createColorPicker } from "./components/color-picker.js";
+import { createColorPicker, DEVICE_PALETTE } from "./components/color-picker.js";
 import { pickerRow, renderIconPreview, renderColorPreview } from "./groups_dialog_dom.js";
 import { labeled } from "./groups_dialog_fields.js";
 import { buildMembers } from "./person_editor_members.js";
 import { saveTracker } from "./person_api.js";
 import { duplicateNameMessage } from "./dialog_errors.js";
+import { refreshPersonColours } from "./person_colours.js";
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
 const send = (method, path, body) => api(path, { method, headers: JSON_HEADERS, body: JSON.stringify(body) });
@@ -84,7 +85,7 @@ function build() {
   error.className = "fp-dialog-error"; error.id = "fp-person-error"; error.setAttribute("role", "alert");
   const footer = document.createElement("footer");
   footer.append(btn(t("common.save"), "btn", onSave), btn(t("common.cancel"), "btn-secondary", () => d.close()));
-  form.append(title, labeled(t("groups.field.name"), name, name.id), kind.set, iconRow.wrap, colorRow.wrap, holder, error, footer);
+  form.append(title, labeled(t("groups.field.name"), name, name.id), iconRow.wrap, colorRow.wrap, kind.set, holder, error, footer);
   d.appendChild(form);
   ui = { title, name, icon, color, iconBtn: iconRow.btn, iconHost: iconRow.host, colorBtn: colorRow.btn, colorHost: colorRow.host, kind: kind.inputs, holder, error, pickers: null };
   iconRow.btn.addEventListener("click", () => togglePopover(ui.iconHost, ui.colorHost));
@@ -108,7 +109,7 @@ function mountPickers() {
 }
 
 function fill(person, devices, people) {
-  ui.title.textContent = t("person.edit.title", { name: person.name });
+  ui.title.textContent = person.id ? t("person.edit.title", { name: person.name }) : t("person.edit.createTitle");
   ui.name.value = person.name;
   ui.icon.value = person.icon || "lucide:user";
   ui.color.value = person.color || "#27ae60";
@@ -123,7 +124,15 @@ function fill(person, devices, people) {
   ui.holder.replaceChildren(members.fieldset);
 }
 
+async function createAll(picked) {
+  const kind = ui.kind.pet.checked ? "pet" : "person";
+  const roles = Object.fromEntries(picked.map((x) => [x.device_id, x.role]));
+  await send("POST", "/api/people", { name: ui.name.value.trim(), kind, color: ui.color.value, icon: ui.icon.value, member_ids: picked.map((x) => x.device_id), roles });
+  for (const x of picked.filter((p) => p.carry_weight != null)) await saveTracker(x.device_id, { role: x.role, carry_weight: x.carry_weight });
+}
+
 async function writeAll(picked) {
+  if (!current.id) return createAll(picked);
   const id = current.id;
   const kind = ui.kind.pet.checked ? "pet" : "person";
   await send("PATCH", `/api/people/${id}`, { name: ui.name.value.trim(), kind, color: ui.color.value, icon: ui.icon.value });
@@ -132,12 +141,18 @@ async function writeAll(picked) {
   for (const x of picked.filter((p) => p.changed)) await saveTracker(x.device_id, { role: x.role, carry_weight: x.carry_weight });
 }
 
+function focusStart(which) {
+  const target = which === "icon" ? ui.iconBtn : which === "colour" ? ui.colorBtn : ui.name;
+  target.focus();
+}
+
 async function onSave() {
   const picked = members.collect();
   if (!ui.name.value.trim()) { ui.error.textContent = t("groups.error.name_required"); ui.name.focus(); return; }
   if (!picked.length) { ui.error.textContent = t("person.edit.needOne"); return; }
   try {
     await writeAll(picked);
+    refreshPersonColours(); // the map rings follow a new colour or new trackers
     dlg.close();
     if (saved) await saved();
   } catch (err) {
@@ -146,14 +161,43 @@ async function onSave() {
   }
 }
 
-/** Open the editor for person `id`; `onSaved` runs after a successful save. */
-export async function openPersonEditor(id, onSaved) {
+/**
+ * Open the editor for person `id`; `onSaved` runs after a successful save.
+ * `opts.focus` = "icon" | "colour" puts focus on that picker's button (the
+ * person avatar opens the editor this way); the default focuses the name.
+ */
+export async function openPersonEditor(id, onSaved, opts = {}) {
   saved = onSaved || null;
   try {
     const [person, devices, people] = await Promise.all([api(`/api/people/${id}`), api("/api/devices"), api("/api/people")]);
     current = person;
     if (!dlg) dlg = build();
     fill(person, devices.devices || [], people);
+    dlg.showModal();
+    focusStart(opts.focus);
+  } catch (err) {
+    if (err.message !== "Locked") throw err;
+  }
+}
+
+/** Palette colour no person uses yet (the first one when all twelve are taken). */
+function unusedColor(people) {
+  const used = new Set(people.map((p) => (p.color || "").toLowerCase()));
+  return DEVICE_PALETTE.find((c) => !used.has(c)) || DEVICE_PALETTE[0];
+}
+
+/**
+ * Open the editor empty, to add a person or pet (the app bar's Add > Person).
+ * The new person starts with the first palette colour no one has; `onSaved`
+ * runs after the POST succeeds.
+ */
+export async function openPersonCreate(onSaved) {
+  saved = onSaved || null;
+  try {
+    const [devices, people] = await Promise.all([api("/api/devices"), api("/api/people")]);
+    current = { id: null, name: "", kind: "person", icon: "lucide:user", color: unusedColor(people), trackers: [] };
+    if (!dlg) dlg = build();
+    fill(current, devices.devices || [], people);
     dlg.showModal();
     ui.name.focus();
   } catch (err) {

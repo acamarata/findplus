@@ -16,6 +16,7 @@
 "use strict";
 
 import { t, plural } from "./i18n.js";
+import { button } from "./components/button.js";
 
 /** Per-device track colours, chosen to stay distinguishable on OSM tiles. */
 export const TRACK_COLORS = [
@@ -224,27 +225,42 @@ export function colorFor(deviceId) {
   return state.colors.get(deviceId);
 }
 
+/** Banner keys the person dismissed this session (extra.dismissKey). */
+const dismissedAlerts = new Set();
+
 /**
  * The banner under the cards. `extra` is optional: `action` ({label, run})
- * adds one in-app button after the sentence, and `hint` a smaller secondary
+ * adds one in-app button after the sentence, `details` a folded "Details" line, `dismissKey` a close
+ * button that hides that banner for the session, and `hint` a smaller secondary
  * line (UAT6-N06/N07: the fix a user can make in the app comes first, a
  * terminal command only ever as that secondary hint). Kind "info" is the calm
  * blue banner for work in progress; `busy` adds a spinner to it.
  */
 export function showAlert(message, kind, extra = {}) {
   const el = $("alert");
-  if (!message) { el.classList.add("hidden"); el.textContent = ""; return; }
+  if (!message || dismissedAlerts.has(extra.dismissKey)) { el.classList.add("hidden"); el.textContent = ""; return; }
   const text = document.createElement("span");
   text.className = "alert-text";
   text.textContent = message;
   el.replaceChildren(text);
   if (extra.action) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "btn btn-tiny alert-action";
-    btn.textContent = extra.action.label;
-    btn.addEventListener("click", extra.action.run);
-    el.appendChild(btn);
+    el.appendChild(button({ label: extra.action.label, size: "sm", onClick: extra.action.run, attrs: { class: "fp-btn fp-btn--secondary fp-btn--sm alert-action" } }));
+  }
+  if (extra.dismissKey) {
+    const close = button({ label: t("common.dismiss"), iconOnly: true, variant: "ghost", size: "sm",
+      attrs: { class: "fp-btn fp-btn--ghost fp-btn--sm fp-btn--icon alert-dismiss" },
+      onClick: () => { dismissedAlerts.add(extra.dismissKey); el.classList.add("hidden"); } });
+    close.textContent = "\u00d7";
+    el.appendChild(close);
+  }
+  if (extra.details) {
+    const box = document.createElement("details");
+    box.className = "alert-details";
+    const [sum, body] = ["summary", "p"].map((tag) => document.createElement(tag));
+    sum.textContent = t("common.details");
+    body.textContent = extra.details;
+    box.append(sum, body);
+    el.appendChild(box);
   }
   if (extra.hint) {
     const hint = document.createElement("span");

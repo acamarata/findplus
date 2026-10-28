@@ -7,7 +7,7 @@ from __future__ import annotations
 import pytest
 
 from ._person_helpers import ensure_person, open_person
-from ._trips_helpers import open_day
+from ._trips_helpers import focus_sightings, open_day
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 REASON = "looks wrong"
@@ -39,6 +39,7 @@ async def test_toggle_hides_and_restores_and_is_remembered(trips_page, trips_ser
     await p.evaluate(
         f"import('/static/app/timeline.js').then(m => m.loadDay('{trips_server['days']['gap']}'))"
     )
+    await focus_sightings(p)
     await p.wait_for_selector(".tl-item")
     assert not await p.is_checked("#toggle-suspect"), "remembered in this browser"
     await p.check("#toggle-suspect")

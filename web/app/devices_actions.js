@@ -23,6 +23,7 @@ import { $, state, showAlert } from "./state.js";
 import { postJson } from "./api.js";
 import { reload } from "./main.js";
 import { t } from "./i18n.js";
+import { setButtonLabel } from "./components/button.js";
 import { shortStatus } from "./poll_status.js";
 import { bannerRun, pollingMessage } from "./poll_cycle.js";
 import { loadDevices, renderDeviceModal, closeDevices, providerWording } from "./devices.js";
@@ -49,7 +50,7 @@ let cooldownTimer = null;
 function startCooldown(btn, ms) {
   cooldownUntil = Date.now() + ms;
   btn.disabled = true;
-  btn.textContent = t("common.btnPoll");
+  setButtonLabel(btn, t("common.btnPoll"));
   btn.dataset.cooling = "1";
   if (cooldownTimer) clearTimeout(cooldownTimer);
   cooldownTimer = setTimeout(() => {
@@ -107,7 +108,7 @@ export async function pollNow() {
   const btn = $("btn-poll");
   if (Date.now() < cooldownUntil) return;
   btn.disabled = true;
-  btn.textContent = t("devices.pollingLabel");
+  setButtonLabel(btn, t("devices.pollingLabel"));
   // Set before the request even starts (not just once startCooldown() runs
   // after it): `await reload()` below calls loadStatus() itself, and a
   // status_view.js resync mid-request must not read "not cooling" and
@@ -141,7 +142,7 @@ export async function pollNow() {
     } else {
       delete btn.dataset.cooling;
       btn.disabled = false;
-      btn.textContent = t("common.btnPoll");
+      setButtonLabel(btn, t("common.btnPoll"));
     }
   }
 }

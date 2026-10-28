@@ -30,6 +30,7 @@ import sys
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 SUBSET = REPO_ROOT / "packaging" / "data" / "lucide-subset.json"
 VENDOR_DIR = REPO_ROOT / "packaging" / "vendor" / "lucide"
+UI_ICONS = REPO_ROOT / "packaging" / "data" / "ui-icons.json"
 OUTPUT = REPO_ROOT / "web" / "icons.svg"
 
 _SVG_RE = re.compile(r"<svg\b([^>]*)>(.*)</svg>", re.DOTALL)
@@ -59,6 +60,9 @@ def render() -> tuple[str, int]:
     """Return the whole sprite document and how many symbols it holds."""
     entries = json.loads(SUBSET.read_text(encoding="utf-8"))
     symbols = [_symbol(e["id"].split(":", 1)[1], e["group"]) for e in entries]
+    # Button-system icons (1.3): drawn in the UI, never offered as badge icons, never
+    # listed by the API/CLI icon table, so they live outside the pinned 49-icon subset.
+    symbols += [_symbol(name, "ui") for name in json.loads(UI_ICONS.read_text(encoding="utf-8"))]
     # UAT2 N3: `style="display:none"` used to hide this root inline -- the
     # page's CSP has no 'unsafe-inline' in style-src, so the browser applies
     # neither the hiding NOR silence: it drops the attribute and logs a

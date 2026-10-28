@@ -9,8 +9,17 @@ a Retry that recovers once the API answers again.
 from __future__ import annotations
 
 import pytest
+import pytest_asyncio
+
+from ._latest_helpers import PARK_BODY
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
+
+
+@pytest_asyncio.fixture(autouse=True, loop_scope="session")
+async def _activity_body(page):
+    """The all-trackers day body is no pane of its own in 1.3: show the legacy body in Latest."""
+    await page.add_init_script(PARK_BODY)
 
 
 async def _fail(route):
@@ -25,6 +34,7 @@ async def test_failed_timeline_load_clears_the_old_rows_and_retries(page, base_u
     pane = page.locator("#tracks [data-pane-error]")
     await pane.wait_for()
     assert await page.locator("#tracks .track-block").count() == 0
+    await pane.locator("summary").click()
     assert "boom" in await pane.inner_text()
     await page.unroute("**/api/timeline*", _fail)
     await pane.get_by_role("button", name="Retry").click()
@@ -46,9 +56,11 @@ async def test_background_failure_keeps_the_same_selection_rows(page, base_url):
 async def test_groups_tab_shows_error_and_retry(page, base_url):
     await page.route("**/api/groups", _fail)
     await page.goto(base_url + "/")
-    await page.click('button[data-tab="groups"]')
+    await page.click('button[data-tab="people"]')
     pane = page.locator("#fp-groups-list [data-pane-error]")
     await pane.wait_for()
+    assert "Find+ could not load your groups. Try again." in await pane.inner_text()
+    await pane.locator("summary").click()
     assert "boom" in await pane.inner_text()
     assert await page.locator("#fp-groups-tab-hint").is_hidden()
     await page.unroute("**/api/groups", _fail)
@@ -61,10 +73,10 @@ async def test_presence_failure_clears_the_old_verdict(page, base_url):
     await page.goto(base_url + "/")
     await page.wait_for_selector("#fp-group-select")
     await page.select_option("#fp-group-select", label="Family")
-    await page.click('button[data-tab="groups"]')
+    await page.click('button[data-tab="people"]')
     await page.wait_for_selector("#fp-presence-panel .fp-verdict")
     await page.route("**/api/groups/*/presence*", _fail)
-    await page.click('button[data-tab="groups"]')
+    await page.click('button[data-tab="people"]')
     await page.select_option("#fp-group-select", "")
     await page.select_option("#fp-group-select", label="Family")
     pane = page.locator("#fp-presence-panel [data-pane-error]")

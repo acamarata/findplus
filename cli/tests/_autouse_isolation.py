@@ -9,6 +9,22 @@ import os
 
 import pytest
 
+DEFAULT_STATE_DIR = "/tmp/findplus-tests-state"
+
+
+def per_worker_state_dir(config: pytest.Config) -> None:
+    """Give each pytest-xdist worker its own state dir (called from pytest_configure).
+
+    The poller wake/reset flag files live in the state dir, and a directory shared by
+    parallel workers lets one worker's poller test consume or delete another's flag.
+    PYTEST_XDIST_WORKER is not in the environment yet when conftest.py is imported, so
+    the worker id comes from config.workerinput. A serial run, or a state dir the caller
+    set on purpose, is left alone.
+    """
+    worker = getattr(config, "workerinput", {}).get("workerid")
+    if worker and os.environ.get("FINDPLUS_STATE_DIR") == DEFAULT_STATE_DIR:
+        os.environ["FINDPLUS_STATE_DIR"] = f"{DEFAULT_STATE_DIR}-{worker}"
+
 
 @pytest.fixture(autouse=True)
 def _clear_poller_flag_files() -> None:

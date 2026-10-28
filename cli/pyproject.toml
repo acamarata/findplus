@@ -63,7 +63,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "pytest>=8.3", "pytest-asyncio>=0.24", "pytest-cov>=5",
+  "pytest>=8.3", "pytest-asyncio>=0.24", "pytest-cov>=5", "pytest-xdist>=3.6",
   "ruff>=0.8", "freezegun>=1.5", "playwright>=1.63",
   "build", "twine", "pyyaml", "shellcheck-py", "Pillow>=10",
   # MPL-2.0 (it bundles the axe-core engine). Dev/test only, per phase.yaml's

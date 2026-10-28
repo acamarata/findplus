@@ -1,22 +1,35 @@
 name: CI
 
+# One run per change: a branch with an open PR is tested by the PR run only
+# (the old "**" push trigger ran every lane twice). Pushes to main still run in
+# full, and workflow_dispatch covers a branch with no PR.
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+# A newer push to the same PR cancels the run in flight. Runs on main are never
+# cancelled, so every main commit keeps a complete record.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: cli/pyproject.toml
       - run: pip install '.[dev]'
         working-directory: cli
       - run: ruff check cli/src cli/tests
@@ -25,49 +38,79 @@ jobs:
       - run: shellcheck install.sh packaging/scripts/*.sh
       - run: bash packaging/scripts/lint-prose.sh README.md .github/wiki/*.md
 
+  # PRs run ubuntu 3.12 (with the coverage gate) and macos 3.12. The full
+  # matrix (3.13 on both OSes, 3.14 experimental) runs on pushes to main and on
+  # manual dispatch, so a version-specific break is caught right after merge.
   test:
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
     strategy:
       fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        python-version: ["3.12", "3.13"]
-        include:
-          - os: ubuntu-latest
-            python-version: "3.14"
-            experimental: true
+      matrix: ${{ fromJSON(github.event_name == 'pull_request'
+        && '{"include":[{"os":"ubuntu-latest","python-version":"3.12","cov":true},{"os":"macos-latest","python-version":"3.12"}]}'
+        || '{"include":[{"os":"ubuntu-latest","python-version":"3.12","cov":true},{"os":"ubuntu-latest","python-version":"3.13"},{"os":"macos-latest","python-version":"3.12"},{"os":"macos-latest","python-version":"3.13"},{"os":"ubuntu-latest","python-version":"3.14","experimental":true}]}') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: cli/pyproject.toml
       # apple: the findmy contract tests (tests/providers/test_apple_findmy_contract.py)
       # and every Apple behaviour test run against the installed library and
       # skip without it, so this lane installs the extra they pin.
-      - run: pip install '.[dev,apple]'
+      # The coverage cell installs editable so the report maps to cli/src.
+      - run: pip install ${{ matrix.cov && '-e' || '' }} '.[dev,apple]'
         working-directory: cli
         continue-on-error: ${{ matrix.experimental == true }}
-      - run: python -m pytest cli/tests -q -m "not browser and not slow"
+      - if: ${{ !matrix.cov }}
+        run: python -m pytest cli/tests -q -n auto -m "not browser and not slow"
         continue-on-error: ${{ matrix.experimental == true }}
+      # Coverage is measured on the same run as the tests, not a second serial
+      # pass over the whole suite.
+      - if: ${{ matrix.cov }}
+        run: python -m pytest cli/tests -q -n auto -m "not browser and not slow" --cov=findplus --cov-report=lcov:coverage/lcov.info --cov-report=term
+      - if: ${{ matrix.cov }}
+        run: coverage report --fail-under=95 --include='*/findplus/places/geofence.py,*/findplus/groups/presence.py,*/findplus/groups/quorum.py,*/findplus/alerts/dispatch.py,*/findplus/alerts/dispatch_core.py,*/findplus/alerts/dispatch_events.py,*/findplus/alerts/dispatch_send.py,*/findplus/alerts/dispatch_targets.py,*/findplus/alerts/rule_telegram_targets.py,*/findplus/alerts/channels_field.py,*/findplus/alerts/targets.py,*/findplus/alerts/retry.py,*/findplus/alerts/retry_classify.py,*/findplus/alerts/dryrun.py,*/findplus/alerts/default_rules.py,*/findplus/alerts/dispatch_left_behind.py,*/findplus/alerts/dispatch_types.py,*/findplus/alerts/group_event_rows.py,*/findplus/alerts/render_person.py,*/findplus/alerts/dispatch_gate.py'
+      - if: ${{ matrix.cov }}
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          files: ./coverage/lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
   test-windows:
     runs-on: windows-latest
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: cli/pyproject.toml
       - run: pip install '.[dev]'
         working-directory: cli
-      - run: python -m pytest cli/tests -q -m "not browser and not slow"
+      - run: python -m pytest cli/tests -q -n auto -m "not browser and not slow"
 
+  # Four runners, each a quarter of the browser test files (tests/_shard.py);
+  # setup is about a minute, so the lane scales close to linearly.
   browser:
     runs-on: macos-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    env:
+      FINDPLUS_TEST_SHARD: ${{ matrix.shard }}/4
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: cli/pyproject.toml
       # apple: test_auth_accessories.py's happy-path test hits the real
       # /api/apple/* routes (no mock); without findmy installed the daemon
       # answers 503 and the test hangs waiting on a status update that never
@@ -75,17 +118,22 @@ jobs:
       - run: pip install '.[dev,apple]'
         working-directory: cli
       - run: playwright install chromium
-      - run: python -m pytest cli/tests -q -m browser --ignore=cli/tests/ui/test_a11y.py
+      # Reruns absorb load-induced Playwright timeouts on busy runners
+      # (run 40678063243); a test that fails 3 times in a row still fails.
+      - run: python -m pytest cli/tests -q -m browser --ignore=cli/tests/ui/test_a11y.py --reruns 2 --reruns-delay 2
 
   # The axe-core scan gets its own lane so an accessibility regression is not
   # reported as "the browser suite failed" (specs/release-1.1.md 1.4).
   a11y:
     runs-on: macos-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: cli/pyproject.toml
       - run: pip install '.[dev]'
         working-directory: cli
       - run: playwright install chromium
@@ -95,11 +143,14 @@ jobs:
   # stale icon sprite and a stale API reference are two separate red jobs.
   icon-i18n-drift:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: cli/pyproject.toml
       - run: pip install '.[dev]'
         working-directory: cli
       - run: |
@@ -119,6 +170,7 @@ jobs:
   # resolve before any test runs.
   notify-rust-tests:
     runs-on: macos-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: bash packaging/scripts/stage-sidecar-stub.sh
@@ -126,6 +178,7 @@ jobs:
 
   wheel-smoke:
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
@@ -134,6 +187,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: cli/pyproject.toml
       - run: pip install build
       - run: python -m build --wheel
         working-directory: cli
@@ -142,11 +197,14 @@ jobs:
 
   sidecar-smoke:
     runs-on: macos-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: cli/pyproject.toml
       - run: pip install '.[dev,bundle,apple]'
         working-directory: cli
       - run: pyinstaller packaging/pyinstaller/findplus-daemon.spec --noconfirm
@@ -159,6 +217,7 @@ jobs:
 
   desktop:
     runs-on: macos-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: bash packaging/scripts/stage-sidecar-stub.sh
@@ -169,11 +228,14 @@ jobs:
 
   docs-drift:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: cli/pyproject.toml
       - run: pip install '.[dev]'
         working-directory: cli
       - run: |
@@ -184,25 +246,9 @@ jobs:
           git diff --exit-code .github/wiki/API-reference.md || (echo 'API-reference.md is stale' && exit 1)
       - run: bash packaging/scripts/lint-prose.sh README.md
 
-  coverage:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
-      - run: pip install -e '.[dev]'
-        working-directory: cli
-      - run: python -m pytest cli/tests -q --cov=findplus --cov-report=lcov:coverage/lcov.info --cov-report=term
-      - run: coverage report --fail-under=95 --include='*/findplus/places/geofence.py,*/findplus/groups/presence.py,*/findplus/groups/quorum.py,*/findplus/alerts/dispatch.py,*/findplus/alerts/dispatch_core.py,*/findplus/alerts/dispatch_events.py,*/findplus/alerts/dispatch_send.py,*/findplus/alerts/dispatch_targets.py,*/findplus/alerts/rule_telegram_targets.py,*/findplus/alerts/channels_field.py,*/findplus/alerts/targets.py,*/findplus/alerts/retry.py,*/findplus/alerts/retry_classify.py,*/findplus/alerts/dryrun.py,*/findplus/alerts/default_rules.py,*/findplus/alerts/dispatch_left_behind.py,*/findplus/alerts/dispatch_types.py,*/findplus/alerts/group_event_rows.py,*/findplus/alerts/render_person.py,*/findplus/alerts/dispatch_gate.py'
-      - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
-        with:
-          files: ./coverage/lcov.info
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-
   secret-scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -223,9 +269,10 @@ jobs:
 
   ci-gate:
     needs: [lint, test, test-windows, browser, a11y, icon-i18n-drift, notify-rust-tests,
-            wheel-smoke, sidecar-smoke, desktop, docs-drift, coverage, secret-scan]
+            wheel-smoke, sidecar-smoke, desktop, docs-drift, secret-scan]
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - run: |
           set -eu

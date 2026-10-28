@@ -20,6 +20,7 @@ from tests._autouse_isolation import (  # noqa: F401 (autouse guards)
     per_worker_state_dir,
 )
 from tests._no_browser_launch import no_real_browser  # noqa: F401 (autouse guard)
+from tests._shard import select_shard
 
 # Point every setting at a throwaway location BEFORE findplus.config is imported.
 os.environ.setdefault("FINDPLUS_STATE_DIR", DEFAULT_STATE_DIR)
@@ -34,6 +35,7 @@ def pytest_configure(config: pytest.Config) -> None:
     per_worker_state_dir(config)
 
 
+@pytest.hookimpl(trylast=True)  # after -m/-k deselection, so shards split the selected tests
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Auto-skip `@pytest.mark.posix_only` tests on Windows.
 
@@ -44,6 +46,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     ~15 call sites across several files don't each repeat their own
     `skipif(os.name == "nt", ...)`.
     """
+    select_shard(config, items)  # FINDPLUS_TEST_SHARD="i/n" keeps one CI shard
     if os.name != "nt":
         return
     skip_posix = pytest.mark.skip(reason="POSIX permission bits are not enforced on Windows")

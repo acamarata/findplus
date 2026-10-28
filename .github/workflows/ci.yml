@@ -84,8 +84,16 @@ jobs:
         working-directory: cli
       - run: python -m pytest cli/tests -q -n auto -m "not browser and not slow"
 
+  # Four runners, each a quarter of the browser test files (tests/_shard.py);
+  # setup is about a minute, so the lane scales close to linearly.
   browser:
     runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    env:
+      FINDPLUS_TEST_SHARD: ${{ matrix.shard }}/4
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0

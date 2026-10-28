@@ -72,7 +72,7 @@ def post_accept(body: AcceptBody) -> dict[str, Any]:
 
 
 def get_replay() -> dict[str, Any]:
-    """{state: idle|running|done|failed, done, total}: "Updating past days..."."""
+    """{state: idle|running|done|failed, done, total, failed}: "Updating past days..."."""
     return replay.status()
 
 

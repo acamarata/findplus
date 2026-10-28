@@ -163,6 +163,13 @@ def db_rebuild_derived(force: bool) -> None:
         "Nothing was sent.",
         fg="green",
     )
+    if result.failed:
+        click.secho(
+            f"{result.failed} engine run(s) failed; their events are missing. "
+            "See the log (rebuild_hook_failed) and run this again.",
+            fg="yellow",
+            err=True,
+        )
 
 
 @click.command("import")

@@ -22,11 +22,14 @@ concurrency:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: cli/pyproject.toml
       - run: pip install '.[dev]'
         working-directory: cli
       - run: ruff check cli/src cli/tests
@@ -40,6 +43,7 @@ jobs:
   # manual dispatch, so a version-specific break is caught right after merge.
   test:
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(github.event_name == 'pull_request'
@@ -50,6 +54,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: cli/pyproject.toml
       # apple: the findmy contract tests (tests/providers/test_apple_findmy_contract.py)
       # and every Apple behaviour test run against the installed library and
       # skip without it, so this lane installs the extra they pin.
@@ -75,11 +81,14 @@ jobs:
 
   test-windows:
     runs-on: windows-latest
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: cli/pyproject.toml
       - run: pip install '.[dev]'
         working-directory: cli
       - run: python -m pytest cli/tests -q -n auto -m "not browser and not slow"
@@ -88,6 +97,7 @@ jobs:
   # setup is about a minute, so the lane scales close to linearly.
   browser:
     runs-on: macos-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -99,6 +109,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: cli/pyproject.toml
       # apple: test_auth_accessories.py's happy-path test hits the real
       # /api/apple/* routes (no mock); without findmy installed the daemon
       # answers 503 and the test hangs waiting on a status update that never
@@ -112,11 +124,14 @@ jobs:
   # reported as "the browser suite failed" (specs/release-1.1.md 1.4).
   a11y:
     runs-on: macos-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: cli/pyproject.toml
       - run: pip install '.[dev]'
         working-directory: cli
       - run: playwright install chromium
@@ -126,11 +141,14 @@ jobs:
   # stale icon sprite and a stale API reference are two separate red jobs.
   icon-i18n-drift:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: cli/pyproject.toml
       - run: pip install '.[dev]'
         working-directory: cli
       - run: |
@@ -150,6 +168,7 @@ jobs:
   # resolve before any test runs.
   notify-rust-tests:
     runs-on: macos-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: bash packaging/scripts/stage-sidecar-stub.sh
@@ -157,6 +176,7 @@ jobs:
 
   wheel-smoke:
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
@@ -165,6 +185,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: cli/pyproject.toml
       - run: pip install build
       - run: python -m build --wheel
         working-directory: cli
@@ -173,11 +195,14 @@ jobs:
 
   sidecar-smoke:
     runs-on: macos-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: cli/pyproject.toml
       - run: pip install '.[dev,bundle,apple]'
         working-directory: cli
       - run: pyinstaller packaging/pyinstaller/findplus-daemon.spec --noconfirm
@@ -190,6 +215,7 @@ jobs:
 
   desktop:
     runs-on: macos-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: bash packaging/scripts/stage-sidecar-stub.sh
@@ -200,11 +226,14 @@ jobs:
 
   docs-drift:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: cli/pyproject.toml
       - run: pip install '.[dev]'
         working-directory: cli
       - run: |
@@ -217,6 +246,7 @@ jobs:
 
   secret-scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -240,6 +270,7 @@ jobs:
             wheel-smoke, sidecar-smoke, desktop, docs-drift, secret-scan]
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - run: |
           set -eu

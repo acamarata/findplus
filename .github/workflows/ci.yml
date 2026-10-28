@@ -118,7 +118,9 @@ jobs:
       - run: pip install '.[dev,apple]'
         working-directory: cli
       - run: playwright install chromium
-      - run: python -m pytest cli/tests -q -m browser --ignore=cli/tests/ui/test_a11y.py
+      # Reruns absorb load-induced Playwright timeouts on busy runners
+      # (run 40678063243); a test that fails 3 times in a row still fails.
+      - run: python -m pytest cli/tests -q -m browser --ignore=cli/tests/ui/test_a11y.py --reruns 2 --reruns-delay 2
 
   # The axe-core scan gets its own lane so an accessibility regression is not
   # reported as "the browser suite failed" (specs/release-1.1.md 1.4).
